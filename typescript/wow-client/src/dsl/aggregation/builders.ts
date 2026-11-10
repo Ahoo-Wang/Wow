@@ -17,43 +17,7 @@ import type {
 } from '../filter/index.js';
 import { requireElementScopedFilter } from '../filter/scope.js';
 import { admitAggregationQuery } from './admit.js';
-import { aggregationAlias, aggregationField } from './aliases.js';
-import { havingDsl } from './having.js';
-import {
-  derivedExpressionDsl,
-  type DerivedAggregationMetric,
-  type DerivedExpression,
-  type DerivedExpressionDsl,
-} from './derived.js';
-import {
-  AggregationDatePart,
-  AggregationDateUnit,
-  AggregationGroupType,
-  type DateHistogramAggregationGroup,
-  type DateHistogramAggregationOptions,
-  type DatePartAggregationGroup,
-  type DatePartAggregationOptions,
-  type HistogramAggregationGroup,
-  type HistogramAggregationOptions,
-  type TermsAggregationGroup,
-  type TermsAggregationOptions,
-  groupInput,
-  groupScope,
-} from './groups.js';
-import {
-  AggregationFunction,
-  AggregationMetricType,
-  type AggregationMetricOptions,
-  type AnyAggregationMetric,
-  type EdgeAggregationMetric,
-  type EdgeAggregationOptions,
-  type CountAggregationMetric,
-  type DistinctCountAggregationMetric,
-  type PercentileAggregationMetric,
-  type PercentileAggregationOptions,
-  edge,
-  numeric,
-} from './metrics.js';
+import { aggregationField } from './aliases.js';
 import {
   DateDiffUnit,
   AggregationExpressionOperator,
@@ -66,6 +30,10 @@ import {
   type ConstantAggregationExpression,
   type FieldAggregationExpression,
 } from './types.js';
+import { derivedBuilders } from './derived.js';
+import { groupBuilders } from './groups.js';
+import { havingBuilders } from './having.js';
+import { metricBuilders } from './metrics.js';
 
 function binary<FIELDS extends string>(
   operator: AggregationExpressionOperator,
@@ -75,16 +43,8 @@ function binary<FIELDS extends string>(
   return { type: AggregationExpressionType.BINARY, operator, left, right };
 }
 
-/**
- * Builders of an `AggregationQuery`: its elements, groups, metrics and the
- * arithmetic expressions metrics compute over. Each builder checks its own
- * part and throws a `TypeError` naming what is wrong; {@link aggregation.query}
- * checks the parts against each other.
- *
- * Every group and metric takes its target first, its alias second, and any
- * further options as a trailing object.
- */
-export const aggregation = {
+/** The builders of an aggregation query's elements and expressions, and of the query itself. */
+export const queryBuilders = {
   /**
    * Aggregates over the elements of an array field instead of the root
    * documents. `{ path, filter? }`.
@@ -197,419 +157,6 @@ export const aggregation = {
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.DIVIDE, left, right),
   /**
-   * Groups by each distinct value of a field, or of a computed expression.
-   * `{ type: 'terms', field, alias, missingKey? }`, or
-   * `{ type: 'terms', expression, alias }`.
-   *
-   * @param input - The field to group by, or an expression in its place
-   *   (Wow 9.2 and later, an expensive computation).
-   * @param alias - The name of the group column in the result rows.
-   * @param options.missingKey - The key of the rows without a value; only
-   *   with a field.
-   * @param options.scope - What the field is relative to when the query
-   *   expands elements: `ROOT` groups the elements by a field of their root
-   *   record. Wow 9.9 and later.
-   * @throws TypeError when `input` or `alias` is invalid, `missingKey` is
-   *   blank, or `missingKey` is given with an expression.
-   * @example
-   * ```typescript
-   * aggregation.terms('state.status', 'status', { missingKey: 'NONE' });
-   * aggregation.terms(
-   *   aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.DAY),
-   *   'daysToShip',
-   * );
-   * ```
-   */
-  terms<FIELDS extends string>(
-    input: FIELDS | AggregationExpression<FIELDS>,
-    alias: string,
-    { missingKey, scope }: TermsAggregationOptions = {},
-  ): TermsAggregationGroup<FIELDS> {
-    if (
-      missingKey !== undefined &&
-      (typeof missingKey !== 'string' || !missingKey.trim())
-    ) {
-      throw new TypeError('terms missingKey must not be blank.');
-    }
-    const source = groupInput(input, 'terms');
-    if (missingKey !== undefined && source.expression) {
-      throw new TypeError('terms missingKey requires a field input.');
-    }
-    return {
-      type: AggregationGroupType.TERMS,
-      ...(missingKey === undefined ? {} : { missingKey }),
-      ...source,
-      ...groupScope(scope, 'terms', source),
-      alias: aggregationAlias(alias),
-    };
-  },
-  /**
-   * Groups a number field, or a computed expression, into buckets of equal
-   * width. `{ type: 'histogram', field | expression, interval, alias }`.
-   *
-   * @param input - The number field to bucket, or an expression in its
-   *   place (Wow 9.2 and later, an expensive computation).
-   * @param alias - The name of the bucket column in the result rows.
-   * @param options.interval - The bucket width.
-   * @param options.scope - What the field is relative to when the query
-   *   expands elements: `ROOT` groups the elements by a field of their root
-   *   record. Wow 9.9 and later.
-   * @throws TypeError when `interval` is not finite and greater than 0, or
-   *   `field` or `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.histogram('state.amount', 'amountBand', { interval: 100 });
-   * ```
-   */
-  histogram<FIELDS extends string>(
-    input: FIELDS | AggregationExpression<FIELDS>,
-    alias: string,
-    { interval, scope }: HistogramAggregationOptions,
-  ): HistogramAggregationGroup<FIELDS> {
-    if (!Number.isFinite(interval) || interval <= 0) {
-      throw new TypeError(
-        'histogram interval must be finite and greater than 0.',
-      );
-    }
-    const source = groupInput(input, 'histogram');
-    return {
-      type: AggregationGroupType.HISTOGRAM,
-      ...source,
-      ...groupScope(scope, 'histogram', source),
-      interval,
-      alias: aggregationAlias(alias),
-    };
-  },
-  /**
-   * Groups a time field into calendar buckets.
-   * `{ type: 'date-histogram', field, unit, alias, timeZone, dense? }`.
-   *
-   * @param field - The time field (epoch milliseconds) to bucket.
-   * @param alias - The name of the bucket column in the result rows.
-   * @param options.unit - The calendar unit of a bucket.
-   * @param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.
-   * @param options.dense - Whether the empty buckets of the range are filled
-   *   in.
-   * @param options.scope - What the field is relative to when the query
-   *   expands elements: `ROOT` groups the elements by a field of their root
-   *   record. Wow 9.9 and later.
-   * @throws TypeError when `unit` is not an `AggregationDateUnit`,
-   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
-   *   invalid.
-   * @example
-   * ```typescript
-   * aggregation.dateHistogram('createTime', 'day', {
-   *   unit: AggregationDateUnit.DAY,
-   *   timeZone: 'Asia/Shanghai',
-   * });
-   * ```
-   */
-  dateHistogram<FIELDS extends string>(
-    field: FIELDS,
-    alias: string,
-    { unit, timeZone = 'UTC', dense, scope }: DateHistogramAggregationOptions,
-  ): DateHistogramAggregationGroup<FIELDS> {
-    if (dense !== undefined && typeof dense !== 'boolean') {
-      throw new TypeError('date histogram dense must be boolean.');
-    }
-    if (!Object.values(AggregationDateUnit).includes(unit)) {
-      throw new TypeError('date histogram unit is invalid.');
-    }
-    if (typeof timeZone !== 'string' || !timeZone.trim()) {
-      throw new TypeError('date histogram timeZone cannot be blank.');
-    }
-    return {
-      type: AggregationGroupType.DATE_HISTOGRAM,
-      ...(dense === undefined ? {} : { dense }),
-      field: aggregationField(field),
-      ...groupScope(scope, 'date-histogram', {}),
-      unit,
-      alias: aggregationAlias(alias),
-      timeZone,
-    };
-  },
-  /**
-   * Groups a time field by one calendar part of each instant, such as the
-   * weekday or the hour, so records from different days share a bucket.
-   * `{ type: 'date-part', field, part, alias, timeZone, dense? }`.
-   *
-   * The group's keys in the result rows are integers: `DAY_OF_WEEK` is the
-   * ISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;
-   * `HOUR_OF_DAY` 0 to 23 on the wall clock of `timeZone`; `MONTH_OF_YEAR`
-   * 1 to 12. With `dense`, every key of that domain comes back, those
-   * without records carrying each metric's empty value; `dense` needs the
-   * group to be the query's only one. Wow 9.2 and later.
-   *
-   * @param field - The time field (epoch milliseconds) to read the part of.
-   * @param alias - The name of the part column in the result rows.
-   * @param options.part - The calendar part to group by.
-   * @param options.timeZone - The zone the part is read in. Defaults to
-   *   `UTC`.
-   * @param options.dense - Whether every key of the part's domain is
-   *   returned.
-   * @param options.scope - What the field is relative to when the query
-   *   expands elements: `ROOT` groups the elements by a field of their root
-   *   record. Wow 9.9 and later.
-   * @throws TypeError when `part` is not an `AggregationDatePart`,
-   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
-   *   invalid.
-   * @example
-   * ```typescript
-   * aggregation.datePart('createTime', 'weekday', {
-   *   part: AggregationDatePart.DAY_OF_WEEK,
-   *   timeZone: 'Asia/Shanghai',
-   * });
-   * ```
-   */
-  datePart<FIELDS extends string>(
-    field: FIELDS,
-    alias: string,
-    { part, timeZone = 'UTC', dense, scope }: DatePartAggregationOptions,
-  ): DatePartAggregationGroup<FIELDS> {
-    if (dense !== undefined && typeof dense !== 'boolean') {
-      throw new TypeError('date part dense must be boolean.');
-    }
-    if (!Object.values(AggregationDatePart).includes(part)) {
-      throw new TypeError('date part is invalid.');
-    }
-    if (typeof timeZone !== 'string' || !timeZone.trim()) {
-      throw new TypeError('date part timeZone cannot be blank.');
-    }
-    return {
-      type: AggregationGroupType.DATE_PART,
-      ...(dense === undefined ? {} : { dense }),
-      field: aggregationField(field),
-      ...groupScope(scope, 'date-part', {}),
-      part,
-      alias: aggregationAlias(alias),
-      timeZone,
-    };
-  },
-  /**
-   * Any one value of a field within each group, of any type.
-   * `{ type: 'any', field, alias, filter? }`.
-   *
-   * @throws TypeError when `field` or `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.any('state.customerName', 'customer');
-   * ```
-   */
-  any<FIELDS extends string>(
-    field: FIELDS,
-    alias: string,
-    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
-  ): AnyAggregationMetric<FIELDS> {
-    return {
-      type: AggregationMetricType.ANY,
-      ...(predicate === undefined ? {} : { filter: predicate }),
-      field: aggregationField(field),
-      alias: aggregationAlias(alias),
-    };
-  },
-  /**
-   * The value of `field` on each group's earliest record by `orderBy`.
-   * `{ type: 'first', field, alias, orderBy?, filter? }`.
-   *
-   * The value comes back in the field's own type, or `null` when no record
-   * of the group has both a value and an `orderBy` position. Without
-   * `orderBy` the server orders by the model's event time, which the
-   * descriptor names as `analysis.firstLastOrderBy`. Neither a derived
-   * metric nor `having` may refer to it. Wow 9.2 and later.
-   *
-   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.first('state.price', 'open', { orderBy: 'createTime' });
-   * ```
-   */
-  first<FIELDS extends string>(
-    field: FIELDS,
-    alias: string,
-    options: EdgeAggregationOptions<FIELDS> = {},
-  ): EdgeAggregationMetric<FIELDS> {
-    return edge(AggregationMetricType.FIRST, field, alias, options);
-  },
-  /**
-   * The value of `field` on each group's latest record by `orderBy`.
-   * `{ type: 'last', field, alias, orderBy?, filter? }`. As
-   * {@link aggregation.first}, from the other end.
-   *
-   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.last('state.price', 'close', { orderBy: 'createTime' });
-   * ```
-   */
-  last<FIELDS extends string>(
-    field: FIELDS,
-    alias: string,
-    options: EdgeAggregationOptions<FIELDS> = {},
-  ): EdgeAggregationMetric<FIELDS> {
-    return edge(AggregationMetricType.LAST, field, alias, options);
-  },
-  /**
-   * The number of rows in each group. `{ type: 'count', alias, filter? }`.
-   *
-   * @param alias - The name of the metric column in the result rows.
-   * @param options.filter - Counts only the rows that match.
-   * @throws TypeError when `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.count('paid', { filter: filter.eq('state.status', 'PAID') });
-   * ```
-   */
-  count<FIELDS extends string = string>(
-    alias: string,
-    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
-  ): CountAggregationMetric<FIELDS> {
-    return {
-      type: AggregationMetricType.COUNT,
-      ...(predicate === undefined ? {} : { filter: predicate }),
-      alias: aggregationAlias(alias),
-    };
-  },
-  /**
-   * The sum of an expression. `{ type: 'numeric', function: 'sum',
-   * expression, alias, filter? }`.
-   *
-   * @example
-   * ```typescript
-   * aggregation.sum(aggregation.field('state.amount'), 'revenue');
-   * ```
-   */
-  sum: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.SUM, expression, alias, options),
-  /** The average of an expression; see {@link aggregation.sum}. */
-  avg: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.AVG, expression, alias, options),
-  /** The least value of an expression; see {@link aggregation.sum}. */
-  min: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.MIN, expression, alias, options),
-  /** The greatest value of an expression; see {@link aggregation.sum}. */
-  max: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.MAX, expression, alias, options),
-  /** The standard deviation of an expression; see {@link aggregation.sum}. */
-  stddev: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.STDDEV, expression, alias, options),
-  /** The variance of an expression; see {@link aggregation.sum}. */
-  variance: <FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    options?: AggregationMetricOptions<FIELDS>,
-  ) => numeric(AggregationFunction.VARIANCE, expression, alias, options),
-  /**
-   * The number of distinct values of an expression.
-   * `{ type: 'distinct-count', expression, alias, filter? }`.
-   *
-   * @example
-   * ```typescript
-   * aggregation.distinctCount(aggregation.field('ownerId'), 'customers');
-   * ```
-   */
-  distinctCount<FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
-  ): DistinctCountAggregationMetric<FIELDS> {
-    return {
-      type: AggregationMetricType.DISTINCT_COUNT,
-      expression,
-      alias: aggregationAlias(alias),
-      ...(predicate === undefined ? {} : { filter: predicate }),
-    };
-  },
-  /**
-   * A percentile of an expression.
-   * `{ type: 'percentile', expression, percentile, alias, filter? }`.
-   *
-   * @param options.percentile - Which percentile, within (0, 100).
-   * @throws TypeError when `percentile` is not finite and within (0, 100), or
-   *   `alias` is invalid.
-   * @example
-   * ```typescript
-   * aggregation.percentile(aggregation.field('latency'), 'p95', { percentile: 95 });
-   * ```
-   */
-  percentile<FIELDS extends string>(
-    expression: AggregationExpression<FIELDS>,
-    alias: string,
-    { percentile, filter: predicate }: PercentileAggregationOptions<FIELDS>,
-  ): PercentileAggregationMetric<FIELDS> {
-    if (!Number.isFinite(percentile) || percentile <= 0 || percentile >= 100) {
-      throw new TypeError('percentile must be finite and within (0, 100).');
-    }
-    return {
-      type: AggregationMetricType.PERCENTILE,
-      expression,
-      percentile,
-      alias: aggregationAlias(alias),
-      ...(predicate === undefined ? {} : { filter: predicate }),
-    };
-  },
-  /**
-   * A metric computed from other metrics of the same row, by their aliases.
-   * `{ type: 'derived', expression, alias }`. `aggregation.query()` checks
-   * that it refers only to metrics declared before it.
-   *
-   * @param expression - The arithmetic: a callback that builds it from the
-   *   {@link DerivedExpressionDsl} it is handed (`ref`, `constant`, `add`,
-   *   `subtract`, `multiply`, `divide`), or an already-built tree.
-   * @throws TypeError when `alias` is invalid, or a `constant` is not finite.
-   * @example
-   * ```typescript
-   * aggregation.derived(
-   *   d => d.divide(d.ref('revenue'), d.ref('orders')),
-   *   'averageOrder',
-   * );
-   * ```
-   */
-  derived(
-    expression:
-      DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression),
-    alias: string,
-  ): DerivedAggregationMetric {
-    return {
-      type: AggregationMetricType.DERIVED,
-      expression:
-        typeof expression === 'function'
-          ? expression(derivedExpressionDsl)
-          : expression,
-      alias: aggregationAlias(alias),
-    };
-  },
-  /**
-   * The builders of the query's `having`: conditions on the metric columns of
-   * the grouped rows (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`,
-   * `isNull`, `isNotNull`) and their `and`/`or`. See `HavingDsl`.
-   *
-   * @example
-   * ```typescript
-   * aggregation.query({
-   *   groupBy: [aggregation.terms('state.status', 'status')],
-   *   metrics: [aggregation.count('orders')],
-   *   having: aggregation.having.gt('orders', 10),
-   * });
-   * ```
-   */
-  having: havingDsl,
-
-  /**
    * Admits a whole aggregation query against the rules Wow enforces on arrival.
    *
    * The factories above each check their own part; only the assembled query
@@ -627,4 +174,25 @@ export const aggregation = {
   ): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS> {
     return admitAggregationQuery(query);
   },
+};
+
+/**
+ * Builders of an `AggregationQuery`: its elements, groups, metrics and the
+ * arithmetic expressions metrics compute over. Each builder checks its own
+ * part and throws a `TypeError` naming what is wrong; {@link aggregation.query}
+ * checks the parts against each other.
+ *
+ * Every group and metric takes its target first, its alias second, and any
+ * further options as a trailing object.
+ */
+export const aggregation: typeof queryBuilders &
+  typeof groupBuilders &
+  typeof metricBuilders &
+  typeof derivedBuilders &
+  typeof havingBuilders = {
+  ...queryBuilders,
+  ...groupBuilders,
+  ...metricBuilders,
+  ...derivedBuilders,
+  ...havingBuilders,
 };

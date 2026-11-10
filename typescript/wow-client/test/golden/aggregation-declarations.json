@@ -13,7 +13,7 @@
     "type": "<FIELDS extends string>(field: FIELDS, alias: string, { filter: predicate }?: AggregationMetricOptions<FIELDS> | undefined) => AnyAggregationMetric<FIELDS>"
   },
   "avg": {
-    "doc": "The average of an expression; see {@link aggregation.sum}.",
+    "doc": "The average of an expression; see {@link metricBuilders.sum | `aggregation.sum`}.",
     "tags": [],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS> | undefined) => NumericAggregationMetric<FIELDS>"
   },
@@ -138,7 +138,7 @@
     "type": "<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, { interval, scope }: HistogramAggregationOptions) => HistogramAggregationGroup<FIELDS>"
   },
   "last": {
-    "doc": "The value of `field` on each group's latest record by `orderBy`.\n`{ type: 'last', field, alias, orderBy?, filter? }`. As\n{@link aggregation.first}, from the other end.",
+    "doc": "The value of `field` on each group's latest record by `orderBy`.\n`{ type: 'last', field, alias, orderBy?, filter? }`. As\n{@link metricBuilders.first | `aggregation.first`}, from the other end.",
     "tags": [
       "@throws TypeError when `field`, `orderBy` or `alias` is invalid.",
       "@example ```typescript\naggregation.last('state.price', 'close', { orderBy: 'createTime' });\n```"
@@ -146,12 +146,12 @@
     "type": "<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS> | undefined) => EdgeAggregationMetric<FIELDS>"
   },
   "max": {
-    "doc": "The greatest value of an expression; see {@link aggregation.sum}.",
+    "doc": "The greatest value of an expression; see {@link metricBuilders.sum | `aggregation.sum`}.",
     "tags": [],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS> | undefined) => NumericAggregationMetric<FIELDS>"
   },
   "min": {
-    "doc": "The least value of an expression; see {@link aggregation.sum}.",
+    "doc": "The least value of an expression; see {@link metricBuilders.sum | `aggregation.sum`}.",
     "tags": [],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS> | undefined) => NumericAggregationMetric<FIELDS>"
   },
@@ -175,7 +175,7 @@
     "type": "<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>) => AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>"
   },
   "stddev": {
-    "doc": "The standard deviation of an expression; see {@link aggregation.sum}.",
+    "doc": "The standard deviation of an expression; see {@link metricBuilders.sum | `aggregation.sum`}.",
     "tags": [],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS> | undefined) => NumericAggregationMetric<FIELDS>"
   },
@@ -204,7 +204,7 @@
     "type": "<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, { missingKey, scope }?: TermsAggregationOptions | undefined) => TermsAggregationGroup<FIELDS>"
   },
   "variance": {
-    "doc": "The variance of an expression; see {@link aggregation.sum}.",
+    "doc": "The variance of an expression; see {@link metricBuilders.sum | `aggregation.sum`}.",
     "tags": [],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS> | undefined) => NumericAggregationMetric<FIELDS>"
   }

@@ -12,9 +12,10 @@
  */
 
 import type { FieldSort, SortDirection } from '../sort.js';
-import type { AggregationMetricType } from './metrics.js';
+import { AggregationMetricType } from './metrics.js';
 import type { AggregationDateUnit } from './groups.js';
 import { AggregationExpressionOperator } from './types.js';
+import { aggregationAlias } from './aliases.js';
 
 /** The kind of a {@link DerivedExpression} node, sent as its `type`. */
 export enum DerivedExpressionType {
@@ -241,4 +242,39 @@ export const derivedExpressionDsl: DerivedExpressionDsl = {
     metric,
     ...options,
   }),
+};
+
+/** The builder of a derived metric, computed from the metrics before it. */
+export const derivedBuilders = {
+  /**
+   * A metric computed from other metrics of the same row, by their aliases.
+   * `{ type: 'derived', expression, alias }`. `aggregation.query()` checks
+   * that it refers only to metrics declared before it.
+   *
+   * @param expression - The arithmetic: a callback that builds it from the
+   *   {@link DerivedExpressionDsl} it is handed (`ref`, `constant`, `add`,
+   *   `subtract`, `multiply`, `divide`), or an already-built tree.
+   * @throws TypeError when `alias` is invalid, or a `constant` is not finite.
+   * @example
+   * ```typescript
+   * aggregation.derived(
+   *   d => d.divide(d.ref('revenue'), d.ref('orders')),
+   *   'averageOrder',
+   * );
+   * ```
+   */
+  derived(
+    expression:
+      DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression),
+    alias: string,
+  ): DerivedAggregationMetric {
+    return {
+      type: AggregationMetricType.DERIVED,
+      expression:
+        typeof expression === 'function'
+          ? expression(derivedExpressionDsl)
+          : expression,
+      alias: aggregationAlias(alias),
+    };
+  },
 };

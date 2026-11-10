@@ -215,3 +215,22 @@ export const havingDsl: HavingDsl = {
   and: operands => logical(HavingExpressionType.AND, operands),
   or: operands => logical(HavingExpressionType.OR, operands),
 };
+
+/** The builders of the query's `having`. */
+export const havingBuilders = {
+  /**
+   * The builders of the query's `having`: conditions on the metric columns of
+   * the grouped rows (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`,
+   * `isNull`, `isNotNull`) and their `and`/`or`. See `HavingDsl`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.query({
+   *   groupBy: [aggregation.terms('state.status', 'status')],
+   *   metrics: [aggregation.count('orders')],
+   *   having: aggregation.having.gt('orders', 10),
+   * });
+   * ```
+   */
+  having: havingDsl,
+};
