@@ -429,6 +429,22 @@ describe('WriteLedger effects', () => {
     expect(noted).toEqual([saved]);
   });
 
+  // A board's save that added a panel (放进仪表盘) treats an open board as
+  // a board; any other holder of the instance moves its baseline, as every
+  // holder does after a save.
+  it('advances a holder that is no board after a save that added a panel', async () => {
+    const other = fakeRuntime('runtime-2');
+    const { ledger } = harness([other]);
+
+    await ledger.dispatch(
+      { ...savePayload(), addedPanel: 'panel-2' },
+      undefined,
+    );
+
+    expect(other.moveBaseline).toHaveBeenCalledWith({ ...mine, revision: '2' });
+    expect(other.adoptSaved).not.toHaveBeenCalled();
+  });
+
   it('drops a deleted instance and remembers confirmed preferences', async () => {
     const { ledger, dropped, notedPreferences, changes } = harness();
     await ledger.dispatch(

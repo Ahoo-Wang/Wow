@@ -12,6 +12,7 @@
  */
 
 import type {
+  DashboardPanel,
   AggregationDateUnitName,
   DashboardField,
   DashboardFilters,
@@ -293,6 +294,10 @@ export abstract class BoardCommands
   // Building the board (D22 A–E): see `boardEditing`.
   addPanel(panel: NewPanel, placement?: NewPanelPlacement): string | null {
     return this.edits.addPanel(panel, placement);
+  }
+  /** A panel a confirmed write put on the saved board, onto the draft (`BoardEdits.carry`). */
+  carryPanel(panel: DashboardPanel): void {
+    this.edits.carry(panel);
   }
   removePanel(panelId: string): void {
     this.edits.removePanel(panelId);

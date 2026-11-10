@@ -42,6 +42,7 @@ test('a stable release on the latest line takes latest everywhere', () => {
     line: '10.0',
     prerelease: false,
     latest: true,
+    lineTag: true,
     npmDistTag: 'latest',
     imageTags: ['10.0.0', '10.0', 'latest'],
     notes: NOTES.stable,
@@ -93,6 +94,48 @@ test('both release workflows take their decisions from the plan', () => {
     // No version special case in the admission: the plan decides.
     assert.doesNotMatch(text, /refs\/tags\/v\d/, name);
   }
+  // The images take their line tag from the plan's decision, not from whether the release is stable.
+  assert.match(
+    workflow('image-deploy.yml'),
+    /value=\$\{\{ needs\.plan\.outputs\.line \}\},enable=\$\{\{ needs\.plan\.outputs\.line-tag == 'true' \}\}/,
+  );
   for (const notes of Object.values(NOTES))
     assert.ok(existsSync(join(ROOT, notes)), notes);
+});
+
+test('a floating tag moves only to the highest stable version of its line', () => {
+  const tags = [...TAGS, 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.1.0', 'v10.1.1'];
+  // A re-run of an older patch of the latest line: its version alone.
+  const older = releasePlan('refs/tags/v10.1.0', tags);
+  assert.equal(older.lineTag, false);
+  assert.equal(older.latest, false);
+  assert.deepEqual(older.imageTags, ['10.1.0']);
+  // A re-run of an older patch of an older line: its version alone.
+  assert.deepEqual(releasePlan('refs/tags/v10.0.1', tags).imageTags, [
+    '10.0.1',
+  ]);
+  // The highest patch of an older line moves that line's tag, not latest.
+  const patch = releasePlan('refs/tags/v10.0.2', tags);
+  assert.equal(patch.lineTag, true);
+  assert.deepEqual(patch.imageTags, ['10.0.2', '10.0']);
+  // The highest patch of the latest line moves both, re-run or not.
+  assert.deepEqual(releasePlan('refs/tags/v10.1.1', tags).imageTags, [
+    '10.1.1',
+    '10.1',
+    'latest',
+  ]);
+  // A pre-release of a line moves none, nor holds its stable versions back.
+  const rc = [...tags, 'v10.1.2-rc.1'];
+  assert.deepEqual(releasePlan('refs/tags/v10.1.2-rc.1', rc).imageTags, [
+    '10.1.2-rc.1',
+  ]);
+  assert.deepEqual(releasePlan('refs/tags/v10.1.1', rc).imageTags, [
+    '10.1.1',
+    '10.1',
+    'latest',
+  ]);
+  assert.deepEqual(
+    outputLines(older).filter(line => /^(line-tag|image-tags)=/.test(line)),
+    ['line-tag=false', 'image-tags=10.1.0'],
+  );
 });

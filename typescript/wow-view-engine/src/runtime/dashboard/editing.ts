@@ -12,6 +12,7 @@
  */
 
 import type {
+  DashboardPanel,
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
@@ -274,6 +275,15 @@ interface EditingHost {
 export interface BoardEdits extends DashboardEditing, DashboardFilterEditing {
   /** Starts the history again — a revert, a save, a board read anew — and says it is empty. */
   forget(): EditHistoryState;
+  /**
+   * A panel a confirmed write of this engine put on the saved board, onto a
+   * draft its reader went on editing (`applyWriteEffect`, #5447): placed as
+   * `addPanel` places one, in the draft as it is now, under the id it was
+   * saved with — nothing when the draft holds it already. One step of the
+   * history while building: an undo takes it off the draft, which then
+   * differs from the saved board again, and a save removes it there.
+   */
+  carry(panel: DashboardPanel): void;
   /** What a filter starts at in the draft now; `null` for none. */
   defaultOf(name: string): FilterValue | null;
 }
@@ -342,6 +352,40 @@ export function boardEditing(host: EditingHost): BoardEdits {
   };
 
   return {
+    carry(panel) {
+      const draft = host.draft();
+      const applied = host.applied();
+      if (
+        !draft ||
+        !applied ||
+        draft.panels.some(entry => entry.id === panel.id)
+      )
+        return;
+      const { id, layout, tab, ...rest } = panel;
+      const placed = addPanel(draft, rest, {
+        ...(tab === undefined ? {} : { tab }),
+        size: { w: layout.w, h: layout.h },
+        max: Infinity,
+      });
+      if (!placed) return;
+      const panels = placed.config.panels.map(entry =>
+        entry.id === placed.id ? { ...entry, id } : entry,
+      );
+      const carried = panels.find(entry => entry.id === id)!;
+      const next = [
+        { ...placed.config, panels },
+        applied.panels.some(entry => entry.id === id)
+          ? applied
+          : { ...applied, panels: [...applied.panels, carried] },
+      ] as const;
+      if (host.building())
+        history.record(
+          { command: 'addPanel', subject: id },
+          [draft, next[0]],
+          [applied, next[1]],
+        );
+      host.commit(...next, history.state);
+    },
     addPanel(panel, placement = {}) {
       const draft = draftFor();
       if (!draft) return null;
