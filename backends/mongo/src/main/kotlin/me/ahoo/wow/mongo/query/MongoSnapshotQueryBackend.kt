@@ -49,6 +49,7 @@ import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.spi.StorageTimeoutException
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -221,15 +222,17 @@ class MongoSnapshotQueryBackend internal constructor(
         MongoProjections.project(query, documents.record(document))
 
     /**
-     * The sort of a list or an offset page: the query's, then the tenant and the aggregate ID where the query does not
-     * name them, the unique key, so a page boundary never splits tied records nondeterministically.
+     * The sort of a list or an offset page: the query's, then the documents' tie-breakers (the unique key) where the
+     * query does not name them, in the direction the core ends a sort with its key, so a page boundary never splits
+     * tied records nondeterministically.
      */
     private fun totalSort(query: AdmittedQuery<Queryable<*>>): Bson? {
         val sort = physicalSort(query, query.query.sort)
         val named = sort.map { it.field.path }.toSet()
+        val direction = query.query.sort.tieBreakerDirection()
         val keys = documents.tieBreakers
             .filterNot(named::contains)
-            .map { Sort(QueryField(it), Sort.Direction.ASC) }
+            .map { Sort(QueryField(it), direction) }
         return MongoKeyset.sort(sort + keys)
     }
 

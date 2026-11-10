@@ -35,6 +35,7 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.backend.RecordProjection
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.backend.toQueryRecord
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -47,6 +48,7 @@ import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
+import me.ahoo.wow.query.schema.cursorUniqueKey
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -140,7 +142,26 @@ class InMemoryQueryBackend internal constructor(
     private suspend fun matched(query: AdmittedQuery<Queryable<*>>): List<ObjectNode> {
         val filters = InMemoryFilters(query, access)
         val matched = records().filter { filters.matches(query.query.filter, RecordScope(it)) }
-        return matched.sortedWith(comparator(query, query.query.sort))
+        return matched.sortedWith(comparator(query, query.query.sort).then(tieBreaker(query)))
+    }
+
+    /**
+     * The order of records tied on [query]'s sort: by each field of the model's unique key the sort does not name, in
+     * the sort's [tie-breaker direction][tieBreakerDirection], read where this storage keeps every field, at its
+     * logical path. A cursor's sort names them all already; a model without an identity has none.
+     */
+    private fun tieBreaker(query: AdmittedQuery<Queryable<*>>): Comparator<ObjectNode> {
+        val sort = query.query.sort
+        val named = sort.mapTo(hashSetOf()) { query.field(it.field).logicalField.path }
+        val keys = runCatching { query.schema.cursorUniqueKey() }.getOrDefault(emptyList()).filter { it.path !in named }
+        val ascending = sort.tieBreakerDirection() == Sort.Direction.ASC
+        return Comparator { left, right ->
+            keys.firstNotNullOfOrNull { key ->
+                val comparison =
+                    orderOf(left.valuesAt(key).sortKey(ascending, null), right.valuesAt(key).sortKey(ascending, null), null)
+                (if (ascending) comparison else -comparison).takeIf { it != 0 }
+            } ?: 0
+        }
     }
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {

@@ -76,7 +76,7 @@ class PostgresSnapshotSqlCompilerTest {
                 "FROM \"wow_snapshot__shop__order\" WHERE (tenant_id = ? AND " +
                 "(((CASE WHEN jsonb_typeof((state #> '{name}')) = 'string' THEN state #>> '{name}' END) COLLATE \"C\") = ?)) " +
                 "ORDER BY (CASE WHEN jsonb_typeof((state #> '{amount}')) = 'number' THEN (state #>> '{amount}')::numeric END) " +
-                "DESC NULLS LAST, aggregate_id ASC, tenant_id ASC LIMIT ?",
+                "DESC NULLS LAST, aggregate_id DESC, tenant_id DESC LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
             SqlParameter.Text("t"),
@@ -233,11 +233,12 @@ class PostgresSnapshotSqlCompilerTest {
             // The leading key's bound, which an index can seek to, then the exact condition.
             statement.sql.assert().contains(
                 "AND $name >= ? AND (($name > ?) OR ($name = ? AND ($amount < ? OR $amount IS NULL)) OR " +
-                    "($name = ? AND $amount = ? AND tenant_id > ?) OR " +
-                    "($name = ? AND $amount = ? AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
+                    "($name = ? AND $amount = ? AND tenant_id < ?) OR " +
+                    "($name = ? AND $amount = ? AND tenant_id = ? AND aggregate_id < ?)) ORDER BY",
             )
             statement.sql.assert().contains("$name AS k0, $amount AS k1, tenant_id AS k2, aggregate_id AS k3")
-                .endsWith("tenant_id ASC, aggregate_id ASC LIMIT ?")
+                // The key ends the sort in its last field's direction, descending; NOT NULL columns, plainly.
+                .endsWith("tenant_id DESC, aggregate_id DESC LIMIT ?")
             statement.parameters.assert().containsExactly(
                 SqlParameter.Text("n"),
                 SqlParameter.Text("n"),
@@ -256,8 +257,8 @@ class PostgresSnapshotSqlCompilerTest {
         // Nothing sorts after a NULL descending; after a NULL ascending, every value does.
         compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(listOf(null, null, "t", "id")), 3)).sql.assert()
             .contains(
-                "AND (($name IS NOT NULL) OR ($name IS NULL AND $amount IS NULL AND tenant_id > ?) OR " +
-                    "($name IS NULL AND $amount IS NULL AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
+                "AND (($name IS NOT NULL) OR ($name IS NULL AND $amount IS NULL AND tenant_id < ?) OR " +
+                    "($name IS NULL AND $amount IS NULL AND tenant_id = ? AND aggregate_id < ?)) ORDER BY",
             )
         compiler.keyset(admitted, PageWindow.Keyset(null, 3)).sql.assert().doesNotContain(" OR ")
     }
@@ -274,9 +275,18 @@ class PostgresSnapshotSqlCompilerTest {
         after(emptyList(), "t", "id").assert().isEqualTo("(tenant_id, aggregate_id) > (?, ?)")
         after(listOf(Sort(NAME, Sort.Direction.ASC)), "n", "t", "id")
             .assert().isEqualTo("($name, tenant_id, aggregate_id) > (?, ?, ?)")
-        // Descending, a column that holds no NULL bounds the rest; a state field may hold one, which sorts last.
+        // Descending on columns that hold no NULL, the key following the direction: one row comparison.
         after(listOf(Sort(QueryField("version"), Sort.Direction.DESC)), BigDecimal.ONE, "t", "id")
-            .assert().startsWith("version <= ? AND (((version < ? OR version IS NULL))")
+            .assert().isEqualTo("(version, tenant_id, aggregate_id) < (?, ?, ?)")
+        // A column that holds no NULL bounds the rest when the directions change; a state field may hold one.
+        after(
+            listOf(Sort(QueryField("version"), Sort.Direction.DESC), Sort(NAME, Sort.Direction.ASC)),
+            BigDecimal.ONE,
+            "n",
+            "t",
+            "id"
+        )
+            .assert().startsWith("version <= ? AND ((version < ?) OR (version = ? AND ")
         after(listOf(Sort(NAME, Sort.Direction.DESC)), "n", "t", "id").assert().startsWith("((")
         // A NULL position ascending: what follows is a value or another NULL, no bound.
         after(listOf(Sort(NAME, Sort.Direction.ASC)), null, "t", "id").assert().startsWith("((")

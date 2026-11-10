@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.math.BigDecimal
@@ -105,8 +106,10 @@ internal class PostgresSnapshotSqlCompiler(
             direction(compiler.typed(field).first, order.direction, layout.expressions.notNull(field.physicalField))
         }
         if (total) {
+            // NOT NULL columns, ordered plainly, in the direction the core ends a sort with its key.
+            val direction = sort.tieBreakerDirection()
             layout.tieBreakers.forEach { (field, column) ->
-                if (sort.none { query.physicalPath(it.field) == field }) terms += "$column ASC"
+                if (sort.none { query.physicalPath(it.field) == field }) terms += "$column ${direction.name}"
             }
         }
         return terms.joinToString(", ")
@@ -127,12 +130,13 @@ internal class PostgresSnapshotSqlCompiler(
         after: CursorPosition,
     ): String {
         val sort = query.query.sort
+        val notNull = sort.map { layout.expressions.notNull(query.field(it.field).physicalField) }
         val direction = sort.first().direction
         val leading = sort.indices.takeWhile { index ->
             sort[index].direction == direction && after.values.getOrNull(index) != null &&
-                (direction == Sort.Direction.ASC || layout.expressions.notNull(query.field(sort[index].field).physicalField))
+                (direction == Sort.Direction.ASC || notNull[index])
         }
-        if (leading.isEmpty()) return expanded(parameters, sort, keys, after)
+        if (leading.isEmpty()) return expanded(parameters, sort, keys, notNull, after)
         val whole = leading.size == sort.size
         val operator = when (direction) {
             Sort.Direction.ASC -> if (whole) ">" else ">="
@@ -142,7 +146,7 @@ internal class PostgresSnapshotSqlCompiler(
         val values = leading.map { parameters.bind(position(keys[it].second, checkNotNull(after.values[it]))) }
         val bound = columns.singleOrNull()?.let { "$it $operator ${values.single()}" }
             ?: (columns.joinToString(", ", "(", ")") + " $operator " + values.joinToString(", ", "(", ")"))
-        return if (whole) bound else "$bound AND " + expanded(parameters, sort, keys, after)
+        return if (whole) bound else "$bound AND " + expanded(parameters, sort, keys, notNull, after)
     }
 
     /** The rows after [after] in [sort], the expanded row comparison that honors each key's direction and nulls. */
@@ -150,6 +154,7 @@ internal class PostgresSnapshotSqlCompiler(
         parameters: SqlParameters,
         sort: List<Sort>,
         keys: List<Pair<String, PostgresQueryType>>,
+        notNull: List<Boolean>,
         after: CursorPosition,
     ): String {
         val values = after.values
@@ -161,7 +166,7 @@ internal class PostgresSnapshotSqlCompiler(
                     values[tie]?.let { "$tied = ${parameters.bind(position(tiedType, it))}" } ?: "$tied IS NULL"
                 }
                 val (value, type) = keys[index]
-                (ties + later(parameters, value, type, sort[index].direction, values[index]))
+                (ties + later(parameters, value, type, sort[index].direction, notNull[index], values[index]))
                     .joinToString(" AND ", "(", ")")
             }
         return if (terms.isEmpty()) PostgresFilterCompiler.FALSE else terms.joinToString(" OR ", "(", ")")
@@ -173,10 +178,13 @@ internal class PostgresSnapshotSqlCompiler(
         value: String,
         type: PostgresQueryType,
         direction: Sort.Direction,
+        notNull: Boolean,
         position: Any?,
     ): String = when {
         position == null -> "$value IS NOT NULL"
         direction == Sort.Direction.ASC -> "$value > ${parameters.bind(position(type, position))}"
+        // A NULL sorts last descending, after every value, unless the column holds none.
+        notNull -> "$value < ${parameters.bind(position(type, position))}"
         else -> "($value < ${parameters.bind(position(type, position))} OR $value IS NULL)"
     }
 

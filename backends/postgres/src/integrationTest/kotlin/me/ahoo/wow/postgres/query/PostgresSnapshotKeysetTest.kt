@@ -77,6 +77,14 @@ class PostgresSnapshotKeysetTest {
         removed(byAmount).assert().isLessThanOrEqualTo(PAGE.toLong())
         // The declared index ends with the aggregate ID, so it gives the whole order: no sort of any kind (MG-2/PG-11).
         byAmount.assert().doesNotContain("Sort")
+
+        // Descending, the key descends with it: the same index read backward, still no sort. A state field may hold
+        // a NULL, which sorts last descending, so no bound seeks to the position; the scan filters up to it.
+        val descending = deepPage(
+            listOf(amount.copy(direction = Sort.Direction.DESC)),
+            listOf(BigDecimal(DEEP), "t1", "id-%06d".format(DEEP)),
+        )
+        descending.assert().contains("Index Scan Backward using").contains("_amount").doesNotContain("Sort")
     }
 
     @Test
