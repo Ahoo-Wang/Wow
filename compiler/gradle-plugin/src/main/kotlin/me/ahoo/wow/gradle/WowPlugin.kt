@@ -21,7 +21,7 @@ import org.gradle.util.GradleVersion
 import java.util.Properties
 
 /**
- * `me.ahoo.wow`: builds a domain module ([WowRoles.domain]). It needs the Kotlin JVM plugin (`kotlin("jvm")`), also
+ * `me.ahoo.wow`: builds a domain module ([DomainRole.domain]). It needs the Kotlin JVM plugin (`kotlin("jvm")`), also
  * for a module of Java sources only: KSP processes the module's Java sources within the Kotlin compilation, and the
  * models it generates are Kotlin. A module that applies this plugin without it fails to configure, naming the fix,
  * instead of building without models. It
@@ -52,7 +52,7 @@ class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(EXTENSION, WowExtension::class.java)
-        WowRoles.domain(project, extension, ID)
+        DomainRole.domain(project, extension, ID)
     }
 
     companion object {
@@ -190,7 +190,7 @@ class WowPlugin : Plugin<Project> {
 }
 
 /**
- * `me.ahoo.wow.api`: builds a context's api module ([WowRoles.api]), the commands, events and value classes another
+ * `me.ahoo.wow.api`: builds a context's api module ([ApiRole.api]), the commands, events and value classes another
  * service depends on, with the peer contract and the code generated from it. The module declares the domain modules
  * whose contracts it carries, `dependencies { wowContract(project(":shop-domain")) }`, and
  *
@@ -210,7 +210,7 @@ class WowPlugin : Plugin<Project> {
 class WowApiPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         WowPlugin.requireGradle(project.path, GradleVersion.current())
-        WowRoles.api(project)
+        ApiRole.api(project)
     }
 }
 
@@ -247,7 +247,7 @@ class WowServicePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         WowPlugin.requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(WowPlugin.EXTENSION, WowServiceExtension::class.java)
-        WowRoles.domain(project, extension, WowPlugin.SERVICE_ID)
+        DomainRole.domain(project, extension, WowPlugin.SERVICE_ID)
         ServiceRole.service(project, extension)
     }
 }

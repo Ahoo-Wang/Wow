@@ -19,7 +19,7 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json` ([WowRoles.CONTRACT_RESOURCE])
+ * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json` ([ApiRole.CONTRACT_RESOURCE])
  * under [outputDirectory]: of the contracts of the domain modules the api module declares in `wowContract(...)`
  * ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes are all among the api
  * module's [classes]. A context with none of them is another api's. A declared module of no contract (it compiles no

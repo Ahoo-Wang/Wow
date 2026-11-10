@@ -76,8 +76,8 @@ internal abstract class GenerateManifestFragment @Inject constructor(
             queue.submit(ManifestToolsWork.CompleteFragment::class.java) { parameters ->
                 parameters.fragment.set(fragment)
                 // Its path below the fragments' directory, which names it: a nested project's is a directory's.
-                val name = fragment.invariantSeparatorsPath.substringAfterLast("${WowRoles.FRAGMENT_RESOURCES}/")
-                parameters.output.set(output.resolve("${WowRoles.FRAGMENT_RESOURCES}/$name"))
+                val name = fragment.invariantSeparatorsPath.substringAfterLast("${DomainRole.FRAGMENT_RESOURCES}/")
+                parameters.output.set(output.resolve("${DomainRole.FRAGMENT_RESOURCES}/$name"))
                 parameters.schemaOverrides.set(schemaOverrides)
             }
         }
