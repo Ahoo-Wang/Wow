@@ -50,6 +50,22 @@ class CommandIndexTest {
     }
 
     @Test
+    fun `a class's aggregates are in the order the Manifests list them, and the first names it alone`() {
+        fun manifest(context: String, vararg aggregates: String) = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    context,
+                    aggregates = aggregates.map { aggregate(it, listOf(CommandManifest("Refresh", schema = schema))) },
+                ),
+            ),
+        )
+        val ordered = CommandIndex(listOf(manifest("peer", "zeta", "beta"), manifest("other", "alpha")))
+        ordered.aggregatesOf(schema).assert().containsExactly("peer.zeta", "peer.beta", "other.alpha")
+        ordered.commandTypeOf(schema).assert().isEqualTo("peer.zeta.Refresh")
+        ordered.commandTypeOf("other.alpha", Refresh::class.java).assert().isEqualTo("other.alpha.Refresh")
+    }
+
+    @Test
     fun `an aggregate that decides none of a class names no command of it`() {
         index.commandTypeOf("peer.gamma", Refresh::class.java).assert().isNull()
         index.commandTypeOf("peer.alpha", String::class.java).assert().isNull()
