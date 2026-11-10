@@ -25,6 +25,7 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
@@ -77,6 +78,7 @@ internal data class AccessBinding(
  */
 internal object AccessResolver {
     private val BLOCKING = Blocking::class.java.name
+    private val ACCESS = Access::class.java.name
     private const val WHERE = "@Access"
 
     /** The value types by qualified name, Kotlin's and Java's, to the Kotlin class and the Manifest type. */
@@ -111,7 +113,10 @@ internal object AccessResolver {
         val properties = state.getAllProperties().mapNotNull { property ->
             property.declarations().firstOrNull { it.isAccess() }?.let { property(property, it, problems) }
         }
-        val functions = state.getAllFunctions().filter { it.isAccess() }.mapNotNull { function(it, problems) }
+        // A function too, by the function that carries it, its own or one it overrides ([annotatedIn]).
+        val functions = state.getAllFunctions().mapNotNull { function ->
+            function.annotatedIn(ACCESS)?.let { function(function, it, problems) }
+        }
         val bindings = (properties + functions).toList()
         bindings.groupBy { it.name.lowercase() }.values.filter { it.size > 1 }.forEach { same ->
             problems += "the state ${state.simpleName.asString()} declares the access attributes " +
@@ -135,7 +140,11 @@ internal object AccessResolver {
         return binding(annotated, member, true, where, property.type.resolve(), problems).takeIf { found.isEmpty() }
     }
 
-    private fun function(function: KSFunctionDeclaration, problems: MutableList<String>): AccessBinding? {
+    private fun function(
+        function: KSFunctionDeclaration,
+        annotated: KSFunctionDeclaration,
+        problems: MutableList<String>,
+    ): AccessBinding? {
         val member = function.simpleName.asString()
         val where = "$WHERE function $member"
         val found = listOfNotNull(
@@ -143,7 +152,7 @@ internal object AccessResolver {
             "$where is an extension: it is a member of the state".takeIf { function.extensionReceiver != null },
             "$where suspends: deriving an access attribute does no I/O".takeIf { Modifier.SUSPEND in function.modifiers },
             "$where is annotated @Blocking: deriving an access attribute does no I/O".takeIf {
-                function.annotations.any { it.isOf(BLOCKING) }
+                function.annotatedIn(BLOCKING) != null
             },
             "$where is private: the generated model calls it".takeIf { function.isPrivate() },
         )
@@ -153,7 +162,7 @@ internal object AccessResolver {
             problems += "$where returns nothing, not $RETURNS"
             return null
         }
-        return binding(function, member, false, where, returned, problems).takeIf { found.isEmpty() }
+        return binding(annotated, member, false, where, returned, problems).takeIf { found.isEmpty() }
     }
 
     /**
@@ -276,5 +285,5 @@ internal object AccessResolver {
         return if (isMarkedNullable) "$rendered?" else rendered
     }
 
-    private fun KSDeclaration.isAccess(): Boolean = annotations.any { it.isOf(Access::class.java.name) }
+    private fun KSDeclaration.isAccess(): Boolean = annotations.any { it.isOf(ACCESS) }
 }

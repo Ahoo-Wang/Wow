@@ -64,6 +64,12 @@ class InheritedPropertiesTest {
 
             @Access
             open val region: String = "eu"
+
+            @Access
+            fun owners(): List<T> = emptyList()
+
+            @Access
+            open fun tier(): String = "basic"
         }
 
         abstract class Addressed<I : CharSequence>(@field:AggregateId val target: I)
@@ -96,6 +102,9 @@ class InheritedPropertiesTest {
             // An override that leaves @Access out: still the access attribute its supertype declares.
             override val region: String = "us"
 
+            // An override that leaves @Access out: still the access attribute its supertype declares.
+            override fun tier(): String = "gold"
+
             fun onSourcing(event: Renamed) = Unit
         }
 
@@ -111,6 +120,64 @@ class InheritedPropertiesTest {
     @Test
     fun `an inherited property should be read by its declarations, the supertype in a library`() {
         assertReadByDeclarations(compileModelAgainst("generate", listOf(compileLibrary(base)), domain))
+    }
+
+    /** A supertype whose access function is `@Blocking`, and a state that overrides it without repeating either. */
+    private val gate = SourceFile.kotlin(
+        "Gate.kt",
+        """
+        package lib
+
+        import me.ahoo.wow.api.annotation.Access
+        import me.ahoo.wow.api.annotation.Blocking
+
+        abstract class Gate {
+            @Access
+            @Blocking
+            open fun lane(): String = "slow"
+        }
+        """.trimIndent(),
+    )
+
+    private val gated = SourceFile.kotlin(
+        "Door.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.api.annotation.CreateAggregate
+
+        @CreateAggregate
+        data class Open(val by: Int)
+        data class Opened(val by: Int)
+
+        @AggregateRoot
+        class Door(private val state: DoorState) {
+            fun onCommand(command: Open): Opened = Opened(command.by)
+        }
+
+        class DoorState(val id: String) : lib.Gate() {
+            override fun lane(): String = "fast"
+
+            fun onSourcing(event: Opened) = Unit
+        }
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `an override of a blocking access function should be refused as it is, the supertype in the sources`() {
+        assertBlockingRefused(compileModel("generate", gate, gated).second)
+    }
+
+    @Test
+    fun `an override of a blocking access function should be refused as it is, the supertype in a library`() {
+        assertBlockingRefused(compileModelAgainst("generate", listOf(compileLibrary(gate)), gated).second)
+    }
+
+    private fun assertBlockingRefused(result: JvmCompilationResult) {
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains("@Access function lane is annotated @Blocking: deriving an access attribute does no I/O")
     }
 
     private fun assertReadByDeclarations(compiled: Pair<KotlinCompilation, JvmCompilationResult>) {
@@ -131,10 +198,10 @@ class InheritedPropertiesTest {
             "state.region",
         )
         val context = compilation.fragment().contexts.single()
-        // The access attributes: a substituted one and an override's.
+        // The access attributes: a substituted property and function, and an override's of each.
         val cart = context.aggregates.single()
         cart.access.associate { it.name to it.multiple }.assert()
-            .isEqualTo(mapOf("readers" to true, "region" to false))
+            .isEqualTo(mapOf("readers" to true, "region" to false, "owners" to true, "tier" to false))
         // The aggregate id: a substituted property's @field:AggregateId.
         context.command("sample.Rename").idProperty.assert().isEqualTo("target")
     }
