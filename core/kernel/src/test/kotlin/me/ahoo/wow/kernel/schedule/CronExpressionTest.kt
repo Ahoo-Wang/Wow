@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel.schedule
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.schedule.ScheduleRule
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.time.LocalDateTime
@@ -168,6 +169,29 @@ class CronExpressionTest {
                 "2026-03-08T04:30",
             ),
         )
+    }
+
+    @Test
+    fun `a local time a gap shifted is still next from a time after the gap and before it runs`() {
+        val newYork = ZoneId.of("America/New_York")
+        val cron = CronExpression.parse("0 30 2 * * *")
+        val shifted = Instant.parse("2026-03-08T07:30:00Z")
+        // 02:30 EST runs at 03:30 EDT: from just before the gap, from the gap's end at 03:00 EDT, and from 03:29:59.
+        cron.next(Instant.parse("2026-03-08T06:59:59Z"), newYork).assert().isEqualTo(shifted)
+        cron.next(Instant.parse("2026-03-08T07:00:00Z"), newYork).assert().isEqualTo(shifted)
+        cron.next(Instant.parse("2026-03-08T07:29:59Z"), newYork).assert().isEqualTo(shifted)
+        // Once it ran, the next is the next day's.
+        cron.next(shifted, newYork).assert().isEqualTo(Instant.parse("2026-03-09T06:30:00Z"))
+        // A time the gap shifts onto one the expression names already runs once.
+        val halfHours = CronExpression.parse("0 0/30 2-3 * * *")
+        halfHours.next(Instant.parse("2026-03-08T07:00:00Z"), newYork).assert()
+            .isEqualTo(Instant.parse("2026-03-08T07:30:00Z"))
+        halfHours.next(Instant.parse("2026-03-08T07:30:00Z"), newYork).assert()
+            .isEqualTo(Instant.parse("2026-03-09T06:00:00Z"))
+        // And a schedule set just after the gap is first due at the shifted time.
+        val setAtGapEnd = shifted.toEpochMilli() - 1_800_000
+        ScheduleSlots.firstDue(ScheduleRule.Cron("0 30 2 * * *", "America/New_York"), setAtGapEnd)
+            .assert().isEqualTo(shifted.toEpochMilli())
     }
 
     @Test
