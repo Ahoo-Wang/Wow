@@ -20,7 +20,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 | A subscription, aggregate or context the node does not serve | A name under `wow.subscriptions`, `wow.aggregates` or `wow.contexts` that matches nothing | Fix the name, or remove the entry |
 | No command transport | A saga sends commands to another context and the node has neither Kafka nor in-memory topics | Set `wow.kafka.bootstrap-servers`, or run it in development, where its topics are in its JVM (`wow.transport`) |
 | A missing topic, or a command topic with the wrong number of partitions | `wow.kafka.ddl: validate`, and the operator has not created the topic as the log needs it | Create the topic: a command topic has exactly `wow.log.partitions` partitions ([Kafka](./kafka#creating-topics)) |
-| A structure of another format | A table created by an incompatible build of Wow | Run the migration of that major version; never edit `wow_format` |
+| A structure of another format | A table recorded in a format this version of Wow does not read | Open it with the version of Wow that wrote it, or start from an empty store; never edit `wow_format` |
 
 ## Commands time out
 

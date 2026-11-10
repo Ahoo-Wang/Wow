@@ -35,7 +35,7 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a ledger table created by a build without format records is refused`() {
+    fun `a ledger table without a format record is refused`() {
         // Finding A2-13: the old layout was accepted silently and failed on its first statement.
         PostgresFixture.createUnrecorded("ledger_unrecorded")
         assertThrownBy<IllegalStateException> {

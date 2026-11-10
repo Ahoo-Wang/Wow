@@ -41,22 +41,22 @@ class PostgresSchemaTest {
     }
 
     @Test
-    fun `a table, an index and added columns should be read from their statements`() {
+    fun `a table and an index should be read from their statements`() {
         PostgresSchema.target("CREATE TABLE IF NOT EXISTS \"wow_x\" (id text)")
-            .assert().isEqualTo(Target.Relation("\"wow_x\"", "\"wow_x\""))
+            .assert().isEqualTo(Target("\"wow_x\"", "\"wow_x\""))
         PostgresSchema.target("CREATE INDEX IF NOT EXISTS \"x_ix\" ON \"wow_x\" (id)")
-            .assert().isEqualTo(Target.Relation("\"x_ix\"", "\"wow_x\""))
+            .assert().isEqualTo(Target("\"x_ix\"", "\"wow_x\""))
         PostgresSchema.target("CREATE INDEX CONCURRENTLY IF NOT EXISTS \"x_q\" ON \"wow_x\" (id) WHERE NOT deleted")
-            .assert().isEqualTo(Target.Relation("\"x_q\"", "\"wow_x\""))
-        PostgresSchema.target(
-            "ALTER TABLE \"wow_x\" ADD COLUMN IF NOT EXISTS a jsonb, ADD COLUMN IF NOT EXISTS b integer NOT NULL DEFAULT 1",
-        ).assert().isEqualTo(Target.Columns("\"wow_x\"", listOf("a", "b")))
+            .assert().isEqualTo(Target("\"x_q\"", "\"wow_x\""))
     }
 
     @Test
     fun `a statement the catalog cannot check should be refused`() {
         assertThrows<IllegalArgumentException> { PostgresSchema.target("CREATE TABLE \"wow_x\" (id text)") }
         assertThrows<IllegalArgumentException> { PostgresSchema.target("ALTER TABLE \"wow_x\" DROP COLUMN a") }
+        assertThrows<IllegalArgumentException> {
+            PostgresSchema.target("ALTER TABLE \"wow_x\" ADD COLUMN IF NOT EXISTS a jsonb")
+        }
         assertThrows<IllegalArgumentException> { PostgresSchema.target("INSERT INTO wow_x VALUES (1)") }
     }
 

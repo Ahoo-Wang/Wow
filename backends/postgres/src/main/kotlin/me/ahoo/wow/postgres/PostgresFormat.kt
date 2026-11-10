@@ -20,9 +20,8 @@ import java.sql.Connection
  * The format versions of stored structures: one row per structure (a log or a snapshot table) in
  * [TABLE], recorded by the table, not by each row. `createSchema` claims its structure's version before creating it:
  * the first claim records it, a structure recorded under another version is refused, and so is a table that exists
- * without a record (an earlier, incompatible build created it), so this version of Wow never reads or writes a layout
- * it does not know. An incompatible layout changes only in a major version, through the migration tool;
- * adding an optional column with a default does not change the version.
+ * without a record (Wow did not record its layout), so this version of Wow never reads or writes a layout it does not
+ * know. Nothing is converted from one version to another.
  */
 internal object PostgresFormat {
     /** The table of format versions, shared by every structure in the database. */
@@ -35,9 +34,10 @@ internal object PostgresFormat {
     fun claim(connection: Connection, structure: String, version: Int) {
         PostgresSchema.execute(connection, listOf(FORMAT_TABLE))
         val stored = recorded(connection, structure) ?: run {
-            // The record is written before the table is created, so a table without one predates format records.
+            // The record is written before the table is created, so a table without one is not of a layout Wow recorded.
             check(!tableExists(connection, structure)) {
-                "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
+                "$structure exists without a format record: Wow did not record its layout, so it is not read. " +
+                    "Drop it, or restore its record with it."
             }
             connection.prepareStatement(
                 "INSERT INTO $TABLE (structure, version) VALUES (?, ?) ON CONFLICT (structure) DO NOTHING",
@@ -50,7 +50,7 @@ internal object PostgresFormat {
         }
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
-                "Migrate it with the migration tool rather than opening it."
+                "Open it with the version of Wow that wrote it, or start from an empty store."
         }
     }
 
@@ -82,20 +82,21 @@ internal object PostgresFormat {
 
     /**
      * Whether [structure] exists, recorded at [version]; refuses one recorded at another version, and a table that
-     * exists without a record (an earlier, incompatible build created it).
+     * exists without a record.
      */
     fun validate(connection: Connection, structure: String, version: Int): Boolean {
         val stored = if (tableExists(connection, TABLE)) recorded(connection, structure) else null
         val exists = tableExists(connection, structure)
         if (stored == null) {
             check(!exists) {
-                "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
+                "$structure exists without a format record: Wow did not record its layout, so it is not read. " +
+                    "Drop it, or restore its record with it."
             }
             return false
         }
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
-                "Migrate it with the migration tool rather than opening it."
+                "Open it with the version of Wow that wrote it, or start from an empty store."
         }
         return exists
     }

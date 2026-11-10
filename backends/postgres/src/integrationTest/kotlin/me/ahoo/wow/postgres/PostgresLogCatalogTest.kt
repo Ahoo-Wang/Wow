@@ -92,7 +92,7 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
     }
 
     @Test
-    fun `a log created by a build without format records is refused`() {
+    fun `a log table without a format record is refused`() {
         val context = PostgresFixture.newContext()
         PostgresFixture.createUnrecorded(table(context, "partition"))
         assertThrownBy<IllegalStateException> { PostgresFixture.log(4, context) }

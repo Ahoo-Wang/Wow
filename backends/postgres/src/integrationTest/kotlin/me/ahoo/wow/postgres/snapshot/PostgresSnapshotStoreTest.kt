@@ -60,7 +60,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `snapshots created by a build without format records are refused`() {
+    fun `a snapshot table without a format record is refused`() {
         val context = PostgresFixture.newContext()
         PostgresFixture.createUnrecorded(table(context, "aggregate"))
         assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context).createTable("aggregate") }

@@ -50,7 +50,7 @@ object PostgresFixture {
     fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
         PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
 
-    /** Creates [table] the way a build without format records did: the table alone. */
+    /** Creates [table] without its format record: the table alone, as Wow does not create it. */
     fun createUnrecorded(table: String) {
         dataSource.connection.use { connection ->
             connection.createStatement().use { it.execute("CREATE TABLE \"$table\" (id integer)") }

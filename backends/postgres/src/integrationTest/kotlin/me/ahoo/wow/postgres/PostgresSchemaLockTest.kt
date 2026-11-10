@@ -41,9 +41,10 @@ import kotlin.time.toJavaDuration
 class PostgresSchemaLockTest {
     private val dataSource = PostgresFixture.dataSource
 
-    /** A step's statement that adds a column a table lacks, as a step within a format does. */
-    private fun addStaleVersion(tables: PostgresSnapshotTables) =
-        "ALTER TABLE ${tables.snapshot} ADD COLUMN IF NOT EXISTS stale_version integer"
+    /** Drops the owner index of [tables]' snapshot table, so that its schema step has an index to make. */
+    private fun dropOwnerIndex(tables: PostgresSnapshotTables) {
+        dataSource.connection.use { it.createStatement().execute("DROP INDEX \"${tables.ownerIndex}\"") }
+    }
 
     @Test
     fun `a current schema should take no table lock, however long another transaction holds the table`() {
@@ -59,30 +60,30 @@ class PostgresSchemaLockTest {
     }
 
     @Test
-    fun `a missing column behind a held table should fail fast, naming the table and its holder`() {
+    fun `a missing index behind a held table should fail fast, naming the table and its holder`() {
         val context = PostgresFixture.newContext("lock")
         PostgresSnapshotStore(dataSource, context).createTable("order")
         val tables = PostgresSnapshotTables(context, "order")
-        dataSource.connection.use { it.createStatement().execute("ALTER TABLE ${tables.snapshot} DROP COLUMN stale_version") }
+        dropOwnerIndex(tables)
         holding(tables.snapshot) { holder ->
             val wait = PostgresSchema.LockWait(timeout = 200.milliseconds, attempts = 2, backoff = 50.milliseconds)
             val started = TimeSource.Monotonic.markNow()
             val failure = assertThrows<IllegalStateException> {
                 dataSource.connection.use { connection ->
                     PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT), wait) {
-                        PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
+                        PostgresSchema.execute(connection, tables.ddl())
                     }
                 }
             }
             started.elapsedNow().assert().isLessThan(5.seconds)
             failure.message.assert().contains(tables.base, "pid $holder", "idle in transaction")
         }
-        // Once the holder is gone, the step adds the column.
+        // Once the holder is gone, the step makes the index.
         dataSource.connection.use { connection ->
             PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
+                PostgresSchema.execute(connection, tables.ddl())
             }
-            PostgresSchema.hasColumns(connection, tables.snapshot, listOf("stale_version")).assert().isTrue()
+            PostgresSchema.exists(connection, "\"${tables.ownerIndex}\"").assert().isTrue()
         }
     }
 
@@ -123,7 +124,7 @@ class PostgresSchemaLockTest {
         val context = PostgresFixture.newContext("lock")
         PostgresSnapshotStore(dataSource, context).createTable("order")
         val tables = PostgresSnapshotTables(context, "order")
-        dataSource.connection.use { it.createStatement().execute("ALTER TABLE ${tables.snapshot} DROP COLUMN stale_version") }
+        dropOwnerIndex(tables)
         val held = CountDownLatch(1)
         val other = Thread {
             dataSource.connection.use { connection ->
@@ -137,10 +138,10 @@ class PostgresSchemaLockTest {
         val started = TimeSource.Monotonic.markNow()
         dataSource.connection.use { connection ->
             PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
+                PostgresSchema.execute(connection, tables.ddl())
             }
             started.elapsedNow().inWholeMilliseconds.assert().isGreaterThanOrEqualTo(HELD_MILLIS / 2)
-            PostgresSchema.hasColumns(connection, tables.snapshot, listOf("stale_version")).assert().isTrue()
+            PostgresSchema.exists(connection, "\"${tables.ownerIndex}\"").assert().isTrue()
         }
         other.join()
     }

@@ -60,7 +60,7 @@ class PostgresStoreDdlTest {
         PostgresFixture.bumpFormat(PostgresEventLogTables(context).aggregate("order").base)
         assertThrows<IllegalStateException> {
             PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
-        }.message.assert().contains("Migrate it")
+        }.message.assert().contains("reads format 1", "start from an empty store")
     }
 
     @Test
