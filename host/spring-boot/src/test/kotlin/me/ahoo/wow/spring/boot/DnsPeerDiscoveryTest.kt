@@ -289,8 +289,8 @@ class DnsPeerDiscoveryTest {
                     ),
                 ),
             )
-            WowAutoConfiguration.serviceOf(contracts, "mail").assert().isEqualTo("mail-service")
-            WowAutoConfiguration.serviceOf(contracts, "box").assert().isNull()
+            NodeModels.serviceOf(contracts, "mail").assert().isEqualTo("mail-service")
+            NodeModels.serviceOf(contracts, "box").assert().isNull()
             val domain = ProviderOption.string("domain", "the domain of the peers' nodes.")
             val seen = mutableListOf<Map<String, String>>()
             val custom = object : PeerDiscovery {

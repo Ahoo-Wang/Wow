@@ -16,19 +16,11 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
-import me.ahoo.wow.client.PeerClients
-import me.ahoo.wow.client.RetryPolicy
-import me.ahoo.wow.client.RoutedCommandClient
-import me.ahoo.wow.client.UserCredential
-import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.DeclaredServices
-import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalPort
@@ -36,19 +28,15 @@ import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.wowRoutes
-import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
-import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
@@ -66,7 +54,6 @@ import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.call.CommandCaller
-import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
@@ -78,16 +65,17 @@ import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
-import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportProvider
+import me.ahoo.wow.spring.boot.NodeAdmission.Companion.aggregateIdGenerators
+import me.ahoo.wow.spring.boot.NodeAdmission.Companion.idGeneratorLookup
+import me.ahoo.wow.spring.boot.NodeAdmission.Companion.tenants
+import me.ahoo.wow.spring.boot.NodeAdmission.Companion.writePolicies
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
@@ -96,35 +84,30 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
-import org.springframework.util.ClassUtils
-import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
-import java.net.http.HttpClient
 import java.time.Clock
 import kotlin.time.toKotlinDuration
-import jakarta.validation.Validator as JakartaValidator
 
 /**
  * The Wow host (.3; –): by what the classpath and the
  * application's beans offer, it assembles one [ServiceNode] and serves it on two ports.
  *
- * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]) of the contexts
+ * - **Models and Manifest** ([NodeModels]): the binding index on the classpath ([ModelProvider.load]) of the contexts
  *   `wow.contexts.include` / `exclude` select ([ContextSelection]; all by default), the models' parameters from the
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
  *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peer contracts on the
  *   classpath ([ContractDirectory]).
- * - **Backend** (`wow.backend`, [BackendSelection]; each store opened by the [StoreProvider] of its type,
+ * - **Backend** ([NodeStores]; `wow.backend`, [BackendSelection]; each store opened by the [StoreProvider] of its type,
  *   [StoreProviders]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
- * - **Admission**: every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
+ * - **Admission** ([NodeAdmission]): every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
  *   ([CommandAuthorizer.allOf]); without one, the public port refuses the system commands of Wow's built-in
  *   aggregates, the jobs' and the snapshot rebuild's (403 `wow.auth.forbidden`); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider, the id generators: the [GlobalIdGenerator] bean
@@ -142,7 +125,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   between nodes names the node's service (`Wow-Service`): a forward is taken from a node of the same
  *   service alone, a signal from any service, the origin of a wait that crossed services. No token: the internal port
  *   is reachable by the platform's own pods alone, a NetworkPolicy's boundary.
- * - **Synchronous calls**: the sagas call other contexts' gateways through the [CommandCaller] bean,
+ * - **Synchronous calls** ([NodePeers]): the sagas call other contexts' gateways through the [CommandCaller] bean,
  *   by default an [HttpCommandCaller] at `wow.peers.<context>.url`, the target's internal port, naming this
  *   node's service. The internal port serves the command routes of the calls ([callRoutes]) to the service each call
  *   names ([DeclaredServices]); the public port refuses `Wow-Call`. A service may call the commands
@@ -167,7 +150,15 @@ import jakarta.validation.Validator as JakartaValidator
     ],
 )
 @EnableConfigurationProperties(WowProperties::class)
-@Import(NodeClock::class, NodePeers::class, NodeInternalPort::class, NodePublicPort::class)
+@Import(
+    NodeClock::class,
+    NodeModels::class,
+    NodeStores::class,
+    NodeAdmission::class,
+    NodePeers::class,
+    NodeInternalPort::class,
+    NodePublicPort::class,
+)
 class WowAutoConfiguration {
     /**
      * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
@@ -214,205 +205,6 @@ class WowAutoConfiguration {
     @InternalWowApi
     fun wowNodeIdentity(properties: WowProperties, environment: Environment): NodeIdentity =
         NodeIdentity.of(properties, environment)
-
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowDependencies(beanFactory: ConfigurableListableBeanFactory): Dependencies =
-        BeanFactoryDependencies(beanFactory)
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowModels(
-        properties: WowProperties,
-        beanFactory: ConfigurableListableBeanFactory,
-        dependencies: Dependencies,
-    ): WowModels {
-        val providers = properties.contexts.selection().select(ModelProvider.load(beanFactory.beanClassLoader))
-        return WowModels(providers, ServiceNode.models(dependencies, providers))
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowManifestLoader(beanFactory: ConfigurableListableBeanFactory): ManifestLoader =
-        ManifestLoader(beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!, WowJson.mapper)
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
-        loader.load(ServiceInfo(identity.service), models.providers)
-
-    /** The contracts of the service's Manifest and the peer contracts on the class path. */
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
-        ContractDirectory.load(
-            manifest,
-            beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!,
-            WowJson.mapper
-        )
-
-    /**
-     * The store providers: memory, built in (its snapshots queryable unless `wow.query.memory.enabled` is false),
-     * those on the classpath (`ServiceLoader`: PostgreSQL's, MongoDB's, a community backend's) and the application's
-     * [StoreProvider] beans, each over the one of its type before it.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowStoreProviders(
-        beanFactory: ConfigurableListableBeanFactory,
-        queries: ObjectProvider<QueryProperties>,
-        providers: ObjectProvider<StoreProvider>,
-    ): StoreProviders {
-        // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
-        // Without the query plane (wow.query.enabled=false, or no wow-query) there are no query properties to say.
-        val memoryQueries = queries.ifAvailable?.memory?.enabled ?: true
-        return StoreProviders.load(
-            beanFactory.beanClassLoader,
-            memory = MemoryStoreProvider(memoryQueries),
-            beans = providers.orderedStream().toList(),
-        )
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per input of the stores, each a bean the application may give.
-    fun wowBackends(
-        properties: WowProperties,
-        beanFactory: ConfigurableListableBeanFactory,
-        factories: ObjectProvider<BackendFactory>,
-        providers: StoreProviders,
-        models: WowModels,
-        identity: ObjectProvider<NodeIdentity>,
-        development: DevelopmentMode,
-        environment: Environment,
-        clock: Clock,
-    ): HostBackends {
-        factories.ifAvailable?.let { return HostBackends.of(it) }
-        val node = identity.ifAvailable
-        val placements = properties.storePlacements()
-        val types = models.models.map { it.type }
-        val stores = StoreInstances.open(
-            properties,
-            providers,
-            BeanStoreResources(beanFactory),
-            node?.service.orEmpty(),
-            development.reason,
-            clock,
-        ) { prefix -> PortProviders.settingsOf(environment, prefix) }
-        // The next statement hands the stores to their owner: nothing runs between.
-        return StoreInstances.backends(stores, placements, types, properties.log.partitions)
-    }
-
-    /** The node's global ids: command, request and wait ids, and the ids domain code takes. */
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowGlobalIdGenerator(): GlobalIdGenerator = GlobalIdGenerator.UUID_V7
-
-    /** The ids of new aggregates of every type no `wow.aggregates.*.id-generator` names. */
-    @Bean(WOW_AGGREGATE_ID_GENERATOR)
-    @ConditionalOnMissingBean(name = [WOW_AGGREGATE_ID_GENERATOR])
-    fun wowAggregateIdGenerator(global: GlobalIdGenerator): AggregateIdGenerator = AggregateIdGenerator.of(global)
-
-    /**
-     * The client of the other contexts' command gateways the sagas call: the service mode of
-     * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call bounded by
-     * `wow.peer.timeout` or its peer's own and sent by the route its peer's contract in [contracts] lists.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowCommandCaller(
-        properties: WowProperties,
-        identity: NodeIdentity,
-        endpoints: EndpointResolver,
-        @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
-        contracts: ContractDirectory,
-    ): CommandCaller = HttpCommandCaller(
-        endpoints,
-        identity.service,
-        client,
-        properties.peer.timeout.toKotlinDuration(),
-        properties.peerTimeouts(),
-        contracts.fragments.map { it.manifest },
-    )
-
-    /**
-     * The peer contexts reached over HTTP, `wow.peers`, and their clients in either mode, each
-     * built when first used: the service mode naming this node's service, the user mode forwarding the request's
-     * `wow.peer.forwarded-headers`. A context of `wow.peers` the node serves itself is reached by its sagas' calls
-     * alone: its commands and queries stay in the node.
-     */
-    @Bean
-    @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per input of the clients, each a bean of the node.
-    fun wowPeerClients(
-        properties: WowProperties,
-        endpoints: EndpointResolver,
-        identity: NodeIdentity,
-        contracts: ContractDirectory,
-        globalIds: GlobalIdGenerator,
-        @Qualifier(PEER_HTTP_CLIENT) httpClient: HttpClient,
-    ): PeerClients {
-        val peer = properties.peer
-        val described = properties.peers
-            .filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
-
-        /** A client of the peers, its mode named by [mode]: as the node's service, or forwarding the end user's. */
-        fun client(mode: WowClient.Builder.() -> Unit) = lazy {
-            val builder = WowClient.builder()
-                .endpoints(endpoints)
-                .httpClient(httpClient)
-                .timeout(peer.timeout.toKotlinDuration())
-                .retry(
-                    RetryPolicy.of(
-                        peer.retry.maxAttempts,
-                        peer.retry.maxRetryAfter.toKotlinDuration(),
-                        peer.retry.initialBackoff.toKotlinDuration(),
-                    ),
-                )
-                .contracts(contracts.fragments)
-                .ids(globalIds)
-                .manifestPeers(described)
-            properties.peerTimeouts().forEach { (context, timeout) -> builder.timeout(context, timeout) }
-            builder.apply(mode).build()
-        }
-        return PeerClients(
-            properties.peers.filterKeys { it !in contracts.localContexts }
-                .mapValues { (_, target) -> target.mode ?: peer.mode },
-            contracts.localContexts,
-            contracts.peerContexts,
-            client { service(identity.service) },
-            client { user(UserCredential.FORWARDED) },
-            peer.mode,
-            // The node's service as its Manifest names it, which a subscription reads a peer as.
-            checkNotNull(contracts.local.service) { "The node's Manifest names no service." }.name,
-            described,
-        )
-    }
-
-    /**
-     * The typed clients of the peers over HTTP in `wow.peer.mode`, for the application that calls a
-     * peer explicitly; the [CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans route to them on their own.
-     * An application replaces it by declaring a [WowClient] bean, not by calling this method.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowClient(peers: PeerClients): WowClient = peers.client
-
-    /**
-     * Puts the `wow.peer.forwarded-headers` of each public request in its handling's coroutine context
-     * ([me.ahoo.wow.client.ForwardedHeaders]), which a user-mode client forwards to a peer.
-     */
-    @Bean
-    @InternalWowApi
-    fun wowForwardedHeadersFilter(properties: WowProperties): WebFilter =
-        ForwardedHeadersFilter(properties.peer.forwardedHeaders.map(String::trim).filter(String::isNotEmpty))
 
     @Bean
     @ConditionalOnMissingBean
@@ -529,10 +321,6 @@ class WowAutoConfiguration {
         return ContextQueries { tenantId -> resolved.of(tenantId) }
     }
 
-    @Bean
-    @InternalWowApi
-    fun wowBackendsLifecycle(backends: HostBackends): BackendsLifecycle = BackendsLifecycle(backends)
-
     /** The scope the routes stream their answers in, cancelled once the node and the internal port have stopped. */
     @Bean
     @InternalWowApi
@@ -553,20 +341,6 @@ class WowAutoConfiguration {
      */
     @Bean(destroyMethod = "")
     fun wowCommandGateway(node: ServiceNode): CommandGateway = node.gateway
-
-    /**
-     * The service's [CommandClient]: command objects sent through the node's gateway, in
-     * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare, and
-     * over HTTP to the peer contexts `wow.peers` lists ([PeerClients]). It sends as an anonymous caller;
-     * [CommandClient.of] gives it another. An application replaces it by declaring a [CommandClient] bean, not by
-     * calling this method. It is built on its first use ([DeferredCommandClient]), so a transformer, validator,
-     * authorizer or subscription the node is assembled with may take it.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowCommandClient(gateway: ObjectProvider<CommandGateway>, peers: ObjectProvider<PeerClients>): CommandClient =
-        DeferredCommandClient { commandClientOf(gateway.getObject(), peers.getObject()) }
 
     @Bean
     @ConditionalOnMissingBean
@@ -631,18 +405,6 @@ class WowAutoConfiguration {
         )
     }
 
-    /** Activated when the application has a Bean Validation provider. */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = [JAKARTA_VALIDATOR])
-    class JakartaValidation {
-        @Bean
-        @ConditionalOnBean(type = [JAKARTA_VALIDATOR])
-        @ConditionalOnMissingBean
-        @InternalWowApi
-        fun wowJakartaCommandValidator(validator: ObjectProvider<JakartaValidator>): JakartaCommandValidator =
-            JakartaCommandValidator(validator.getObject())
-    }
-
     companion object {
         /** Refuses several beans of one single seam before any bean is built ([SingleSeams]). */
         @Bean
@@ -654,11 +416,6 @@ class WowAutoConfiguration {
         @JvmStatic
         internal fun wowRetiredQueryPolicies(): BeanFactoryPostProcessor = RetiredQueryPolicies()
 
-        /** The service of the peer [context], as its contract on the class path names it. */
-        internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
-            .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
-            ?.manifest?.service?.name?.takeIf { it.isNotBlank() }
-
         const val WOW_JSON_MAPPER: String = "wowJsonMapper"
         const val INTERNAL_HTTP_CLIENT: String = "wowInternalHttpClient"
 
@@ -667,7 +424,6 @@ class WowAutoConfiguration {
 
         /** The default [AggregateIdGenerator] bean's name: the generator of the types no `id-generator` names. */
         const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
-        private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
         private val logger = KotlinLogging.logger {}
 
         /** The types of the topic transports the node can open: on the classpath, and the application's beans. */
@@ -676,72 +432,6 @@ class WowAutoConfiguration {
             transports: ObjectProvider<TransportProvider>,
         ): Set<String> =
             PortProviders.load(beanFactory.beanClassLoader, transports.orderedStream().toList()).transports.keys
-
-        private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
-
-        /**
-         * The fixed tenants of `wow.aggregates.[<context>.<aggregate>].tenant`, each of an aggregate
-         * type of [models]: a key that names no such type, or a blank tenant, is refused.
-         */
-        internal fun tenants(properties: WowProperties, models: List<AggregateModel<*>>): TenantPolicy {
-            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            val fixed = properties.aggregates.mapNotNull { (key, aggregate) ->
-                aggregate.tenant?.let { tenant ->
-                    val model = configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
-                        "wow.aggregates.[$key].tenant names no aggregate type this node serves."
-                    }
-                    configCheck(tenant.isNotBlank(), "wow.aggregates.[$key].tenant", tenant, "Name the tenant.") {
-                        "wow.aggregates.[$key].tenant is blank."
-                    }
-                    model.type to tenant
-                }
-            }.toMap()
-            return TenantPolicy.fixed(fixed)
-        }
-
-        /**
-         * The generator of each aggregate type's new ids: for each type of [models] that
-         * `wow.aggregates.[<context>.<aggregate>].id-generator` names one for, the one [lookup] finds by that name;
-         * [default] for the others. A key that names no such type, a blank name, or a name [lookup] finds nothing by
-         * is refused.
-         */
-        internal fun aggregateIdGenerators(
-            properties: WowProperties,
-            models: List<AggregateModel<*>>,
-            default: AggregateIdGenerator,
-            lookup: (String) -> AggregateIdGenerator?,
-        ): AggregateIdGenerator {
-            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            val selected = properties.aggregates.mapNotNull { (key, aggregate) ->
-                aggregate.idGenerator?.let { name ->
-                    val model = configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
-                        "wow.aggregates.[$key].id-generator names no aggregate type this node serves."
-                    }
-                    val idGenerator = "wow.aggregates.[$key].id-generator"
-                    val generatorFix =
-                        "Name an AggregateIdGenerator bean, or a generator an AggregateIdGeneratorSource bean finds."
-                    configCheck(name.isNotBlank(), idGenerator, name, generatorFix) { "$idGenerator is blank." }
-                    val generator = configNotNull(lookup(name), idGenerator, generatorFix, name) {
-                        "$idGenerator names $name, which is no AggregateIdGenerator bean and no generator an " +
-                            "AggregateIdGeneratorSource bean finds."
-                    }
-                    model.type to generator
-                }
-            }.toMap()
-            return AggregateIdGenerator.of(default, selected)
-        }
-
-        /** The [AggregateIdGenerator] bean of a name, else the generator the first of [sources] finds by it. */
-        internal fun idGeneratorLookup(
-            beanFactory: ConfigurableListableBeanFactory,
-            sources: List<AggregateIdGeneratorSource>,
-        ): (String) -> AggregateIdGenerator? = { name ->
-            if (name in beanFactory.getBeanNamesForType(AggregateIdGenerator::class.java)) {
-                beanFactory.getBean(name, AggregateIdGenerator::class.java)
-            } else {
-                sources.firstNotNullOfOrNull { it.find(name) }
-            }
-        }
 
         /**
          * The subscriptions of the annotated processors of the node's contexts (the generated
@@ -771,19 +461,3 @@ class WowAutoConfiguration {
         }
     }
 }
-
-private fun commandClientOf(gateway: CommandGateway, peers: PeerClients): CommandClient {
-    val local = InProcessCommandClient(gateway)
-    return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
-}
-
-/**
- * The access policies the node's commands are held to: the ones its queries read by, resolved alike. A node of some of
- * the service's contexts leaves the policies of the others' aggregates to theirs.
- */
-private fun writePolicies(
-    properties: WowProperties,
-    models: WowModels,
-    access: ObjectProvider<AccessPolicy<*>>,
-): WritePolicies =
-    WritePolicies.of(access.orderedStream().toList(), models.models, strict = properties.contexts.selection().isAll)

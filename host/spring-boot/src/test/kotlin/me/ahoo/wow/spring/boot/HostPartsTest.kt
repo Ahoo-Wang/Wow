@@ -394,14 +394,14 @@ class WowPropertiesTest {
     fun `a fixed tenant should be of an aggregate type the node serves (D116)`() {
         val models = BankModels().models(Dependencies.of(DecidedCommands()))
         val account = AggregateType(BANK, "account")
-        WowAutoConfiguration.tenants(WowProperties(), models).fixedTenant(account).assert().isNull()
+        NodeAdmission.tenants(WowProperties(), models).fixedTenant(account).assert().isNull()
         val fixed = bind("wow.aggregates.[bank.account].tenant" to "t0")
-        WowAutoConfiguration.tenants(fixed, models).fixedTenant(account).assert().isEqualTo("t0")
+        NodeAdmission.tenants(fixed, models).fixedTenant(account).assert().isEqualTo("t0")
         val unknown = bind("wow.aggregates.[shop.cart].tenant" to "t0")
-        assertThrows<IllegalStateException> { WowAutoConfiguration.tenants(unknown, models) }
+        assertThrows<IllegalStateException> { NodeAdmission.tenants(unknown, models) }
             .message.assert().contains("shop.cart")
         val blank = WowProperties().apply { aggregates["bank.account"] = WowProperties.Aggregate().apply { tenant = " " } }
-        assertThrows<IllegalStateException> { WowAutoConfiguration.tenants(blank, models) }
+        assertThrows<IllegalStateException> { NodeAdmission.tenants(blank, models) }
             .message.assert().contains("blank")
     }
 
@@ -412,23 +412,23 @@ class WowPropertiesTest {
         val default = AggregateIdGenerator { "default" }
         val named = AggregateIdGenerator { "named" }
         val lookup = { name: String -> named.takeIf { name == "accounts" } }
-        WowAutoConfiguration.aggregateIdGenerators(WowProperties(), models, default, lookup).assert().isSameAs(default)
+        NodeAdmission.aggregateIdGenerators(WowProperties(), models, default, lookup).assert().isSameAs(default)
         val configured = bind("wow.aggregates.[bank.account].id-generator" to "accounts")
-        WowAutoConfiguration.aggregateIdGenerators(configured, models, default, lookup).next(account)
+        NodeAdmission.aggregateIdGenerators(configured, models, default, lookup).next(account)
             .assert().isEqualTo("named")
         val tenantOnly = bind("wow.aggregates.[bank.account].tenant" to "t0")
-        WowAutoConfiguration.aggregateIdGenerators(tenantOnly, models, default, lookup).assert().isSameAs(default)
+        NodeAdmission.aggregateIdGenerators(tenantOnly, models, default, lookup).assert().isSameAs(default)
         val unknownName = bind("wow.aggregates.[bank.account].id-generator" to "missing")
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration.aggregateIdGenerators(unknownName, models, default, lookup)
+            NodeAdmission.aggregateIdGenerators(unknownName, models, default, lookup)
         }.message.assert().contains("names missing")
         val unknownType = bind("wow.aggregates.[shop.cart].id-generator" to "accounts")
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration.aggregateIdGenerators(unknownType, models, default, lookup)
+            NodeAdmission.aggregateIdGenerators(unknownType, models, default, lookup)
         }.message.assert().contains("shop.cart")
         val blank = bind("wow.aggregates.[bank.account].id-generator" to " ")
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration.aggregateIdGenerators(blank, models, default, lookup)
+            NodeAdmission.aggregateIdGenerators(blank, models, default, lookup)
         }.message.assert().contains("blank")
     }
 
@@ -444,11 +444,11 @@ class WowPropertiesTest {
             AggregateIdGeneratorSource { null },
             AggregateIdGeneratorSource { name -> sourced.takeIf { name == "cosid-accounts" } },
         )
-        val lookup = WowAutoConfiguration.idGeneratorLookup(beans, sources)
+        val lookup = NodeAdmission.idGeneratorLookup(beans, sources)
         lookup("accounts").assert().isSameAs(bean)
         lookup("cosid-accounts").assert().isSameAs(sourced)
         lookup("notAGenerator").assert().isNull()
-        WowAutoConfiguration.idGeneratorLookup(beans, emptyList())("cosid-accounts").assert().isNull()
+        NodeAdmission.idGeneratorLookup(beans, emptyList())("cosid-accounts").assert().isNull()
     }
 
     @Test
