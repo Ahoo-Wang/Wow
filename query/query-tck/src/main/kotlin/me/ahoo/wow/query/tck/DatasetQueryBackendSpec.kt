@@ -405,16 +405,29 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `a cursor over instants a microsecond apart walks each record once, in time order`() = blocking {
+        val micros = target(MICROS)
+        assumeSupported(micros.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
+        val sort = listOf(Sort(CREATED_AT, Sort.Direction.ASC))
+        val ids = mutableListOf<String>()
+        var cursor: String? = null
+        do {
+            val query = CursorQuery(MatchAllFilter, sort = sort, size = 1, cursor = cursor)
+            val page = micros.backend.cursor(QueryAdmission.Trusted.cursor(query, micros.schema))
+            ids += page.list.map { it.path(ID).stringValue() }
+            cursor = page.nextCursor
+        } while (cursor != null && ids.size <= MAX_LIST)
+        ids.assert().containsExactly("u2", "u1", "u3")
+        Unit
+    }
+
+    @Test
     fun `NOR holds for a record whose condition has no value`() = blocking {
         val discount = QueryField("discount")
-        val noTenth =
-            AndFilter(
-                listOf(EqualFilter(TENANT_COLUMN, "t1"), NorFilter(listOf(EqualFilter(discount, BigDecimal("0.10")))))
-            )
-        orders.list(ListQuery(noTenth, sort = listOf(Sort(QueryField(ID), Sort.Direction.ASC)))).map {
-            it.path(ID).stringValue()
-        }
-            .assert().containsExactly("o1", "o3", "o4", "o5")
+        val noTenth = NorFilter(listOf(EqualFilter(discount, BigDecimal("0.10"))))
+        val byId = listOf(Sort(QueryField(ID), Sort.Direction.ASC))
+        orders.list(ListQuery(AndFilter(listOf(EqualFilter(TENANT_COLUMN, "t1"), noTenth)), sort = byId))
+            .map { it.path(ID).stringValue() }.assert().containsExactly("o1", "o3", "o4", "o5")
         Unit
     }
 
@@ -764,6 +777,21 @@ abstract class DatasetQueryBackendSpec {
                 order("o5", "t1", "Shanghai", "7.75", 4, "0.05", "2025-02-15T12:00:00Z"),
                 order("o6", "t2", "Hangzhou", "99.99", 9, null, "2025-01-01T05:00:00Z"),
             ),
+        )
+
+        /** Instants a microsecond apart, within one millisecond. */
+        val MICROS = DatasetTable(
+            name = "micros",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn("created_at", DatasetColumn.Type.DATE),
+            ),
+            rows = listOf(
+                "u1" to "2026-01-01T00:00:00.000200Z",
+                "u2" to "2026-01-01T00:00:00.000100Z",
+                "u3" to "2026-01-01T00:00:00.000300Z",
+            ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
         /** Instants on either side of the epoch. */
