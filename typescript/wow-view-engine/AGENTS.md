@@ -871,7 +871,8 @@ src/
       ViewHeader.tsx          — Title bar: kind, audience, title, unsaved mark, save commands
       ViewList.tsx            — What this list is a list of — the definition's own title
       ViewSwitcher.tsx        — The view list as one control, for when the sidebar is folded away
-      WorkbenchShell.tsx      — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
+      WorkbenchShell.tsx      — The frame the workbenches share, over one `useWorkbench`: the surface, the sidebar and its folds, the work column with what stands in it while no view is open, the manager and the leave dialog
+      OpenViewColumn.tsx      — The open view in the work column: title bar with the editor's fold, origin bar, status line, conditions, the applied band and the result; the query strip, the fold's keyboard, and the title taking the keyboard when a view replaces another
       WriteOutcome.tsx        — The open view's last write, and the three ways out of a conflict
       describeConfig.ts       — One config in a sentence, for a conflict's side-by-side
       panelsToFix.ts          — `boardErrorTitle`: a board's red line said of its panels when only the open board's panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise; `saidByBoard`: a definition finding the open declared board already says by name
