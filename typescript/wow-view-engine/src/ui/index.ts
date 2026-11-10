@@ -152,12 +152,12 @@ export { cellValue, type CellField, type CellSurface } from './record/cells.js';
 export {
   cellText,
   displayValue,
-  tableTime,
   type DisplayContext,
   type DisplayField,
   type ElementField,
   type ElementTitleField,
 } from './kit/display.js';
+export { tableTime } from './kit/displayTime.js';
 export { fileName } from './kit/download.js';
 export {
   EditorBand,

@@ -17,7 +17,7 @@ import { cn } from 'cn';
 import type { RefreshController } from '../../react/index.js';
 import type { ViewNavigation } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
-import { readingTime } from '../kit/display.js';
+import { readingTime } from '../kit/displayTime.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { RefreshControl } from '../workbench/RefreshControl.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';

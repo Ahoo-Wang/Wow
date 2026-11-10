@@ -21,11 +21,11 @@ import {
   csvCellText,
   displayValue,
   heldReading,
-  isoDay,
   valueText,
   type DisplayField,
   columnTitle,
 } from '../src/ui/kit/display.js';
+import { isoDay } from '../src/ui/kit/displayTime.js';
 import { formatNumber } from '../src/ui/kit/numbers.js';
 import { badgeEntries } from '../src/ui/kit/badges.js';
 import { summaryText } from '../src/ui/kit/summary.js';
