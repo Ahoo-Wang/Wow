@@ -155,7 +155,7 @@ class DatasetTable @InternalWowApi constructor(
  * Queries run through trusted admission against the schema the Catalog compiles from the dataset's declaration and
  * the storage's facts, as a gateway would but without governance, except the gateway test.
  */
-abstract class DatasetQueryBackendSpec {
+abstract class DatasetQueryBackendSpec : DatasetDateBucketCases() {
     private lateinit var bindings: QueryBindings<QueryDataset>
     private lateinit var orders: Target
 
@@ -166,10 +166,13 @@ abstract class DatasetQueryBackendSpec {
 
     /**
      * Semantic cases ([FilterSemantics], or a case a test names, such as
-     * [DatasetDateBucketSpec.BEFORE_1970_PARTIAL_CHANGE]) this backend is known to diverge on, such as a table that cannot tell a missing value from a null; each one is skipped and
-     * reported, never silently passed.
+     * [DatasetDateBucketCases.BEFORE_1970_PARTIAL_CHANGE]) this backend is known to diverge on, such as a table that
+     * cannot tell a missing value from a null; each one is skipped and reported, never silently passed.
      */
-    protected open val semanticDivergences: Set<String> = emptySet()
+    override val semanticDivergences: Set<String> = emptySet()
+
+    final override suspend fun aggregateZoned(query: AggregationQuery): List<ObjectNode> =
+        target(DatasetDateBucketCases.ZONED).aggregate(query)
 
     /** A dataset's backend with the schema its Catalog compiled. */
     protected class Target @InternalWowApi constructor(

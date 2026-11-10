@@ -22,7 +22,7 @@ import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.query.tck.DatasetDateBucketSpec
+import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
@@ -32,7 +32,7 @@ import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 
-class InMemoryDatasetQueryBackendTest : DatasetDateBucketSpec() {
+class InMemoryDatasetQueryBackendTest : DatasetQueryBackendSpec() {
     private val storage = InMemoryDatasetStorage()
 
     override fun createDatasetBindings(): InMemoryDatasetStorage = storage

@@ -24,19 +24,19 @@ import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
-import me.ahoo.wow.query.tck.DatasetDateBucketSpec
+import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.tck.DatasetDateBucketSpec.Companion.BEFORE_1970_PARTIAL_CHANGE
+import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.BEFORE_1970_PARTIAL_CHANGE
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
-import me.ahoo.wow.query.tck.DatasetDateBucketSpec.Companion.MONROVIA_CHANGE_DAY
+import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.MONROVIA_CHANGE_DAY
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 
 /** The dataset TCK on ClickHouse. */
-class ClickHouseDatasetQueryBackendTest : DatasetDateBucketSpec() {
+class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
     override fun createDatasetBindings(): QueryBindings<QueryDataset> =
         ClickHouseDatasetBindings(ClickHouseContainers.client)
 

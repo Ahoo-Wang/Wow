@@ -25,23 +25,30 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 
 /**
- * The dataset contract's date buckets across a zone's offset changes: the bucket rule (`DateBuckets`) at daylight
+ * The cases of the dataset contract ([DatasetQueryBackendSpec], which extends this class and is the one a backend's
+ * test extends) on date buckets across a zone's offset changes. They hold the bucket rule (`DateBuckets`) at daylight
  * saving's transitions, in a half-hour zone, at a half-hour change (Australia/Lord_Howe), at a change by seconds
- * (Africa/Monrovia) and on the day of a change before 1970 (Asia/Shanghai's switch from local mean time). A dataset
- * backend's test extends it to run the whole contract.
+ * (Africa/Monrovia) and on the day of a change before 1970 (Asia/Shanghai's switch from local mean time). They read
+ * their table, [ZONED], through the spec.
  */
-abstract class DatasetDateBucketSpec : DatasetQueryBackendSpec() {
+abstract class DatasetDateBucketCases internal constructor() {
+    /** The case ids this backend is known to diverge on: [DatasetQueryBackendSpec.semanticDivergences]. */
+    protected abstract val semanticDivergences: Set<String>
+
+    /** [query] over the dataset of [ZONED], as the spec's backend answers it. */
+    protected abstract suspend fun aggregateZoned(query: AggregationQuery): List<ObjectNode>
+
     private fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
 
     @Test
     fun `an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own`() =
         blocking {
-            val zoned = target(ZONED)
             fun hours(zone: String, ids: List<String>) = blocking {
-                zoned.aggregate(
+                aggregateZoned(
                     AggregationQuery(
                         filter = InFilter(QueryField(ID), ids),
                         groupBy = listOf(
@@ -69,7 +76,7 @@ abstract class DatasetDateBucketSpec : DatasetQueryBackendSpec() {
     fun `a dense hourly histogram keeps whole the hour a half-hour fall-back makes 90 minutes long`() = blocking {
         // Lord Howe, 2026-04-05: 02:00 +11:00 becomes 01:30 +10:30; l1 at 00:30 +11:00, l3 at 01:45 +10:30, the second
         // half of the 01:00 hour that began at +11:00, and l2 at 02:30 +10:30.
-        val rows = target(ZONED).aggregate(
+        val rows = aggregateZoned(
             AggregationQuery(
                 filter = InFilter(QueryField(ID), listOf("l1", "l2", "l3")),
                 groupBy = listOf(
@@ -96,7 +103,7 @@ abstract class DatasetDateBucketSpec : DatasetQueryBackendSpec() {
 
     /** The buckets of [unit] in [zone] of the zoned rows [ids], each with its count, in key order. */
     private suspend fun zonedBuckets(unit: AggregationDateUnit, zone: String, vararg ids: String) =
-        target(ZONED).aggregate(
+        aggregateZoned(
             AggregationQuery(
                 filter = InFilter(QueryField(ID), ids.toList()),
                 groupBy = listOf(AggregationGroup.DateHistogram(CREATED_AT, "bucket", unit, zone)),
