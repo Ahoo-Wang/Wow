@@ -28,7 +28,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 
 /**
  * The built-in `reservation` subscription of one bounded [context]: confirms the keys a
- * committed entry reserved pending, then releases the keys it released, as the kernel records them in
+ * committed entry reserved (held already or not), then releases the keys it released, as the kernel records them in
  * the entry's transport ([me.ahoo.wow.spi.log.Transport.reservations], [me.ahoo.wow.spi.log.Transport.releases]).
  * The kernel's after-append actions are only the fast path; this subscription applies them when they never ran,
  * because the process crashed between the append and them or they failed, so a committed fact neither loses its key

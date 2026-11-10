@@ -15,3 +15,9 @@
 - **为什么**：Kotlin 侧（R5.C-7）已规定源码注释陈述理由、不引用设计编号，由 `:architecture` 的 `DesignIdRule` 守住；TypeScript 只清理了导出符号 TSDoc 的首句（生成的 API 参考页读它）。其余注释仍引用 Wow 的决策（`decision D253`）、评审编号（`review R4-Q`）和视图引擎自己的编号（`D22 H`、`D23 Q17`）：`wow-view-engine` 约 1,400 处，`wow-client` 约 70 处，`wow-generator`、`wow-view-store` 各几处。
 - **做完的判据**：`typescript/*/src` 的非测试源码不再出现这些编号，引用处改写成理由；规则（或等价的检查）覆盖 `typescript/*/src`，设计记录（`wow-view-engine/docs/design`）仍在规则之外。
 - **落点**：按包分 PR，`wow-client`、`wow-generator`、`wow-view-store` 一个，`wow-view-engine` 一到两个；之后扩展规则。
+
+### Manifest 中 Wow 自己的线上类型用客户端的导出
+
+- **为什么**：Manifest 的 `$defs` 也收录 Wow 自己的线上类型（如 `me.ahoo.wow.api.result.CommandResult`、`Hop`），生成器把它们当作领域类型再生成一份；`@ahoo-wang/wow-client` 已经导出这些类型，两份会分叉。#5593 之后它们按包名限定（分析目录控制台里的 `ResultCommandResult`、`ResultHop`），名字不再冲突，但仍是副本。
+- **做完的判据**：`$defs` 中属于 Wow 线上类型的 key 解析为 `@ahoo-wang/wow-client` 的导出（按与 `test/fixtures/wire-names.json` 同源的清单对应），生成的 `types.ts` 不再声明它们；分析目录控制台的生成客户端引用 `CommandResult`、`Hop`。
+- **落点**：`wow-generator` 的 `manifest/` 命名与类型解析，一个 PR；重新生成各应用的 `src/generated`。

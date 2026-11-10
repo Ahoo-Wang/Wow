@@ -258,6 +258,34 @@ class TopicSubscriptionsTest {
         }
 
     @Test
+    fun `a retry from a later version should stop at an undecodable message of the aggregate after it`(): Unit =
+        runBlocking {
+            // #5542: the undecodable message's entry has no version of its own; it is never older than the parked one.
+            val subscriptions = start("node-1")
+            failing = "o-1" to 2
+            topics.publish(orderRecord("o-1", 1), orderRecord("o-1", 2))
+            eventually { ledger.parked(BOARD, order("o-1"))?.fromVersion == 2 }
+            topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
+            topics.publish(orderRecord("o-1", 4))
+            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 4L }
+            failing = null
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
+            handled.versionsOf("o-1").assert().containsExactly(1, 2)
+            val parked = ledger.parked(BOARD, order("o-1"))!!
+            parked.reason.assert().contains("cannot be decoded")
+            parked.fromPosition.assert().isEqualTo(
+                topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
+            )
+            // Still parked there: neither a retry nor the tail goes past it, until it is skipped.
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
+            topics.publish(orderRecord("o-1", 5))
+            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 5L }
+            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
+            topics.publish(orderRecord("o-1", 6))
+            eventually { handled.versionsOf("o-1") == listOf(1, 2, 6) }
+        }
+
+    @Test
     fun `a failing aggregate should be parked at its offset and retried by re-scanning its partition`(): Unit =
         runBlocking {
             val (parkedId, otherId) = idsIn(partitionOf("o-1"), 2)

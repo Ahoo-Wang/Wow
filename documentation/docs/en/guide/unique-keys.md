@@ -34,7 +34,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 2. When the decision's events are appended, the reservation is **confirmed**, unless the decision is a rejection.
 3. When they are surely not appended (the decision rejects, the version conflicts and the command is decided again, or deciding fails), this attempt **gives its reservation up**. A process that dies first leaves it to expire.
 
-A key the aggregate already holds stays held whatever an attempt does, so deciding a command again never loses it.
+A key the aggregate already holds stays held whatever an attempt does, so deciding a command again never loses it. A decision that reserves a key the aggregate already holds confirms it again for its own commit, so that the release of an earlier rename, applied late, never frees it: that costs one write to the reservation store when the command commits, so a domain that reserves on every update pays it on every command. Reserve a key when the value changes.
 
 ## Release a key
 

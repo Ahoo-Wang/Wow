@@ -221,7 +221,7 @@ export class RecordDataViewRuntime
       return null;
     const data = result.data;
     if (data.kind !== 'record' || dequal(result.own, draft)) return null;
-    const change = restyledOnly(result.own, draft);
+    const change = restyledOnly(this.context.definition, result.own, draft);
     if (change === null) return null;
     const view = restyleRecord(this.context.definition, draft, data.view);
     if (change === 'summaries')

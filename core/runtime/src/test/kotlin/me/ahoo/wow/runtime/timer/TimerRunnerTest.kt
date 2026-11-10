@@ -24,6 +24,8 @@ import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
@@ -33,6 +35,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.IOException
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -40,6 +43,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -315,20 +319,74 @@ class TimerRunnerTest {
         }
 
     @Test
-    fun `a parking that is not written leaves the ledger alone`(): Unit = runBlocking {
+    fun `a parking the store does not write leaves its ledger entry, which a retry resolves finding nothing parked`():
+        Unit = runBlocking {
         answers["pay"] = IllegalStateException("down")
         val refusing = object : TimerStore by store {
             override suspend fun settle(changes: List<TimerChange>): Int =
                 if (changes.any { it.next.status == TimerStatus.PARKED }) 0 else store.settle(changes)
         }
         store.put(timer("pay"))
-        runner(timers = refusing, loop = loop(maxAttempts = 1)).startPartition(0)
-        eventually { fired.size == 1 }
-        delay(50)
-        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        val runner = runner(timers = refusing, loop = loop(maxAttempts = 1))
+        runner.startPartition(0)
+        eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
         // Still claimed: it is sent again once the claim lapses.
         status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
+        runner.retry(order("o-1")).assert().isEqualTo(0)
+        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
     }
+
+    @Test
+    fun `a timer is never parked without its ledger entry, and is parked once the ledger records it`(): Unit =
+        runBlocking {
+            answers["pay"] = IllegalStateException("down")
+            val parks = AtomicInteger()
+            val outage = object : FailureLedger by ledger {
+                override suspend fun park(entry: ParkedAggregate): Boolean {
+                    if (parks.incrementAndGet() == 1) throw IOException("The ledger is down for one write.")
+                    return ledger.park(entry)
+                }
+            }
+            store.put(timer("pay"))
+            TimerRunner(SHOP, store, outage, firer, loop(maxAttempts = 1)).also { runners += it }.startPartition(0)
+            // Its parking failed: PENDING again, its last attempt sent again after the backoff.
+            eventually { parks.get() == 1 && status("pay").status == TimerStatus.PENDING }
+            status("pay").attempts.assert().isEqualTo(0)
+            status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
+            store.parked(order("o-1")).assert().isEmpty()
+            clock.advance(1.seconds)
+            eventually { status("pay").status == TimerStatus.PARKED }
+            fired.size.assert().isEqualTo(2)
+            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNotNull()
+        }
+
+    @Test
+    fun `a parking cut short after its ledger entry is parked again by the next owner of the partition`(): Unit =
+        runBlocking {
+            answers["pay"] = IllegalStateException("down")
+            // The node dies between the two writes: the ledger records the target, the timer stays claimed.
+            val dying = object : TimerStore by store {
+                override suspend fun settle(changes: List<TimerChange>): Int =
+                    if (changes.any { it.next.status == TimerStatus.PARKED }) {
+                        error("The node died.")
+                    } else {
+                        store.settle(changes)
+                    }
+            }
+            store.put(timer("pay"))
+            val first = runner(timers = dying, loop = loop(maxAttempts = 1))
+            first.startPartition(0)
+            eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
+            first.stop()
+            status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
+
+            // The next owner sends it again once the claim lapses, and parks it with its entry.
+            runner(loop = loop(maxAttempts = 1)).startPartition(0)
+            clock.advance(CLAIM)
+            eventually { status("pay").status == TimerStatus.PARKED }
+            fired.size.assert().isEqualTo(2)
+            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNotNull()
+        }
 
     @Test
     fun `a timer cancelled after it was loaded is not sent`(): Unit = runBlocking {

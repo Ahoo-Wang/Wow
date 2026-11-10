@@ -96,7 +96,7 @@ internal class AttemptScope(
 
     /**
      * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED, the
-     * keys this attempt reserved pending and released, and the append's [trace]; null when
+     * keys this attempt reserved (each confirmed for its commit) and released, and the append's [trace]; null when
      * there is none of them. A [rejected] decision's append carries no keys: its reservations are given up and its
      * releases undone with it, so the `reservation` subscription has nothing of it to confirm or release.
      */
@@ -131,11 +131,15 @@ internal class AttemptScope(
         val scope = ReservationScope.of(owner, reservation)
         val hold = hold ?: UUID.randomUUID().toString().also { hold = it }
         val held = store.reserve(scope, key, owner, hold, reservationTtl) ?: return false
+        // Every fact that claims a key confirms it at its own version, one the owner already holds confirmed too: a
+        // release by an older fact of the owner whose fast path failed (A→B→A), which the reservation subscription
+        // replays, then never frees the key this fact holds.
+        (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
         if (!held.confirmed) {
-            (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
+            // A confirmed key took no hold of this attempt's: there is nothing to give up.
             onAppendFailure { store.abandon(scope, key, owner, hold) }
-            afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
         }
+        afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
         return true
     }
 

@@ -104,7 +104,7 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 | 反应器 | 日志的末尾 | 部署它不会就过去的事通知任何人 |
 | 反应器，读取另一个上下文的事件流时 | 它的服务加入这条流的地方：服务里还没有别的订阅读过它时从开头开始，否则从末尾开始（Manifest 中为 `JOIN`） | 之后才加入的服务仍能拿到之前发布的内容，后来新增的反应器不会再对历史采取行动 |
 
-`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 也可以，取值为 `beginning`、`end` 或一个 ISO-8601 时刻。两种方式都只在订阅还没有检查点时生效；之后它就从检查点继续。
+`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 也可以，取值为 `beginning`、`end` 或一个 ISO-8601 时刻。时刻让订阅从每个分区中按日志顺序第一个提交时间不早于它的条目开始，此后的每个条目都会处理，无论其提交时间：提交时间是决定的时间，在日志中并不有序。还没有提交时间不早于它的条目时，订阅从末尾开始。为了找到这个条目，订阅在分区上的首次启动会从开头读取该分区（不处理它之前的条目），所以日志很长时首次启动需要一些时间；节点在读取开始和结束时各记录一行日志。两种方式都只在订阅还没有检查点时生效；之后它就从检查点继续。
 
 ## 重建读模型 {#rebuild-a-read-model}
 

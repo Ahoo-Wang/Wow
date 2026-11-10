@@ -14,7 +14,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WowHeaders, WowProblemError } from '../src/index.js';
 import { ServiceRoutes } from '../src/routes.js';
-import { jsonResponse, stubFetch, testFetcher } from './fixtures/fetchStub';
+import {
+  BASE_URL,
+  jsonResponse,
+  stubFetch,
+  testFetcher,
+} from './fixtures/fetchStub';
 
 const MANIFEST = {
   format: 1,
@@ -130,5 +135,33 @@ describe('ServiceRoutes', () => {
     expect(
       requests.filter(request => request.url.endsWith('/wow/manifest')),
     ).toHaveLength(2);
+  });
+
+  it("ends a call waiting for the service's Manifest once its signal aborts, while the others wait on and call", async () => {
+    let answer!: (response: Response) => void;
+    const { requests } = stubFetch(request =>
+      request.url.endsWith('/wow/manifest')
+        ? new Promise<Response>(resolve => (answer = resolve))
+        : jsonResponse({ total: 3 }),
+    );
+    const routes = new ServiceRoutes(client());
+    const cancellation = new AbortController();
+    const abandoned = routes.call(
+      'shop',
+      'summary',
+      { path: { day: '1' } },
+      { signal: cancellation.signal },
+    );
+    const continuing = routes.call('shop', 'summary', { path: { day: '2' } });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    const reason = new DOMException('Left the page', 'AbortError');
+    cancellation.abort(reason);
+    await expect(abandoned).rejects.toBe(reason);
+    answer(jsonResponse(MANIFEST));
+    await expect(continuing).resolves.toEqual({ total: 3 });
+    expect(requests.map(request => request.url)).toEqual([
+      `${BASE_URL}/wow/manifest`,
+      `${BASE_URL}/shop/summaries/2`,
+    ]);
   });
 });

@@ -28,8 +28,7 @@ import {
   Stage,
 } from './wire.js';
 import {
-  checkManifest,
-  fetchManifest,
+  ManifestSource,
   type RouteManifest,
   type RoutingCommand,
   type RoutingManifest,
@@ -364,7 +363,7 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * one, and whatever it rejects with carries that id ({@link requestIdOf}).
  */
 export class CommandClient {
-  private manifest: Promise<RoutingManifest> | undefined;
+  private readonly manifest: ManifestSource;
   private readonly bodyNumbers: Readonly<Record<string, TextNumbers>>;
 
   /**
@@ -375,10 +374,7 @@ export class CommandClient {
     readonly client: WowClientOptions = {},
     options: CommandClientOptions = {},
   ) {
-    this.manifest =
-      options.manifest === undefined
-        ? undefined
-        : Promise.resolve(checkManifest(options.manifest));
+    this.manifest = new ManifestSource(client, options.manifest);
     this.bodyNumbers = options.bodyNumbers ?? {};
   }
 
@@ -523,7 +519,7 @@ export class CommandClient {
     const name = command.startsWith(prefix)
       ? command.slice(prefix.length)
       : command;
-    const context = (await this.manifestOf()).contexts.find(
+    const context = (await this.manifest.read(request.signal)).contexts.find(
       item => item.name === type.context,
     );
     const declared =
@@ -541,15 +537,6 @@ export class CommandClient {
       );
     }
     return declared;
-  }
-
-  /** The Manifest given, or the service's, fetched once (again after a failure). */
-  private manifestOf(): Promise<RoutingManifest> {
-    this.manifest ??= fetchManifest(this.client).catch((error: unknown) => {
-      this.manifest = undefined;
-      throw error;
-    });
-    return this.manifest;
   }
 }
 
