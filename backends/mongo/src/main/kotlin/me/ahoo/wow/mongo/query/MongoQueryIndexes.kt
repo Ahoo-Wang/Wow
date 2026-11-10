@@ -65,12 +65,18 @@ data class MongoQueryIndexReport(
  * ```
  * owner_ix: {tenant_id: 1, owner_id: 1}, partialFilterExpression: {deleted: false}
  * space_ix: {tenant_id: 1, space_id: 1}, partialFilterExpression: {deleted: false}
- * <name>:   {tenant_id: 1, <key>: 1, ...}, partialFilterExpression: {deleted: false}   (each x-wow-index entry)
+ * <name>:   {tenant_id: 1, <key>: 1, ..., _id: 1}, partialFilterExpression: {deleted: false}   (each x-wow-index entry)
  * ```
  *
  * Every index leads with the tenant, which admission adds to every query, and is partial on the snapshots that are not
  * deleted, its default scope: a query whose filter holds `deleted: false` can use it. A key is the document path the
  * filter, sort and aggregation compilers read for it ([MongoSnapshotDocuments]), so the planner matches the two.
+ * A declared index ends with the tie-breakers every snapshot sort ends with ([MongoSnapshotDocuments.tieBreakers],
+ * `_id`), so a sort by its keys under the tenant's equality whose tie-breaker runs in the same direction is the index's
+ * order, forward or backward, with no sort stage. Today every sort ends with the tie-breaker ascending, so an
+ * ascending sort is read in index order and a descending one still sorts, until the tie-breaker follows the direction
+ * of the sort's last field. An existing index of another shape is drift, as any other ([manage]).
+ *
  * MongoDB names indexes per collection, so a declared index keeps its own name. The store creates the two scope
  * indexes with the collection; planning them here lets `validate` report them too.
  */
@@ -98,11 +104,13 @@ object MongoQueryIndexes {
             require(index.keys.count { it.cardinality != QueryCardinality.SINGLE } <= 1) {
                 "Index [${index.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
             }
+            // Ended by the tie-breakers the snapshot documents end a sort with: a sort by the keys whose tie-breaker
+            // runs in the same direction is the index's order, forward or backward.
             val paths = listOf(MongoSnapshotDocuments.TENANT_ID) + index.keys.map { key ->
                 // A planned key, not an admitted query: no admission resolved it, so its physical field is read directly.
                 val physical = key.physicalField
                 MongoSnapshotDocuments.checked(physical.path)
-            }
+            } + MongoSnapshotDocuments.tieBreakers
             MongoQueryIndex(context, aggregate, index.name, paths.distinct())
         }
         return scope + declared
@@ -112,7 +120,8 @@ object MongoQueryIndexes {
      * The indexes of [plan], the access attributes of [aggregate] in [context], on its log collection: led by the
      * tenant, each attribute's document path (multikey for a multiple one), partial on the streams
      * (`{version: {$exists: true}}`), which every `events` query asks for, so it can use them; the log's placeholders
-     * hold no version.
+     * hold no version. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
+     * and are not read for an order, which for an `events` query ends with the stream key (tenant, aggregate, version).
      */
     fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<MongoQueryIndex> {
         val collection = MongoNames.of(MongoEventLog.PREFIX, context, aggregate)

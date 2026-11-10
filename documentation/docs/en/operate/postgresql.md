@@ -63,6 +63,8 @@ A log table's keys are the position (`partition`, `sequence`), the version (`agg
 
 A deployment whose database account may not create tables runs once with an account that may, or applies the schema itself, and then runs with `validate`. `wow.stores.<name>.ddl` sets it for one store.
 
+The query indexes an aggregate declares (`@QueryIndex`) come from one start under `auto`: it builds each with `CREATE INDEX CONCURRENTLY` and records a fingerprint of the planned definition as the index's comment. `validate` checks that comment, so an index of the name built by hand, without it, or one of an earlier definition is refused, and the next start under `auto` rebuilds it. A release that changes how an index is planned rebuilds the declared indexes once.
+
 ## Server settings {#server-settings}
 
 **TCP keepalives.** A node that dies without closing its connections leaves their backends open, and an open transaction among them holds its locks. Set the server's keepalives so that it notices within about a minute and ends them:

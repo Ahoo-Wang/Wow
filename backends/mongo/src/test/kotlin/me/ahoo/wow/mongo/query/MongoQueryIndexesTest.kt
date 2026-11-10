@@ -34,12 +34,13 @@ class MongoQueryIndexesTest {
             """wow_snapshot__shop__order.owner_ix {"tenant_id": 1, "owner_id": 1} partialFilterExpression {"deleted": false}""",
             """wow_snapshot__shop__order.space_ix {"tenant_id": 1, "space_id": 1} partialFilterExpression {"deleted": false}""",
             """wow_snapshot__shop__order.ix_order_state_name """ +
-                """{"tenant_id": 1, "state.name": 1, "owner_id": 1, "state.amount": 1} partialFilterExpression {"deleted": false}""",
+                """{"tenant_id": 1, "state.name": 1, "owner_id": 1, "state.amount": 1, "_id": 1} """ +
+                """partialFilterExpression {"deleted": false}""",
         )
         indexes.last().collection.assert().isEqualTo("wow_snapshot__shop__order")
-        // The tenant leads once; a multi-valued key is indexed (multikey) when it is the only one.
+        // The tenant leads once and the key ends it; a multi-valued key is indexed (multikey) when it is the only one.
         plan(QueryIndexDeclaration("ix_keywords", listOf("tenantId", "state.keywords"))).last().keys
-            .assert().containsExactly("tenant_id", "state.keywords")
+            .assert().containsExactly("tenant_id", "state.keywords", "_id")
     }
 
     @Test
