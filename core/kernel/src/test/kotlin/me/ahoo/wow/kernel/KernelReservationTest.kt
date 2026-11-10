@@ -54,6 +54,9 @@ class KernelReservationTest {
     data class Renamed(val name: String)
     data class ReleaseOnly(val name: String)
 
+    /** Reserves both names in one decision. */
+    data class RegisterBoth(val first: String, val second: String)
+
     /** Reserves [name], then refuses, recording the refusal: a rejection that commits events. */
     data class Claim(val name: String)
 
@@ -93,6 +96,13 @@ class KernelReservationTest {
                     state.name?.let { release(NAMES, it) }
                     Decision.events(Renamed(body.name))
                 }
+            }
+        }
+        decideSuspending<RegisterBoth>(Creation.ALLOWED) { _, body ->
+            if (reserve(NAMES, body.first) && reserve(NAMES, body.second)) {
+                Decision.events(Registered(body.first))
+            } else {
+                Decision.reject("name.taken", body.first)
             }
         }
         decideSuspending<ReleaseOnly>(Creation.ALLOWED) { _, body ->
@@ -201,6 +211,18 @@ class KernelReservationTest {
             entries[0].decodedTransport.assert().isEqualTo(carried)
             entries[1].decodedTransport.assert().isEqualTo(carried)
             find("ahoo")?.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `every key a decision reserves, held already or not, travels with its entry and is confirmed at it`(): Unit =
+        runTest {
+            register("u-1", "ahoo")
+            execute("u-1", RegisterBoth("ahoo", "bob")).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            log.tail(0).take(2).toList()[1].decodedTransport.assert().isEqualTo(
+                Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"), ReservationKey(NAMES, "bob"))),
+            )
+            find("ahoo")?.version.assert().isEqualTo(2)
+            find("bob")?.version.assert().isEqualTo(2)
         }
 
     /** The store, but the first release of [key] fails after the append, as a store briefly down. */

@@ -358,7 +358,8 @@ abstract class ReservationStoreSpec {
         runBlocking {
             store.confirm(scope, "alice", user1, 1)
             // The owner's fact 3 reserves the key it still holds, as its fact 2's release was not applied yet.
-            store.reserve(scope, "alice", user1, H1, TTL)?.confirmed.assert().isEqualTo(true)
+            store.reserve(scope, "alice", user1, H1, TTL)
+                .assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
             store.confirm(scope, "alice", user1, 3).assert().isEqualTo(ConfirmOutcome.Confirmed)
             store.release(scope, "alice", user1, 2).assert().isFalse()
             store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 3))
