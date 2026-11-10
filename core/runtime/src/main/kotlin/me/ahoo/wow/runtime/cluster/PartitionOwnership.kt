@@ -825,8 +825,9 @@ class PartitionOwnership internal constructor(
         quietly("stop the timers of partition $partition") { runner.stopPartition(partition) }
     }
 
-    private suspend fun stopSubscriptions(partition: Int) = runtimes.forEach { runtime ->
-        quietly("stop the subscriptions of partition $partition") { runtime.stopPartition(partition) }
+    private suspend fun stopSubscriptions(partition: Int) = coroutineScope {
+        val action = "stop the subscriptions of partition $partition"
+        runtimes.forEach { launch { quietly(action) { it.stopPartition(partition) } } }
     }
 
     private suspend fun every(interval: Duration, action: String, block: suspend () -> Unit) {
