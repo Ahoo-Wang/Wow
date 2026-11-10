@@ -21,17 +21,11 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
-import me.ahoo.wow.spi.json.WowJson
-import org.bson.BsonUndefined
+import me.ahoo.wow.migrate.NineXBson.toNode
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.bson.types.Decimal128
-import org.bson.types.ObjectId
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.JsonNodeFactory
 import java.nio.charset.StandardCharsets
 import java.util.Arrays
-import java.util.Date
 import java.util.TreeMap
 import java.util.TreeSet
 import java.util.concurrent.ConcurrentHashMap
@@ -442,30 +436,6 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         /** Strings as MongoDB orders them: by their UTF-8 bytes, unsigned. */
         private val BINARY: Comparator<String> = Comparator { left, right ->
             Arrays.compareUnsigned(left.toByteArray(StandardCharsets.UTF_8), right.toByteArray(StandardCharsets.UTF_8))
-        }
-        private val NODES: JsonNodeFactory = WowJson.mapper.nodeFactory
-
-        /** [value], a BSON value the driver read, as JSON; a `Decimal128` stays an exact decimal. */
-        fun toNode(value: Any?): JsonNode = when (value) {
-            null, is BsonUndefined -> NODES.nullNode()
-            is Map<*, *> -> NODES.objectNode().also { node ->
-                value.forEach { (key, item) -> node.set(key.toString(), toNode(item)) }
-            }
-
-            is Collection<*> -> NODES.arrayNode().also { node -> value.forEach { node.add(toNode(it)) } }
-            is String -> NODES.stringNode(value)
-            is Boolean -> NODES.booleanNode(value)
-            is Number -> numberNode(value)
-            is Date -> NODES.numberNode(value.time)
-            is ObjectId -> NODES.stringNode(value.toHexString())
-            else -> NODES.stringNode(value.toString())
-        }
-
-        private fun numberNode(value: Number): JsonNode = when (value) {
-            is Decimal128 -> NODES.numberNode(value.bigDecimalValue())
-            is Int -> NODES.numberNode(value)
-            is Long -> NODES.numberNode(value)
-            else -> NODES.numberNode(value.toDouble())
         }
     }
 }

@@ -200,12 +200,12 @@ internal class MongoNineXCompensationSource(private val database: MongoDatabase)
         collection.find(Filters.and(listOfNotNull(UNRESOLVED, after?.let { Filters.gt(ID, it) })))
             .sort(Sorts.ascending(ID))
             .limit(limit)
-            .map { NineXExecutionFailed.parse(MongoNineXEventSource.toNode(it)) }
+            .map { NineXExecutionFailed.parse(NineXBson.toNode(it)) }
             .toList()
 
     override fun execution(id: String): NineXExecutionFailed? =
         collection.find(Filters.and(COMPENSATION, Filters.eq(ID, id))).first()
-            ?.let { NineXExecutionFailed.parse(MongoNineXEventSource.toNode(it)) }
+            ?.let { NineXExecutionFailed.parse(NineXBson.toNode(it)) }
 
     companion object {
         /** The 9.x compensation service's snapshot collection of its `execution_failed` aggregate. */

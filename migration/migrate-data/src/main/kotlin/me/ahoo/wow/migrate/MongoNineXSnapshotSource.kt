@@ -21,7 +21,7 @@ import org.bson.Document
 /**
  * The snapshots of a 9.x MongoDB store, read by their storage format (9.x `wow-mongo`'s `MongoSnapshotStore`): one
  * collection per aggregate, `<aggregateName>_snapshot`, one document per instance, its aggregate id as `_id` and its
- * decimals as `Decimal128` (read exact, [MongoNineXEventSource.toNode]). The tool only reads it.
+ * decimals as `Decimal128` (read exact, [NineXBson.toNode]). The tool only reads it.
  */
 internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : NineXSnapshotSource {
     override fun snapshots(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXSnapshot> {
@@ -30,7 +30,7 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
             .find(Filters.and(filters))
             .sort(Sorts.ascending(ID))
             .limit(limit)
-            .map { NineXSnapshot.parse(MongoNineXEventSource.toNode(it)) }
+            .map { NineXSnapshot.parse(NineXBson.toNode(it)) }
             .toList()
     }
 
@@ -38,7 +38,7 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
         database.getCollection(aggregate.name + SUFFIX)
             .find(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(ID, id)))
             .first()
-            ?.let { NineXSnapshot.parse(MongoNineXEventSource.toNode(it)) }
+            ?.let { NineXSnapshot.parse(NineXBson.toNode(it)) }
 
     /**
      * No index orders `snapshotTime`, so the pages read the collection once in `_id` order, each up to [limit]
@@ -54,7 +54,7 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
             .find(Filters.and(filters))
             .sort(Sorts.ascending(ID))
             .limit(limit)
-            .map { NineXSnapshot.parse(MongoNineXEventSource.toNode(it)) }
+            .map { NineXSnapshot.parse(NineXBson.toNode(it)) }
             .toList()
     }
 
