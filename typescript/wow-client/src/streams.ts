@@ -163,7 +163,10 @@ function problemOf(data: unknown): WowProblemError {
  * with how many records were read so far: `undefined` when no more are
  * wanted. Each record comes with its position. An `error` event that is not
  * retryable, a failure `reopen` cannot get past, and an abort of `signal`
- * error the stream.
+ * error the stream. The signal `reopen` is given aborts once `signal` does or
+ * the stream's reader cancels it: a cancel during a wait to resume, or while
+ * the stream is asked for again, sends nothing more and leaves no response
+ * open.
  *
  * @param response - The first response
  * @param reopen - Asks for the stream again after a position
@@ -174,6 +177,7 @@ export function resumableQueryRows<T>(
   reopen: (
     lastEventId: string | undefined,
     received: number,
+    signal: AbortSignal,
   ) => Promise<Response | undefined>,
   options: StreamResumeOptions & {
     readonly signal?: AbortSignal;
@@ -208,25 +212,37 @@ export function resumableQueryRows<T>(
   let lastEventId = options.lastEventId;
   let received = 0;
   let failures = 0;
-  // Set once the reader cancels: a read in flight then ends, and must not be
-  // taken for a cut-off stream to ask for again.
-  let cancelled = false;
+  // Aborted once the reader cancels: a read in flight then ends, and must not
+  // be taken for a cut-off stream to ask for again. `halted` aborts with it or
+  // with `signal`, and a wait to resume, or a request to, ends with `halted`
+  // (`AbortSignal.any`: Node 20.3, Chrome 116, Firefox 124, Safari 17.4, all
+  // within the runtimes the compatibility page states).
+  const cancelling = new AbortController();
+  const halted =
+    signal === undefined
+      ? cancelling.signal
+      : AbortSignal.any([signal, cancelling.signal]);
 
   /** Asks for the stream again, or throws `cause` once out of retries. */
   async function resume(cause: unknown, delayMs?: number): Promise<boolean> {
     for (;;) {
-      if (signal?.aborted) throw signal.reason;
+      if (halted.aborted) throw halted.reason;
       if (failures++ >= maxRetries) throw cause;
       const wait =
         delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
-      if (wait > 0) await sleep(wait, signal);
+      if (wait > 0) await sleep(wait, halted);
       try {
-        const next = await reopen(lastEventId, received);
+        const next = await reopen(lastEventId, received, halted);
+        if (halted.aborted) {
+          // Answered as it was cancelled: nothing reads this response.
+          await next?.body?.cancel(halted.reason);
+          throw halted.reason;
+        }
         if (next) reader = events(next);
         return next !== undefined;
       } catch (error) {
         if (
-          signal?.aborted ||
+          halted.aborted ||
           (error instanceof WowProblemError && error.retry === 'none')
         ) {
           throw error;
@@ -280,7 +296,7 @@ export function resumableQueryRows<T>(
           if (error === stop || error instanceof WowProblemError) throw error;
           stop = error;
         }
-        if (cancelled) return;
+        if (cancelling.signal.aborted) return;
         // Only a stream read from the start, or whose records have positions, can be asked for again.
         if (signal?.aborted) throw signal.reason;
         if (lastEventId === undefined && received > 0) throw stop;
@@ -291,7 +307,7 @@ export function resumableQueryRows<T>(
       }
     },
     cancel(reason) {
-      cancelled = true;
+      cancelling.abort(reason);
       return reader.cancel(reason);
     },
   });

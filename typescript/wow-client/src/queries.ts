@@ -170,22 +170,26 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
     const limit = query.limit;
-    const open = (lastEventId: string | undefined, received: number) => {
+    const open = (
+      lastEventId: string | undefined,
+      received: number,
+      signal: AbortSignal | undefined,
+    ) => {
       return this.post(
         'list',
         limit === undefined ? query : { ...query, limit: limit - received },
-        options,
+        signal === undefined ? options : { ...options, signal },
         'text/event-stream',
         lastEventId,
       );
     };
-    const first = await open(resume?.lastEventId, 0);
+    const first = await open(resume?.lastEventId, 0, options.signal);
     return resumableQueryRows<R>(
       first,
-      (lastEventId, received) =>
+      (lastEventId, received, signal) =>
         limit !== undefined && received >= limit
           ? Promise.resolve(undefined)
-          : open(lastEventId, received),
+          : open(lastEventId, received, signal),
       {
         ...resume,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
