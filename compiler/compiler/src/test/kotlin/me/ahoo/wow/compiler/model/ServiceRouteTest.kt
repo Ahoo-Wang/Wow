@@ -285,6 +285,9 @@ class ServiceRouteTest {
                 @ServiceRoute(method = RouteMethod.GET, path = "stream")
                 suspend fun stream(): Flow<Item> = error("no")
 
+                @ServiceRoute(method = RouteMethod.GET, path = "names")
+                suspend fun names(): List<String> = emptyList()
+
                 @ServiceRoute(method = RouteMethod.GET, path = "tree")
                 suspend fun tree(): tools.jackson.databind.JsonNode = error("no")
 
@@ -300,6 +303,8 @@ class ServiceRouteTest {
             .contains("parameter other binds nothing, and a GET takes no body")
             .contains("its answer is a kotlin.collections.Map<kotlin.String, sample.Item>")
             .contains("its answer is a kotlinx.coroutines.flow.Flow<sample.Item>")
+            // A collection of no class of its own: its items have no schema to refer to.
+            .contains("its answer is a kotlin.collections.List<kotlin.String>")
             .contains("its answer is a tools.jackson.databind.JsonNode")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")
