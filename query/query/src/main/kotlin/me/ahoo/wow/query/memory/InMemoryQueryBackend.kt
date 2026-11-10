@@ -48,9 +48,9 @@ import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
-import me.ahoo.wow.query.schema.cursorUniqueKey
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
+import me.ahoo.wow.query.schema.uniqueKey
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -148,12 +148,13 @@ class InMemoryQueryBackend internal constructor(
     /**
      * The order of records tied on [query]'s sort: by each field of the model's unique key the sort does not name, in
      * the sort's [tie-breaker direction][tieBreakerDirection], read where this storage keeps every field, at its
-     * logical path. A cursor's sort names them all already; a model without an identity has none.
+     * logical path. A cursor's sort names them all already; a model without an identity has none, so its ties keep
+     * the stored order.
      */
     private fun tieBreaker(query: AdmittedQuery<Queryable<*>>): Comparator<ObjectNode> {
         val sort = query.query.sort
         val named = sort.mapTo(hashSetOf()) { query.field(it.field).logicalField.path }
-        val keys = runCatching { query.schema.cursorUniqueKey() }.getOrDefault(emptyList()).filter { it.path !in named }
+        val keys = query.schema.uniqueKey().filter { it.path !in named }
         val ascending = sort.tieBreakerDirection() == Sort.Direction.ASC
         return Comparator { left, right ->
             keys.firstNotNullOfOrNull { key ->
