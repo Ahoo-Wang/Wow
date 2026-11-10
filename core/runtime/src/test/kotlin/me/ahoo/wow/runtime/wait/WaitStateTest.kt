@@ -61,6 +61,21 @@ class WaitStateTest {
     }
 
     @Test
+    fun `the stage a wait reached never goes back, whatever order its results arrive in`() {
+        val state = WaitState(listOf(snapshot), "root")
+        val atCommitted = result("root", committed).copyWith(version = 1)
+        state.offer(atCommitted)!!.assert().isEmpty()
+        // A command topic's ACCEPTED, offered once the broker acknowledged the command, after its commit was signalled.
+        state.offer(result("root", Hop.accepted("shop")))!!.assert().isEmpty()
+        state.lastReached.assert().isSameAs(atCommitted)
+        // In order, the stage moves on.
+        val inOrder = WaitState(listOf(snapshot), "root")
+        inOrder.offer(result("root", Hop.accepted("shop")))
+        inOrder.offer(atCommitted)
+        inOrder.lastReached.assert().isSameAs(atCommitted)
+    }
+
+    @Test
     fun `a later hop carries the results its command answered at COMMITTED, even when it came first`() {
         val state = WaitState(listOf(snapshot), "root")
         val done = result("root", snapshot, snapshotFunction)
