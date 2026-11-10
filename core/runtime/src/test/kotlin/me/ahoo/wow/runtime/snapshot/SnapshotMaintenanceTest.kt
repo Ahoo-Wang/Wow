@@ -213,6 +213,75 @@ class SnapshotMaintenanceTest {
         store.table(type)!!.rebuilding.assert().isFalse()
     }
 
+    /** [memory] whose rebuild control plane records where each scan of the pending snapshots started. */
+    private class RecordingStore(
+        val memory: InMemorySnapshotStore = InMemorySnapshotStore()
+    ) : SnapshotStore by memory {
+        val scans = mutableListOf<String?>()
+
+        override val rebuilds = object : SnapshotRebuildStore by memory {
+            override suspend fun pending(
+                type: AggregateType,
+                revision: Int,
+                after: AggregateRef?,
+                limit: Int,
+            ): List<AggregateRef> = memory.pending(type, revision, after, limit).also { scans += after?.id }
+        }
+    }
+
+    @Test
+    fun `a rebuild should go on from where the last run stopped, and start over when the lease is taken again`(): Unit =
+        runBlocking {
+            val store = RecordingStore()
+            val refs = listOf("a", "b", "c").map { id ->
+                commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
+            }
+            val one = SnapshotOptions(interval = 1.hours, batch = 1, pages = 1, leaseTtl = 2.hours, memberTtl = 2.hours)
+            val maintenance = maintenance(2, store, options = one)
+            maintenance.prepare()
+            maintenance.maintain()
+            maintenance.maintain()
+            // Each run reads on from the snapshot the last one stopped at, not from the first again.
+            store.scans.assert().containsExactly(null, "a")
+            // The lease lost and taken again: what was rewritten under the other may have changed, it starts over.
+            leases.release("$GROUP#snapshot-rebuild/${SnapshotTargets.DEFAULT_STORE}/counter", 0, "node")
+            store.scans.clear()
+            maintenance.maintain()
+            store.scans.assert().containsExactly(null)
+            // From the first, the scan finds what is still pending: the last one, rewritten now.
+            store.memory.pending(type, 2, limit = 10).assert().isEmpty()
+            store.memory.load(refs[2])!!.stateRevision.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a rebuild should mark its table rebuilt only once a scan from the first finds nothing`(): Unit =
+        runBlocking {
+            val store = RecordingStore()
+            val (a, b) = listOf("a", "b").map { id ->
+                commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
+            }
+            val options = SnapshotOptions(
+                interval = 1.hours,
+                batch = 1,
+                pages = 2,
+                leaseTtl = 2.hours,
+                memberTtl = 2.hours
+            )
+            val maintenance = maintenance(2, store, options = options)
+            maintenance.prepare()
+            maintenance.maintain()
+            store.memory.pending(type, 2, limit = 10).assert().isEmpty()
+            // A save refused meanwhile marks a snapshot behind the cursor stale: the scan starts over and rewrites it.
+            store.memory.markStale(a)
+            maintenance.maintain()
+            store.scans.assert().containsExactly(null, "a", "b", null)
+            store.memory.table(type)!!.rebuilding.assert().isTrue()
+            store.memory.pending(type, 2, limit = 10).assert().isEmpty()
+            maintenance.maintain()
+            store.memory.table(type)!!.rebuilding.assert().isFalse()
+            store.memory.load(b)!!.stateRevision.assert().isEqualTo(2)
+        }
+
     @Test
     fun `a pending snapshot the log holds nothing of is left as it is`(): Unit = runBlocking {
         val store = InMemorySnapshotStore()
