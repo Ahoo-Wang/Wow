@@ -38,7 +38,11 @@ internal class WorkerStarts(
     private val cutover: String?,
 ) {
     /** Per partition, the sequence up to which the log holds imported history ([cutover]); 0 for none. */
-    val importedThrough = ConcurrentHashMap<Int, Long>()
+    private val importedThrough = ConcurrentHashMap<Int, Long>()
+
+    /** The cut-over of [partition], which [startsIn] read before its workers open: what [SubscriptionWorker] takes. */
+    fun importedThroughOf(partition: Int): Long =
+        checkNotNull(importedThrough[partition]) { "The cut-over of $partition is read first." }
 
     /**
      * Where each of [named] starts in [partition], read at once: its parked aggregates there, and its checkpoint,

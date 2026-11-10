@@ -503,9 +503,7 @@ class SubscriptionRuntime internal constructor(
             classification = classification,
             checkpoint = start.checkpoint,
             parked = start.parked,
-            importedThrough = checkNotNull(workerStarts.importedThrough[partition]) {
-                "The cut-over of $partition is read first."
-            },
+            importedThrough = workerStarts.importedThroughOf(partition),
             fatals = fatals,
         ).also {
             part.workers += it
