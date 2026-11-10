@@ -39,7 +39,7 @@ object Closing {
      * What [block] gives; when it fails, [closeables] (those opened so far, in order) are closed ([inReverse]) and its
      * failure thrown as it was, with any failure to close suppressed by it.
      */
-    inline fun <T> onFailure(closeables: Collection<AutoCloseable>, block: () -> T): T = try {
+    fun <T> onFailure(closeables: Collection<AutoCloseable>, block: () -> T): T = try {
         block()
     } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
         try {
