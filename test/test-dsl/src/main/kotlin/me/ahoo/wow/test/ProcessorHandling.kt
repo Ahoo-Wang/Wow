@@ -204,10 +204,10 @@ internal class ProcessorHandling(
 }
 
 internal inline fun <T> runCatchingAll(block: () -> T): Result<T> = try {
-        Result.success(block())
-    } catch (
-        @Suppress("TooGenericExceptionCaught") // Whatever the handler throws, expectError checks it.
-        failure: Exception,
-    ) {
-        Result.failure(failure)
-    }
+    Result.success(block())
+} catch (
+    @Suppress("TooGenericExceptionCaught") // Whatever the handler throws, expectError checks it.
+    failure: Exception,
+) {
+    Result.failure(failure)
+}

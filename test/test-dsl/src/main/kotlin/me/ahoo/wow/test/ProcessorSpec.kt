@@ -146,7 +146,7 @@ class ProcessorSpec private constructor(
     private val commandTypes: ClassPathCommandTypes = origin?.commandTypes ?: ClassPathCommandTypes.of()
 
     /** Calls the handlers as the runtime does, with what they derived and how their calls and reads are answered. */
-    private val handling = ProcessorHandling(kind, commandTypes, origin?.handling)
+    private val handling: ProcessorHandling = ProcessorHandling(kind, commandTypes, origin?.handling)
 
     /** The aggregates [givenAggregate] gave, which [whenEvent] of events commits on: a fork advances copies of its own. */
     private val aggregates: MutableList<GivenAggregate<*>> =
