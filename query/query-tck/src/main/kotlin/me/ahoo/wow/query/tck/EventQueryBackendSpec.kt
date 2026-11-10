@@ -14,27 +14,18 @@
 package me.ahoo.wow.query.tck
 
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
@@ -49,20 +40,10 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
-import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.manifest.AccessAttributeManifest
-import me.ahoo.wow.manifest.AggregateManifest
-import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.EventManifest
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.backend.QueryBackend
-import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.aggregate
-import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
@@ -73,22 +54,11 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryModelCompiler
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.spi.log.EventRecord
-import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.log.TransportCodec
-import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
-import java.util.UUID
 
 /**
  * The contract of an `events` query backend: every events backend passes it. A backend's test extends
@@ -103,178 +73,11 @@ import java.util.UUID
  * The streams ([streams]): `o1` and `o2` of [TENANT], `o3` of [OTHER_TENANT]. `o1` v2 commits two `ItemAdded`; `o2` v2
  * one stored under its alias `LineAdded`; `o1` v3 an `OrderPaid` stored at revision 1 (the Manifest's is 2, so its
  * body paths are not filtered); `o1` v4 only the retired `LegacyNoted`.
+ *
+ * The cases come in families, each a parent class of this one ([EventQueryFixtures] lists them); this class
+ * holds every family but the per-event analytics ([EventAnalyticsCases]).
  */
-@Suppress("LargeClass")
-abstract class EventQueryBackendSpec {
-    /**
-     * Stores [streams], all of [type], where the backend under test reads them, each appended with the transport
-     * bytes beside it, null for none: a log stores them apart from the facts, and a Sink is handed
-     * them decoded with its record.
-     */
-    protected abstract suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>)
-
-    /** The events query backend of [type], with its storage adapter. */
-    protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
-
-    /** The aggregate type of this test: a fresh context, so each test has its own log. */
-    protected val type: AggregateType =
-        AggregateType("tck_" + UUID.randomUUID().toString().replace("-", "").take(CONTEXT_SUFFIX), "order")
-
-    private val context = QuerySchemaContext(type, QueryModel.EVENTS)
-
-    /** The test Manifest: the order's events with their schemas, `OrderPaid` at revision 2, `LegacyNoted` retired. */
-    protected val manifest: Manifest = Manifest(
-        contexts = listOf(
-            ContextManifest(
-                type.context,
-                aggregates = listOf(
-                    AggregateManifest(
-                        type.name,
-                        state = StateManifest(Manifest.schemaRef("tck.OrderState")),
-                        events = listOf(
-                            EventManifest("OrderCreated", schema = Manifest.schemaRef("tck.OrderCreated")),
-                            EventManifest(
-                                "ItemAdded",
-                                aliases = listOf("LineAdded"),
-                                schema = Manifest.schemaRef("tck.ItemAdded")
-                            ),
-                            EventManifest("OrderPaid", revision = 2, schema = Manifest.schemaRef("tck.OrderPaid")),
-                        ),
-                        retired = listOf("LegacyNoted"),
-                        access = listOf(
-                            AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
-                            AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
-                            AccessAttributeManifest("dept", AccessAttributeManifest.Type.STRING),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-        defs = mapOf(
-            "tck.OrderState" to mapOf("type" to "object"),
-            "tck.OrderCreated" to mapOf(
-                "type" to "object",
-                "properties" to mapOf(
-                    "customerId" to mapOf(
-                        "type" to "string",
-                        "x-wow-sensitive" to mapOf("level" to "display"),
-                        "x-wow-mask" to mapOf("keepPrefix" to 1),
-                    ),
-                    "amount" to mapOf("type" to "integer"),
-                ),
-            ),
-            "tck.ItemAdded" to mapOf(
-                "type" to "object",
-                "properties" to mapOf("sku" to mapOf("type" to "string"), "qty" to mapOf("type" to "integer")),
-            ),
-            "tck.OrderPaid" to mapOf("type" to "object", "properties" to mapOf("amount" to mapOf("type" to "integer"))),
-        ),
-    )
-
-    private val schemas = EventsQuerySchemas(manifest)
-
-    /** The backend under test and the schema compiled over its facts, once the streams are stored. */
-    protected class Fixture @InternalWowApi constructor(
-        val backend: QueryBackend,
-        @property:InternalWowApi val schema: QueryModelSchema,
-    ) {
-        suspend fun list(query: ListQuery): List<ObjectNode> =
-            backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
-
-        suspend fun keys(filter: FilterExpression, sort: List<Sort> = emptyList()): List<String> =
-            list(ListQuery(filter, sort = sort, limit = MAX_LIST)).map { it.key() }.sorted()
-
-        suspend fun count(filter: FilterExpression): Long =
-            checkNotNull(backend.countBounded(QueryAdmission.Trusted.count(CountQuery(filter), schema)).count)
-
-        suspend fun aggregate(query: AggregationQuery): List<ObjectNode> =
-            backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
-    }
-
-    protected suspend fun given(
-        streams: List<EventStreamRecord> = streams(),
-        transported: (Int) -> Boolean = { false },
-    ): Fixture {
-        store(streams.mapIndexed { index, stream -> stream to TRANSPORT.takeIf { transported(index) } })
-        val binding = binding(type)
-        val provider = QueryModelCompiler.of(events = schemas).compile(context, binding.storage)
-        return Fixture(binding.backend, provider.schema())
-    }
-
-    /** One stream of this test's [type]. */
-    @Suppress("LongParameterList")
-    protected fun stream(
-        id: String,
-        version: Int,
-        commitTime: Long,
-        events: List<EventRecord>,
-        tenantId: String = TENANT,
-        scope: Scope = Scope("owner-1"),
-        operator: Operator? = null,
-        access: Map<String, Any?>? = null,
-    ) = EventStreamRecord(
-        ref = type.ref(tenantId, id),
-        version = version,
-        commandId = "$id-command-$version",
-        requestId = "$id-request-$version",
-        commandType = "${type.context}.${type.name}.Command",
-        commitTime = commitTime,
-        events = events,
-        scope = scope,
-        operator = operator,
-        access = access,
-    )
-
-    /** An event of this test's [type] named [name] (prefixed as the log stores it). */
-    protected fun event(name: String, body: String, revision: Int = 1) =
-        EventRecord("${type.context}.${type.name}.$name", revision, body)
-
-    /** The streams most tests read (see the class). */
-    protected fun streams(): List<EventStreamRecord> = listOf(
-        stream(
-            "o1",
-            1,
-            T0,
-            listOf(event("OrderCreated", """{"customerId":"c-one","amount":10}""")),
-            operator = Operator("user-1", TENANT, false),
-        ),
-        stream(
-            "o1",
-            2,
-            T0 + 2,
-            listOf(event("ItemAdded", """{"sku":"A","qty":2}"""), event("ItemAdded", """{"sku":"B","qty":3}"""))
-        ),
-        stream("o1", 3, T0 + 3, listOf(event("OrderPaid", """{"total":10}"""))),
-        stream("o1", 4, T0 + 4, listOf(event("LegacyNoted", """{"note":"x"}"""))),
-        stream(
-            "o2",
-            1,
-            T0 + 1,
-            listOf(event("OrderCreated", """{"customerId":"c-two","amount":20}""")),
-            scope = Scope("owner-2")
-        ),
-        stream("o2", 2, T0 + 5, listOf(event("LineAdded", """{"sku":"A","qty":1}""")), scope = Scope("owner-2")),
-        stream(
-            "o3",
-            1,
-            T0 + 1,
-            listOf(event("OrderCreated", """{"customerId":"c-three","amount":30}""")),
-            tenantId = OTHER_TENANT,
-        ),
-    )
-
-    private fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
-
-    private fun name(local: String) = EqualFilter(QueryField("name"), "${type.context}.${type.name}.$local")
-
-    private fun events(predicate: FilterExpression) = ElementMatchFilter(EVENTS, predicate)
-
-    private fun rejected(code: String, block: suspend () -> Any?) = blocking {
-        val error = runCatching { block() }.exceptionOrNull()
-        (error is QuerySchemaValidationException).assert().describedAs("$error").isTrue()
-        (error as QuerySchemaValidationException).violation?.code.assert().isEqualTo(code)
-    }
-
+abstract class EventQueryBackendSpec : EventAnalyticsCases() {
     // Records and system fields
 
     @Test
@@ -315,43 +118,6 @@ abstract class EventQueryBackendSpec {
     }
 
     // The access attributes each stream carries
-
-    /**
-     * `o1`'s single attribute `region` went from `east` to `west`, then to none, and its multiple `teams` from `[a, b]`
-     * to `[b]`, then to `[]`, each stream as the log holds it; `o2` was appended before the log recorded them; `o3`
-     * declares another attribute only. Every stamped stream holds the built-in `owner` and `space` too.
-     */
-    /**
-     * Streams of the aggregates' current attributes, as the stamping keeps every stream of an aggregate: an aggregate's
-     * streams share them, other aggregates hold others.
-     */
-    private fun stampedStreams(): List<EventStreamRecord> {
-        val east = access("region" to "east", "teams" to listOf("a", "b"))
-        return listOf(
-            stream("o1", 1, T0, listOf(event("OrderCreated", "{}")), access = east),
-            stream("o1", 2, T0 + 1, listOf(event("ItemAdded", "{}")), access = east),
-            stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), access = null),
-            stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), access = access("dept" to "eng")),
-            stream(
-                "o4",
-                1,
-                T0 + 1,
-                listOf(event("OrderCreated", "{}")),
-                access = access("region" to "west", "teams" to listOf("b"))
-            ),
-            stream(
-                "o5",
-                1,
-                T0 + 2,
-                listOf(event("OrderCreated", "{}")),
-                access = access("region" to null, "teams" to emptyList<String>())
-            ),
-        )
-    }
-
-    /** The attributes of a stream of `owner-1` with [declared]. */
-    private fun access(vararg declared: Pair<String, Any?>): Map<String, Any?> =
-        linkedMapOf<String, Any?>("owner" to "owner-1", "space" to null) + declared
 
     @Test
     fun `a record shows the access attributes its stream carries, null when it carries none`() = blocking {
@@ -513,92 +279,6 @@ abstract class EventQueryBackendSpec {
         }
     }
 
-    // Per-event analytics expand the events
-
-    @Test
-    fun `an aggregation counts commits at the root`() = blocking {
-        val fixture = given()
-        val row = fixture.aggregate(
-            AggregationQuery(TenantIdFilter(TENANT), metrics = listOf(AggregationMetric.Count("commits")))
-        )
-            .single()
-        row.path("commits").longValue().assert().isEqualTo(6L)
-        Unit
-    }
-
-    @Test
-    fun `an expanded aggregation counts the events, retired ones left out`() = blocking {
-        val fixture = given()
-        val row = fixture.aggregate(
-            AggregationQuery(
-                elements = listOf(AggregationElement(EVENTS)),
-                metrics = listOf(AggregationMetric.Count("events"))
-            ),
-        ).single()
-        row.path("events").longValue().assert().isEqualTo(7L)
-        Unit
-    }
-
-    @Test
-    fun `an expanded aggregation sums an event field per event, aliases included`() = blocking {
-        val fixture = given()
-        val row = fixture.aggregate(
-            AggregationQuery(
-                elements = listOf(AggregationElement(EVENTS, name("ItemAdded"))),
-                metrics = listOf(
-                    AggregationMetric.Count("items"),
-                    AggregationMetric.Numeric(
-                        AggregationFunction.SUM,
-                        AggregationExpression.Field(QueryField("body.qty")),
-                        "qty"
-                    ),
-                ),
-            ),
-        ).single()
-        row.path("items").longValue().assert().isEqualTo(3L)
-        row.path("qty").doubleValue().assert().isEqualTo(6.0)
-        Unit
-    }
-
-    @Test
-    fun `an expanded aggregation groups events by a field of their commit`() = blocking {
-        val fixture = given()
-        assumeSupported(
-            fixture.schema.storage.aggregation.rootGroups,
-            "storage.aggregation.rootGroups",
-            "groups by a root field"
-        )
-        val rows = fixture.aggregate(
-            AggregationQuery(
-                elements = listOf(AggregationElement(EVENTS)),
-                groupBy = listOf(
-                    AggregationGroup.Terms(QueryField("aggregateId"), "aggregate", scope = AggregationGroupScope.ROOT)
-                ),
-                metrics = listOf(AggregationMetric.Count("events")),
-            ),
-        )
-        rows.map { it.path("aggregate").stringValue() to it.path("events").longValue() }
-            .assert().containsExactly("o1" to 4L, "o2" to 2L, "o3" to 1L)
-        Unit
-    }
-
-    @Test
-    fun `a root metric over an event field is rejected`() {
-        rejected(QueryErrorCodes.ELEMENT_SCOPE_REQUIRED) {
-            given().aggregate(
-                AggregationQuery(
-                    metrics = listOf(
-                        AggregationMetric.Numeric(
-                            AggregationFunction.SUM,
-                            AggregationExpression.Field(QueryField("events.body.qty")),
-                            "qty",
-                        ),
-                    ),
-                ),
-            )
-        }
-    }
-
     // Timeouts
 
     @Test
@@ -719,34 +399,16 @@ abstract class EventQueryBackendSpec {
     }
 
     companion object {
-        private const val CONTEXT_SUFFIX = 12
-        private const val MAX_LIST = 100
         const val TENANT: String = "tenant"
         const val OTHER_TENANT: String = "other-tenant"
 
         /** 2026-01-05T00:00:00Z. */
         const val T0: Long = 1_767_571_200_000L
-        private val EVENTS = QueryField("events")
         private val VERSION = QueryField("version")
         private val COMMIT_TIME = QueryField("commitTime")
 
         /** The fields of a transport, none of which a record shows. */
         private val TRANSPORT_FIELDS = setOf("transport", "wait", "reservations", "releases", "trace")
-
-        /** A transport as the runtime appends it: a wait past COMMITTED, keys reserved and released, a trace. */
-        private val TRANSPORT: ByteArray = TransportCodec.encode(
-            Transport.of(
-                wait = WaitContext.of(
-                    "w-1",
-                    Origin.of("node-1", "10.0.0.7:8081", "order-service"),
-                    listOf(Hop.handled("projector", "tck"), Hop.snapshot()),
-                    1_767_571_210_000L,
-                ),
-                reservations = listOf(ReservationKey.of("email", "a@b.c"), ReservationKey.of("login", "x", true)),
-                trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
-                releases = listOf(ReservationKey.of("email", "old@b.c")),
-            ),
-        )
 
         /** A record's `aggregateId@version`. */
         fun ObjectNode.key(): String = "${path("aggregateId").stringValue()}@${path("version").intValue()}"
