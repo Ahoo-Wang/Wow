@@ -29,14 +29,14 @@ class MetricNamesTest {
 
     @Test
     fun `no production code should name a meter outside the metric catalog`() {
-        ArchitectureRules.literalMeterNames(repositoryRoot, ALLOWED).assert()
+        SourceLiteralRules.literalMeterNames(repositoryRoot, ALLOWED).assert()
             .describedAs("Add the name to WowMetrics and register the meter by its constant.")
             .isEmpty()
     }
 
     @Test
     fun `every allowed file should still name a meter`() {
-        ArchitectureRules.staleLiteralMeterNames(repositoryRoot, ALLOWED).assert()
+        SourceLiteralRules.staleLiteralMeterNames(repositoryRoot, ALLOWED).assert()
             .describedAs("Remove these entries: their files name no meter by a literal any more.")
             .isEmpty()
     }
@@ -55,7 +55,7 @@ class MetricNamesTest {
             val d = registry.counter(name, *tags)
             """.trimIndent(),
         )
-        ArchitectureRules.literalMeterNames(root).map { it.substringAfter("Meters.kt:").substringBefore(':') }
+        SourceLiteralRules.literalMeterNames(root).map { it.substringAfter("Meters.kt:").substringBefore(':') }
             .assert().containsExactly("3", "4")
     }
 

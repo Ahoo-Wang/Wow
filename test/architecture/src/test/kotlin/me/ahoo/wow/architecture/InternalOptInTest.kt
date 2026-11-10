@@ -14,6 +14,7 @@
 package me.ahoo.wow.architecture
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.architecture.ArchitectureFixtures.writeSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -30,8 +31,8 @@ class InternalOptInTest {
 
     @Test
     fun `no application of the Wow modules should opt in to their internal API`() {
-        ArchitectureRules.internalOptIns(repositoryRoot, HOST_SETTING_READERS).assert().isEmpty()
-        ArchitectureRules.staleOptIns(repositoryRoot, HOST_SETTING_READERS).assert()
+        InternalOptInRules.internalOptIns(repositoryRoot, HOST_SETTING_READERS).assert().isEmpty()
+        InternalOptInRules.staleOptIns(repositoryRoot, HOST_SETTING_READERS).assert()
             .describedAs("Remove these entries: their declarations no longer opt in.")
             .isEmpty()
     }
@@ -63,11 +64,11 @@ class InternalOptInTest {
                 "@Bean\n@OptIn(InternalWowApi::class)\nfun reads() = Unit\n\n@OptIn(InternalWowApi::class)\nfun other() = Unit\n",
         )
         val allowed = mapOf("$path#reads" to "a host setting", "$path#gone" to "stale")
-        ArchitectureRules.internalOptIns(root, allowed).assert().containsExactly(
+        InternalOptInRules.internalOptIns(root, allowed).assert().containsExactly(
             "$path:3: import me.ahoo.wow.api.annotation.InternalWowApi",
             "$path:9: @OptIn(InternalWowApi::class)",
         )
-        ArchitectureRules.staleOptIns(root, allowed).assert().containsExactly("$path#gone")
+        InternalOptInRules.staleOptIns(root, allowed).assert().containsExactly("$path#gone")
     }
 
     @Test
@@ -86,18 +87,11 @@ class InternalOptInTest {
             .writeText("@OptIn(InternalWowApi::class)\nfun fixture() = Unit\n")
         // Wow's own modules opt in through the root build.
         root.writeSource(ArchitectureRules.RUNTIME.dir, "Own.kt", "@OptIn(InternalWowApi::class)\nfun own() = Unit\n")
-        ArchitectureRules.internalOptIns(root).assert().containsExactly(
+        InternalOptInRules.internalOptIns(root).assert().containsExactly(
             "$server/build.gradle.kts:1: kotlin { compilerOptions { optIn.add(\"InternalWowApi\") } }",
             "$server/src/main/kotlin/me/ahoo/wow/ops/server/Bad.kt:3: " +
                 "@OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)",
         )
-    }
-
-    private fun File.writeSource(moduleDir: String, path: String, content: String) {
-        File(this, "$moduleDir/src/main/kotlin/$path").apply {
-            parentFile.mkdirs()
-            writeText(content)
-        }
     }
 
     private companion object {
