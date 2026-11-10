@@ -21,7 +21,6 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.json.WowJson
 import org.bson.BsonUndefined
 import org.bson.Document
@@ -54,149 +53,10 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
     /** The collections found to hold the walk's index ([missingWalkIndexOf]). */
     private val walkable: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    private val inventories = MongoNineXInventory(database)
+
     override fun inventory(): List<NineXInventory> =
-        database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(::inventoryOf)
-
-    private fun inventoryOf(collectionName: String): List<NineXInventory> {
-        val collection = database.getCollection(collectionName)
-        val events = collection.aggregate(
-            listOf(
-                Aggregates.unwind("\$body"),
-                Document(
-                    "\$group",
-                    Document(
-                        "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("name", "\$body.name").append("revision", "\$body.revision"),
-                    ).append("count", Document("\$sum", 1)),
-                ),
-            ),
-        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-        val commands = collection.aggregate(
-            listOf(
-                Document(
-                    "\$group",
-                    Document(
-                        "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("command", COMMAND_OF_STREAM),
-                    ).append("count", Document("\$sum", 1)),
-                ),
-            ),
-        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-        val shapes = streamEventTypesOf(collection)
-        val refused = refusedIdsOf(collection)
-        val tenantless = tenantlessOf(collection)
-        return (events.map { it.first.aggregate() } + commands.map { it.first.aggregate() }).distinct().map { aggregate ->
-            val ofAggregate = commands.filter { it.first.aggregate() == aggregate }
-            NineXInventory(
-                aggregate = aggregate,
-                streams = ofAggregate.sumOf { it.second },
-                events = events.filter { it.first.aggregate() == aggregate }.associate { (id, count) ->
-                    NineXEventType(
-                        id.getString("name"),
-                        id.getString("revision") ?: NineXStream.DEFAULT_REVISION,
-                    ) to count
-                },
-                commands = ofAggregate.mapNotNull { (id, count) ->
-                    id.getString("command")?.takeIf { it.isNotBlank() }?.let { it to count }
-                }.toMap(),
-                streamsWithoutCommand = ofAggregate.filter { it.first.getString("command").isNullOrBlank() }
-                    .sumOf { it.second },
-                streamEventTypes = shapes[aggregate].orEmpty(),
-                refusedIds = refused[aggregate].orEmpty(),
-                tenantless = tenantless[aggregate].orEmpty(),
-            )
-        }
-    }
-
-    /**
-     * The number of streams of each instance whose id V10 refuses ([RefusedIds]), per aggregate: an absent or null id
-     * read as the empty one, as [NineXStream.parse] reads it.
-     */
-    private fun refusedIdsOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<NineXAggregateId, Long>> =
-        collection.aggregate(
-            listOf(
-                Aggregates.match(
-                    Filters.or(
-                        Filters.eq(AGGREGATE_ID, null),
-                        Filters.regex(AGGREGATE_ID, "^\\s*$"),
-                        Filters.eq(AGGREGATE_ID, AggregateRef.UNASSIGNED),
-                    ),
-                ),
-                Document(
-                    "\$group",
-                    Document(
-                        "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("id", Document("\$ifNull", listOf("\$aggregateId", "")))
-                            .append("tenant", "\$tenantId"),
-                    ).append("count", Document("\$sum", 1)),
-                ),
-            ),
-        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-            .filter { (id, _) -> RefusedIds.reasonOf(id.getString("id")) != null }
-            .groupBy({ it.first.aggregate() }) { (id, count) ->
-                NineXAggregateId(id.getString("id"), id.getString("tenant").orEmpty()) to count
-            }
-            .mapValues { (_, instances) -> instances.toMap() }
-
-    /**
-     * The number of streams by the set of event types each holds, per aggregate: grouped by the store on the set
-     * `$setUnion` makes, whose order MongoDB does not fix, so equal sets are merged here.
-     */
-    private fun streamEventTypesOf(
-        collection: MongoCollection<Document>,
-    ): Map<NineXAggregate, Map<Set<NineXEventType>, Long>> {
-        val types = Document(
-            "\$setUnion",
-            listOf(
-                Document(
-                    "\$map",
-                    Document("input", "\$body").append(
-                        "in",
-                        Document("name", "\$\$this.name").append("revision", "\$\$this.revision"),
-                    ),
-                ),
-            ),
-        )
-        return collection.aggregate(
-            listOf(
-                Document(
-                    "\$group",
-                    Document(
-                        "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("types", types),
-                    ).append("count", Document("\$sum", 1)),
-                ),
-            ),
-        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-            .groupBy({ it.first.aggregate() }) { (id, count) ->
-                id.getList("types", Document::class.java).orEmpty().map { type ->
-                    NineXEventType(type.getString("name"), type.getString("revision") ?: NineXStream.DEFAULT_REVISION)
-                }.toSet() to count
-            }
-            .mapValues { (_, shapes) -> shapes.groupBy({ it.first }) { it.second }.mapValues { it.value.sum() } }
-    }
-
-    /** The number of streams of each 9.x aggregate id that record no tenant, or a blank one, per aggregate. */
-    private fun tenantlessOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<String, Long>> =
-        collection.aggregate(
-            listOf(
-                Aggregates.match(Filters.or(Filters.eq(TENANT_ID, null), Filters.regex(TENANT_ID, "^\\s*$"))),
-                Document(
-                    "\$group",
-                    Document(
-                        "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("id", Document("\$ifNull", listOf("\$aggregateId", ""))),
-                    ).append("count", Document("\$sum", 1)),
-                ),
-            ),
-        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-            .groupBy({ it.first.aggregate() }) { (id, count) -> id.getString("id") to count }
-            .mapValues { (_, ids) -> ids.toMap() }
+        database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(inventories::inventoryOf)
 
     /** The version-1 streams of [walk]'s scan: their ids alone, a whole id at a time, but for tenants beyond [limit]. */
     override fun aggregateIds(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXAggregateId> {
@@ -553,17 +413,13 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
     private fun collectionOf(aggregate: NineXAggregate): MongoCollection<Document> =
         database.getCollection(aggregate.name + SUFFIX)
 
-    private fun Document.aggregate(): NineXAggregate = NineXAggregate(getString("context"), getString("aggregate"))
-
-    private fun Document.count(): Long = (get("count") as Number).toLong()
-
     companion object {
         /** The suffix of a 9.x event stream collection. */
         const val SUFFIX: String = "_event_stream"
         private const val ID = "_id"
         private const val CONTEXT_NAME = "contextName"
-        private const val AGGREGATE_ID = "aggregateId"
-        private const val TENANT_ID = "tenantId"
+        internal const val AGGREGATE_ID = "aggregateId"
+        internal const val TENANT_ID = "tenantId"
         private const val VERSION = "version"
         private const val CREATE_TIME = "createTime"
 
@@ -588,47 +444,6 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             Arrays.compareUnsigned(left.toByteArray(StandardCharsets.UTF_8), right.toByteArray(StandardCharsets.UTF_8))
         }
         private val NODES: JsonNodeFactory = WowJson.mapper.nodeFactory
-
-        /** The headers naming a stream's command, the first one written winning. */
-        private val COMMAND_HEADERS =
-            listOf(NineXHeaders.UPSTREAM_NAME, NineXHeaders.DOTTED_UPSTREAM_NAME, NineXHeaders.COMMAND_NAME)
-
-        /**
-         * A stream's command name, as [NineXStream.commandName] reads it: `upstream_name`, else an older 9.x's
-         * `upstream.name`, else its `command.name`. Field names with dots are no paths, so the header is read as its
-         * pairs; missing when it names none.
-         */
-        private val COMMAND_OF_STREAM: Document = Document(
-            "\$let",
-            Document(
-                "vars",
-                Document("pairs", Document("\$objectToArray", Document("\$ifNull", listOf("\$header", Document())))),
-            ).append(
-                "in",
-                Document(
-                    "\$arrayElemAt",
-                    listOf(
-                        Document(
-                            "\$concatArrays",
-                            COMMAND_HEADERS.map { key ->
-                                Document(
-                                    "\$map",
-                                    Document(
-                                        "input",
-                                        Document(
-                                            "\$filter",
-                                            Document("input", "\$\$pairs")
-                                                .append("cond", Document("\$eq", listOf("\$\$this.k", key))),
-                                        ),
-                                    ).append("in", "\$\$this.v"),
-                                )
-                            },
-                        ),
-                        0,
-                    ),
-                ),
-            ),
-        )
 
         /** [value], a BSON value the driver read, as JSON; a `Decimal128` stays an exact decimal. */
         fun toNode(value: Any?): JsonNode = when (value) {
