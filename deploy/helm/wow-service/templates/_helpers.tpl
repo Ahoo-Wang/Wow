@@ -46,16 +46,17 @@ app.kubernetes.io/part-of: {{ . }}
 {{- end -}}
 
 {{/*
-The node's shutdown, in seconds: the preStop pause, then the node's stop bound, then a margin. The stop bound is the
-formula of ServiceNodeOptions.stopBound (core/runtime), which the host's shutdown phase is set from too:
-max(wait.max-timeout, 2 x subscription.stop-timeout + cluster.drain-timeout) + 3 x cluster.drain-timeout. Change it
-there first.
+The node's shutdown, in seconds, its steps one after the other: the preStop pause; the public server's graceful
+shutdown, which lasts as long as its longest request, a wait (wow.wait.max-timeout); the node's stop, up to its stop
+bound; then a margin. The stop bound is the formula of ServiceNodeOptions.stopBound (core/runtime), which the host's
+shutdown phase is set from too: max(wait.max-timeout, 2 x subscription.stop-timeout + cluster.drain-timeout)
++ 3 x cluster.drain-timeout, its waits measured from the node's own stop. Change it there first.
 */}}
 {{- define "wow-service.terminationGracePeriodSeconds" -}}
 {{- $s := .Values.shutdown -}}
 {{- $handOff := add (mul 2 $s.subscriptionStopTimeoutSeconds) $s.drainTimeoutSeconds -}}
 {{- $stopBound := add (max $s.waitMaxTimeoutSeconds $handOff) (mul 3 $s.drainTimeoutSeconds) -}}
-{{- add $s.preStopSeconds $stopBound $s.marginSeconds -}}
+{{- add $s.preStopSeconds $s.waitMaxTimeoutSeconds $stopBound $s.marginSeconds -}}
 {{- end -}}
 
 {{/* The name of the port the metrics are scraped on: the HTTP port's when they share it (Actuator), else its own. */}}

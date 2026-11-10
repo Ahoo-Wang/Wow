@@ -574,6 +574,15 @@ class ShutdownTimeoutEnvironmentPostProcessorTest {
     }
 
     @Test
+    fun `a setting the node's options refuse should leave the phase unset, for the node's assembly to refuse`() {
+        listOf(
+            "wow.wait.max-timeout" to "0s",
+            "wow.cluster.drain-timeout" to "5m",
+            "wow.subscription.stop-timeout" to "-1s",
+        ).forEach { timeout(environment(it)).assert().isNull() }
+    }
+
+    @Test
     fun `a shutdown timeout the application sets should be kept`() {
         timeout(environment("spring.lifecycle.timeout-per-shutdown-phase" to "5s"))
             .assert().isEqualTo(Duration.ofSeconds(5))

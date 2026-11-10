@@ -50,9 +50,10 @@ spec:
       # COSEC_GATEWAY_* variables, which Spring reads as cosec.gateway.* keys, and CoSec refuses keys it does not read.
       enableServiceLinks: false
       # region shutdown
-      # The preStop pause, the node's stop bound (ServiceNodeOptions.stopBound, from shutdown.waitMaxTimeoutSeconds,
-      # shutdown.drainTimeoutSeconds and shutdown.subscriptionStopTimeoutSeconds) and a margin: the chart sets the
-      # three keys from the same values.
+      # The preStop pause, the public server's graceful shutdown (its longest request, a wait:
+      # shutdown.waitMaxTimeoutSeconds), the node's stop bound (ServiceNodeOptions.stopBound, from
+      # shutdown.waitMaxTimeoutSeconds, shutdown.drainTimeoutSeconds and shutdown.subscriptionStopTimeoutSeconds) and a
+      # margin, one after the other: the chart sets the three keys from the same values.
       terminationGracePeriodSeconds: {{ include "wow-service.terminationGracePeriodSeconds" . }}
       # endregion
       {{- with .Values.podSecurityContext }}
