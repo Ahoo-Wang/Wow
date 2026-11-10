@@ -34,6 +34,7 @@ import java.sql.SQLException
 import java.util.concurrent.CountDownLatch
 import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** A PostgreSQL store gives back the connection its leases keep when it is closed, and nothing of the pool's. */
 class PostgresLeaseLifecycleTest {
@@ -112,7 +113,7 @@ class PostgresLeaseLifecycleTest {
 
     @Test
     @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
-    fun `an operation still borrowing its connection when a close stopped waiting should give it back when done`(): Unit =
+    fun `a claim lent its connection after a close stopped waiting should give it back unused, and fail`(): Unit =
         runBlocking {
             val borrowing = CountDownLatch(1)
             val lent = CountDownLatch(1)
@@ -125,13 +126,45 @@ class PostgresLeaseLifecycleTest {
                 }
             }
             val leases = PostgresLeaseStore(source, dispatcher = Dispatchers.IO, closeTimeout = 50.milliseconds)
-            val owners = async(Dispatchers.Default) { leases.owners("service") }
+            val claim = async(Dispatchers.Default) {
+                runCatching { leases.acquire("service", 0, "node-a", 30.seconds) }
+            }
             borrowing.await()
             leases.close()
             lent.countDown()
-            owners.await().assert().isEmpty()
+            claim.await().exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+                .hasMessageContaining("closed")
+            // Given back once, and no statement prepared: no lease is written by a node whose stores are closed.
             verify(exactly = 1) { late.close() }
-            verify(exactly = 0) { late.abort(any()) }
+            verify(exactly = 0) { late.prepareStatement(any<String>()) }
+        }
+
+    @Test
+    @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun `a close that stopped waiting should try both the abort and the give-back, never throwing`(): Unit =
+        runBlocking {
+            val running = CountDownLatch(1)
+            val ended = CountDownLatch(1)
+            val hung = connection {
+                running.countDown()
+                ended.await()
+                throw SQLException("This connection has been closed.", "08003")
+            }
+            every { hung.abort(any()) } throws SQLException("abort is not supported", "0A000")
+            every { hung.close() } answers {
+                ended.countDown()
+                throw SQLException("This connection has been closed.", "08003")
+            }
+            val source = mockk<DataSource> { every { connection } returns hung }
+            val leases = PostgresLeaseStore(source, dispatcher = Dispatchers.IO, closeTimeout = 50.milliseconds)
+            val owners = async(Dispatchers.Default) { runCatching { leases.owners("service") } }
+            running.await()
+            leases.close()
+            verifyOrder {
+                hung.abort(any())
+                hung.close()
+            }
+            owners.await().exceptionOrNull().assert().isInstanceOf(StorageUnavailableException::class.java)
         }
 
     @Test
