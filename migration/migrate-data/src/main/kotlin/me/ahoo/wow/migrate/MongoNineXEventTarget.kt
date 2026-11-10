@@ -105,8 +105,11 @@ internal class MongoNineXEventTarget(private val database: MongoDatabase) : Nine
     override fun revisionsOf(aggregate: NineXAggregate, name: String): List<String> =
         bodyTypes.computeIfAbsent(aggregate, ::bodyTypesOf).keys.filter { it.name == name }.map { it.revision }
 
-    override fun count(aggregate: NineXAggregate): Long =
-        collectionOf(aggregate).countDocuments(Filters.eq(CONTEXT_NAME, aggregate.context))
+    override fun count(aggregate: NineXAggregate, excluded: Set<String>): Long {
+        val context = Filters.eq(CONTEXT_NAME, aggregate.context)
+        val filter = if (excluded.isEmpty()) context else Filters.and(context, Filters.nin(AGGREGATE_ID, excluded))
+        return collectionOf(aggregate).countDocuments(filter)
+    }
 
     /** The `bodyType` 9.x last recorded for each event name and revision of [aggregate]. */
     private fun bodyTypesOf(aggregate: NineXAggregate): Map<NineXEventType, String> = collectionOf(aggregate).aggregate(

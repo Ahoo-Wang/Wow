@@ -137,7 +137,8 @@ internal data class ExportCount(
  * - **Export** ([export]): the partitions again, from each one's checkpoint up to the scan's heads, the streams 9.x
  *   lacks written to it a page at a time. It is idempotent: a stream 9.x already holds is skipped, so a stopped run
  *   resumes, and a run again writes nothing.
- * - **Verify** ([verify]): each 9.x aggregate holds as many streams as V10 holds of its type.
+ * - **Verify** ([verify]): each 9.x aggregate holds as many streams as V10 holds of its type, over the instances the
+ *   migration carries: an instance the map excludes stays in 9.x as it was and is not counted.
  *
  * V10 must have stopped writing: what it commits after the scan is not exported. Only events go back: a reservation
  * or a parked entry V10 made after the cut-over has no 9.x form here, and neither does a projection's view. 9.x then
@@ -229,10 +230,17 @@ internal class EventStreamExporter(
         return report(done = true).also(progress)
     }
 
-    /** Each 9.x aggregate mapped into [scan]'s context, with its stream count now and V10's at the scan. */
+    /**
+     * Each 9.x aggregate mapped into [scan]'s context, with its stream count now, the instances the map excludes
+     * ([MigrationPlan.excludes]) left out, and V10's at the scan. V10 holds none of those: the import passed over them,
+     * and a stream V10 wrote at one of their ids is a conflict with the 9.x stream at that id and version.
+     */
     fun verify(scan: ExportScan): List<ExportCount> = plan.aggregates.values
         .filter { it.target.context == scan.context }
-        .map { ExportCount(it.source, it.target, scan.streams[it.target] ?: 0, target.count(it.source)) }
+        .map { aggregate ->
+            val nineX = target.count(aggregate.source, plan.excludedIds(aggregate.source))
+            ExportCount(aggregate.source, aggregate.target, scan.streams[aggregate.target] ?: 0, nineX)
+        }
 
     /** Writes [entries] to 9.x; returns how many it wrote, those 9.x now holds otherwise failing the export. */
     private suspend fun write(entries: List<LogEntry>): Int = entries.groupBy {

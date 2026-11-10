@@ -50,9 +50,9 @@ class EventStreamExporterTest {
     private val lastOrder: EventStreamRecord
         get() = converter.convert(NineXExample.stream("order-stream-v4.json"))
 
-    /** V10's own streams after the cut-over: the order received (v5), and a new cart of two streams. */
-    private suspend fun writtenByV10(): List<EventStreamRecord> {
-        val received = lastOrder.copyWith(
+    /** V10's first stream after the cut-over: the order received (v5). */
+    private val received: EventStreamRecord
+        get() = lastOrder.copyWith(
             version = 5,
             commandId = "v10-receive",
             requestId = "v10-receive",
@@ -60,6 +60,9 @@ class EventStreamExporterTest {
             commitTime = lastOrder.commitTime + 10,
             events = listOf(EventRecord("example.order.OrderReceived", 1, "{}")),
         )
+
+    /** V10's own streams after the cut-over: the order [received], and a new cart of two streams. */
+    private suspend fun writtenByV10(): List<EventStreamRecord> {
         val firstCart = converter.convert(NineXExample.stream("cart-stream-v1.json"))
         val cartRef = cartType.ref(firstCart.ref.tenantId, "v10-cart")
         val added = firstCart.copyWith(ref = cartRef, commandId = "v10-add", requestId = "v10-add")
@@ -172,6 +175,47 @@ class EventStreamExporterTest {
         exporter().export(scan)
         exporter().verify(scan).single { !it.passed }.render().assert()
             .isEqualTo("DIFFERS example-service.cart <- example.cart: V10 4 streams, 9.x 5 streams")
+    }
+
+    @Test
+    fun `an instance the map excludes stays in 9x and is not counted, while a 9x-only stream still is`(): Unit = runTest {
+        val excludedOrder = NineXExample.ORDER_STREAMS.map(NineXExample::stream).map { stream ->
+            stream.copy(id = stream.id + "-excluded", aggregateId = stream.aggregateId.copy(id = "excluded-order"))
+        }
+        val source = InMemoryNineXEventSource(NineXExample.streams() + excludedOrder)
+        val plan = NineXExample.planExcluding("excluded-order")
+        val v10 = InMemoryEventLog(4)
+        val importer = EventStreamImporter(source, plan, { v10 }, InMemoryCheckpointRepository())
+        plan.aggregates.keys.forEach { importer.importAll(it) }
+        v10.append(received).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        val exporter =
+            EventStreamExporter(plan, { v10 }, InMemoryNineXEventTarget(source), InMemoryCheckpointRepository())
+        val scan = exporter.scan(NineXExample.CONTEXT)
+        exporter.export(scan).exported.assert().isEqualTo(1)
+        exporter.verify(scan).map { it.render() }.assert().containsExactly(
+            "EQUAL example-service.order <- example.order: V10 5 streams, 9.x 5 streams",
+            "EQUAL example-service.cart <- example.cart: V10 4 streams, 9.x 4 streams",
+        )
+        source.add(
+            NineXExample.stream("order-stream-v1.json").let {
+                it.copy(id = "9x-only", aggregateId = it.aggregateId.copy(id = "9x-order"))
+            }
+        )
+        exporter.verify(scan).first().render().assert()
+            .isEqualTo("DIFFERS example-service.order <- example.order: V10 5 streams, 9.x 6 streams")
+    }
+
+    @Test
+    fun `an aggregate whose every instance the map excludes counts no stream on either side`(): Unit = runTest {
+        val plan = NineXExample.planExcluding(NineXExample.stream("order-stream-v1.json").aggregateId.id)
+        val v10 = InMemoryEventLog(4)
+        val importer = EventStreamImporter(nineX, plan, { v10 }, InMemoryCheckpointRepository())
+        plan.aggregates.keys.forEach { importer.importAll(it) }
+        val exporter = EventStreamExporter(plan, { v10 }, target, InMemoryCheckpointRepository())
+        val scan = exporter.scan(NineXExample.CONTEXT)
+        scan.streams.keys.assert().containsExactly(cartType)
+        exporter.verify(scan).first { it.aggregate == order }.render().assert()
+            .isEqualTo("EQUAL example-service.order <- example.order: V10 0 streams, 9.x 0 streams")
     }
 
     @Test
