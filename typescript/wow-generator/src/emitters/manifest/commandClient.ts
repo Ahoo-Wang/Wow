@@ -227,7 +227,7 @@ export function emitCommandClient(
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
   const bodyNumbers = marked.length
-    ? `, bodyNumbers: {\n${marked.map(command => `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${command.name}`)}: ${name}Aggregate.textNumbers.commands.${resolvePropertyName(command.name) === command.name ? command.name : `[${quoteStringLiteral(command.name)}]`},`).join('\n')}\n    }`
+    ? `, bodyNumbers: {\n${marked.map(command => `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${command.name}`)}: ${name}Aggregate.textNumbers.commands${resolvePropertyName(command.name) === command.name ? `.${command.name}` : `[${quoteStringLiteral(command.name)}]`},`).join('\n')}\n    }`
     : '';
   const manifest = `${context.typeName}Manifest`;
   module.imports.add(
