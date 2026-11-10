@@ -174,7 +174,15 @@ public final class me/ahoo/wow/query/tck/DatasetTable$Companion {
 	public final fun of (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/tck/DatasetTable;
 }
 
-public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec {
+public abstract class me/ahoo/wow/query/tck/EventAnalyticsCases : me/ahoo/wow/query/tck/EventQueryFixtures {
+	public final fun a root metric over an event field is rejected ()V
+	public final fun an aggregation counts commits at the root ()V
+	public final fun an expanded aggregation counts the events, retired ones left out ()V
+	public final fun an expanded aggregation groups events by a field of their commit ()V
+	public final fun an expanded aggregation sums an event field per event, aliases included ()V
+}
+
+public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec : me/ahoo/wow/query/tck/EventAnalyticsCases {
 	public static final field Companion Lme/ahoo/wow/query/tck/EventQueryBackendSpec$Companion;
 	public static final field OTHER_TENANT Ljava/lang/String;
 	public static final field T0 J
@@ -186,32 +194,16 @@ public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec {
 	public final fun a projection inside the events is rejected ()V
 	public final fun a record is one stream with its system fields and its events as stored ()V
 	public final fun a record shows the access attributes its stream carries, null when it carries none ()V
-	public final fun a root metric over an event field is rejected ()V
 	public final fun a sort by an event field is rejected ()V
 	public final fun access attributes select streams, a multiple one by any of its values, an unstamped stream by none ()V
-	public final fun an aggregation counts commits at the root ()V
 	public final fun an element match combines the name and a revision-stable body field on one event ()V
 	public final fun an element match never matches a retired event ()V
 	public final fun an element match on the event name selects the commits that hold one, aliases included ()V
 	public final fun an event field outside its element scope is rejected ()V
-	public final fun an expanded aggregation counts the events, retired ones left out ()V
-	public final fun an expanded aggregation groups events by a field of their commit ()V
-	public final fun an expanded aggregation sums an event field per event, aliases included ()V
 	public final fun an expired timeout fails a list with the timeout error ()V
 	public final fun an unsorted list of one aggregate comes in version order ()V
-	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
-	protected final fun event (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventRecord;
-	public static synthetic fun event$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventRecord;
-	protected final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
-	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
-	protected final fun given (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun given$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list sorts by the commit time and honors the limit ()V
 	public final fun paged pages commits and counts them ()V
-	protected abstract fun store (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	protected final fun stream (Ljava/lang/String;IJLjava/util/List;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public static synthetic fun stream$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec;Ljava/lang/String;IJLjava/util/List;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	protected final fun streams ()Ljava/util/List;
 	public final fun streams appended with a transport read as the facts alone ()V
 	public final fun system fields filter by aggregate, tenant, owner, version, commit time and operator ()V
 	public final fun the gateway reads each event as the aggregate reads it now and masks its body ()V
@@ -221,12 +213,26 @@ public final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Companion {
 	public final fun key (Ltools/jackson/databind/node/ObjectNode;)Ljava/lang/String;
 }
 
-protected final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture {
+public abstract class me/ahoo/wow/query/tck/EventQueryFixtures {
+	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
+	protected final fun event (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventRecord;
+	public static synthetic fun event$default (Lme/ahoo/wow/query/tck/EventQueryFixtures;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventRecord;
+	protected final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
+	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	protected final fun given (Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun given$default (Lme/ahoo/wow/query/tck/EventQueryFixtures;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	protected abstract fun store (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun stream (Ljava/lang/String;IJLjava/util/List;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun stream$default (Lme/ahoo/wow/query/tck/EventQueryFixtures;Ljava/lang/String;IJLjava/util/List;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	protected final fun streams ()Ljava/util/List;
+}
+
+protected final class me/ahoo/wow/query/tck/EventQueryFixtures$Fixture {
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun count (Lme/ahoo/wow/api/query/FilterExpression;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
 	public final fun keys (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun keys$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun keys$default (Lme/ahoo/wow/query/tck/EventQueryFixtures$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
