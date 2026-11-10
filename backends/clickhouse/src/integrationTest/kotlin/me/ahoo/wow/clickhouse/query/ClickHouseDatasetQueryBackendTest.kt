@@ -27,8 +27,9 @@ import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.LORD_HOWE_DENSE_HOUR
+import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.BEFORE_1970_PARTIAL_CHANGE
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
+import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.MONROVIA_CHANGE_DAY
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
@@ -71,7 +72,9 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
         "array.exists",
         "array.not-exists",
         "array.eq-array",
-        // toStartOfHour rounds a Lord Howe hour after its half-hour fall-back by the day's offset (#5675).
-        LORD_HOWE_DENSE_HOUR,
+        // The documented limit: before 1970 the zone's hours keep ClickHouse's truncation (WHOLE_SHIFTS_SINCE).
+        BEFORE_1970_PARTIAL_CHANGE,
+        // ClickHouse 24.8's own zone data reads Monrovia's offset for the rest of 1972-01-07 as -00:14:30, not UTC.
+        MONROVIA_CHANGE_DAY,
     )
 }

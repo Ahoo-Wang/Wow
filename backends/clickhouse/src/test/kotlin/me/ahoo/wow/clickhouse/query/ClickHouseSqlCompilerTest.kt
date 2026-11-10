@@ -71,6 +71,7 @@ import me.ahoo.wow.query.schema.QueryCapability
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
+import java.time.Duration
 
 /**
  * The SQL each filter operator, group, metric and HAVING form translates to, compiled against a table fixture
@@ -206,6 +207,42 @@ class ClickHouseSqlCompilerTest {
         where(ExpressionFilter(ratio, ComparisonOperator.GT, 1.0)).assert()
             .contains("if(toFloat64(`quantity`) = 0, NULL,")
             .contains("(toFloat64(`amount`) - toFloat64(1.0))")
+    }
+
+    @Test
+    fun `a zone shifts by whole units unless an offset change since 1970 moves it by part of one`() {
+        val hour = Duration.ofHours(1)
+        val minute = Duration.ofMinutes(1)
+        listOf("UTC", "America/New_York", "Asia/Shanghai", "Asia/Kolkata").forEach { zone ->
+            zone.shiftsByWhole(hour).assert().describedAs(zone).isTrue()
+        }
+        // Half an hour at each change since 1981; Pyongyang's 2015 change and back.
+        "Australia/Lord_Howe".shiftsByWhole(hour).assert().isFalse()
+        "Australia/Lord_Howe".shiftsByWhole(minute).assert().isTrue()
+        "Asia/Pyongyang".shiftsByWhole(hour).assert().isFalse()
+        // Monrovia moved from -00:44:30 to UTC in 1972.
+        "Africa/Monrovia".shiftsByWhole(minute).assert().isFalse()
+    }
+
+    @Test
+    fun `a zone whose offset moves by part of the unit starts it on the wall clock itself`() {
+        // #5675: Lord Howe's hours, and Monrovia's minutes since its 1972 change, are not native truncations.
+        grouped(
+            AggregationGroup.DateHistogram(CREATED_AT, "g", AggregationDateUnit.HOUR, "Australia/Lord_Howe")
+        ).assert()
+            .doesNotContain("toStartOfHour")
+            .contains(
+                "positiveModulo(intDiv(toUnixTimestamp64Milli(toStartOfSecond(toDateTime64(`created_at`, 3, 'UTC'))), 1000)"
+            ).contains(", 3600)")
+            .contains("timeZoneOffset(toTimeZone(subtractSeconds(")
+        grouped(
+            AggregationGroup.DateHistogram(CREATED_AT, "g", AggregationDateUnit.MINUTE, "Australia/Lord_Howe")
+        ).assert()
+            .contains("toStartOfMinute(")
+        grouped(AggregationGroup.DateHistogram(CREATED_AT, "g", AggregationDateUnit.MINUTE, "Africa/Monrovia")).assert()
+            .doesNotContain(
+                "toStartOfMinute"
+            ).contains(", 60)").contains("subtractSeconds(")
     }
 
     @Test

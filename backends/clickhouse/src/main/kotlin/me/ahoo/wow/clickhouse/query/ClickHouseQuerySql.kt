@@ -15,8 +15,11 @@ package me.ahoo.wow.clickhouse.query
 
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.schema.QueryViolation
+import java.time.Duration
+import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 /**
@@ -62,6 +65,37 @@ internal fun String.sqlTimeZone(): String {
     val zone = ZoneId.of(this).normalized()
     val name = if (zone is ZoneOffset) zone.ianaName() else zone.id
     return "'" + name.replace("\\", "\\\\").replace("'", "\\'") + "'"
+}
+
+/**
+ * The earliest offset change that decides whether a zone's hours and minutes are native truncations
+ * ([shiftsByWhole]): 1970. Almost every zone's switch from local mean time moved its offset by minutes and seconds, many
+ * after 1900 (Asia/Shanghai's on 1901-01-01). Counting those changes would send nearly every zone to the longer
+ * expression, so they are left out. The limit: HOUR and MINUTE buckets of instants before 1970, on the day a zone's
+ * offset changed by less than the unit, may start where ClickHouse's truncation puts them, not where the bucket rule
+ * does.
+ */
+private val WHOLE_SHIFTS_SINCE: Instant = Instant.EPOCH
+
+/** Each zone's answer to [shiftsByWhole], by zone and unit: read from its rules once, not per query. */
+private val wholeShifts = ConcurrentHashMap<Pair<String, Duration>, Boolean>()
+
+/**
+ * Whether every change of the offset of the zone this names, since [WHOLE_SHIFTS_SINCE], moves it by a whole number of
+ * [unit]s. ClickHouse's `toStartOfHour` and `toStartOfMinute` truncate by the offset the day starts with. They start a
+ * bucket where the bucket rule does (`DateBuckets`) only when an offset change within a day moves the wall clock by
+ * whole units, as daylight saving's hour does. A zone whose offset moves by half an hour (Australia/Lord_Howe) needs the
+ * longer expression ([ClickHouseAggregationCompiler]). A fixed offset never changes.
+ */
+internal fun String.shiftsByWhole(unit: Duration): Boolean {
+    val zone = ZoneId.of(this).normalized()
+    if (zone is ZoneOffset) return true
+    return wholeShifts.computeIfAbsent(zone.id to unit) {
+        val rules = zone.rules
+        val changes = rules.transitions.filter { !it.instant.isBefore(WHOLE_SHIFTS_SINCE) }.map { it.duration } +
+            rules.transitionRules.map { Duration.ofSeconds((it.offsetAfter.totalSeconds - it.offsetBefore.totalSeconds).toLong()) }
+        changes.all { it.seconds % unit.seconds == 0L }
+    }
 }
 
 private const val SECONDS_PER_HOUR = 3600
