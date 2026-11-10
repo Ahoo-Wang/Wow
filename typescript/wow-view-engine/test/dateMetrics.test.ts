@@ -33,7 +33,7 @@ import {
 } from '../src/index.js';
 import { analysisScope } from '../src/analysis/capability.js';
 import { fitCharts } from '../src/analysis/fitCharts.js';
-import { momentColumns } from '../src/analysis/project.js';
+import { momentColumns } from '../src/analysis/columns.js';
 import {
   momentMetrics,
   readsAsItsField,

@@ -79,5 +79,14 @@ export {
   type MetricFunction,
 } from './metricFormat.js';
 export * from './project.js';
+// The column model's own readers and types; the helpers `projectAnalysis`
+// builds a column with stay the projection's.
+export {
+  measureColumns,
+  momentColumns,
+  rowCurrency,
+  type AnalysisColumnView,
+  type ColumnCurrency,
+} from './columns.js';
 export * from './validate.js';
 export { isChartColor, validateChart } from './validateChart.js';
