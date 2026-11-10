@@ -161,14 +161,49 @@ class SchemaCompatibilityTest {
             ),
             row("format imposed", STRING, STRING + ("format" to "date"), "BREAKING s: format date imposed"),
             row("format lifted", STRING + ("format" to "date"), STRING, "ADDITIVE s: format date lifted"),
-            // A wire format says how a client reads the number, not which numbers are valid (review R4-Q, Q-9).
-            row("wire format added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int64")),
-            row("int32 added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int32")),
+            // A numeric format is a range of its type: an input that refuses a number old clients sent breaks.
             row(
-                "wire format swapped",
+                "numeric format imposed",
+                mapOf("type" to "integer"),
+                mapOf("type" to "integer", "format" to "int64"),
+                "BREAKING s: format changed from any to int64",
+            ),
+            row(
+                "Long narrowed to Int",
+                mapOf("type" to "integer", "format" to "int64"),
+                mapOf("type" to "integer", "format" to "int32"),
+                "BREAKING s: format changed from int64 to int32",
+            ),
+            row(
+                "Int widened to Long",
+                mapOf("type" to "integer", "format" to "int32"),
+                mapOf("type" to "integer", "format" to "int64"),
+                "ADDITIVE s: format changed from int32 to int64",
+            ),
+            row(
+                "numeric format lifted",
+                mapOf("type" to "integer", "format" to "int64"),
+                mapOf("type" to "integer"),
+                "ADDITIVE s: format changed from int64 to any",
+            ),
+            row(
+                "Double narrowed to Float",
+                NUMBER,
+                NUMBER + ("format" to "float"),
+                "BREAKING s: format changed from any to float",
+            ),
+            row(
+                "numeric formats neither holding the other",
+                NUMBER + ("format" to "int64"),
+                NUMBER + ("format" to "float"),
+                "BREAKING s: format changed from int64 to float",
+            ),
+            row(
+                "Long widened to BigDecimal",
                 mapOf("type" to "integer", "format" to "int64"),
                 mapOf("type" to "number", "format" to "decimal"),
                 "ADDITIVE s: type widened from [integer] to [number]",
+                "ADDITIVE s: format changed from int64 to decimal",
             ),
             // The Jakarta constraints of a command's field (decision D380): a tighter one is breaking for the
             // input old clients send, a looser one additive (D349 ③).
@@ -402,6 +437,123 @@ class SchemaCompatibilityTest {
             "BREAKING s.name: field removed",
             "ADDITIVE s.title: optional field added",
         )
+    }
+
+    @Test
+    fun `a numeric format narrowed should break what is read, widened what is written`() {
+        val long = mapOf("type" to "integer", "format" to "int64")
+        val int = mapOf("type" to "integer", "format" to "int32")
+        fun compared(old: Any?, new: Any?, direction: SchemaDirection) =
+            SchemaCompatibility(mapOf("t" to old), mapOf("t" to new))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction)
+                .map { it.toString() }
+        // A stored 2^31 no longer reads back as an Int; a reader generated as an Int cannot hold a Long.
+        compared(long, int, SchemaDirection.STORED).assert()
+            .containsExactly("BREAKING s: format changed from int64 to int32")
+        compared(long, int, SchemaDirection.OUTPUT).assert()
+            .containsExactly("ADDITIVE s: format changed from int64 to int32")
+        compared(int, long, SchemaDirection.STORED).assert()
+            .containsExactly("ADDITIVE s: format changed from int32 to int64")
+        compared(int, long, SchemaDirection.OUTPUT).assert()
+            .containsExactly("BREAKING s: format changed from int32 to int64")
+        // A format of no number keeps the general rule: a format imposed breaks an input.
+        compared(STRING, STRING + ("format" to "uuid"), SchemaDirection.INPUT).assert()
+            .containsExactly("BREAKING s: format uuid imposed")
+    }
+
+    @Test
+    fun `an alternative of oneOf that may match a value another matches should break what is read`() {
+        val integer = mapOf("type" to "integer")
+        fun alternatives(keyword: String, vararg types: String) = mapOf(keyword to types.map { mapOf("type" to it) })
+        // 7 matched [integer] alone; with number beside it, it matches two, and oneOf refuses it.
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "integer", "number")).assert()
+            .containsExactlyInAnyOrder(
+                "ADDITIVE s.oneOf[1]: alternative added",
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused",
+            )
+        // An alternative widened into another's type.
+        changes(
+            alternatives("oneOf", "integer", "string"),
+            mapOf("oneOf" to listOf(integer, mapOf("type" to listOf("number", "string")))),
+        ).assert().containsExactly(
+            "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused",
+        )
+        // The neighbouring extensions keep every old value matching once: a disjoint oneOf alternative, a widened one
+        // that stays disjoint, and any alternative of anyOf.
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "integer", "string")).assert()
+            .containsExactly("ADDITIVE s.oneOf[1]: alternative added")
+        changes(alternatives("oneOf", "integer", "string"), alternatives("oneOf", "number", "string")).assert()
+            .isEmpty()
+        changes(alternatives("anyOf", "integer"), alternatives("anyOf", "integer", "number")).assert()
+            .containsExactly("ADDITIVE s.anyOf[1]: alternative added")
+        // Two alternatives added that overlap each other: reported once, on the first. A number placed before the
+        // integer it now matches too: the overlap read from either side.
+        changes(alternatives("oneOf", "string"), alternatives("oneOf", "string", "integer", "number")).assert()
+            .containsExactlyInAnyOrder(
+                "ADDITIVE s.oneOf[1]: alternative added",
+                "ADDITIVE s.oneOf[2]: alternative added",
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 2: a value both accept is refused",
+            )
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "number", "integer")).assert()
+            .contains("BREAKING s.oneOf[0]: alternative overlaps alternative 1: a value both accept is refused")
+        // Two old alternatives collapsed into one, the second widened: nothing left for it to overlap.
+        changes(
+            mapOf("oneOf" to listOf(integer, integer + ("minimum" to 0))),
+            mapOf("oneOf" to listOf(integer)),
+        ).assert().isEmpty()
+        // An alternative of no JSON type, an `enum` say, is not proven apart from another: either side.
+        val one = mapOf("enum" to listOf(1))
+        changes(mapOf("oneOf" to listOf(integer)), mapOf("oneOf" to listOf(integer, one))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+        changes(mapOf("oneOf" to listOf(one)), mapOf("oneOf" to listOf(one, STRING))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+        // A stored record is read back as an input is.
+        SchemaCompatibility(
+            mapOf("t" to alternatives("oneOf", "integer")),
+            mapOf("t" to alternatives("oneOf", "integer", "number")),
+        ).compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.STORED).map { it.toString() }.assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+    }
+
+    @Test
+    fun `a subtype of a discriminated oneOf should be told apart by the constant both require`() {
+        fun subtype(kind: Any?, required: Boolean = true, key: String = "const") = obj(
+            "kind" to (if (kind == null) STRING else mapOf(key to kind)),
+            "number" to STRING,
+            required = if (required) listOf("kind") else emptyList(),
+        )
+        val payments = listOf(subtype("card"), subtype("bank"))
+        fun added(subtype: Map<String, Any?>) = changes(
+            mapOf("oneOf" to payments),
+            mapOf("oneOf" to payments + subtype)
+        )
+        val overlaps = "BREAKING s.oneOf[2]: alternative overlaps alternative"
+        // A new constant: no value matches two, the canonical compatible extension.
+        added(subtype("wallet")).assert().containsExactly("ADDITIVE s.oneOf[2]: alternative added")
+        // A constant another alternative has, no constant, or one not required by both: a value may match two.
+        added(subtype("card")).assert().contains("$overlaps 0: a value both accept is refused")
+        added(subtype(null)).assert().contains("$overlaps 0: a value both accept is refused")
+            .contains("$overlaps 1: a value both accept is refused")
+        added(subtype("wallet", required = false)).assert().contains("$overlaps 0: a value both accept is refused")
+        val loose = listOf(subtype("card", required = false))
+        changes(mapOf("oneOf" to loose), mapOf("oneOf" to loose + subtype("wallet"))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+        // An enum is a set of constants: apart when no value is in both.
+        val tiers = listOf(subtype(listOf("gold", "silver"), key = "enum"))
+        changes(mapOf("oneOf" to tiers), mapOf("oneOf" to tiers + subtype(listOf("bronze"), key = "enum")))
+            .assert().containsExactly("ADDITIVE s.oneOf[1]: alternative added")
+        changes(mapOf("oneOf" to tiers), mapOf("oneOf" to tiers + subtype(listOf("silver", "bronze"), key = "enum")))
+            .assert().contains(
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused"
+            )
+        // Subtypes referred to by `$ref`: their definitions are read.
+        val refs = listOf(mapOf("\$ref" to "#/\$defs/card"), mapOf("\$ref" to "#/\$defs/wallet"))
+        changes(
+            mapOf("oneOf" to refs.take(1)),
+            mapOf("oneOf" to refs),
+            oldDefs = mapOf("card" to subtype("card")),
+            newDefs = mapOf("card" to subtype("card"), "wallet" to subtype("wallet")),
+        ).assert().containsExactly("ADDITIVE s.oneOf[1]: alternative added")
     }
 
     @Test

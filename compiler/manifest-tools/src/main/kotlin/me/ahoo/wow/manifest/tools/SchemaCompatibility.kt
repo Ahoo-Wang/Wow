@@ -35,6 +35,8 @@ import me.ahoo.wow.manifest.Manifest
  * | an enum value added, or the enum lifted | additive |
  * | an alternative of `anyOf` / `oneOf` no current alternative accepts | breaking |
  * | an alternative added | additive |
+ * | an alternative of `oneOf` added or widened that may accept a value another accepts | breaking |
+ * | an alternative of `oneOf` added whose required discriminator no other alternative's values hold | additive |
  * | a member of `allOf` changed, each of its changes compared in place | as the change is |
  * | a member of `allOf` added / removed | breaking / additive |
  * | additional properties no longer accepted / now accepted | breaking / additive |
@@ -42,14 +44,24 @@ import me.ahoo.wow.manifest.Manifest
  * | a query semantics keyword (`x-wow-sensitive`, `x-wow-mask`, `x-wow-temporal`, …) changed | breaking |
  * | a lower bound (`minLength`, `minItems`, `minProperties`, `minimum`, `exclusiveMinimum`) raised / lowered | breaking / additive |
  * | an upper bound (`maxLength`, `maxItems`, `maxProperties`, `maximum`, `exclusiveMaximum`) lowered / raised | breaking / additive |
+ * | a numeric `format` (`int32`, `int64`, `bigint`, `float`, `decimal`) narrowed / widened | breaking / additive |
  * | any other validation keyword (`format`, `pattern`, …) changed | breaking |
  * | a validation keyword, a bound included, added / removed | breaking / additive |
  *
- * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored, and so is a
- * wire `format` (`int32`, `int64`, `float`, `bigint`, `decimal`) added, removed or swapped for another: it says how a
- * client reads a number of its `type`, which the type rules already compare. So are `x-wow-class`, the class a value
- * is written from (a class renamed with its shape kept is no change), and `uniqueItems`, which says the class is a set:
- * a reader takes the array either way, and the writer never repeats an item.
+ * One rule decides each row: a change that refuses a value the old schema accepted (narrowed) breaks what is read, an
+ * input and a stored record; a change that allows a value the old schema did not (widened) breaks what is written,
+ * an output. A numeric `format` is a range of its `type` ([WireTypes.holds]): `int64` to `int32` (a `Long` to an
+ * `Int`) refuses a number old clients sent, and `int32` to `int64` produces one an `Int` reader cannot hold; two
+ * formats neither of which holds the other break both ways. A value of `oneOf` must match exactly one alternative, so
+ * an alternative added or widened that shares a JSON type with another (an `integer` is a `number`) may make a value
+ * old clients sent match two, refused: breaking for what is read, unless a property both require holds values that
+ * cannot coincide, a discriminator (`kind: {"const": "wallet"}` beside `"card"`), so a discriminated `oneOf` may grow.
+ * `anyOf` takes a value any alternative accepts.
+ *
+ * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored. So are
+ * `x-wow-class`, the class a value is written from (a class renamed with its shape kept is no change), and
+ * `uniqueItems`, which says the class is a set: a reader takes the array either way, and the writer never repeats an
+ * item.
  */
 /**
  * Which way a schema's values flow: an [INPUT] is what old clients send, such as a command or a
@@ -258,12 +270,14 @@ internal class SchemaCompatibility(
             if (keyword !in old && keyword !in new) return
             val oldAlternatives = old[keyword] as List<*>? ?: listOf(true)
             val newAlternatives = new[keyword] as List<*>? ?: listOf(true)
-            val compatible = { old: Any?, new: Any? ->
-                // The pairs compared around it stay compared: a recursive alternative ends instead of looping.
+            // The changes of [old] to [new], null when one breaks; the pairs compared around it stay compared, so a
+            // recursive alternative ends instead of looping.
+            val trial = { old: Any?, new: Any? ->
                 val trial = Comparison(direction, comparing.toMutableSet())
                 trial.compare(path, old, new, null)
-                trial.changes.none { it.kind == ChangeKind.BREAKING }
+                trial.changes.takeIf { changes -> changes.none { it.kind == ChangeKind.BREAKING } }
             }
+            val compatible = { old: Any?, new: Any? -> trial(old, new) != null }
             if (direction == SchemaDirection.OUTPUT) {
                 // Every value the current schema may produce needs an alternative an old reader handles.
                 val matched = mutableSetOf<Int>()
@@ -276,17 +290,68 @@ internal class SchemaCompatibility(
                 }
                 return
             }
-            val matched = mutableSetOf<Int>()
+            // Each current alternative an old one matched, and whether it now accepts the old one's values unchanged.
+            val matched = mutableMapOf<Int, Boolean>()
             oldAlternatives.forEachIndexed { index, alternative ->
-                val match = newAlternatives.indices.firstOrNull { compatible(alternative, newAlternatives[it]) }
+                val match = newAlternatives.indices.firstNotNullOfOrNull { candidate ->
+                    trial(alternative, newAlternatives[candidate])?.let { candidate to it.isEmpty() }
+                }
                 if (match == null) {
                     breaking("$path.$keyword[$index]", "alternative no longer accepted")
                 } else {
-                    matched += match
+                    // Unchanged only when every old alternative it matched is.
+                    matched.merge(match.first, match.second, Boolean::and)
                 }
             }
-            (newAlternatives.indices - matched).forEach { additive("$path.$keyword[$it]", "alternative added") }
+            (newAlternatives.indices - matched.keys).forEach { additive("$path.$keyword[$it]", "alternative added") }
+            if (keyword == ONE_OF) {
+                compareExclusive(path, newAlternatives, newAlternatives.indices.filter { matched[it] != true })
+            }
         }
+
+        /**
+         * A value of `oneOf` matches exactly one of its [alternatives]: each one [grown] (added, or accepting more) that
+         * may accept a value another one accepts breaks a value old clients sent, which now matches both. Two
+         * alternatives are told apart by their JSON types, or by a property both require whose values cannot coincide
+         * (a subtype's discriminator, `kind: {"const": "card"}` against `"bank"`); any other difference is not proven.
+         */
+        private fun compareExclusive(path: String, alternatives: List<*>, grown: List<Int>) {
+            grown.forEach { index ->
+                alternatives.indices.filter { it != index && (it !in grown || it > index) }
+                    .filter { overlap(alternatives[index], alternatives[it]) }
+                    .forEach {
+                        breaking(
+                            "$path.$ONE_OF[$index]",
+                            "alternative overlaps alternative $it: a value both accept is refused"
+                        )
+                    }
+            }
+        }
+
+        /**
+         * Whether two alternatives may accept one value: no property both require has values that cannot coincide
+         * ([discriminators]), and they share a JSON type (an `integer` is a `number`).
+         */
+        private fun overlap(left: Any?, right: Any?): Boolean {
+            val leftSchema = resolve(left, currentDefs)
+            val rightSchema = resolve(right, currentDefs)
+            val rightValues = discriminators(rightSchema)
+            val apart = discriminators(leftSchema).any { (name, values) ->
+                rightValues[name]?.let { values.intersect(it).isEmpty() } == true
+            }
+            if (apart) return false
+            val leftTypes = types(leftSchema) ?: return true
+            val rightTypes = types(rightSchema) ?: return true
+            return leftTypes.any { covers(rightTypes, it) } || rightTypes.any { covers(leftTypes, it) }
+        }
+
+        /** The values each property [schema] requires is held to, by its `const` or its `enum`: a discriminator. */
+        private fun discriminators(schema: Map<String, Any?>): Map<String, Set<Any?>> =
+            required(schema).mapNotNull { name ->
+                val property = resolve(properties(schema)[name], currentDefs)
+                val values = if (CONST in property) setOf(property[CONST]) else (property[ENUM] as List<*>?)?.toSet()
+                values?.let { name to it }
+            }.toMap()
 
         /**
          * `allOf`: a value is accepted by every member, so a change to one member is a change to the whole, compared in
@@ -312,12 +377,23 @@ internal class SchemaCompatibility(
                 val newValue = new[keyword]
                 when {
                     oldValue == newValue -> Unit
-                    keyword == FORMAT && listOfNotNull(oldValue, newValue).all { it in WIRE_FORMATS } -> Unit
+                    keyword == FORMAT && listOfNotNull(oldValue, newValue).all(WireTypes::isNumeric) ->
+                        compareRange(path, oldValue as String?, newValue as String?)
                     keyword in QUERY_SEMANTICS -> breaking(path, "$keyword changed from $oldValue to $newValue")
                     newValue == null -> widened(path, "$keyword $oldValue lifted")
                     oldValue == null -> narrowed(path, "$keyword $newValue imposed", keyword in CONSTRAINTS)
                     else -> compareBound(path, keyword, oldValue, newValue)
                 }
+            }
+        }
+
+        /** A numeric format changed: a range narrowed, widened, or neither holding the other ([WireTypes.holds]). */
+        private fun compareRange(path: String, old: String?, new: String?) {
+            val description = "format changed from ${old ?: "any"} to ${new ?: "any"}"
+            when {
+                WireTypes.holds(new, old) -> widened(path, description)
+                WireTypes.holds(old, new) -> narrowed(path, description)
+                else -> breaking(path, description)
             }
         }
 
@@ -430,6 +506,7 @@ internal class SchemaCompatibility(
         const val REF = "\$ref"
         const val TYPE = "type"
         const val ENUM = "enum"
+        const val CONST = "const"
         const val PROPERTIES = "properties"
         const val REQUIRED = "required"
         const val ITEMS = "items"
@@ -442,9 +519,8 @@ internal class SchemaCompatibility(
         const val NULL = "null"
         val NULL_SCHEMA: Map<String, Any?> = mapOf(TYPE to NULL)
 
-        /** The formats of numbers a client reads from their text: no validation of the value. */
-        val WIRE_FORMATS = setOf("int32", "int64", "float", "bigint", "decimal")
-        val ALTERNATIVES = listOf("anyOf", "oneOf")
+        const val ONE_OF = "oneOf"
+        val ALTERNATIVES = listOf(ANY_OF, ONE_OF)
 
         /** The schema that accepts nothing, `false`. */
         val FALSE: Map<String, Any?> = mapOf("not" to emptyMap<String, Any?>())

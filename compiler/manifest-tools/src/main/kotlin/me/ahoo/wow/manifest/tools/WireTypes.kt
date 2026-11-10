@@ -68,6 +68,26 @@ internal object WireTypes {
         java.net.URI::class.java to URI,
     )
 
+    /**
+     * The numeric formats as ranges, by the formats each holds every value of, itself included: an `int32` is within
+     * an `int64`, both within a `bigint`, and every one of them and a `float` within a `decimal`. A number of no format
+     * is any number of its type, so it holds them all.
+     */
+    private val WITHIN: Map<String, Set<String>> = mapOf(
+        INT32 to setOf(INT32),
+        INT64 to setOf(INT32, INT64),
+        BIGINT to setOf(INT32, INT64, BIGINT),
+        FLOAT to setOf(FLOAT),
+        DECIMAL to setOf(INT32, INT64, BIGINT, FLOAT, DECIMAL),
+    )
+
+    /** Whether [format] is a numeric format: a range of the numbers of its type ([holds]). */
+    fun isNumeric(format: Any?): Boolean = format in WITHIN
+
+    /** Whether every value of the numeric format [narrower] is one of [wider]; a null format is any number. */
+    fun holds(wider: String?, narrower: String?): Boolean =
+        wider == null || narrower != null && narrower in WITHIN.getValue(wider)
+
     /** The Kotlin type each format reads back as. */
     val TYPES: Map<String, String> = mapOf(
         INT32 to "Int",
