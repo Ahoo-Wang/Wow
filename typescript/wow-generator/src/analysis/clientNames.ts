@@ -12,7 +12,7 @@
  */
 
 import { GeneratorError } from '../api/errors';
-import { camelCase, isIdentifier, toIdentifier } from '../naming/naming';
+import { camelCase, isIdentifier } from '../naming/naming';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /** Operation extension naming the method an operation generates. */
@@ -68,22 +68,4 @@ export function resolveMethodName(
  */
 function isMethodName(name: string): boolean {
   return isIdentifier(name) || /^[a-z]+$/.test(name);
-}
-
-/**
- * Turns a parameter name from the document into a unique parameter
- * identifier: `item-id` → `itemId`, and `id` twice → `id`, `id2`.
- *
- * @param name - The name the document uses
- * @param used - The identifiers the method already uses; updated
- * @returns The identifier
- */
-export function uniqueParameterName(name: string, used: Set<string>): string {
-  const identifier = toIdentifier(name);
-  let unique = identifier;
-  for (let suffix = 2; used.has(unique); suffix++) {
-    unique = `${identifier}${suffix}`;
-  }
-  used.add(unique);
-  return unique;
 }

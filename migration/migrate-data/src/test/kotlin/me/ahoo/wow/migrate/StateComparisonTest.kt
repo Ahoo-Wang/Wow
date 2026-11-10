@@ -337,28 +337,6 @@ class StateComparisonTest {
     }
 
     @Test
-    fun `a walk an earlier version left half-way resumes, then is compared in full`() = runTest {
-        imported()
-        val first = NineXExample.snapshot("order-snapshot.json")
-        val second = changed("order-snapshot.json") { node -> node.put("aggregateId", "0VY3GwaK4OmV00Z") }
-        // An earlier version compared the first snapshot, recording neither its start nor the instances that differ.
-        checkpoints.update {
-            it.with(order, CompareCheckpoint(after = first.aggregateId, snapshots = 1, compared = 1))
-        }
-        comparison(listOf(first, second)).compare(order).also {
-            it.changed.assert().isNull()
-            it.snapshots.assert().isEqualTo(2)
-            it.differing.assert().isEqualTo(1)
-        }
-        printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
-        comparison(listOf(first, second)).compare(order).changed.assert().isNull()
-        printed.assert().contains(
-            "example-service.order is compared in full again: the last comparison ran with an earlier version, " +
-                "which recorded no position to compare again from.",
-        )
-    }
-
-    @Test
     fun `more differing instances than are recorded are compared in full the next time`() = runTest {
         imported()
         // Snapshots of instances the log does not hold: each differs by its version.

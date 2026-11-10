@@ -31,7 +31,7 @@ export const orderStates = new OrderStateClient(ordering);
 
 Each route starts with its context, `/eshop-ordering/order/…`, so one Fetcher at a gateway that routes by that prefix serves every service; `basePath` puts a prefix of the gateway's own before every route.
 
-The generated clients send by the routes of their context's `manifest.ts`, the `<Context>Manifest` the generator writes from the service's Manifest, so they never fetch it at run time. A `CommandClient` you build yourself, `new CommandClient(options, { manifest })`, takes such a Manifest too; without one it fetches `GET /wow/manifest` once, and again only after a fetch that failed. `CommandClient` is the client's name, as in Kotlin: the server's admission is what Wow calls the command gateway.
+The generated clients send by the routes of their context's `manifest.ts`, the `<Context>Manifest` the generator writes from the service's Manifest, so they never fetch it at run time. A `CommandClient` you build yourself, `new CommandClient(options, { manifest })`, takes such a Manifest too; without one it fetches `GET /wow/manifest` once for every command waiting on it, and again only after a fetch that failed. Each command's wait is its own: its `signal` ends it while the fetch goes on for the others, and a failed fetch rejects each command with an error of its own (the same problem, or an `Error` that names the fetch and keeps its cause), carrying that command's request id. `CommandClient` is the client's name, as in Kotlin: the server's admission is what Wow calls the command gateway.
 
 ## Send a command
 

@@ -16,12 +16,13 @@ package me.ahoo.wow.runtime.source
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.TimedEntry
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.runtime.subscription.parkedAt
@@ -50,8 +51,8 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   [ForeignTopicRecordException], as a read of a partition that lost its offset does, so the subscriptions of the
  *   partition stay before it and retry their read with its backoff, logging each failure, until the configuration
  *   gives the services their own topics.
- * - A start from the end is the partition's end offset; from an instant, a binary search over the offsets retained by
- *   the records' commit times.
+ * - A start from the end is the partition's end offset; from an instant, the offset of the first record retained, in
+ *   offset order, committed at or after it, found by reading the partition forward ([SubscriptionStart.At.firstAt]).
  * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
  *   records the offset of the record it failed at; a retry re-scans the partition from it up to the end the
  *   partition has when the retry runs, keeping the records keyed by the ref, of its version or later. When the
@@ -80,12 +81,10 @@ internal class TopicEntries(
         SubscriptionStart.End -> source.offsets(topic, partition).end
         is SubscriptionStart.At -> {
             val offsets = source.offsets(topic, partition)
-            start.search(offsets.start, offsets.end) { after ->
-                // The first record decoded at or after the offset; a partition of nothing but undecodable messages
-                // up to its end starts at the end.
-                source.read(topic, partition, after, offsets.end).mapNotNull { decodedOrNull(it) }
-                    .firstOrNull()?.commitTime ?: Long.MAX_VALUE
-            }
+            // A record this version cannot decode is passed over: a partition of nothing else starts at its end.
+            val commits = source.read(topic, partition, offsets.start, offsets.end)
+                .map { TimedEntry(it.offset + 1, decodedOrNull(it)?.commitTime) }
+            start.firstAt(commits, offsets.end, "partition $partition of $topic")
         }
     }
 

@@ -37,8 +37,9 @@ import java.util.concurrent.ConcurrentHashMap
  * ```
  *
  * [loadBalancers] is the application's `ReactiveLoadBalancer.Factory<ServiceInstance>`, the bean
- * spring-cloud-starter-loadbalancer gives. A context that is not listed, or a service with no instance to choose, has
- * no endpoint, which fails the call.
+ * spring-cloud-starter-loadbalancer gives. A context that is not listed has no endpoint: the call fails as the code's
+ * mistake. A listed service with no instance to choose, or whose chosen instance names no internal port, is an outage
+ * for the moment: the call fails as `wow.peer.unavailable` and is retried.
  */
 @ExperimentalWowApi
 class LoadBalancedEndpoints private constructor(

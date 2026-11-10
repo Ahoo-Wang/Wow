@@ -17,6 +17,7 @@ import {
   send,
   type WowClientOptions,
 } from './http.js';
+import { WowProblemError } from './problem.js';
 import type {
   AggregateManifest,
   CommandManifest,
@@ -105,5 +106,86 @@ export async function fetchManifest(
     await json<Manifest>(
       await send(client, { method: 'GET', path: '/wow/manifest', options }),
     ),
+  );
+}
+
+/**
+ * The Manifest a client routes by (internal): the one it was given, or the
+ * service's, read once for every caller and read again by the next caller
+ * after a read that failed.
+ */
+export class ManifestSource {
+  private manifest: Promise<RoutingManifest> | undefined;
+
+  /**
+   * @param client - How the service is reached
+   * @param manifest - The Manifest given; without it the service's is read
+   */
+  constructor(
+    private readonly client: WowClientOptions,
+    manifest?: RoutingManifest,
+  ) {
+    this.manifest =
+      manifest === undefined
+        ? undefined
+        : Promise.resolve(checkManifest(manifest));
+  }
+
+  /**
+   * The Manifest, for one caller. The read is shared, but each caller's wait
+   * is its own: it ends with the caller's `signal`, rejecting with its reason
+   * while the read goes on for the others, and a read that fails rejects each
+   * caller with an error of its own, so each carries the request id of its
+   * own command.
+   *
+   * @param signal - Cancels this caller's wait
+   */
+  read(signal?: AbortSignal): Promise<RoutingManifest> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    const shared = (this.manifest ??= fetchManifest(this.client).catch(
+      (error: unknown) => {
+        this.manifest = undefined;
+        throw error;
+      },
+    ));
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(signal!.reason);
+      signal?.addEventListener('abort', abort, { once: true });
+      shared
+        .then(resolve, (error: unknown) => reject(ownFailure(error)))
+        .finally(() => signal?.removeEventListener('abort', abort));
+    });
+  }
+}
+
+/**
+ * A caller's own error for a shared Manifest read that failed with `error`:
+ * the same problem when the service answered one, else an error that names
+ * the read, under the name and with the cause of what it failed with.
+ */
+function ownFailure(error: unknown): Error {
+  if (error instanceof WowProblemError) {
+    return new WowProblemError(error.problem, {
+      cause: error,
+      ...(error.retryAfterMs === undefined
+        ? {}
+        : { retryAfterMs: error.retryAfterMs }),
+    });
+  }
+  // It reads as the read's own error: its name, and its cause where it has
+  // one (a fetcher's timeout or abort), so a caller's check written for a
+  // request that failed alike (`error.cause?.name === 'FetchTimeoutError'`)
+  // holds. `{ cause }` of an `Error` is ES2022; this package targets ES2020.
+  const failed = error instanceof Error ? error : undefined;
+  return Object.assign(
+    new Error(
+      `The service's Manifest (GET /wow/manifest) could not be read: ${
+        failed?.message ?? String(error)
+      }`,
+    ),
+    {
+      name: failed?.name ?? 'Error',
+      cause: (failed as { cause?: unknown } | undefined)?.cause ?? error,
+    },
   );
 }
