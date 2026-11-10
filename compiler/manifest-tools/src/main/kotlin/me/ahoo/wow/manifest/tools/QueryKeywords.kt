@@ -266,7 +266,8 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
          * underlying type on the JVM; Kotlin reflection also types a Java field), unwrapped through maps,
          * collections and arrays down to their values.
          */
-        fun MemberScope<*, *>.valueType(): Class<*> = KotlinMembers.typeOf(this)?.valueClass() ?: type.erasedType
+        fun MemberScope<*, *>.valueType(): Class<*> =
+            KotlinMembers.typeOf(this)?.valueClass() ?: (TypeArguments.nullableValue(type) ?: type).erasedType
 
         fun KType.valueClass(): Class<*>? {
             var current: KType = this

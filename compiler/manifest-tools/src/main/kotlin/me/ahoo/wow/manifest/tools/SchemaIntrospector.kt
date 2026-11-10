@@ -17,8 +17,6 @@ import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
-import com.github.victools.jsonschema.generator.CustomPropertyDefinition
-import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
@@ -59,7 +57,6 @@ import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.KotlinModule
 import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -86,9 +83,10 @@ import kotlin.reflect.jvm.kotlinProperty
  *   `wow.schedule.Enable`) is a definition keyed by that full name, introspected from its class (`SYSTEM_BODIES`) like
  *   a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
- *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`), the key the fragment's references
- *   use; a type referred to once is inlined. A property's list, set, object array or map is no named type: it is
- *   written where it is used, each element or value nullable as its Kotlin type argument is ([Containers]).
+ *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`, an argument nullable where it is
+ *   used followed by `?`, `a.b.Box(java.lang.String?)`), the key the fragment's references use; a type referred to
+ *   once is inlined. A property's list, set, object array or map is no named type: it is written where it is used,
+ *   each element or value nullable as its Kotlin type argument is ([TypeArguments]).
  * - A custom serializer is opaque to introspection: [schemaOverrides] gives the schema of such a class, by binary
  *   name, and a class Jackson does not write as an object fails the generation until it has one.
  * - A member's Jakarta Bean Validation constraints become the validation keywords of its schema, as victools' Jakarta
@@ -128,7 +126,7 @@ internal class SchemaIntrospector(
         // A type referred to only by the fragment is inlined into its reference: it becomes the definition.
         val defined = definitions.properties().associate { it.key to it.value }
         val inlined = references.filterKeys { !definitions.has(it) }
-        val generated = (defined + inlined).mapValues { (_, schema) -> schemaMap(schema) }
+        val generated = TypeArguments.restored((defined + inlined).mapValues { (_, schema) -> schemaMap(schema) })
         val defs = fragment.defs + described(generated, aggregates)
         return fragment.copyWith(
             contexts =
@@ -222,6 +220,9 @@ internal class SchemaIntrospector(
         // property, which name no base class: ahead of the Jackson module's own resolution.
         builder.forFields().withTargetTypeOverridesResolver { Polymorphic.declared(it) }
         builder.forMethods().withTargetTypeOverridesResolver { Polymorphic.declared(it) }
+        // A type argument nullable where the type is used is a definition apart ([TypeArguments]).
+        builder.forFields().withTargetTypeOverridesResolver { TypeArguments.declared(it) }
+        builder.forMethods().withTargetTypeOverridesResolver { TypeArguments.declared(it) }
         builder
             .with(
                 JacksonNames(
@@ -243,13 +244,14 @@ internal class SchemaIntrospector(
                 Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
             )
             .withCustomDefinitionProvider(Polymorphic)
+            .withCustomDefinitionProvider(TypeArguments)
             .withTypeAttributeOverride(queryKeywords)
             .withTypeAttributeOverride(WireFormats)
             .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck { isKotlinNullable(it) }
-            .withCustomDefinitionProvider(Containers.of<FieldScope>())
+            .withCustomDefinitionProvider(TypeArguments.Containers.of<FieldScope>())
             .withInstanceAttributeOverride { attributes, field, _ ->
                 queryKeywords.overrideMemberAttributes(
                     attributes,
@@ -262,7 +264,7 @@ internal class SchemaIntrospector(
             .withReadOnlyCheck { true }
             .withRequiredCheck { KotlinMembers.typeOf(it)?.isMarkedNullable == false }
             .withNullableCheck { isKotlinNullable(it) }
-            .withCustomDefinitionProvider(Containers.of<MethodScope>())
+            .withCustomDefinitionProvider(TypeArguments.Containers.of<MethodScope>())
             .withInstanceAttributeOverride { attributes, method, _ ->
                 queryKeywords.overrideMemberAttributes(
                     attributes,
@@ -275,71 +277,6 @@ internal class SchemaIntrospector(
         // not override.
         builder.with(JakartaValidationModule(JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS))
         return SchemaGenerator(builder.build())
-    }
-
-    /**
-     * A property's list, set, object array or map, written where it is used, never as a definition of its erased type
-     * (two `Map<String, Long>` and one `Map<String, Long?>` are three schemas, not one shared definition): each element
-     * or value accepts null when its Kotlin type argument is nullable, at any depth (`List<Map<String, Item?>>`), the
-     * way a nullable property does, a scalar by a type union and any other value by a `null` alternative beside its
-     * schema. A Java or platform type argument is not nullable; a primitive array is left to the generator.
-     */
-    private object Containers {
-        /** The provider of the properties [M] are: fields, or the getters of computed properties. */
-        fun <M : MemberScope<*, *>> of(): CustomPropertyDefinitionProvider<M> =
-            CustomPropertyDefinitionProvider { member, context ->
-                if (member.isFakeContainerItemScope) return@CustomPropertyDefinitionProvider null
-                container(member.type, KotlinMembers.typeOf(member), context)
-                    ?.let { CustomPropertyDefinition(it, CustomDefinition.AttributeInclusion.YES) }
-            }
-
-        /** The schema of [type] when it is a container, its elements typed by [kotlinType]'s arguments, else null. */
-        private fun container(type: ResolvedType, kotlinType: KType?, context: SchemaGenerationContext): ObjectNode? {
-            val erased = type.erasedType
-            val (keyword, element, argument) = when {
-                erased.isArray && !erased.componentType.isPrimitive ->
-                    Triple(ITEMS, type.arrayElementType, 0)
-                Collection::class.java.isAssignableFrom(erased) ->
-                    Triple(ITEMS, context.typeContext.getContainerItemType(type), 0)
-                Map::class.java.isAssignableFrom(erased) ->
-                    Triple(ADDITIONAL_PROPERTIES, type.typeParametersFor(Map::class.java)?.getOrNull(1), 1)
-                else -> return null
-            }
-            val elementKotlinType = kotlinType?.arguments?.getOrNull(argument)?.type
-            return context.generatorConfig.createObjectNode().apply {
-                put(TYPE, if (keyword == ITEMS) ARRAY else OBJECT)
-                // Any value at all, null included, is left unsaid, as the generator leaves it out of a free map.
-                element?.takeIf { it.erasedType != Any::class.java }?.let {
-                    set(keyword, element(it, elementKotlinType, context))
-                }
-                if (Set::class.java.isAssignableFrom(erased)) put(WireTypes.UNIQUE_ITEMS, true)
-            }
-        }
-
-        private fun element(type: ResolvedType, kotlinType: KType?, context: SchemaGenerationContext): ObjectNode {
-            val nullable = kotlinType?.isMarkedNullable == true
-            container(type, kotlinType, context)?.let { return if (nullable) context.makeNullable(it) else it }
-            if (!nullable) return context.createDefinitionReference(type)
-            if (isScalar(type.erasedType)) return context.makeNullable(context.createDefinition(type))
-            // The reference is filled in, or replaced by a definition's reference, once the generation ends.
-            return context.generatorConfig.createObjectNode().apply {
-                putArray(ANY_OF)
-                    .add(context.generatorConfig.createObjectNode().put(TYPE, NULL))
-                    .add(context.createDefinitionReference(type))
-            }
-        }
-
-        /** A value of the platform written as a JSON scalar: a number, a string, a boolean, an enumeration, a time. */
-        private fun isScalar(type: Class<*>): Boolean =
-            type.isPrimitive || type.isEnum || PLATFORM_PACKAGES.any { type.name.startsWith(it) }
-
-        const val TYPE = "type"
-        const val ITEMS = "items"
-        const val ADDITIONAL_PROPERTIES = "additionalProperties"
-        const val ANY_OF = "anyOf"
-        const val ARRAY = "array"
-        const val OBJECT = "object"
-        const val NULL = "null"
     }
 
     private fun parse(type: String, schema: String): ObjectNode {
@@ -436,6 +373,8 @@ internal class SchemaIntrospector(
             scope: TypeScope,
             context: SchemaGenerationContext
         ) {
+            // A nullable argument's value is written with its own type's attributes ([TypeArguments]).
+            if (TypeArguments.nullableValue(scope.type) != null) return
             val type = scope.type.erasedType
             WireTypes.FORMATS[type]?.let { format ->
                 if (!attributes.has(WireTypes.FORMAT)) {
@@ -487,12 +426,15 @@ internal class SchemaIntrospector(
     /** Definitions keyed by the JVM binary name of their type, so the fragment's references find them. */
     private object BinaryNames : SchemaDefinitionNamingStrategy {
         override fun getDefinitionNameForKey(key: DefinitionKey, context: SchemaGenerationContext): String =
-            name(key.type)
+            TypeArguments.generatorKey(name(key.type))
 
-        fun name(type: ResolvedType): String =
-            type.erasedType.name + type.typeParameters.let { parameters ->
-                if (parameters.isEmpty()) "" else parameters.joinToString(",", "(", ")") { name(it) }
-            }
+        /** The key of [type]: its binary name, with its arguments' keys, a nullable one followed by `?`. */
+        fun name(type: ResolvedType): String = TypeArguments.nullableValue(type)?.let { name(it) + "?" }
+            ?: (
+                type.erasedType.name + type.typeParameters.let { parameters ->
+                    if (parameters.isEmpty()) "" else parameters.joinToString(",", "(", ")") { name(it) }
+                }
+                )
     }
 
     /**
