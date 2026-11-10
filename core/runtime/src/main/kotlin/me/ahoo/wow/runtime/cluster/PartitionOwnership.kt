@@ -47,19 +47,6 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * Who owns which partition of a lease group, as one node last read it: the live [owners] by partition, each a live
- * member with its address, and the live [members]. A lease whose holder is no longer a member is left out: its owner
- * is unknown, so a command for it runs locally.
- */
-@InternalWowApi
-data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: List<Member> = emptyList()) {
-    @InternalWowApi
-    companion object {
-        val EMPTY = RouteTable()
-    }
-}
-
-/**
  * This node's share of the partitions of one lease [group] (–), without a leader: a
  * context's log, or another context's published topic that the service's subscriptions read, whose
  * [subscriptions] runtime then reads the topic instead of the log:
@@ -222,9 +209,6 @@ class PartitionOwnership internal constructor(
     @Volatile
     private var running: Running? = null
 
-    @Volatile
-    private var lastMembers: Set<String> = emptySet()
-
     /** When the reconcile running now started; null between reconciles. */
     @Volatile
     private var reconciling: TimeMark? = null
@@ -239,24 +223,28 @@ class PartitionOwnership internal constructor(
      */
     private val steppedOut = AtomicBoolean()
 
-    /** The other members' addresses handed to [peers] so far, as `node@address`. */
-    private val seenPeers = ConcurrentHashMap.newKeySet<String>()
-
-    /** The greetings that fail, and since when. */
-    private val greetings = PeerGreetings(timeSource, options.memberTtl)
-
-    /** The members greeted and still members, as `node@address`. */
-    internal val knownPeers: Set<String> get() = seenPeers
-
     init {
         require(node.isNotBlank()) { "A node has an id." }
         require(partitions >= 1) { "A log has at least one partition." }
     }
 
+    /** The other members as this node last read them, and the greetings of those at a new address. */
+    private val peerRoutes =
+        PeerRoutes(group, node, this.membership, leases, peers, PeerGreetings(timeSource, options.memberTtl)) {
+            wakeReconcile.trySend(Unit)
+        }
+
+    /** The members greeted and still members, as `node@address`. */
+    internal val knownPeers: Set<String> get() = peerRoutes.knownPeers
+
     /** The routes as last read from the lease store. */
-    @Volatile
-    var routes: RouteTable = RouteTable.EMPTY
-        private set
+    val routes: RouteTable get() = peerRoutes.routes
+
+    /**
+     * Reads the owners into [routes], beside the members the membership read last; a change of the members wakes the
+     * reconciler. Once the node stepped out ([stepOut]), the membership reads no members for it, so it reads them here.
+     */
+    suspend fun refreshRoutes() = peerRoutes.refresh(steppedOut.get(), running?.upkeep)
 
     /** How long the reconcile running now has run; null between reconciles. */
     internal val reconcilingFor: Duration? get() = reconciling?.elapsedNow()
@@ -317,7 +305,7 @@ class PartitionOwnership internal constructor(
                 delay(options.renewInterval - started.elapsedNow())
             }
         }
-        membership.join(group.name, ::membersRead)
+        membership.join(group.name) { if (running != null) peerRoutes.membersRead() }
         // A step-out that ran meanwhile saw no running ownership to leave: this start leaves, and fails.
         check(!steppedOut.get()) { "$node stepped out of $group after a fatal error while joining it." }
         refreshRoutes()
@@ -370,9 +358,7 @@ class PartitionOwnership internal constructor(
             started.asReversed().forEach { quietly("stop the subscriptions of $group") { it.stop() } }
         } finally {
             running = null
-            seenPeers.clear()
-            greetings.retain(emptySet())
-            lastMembers = emptySet()
+            peerRoutes.forget()
             run?.root?.cancelAndJoin()
         }
     }
@@ -525,7 +511,7 @@ class PartitionOwnership internal constructor(
             dropLost()
             // The members the membership read last: no read of its own.
             val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
-            lastMembers = members
+            peerRoutes.membersSeen(members)
             val goal = Hrw.partitionsOf(node, members + node, partitions)
             target = goal
             handOff(gates.keys.filter { it !in goal })
@@ -535,77 +521,6 @@ class PartitionOwnership internal constructor(
             }
         } finally {
             reconciling = null
-        }
-    }
-
-    /**
-     * Reads the owners into [routes], beside the members the membership read last; a change of the members wakes the
-     * reconciler. Once the node stepped out ([stepOut]), the membership reads no members for it, so it reads them here.
-     */
-    suspend fun refreshRoutes() {
-        if (steppedOut.get()) {
-            membership.refresh()
-        }
-        val members = membership.membersOf(group.name)
-        val byNode = members.associateBy { it.node }
-        val leased = leases.owners(group.name)
-        val owners = leased.mapNotNull { lease -> byNode[lease.owner]?.let { lease.partition to it } }.toMap()
-        routes = RouteTable(owners, members)
-        greetNew(members)
-        val nodes = byNode.keys
-        if (nodes != lastMembers) {
-            lastMembers = nodes
-            wakeReconcile.trySend(Unit)
-        }
-    }
-
-    /**
-     * Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. A greeting
-     * that fails is tried again on the next read of the routes: logged at INFO, without its trace, while
-     * it fails for less than the member TTL, as a new member's address that does not resolve yet does, and at WARN
-     * with its trace after.
-     */
-    private fun greetNew(members: List<Member>) {
-        val run = running ?: return
-        // The members that left are forgotten: one that comes back is greeted again.
-        val current = members.mapTo(HashSet()) { "${it.node}@${it.address}" }
-        seenPeers.retainAll(current)
-        greetings.retain(current)
-        members.filter { it.node != node && seenPeers.add("${it.node}@${it.address}") }.forEach { member ->
-            run.upkeep.launch { greet(member) }
-        }
-    }
-
-    private suspend fun greet(member: Member) {
-        val peer = "${member.node}@${member.address}"
-        try {
-            peers(member)
-            greetings.greeted(peer)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            // Greeted again on the next read of the routes.
-            seenPeers.remove(peer)
-            if (greetings.failed(peer)) {
-                logger.warn(failure) {
-                    "$node failed to greet ${member.node} at ${member.address} in $group for " +
-                        "${greetings.failingFor(peer)}; retrying on the next round."
-                }
-            } else {
-                logger.info {
-                    "$node could not greet ${member.node} at ${member.address} in $group yet ($failure); " +
-                        "retrying on the next round."
-                }
-            }
-        }
-    }
-
-    /** After each read of the service's members: a change of this group's members wakes the reconciler. */
-    private fun membersRead() {
-        val nodes = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
-        if (running != null && nodes != lastMembers) {
-            lastMembers = nodes
-            wakeReconcile.trySend(Unit)
         }
     }
 
