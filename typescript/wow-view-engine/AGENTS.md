@@ -667,7 +667,8 @@ src/
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
-      ColumnSettings.tsx      — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
+      ColumnSettings.tsx      — Which columns show, in which order, pinned or not, summarised how — the search, the drag over both areas, one `Region` per area (D19)
+      ColumnRegion.tsx        — One area's list under its heading, and inside it each catalogue group's block — one sortable group per area and group (D19)
       WidthInput.tsx          — A column's width typed on its settings row: the no-drag way to it (WCAG 2.5.7), read on Enter or leaving, held to 48–2000px, what is not a width marked and said
     components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
