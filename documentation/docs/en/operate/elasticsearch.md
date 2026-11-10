@@ -46,13 +46,25 @@ wow:
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
-Each index records its layout in its `_meta` and refuses a store that expects another.
+Each index records its layout in its `_meta` and refuses a store that expects another. The snapshot and events indices are in format 2; one of format 1, which a pre-release created, is refused ([From a 10.0.0 pre-release](./upgrades#from-a-10-0-0-pre-release)).
 
 ## Snapshot queries
 
 An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait-for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
+
+## Full-text search {#full-text-search}
+
+A string field of the state or of an event body is mapped as a `keyword`: matched by its whole value, as equality, `contains`, `startsWith`, sorts and groups match it. It is searched by words only where its schema marks it as prose: `@QueryText` on the property ([Describe what types cannot](../guide/queries#describe-what-types-cannot)), `x-wow-text` in the Manifest, `text()` in a declaration in code. A marked field gets a `text` sub-field, analyzed by the index's default analyzer, and the capability descriptor lists it among the fields a `search` may name: `record.search.fields`, or its element's.
+
+- **A `search` that names fields** reads those, each of which must be marked; another is answered `unsupported-capability`.
+- **A `search` that names no field** reads the marked fields of the record, outside its elements, the ones `record.search.fields` lists. Where none is marked, it is answered `model-search-unsupported`.
+- **A phrase** needs every field it reads to take one, as every `text` sub-field does.
+
+Mark only prose a reader searches by words, such as a name, a description, a note or a reason. Ids, enums, codes and references are matched by their whole value, and an index of each of their words only costs space and indexing time.
+
+Marking a field later adds the `text` sub-field to the index and indexes the documents written before it again ([below](#field-mapped-later)). Removing a marker leaves the sub-field in the mapping, and the field is no longer searched by words. When an index name covers several indices, an alias over rollover indices, and only some of them map the sub-field, the field keeps its whole-value matches and is searched by words once every index maps it.
 
 ## A field mapped later {#field-mapped-later}
 

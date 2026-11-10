@@ -14,22 +14,23 @@
 package me.ahoo.wow.example.eshop.catalog.api.product
 
 import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.query.annotation.QueryText
 import java.math.BigDecimal
 
 /** The skeleton's event (E.0) with the fields E.1 adds; optional fields with defaults are not a new revision. */
 @Summary("A product was added to the catalog")
 data class ProductCreated(
-    val name: String,
+    @field:QueryText val name: String,
     val price: BigDecimal,
-    val description: String = "",
+    @field:QueryText val description: String = "",
     val brandId: String? = null,
     val categoryId: String? = null,
 )
 
 @Summary("A product's name, description, brand or category changed")
 data class ProductUpdated(
-    val name: String,
-    val description: String,
+    @field:QueryText val name: String,
+    @field:QueryText val description: String,
     val brandId: String?,
     val categoryId: String?,
 )
@@ -41,7 +42,7 @@ data class ProductPriceChanged(val price: BigDecimal, val previous: BigDecimal)
 data object ProductPublished
 
 @Summary("A product was taken off the storefront")
-data class ProductDelisted(val reason: String)
+data class ProductDelisted(@field:QueryText val reason: String)
 
 @Summary("A product was discontinued for good")
-data class ProductDiscontinued(val reason: String)
+data class ProductDiscontinued(@field:QueryText val reason: String)

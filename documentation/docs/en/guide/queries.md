@@ -129,6 +129,7 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryDuration` | A length of time counted in a unit |
 | `@QueryReference` | The id of another aggregate |
 | `@QueryAlias` | Other paths a query may use for the field, such as its name before a rename |
+| `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
 A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog.

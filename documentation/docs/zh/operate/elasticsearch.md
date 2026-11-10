@@ -46,13 +46,25 @@ wow:
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储 | 它的主快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
-每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。
+每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。快照索引与事件索引的格式为 2；预发布版创建的格式 1 的索引会被拒绝（[从 10.0.0 预发布版升级](./upgrades#from-a-10-0-0-pre-release)）。
 
 ## 快照查询 {#snapshot-queries}
 
 `query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。使用默认的 `refresh: wait-for` 时，快照在写入返回时就可以检索。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
 
 状态或事件 body 里的 map（键不固定的对象，如 `Map<String, Item>` 属性）映射为一个 `flattened` 字段，所以它某个键下的值只能做存在性与精确匹配的过滤：没有范围、相对时间、排序和聚合。描述符的 `dynamic` 模式列出的正是这些算子。
+
+## 全文检索 {#full-text-search}
+
+状态或事件 body 中的字符串字段映射为 `keyword`：按整个值匹配，等值、`contains`、`startsWith`、排序和分组都是这样匹配的。只有 schema 把它标为供人按词检索的文字时，它才可以按词检索：属性上的 `@QueryText`（[描述类型说明不了的东西](../guide/queries#describe-what-types-cannot)）、Manifest 中的 `x-wow-text`、代码中声明的 `text()`。标记过的字段会得到一个 `text` 子字段，由索引默认的分析器分析，能力描述符把它列入 `search` 可以指定的字段：`record.search.fields`，或它所在元素的。
+
+- **指定了字段的 `search`** 读这些字段，每个都必须标记过；否则回答 `unsupported-capability`。
+- **没有指定字段的 `search`** 读记录中（元素之外）标记过的字段，即 `record.search.fields` 列出的那些。一个都没有标记时，回答 `model-search-unsupported`。
+- **短语检索** 要求它读的每个字段都支持短语，每个 `text` 子字段都支持。
+
+只标记供人按词检索的文字，例如名称、描述、备注或原因。ID、枚举、编码和引用按整个值匹配，为它们的每个词建索引只会占用空间和索引时间。
+
+后来才给字段加上标记时，会给索引加上 `text` 子字段，并重新索引此前写入的文档（[见下文](#field-mapped-later)）。去掉标记后，子字段留在映射中，但该字段不再能按词检索。一个索引名对应多个索引（例如滚动索引上的别名），而只有其中一部分映射了子字段时，该字段仍可按整个值匹配，等每个索引都映射了它才能按词检索。
 
 ## 后来映射的字段 {#field-mapped-later}
 
