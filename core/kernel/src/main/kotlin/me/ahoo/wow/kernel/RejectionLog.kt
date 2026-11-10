@@ -15,7 +15,12 @@ package me.ahoo.wow.kernel
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 
 /**
  * The one shape of a command's rejection in the log, under the logger [CATEGORY]: a readable message, and the fields
@@ -64,5 +69,28 @@ object RejectionLog {
         COMMAND to command,
         ERROR_TYPE to code,
         REQUEST_ID to requestId,
+    )
+}
+
+/**
+ * Observes and logs that [command] of [commandType] on [type] was rejected: a business outcome, so at INFO
+ * ([RejectionLog]).
+ * [withEvents] is whether its events were committed with it.
+ */
+internal fun Observer.rejected(
+    type: AggregateType,
+    commandType: String,
+    rejection: Rejection,
+    command: Command<*>,
+    withEvents: Boolean,
+) {
+    observed(ObservedEvent.Rejected(type, commandType, rejection.code, withEvents))
+    RejectionLog.rejected(
+        command.ref,
+        commandType,
+        rejection.code,
+        command.requestId,
+        withEvents,
+        rejection.message
     )
 }

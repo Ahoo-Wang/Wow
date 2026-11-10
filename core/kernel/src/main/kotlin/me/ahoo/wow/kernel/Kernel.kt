@@ -18,7 +18,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateIdSource
@@ -44,7 +43,6 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
-import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
@@ -177,6 +175,9 @@ class Kernel(
 
     /** The reads of a committed state at a version or a time, and of its history. */
     private val history = StateHistory(source, log, codec)
+
+    /** The append of a decided stream, and what its outcome means for the command. */
+    private val appends = Appends(log, observer)
 
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
@@ -395,12 +396,12 @@ class Kernel(
                 member.attempt.compensate()
                 return@mapIndexed BatchOutcome.Again
             }
-            val settled = settled(member.stream, appended[at])
+            val settled = appends.settled(member.stream, appended[at])
             if (settled !is AppendOutcome.Committed) {
                 stopped = true
             }
             try {
-                settleAppend(settled, member.stream, member.evolved, member.attempt, member.commandType, member.requests)
+                appends.settleAppend(settled, member.stream, member.evolved, member.attempt, member.commandType, member.requests)
                     ?.let { outcome ->
                         observer.executing(member.command, member.commandType.name).outcome(outcome.observedName)
                         BatchOutcome.Done(outcome)
@@ -416,14 +417,6 @@ class Kernel(
             // A stream after the last committed one evolved the cached state: it is dropped, and reloaded.
             if (stopped) states.take(batch.first().stream.ref)
         }
-    }
-
-    /** [outcome] of [stream]'s append, settled as [append] settles it. */
-    private suspend fun settled(stream: EventStreamRecord, outcome: AppendOutcome): AppendOutcome = when (outcome) {
-        is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
-        is AppendOutcome.AlreadyCommitted -> duplicateOf(stream, outcome)
-        is AppendOutcome.Conflict -> settleConflict(stream, outcome)
-        else -> outcome
     }
 
     /** The streams a batch takes, in order. */
@@ -492,8 +485,8 @@ class Kernel(
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
             appending?.invoke(stream, evolved)
-            val appended = withContext(NonCancellable) { appendCompensating(stream, attempt) }
-            settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
+            val appended = withContext(NonCancellable) { appends.appendCompensating(stream, attempt) }
+            appends.settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
@@ -530,84 +523,6 @@ class Kernel(
         }
         if (early > 0) {
             delay(early)
-        }
-    }
-
-    /**
-     * [appendObserved], compensating [attempt] when the append throws: a backend throws only what surely wrote
-     * nothing, such as a store it could not reach before sending the append (the retryable storage error).
-     */
-    private suspend fun appendCompensating(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome = try {
-        appendObserved(stream, attempt)
-    } catch (
-        @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
-        failure: Throwable,
-    ) {
-        attempt.compensate(failure)
-        throw failure
-    }
-
-    /** Appends [stream] of [attempt], observed: what it carries for delivery holds the append's trace. */
-    private suspend fun appendObserved(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome {
-        val appending = observer.appending(stream)
-        return appending.observe {
-            append(
-                stream,
-                attempt.transport(appending.trace, stream.rejection != null)?.let(TransportCodec::encode)
-            ).also { appending.outcome(it.observedName) }
-        }
-    }
-
-    /** The outcome of an attempt whose [stream] was [appended]; null on a version conflict, decided again. */
-    private suspend fun settleAppend(
-        appended: AppendOutcome,
-        stream: EventStreamRecord,
-        evolved: CachedState,
-        attempt: AttemptScope,
-        commandType: CommandType,
-        requests: RequestCheck,
-    ): CommandOutcome? = when (appended) {
-        is AppendOutcome.Committed -> {
-            requests.committed(stream, evolved)
-            val rejection = stream.rejection
-            if (rejection == null) {
-                withContext(NonCancellable) { attempt.afterAppend(stream.version) }
-            } else {
-                // The refused decision's reservations are released, as for a rejection that writes nothing.
-                attempt.compensate()
-                rejected(stream.ref.type, commandType.name, rejection, attempt.command, withEvents = true)
-            }
-            CommandOutcome.Committed(
-                stream,
-                appended.position,
-                evolved.state,
-                if (rejection == null) attempt.results() else emptyMap(),
-                evolved.deleted,
-                evolved.schedules,
-                evolved.first,
-                rejection,
-            )
-        }
-
-        is AppendOutcome.AlreadyCommitted -> {
-            attempt.compensate()
-            // Answered as the request-id lookup answers it: within the scope that sent it. With the recent
-            // requests, a request id reused on another aggregate of the type reaches only this key.
-            requests.duplicateOf(appended.existing)
-        }
-
-        is AppendOutcome.Conflict -> {
-            attempt.compensate()
-            // Decided again only once compensated, and only while the caller still waits.
-            currentCoroutineContext().ensureActive()
-            null
-        }
-
-        is AppendOutcome.Unknown -> CommandOutcome.Unknown(appended.cause)
-        is AppendOutcome.Rejected -> {
-            // Nothing was committed and nothing will be: compensated, and failed as a refusing backend always failed.
-            attempt.compensate()
-            throw appended.cause
         }
     }
 
@@ -799,90 +714,6 @@ class Kernel(
     }
 
     /**
-     * Appends [stream] with [transport]. An outcome that names this very append (the same command, request and commit
-     * time at the same version) is this append committed: when the outcome is unknown, the version slot it targeted,
-     * which only one stream can ever hold (the 9.3 rule), decides it (ours means committed, another stream of the
-     * request a duplicate, another request a conflict, none stays unknown); and a duplicate the backend reports may be
-     * its own retry of this append. Treating either as a duplicate would compensate what is a fact.
-     * A conflict is checked against the request key before the command is decided again: a backend that
-     * compares the version first reports a retry of the request at the same version as a conflict, and deciding it
-     * again would run the decision's I/O twice.
-     */
-    private suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        settled(stream, log.append(stream, transport))
-
-    /** [duplicate] of [stream]: [stream] itself committed when it names this very append. */
-    private suspend fun duplicateOf(
-        stream: EventStreamRecord,
-        duplicate: AppendOutcome.AlreadyCommitted
-    ): AppendOutcome =
-        if (duplicate.existing.isAppendOf(stream)) committedAt(stream, duplicate) else duplicate
-
-    /**
-     * The [conflict] of [stream], unless its request is committed: then a duplicate, or this append itself. A failing
-     * lookup leaves the conflict, decided again as before.
-     */
-    private suspend fun settleConflict(stream: EventStreamRecord, conflict: AppendOutcome.Conflict): AppendOutcome {
-        val existing = try {
-            log.findByRequestId(stream.ref, stream.requestId)
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever stops the lookup, the conflict stands.
-            failure: Exception,
-        ) {
-            logger.debug(failure) { "The request of ${stream.ref}@${stream.version} could not be looked up again." }
-            null
-        }
-        return existing?.let { duplicateOf(stream, AppendOutcome.AlreadyCommitted(it)) } ?: conflict
-    }
-
-    /** Reads the version slot an [unknown] append of [stream] targeted; a failing read leaves it unknown. */
-    private suspend fun settleUnknown(stream: EventStreamRecord, unknown: AppendOutcome.Unknown): AppendOutcome {
-        val slot = try {
-            log.readEntries(stream.ref, stream.version, stream.version).firstOrNull()
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the outcome stays unknown.
-            failure: Exception,
-        ) {
-            unknown.cause.addSuppressed(failure)
-            return unknown
-        }
-        return when {
-            slot == null -> unknown
-            slot.stream.isAppendOf(stream) -> AppendOutcome.Committed(slot.position)
-            slot.stream.requestId == stream.requestId -> AppendOutcome.AlreadyCommitted(slot.stream)
-            else -> AppendOutcome.Conflict(stream.version)
-        }
-    }
-
-    /**
-     * [stream], which the backend reported [duplicate] of itself, committed at its position. Committed it is, so it is
-     * never compensated: when its position cannot be read, the outcome is unknown, which compensates nothing either.
-     */
-    @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the commit stands; its outcome is unknown.
-    private suspend fun committedAt(
-        stream: EventStreamRecord,
-        duplicate: AppendOutcome.AlreadyCommitted
-    ): AppendOutcome {
-        val position = try {
-            log.positionOf(stream.ref, stream.version)
-        } catch (failure: Exception) {
-            return AppendOutcome.Unknown(failure)
-        }
-        val existing = duplicate.existing
-        return position?.let { AppendOutcome.Committed(it) } ?: AppendOutcome.Unknown(
-            IllegalStateException("${existing.ref}@${existing.version} is committed without a position."),
-        )
-    }
-
-    /** Whether this committed stream is the append of [stream] itself, not another append of its request. */
-    private fun EventStreamRecord.isAppendOf(stream: EventStreamRecord): Boolean =
-        ref == stream.ref &&
-            version == stream.version &&
-            commandId == stream.commandId &&
-            requestId == stream.requestId &&
-            commitTime == stream.commitTime
-
-    /**
      * The committed state of [ref] at [version], read-only (the state a subscription hands over when
      * the commit's shared state is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
@@ -1025,7 +856,7 @@ class Kernel(
     ): Prepared.Done? {
         if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
         val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
-        rejected(model.type, commandType, rejection, command, withEvents = false)
+        observer.rejected(model.type, commandType, rejection, command, withEvents = false)
         val outcome = CommandOutcome.Rejected(
             rejection,
             version.takeIf { it > 0 },
@@ -1033,29 +864,6 @@ class Kernel(
         )
         if (outcome.droppedEvents > 0) creationRejectedWithEvents(commandType)
         return Prepared.Done(outcome)
-    }
-
-    /**
-     * Observes and logs that [command] of [commandType] on [type] was rejected: a business outcome, so at INFO
-     * ([RejectionLog]).
-     * [withEvents] is whether its events were committed with it.
-     */
-    private fun rejected(
-        type: AggregateType,
-        commandType: String,
-        rejection: Rejection,
-        command: Command<*>,
-        withEvents: Boolean,
-    ) {
-        observer.observed(ObservedEvent.Rejected(type, commandType, rejection.code, withEvents))
-        RejectionLog.rejected(
-            command.ref,
-            commandType,
-            rejection.code,
-            command.requestId,
-            withEvents,
-            rejection.message
-        )
     }
 
     /** The command types whose creation was rejected with events, warned about once each. */
@@ -1271,14 +1079,4 @@ internal val CommandOutcome.observedName: ObservedOutcome
         is CommandOutcome.Rejected -> ObservedOutcome.REJECTED
         is CommandOutcome.Contended -> ObservedOutcome.CONTENDED
         is CommandOutcome.Unknown -> ObservedOutcome.UNKNOWN
-    }
-
-/** How an append ended, as its observation names it. */
-internal val AppendOutcome.observedName: ObservedOutcome
-    get() = when (this) {
-        is AppendOutcome.Committed -> ObservedOutcome.COMMITTED
-        is AppendOutcome.AlreadyCommitted -> ObservedOutcome.DUPLICATE
-        is AppendOutcome.Conflict -> ObservedOutcome.CONFLICT
-        is AppendOutcome.Unknown -> ObservedOutcome.UNKNOWN
-        is AppendOutcome.Rejected -> ObservedOutcome.REJECTED
     }
