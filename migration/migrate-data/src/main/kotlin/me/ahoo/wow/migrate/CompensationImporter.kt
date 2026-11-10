@@ -61,23 +61,30 @@ internal class CompensationPlan(
     val subscriptions: List<String> =
         manifest.contexts.flatMap { context -> context.subscriptions.map { it.name } }.distinct()
 
-    /** The V10 subscription named [name] and the context declaring it; null when the Manifest has none. */
-    fun manifestOf(name: String): Pair<ContextManifest, SubscriptionManifest>? =
-        manifest.contexts.firstNotNullOfOrNull { context ->
-            context.subscriptions.firstOrNull { it.name == name }?.let { context to it }
-        }
+    /** Whether a context of the Manifest declares a V10 subscription named [name]. */
+    fun declares(name: String): Boolean = declarationsOf(name).isNotEmpty()
+
+    /** Each context declaring a V10 subscription named [name], with its declaration, in the Manifest's order. */
+    private fun declarationsOf(name: String): List<Pair<ContextManifest, SubscriptionManifest>> =
+        manifest.contexts.flatMap { context -> context.subscriptions.filter { it.name == name }.map { context to it } }
 
     /**
      * Why [subscription]'s executions on events of [aggregate] cannot be parked in V10; null when they can: the
      * subscription is in the Manifest, the aggregate's streams are imported by this map, and the subscription reads
      * them from its own context's log, where a parked entry is resumed by version. A subscription of another
      * context's published events parks by topic offset, which a 9.x execution has none of.
+     *
+     * Contexts may declare subscriptions of one name: the one that parks the aggregate is its V10 context's, so it is
+     * looked up there, whatever the order of the Manifest; another context's is named only when that one has none.
      */
     fun problemOf(subscription: String, aggregate: NineXAggregate): String? {
-        val (context, manifest) = manifestOf(subscription)
-            ?: return "the V10 subscription $subscription is not in the Manifest"
+        val declared = declarationsOf(subscription)
+        if (declared.isEmpty()) {
+            return "the V10 subscription $subscription is not in the Manifest"
+        }
         val plan = aggregates[aggregate] ?: return "this map does not import the 9.x aggregate $aggregate"
         val target = plan.target
+        val (context, manifest) = declared.firstOrNull { (context, _) -> context.name == target.context } ?: declared.first()
         val source = manifest.source
         return when {
             manifest.isReceiptHandler || manifest.job != null ->
