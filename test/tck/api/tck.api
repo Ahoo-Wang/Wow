@@ -47,6 +47,11 @@ public final class me/ahoo/wow/tck/StoreTck$Ledger : me/ahoo/wow/tck/ledger/Fail
 	public final fun holdsLogs ()V
 }
 
+public final class me/ahoo/wow/tck/StoreTck$LedgerContexts : me/ahoo/wow/tck/ledger/FailureLedgerContextsSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
 public final class me/ahoo/wow/tck/StoreTck$Log : me/ahoo/wow/tck/log/EventLogSpec {
 	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
 	public final fun holdsLogs ()V
@@ -72,8 +77,29 @@ public final class me/ahoo/wow/tck/StoreTck$Timers : me/ahoo/wow/tck/timer/Timer
 	public final fun holdsLogs ()V
 }
 
+public abstract class me/ahoo/wow/tck/ledger/FailureLedgerContextsSpec {
+	protected static final field Companion Lme/ahoo/wow/tck/ledger/FailureLedgerContextsSpec$Companion;
+	public static final field FAILED_AT J
+	public static final field NAME Ljava/lang/String;
+	public static final field PARTITION I
+	public fun <init> ()V
+	public final fun a count counts its own subscription's entries only ()V
+	public final fun a due scan reads its own subscription's entries only ()V
+	public final fun a listing reads its own subscription's entries only, with a tenant or after a key ()V
+	public final fun a repark replaces its own subscription's entry only ()V
+	public final fun a resolve, fenced or not, removes its own subscription's entry only ()V
+	protected abstract fun createLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
+	public final fun each context's subscription parks, and reads back, its own entry ()V
+	public final fun every amendment changes its own subscription's entry only ()V
+}
+
+protected final class me/ahoo/wow/tck/ledger/FailureLedgerContextsSpec$Companion {
+	public final fun getSPEC ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+}
+
 public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public static final field CONCURRENT_PARKS I
+	public static final field CONTEXT Ljava/lang/String;
 	protected static final field Companion Lme/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion;
 	public static final field FAILED_AT J
 	public fun <init> ()V

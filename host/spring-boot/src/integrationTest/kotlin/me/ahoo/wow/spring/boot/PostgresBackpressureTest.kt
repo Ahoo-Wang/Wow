@@ -24,7 +24,7 @@ import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

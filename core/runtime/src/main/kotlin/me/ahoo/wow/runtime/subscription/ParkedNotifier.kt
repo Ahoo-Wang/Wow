@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * Hears what happens to a subscription's parked entries that an operator should know of (9.x's WeCom
@@ -50,7 +51,6 @@ fun interface ParkedNotifier {
 class ParkedNotice @InternalWowApi constructor(
     val kind: Kind,
     val group: String,
-    val context: String,
     val entry: ParkedAggregate,
     val spec: ParkedRetrySpec,
     val at: Long,
@@ -58,9 +58,12 @@ class ParkedNotice @InternalWowApi constructor(
     /** When the next automatic retry is due, null when there is none. */
     val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
 
+    /** The context of the subscription that parked the entry. */
+    val context: String get() = entry.subscription.context
+
     /** The subscription that parked the entry. */
     @InternalWowApi
-    val subscription: SubscriptionId get() = SubscriptionId(context, entry.subscription)
+    val subscription: SubscriptionId get() = entry.subscription
 
     enum class Kind {
         /** The subscription parked the aggregate: its handler kept failing, or a business rejection stopped it. */
@@ -78,18 +81,17 @@ class ParkedNotice @InternalWowApi constructor(
     override fun toString(): String =
         "ParkedNotice(kind=$kind, group=$group, context=$context, entry=$entry, spec=$spec, at=$at)"
 
-    private fun valueFields(): List<Any?> = listOf(kind, group, context, entry, spec, at)
+    private fun valueFields(): List<Any?> = listOf(kind, group, entry, spec, at)
 
     /** This ParkedNotice with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
         kind: Kind = this.kind,
         group: String = this.group,
-        context: String = this.context,
         entry: ParkedAggregate = this.entry,
         spec: ParkedRetrySpec = this.spec,
         at: Long = this.at,
-    ): ParkedNotice = ParkedNotice(kind, group, context, entry, spec, at)
+    ): ParkedNotice = ParkedNotice(kind, group, entry, spec, at)
 
     companion object {
         /** A ParkedNotice of the given fields; parameters added later come last, with a default. */
@@ -97,11 +99,10 @@ class ParkedNotice @InternalWowApi constructor(
         fun of(
             kind: Kind,
             group: String,
-            context: String,
             entry: ParkedAggregate,
             spec: ParkedRetrySpec,
             at: Long
-        ): ParkedNotice = ParkedNotice(kind, group, context, entry, spec, at)
+        ): ParkedNotice = ParkedNotice(kind, group, entry, spec, at)
     }
 }
 

@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -91,7 +92,7 @@ class ParkedSignalTest {
             result.error!!.message.assert()
                 .isEqualTo("${command.ref}@1 is parked by order.failing; the failure ledger has the cause.")
             result.error!!.message.assert().doesNotContain("10.0.3.5")
-            val parked = ledger.parked("order.failing", command.ref)!!
+            val parked = ledger.parked(SubscriptionId("shop", "order.failing"), command.ref)!!
             parked.reason.assert().contains("IllegalStateException").contains("10.0.3.5")
         }
 }

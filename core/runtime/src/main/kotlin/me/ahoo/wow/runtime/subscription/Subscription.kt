@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.state.StateEventRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * A subscription: a [name], a [filter] and exactly one handler. The checkpoint belongs to the

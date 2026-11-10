@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -26,8 +27,7 @@ class ParkedNotifierTest {
     private val notice = ParkedNotice(
         ParkedNotice.Kind.PARKED,
         "group",
-        "shop",
-        ParkedAggregate("sub", cart("x"), 0, 1, "boom", 0),
+        ParkedAggregate(SubscriptionId("shop", "sub"), cart("x"), 0, 1, "boom", 0),
         ParkedRetrySpec(),
         0,
     )

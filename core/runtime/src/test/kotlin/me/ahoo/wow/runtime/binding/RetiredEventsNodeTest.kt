@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -133,8 +134,8 @@ class RetiredEventsNodeTest {
             projected.assert().isEqualTo(expected)
             sagas.assert().isEqualTo(expected)
             val ledger = backends.opened.getValue(SHOP).ledger
-            ledger.isParked("CartView.onEvent", ref).assert().isFalse()
-            ledger.isParked("CartSaga.onEvent", ref).assert().isFalse()
+            ledger.isParked(SubscriptionId(SHOP, "CartView.onEvent"), ref).assert().isFalse()
+            ledger.isParked(SubscriptionId(SHOP, "CartSaga.onEvent"), ref).assert().isFalse()
         }
 
     @Test
@@ -162,8 +163,8 @@ class RetiredEventsNodeTest {
         projected.assert().isEqualTo(expected)
         sagas.assert().isEqualTo(expected)
         val ledger = backends.opened.getValue(SHOP).ledger
-        ledger.isParked("CartView.onEvent", ref).assert().isFalse()
-        ledger.isParked("CartSaga.onEvent", ref).assert().isFalse()
+        ledger.isParked(SubscriptionId(SHOP, "CartView.onEvent"), ref).assert().isFalse()
+        ledger.isParked(SubscriptionId(SHOP, "CartSaga.onEvent"), ref).assert().isFalse()
     }
 
     private companion object {

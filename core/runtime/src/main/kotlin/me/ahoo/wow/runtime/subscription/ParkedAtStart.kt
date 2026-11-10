@@ -21,6 +21,7 @@ import kotlinx.coroutines.async
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -47,7 +48,7 @@ internal class ParkedAtStart(
     private val scope: CoroutineScope,
 ) {
     /** Per subscription, its entries parked in another partition than its key's now, with that partition. */
-    private val moved = ConcurrentHashMap<String, Deferred<List<Moved>>>()
+    private val moved = ConcurrentHashMap<SubscriptionId, Deferred<List<Moved>>>()
 
     private class Moved(val entry: ParkedAggregate, val now: Int)
 
@@ -56,12 +57,12 @@ internal class ParkedAtStart(
         val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
         var after: AggregateRef? = null
         do {
-            val page = ledger.due(subscription.name, partitions, ParkedAggregate.NEVER, after)
+            val page = ledger.due(subscription.id, partitions, ParkedAggregate.NEVER, after)
             page.forEach { parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it) }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
         if (source.partitionsGrow) {
-            movedOf(subscription.name).filter { it.now in partitions }.forEach { moved ->
+            movedOf(subscription.id).filter { it.now in partitions }.forEach { moved ->
                 val entry = rehomed(checkNotNull(source.topic), moved.entry, moved.now)
                 // A false repark: resolved, or re-homed by another start, since the listing.
                 if (ledger.repark(entry, from = moved.entry.partition)) {
@@ -74,7 +75,7 @@ internal class ParkedAtStart(
     }
 
     /** [subscription]'s moved entries, listed once for this run; a listing that fails is listed again by the next start. */
-    private suspend fun movedOf(subscription: String): List<Moved> {
+    private suspend fun movedOf(subscription: SubscriptionId): List<Moved> {
         val listing = moved.computeIfAbsent(subscription) { name ->
             scope.async(start = CoroutineStart.LAZY) { listMoved(name) }
         }
@@ -83,7 +84,7 @@ internal class ParkedAtStart(
         return listing.await()
     }
 
-    private suspend fun listMoved(subscription: String): List<Moved> = buildList {
+    private suspend fun listMoved(subscription: SubscriptionId): List<Moved> = buildList {
         var after: AggregateRef? = null
         do {
             val page = ledger.list(subscription, after)

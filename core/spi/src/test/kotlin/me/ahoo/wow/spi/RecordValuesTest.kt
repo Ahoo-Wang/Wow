@@ -48,6 +48,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -114,7 +115,7 @@ class RecordValuesTest {
     )
 
     private fun parked(retries: Int = 0) = ParkedAggregate.of(
-        subscription = "OrderSaga.onPlaced",
+        subscription = SubscriptionId("sales", "OrderSaga.onPlaced"),
         ref = ref,
         partition = 0,
         fromVersion = 1,

@@ -31,11 +31,11 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.runtime.subscription.RetryPolicy
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * The host's settings of a job, `wow.schedules.<job>.*`, the only place a job is configured: its rule ([cron],

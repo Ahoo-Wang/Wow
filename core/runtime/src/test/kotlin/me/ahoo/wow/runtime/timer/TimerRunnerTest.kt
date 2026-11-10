@@ -28,6 +28,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -167,7 +168,7 @@ class TimerRunnerTest {
         clock.advance(10.minutes)
         delay(50)
         fired.size.assert().isEqualTo(1)
-        ledger.list(TimerOptions.PARKED_SUBSCRIPTION).assert().isEmpty()
+        ledger.list(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION)).assert().isEmpty()
     }
 
     @Test
@@ -188,8 +189,8 @@ class TimerRunnerTest {
         clock.advance(2.seconds)
         eventually { status("pay").status == TimerStatus.PARKED }
         status("pay").attempts.assert().isEqualTo(3)
-        eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
-        val parked = checkNotNull(ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")))
+        eventually { ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")) != null }
+        val parked = checkNotNull(ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")))
         parked.reason.assert().startsWith(timer("pay").id)
         clock.advance(10.minutes)
         delay(50)
@@ -197,7 +198,7 @@ class TimerRunnerTest {
 
         answers.remove("pay")
         runner.retry(order("o-1")).assert().isEqualTo(1)
-        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
         // Every attempt, retried or retried, was sent for the slot's own due time, and the slot fired as due then.
@@ -215,7 +216,7 @@ class TimerRunnerTest {
         runner.skip(order("o-1")).assert().isEqualTo(1)
         status("remind").status.assert().isEqualTo(TimerStatus.CANCELLED)
         status("remind").outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
-        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
     }
 
     @Test
@@ -230,7 +231,7 @@ class TimerRunnerTest {
             status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
             clock.advance(1.seconds)
         }
-        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
         answers.remove("pay")
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").attempts.assert().isEqualTo(1)
@@ -251,7 +252,7 @@ class TimerRunnerTest {
             eventually { status("pay").status == TimerStatus.PARKED }
             fired.size.assert().isEqualTo(9)
             status("pay").attempts.assert().isEqualTo(3)
-            eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
+            eventually { ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")) != null }
         }
 
     @Test
@@ -289,7 +290,7 @@ class TimerRunnerTest {
             clock.advance(CLAIM)
             delay(100)
             fired.size.assert().isEqualTo(1)
-            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+            ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
             // Handed off: the partition's next owner sends it once the claim lapsed.
             runner.stopPartition(0)
             runner(loop = loop()).startPartition(0)
@@ -341,11 +342,11 @@ class TimerRunnerTest {
         store.put(timer("pay"))
         val runner = runner(timers = refusing, loop = loop(maxAttempts = 1))
         runner.startPartition(0)
-        eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
+        eventually { ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")) != null }
         // Still claimed: it is sent again once the claim lapses.
         status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
         runner.retry(order("o-1")).assert().isEqualTo(0)
-        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
     }
 
     @Test
@@ -369,7 +370,7 @@ class TimerRunnerTest {
             clock.advance(1.seconds)
             eventually { status("pay").status == TimerStatus.PARKED }
             fired.size.assert().isEqualTo(2)
-            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNotNull()
+            ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNotNull()
         }
 
     @Test
@@ -388,7 +389,7 @@ class TimerRunnerTest {
             store.put(timer("pay"))
             val first = runner(timers = dying, loop = loop(maxAttempts = 1))
             first.startPartition(0)
-            eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
+            eventually { ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")) != null }
             first.stop()
             status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
 
@@ -397,7 +398,7 @@ class TimerRunnerTest {
             clock.advance(CLAIM)
             eventually { status("pay").status == TimerStatus.PARKED }
             fired.size.assert().isEqualTo(2)
-            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNotNull()
+            ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNotNull()
         }
 
     @Test

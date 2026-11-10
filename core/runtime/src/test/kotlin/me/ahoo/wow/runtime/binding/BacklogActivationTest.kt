@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -87,7 +88,7 @@ class BacklogActivationTest {
     private val ledgerStore = InMemoryFailureLedger()
     private val ledger = object : FailureLedger by ledgerStore {
         override suspend fun due(
-            subscription: String,
+            subscription: SubscriptionId,
             partitions: Collection<Int>,
             now: Long,
             after: AggregateRef?,
@@ -156,7 +157,9 @@ class BacklogActivationTest {
             }
             if (cart % PARKED_EVERY == 0) {
                 val partition = Partitioner.partitionOf(ref, PARTITIONS)
-                ledgerStore.park(ParkedAggregate.of(SUBSCRIPTION, ref, partition, 1, "imported", failedAt = 0L))
+                ledgerStore.park(
+                    ParkedAggregate.of(SUBSCRIPTION_ID, ref, partition, 1, "imported", failedAt = 0L)
+                )
             }
         }
     }
@@ -175,7 +178,7 @@ class BacklogActivationTest {
 
         // Every stream, each cart's in version order; a stream may come again above a checkpoint, never out of order.
         eventually(timeout = 60.seconds) {
-            projected.toSet().size == CARTS * STREAMS && ledgerStore.count(SUBSCRIPTION, CARTS) == 0
+            projected.toSet().size == CARTS * STREAMS && ledgerStore.count(SUBSCRIPTION_ID, CARTS) == 0
         }
         val byCart = projected.groupBy({ it.substringBefore('@') }, { it.substringAfter('@').toInt() })
         byCart.keys.assert().hasSize(CARTS)
@@ -188,6 +191,7 @@ class BacklogActivationTest {
     }
 
     private companion object {
+        val SUBSCRIPTION_ID = SubscriptionId(SHOP, SUBSCRIPTION)
         const val PARTITIONS = 32
         const val CARTS = 6_000
         const val STREAMS = 2

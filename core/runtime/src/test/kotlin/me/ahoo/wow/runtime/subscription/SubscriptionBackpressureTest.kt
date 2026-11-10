@@ -27,6 +27,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -124,7 +125,7 @@ class SubscriptionBackpressureTest {
         eventually { runtime.throttled().isEmpty() }
         runtime.stop()
 
-        ledger.list("saga").assert().isEmpty()
+        ledger.list(SubscriptionId("shop", "saga")).assert().isEmpty()
         signals.events.filter { it.startsWith("paused") }.assert().isEmpty()
         signals.events.filter { "throttled" in it }.assert().containsExactly("throttled saga@0", "unthrottled saga@0")
         signals.codes.assert().containsOnly(FrameworkErrors.WAIT_TIMEOUT)
@@ -150,11 +151,11 @@ class SubscriptionBackpressureTest {
         val runtime = runtime(saga)
         listOf("x", "y").forEach { appender.append(it) }
         runtime.start(setOf(0))
-        eventually { ledger.isParked("saga", cart("x")) && handled.size == 1 }
+        eventually { ledger.isParked(SubscriptionId("shop", "saga"), cart("x")) && handled.size == 1 }
         runtime.stop()
 
         attempts.get().assert().isEqualTo(BACKPRESSURE_ATTEMPTS)
-        ledger.parked("saga", cart("x"))!!.assert().satisfies({
+        ledger.parked(SubscriptionId("shop", "saga"), cart("x"))!!.assert().satisfies({
             it.reason.assert().contains("The node already has its commands in flight.")
             // Parked as after any spent budget: the parked retries take it from here.
             it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
@@ -184,7 +185,7 @@ class SubscriptionBackpressureTest {
         runtime.stop()
 
         times.zipWithNext { a, b -> (b - a).milliseconds() }.forEach { it.assert().isGreaterThanOrEqualTo(RETRY_AFTER) }
-        ledger.list("saga").assert().isEmpty()
+        ledger.list(SubscriptionId("shop", "saga")).assert().isEmpty()
     }
 
     @Test

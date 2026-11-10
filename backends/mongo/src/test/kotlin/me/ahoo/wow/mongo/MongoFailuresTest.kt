@@ -42,6 +42,7 @@ import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.junit.jupiter.api.AfterEach
@@ -154,7 +155,7 @@ class MongoFailuresTest {
             { MongoCheckpointStore(unreachable, "wow", Dispatchers.IO).load("shop", "projection", 0) },
             {
                 MongoFailureLedger(unreachable, "wow", dispatcher = Dispatchers.IO)
-                    .parked("projection", cart.ref("t", "c"))
+                    .parked(SubscriptionId("shop", "projection"), cart.ref("t", "c"))
             },
             {
                 MongoTimerStore(

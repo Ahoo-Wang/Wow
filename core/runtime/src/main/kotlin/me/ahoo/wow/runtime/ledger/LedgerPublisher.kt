@@ -38,12 +38,12 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerEntry
 import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.LedgerRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.security.MessageDigest
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -170,7 +170,7 @@ class LedgerPublisher internal constructor(
 
     /** Hears when an entry parks or spends its retries, and publishes it as it now stands. */
     val notifier: ParkedNotifier = ParkedNotifier { notice: ParkedNotice ->
-        parked(ParkedView(notice.entry, notice.spec, notice.context, notice.group))
+        parked(ParkedView(notice.entry, notice.spec, notice.group))
     }
 
     /** Publishes [view]'s entry as parked. */
@@ -325,7 +325,7 @@ class LedgerPublisher internal constructor(
         val record = LedgerEntry(
             service = service,
             context = view.context,
-            subscription = entry.subscription,
+            subscription = entry.subscription.name,
             aggregate = LedgerAggregate.of(entry.ref),
             fromVersion = entry.fromVersion,
             fromPosition = entry.fromPosition,

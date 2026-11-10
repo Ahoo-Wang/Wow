@@ -31,6 +31,7 @@ import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.postgresql.util.PSQLException
@@ -132,7 +133,12 @@ class PostgresFailuresTest {
         val calls: List<suspend () -> Any?> = listOf(
             { PostgresLeaseStore(down, dispatcher = Dispatchers.IO).owners("shop") },
             { PostgresCheckpointStore(down, Dispatchers.IO).load("shop", "projection", 0) },
-            { PostgresFailureLedger(down, dispatcher = Dispatchers.IO).parked("projection", cart.ref("t", "c")) },
+            {
+                PostgresFailureLedger(
+                    down,
+                    dispatcher = Dispatchers.IO
+                ).parked(SubscriptionId("shop", "projection"), cart.ref("t", "c"))
+            },
             { PostgresTimerStore(down, "shop", Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
         )
         calls.forEach { call ->

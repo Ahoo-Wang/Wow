@@ -29,6 +29,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -39,18 +40,19 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
- * ledger is of: services that share a database, and subscriptions of one name, see and resolve only
- * their own entries. The table's layout is recorded as format 3 ([PostgresFormat]), with an index answering what is
- * due in a node's partitions and one answering a tenant's listing.
+ * ledger is of, then the subscription's context and name ([SubscriptionId]): services that share a database, and
+ * subscriptions of one name in two contexts, see and resolve only their own entries. The table's layout is recorded as
+ * format 4 ([PostgresFormat]), with an index answering what is due in a node's partitions and one answering a
+ * tenant's listing.
  *
  * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row at the next revision, conditional on the revision read when it claims, takes or schedules. Format 3
+ * row at the next revision, conditional on the revision read when it claims, takes or schedules. Format 4
  * creates the table with the source partition and position of the entry, the retry state and the revision among its
- * columns; a format 3 table created before the revision gets it in place, every entry at 0 ([PostgresFormat.addColumns]).
- * A table of another format, or without a format record, is refused ([PostgresFormat]).
+ * columns. A table of another format, an earlier one among them, or without a format record, is refused
+ * ([PostgresFormat]): nothing is converted.
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
@@ -72,15 +74,6 @@ class PostgresFailureLedger(
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
                 PostgresSchema.execute(connection, tables.ddls)
-            }
-            if (ddl.creates) {
-                // A table created before the revision gets it, every entry at 0.
-                PostgresFormat.addColumns(
-                    connection,
-                    tables.name,
-                    PostgresFailureLedgerTables.ADDED,
-                    tables.revisionAddition
-                )
             }
         }
     }
@@ -116,15 +109,16 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
-        connection.prepareStatement(tables.parked).use { query ->
-            query.setKey(subscription, ref)
-            query.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+    override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
+        jdbc { connection ->
+            connection.prepareStatement(tables.parked).use { query ->
+                query.setKey(subscription, ref)
+                query.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+            }
         }
-    }
 
     override suspend fun list(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         tenantId: String?,
@@ -141,7 +135,7 @@ class PostgresFailureLedger(
     }
 
     override suspend fun due(
-        subscription: String,
+        subscription: SubscriptionId,
         partitions: Collection<Int>,
         now: Long,
         after: AggregateRef?,
@@ -158,33 +152,32 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun count(subscription: String, max: Int): Int {
+    override suspend fun count(subscription: SubscriptionId, max: Int): Int {
         require(max >= 1) { "At least one parked entry is counted." }
         return jdbc { connection ->
             connection.prepareStatement(tables.count).use { query ->
-                query.setString(1, service)
-                query.setString(2, subscription)
-                query.setInt(3, max)
+                query.setSubscription(subscription)
+                query.setInt(SUBSCRIPTION_COLUMNS + 1, max)
                 query.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else 0 }
             }
         }
     }
 
     /**
-     * The rows [sql] selects: it starts with the service and the subscription, or with the key of [after] when given,
+     * The rows [sql] selects: it starts with the service and the subscription ([setSubscription]), or with the key of
+     * [after] when given,
      * and [bind] binds the rest from the parameter it is given.
      */
     private suspend fun page(
         sql: String,
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         bind: (PreparedStatement, Int) -> Unit,
     ): List<ParkedAggregate> = jdbc { connection ->
         connection.prepareStatement(sql).use { query ->
             if (after == null) {
-                query.setString(1, service)
-                query.setString(2, subscription)
-                bind(query, 3)
+                query.setSubscription(subscription)
+                bind(query, SUBSCRIPTION_COLUMNS + 1)
             } else {
                 query.setKey(subscription, after)
                 bind(query, KEY_COLUMNS + 1)
@@ -199,14 +192,15 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
-        connection.prepareStatement(tables.resolve).use { delete ->
-            delete.setKey(subscription, ref)
-            delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+    override suspend fun resolveAnywhere(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
+        jdbc { connection ->
+            connection.prepareStatement(tables.resolve).use { delete ->
+                delete.setKey(subscription, ref)
+                delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+            }
         }
-    }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+    override suspend fun resolve(subscription: SubscriptionId, ref: AggregateRef, partition: Int): ParkedAggregate? =
         jdbc { connection ->
             connection.prepareStatement(tables.resolveIn).use { delete ->
                 delete.setKey(subscription, ref)
@@ -216,7 +210,7 @@ class PostgresFailureLedger(
         }
 
     override suspend fun amend(
-        subscription: String,
+        subscription: SubscriptionId,
         ref: AggregateRef,
         amendment: ParkedAmendment,
     ): ParkedAggregate? = jdbc { connection ->
@@ -238,7 +232,7 @@ class PostgresFailureLedger(
     }
 
     /** Binds [amendment] of [subscription]'s entry of [ref] to its statement ([sqlOf]). */
-    private fun PreparedStatement.bind(amendment: ParkedAmendment, subscription: String, ref: AggregateRef) {
+    private fun PreparedStatement.bind(amendment: ParkedAmendment, subscription: SubscriptionId, ref: AggregateRef) {
         when (amendment) {
             is ParkedAmendment.ClaimRetry -> {
                 setLong(1, amendment.at)
@@ -286,11 +280,18 @@ class PostgresFailureLedger(
     }
 
     /**
-     * Binds the key (service, subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
-     * [first].
+     * Binds the key (service, subscription context and name, context, aggregate name, tenant, id) to the [KEY_COLUMNS]
+     * parameters from [first].
      */
-    private fun PreparedStatement.setKey(subscription: String, ref: AggregateRef, first: Int = 1) =
+    private fun PreparedStatement.setKey(subscription: SubscriptionId, ref: AggregateRef, first: Int = 1) =
         bindKey(service, subscription, ref, first)
+
+    /** Binds the service and [subscription]'s context and name to the first [SUBSCRIPTION_COLUMNS] parameters. */
+    private fun PreparedStatement.setSubscription(subscription: SubscriptionId) {
+        setString(1, service)
+        setString(2, subscription.context)
+        setString(SUBSCRIPTION_COLUMNS, subscription.name)
+    }
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         dispatcher.jdbc { dataSource.autoCommitted(block) }
@@ -300,7 +301,8 @@ class PostgresFailureLedger(
 
         /** The service of a ledger built without one: a database of one service. */
         const val DEFAULT_SERVICE = ""
-        const val KEY_COLUMNS = 6
+        const val SUBSCRIPTION_COLUMNS = 3
+        const val KEY_COLUMNS = 7
         const val REPARK_VALUES = 5
         const val SPEC_COLUMNS = 3
 
@@ -308,13 +310,14 @@ class PostgresFailureLedger(
         const val RESTATE_SPEC = 5
 
         /** Binds [service]'s key of [subscription] and [ref] to the [KEY_COLUMNS] parameters from [first]. */
-        fun PreparedStatement.bindKey(service: String, subscription: String, ref: AggregateRef, first: Int) {
+        fun PreparedStatement.bindKey(service: String, subscription: SubscriptionId, ref: AggregateRef, first: Int) {
             setString(first, service)
-            setString(first + 1, subscription)
-            setString(first + 2, ref.type.context)
-            setString(first + 3, ref.type.name)
-            setString(first + 4, ref.tenantId)
-            setString(first + 5, ref.id)
+            setString(first + 1, subscription.context)
+            setString(first + 2, subscription.name)
+            setString(first + 3, ref.type.context)
+            setString(first + 4, ref.type.name)
+            setString(first + 5, ref.tenantId)
+            setString(first + 6, ref.id)
         }
 
         fun PreparedStatement.setNullableLong(index: Int, value: Long?) {
@@ -331,7 +334,7 @@ class PostgresFailureLedger(
         fun ResultSet.nullableLong(column: String): Long? = getLong(column).takeUnless { wasNull() }
 
         fun entryOf(row: ResultSet) = ParkedAggregate(
-            subscription = row.getString("subscription"),
+            subscription = SubscriptionId(row.getString("subscription_context"), row.getString("subscription")),
             ref = AggregateType(row.getString("context"), row.getString("aggregate_name"))
                 .ref(row.getString("tenant_id"), row.getString("aggregate_id")),
             partition = row.getInt("partition"),

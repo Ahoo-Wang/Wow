@@ -17,7 +17,7 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 | `SnapshotStore` | 每个聚合的最新快照 | `SnapshotStoreSpec` |
 | `CheckpointStore` | 每个订阅在每个分区上的位置 | `CheckpointStoreSpec` |
 | `LeaseStore` | 哪个节点拥有哪个分区 | `LeaseStoreSpec` |
-| `FailureLedger` | 停放的聚合 | `FailureLedgerSpec` |
+| `FailureLedger` | 停放的聚合，按订阅所属的上下文和订阅名区分 | `FailureLedgerSpec`、`FailureLedgerContextsSpec` |
 | `ReservationStore` | 已预留的唯一键 | `ReservationStoreSpec` |
 | `TimerStore` | 为稍后安排的命令 | `TimerStoreSpec` |
 

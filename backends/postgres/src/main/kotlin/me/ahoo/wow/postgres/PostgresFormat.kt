@@ -128,39 +128,6 @@ internal object PostgresFormat {
         }
     }
 
-    /**
-     * Runs [alter], which adds [columns] to [table], only when the table lacks one of them, as one autocommitted
-     * statement of its own on [connection] (which must be in autocommit mode).
-     *
-     * `ALTER TABLE … ADD COLUMN IF NOT EXISTS` takes the table's `ACCESS EXCLUSIVE` lock even when every column exists.
-     * Run in a transaction that holds another table's lock, it deadlocks with the statements that lock the two the
-     * other way round: a node starting up altered the log's counter table, then each aggregate table, while other
-     * nodes' appends (an aggregate table, then the counter) and tails (the counter, then the aggregate tables) ran. So
-     * a table that has its columns is not altered at all, which is every start but the first after an upgrade, and an
-     * alteration holds no other lock while it waits for its own, and waits for it at most [wait]'s timeout.
-     */
-    fun addColumns(
-        connection: Connection,
-        table: String,
-        columns: List<String>,
-        alter: String,
-        wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
-    ) {
-        if (PostgresSchema.hasColumns(connection, "\"$table\"", columns)) {
-            return
-        }
-        PostgresTimeouts.ddl(connection) {
-            PostgresSchema.retrying(connection, table, wait) {
-                PostgresSchema.locked(connection, table, wait) {
-                    inTransaction(connection) { bound ->
-                        PostgresSchema.boundLockWaits(bound, wait)
-                        bound.createStatement().use { it.execute(alter) }
-                    }
-                }
-            }
-        }
-    }
-
     /** The format records' table. */
     private const val FORMAT_TABLE = "CREATE TABLE IF NOT EXISTS $TABLE (structure text COLLATE \"C\" PRIMARY KEY, version integer NOT NULL)"
 

@@ -45,6 +45,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.ImportCutover
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -246,7 +247,7 @@ class PublishedSinksTest {
         records("dev.wow.shop.order.state").map { it.id }.assert().containsExactly("shop.order/t/o-1@1")
         backends.opened.getValue(
             SHOP
-        ).ledger.isParked("wow.transport-sink.order", ORDER.ref(TENANT, "o-1")).assert().isFalse()
+        ).ledger.isParked(SubscriptionId(SHOP, "wow.transport-sink.order"), ORDER.ref(TENANT, "o-1")).assert().isFalse()
     }
 
     @Test

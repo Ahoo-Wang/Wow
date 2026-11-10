@@ -36,6 +36,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -178,7 +179,7 @@ class FatalNodeTest {
             health.readiness().status.assert().isEqualTo(HealthStatus.DOWN)
             one.context(BANK).ownership.owned.assert().isEmpty()
             // Its entry is neither a business failure nor lost: no ledger entry, and the other node handles it.
-            backends.opened.getValue(BANK).ledger.isParked(AUDIT, ref(id)).assert().isFalse()
+            backends.opened.getValue(BANK).ledger.isParked(SubscriptionId(BANK, AUDIT), ref(id)).assert().isFalse()
             eventually(15.seconds) { audited["node-2"].orEmpty().contains(id) }
             audited["node-1"].orEmpty().assert().doesNotContain(id)
             // The gateway stays open: a command node-1 is still given goes to the partition's new owner.

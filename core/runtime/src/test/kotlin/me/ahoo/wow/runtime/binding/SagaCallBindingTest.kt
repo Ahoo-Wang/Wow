@@ -76,6 +76,7 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
@@ -327,7 +328,7 @@ class SagaCallBindingTest {
             last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             last.error!!.code.assert().isEqualTo("mail.box.full")
             val ledger = backends.opened.getValue(SHOP).ledger
-            eventually { ledger.isParked(saga.name, ORDER.ref(TENANT, "o-2")) }
+            eventually { ledger.isParked(SubscriptionId(SHOP, saga.name), ORDER.ref(TENANT, "o-2")) }
             // A rejection is not retried.
             calls.assert().hasSize(1)
         }
@@ -354,7 +355,7 @@ class SagaCallBindingTest {
             .assert().containsExactly("""{"items":["undelivered"]}""")
         backends.opened.getValue(
             SHOP
-        ).ledger.isParked(compensating.name, ORDER.ref(TENANT, "o-6")).assert().isFalse()
+        ).ledger.isParked(SubscriptionId(SHOP, compensating.name), ORDER.ref(TENANT, "o-6")).assert().isFalse()
         calls.assert().hasSize(1)
     }
 
@@ -368,7 +369,7 @@ class SagaCallBindingTest {
         last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         last.error!!.code.assert().isEqualTo("mail.box.full")
         val ledger = backends.opened.getValue(SHOP).ledger
-        eventually { ledger.isParked(mailingOnCommitted.name, ORDER.ref(TENANT, "o-c")) }
+        eventually { ledger.isParked(SubscriptionId(SHOP, mailingOnCommitted.name), ORDER.ref(TENANT, "o-c")) }
         // As a rejection of a command the handler derives: a business outcome, which no retry changes.
         calls.assert().hasSize(1)
     }
@@ -383,7 +384,7 @@ class SagaCallBindingTest {
         last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         last.error!!.code.assert().isEqualTo("mail.box.full")
         val ledger = backends.opened.getValue(SHOP).ledger
-        eventually { ledger.isParked(mailingOnRejected.name, ORDER.ref(TENANT, "o-r")) }
+        eventually { ledger.isParked(SubscriptionId(SHOP, mailingOnRejected.name), ORDER.ref(TENANT, "o-r")) }
         // A compensation's rejection goes to no @OnRejected handler again.
         calls.assert().hasSize(1)
     }
@@ -444,8 +445,8 @@ class SagaCallBindingTest {
             val last = place("o-7", "frank", toSaga, on = node).toList().last()
             last.status.assert().isEqualTo(CommandResult.Status.FAILED)
             val ledger = backends.opened.getValue(SHOP).ledger
-            eventually { ledger.isParked(undeclared.name, ORDER.ref(TENANT, "o-7")) }
-            ledger.parked(undeclared.name, ORDER.ref(TENANT, "o-7"))!!.reason
+            eventually { ledger.isParked(SubscriptionId(SHOP, undeclared.name), ORDER.ref(TENANT, "o-7")) }
+            ledger.parked(SubscriptionId(SHOP, undeclared.name), ORDER.ref(TENANT, "o-7"))!!.reason
                 .assert().contains("which its @Sends(calls) does not declare")
             calls.assert().isEmpty()
         }
@@ -457,8 +458,11 @@ class SagaCallBindingTest {
         val last = place("o-3", "carol", toSaga).toList().last()
         last.status.assert().isEqualTo(CommandResult.Status.FAILED)
         val ledger = backends.opened.getValue(SHOP).ledger
-        eventually { ledger.isParked(saga.name, ORDER.ref(TENANT, "o-3")) }
-        ledger.parked(saga.name, ORDER.ref(TENANT, "o-3"))!!.reason.assert().contains("The mail service is down.")
+        eventually { ledger.isParked(SubscriptionId(SHOP, saga.name), ORDER.ref(TENANT, "o-3")) }
+        ledger.parked(
+            SubscriptionId(SHOP, saga.name),
+            ORDER.ref(TENANT, "o-3")
+        )!!.reason.assert().contains("The mail service is down.")
         // The budget's two attempts, each the same request.
         calls.assert().hasSize(2)
         calls.map { it.command.requestId }.distinct().assert().hasSize(1)

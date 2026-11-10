@@ -24,6 +24,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.subscription.Checkpoint
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 
@@ -41,7 +42,7 @@ class SubscriptionOrphansTest {
             checkpoints.save(GROUP, "Old.onAdded", 0, 5)
             checkpoints.save(GROUP, "Gone.onAdded", 0, 2)
             checkpoints.save(GROUP, "wow.snapshot.rebuild", 0, 7)
-            ledger.park(ParkedAggregate("Old.onAdded", cart("x1"), 0, 1, "failed", 0))
+            ledger.park(ParkedAggregate(SubscriptionId("shop", "Old.onAdded"), cart("x1"), 0, 1, "failed", 0))
             val runtime = SubscriptionRuntime(
                 GROUP,
                 log,
@@ -86,7 +87,9 @@ class SubscriptionOrphansTest {
         runBlocking {
             checkpoints.save(GROUP, "Cart.onAdded", 0, 4)
             checkpoints.save(GROUP, "Old.onAdded", 1, 9)
-            repeat(3) { ledger.park(ParkedAggregate("Old.onAdded", cart("x$it"), 0, 1, "failed", 0)) }
+            repeat(
+                3
+            ) { ledger.park(ParkedAggregate(SubscriptionId("shop", "Old.onAdded"), cart("x$it"), 0, 1, "failed", 0)) }
             val runtime = SubscriptionRuntime(
                 GROUP,
                 log,

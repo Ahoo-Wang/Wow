@@ -84,7 +84,7 @@ class WebhookNotifier(
             "service" to service,
             "group" to notice.group,
             "at" to Instant.ofEpochMilli(notice.at).toString(),
-            "entry" to viewOf(ParkedView(notice.entry, notice.spec, notice.context, notice.group)),
+            "entry" to viewOf(ParkedView(notice.entry, notice.spec, notice.group)),
             "text" to textOf(notice),
         )
 

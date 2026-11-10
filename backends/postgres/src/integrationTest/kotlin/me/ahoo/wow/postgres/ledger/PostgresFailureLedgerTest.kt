@@ -18,9 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
 
@@ -56,37 +57,39 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
         orders.createSchema()
         billing.createSchema()
         val ref = AggregateType("shared", "order").ref("t", "a")
-        orders.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
-        billing.parked("projection", ref).assert().isNull()
-        billing.list("projection").assert().isEmpty()
-        billing.resolveAnywhere("projection", ref).assert().isNull()
-        billing.park(ParkedAggregate("projection", ref, 0, 5, "other", 8)).assert().isTrue()
-        orders.parked("projection", ref)!!.fromVersion.assert().isEqualTo(3)
-        orders.list("projection").map { it.reason }.assert().containsExactly("boom")
-        orders.list("projection", after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
-        orders.resolveAnywhere("projection", ref)!!.reason.assert().isEqualTo("boom")
-        billing.parked("projection", ref)!!.reason.assert().isEqualTo("other")
+        orders.park(ParkedAggregate(PROJECTION, ref, 0, 3, "boom", 7)).assert().isTrue()
+        billing.parked(PROJECTION, ref).assert().isNull()
+        billing.list(PROJECTION).assert().isEmpty()
+        billing.resolveAnywhere(PROJECTION, ref).assert().isNull()
+        billing.park(ParkedAggregate(PROJECTION, ref, 0, 5, "other", 8)).assert().isTrue()
+        orders.parked(PROJECTION, ref)!!.fromVersion.assert().isEqualTo(3)
+        orders.list(PROJECTION).map { it.reason }.assert().containsExactly("boom")
+        orders.list(PROJECTION, after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
+        orders.resolveAnywhere(PROJECTION, ref)!!.reason.assert().isEqualTo("boom")
+        billing.parked(PROJECTION, ref)!!.reason.assert().isEqualTo("other")
     }
 
     @Test
-    fun `a format 3 table created before the revision gets it in place, its entries at revision 0`(): Unit =
-        runBlocking {
-            // D404: a beta ledger keeps its parked entries; the column is added, with every entry at 0.
-            val ledger = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision")
-            ledger.createSchema()
-            val ref = AggregateType("upgrade", "order").ref("t", "a")
-            ledger.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
-            PostgresFixture.dataSource.connection.use { connection ->
-                connection.createStatement().use { it.execute("ALTER TABLE ledger_before_revision DROP COLUMN revision") }
+    fun `a format 3 table, keyed by the bare subscription name, is refused rather than converted`() {
+        // Issue 5678: the key gained the subscription's context; an earlier ledger is not read.
+        PostgresFailureLedger(PostgresFixture.dataSource, "ledger_format_3").createSchema()
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 3 WHERE structure = ?").use {
+                it.setString(1, "ledger_format_3")
+                it.executeUpdate().assert().isEqualTo(1)
             }
-            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision").createSchema()
-            ledger.parked("projection", ref)!!.revision.assert().isEqualTo(0L)
-            ledger.amend("projection", ref, ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
-                .revision.assert().isEqualTo(1L)
         }
+        assertThrownBy<IllegalStateException> {
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_format_3").createSchema()
+        }.message().contains("format 3", "format 4")
+    }
 
     @Test
     fun `a table name that is not a plain identifier is refused`() {
         assertThrownBy<IllegalArgumentException> { PostgresFailureLedger(PostgresFixture.dataSource, "x\"; drop") }
+    }
+
+    private companion object {
+        val PROJECTION = SubscriptionId("shared", "projection")
     }
 }

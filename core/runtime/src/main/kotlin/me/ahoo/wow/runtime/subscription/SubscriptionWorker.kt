@@ -163,7 +163,7 @@ internal class SubscriptionWorker(
     private val active = HashMap<AggregateRef, Lane>()
 
     /** What a retry writes to the ledger when it ends without handling all of an aggregate. */
-    private val writes = RetryWrites(subscription.name, partition, source, ledger, pause, options.readRetry, clock)
+    private val writes = RetryWrites(subscription.id, partition, source, ledger, pause, options.readRetry, clock)
 
     /** The aggregates parked here, and the retry or skip running on each. Guarded by the monitor. */
     private val parking = ParkStates(parked)
@@ -571,7 +571,7 @@ internal class SubscriptionWorker(
         }
         val unrecoverable = kind == FailureClass.UNRECOVERABLE
         val entry = ParkedAggregate(
-            subscription.name,
+            subscription.id,
             stream.ref,
             partition,
             stream.version,
@@ -600,9 +600,8 @@ internal class SubscriptionWorker(
             val notice = ParkedNotice(
                 ParkedNotice.Kind.PARKED,
                 group,
-                subscription.context,
                 entry,
-                options.parked.specOf(entry, subscription.context),
+                options.parked.specOf(entry),
                 entry.failedAt,
             )
             lanes.launch { notifier.notifyQuietly(notice) }
@@ -623,7 +622,7 @@ internal class SubscriptionWorker(
      * not parked, a skip of it is running, or it failed again and stays parked from where it was.
      */
     suspend fun retry(ref: AggregateRef): Boolean {
-        val entry = ledger.parked(subscription.name, ref)
+        val entry = ledger.parked(subscription.id, ref)
         val result = synchronized(this) {
             check(!abandoned) { "Subscription ${subscription.name} stopped in partition $partition." }
             parking.running(ref) ?: run {
@@ -648,7 +647,7 @@ internal class SubscriptionWorker(
         var parked = item.parked
         try {
             // A lower entry may have failed and been parked while this retry waited in the lane.
-            ledger.parked(subscription.name, ref)?.takeIf { source.ordinalOf(it) < source.ordinalOf(parked) }?.let {
+            ledger.parked(subscription.id, ref)?.takeIf { source.ordinalOf(it) < source.ordinalOf(parked) }?.let {
                 parked = it
             }
             val entries = try {
@@ -736,9 +735,9 @@ internal class SubscriptionWorker(
     private suspend fun runSkip(ref: AggregateRef, item: Item.Skip) {
         var resolved = false
         try {
-            val removed = ledger.resolve(subscription.name, ref, partition)
+            val removed = ledger.resolve(subscription.id, ref, partition)
             // In this partition: an entry re-homed to another stays parked, its skip that partition's owner's.
-            resolved = removed != null || ledger.parked(subscription.name, ref) == null
+            resolved = removed != null || ledger.parked(subscription.id, ref) == null
             item.result.complete(removed != null)
         } catch (cancelled: CancellationException) {
             item.result.cancel(cancelled)

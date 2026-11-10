@@ -54,6 +54,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerEntry
 import me.ahoo.wow.spi.ledger.LedgerResolution
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -126,7 +127,7 @@ class LedgerNodeTest {
             val broken = Command("c-broken", "r-broken", ITEM.ref(TENANT, "i-b"), Reserve(BREAKING))
             sender.send(broken)
             val ledger = backends.backends(STOCK).ledger
-            eventually { ledger.isParked(CommandIntake.NAME, broken.ref) }
+            eventually { ledger.isParked(SubscriptionId(broken.ref.type.context, CommandIntake.NAME), broken.ref) }
             eventually { records(Ledger.RECORD_PARKED).isNotEmpty() }
             val parked = ClusterCodec.mapper.treeToValue(
                 records(Ledger.RECORD_PARKED).first(),
@@ -152,7 +153,7 @@ class LedgerNodeTest {
                 source = "sales",
             )
             eventually { topics.messages(RECEIPTS).isNotEmpty() }
-            ledger.isParked(CommandIntake.NAME, broken.ref).assert().isTrue()
+            ledger.isParked(SubscriptionId(broken.ref.type.context, CommandIntake.NAME), broken.ref).assert().isTrue()
 
             stock.broken = false
             // The ops context's saga: taken by its source, though the node's authorizer allows no operator.
@@ -163,7 +164,7 @@ class LedgerNodeTest {
                 "alice",
                 source = Ledger.OPS_CONTEXT,
             )
-            eventually { !ledger.isParked(CommandIntake.NAME, broken.ref) }
+            eventually { !ledger.isParked(SubscriptionId(broken.ref.type.context, CommandIntake.NAME), broken.ref) }
             stock.decided.assert().contains(broken.id)
             eventually { records(Ledger.RECORD_RESOLVED).isNotEmpty() }
             records(Ledger.RECORD_RESOLVED).first()["outcome"].asString().assert().isEqualTo(LedgerResolution.RETRIED)

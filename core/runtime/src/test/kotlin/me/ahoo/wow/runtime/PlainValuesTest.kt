@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -118,11 +119,11 @@ class PlainValuesTest {
             SnapshotPlacement.of(listOf("a", "b"), "b"),
             "SnapshotPlacement("
         )
-        val entry = ParkedAggregate("s", ref, 0, 1, "failed", 1L)
-        val notice = ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 1L)
+        val entry = ParkedAggregate(SubscriptionId("shop", "s"), ref, 0, 1, "failed", 1L)
+        val notice = ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 1L)
         checks(
             notice,
-            ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 1L),
+            ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 1L),
             notice.copyWith(kind = ParkedNotice.Kind.EXHAUSTED),
             "ParkedNotice("
         )

@@ -30,10 +30,10 @@ import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -55,7 +55,7 @@ class NodeMetricsTest {
         opened.copyWith(
             ledger = object : FailureLedger by ledger {
                 override suspend fun list(
-                    subscription: String,
+                    subscription: SubscriptionId,
                     after: AggregateRef?,
                     limit: Int,
                     tenantId: String?,
@@ -64,7 +64,7 @@ class NodeMetricsTest {
                     return ledger.list(subscription, after, limit, tenantId)
                 }
 
-                override suspend fun count(subscription: String, max: Int): Int {
+                override suspend fun count(subscription: SubscriptionId, max: Int): Int {
                     check(!broken) { "The ledger is unreachable." }
                     return ledger.count(subscription, max)
                 }

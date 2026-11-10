@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -57,11 +58,10 @@ internal class CompensationPlan(
     fun subscriptionOf(function: NineXFunction): String? = processors[function.owner]?.subscriptionOf(function.name)
 
     /**
-     * Every subscription of the Manifest, where the import may have parked an execution: a mapping names its
-     * subscriptions only by the functions of the executions it meets.
+     * Every subscription of the Manifest, by its context and name, where the import may have parked an execution: a
+     * mapping names its subscriptions only by the functions of the executions it meets.
      */
-    val subscriptions: List<String> =
-        manifest.contexts.flatMap { context -> context.subscriptions.map { it.name } }.distinct()
+    val subscriptions = manifest.contexts.flatMap { ctx -> ctx.subscriptions.map { SubscriptionId(ctx.name, it.name) } }
 
     /** Whether a context of the Manifest declares a V10 subscription named [name]. */
     fun declares(name: String): Boolean = declarationsOf(name).isNotEmpty()
@@ -116,7 +116,7 @@ internal class CompensationPlan(
         val target = aggregates.getValue(execution.aggregate).target
         val ref = target.ref(execution.aggregateId.tenantId, execution.aggregateId.id)
         val entry = ParkedAggregate.of(
-            subscription = subscription,
+            subscription = SubscriptionId(target.context, subscription),
             ref = ref,
             partition = partitionOf(ref),
             fromVersion = execution.version,
@@ -322,7 +322,7 @@ internal class CompensationImporter(
         plan.compensation.importedEntries(ledger, source, options.pageSize) { entry, execution ->
             ledger.resolveAnywhere(entry.subscription, entry.ref)
             report(
-                "RESOLVED ${entry.subscription} ${entry.ref} from v${entry.fromVersion}: the 9.x execution " +
+                "RESOLVED ${entry.subscription.name} ${entry.ref} from v${entry.fromVersion}: the 9.x execution " +
                     "${execution ?: CompensationPlan.originOf(entry.reason)} it was imported for is " +
                     statusOf(execution),
             )
@@ -420,7 +420,7 @@ internal class CompensationComparison(
         var stale = 0L
         plan.compensation.importedEntries(ledger(), source, pageSize) { entry, execution ->
             report(
-                "DIFFERS V10 ${entry.subscription} ${entry.ref} parked from v${entry.fromVersion}: the 9.x execution " +
+                "DIFFERS V10 ${entry.subscription.name} ${entry.ref} parked from v${entry.fromVersion}: the 9.x execution " +
                     "${execution ?: CompensationPlan.originOf(entry.reason)} it was imported for is " +
                     statusOf(execution),
             )
@@ -441,9 +441,9 @@ internal class CompensationComparison(
         }
         val parked = ledger().parked(entry.subscription, entry.ref)
         val differs = when {
-            parked == null -> "9.x ${entry.subscription} v${entry.fromVersion}, V10 (none)"
+            parked == null -> "9.x ${entry.subscription.name} v${entry.fromVersion}, V10 (none)"
             parked.fromVersion > entry.fromVersion ->
-                "9.x ${entry.subscription} v${entry.fromVersion}, V10 parked from v${parked.fromVersion}"
+                "9.x ${entry.subscription.name} v${entry.fromVersion}, V10 parked from v${parked.fromVersion}"
             plan.compensation.restateOf(parked, entry, execution) != null ->
                 "9.x ${retryStateOf(entry)}, V10 ${retryStateOf(parked)}"
             else -> return result.copy(compared = result.compared + 1)

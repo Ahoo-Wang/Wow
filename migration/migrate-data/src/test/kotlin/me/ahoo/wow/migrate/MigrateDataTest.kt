@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -651,12 +652,15 @@ class MigrateDataTest {
                     "other services left",
             )
         val ref = NineXExample.orderModel.type.ref(NineXCompensationExample.TENANT, NineXCompensationExample.ORDER_ID)
-        ledger.parked(NineXCompensationExample.CART_SAGA, ref)!!.fromVersion.assert().isEqualTo(1)
+        ledger.parked(
+            SubscriptionId(NineXExample.CONTEXT, NineXCompensationExample.CART_SAGA),
+            ref
+        )!!.fromVersion.assert().isEqualTo(1)
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
             .contains("and every unresolved 9.x execution imported is parked; nothing imported was released")
-        ledger.resolveAnywhere(NineXCompensationExample.CART_SAGA, ref)
+        ledger.resolveAnywhere(SubscriptionId(NineXExample.CONTEXT, NineXCompensationExample.CART_SAGA), ref)
         run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
         printed.assert().contains("DIFFERS 9.x execution 0VYC0mp1nA0001")
             .contains("Comparison done: 1 unresolved 9.x executions are not parked in V10, and 0 imported entries")

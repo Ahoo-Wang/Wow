@@ -23,13 +23,17 @@ import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.ledger.dueIn
 import me.ahoo.wow.spi.ledger.placedAs
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.util.TreeMap
 
-/** A [FailureLedger] in memory, for tests and samples. Every operation is serialized by one lock. */
+/**
+ * A [FailureLedger] in memory, for tests and samples, keyed by subscription ([SubscriptionId]) and aggregate. Every
+ * operation is serialized by one lock.
+ */
 @InternalWowApi
 class InMemoryFailureLedger : FailureLedger {
     private val lock = Mutex()
-    private val subscriptions = HashMap<String, TreeMap<AggregateRef, ParkedAggregate>>()
+    private val subscriptions = HashMap<SubscriptionId, TreeMap<AggregateRef, ParkedAggregate>>()
 
     override suspend fun park(entry: ParkedAggregate): Boolean = lock.withLock {
         val parked = subscriptions.getOrPut(entry.subscription) { TreeMap(REF_ORDER) }
@@ -49,7 +53,7 @@ class InMemoryFailureLedger : FailureLedger {
     }
 
     override suspend fun amend(
-        subscription: String,
+        subscription: SubscriptionId,
         ref: AggregateRef,
         amendment: ParkedAmendment,
     ): ParkedAggregate? = lock.withLock {
@@ -59,32 +63,32 @@ class InMemoryFailureLedger : FailureLedger {
         amended
     }
 
-    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
+    override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.get(ref) }
 
     override suspend fun list(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         tenantId: String?,
     ): List<ParkedAggregate> = page(subscription, after, limit) { tenantId == null || it.ref.tenantId == tenantId }
 
     override suspend fun due(
-        subscription: String,
+        subscription: SubscriptionId,
         partitions: Collection<Int>,
         now: Long,
         after: AggregateRef?,
         limit: Int,
     ): List<ParkedAggregate> = page(subscription, after, limit) { it.dueIn(partitions, now) }
 
-    override suspend fun count(subscription: String, max: Int): Int {
+    override suspend fun count(subscription: SubscriptionId, max: Int): Int {
         require(max >= 1) { "At least one parked entry is counted." }
         return lock.withLock { minOf(subscriptions[subscription]?.size ?: 0, max) }
     }
 
     /** Up to [limit] of [subscription]'s entries after [after] that [admits], in the ledger's order. */
     private suspend fun page(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         admits: (ParkedAggregate) -> Boolean,
@@ -97,10 +101,10 @@ class InMemoryFailureLedger : FailureLedger {
         }
     }
 
-    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? =
+    override suspend fun resolveAnywhere(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.remove(ref) }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+    override suspend fun resolve(subscription: SubscriptionId, ref: AggregateRef, partition: Int): ParkedAggregate? =
         lock.withLock {
             val parked = subscriptions[subscription] ?: return null
             if (parked[ref]?.partition == partition) parked.remove(ref) else null

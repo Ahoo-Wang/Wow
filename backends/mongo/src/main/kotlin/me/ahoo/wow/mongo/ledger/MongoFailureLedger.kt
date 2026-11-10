@@ -41,6 +41,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.time.Duration
@@ -48,10 +49,12 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The [FailureLedger] of one service on MongoDB (documentation/designs/04-subscriptions.md §2), in the service's
- * own database: one document per parked (subscription, aggregate), keyed by a unique index on (service, subscription,
- * context, aggregate name, tenant, id). The key starts with [service], the service the ledger is of:
- * services that share a database, and subscriptions of one name, see and resolve only their own entries. The
- * collection's layout is recorded as format [FORMAT] ([MongoFormat]).
+ * own database: one document per parked (subscription, aggregate), keyed by a unique index on (service, subscription
+ * context, subscription, context, aggregate name, tenant, id). The key starts with [service], the service the ledger
+ * is of, then the subscription's context and name ([SubscriptionId]): services that share a database, and
+ * subscriptions of one name in two contexts, see and resolve only their own entries. The collection's layout is
+ * recorded as format [FORMAT] ([MongoFormat]); a collection of another format, an earlier one among them, is refused,
+ * not converted.
  *
  * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest
@@ -59,12 +62,12 @@ import kotlin.time.Duration.Companion.milliseconds
  * Kafka-sourced subscription's entry, null for the log's; a resolve is one `findOneAndDelete`. A park
  * writes the retry state only when it inserts the document, at revision 0 (one pipeline update); an amendment is one
  * `findOneAndUpdate` returning the amended document at the next revision, its filter carrying the revision read when
- * it claims, takes or schedules. A document stored before the revision existed has none and is at revision 0, so the
- * format stays the same. No collation is set: MongoDB then compares strings by their UTF-8 bytes, which is
+ * it claims, takes or schedules. No collation is set: MongoDB then compares strings by their UTF-8 bytes, which is
  * code point order, so [list] pages in the order the contract asks for.
  *
  * Besides the key index, [DUE_INDEX] on (service, subscription, partition, next attempt) answers [due], and
- * [TENANT_INDEX] on (service, subscription, tenant, then the key) answers a tenant's [list] in its order.
+ * [TENANT_INDEX] on (service, subscription, tenant, then the key) answers a tenant's [list] in its order, a
+ * subscription being its context and name.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -92,19 +95,35 @@ class MongoFailureLedger(
         MongoFormat.claim(database, collection, FORMAT, ddl)
         MongoFormat.index(
             ledger,
-            Indexes.ascending(SERVICE, SUBSCRIPTION, CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID),
+            Indexes.ascending(
+                SERVICE,
+                SUBSCRIPTION_CONTEXT,
+                SUBSCRIPTION,
+                CONTEXT,
+                AGGREGATE_NAME,
+                TENANT_ID,
+                AGGREGATE_ID,
+            ),
             IndexOptions().unique(true).name(LEDGER_KEY),
             ddl,
         )
         MongoFormat.index(
             ledger,
-            Indexes.ascending(SERVICE, SUBSCRIPTION, PARTITION, NEXT_ATTEMPT_AT),
+            Indexes.ascending(SERVICE, SUBSCRIPTION_CONTEXT, SUBSCRIPTION, PARTITION, NEXT_ATTEMPT_AT),
             IndexOptions().name(DUE_INDEX),
             ddl,
         )
         MongoFormat.index(
             ledger,
-            Indexes.ascending(SERVICE, SUBSCRIPTION, TENANT_ID, CONTEXT, AGGREGATE_NAME, AGGREGATE_ID),
+            Indexes.ascending(
+                SERVICE,
+                SUBSCRIPTION_CONTEXT,
+                SUBSCRIPTION,
+                TENANT_ID,
+                CONTEXT,
+                AGGREGATE_NAME,
+                AGGREGATE_ID,
+            ),
             IndexOptions().name(TENANT_INDEX),
             ddl,
         )
@@ -152,12 +171,12 @@ class MongoFailureLedger(
         ledger.updateOne(inPartition(keyFilter(entry.subscription, entry.ref), from), update).matchedCount > 0
     }
 
-    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
+    override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
         ledger.find(keyFilter(subscription, ref)).firstOrNull()?.let { entryOf(it) }
     }
 
     override suspend fun list(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         tenantId: String?,
@@ -169,7 +188,7 @@ class MongoFailureLedger(
     )
 
     override suspend fun due(
-        subscription: String,
+        subscription: SubscriptionId,
         partitions: Collection<Int>,
         now: Long,
         after: AggregateRef?,
@@ -185,22 +204,23 @@ class MongoFailureLedger(
         return page(subscription, after, limit, due)
     }
 
-    override suspend fun count(subscription: String, max: Int): Int {
+    override suspend fun count(subscription: SubscriptionId, max: Int): Int {
         require(max >= 1) { "At least one parked entry is counted." }
-        val filter = Filters.and(Filters.eq(SERVICE, service), Filters.eq(SUBSCRIPTION, subscription))
-        return dispatcher.mongo { ledger.countDocuments(filter, CountOptions().limit(max)).toInt() }
+        return dispatcher.mongo {
+            ledger.countDocuments(Filters.and(of(subscription)), CountOptions().limit(max)).toInt()
+        }
     }
 
     /** Up to [limit] of [subscription]'s entries after [after] that [conditions] admit, in the ledger's order. */
     private suspend fun page(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         conditions: List<Bson>,
     ): List<ParkedAggregate> {
         require(limit >= 1) { "A page holds at least one entry." }
         val filter = Filters.and(
-            listOf(Filters.eq(SERVICE, service), Filters.eq(SUBSCRIPTION, subscription)) +
+            of(subscription) +
                 conditions +
                 listOfNotNull(after?.let(::after)),
         )
@@ -213,11 +233,10 @@ class MongoFailureLedger(
         }
     }
 
-    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
-        ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) }
-    }
+    override suspend fun resolveAnywhere(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
+        dispatcher.mongo { ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) } }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+    override suspend fun resolve(subscription: SubscriptionId, ref: AggregateRef, partition: Int): ParkedAggregate? =
         dispatcher.mongo {
             ledger.findOneAndDelete(inPartition(keyFilter(subscription, ref), partition))?.let { entryOf(it) }
         }
@@ -226,7 +245,7 @@ class MongoFailureLedger(
     private fun inPartition(key: Bson, partition: Int): Bson = Filters.and(key, Filters.eq(PARTITION, partition))
 
     override suspend fun amend(
-        subscription: String,
+        subscription: SubscriptionId,
         ref: AggregateRef,
         amendment: ParkedAmendment,
     ): ParkedAggregate? {
@@ -263,22 +282,23 @@ class MongoFailureLedger(
         }
     }
 
-    /**
-     * [key] at [revision]: a document stored before the revision existed has none, and is at 0, as
-     * [STORED_REVISION] reads it.
-     */
-    private fun at(key: Bson, revision: Long): Bson = Filters.and(
-        key,
-        if (revision == 0L) Filters.`in`(REVISION, 0L, null) else Filters.eq(REVISION, revision),
+    /** [key] at [revision]. */
+    private fun at(key: Bson, revision: Long): Bson = Filters.and(key, Filters.eq(REVISION, revision))
+
+    /** The entries of the service's [subscription]: its context and its name. */
+    private fun of(subscription: SubscriptionId): List<Bson> = listOf(
+        Filters.eq(SERVICE, service),
+        Filters.eq(SUBSCRIPTION_CONTEXT, subscription.context),
+        Filters.eq(SUBSCRIPTION, subscription.name),
     )
 
-    private fun keyFilter(subscription: String, ref: AggregateRef): Bson = Filters.and(
-        Filters.eq(SERVICE, service),
-        Filters.eq(SUBSCRIPTION, subscription),
-        Filters.eq(CONTEXT, ref.type.context),
-        Filters.eq(AGGREGATE_NAME, ref.type.name),
-        Filters.eq(TENANT_ID, ref.tenantId),
-        Filters.eq(AGGREGATE_ID, ref.id),
+    private fun keyFilter(subscription: SubscriptionId, ref: AggregateRef): Bson = Filters.and(
+        of(subscription) + listOf(
+            Filters.eq(CONTEXT, ref.type.context),
+            Filters.eq(AGGREGATE_NAME, ref.type.name),
+            Filters.eq(TENANT_ID, ref.tenantId),
+            Filters.eq(AGGREGATE_ID, ref.id),
+        ),
     )
 
     /** The aggregates ordered after [ref]: the row comparison (context, name, tenant, id) > ref's, spelled out. */
@@ -298,7 +318,7 @@ class MongoFailureLedger(
     }
 
     private fun entryOf(document: Document) = ParkedAggregate(
-        subscription = document.getString(SUBSCRIPTION),
+        subscription = SubscriptionId(document.getString(SUBSCRIPTION_CONTEXT), document.getString(SUBSCRIPTION)),
         ref = AggregateType(document.getString(CONTEXT), document.getString(AGGREGATE_NAME))
             .ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
         partition = document.getInteger(PARTITION),
@@ -318,7 +338,7 @@ class MongoFailureLedger(
         recoverable = Recoverable.valueOf(document.getString(RECOVERABLE)),
         request = document.getString(REQUEST)?.let { LedgerRequest.valueOf(it) },
         nextAttemptAt = document.getLong(NEXT_ATTEMPT_AT),
-        revision = document.getLong(REVISION) ?: 0L,
+        revision = document.getLong(REVISION),
     )
 
     /** [spec] as a document: its retries and its durations in milliseconds; null for the subscription's. */
@@ -337,13 +357,16 @@ class MongoFailureLedger(
         /**
          * The layout version of the collection: format 1 keyed entries by service; format 2 adds each entry's
          * partition and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
-         * `claim_ttl_millis` and an operator's request to retry `RETRY`.
+         * `claim_ttl_millis` and an operator's request to retry `RETRY`, and gained the revision in place; format 4
+         * keys an entry by its subscription's context too (`subscription_context`), in the key and both indexes, every
+         * document with its revision from the start.
          */
-        const val FORMAT = 3
+        const val FORMAT = 4
         const val LEDGER_KEY = "ledger_key"
         const val DUE_INDEX = "ledger_due"
         const val TENANT_INDEX = "ledger_tenant"
         const val SERVICE = "service"
+        const val SUBSCRIPTION_CONTEXT = "subscription_context"
         const val SUBSCRIPTION = "subscription"
         const val CONTEXT = "context"
         const val AGGREGATE_NAME = "aggregate_name"
@@ -364,10 +387,7 @@ class MongoFailureLedger(
         const val PARTITION = "partition"
         const val NEXT_ATTEMPT_AT = "next_attempt_at"
 
-        /**
-         * The entry's revision ([ParkedAggregate.revision]), a long. A document stored before it existed has none and
-         * is at 0: an increment then sets it to 1.
-         */
+        /** The entry's revision ([ParkedAggregate.revision]), a long. */
         const val REVISION = "revision"
 
         /** Clears the schedule: the owner looks at the entry again on its next scan. */
@@ -376,8 +396,8 @@ class MongoFailureLedger(
         /** Gives the entry the next revision. */
         val NEXT_REVISION: Bson = Updates.inc(REVISION, 1L)
 
-        /** In a pipeline update, the revision stored: 0 for a document stored before the revision existed. */
-        val STORED_REVISION: Document = Document("\$ifNull", listOf("\$$REVISION", 0L))
+        /** In a pipeline update, the revision stored. */
+        const val STORED_REVISION: String = "\$$REVISION"
 
         /** [value] as a pipeline update takes it as it is, never as an expression or a field path. */
         fun literal(value: Any?): Document = Document("\$literal", value)

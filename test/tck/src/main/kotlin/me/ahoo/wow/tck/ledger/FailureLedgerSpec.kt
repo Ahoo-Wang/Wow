@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.time.Duration
@@ -41,8 +42,8 @@ abstract class FailureLedgerSpec {
     /** A ledger. Ledgers may share storage: each test uses subscriptions of its own. */
     protected abstract fun createLedger(): FailureLedger
 
-    private val subscription = "sub-" + UUID.randomUUID()
-    private val another = "$subscription-another"
+    private val subscription = SubscriptionId(CONTEXT, "sub-" + UUID.randomUUID())
+    private val another = SubscriptionId(CONTEXT, "${subscription.name}-another")
     private val type = AggregateType("ledger", "order")
 
     private val ledger: FailureLedger by lazy { createLedger() }
@@ -53,7 +54,7 @@ abstract class FailureLedgerSpec {
         ref: AggregateRef,
         fromVersion: Int,
         reason: String = "failed at $fromVersion",
-        subscription: String = this.subscription,
+        subscription: SubscriptionId = this.subscription,
         partition: Int = 0,
     ) = ParkedAggregate(subscription, ref, partition, fromVersion, reason, FAILED_AT + fromVersion)
 
@@ -181,7 +182,7 @@ abstract class FailureLedgerSpec {
         third.map { it.ref }.assert().isEqualTo(expected.drop(4))
         ledger.list(subscription, after = third.last().ref, limit = 2).assert().isEmpty()
         ledger.list(subscription).map { it.ref }.assert().isEqualTo(expected)
-        ledger.list("$subscription-none").assert().isEmpty()
+        ledger.list(SubscriptionId(CONTEXT, "${subscription.name}-none")).assert().isEmpty()
     }
 
     @Test
@@ -206,7 +207,7 @@ abstract class FailureLedgerSpec {
         ledger.count(subscription, 5).assert().isEqualTo(5)
         ledger.count(subscription, 3).assert().isEqualTo(3)
         ledger.count(another, 10).assert().isEqualTo(1)
-        ledger.count("$subscription-none", 10).assert().isEqualTo(0)
+        ledger.count(SubscriptionId(CONTEXT, "${subscription.name}-none"), 10).assert().isEqualTo(0)
     }
 
     @Test
@@ -556,6 +557,7 @@ abstract class FailureLedgerSpec {
 
     protected companion object {
         const val FAILED_AT = 1_700_000_000_000L
+        const val CONTEXT = "ledger"
         const val CONCURRENT_PARKS = 12
         val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, claimTtl = 2.minutes)
     }

@@ -25,12 +25,12 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.subscription.OrphanCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.Checkpoint
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
@@ -75,7 +75,11 @@ class NodeSubscriptionsTest {
             stores.checkpoints.save(GROUP, "Old.onDeposit", 3, 2)
             stores.checkpoints.save(GROUP, "wow.snapshot.rebuild", 0, 7)
             val type = AggregateType(BANK, "account")
-            repeat(3) { stores.ledger.park(ParkedAggregate("Old.onDeposit", type.ref("t", "o-$it"), 0, 1, "x", 0)) }
+            repeat(3) {
+                stores.ledger.park(
+                    ParkedAggregate(SubscriptionId(BANK, "Old.onDeposit"), type.ref("t", "o-$it"), 0, 1, "x", 0)
+                )
+            }
             node.start()
             val ref = type.ref("t", "a-1")
             node.gateway.execute(

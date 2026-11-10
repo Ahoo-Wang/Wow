@@ -48,12 +48,12 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
@@ -243,13 +243,13 @@ class LogGroupsTest {
         val node = node("node-1").also { it.start() }
         val poison = INVOICE.ref(TENANT, POISON)
         node.send(poison, Issue(delayMillis = 60_000))
-        eventually { stores.invoices.ledger.isParked(PROJECTOR, poison) }
-        stores.default.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+        eventually { stores.invoices.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison) }
+        stores.default.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison).assert().isFalse()
         node.parked.get(PROJECTOR_ID, poison)?.entry?.ref.assert().isEqualTo(poison)
         node.parked.list(PROJECTOR_ID).entries.map { it.entry.ref }.assert().containsExactly(poison)
         val failedAt = node.parked.get(PROJECTOR_ID, poison)!!.entry.failedAt
         node.parked.skip(PROJECTOR_ID, poison, failedAt).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        stores.invoices.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+        stores.invoices.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison).assert().isFalse()
     }
 
     @Test

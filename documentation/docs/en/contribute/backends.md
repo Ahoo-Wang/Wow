@@ -17,7 +17,7 @@ A store holds a node's durable state. Its ports are in `:spi`:
 | `SnapshotStore` | The latest snapshot of each aggregate | `SnapshotStoreSpec` |
 | `CheckpointStore` | Where each subscription stands, per partition | `CheckpointStoreSpec` |
 | `LeaseStore` | Which node owns which partition | `LeaseStoreSpec` |
-| `FailureLedger` | The parked aggregates | `FailureLedgerSpec` |
+| `FailureLedger` | The parked aggregates, each of a subscription by its context and name | `FailureLedgerSpec`, `FailureLedgerContextsSpec` |
 | `ReservationStore` | The reserved unique keys | `ReservationStoreSpec` |
 | `TimerStore` | The commands scheduled for later | `TimerStoreSpec` |
 

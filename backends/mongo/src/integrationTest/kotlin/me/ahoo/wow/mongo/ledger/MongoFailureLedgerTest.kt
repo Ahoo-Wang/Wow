@@ -17,12 +17,14 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
-import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoFailureLedgerTest : FailureLedgerSpec() {
@@ -53,7 +55,7 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         // Finding A2-13: the key had no service, so one service resolved another's parked entry.
         val orders = ledger("ledger_shared", service = "orders")
         val billing = ledger("ledger_shared", service = "billing")
-        val subscription = "projection-" + System.nanoTime()
+        val subscription = SubscriptionId("shared", "projection-" + System.nanoTime())
         val ref = AggregateType("shared", "order").ref("t", "a")
         orders.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
         billing.parked(subscription, ref).assert().isNull()
@@ -67,33 +69,21 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `an entry stored before the revision is at revision 0, and each later change moves it on`(): Unit =
-        runBlocking {
-            // D404: a beta ledger keeps its parked entries; a document without the field reads, and matches, as 0.
-            val ledger = ledger()
-            val subscription = "before-revision-" + System.nanoTime()
-            val ref = AggregateType("upgrade", "order").ref("t", "a")
-            ledger.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
-            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection("wow_failure_ledger")
-                .updateOne(Document("subscription", subscription), Document("\$unset", Document("revision", "")))
-            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(0L)
-            ledger.amend(subscription, ref, ParkedAmendment.Schedule(1, ParkedAggregate.NEVER)).assert().isNull()
-            ledger.amend(subscription, ref, ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
-                .revision.assert().isEqualTo(1L)
-            ledger.park(ParkedAggregate(subscription, ref, 0, 2, "earlier", 8)).assert().isTrue()
-            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(2L)
-            // A park that replaces a document without the field takes it as 0.
-            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection("wow_failure_ledger")
-                .updateOne(Document("subscription", subscription), Document("\$unset", Document("revision", "")))
-            ledger.park(ParkedAggregate(subscription, ref, 0, 1, "earliest", 9)).assert().isTrue()
-            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(1L)
-        }
+    fun `a format 3 collection, keyed by the bare subscription name, is refused rather than converted`() {
+        // Issue 5678: the key gained the subscription's context; an earlier ledger is not read.
+        ledger("ledger_format_3")
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
+            .updateOne(Filters.eq("_id", "ledger_format_3"), Updates.set("version", 3))
+            .matchedCount.assert().isEqualTo(1L)
+        assertThrownBy<IllegalStateException> { ledger("ledger_format_3") }
+            .message().contains("format 3", "format 4")
+    }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */
     @Test
     fun `aggregates are listed by code point, not by UTF-16 unit`(): Unit = runBlocking {
         val ledger = ledger()
-        val subscription = "code-point-" + System.nanoTime()
+        val subscription = SubscriptionId("ledger", "code-point-" + System.nanoTime())
         val type = AggregateType("ledger", "order")
         val emoji = type.ref("tenant", "😀")
         val last = type.ref("tenant", "￿")

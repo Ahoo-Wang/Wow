@@ -74,6 +74,7 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -705,7 +706,14 @@ class NodeHealthTest {
             channel.bind(node.address, node.forwardHandler)
             ledgers.forEach { (context, ledger) ->
                 ledger.park(
-                    ParkedAggregate("wow.snapshot", AggregateType(context, "account").ref("t", "a-1"), 0, 1, "x", 0)
+                    ParkedAggregate(
+                        SubscriptionId(context, "wow.snapshot"),
+                        AggregateType(context, "account").ref("t", "a-1"),
+                        0,
+                        1,
+                        "x",
+                        0
+                    )
                 )
             }
             val health = health(node)

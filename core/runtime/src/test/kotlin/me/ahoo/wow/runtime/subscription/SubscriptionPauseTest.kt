@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -158,7 +159,7 @@ class SubscriptionPauseTest {
         val runtime = runtime(projection)
         listOf("x", "y", "x", "y").forEach { appender.append(it) }
         runtime.start(setOf(0))
-        eventually { ledger.isParked("projection", cart("x")) && handled.size == 2 }
+        eventually { ledger.isParked(SubscriptionId("shop", "projection"), cart("x")) && handled.size == 2 }
         eventually { checkpoints.load("group", "projection", 0) == appender.ends[0] }
         runtime.stop()
 
@@ -166,7 +167,10 @@ class SubscriptionPauseTest {
         handled.versionsOf("y").assert().containsExactly(1, 2)
         ledger.parks.map { it.ref.id }.assert().containsExactly("x")
         // Not retried automatically either (9.x RecoverableType.UNRECOVERABLE).
-        ledger.parked("projection", cart("x"))!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+        ledger.parked(
+            SubscriptionId("shop", "projection"),
+            cart("x")
+        )!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
         pauses.events.assert().isEmpty()
     }
 
@@ -193,11 +197,11 @@ class SubscriptionPauseTest {
         eventually { runtime.paused().isNotEmpty() && systemic.get() > 2 * MAX_ATTEMPTS }
         // y's handling succeeds and resumes the partition; x then fails on its own.
         appender.append("y")
-        eventually { ledger.isParked("projection", cart("x")) }
+        eventually { ledger.isParked(SubscriptionId("shop", "projection"), cart("x")) }
         runtime.stop()
 
         own.get().assert().isEqualTo(MAX_ATTEMPTS)
-        ledger.parked("projection", cart("x"))!!.assert().satisfies({
+        ledger.parked(SubscriptionId("shop", "projection"), cart("x"))!!.assert().satisfies({
             it.reason.assert().contains("x is broken on its own")
             it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
         })
@@ -229,12 +233,12 @@ class SubscriptionPauseTest {
         eventually { unrecoverable.get() >= 2 }
         ledger.parks.assert().isEmpty()
         down.set(false)
-        eventually { ledger.isParked("projection", cart("u")) }
+        eventually { ledger.isParked(SubscriptionId("shop", "projection"), cart("u")) }
         runtime.stop()
 
         ledger.parks.map { it.ref.id }.assert().containsExactly("u")
         ledger.parkedWhilePaused.get().assert().isZero()
-        ledger.isParked("projection", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "projection"), cart("x")).assert().isFalse()
     }
 
     @Test
@@ -252,7 +256,7 @@ class SubscriptionPauseTest {
             val runtime = runtime(projection)
             appender.append("x")
             runtime.start(setOf(0))
-            eventually { ledger.isParked("projection", cart("x")) }
+            eventually { ledger.isParked(SubscriptionId("shop", "projection"), cart("x")) }
             runtime.stop()
 
             attempts.get().assert().isEqualTo(MAX_ATTEMPTS)
@@ -301,7 +305,16 @@ class SubscriptionPauseTest {
         )
         val runtime = runtime(projection, options = scanning)
         appender.append("p")
-        ledger.park(ParkedAggregate("projection", cart("p"), 0, 1, "IllegalStateException: p was broken", 0L))
+        ledger.park(
+            ParkedAggregate(
+                SubscriptionId("shop", "projection"),
+                cart("p"),
+                0,
+                1,
+                "IllegalStateException: p was broken",
+                0L
+            )
+        )
         ledger.parks.clear()
         appender.append("x")
         runtime.start(setOf(0))
@@ -309,7 +322,7 @@ class SubscriptionPauseTest {
         delay((PAUSED_SCANS * 5).milliseconds)
         ledger.claims.get().assert().isZero()
         down.set(false)
-        eventually { !ledger.isParked("projection", cart("p")) }
+        eventually { !ledger.isParked(SubscriptionId("shop", "projection"), cart("p")) }
         runtime.stop()
 
         ledger.claims.get().assert().isPositive()
@@ -348,7 +361,7 @@ class SubscriptionPauseTest {
         }
 
         override suspend fun amend(
-            subscription: String,
+            subscription: SubscriptionId,
             ref: AggregateRef,
             amendment: ParkedAmendment,
         ): ParkedAggregate? {

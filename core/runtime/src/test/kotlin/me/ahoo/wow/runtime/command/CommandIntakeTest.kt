@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeKind
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -201,8 +202,8 @@ class CommandIntakeTest {
         val broken = Command("new-b", "r-new-b", ITEM.unassigned(TENANT), Reserve(BREAKING)).also { sender.send(it) }
         val ledger = stockBackends.backends(STOCK).ledger
         val lane = ITEM.ref(TENANT, "(none):r-new-b")
-        eventually { ledger.isParked(CommandIntake.NAME, lane) }
-        ledger.isParked(CommandIntake.NAME, ITEM.unassigned(TENANT)).assert().isFalse()
+        eventually { ledger.isParked(INTAKE, lane) }
+        ledger.isParked(INTAKE, ITEM.unassigned(TENANT)).assert().isFalse()
         // Every other creation of the type and tenant goes on, whichever partition it lands in.
         val others = (1..4).map { Command("new-$it", "r-new-$it", ITEM.unassigned(TENANT), Reserve(1)) }
         others.forEach { sender.send(it) }
@@ -399,8 +400,8 @@ class CommandIntakeTest {
             val after = reserve("c-after", 1, item = "i-b")
             val elsewhere = reserve("c-elsewhere", 1, item = "i-e")
             val ledger = stockBackends.backends(STOCK).ledger
-            eventually { ledger.isParked(CommandIntake.NAME, broken.ref) }
-            val parked = ledger.parked(CommandIntake.NAME, broken.ref)!!
+            eventually { ledger.isParked(INTAKE, broken.ref) }
+            val parked = ledger.parked(INTAKE, broken.ref)!!
             parked.fromPosition.assert().isEqualTo(0L)
             parked.reason.assert().contains("unreachable")
             eventually { elsewhere.id in stock.decided }
@@ -411,7 +412,7 @@ class CommandIntakeTest {
             stock.broken = false
             node.context(STOCK).intake!!.retry(CommandIntake.NAME, broken.ref).assert().isTrue()
             stock.decided.assert().contains(broken.id, after.id)
-            ledger.isParked(CommandIntake.NAME, broken.ref).assert().isFalse()
+            ledger.isParked(INTAKE, broken.ref).assert().isFalse()
             // A command of the aggregate after the retry runs as any other.
             val later = reserve("c-later", 1, item = "i-b")
             eventually { later.id in stock.decided }
@@ -430,7 +431,7 @@ class CommandIntakeTest {
             val later = reserve("c-u-later", 1, item = "i-u")
             eventually { later.id in stock.decided }
             val ledger = stockBackends.backends(STOCK).ledger
-            ledger.isParked(CommandIntake.NAME, unknown.ref).assert().isFalse()
+            ledger.isParked(INTAKE, unknown.ref).assert().isFalse()
             eventually { checkpoint(node, unknown.ref) == 2L }
             val rejected = CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value))
             rejected.commandId.assert().isEqualTo("c-u")
@@ -453,7 +454,7 @@ class CommandIntakeTest {
             )
             topics.send(COMMANDS, CommandMessages.command(wire, partition))
             eventually { checkpoint(node, ref) == 1L }
-            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, ref).assert().isFalse()
+            stockBackends.backends(STOCK).ledger.isParked(INTAKE, ref).assert().isFalse()
             topics.messages(RECEIPTS).assert().isEmpty()
         }
 
@@ -473,7 +474,7 @@ class CommandIntakeTest {
             stock.decided.assert().isEmpty()
             // The stock item is not parked: its later commands are executed.
             val item = ITEM.ref(TENANT, "o-v2")
-            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, item).assert().isFalse()
+            stockBackends.backends(STOCK).ledger.isParked(INTAKE, item).assert().isFalse()
             val later = reserve("c-v2-later", 1, item = "o-v2")
             eventually { later.id in stock.decided }
             eventually { checkpoint(stockNode, item) == 2L }
@@ -488,8 +489,8 @@ class CommandIntakeTest {
         topics.send(COMMANDS, TopicMessage.of(ref.toString(), "not an envelope".toByteArray(), partition = partition))
         val after = reserve("c-after-garbled", 1, item = "i-garbled")
         val ledger = stockBackends.backends(STOCK).ledger
-        eventually { ledger.isParked(CommandIntake.NAME, ref) }
-        ledger.parked(CommandIntake.NAME, ref)!!.reason.assert().contains("cannot be decoded")
+        eventually { ledger.isParked(INTAKE, ref) }
+        ledger.parked(INTAKE, ref)!!.reason.assert().contains("cannot be decoded")
         eventually { checkpoint(node, ref) == topics.offsets(COMMANDS, partition).end }
         stock.decided.assert().doesNotContain(after.id)
         // Skipped by an operator, the aggregate takes its commands again.
@@ -510,7 +511,7 @@ class CommandIntakeTest {
             )
             val after = reserve("c-after-keyless", 1, item = "i-after-keyless")
             eventually { after.id in stock.decided }
-            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, ref).assert().isFalse()
+            stockBackends.backends(STOCK).ledger.isParked(INTAKE, ref).assert().isFalse()
             node.context(STOCK).intake.assert().isNotNull()
         }
 
@@ -540,7 +541,7 @@ class CommandIntakeTest {
                 reserve("c-busy", 1, item = "i-busy").also { busy ->
                     // Far longer than the subscription's three attempts take.
                     delay(300.milliseconds)
-                    ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+                    ledger.isParked(INTAKE, busy.ref).assert().isFalse()
                     stock.decided.assert().doesNotContain(busy.id)
                 }
             } finally {
@@ -550,7 +551,7 @@ class CommandIntakeTest {
             callers.forEach { it.join() }
             eventually { busy.id in stock.decided }
             eventually { checkpoint(node, busy.ref) == 1L }
-            ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+            ledger.isParked(INTAKE, busy.ref).assert().isFalse()
         }
 
     @Test
@@ -586,7 +587,7 @@ class CommandIntakeTest {
             sender.send(scheduled)
             eventually { scheduled.id in stock.decided }
             System.currentTimeMillis().assert().isGreaterThanOrEqualTo(due)
-            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, scheduled.ref).assert().isFalse()
+            stockBackends.backends(STOCK).ledger.isParked(INTAKE, scheduled.ref).assert().isFalse()
             eventually { checkpoint(node, scheduled.ref) == 1L }
         }
 
@@ -603,5 +604,8 @@ class CommandIntakeTest {
         const val PARTITIONS = 4
         const val COMMANDS = PREFIX + "wow.stock.commands"
         const val RECEIPTS = PREFIX + "wow.sales.receipts"
+
+        /** The stock context's command intake, which parks the commands it cannot execute. */
+        val INTAKE = SubscriptionId(STOCK, CommandIntake.NAME)
     }
 }

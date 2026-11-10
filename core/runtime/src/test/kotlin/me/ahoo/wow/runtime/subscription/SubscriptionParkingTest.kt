@@ -30,6 +30,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
@@ -77,7 +78,9 @@ class SubscriptionParkingTest {
     private suspend fun parkX(runtime: SubscriptionRuntime) {
         listOf("x", "y", "x", "y", "x", "y", "x").forEach { appender.append(it) }
         runtime.start(all)
-        eventually { ledger.isParked("parking", cart("x")) && handled.versionsOf("y").size == 3 }
+        eventually {
+            ledger.isParked(SubscriptionId("shop", "parking"), cart("x")) && handled.versionsOf("y").size == 3
+        }
         eventually { checkpointsReachEnd() }
     }
 
@@ -98,11 +101,11 @@ class SubscriptionParkingTest {
         val runtime = SubscriptionRuntime("group", log, checkpoints, ledger, listOf(rejecting), testOptions(), clock)
         appender.append("x")
         runtime.start(all)
-        eventually { ledger.isParked("rejecting", cart("x")) }
+        eventually { ledger.isParked(SubscriptionId("shop", "rejecting"), cart("x")) }
         runtime.stop()
         // Decision D153: a business outcome does not change on a retry.
         rejections.get().assert().isEqualTo(1)
-        ledger.parked("rejecting", cart("x"))!!.reason.assert().contains("x is refused.")
+        ledger.parked(SubscriptionId("shop", "rejecting"), cart("x"))!!.reason.assert().contains("x is refused.")
     }
 
     @Test
@@ -112,7 +115,7 @@ class SubscriptionParkingTest {
         runtime.stop()
 
         attempts.get().assert().isEqualTo(3)
-        val parked = ledger.parked("parking", cart("x"))!!
+        val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
         parked.fromVersion.assert().isEqualTo(2)
         parked.reason.assert().contains("x-2 is broken")
         parked.failedAt.assert().isEqualTo(clock.millis())
@@ -126,7 +129,7 @@ class SubscriptionParkingTest {
         parkX(runtime)
         failing.set(false)
         runtime.retry("parking", cart("x")).assert().isTrue()
-        ledger.isParked("parking", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isFalse()
         handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4))
         // Retrying reads the entries with their positions, as the tail hands them over.
         handled.entries.filter { it.first == "x" && it.second >= 2 }
@@ -165,7 +168,7 @@ class SubscriptionParkingTest {
         val runtime = runtime()
         parkX(runtime)
         runtime.retry("parking", cart("x")).assert().isFalse()
-        ledger.parked("parking", cart("x"))!!.fromVersion.assert().isEqualTo(2)
+        ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!.fromVersion.assert().isEqualTo(2)
         appender.append("x")
         appender.append("y")
         eventually { handled.versionsOf("y").size == 4 }
@@ -181,7 +184,7 @@ class SubscriptionParkingTest {
             parkX(runtime)
             failAt.set(3)
             runtime.retry("parking", cart("x")).assert().isFalse()
-            val parked = ledger.parked("parking", cart("x"))!!
+            val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
             parked.fromVersion.assert().isEqualTo(3)
             parked.reason.assert().contains("x-3 is broken")
             handled.versionsOf("x").assert().isEqualTo(listOf(1, 2))
@@ -202,7 +205,7 @@ class SubscriptionParkingTest {
         parkX(runtime)
         runtime.skip("parking", cart("x")).assert().isTrue()
         runtime.skip("parking", cart("x")).assert().isFalse()
-        ledger.isParked("parking", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isFalse()
         appender.append("x")
         eventually { handled.versionsOf("x") == listOf(1, 5) }
         runtime.stop()
@@ -217,7 +220,7 @@ class SubscriptionParkingTest {
             val gate = AtomicBoolean(true)
             val gated = object : FailureLedger by ledger {
                 override suspend fun resolve(
-                    subscription: String,
+                    subscription: SubscriptionId,
                     ref: AggregateRef,
                     partition: Int
                 ): ParkedAggregate? {
@@ -240,7 +243,7 @@ class SubscriptionParkingTest {
                 skipped.await().assert().isTrue()
             }
             handled.versionsOf("x").assert().isEqualTo(listOf(1))
-            ledger.isParked("parking", cart("x")).assert().isFalse()
+            ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isFalse()
             appender.append("x")
             eventually { handled.versionsOf("x") == listOf(1, 5) }
             runtime.stop()
@@ -286,7 +289,7 @@ class SubscriptionParkingTest {
             appender.append("x")
             eventually { checkpointsReachEnd("first") }
             // Agreeing: neither parked in the ledger nor held by the worker.
-            ledger.isParked("first", cart("x")).assert().isFalse()
+            ledger.isParked(SubscriptionId("shop", "first"), cart("x")).assert().isFalse()
             handled.versionsOf("x").assert().isEqualTo(listOf(1, 3))
             runtime.stop()
         }
@@ -297,7 +300,7 @@ class SubscriptionParkingTest {
             // #5481: the worker skips in its own partition; the re-homed entry is the other partition's owner's.
             val runtime = runtime()
             parkX(runtime)
-            val parked = ledger.parked("parking", cart("x"))!!
+            val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
             val rehomed = parked.copyWith(
                 partition = (parked.partition + 1) % all.size,
                 reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
@@ -305,7 +308,7 @@ class SubscriptionParkingTest {
             )
             ledger.repark(rehomed, from = parked.partition).assert().isTrue()
             runtime.skip("parking", cart("x")).assert().isFalse()
-            ledger.parked("parking", cart("x"))!!.copyWith(revision = 0).assert()
+            ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!.copyWith(revision = 0).assert()
                 .isEqualTo(rehomed.copyWith(revision = 0))
             appender.append("x")
             eventually { checkpointsReachEnd() }
@@ -376,8 +379,8 @@ class SubscriptionParkingTest {
         appender.append("x")
         appender.append("x")
         runtime.start(all)
-        eventually { ledger.isParked("held", cart("x")) }
-        val parked = ledger.parked("held", cart("x"))!!
+        eventually { ledger.isParked(SubscriptionId("shop", "held"), cart("x")) }
+        val parked = ledger.parked(SubscriptionId("shop", "held"), cart("x"))!!
         broken.set(false)
         withTimeout(10.seconds) {
             val retried = async { runtime.retry("held", cart("x")) }
@@ -386,9 +389,12 @@ class SubscriptionParkingTest {
             end.complete(Unit)
             retried.await().assert().isEqualTo(left == null)
             // The entry stays as the other owner left it; this one still holds x back, unless it is resolved.
-            ledger.parked("held", cart("x"))?.copyWith(revision = 0).assert().isEqualTo(left?.copyWith(revision = 0))
+            ledger.parked(
+                SubscriptionId("shop", "held"),
+                cart("x")
+            )?.copyWith(revision = 0).assert().isEqualTo(left?.copyWith(revision = 0))
         }
-        val resolved = ledger.parked("held", cart("x")) == null
+        val resolved = ledger.parked(SubscriptionId("shop", "held"), cart("x")) == null
         appender.append("x")
         eventually { checkpointsReachEnd("held") }
         val expected = listOf(1) + (if (succeeds) listOf(2) else emptyList()) + (if (resolved) listOf(3) else emptyList())
@@ -400,7 +406,11 @@ class SubscriptionParkingTest {
     fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
         val broken = AtomicBoolean(true)
         val flaky = object : FailureLedger by ledger {
-            override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? {
+            override suspend fun resolve(
+                subscription: SubscriptionId,
+                ref: AggregateRef,
+                partition: Int
+            ): ParkedAggregate? {
                 check(!broken.get()) { "the ledger is unavailable" }
                 return ledger.resolve(subscription, ref, partition)
             }
@@ -450,8 +460,8 @@ class SubscriptionParkingTest {
         runtime.stop()
         runCatching { runtime.retry("parking", cart("x")) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalStateException::class.java)
-        ledger.park(ParkedAggregate("parking", cart("x"), 0, 1, "manual", 0))
+        ledger.park(ParkedAggregate(SubscriptionId("shop", "parking"), cart("x"), 0, 1, "manual", 0))
         runtime.skip("parking", cart("x")).assert().isTrue()
-        ledger.isParked("parking", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isFalse()
     }
 }

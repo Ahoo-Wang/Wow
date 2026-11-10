@@ -28,6 +28,7 @@ import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.tck.ledger.FailureLedgerContextsSpec
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import me.ahoo.wow.tck.log.EventLogSpec
 import me.ahoo.wow.tck.reservation.ReservationStoreSpec
@@ -59,8 +60,8 @@ import java.util.concurrent.CopyOnWriteArrayList
  *   snapshots too;
  * - [SnapshotStoreSpec] when it holds snapshots ([Store.holdsSnapshots]);
  * - the control plane when it holds logs, its home: [TimerStoreSpec], [CheckpointStoreSpec], [LeaseStoreSpec],
- *   [FailureLedgerSpec] and [ReservationStoreSpec]. A store that holds no log must refuse each of those ports, and its
- *   log, with an error that says so ([UnsupportedOperationException]).
+ *   [FailureLedgerSpec] (with [FailureLedgerContextsSpec]) and [ReservationStoreSpec]. A store that holds no log must
+ *   refuse each of those ports, and its log, with an error that says so ([UnsupportedOperationException]).
  *
  * A spec that does not apply to the store skips with the reason. Each test opens one store from [config], as the host
  * does, and creates its schema as its ports open; a store in memory keeps its data in that instance, so the test's
@@ -255,6 +256,14 @@ abstract class StoreTck {
 
     @Nested
     inner class Ledger : FailureLedgerSpec() {
+        @BeforeEach
+        fun holdsLogs() = assumeHolds(Store::holdsLogs, NO_LOG)
+
+        override fun createLedger(): FailureLedger = logPort { it.ledger }
+    }
+
+    @Nested
+    inner class LedgerContexts : FailureLedgerContextsSpec() {
         @BeforeEach
         fun holdsLogs() = assumeHolds(Store::holdsLogs, NO_LOG)
 

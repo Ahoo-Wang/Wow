@@ -62,6 +62,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -640,8 +641,9 @@ class SnapshotSubscriptionTest {
         running.start(setOf(0))
         // The subscription rebuilds the state instead; version 2 fails to serialize there too, so the aggregate
         // parks: from version 2, or from 1 when both entries ran as one batch. Nothing past version 1 is written.
-        eventually { ledger.isParked(Hop.SNAPSHOT_SUBSCRIPTION, ref) }
-        (ledger.parked(Hop.SNAPSHOT_SUBSCRIPTION, ref)!!.fromVersion in 1..2).assert().isTrue()
+        val snapshot = SubscriptionId(ref.type.context, Hop.SNAPSHOT_SUBSCRIPTION)
+        eventually { ledger.isParked(snapshot, ref) }
+        (ledger.parked(snapshot, ref)!!.fromVersion in 1..2).assert().isTrue()
         (store.load(ref)?.version ?: 1).assert().isEqualTo(1)
     }
 

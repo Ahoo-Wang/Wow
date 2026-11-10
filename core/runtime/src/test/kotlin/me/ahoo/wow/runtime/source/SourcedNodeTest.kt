@@ -58,11 +58,11 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.node.subscriptionsView
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -367,7 +367,14 @@ class SourcedNodeTest {
         assertThrows<IllegalStateException> {
             runBlocking {
                 val partition = topics.partitionOf(TOPIC, order("o-1").toString())
-                val unpositioned = ParkedAggregate("Board.onOrder", order("o-1"), partition, 1, "r", 0)
+                val unpositioned = ParkedAggregate(
+                    SubscriptionId(BANK, "Board.onOrder"),
+                    order("o-1"),
+                    partition,
+                    1,
+                    "r",
+                    0
+                )
                 TopicEntries(TOPIC, topics, 2).retryEntries(unpositioned)
             }
         }.message.assert().contains("no offset")

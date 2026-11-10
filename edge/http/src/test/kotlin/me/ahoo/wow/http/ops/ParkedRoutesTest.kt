@@ -41,7 +41,6 @@ import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerLoop
@@ -56,6 +55,7 @@ import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -110,7 +110,9 @@ class ParkedRoutesTest {
         }.let { if (body == null) it else it.bodyValue(body) }.answer()
 
     private suspend fun park(id: String, version: Int = 1) {
-        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), 0, version, "$id failed", FAILED_AT))
+        ledger.park(
+            ParkedAggregate(SubscriptionId("shop", NAME), type.ref(TENANT, id), 0, version, "$id failed", FAILED_AT)
+        )
     }
 
     private suspend fun append(id: String) {
@@ -184,7 +186,7 @@ class ParkedRoutesTest {
         park("gone")
         append("x")
         owner.start(setOf(0, 1))
-        eventually { ledger.isParked(NAME, type.ref(TENANT, "x")) }
+        eventually { ledger.isParked(SubscriptionId("shop", NAME), type.ref(TENANT, "x")) }
         val local = client(owner)
 
         // Nothing of "gone" is in the log: retrying it handles nothing and resolves it.
@@ -203,13 +205,16 @@ class ParkedRoutesTest {
         requested.body!!["outcome"].asString().assert().isEqualTo("requested")
         requested.body!!["entry"]["request"].asString().assert().isEqualTo("retry")
         // A skip names the parking it discards; without it the skip is refused.
-        val x = """{"failedAt":${ledger.parked(NAME, type.ref(TENANT, "x"))!!.failedAt}}"""
+        val x = """{"failedAt":${ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "x"))!!.failedAt}}"""
         remote.post("${entry("x")}/${OpsPaths.SKIP}").assertMalformed()
         remote.post(
             "${entry("x")}/${OpsPaths.SKIP}",
             x
         ).body!!["entry"]["request"].asString().assert().isEqualTo("skip")
-        ledger.parked(NAME, type.ref(TENANT, "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        ledger.parked(
+            SubscriptionId("shop", NAME),
+            type.ref(TENANT, "x")
+        )!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
         val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}", x)
         skipped.status.assert().isEqualTo(200)
@@ -236,18 +241,21 @@ class ParkedRoutesTest {
     fun `a retry or a skip naming another parking than the entry's is refused as stale`(): Unit = runBlocking {
         park("a")
         val client = client(other)
-        val failedAt = ledger.parked(NAME, type.ref(TENANT, "a"))!!.failedAt
+        val failedAt = ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.failedAt
         listOf(OpsPaths.RETRY, OpsPaths.SKIP).forEach { action ->
             val stale = client.post("${entry("a")}/$action", """{"failedAt":${failedAt - 1}}""")
             stale.status.assert().isEqualTo(409)
             stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
             client.post("${entry("a")}/$action", """{"failedAt":"yesterday"}""").assertMalformed()
         }
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
+        ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
         // The parking the operator saw: acted on, here a request to the owner.
         val requested = client.post("${entry("a")}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
         requested.status.assert().isEqualTo(202)
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        ledger.parked(
+            SubscriptionId("shop", NAME),
+            type.ref(TENANT, "a")
+        )!!.request.assert().isEqualTo(LedgerRequest.SKIP)
     }
 
     @Test
@@ -317,7 +325,16 @@ class ParkedRoutesTest {
         timers.put(timer).assert().isTrue()
         val parked = timer.copyWith(status = TimerStatus.PARKED, attempts = 10, outcome = "down")
         timers.settle(listOf(TimerChange(timer, parked))).assert().isEqualTo(1)
-        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 0, 1, "$key: down", FAILED_AT))
+        ledger.park(
+            ParkedAggregate(
+                SubscriptionId("shop", TimerOptions.PARKED_SUBSCRIPTION),
+                timer.target,
+                0,
+                1,
+                "$key: down",
+                FAILED_AT
+            )
+        )
     }
 
     @Test
@@ -329,7 +346,10 @@ class ParkedRoutesTest {
         marked.body!!["recoverable"].asString().assert().isEqualTo("unrecoverable")
         marked.body!!["status"].asString().assert().isEqualTo("unrecoverable")
         marked.body!!["nextRetryAt"].isNull.assert().isTrue()
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+        ledger.parked(
+            SubscriptionId("shop", NAME),
+            type.ref(TENANT, "a")
+        )!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
 
         val mark = "${entry("a")}/${OpsPaths.MARK_RECOVERABLE}"
         client.post(mark, """{"recoverable":"maybe"}""").assertMalformed()
@@ -356,7 +376,7 @@ class ParkedRoutesTest {
         applied.body!!["retrySpec"]["claimTtl"].asString().assert().isEqualTo("PT1M")
         applied.body!!["retrySpec"]["applied"].asBoolean().assert().isTrue()
         applied.body!!["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 10_000)
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.retrySpec.assert()
+        ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.retrySpec.assert()
             .isEqualTo(ParkedRetrySpec(5, 10.seconds, 1.minutes))
 
         // The durations the ops context's ApplyRetrySpec and the configuration take: the short forms, ISO-8601, zero.
@@ -392,7 +412,7 @@ class ParkedRoutesTest {
         denied.status.assert().isEqualTo(403)
         denied.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         denied.body!!["detail"].asString().assert().isEqualTo("Mallory may not.")
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
+        ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
         actions.single().first.assert().isEqualTo("mallory")
 
         val anonymous = client.post().uri("${entry("a")}/${OpsPaths.RETRY}").answer()
@@ -413,15 +433,19 @@ class ParkedRoutesTest {
         val list = unauthorized.get(OpsPaths.PARKED)
         list.status.assert().isEqualTo(403)
         list.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
-        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
+        ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
     }
 
     @Test
     fun `a caller sees and acts on its own tenant's entries alone, a cross-scope caller on every tenant's`(): Unit =
         runBlocking {
             park("a")
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 0, 1, "b failed", FAILED_AT))
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 0, 1, "c failed", FAILED_AT))
+            ledger.park(
+                ParkedAggregate(SubscriptionId("shop", NAME), type.ref("other", "b"), 0, 1, "b failed", FAILED_AT)
+            )
+            ledger.park(
+                ParkedAggregate(SubscriptionId("shop", NAME), type.ref("other", "c"), 0, 1, "c failed", FAILED_AT)
+            )
             val client = client(other)
             val foreign = "${OpsPaths.PARKED}/$KEY/shop/cart/other/b"
 
@@ -437,7 +461,7 @@ class ParkedRoutesTest {
             client.post("$foreign/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"unrecoverable"}""")
                 .status.assert().isEqualTo(404)
             client.post("$foreign/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":0}""").status.assert().isEqualTo(404)
-            ledger.parked(NAME, type.ref("other", "b"))!!.let {
+            ledger.parked(SubscriptionId("shop", NAME), type.ref("other", "b"))!!.let {
                 it.request.assert().isNull()
                 it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
                 it.retrySpec.assert().isNull()
@@ -463,7 +487,7 @@ class ParkedRoutesTest {
     @Test
     fun `a ledger that is unavailable is a problem the client retries after a while (R2_3-8)`() {
         val down = object : FailureLedger by ledger {
-            override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
+            override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
                 throw StorageUnavailableException("The ledger is unavailable.")
         }
         val broken = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), down, listOf(failing), options)

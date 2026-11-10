@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.ledger
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -24,7 +25,15 @@ import kotlin.time.Duration.Companion.seconds
 
 class ParkedRetryTest {
     private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 10.seconds, claimTtl = 30.seconds)
-    private val entry = ParkedAggregate("sub", AggregateType("shop", "cart").ref("t", "x"), 0, 1, "boom", FAILED_AT)
+    private val entry =
+        ParkedAggregate(
+            SubscriptionId("shop", "sub"),
+            AggregateType("shop", "cart").ref("t", "x"),
+            0,
+            1,
+            "boom",
+            FAILED_AT
+        )
 
     @Test
     fun `the backoff doubles per retry from the minimum, saturating`() {

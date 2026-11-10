@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -308,7 +309,10 @@ class ReservationSubscriptionTest {
         eventually { store.confirms.size == 3 }
         confirmedBy("ahoo", "u-2").assert().isTrue()
         confirmedBy("kept", "u-3").assert().isTrue()
-        ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
+        ledger.isParked(
+            SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+            user("u-1")
+        ).assert().isFalse()
     }
 
     @Test
@@ -374,7 +378,10 @@ class ReservationSubscriptionTest {
         eventually { lost.isNotEmpty() }
         find("ahoo")!!.owner.assert().isEqualTo(user("someone-else"))
         lost.toList().assert().isEqualTo(listOf("shop"))
-        ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
+        ledger.isParked(
+            SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+            user("u-1")
+        ).assert().isFalse()
     }
 
     @Test
@@ -384,13 +391,21 @@ class ReservationSubscriptionTest {
             val runtime = runtime()
             runtime.start(setOf(0, 1))
             register("u-1", "ahoo")
-            eventually { ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")) }
+            eventually {
+                ledger.isParked(
+                    SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+                    user("u-1")
+                )
+            }
             find("ahoo")!!.confirmed.assert().isFalse()
 
             store.failing = false
             runtime.retry(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
             confirmedBy("ahoo", "u-1").assert().isTrue()
-            ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
+            ledger.isParked(
+                SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+                user("u-1")
+            ).assert().isFalse()
         }
 
     @Test
