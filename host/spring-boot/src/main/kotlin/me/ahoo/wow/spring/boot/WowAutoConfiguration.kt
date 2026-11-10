@@ -312,6 +312,8 @@ class WowAutoConfiguration {
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val node = identity.ifAvailable
+        val placements = properties.storePlacements()
+        val types = models.models.map { it.type }
         val stores = StoreInstances.open(
             properties,
             providers,
@@ -320,8 +322,8 @@ class WowAutoConfiguration {
             development.reason,
             clock,
         ) { prefix -> PortProviders.settingsOf(environment, prefix) }
-        val types = models.models.map { it.type }
-        return StoreInstances.backends(stores, properties.storePlacements(), types, properties.log.partitions)
+        // The next statement hands the stores to their owner: nothing runs between.
+        return StoreInstances.backends(stores, placements, types, properties.log.partitions)
     }
 
     /** The node's global ids: command, request and wait ids, and the ids domain code takes. */
