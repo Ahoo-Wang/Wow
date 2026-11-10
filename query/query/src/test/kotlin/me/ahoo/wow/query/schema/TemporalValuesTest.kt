@@ -48,13 +48,13 @@ class TemporalValuesTest {
     }
 
     @Test
-    fun `an instant back to an epoch is floored to the unit, and a long overflow fails`() {
+    fun `an instant back to an epoch is floored to the unit, and none past a long`() {
         val instant = Instant.ofEpochSecond(-1, 999_999_000)
         epoch(TimeUnit.MICROSECONDS).epochOf(instant).assert().isEqualTo(-1L)
         epoch(TimeUnit.MILLISECONDS).epochOf(instant).assert().isEqualTo(-1L)
         epoch(TimeUnit.SECONDS).epochOf(instant).assert().isEqualTo(-1L)
         epoch(TimeUnit.DAYS).epochOf(Instant.parse("1969-12-31T12:00:00Z")).assert().isEqualTo(-1L)
-        runCatching { epoch(TimeUnit.NANOSECONDS).epochOf(Instant.parse("2500-01-01T00:00:00Z")) }
-            .exceptionOrNull().assert().isInstanceOf(ArithmeticException::class.java)
+        epoch(TimeUnit.NANOSECONDS).epochOf(Instant.parse("2500-01-01T00:00:00Z")).assert().isNull()
+        epoch(TimeUnit.MILLISECONDS).epochOf(Instant.MIN).assert().isNull()
     }
 }

@@ -34,7 +34,7 @@ internal val EPOCH_MILLIS: Temporal.Epoch = Temporal.Epoch(TimeUnit.MILLISECONDS
 internal fun Temporal.Epoch.instantOf(value: Long): Instant? = try {
     val perSecond = timeUnit.convert(1, TimeUnit.SECONDS)
     if (perSecond == 0L) {
-        // A unit of a second or longer: a whole number of seconds.
+        // A unit longer than a second: a whole number of seconds.
         Instant.ofEpochSecond(Math.multiplyExact(value, timeUnit.toSeconds(1)))
     } else {
         Instant.ofEpochSecond(
@@ -48,14 +48,16 @@ internal fun Temporal.Epoch.instantOf(value: Long): Instant? = try {
     null
 }
 
-/** [instant] as a count of this epoch's unit, floored; throws [ArithmeticException] past a Long. */
-internal fun Temporal.Epoch.epochOf(instant: Instant): Long {
+/** [instant] as a count of this epoch's unit, floored, exactly; `null` when that count is past a Long. */
+internal fun Temporal.Epoch.epochOf(instant: Instant): Long? = try {
     val perSecond = timeUnit.convert(1, TimeUnit.SECONDS)
-    return if (perSecond == 0L) {
+    if (perSecond == 0L) {
         Math.floorDiv(instant.epochSecond, timeUnit.toSeconds(1))
     } else {
         Math.addExact(Math.multiplyExact(instant.epochSecond, perSecond), instant.nano / (NANOS_PER_SECOND / perSecond))
     }
+} catch (_: ArithmeticException) {
+    null
 }
 
 /** This instant in epoch milliseconds, floored; `null` past the milliseconds a Long holds. */
