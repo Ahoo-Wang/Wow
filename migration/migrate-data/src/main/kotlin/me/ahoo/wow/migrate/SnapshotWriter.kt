@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -22,7 +21,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
@@ -147,7 +145,7 @@ internal class SnapshotWriter(
         var checkpoint = saved?.takeUnless { it.completed } ?: target.log.heads().let { SnapshotCheckpoint(heads = it) }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
-            val page = withContext(Dispatchers.IO) {
+            val page = blocking {
                 source.aggregateIds(aggregate, checkpoint.after, options.pageSize)
             }
             if (page.isEmpty()) {

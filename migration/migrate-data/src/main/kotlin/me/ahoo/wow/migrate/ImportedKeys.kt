@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
@@ -115,7 +113,7 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
         val lines = ByteBuffer.wrap(
             keys.joinToString("") { WowJson.mapper.writeValueAsString(it) + LINE_BREAK }.toByteArray(Charsets.UTF_8)
         )
-        withContext(Dispatchers.IO) {
+        blocking {
             FileChannel.open(
                 path,
                 StandardOpenOption.CREATE,
@@ -141,7 +139,7 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
             return
         }
         val temporary = path.resolveSibling("${path.fileName}.tmp")
-        withContext(Dispatchers.IO) { Files.newBufferedWriter(temporary) }.use { writer ->
+        blocking { Files.newBufferedWriter(temporary) }.use { writer ->
             read { key ->
                 if (key.name != name || keep(key)) {
                     writer.write(WowJson.mapper.writeValueAsString(key))
@@ -149,7 +147,7 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
                 }
             }
         }
-        withContext(Dispatchers.IO) {
+        blocking {
             Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         }
     }
@@ -158,15 +156,15 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
         if (!Files.exists(path)) {
             return
         }
-        val cut = withContext(Dispatchers.IO) {
+        val cut = blocking {
             FileChannel.open(path, StandardOpenOption.READ).use { wholeLength(it) < it.size() }
         }
-        withContext(Dispatchers.IO) { Files.newBufferedReader(path) }.use { reader ->
-            var line = withContext(Dispatchers.IO) { reader.readLine() }
+        blocking { Files.newBufferedReader(path) }.use { reader ->
+            var line = blocking { reader.readLine() }
             var number = 0
             while (line != null) {
                 number++
-                val next = withContext(Dispatchers.IO) { reader.readLine() }
+                val next = blocking { reader.readLine() }
                 if (next == null && cut) {
                     return
                 }

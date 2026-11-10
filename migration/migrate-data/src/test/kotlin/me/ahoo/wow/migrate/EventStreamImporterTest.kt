@@ -723,7 +723,7 @@ class EventStreamImporterTest {
             source,
             options
         ).importAll(order).also { (it.imported + it.skipped).assert().isGreaterThanOrEqualTo(2) }
-        checkpoints.load().of(order)!!.ranges!!.map { it.range }.assert().isEqualTo(stopped.ranges!!.map { it.range })
+        checkpoints.load().of(order)!!.ranges!!.map { it.range }.assert().isEqualTo(stopped.ranges.map { it.range })
         (10..15).forEach { n ->
             log.read(NineXExample.orderModel.type.ref("(0)", "order-$n")).toList().size.assert().isEqualTo(1)
         }

@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
 /**
  * A migration's checkpoints as the target keeps them ([CheckpointTable]): the [checkpoints], the [version] each write
  * moves on by one, and the [fences] of the runs that wrote them, the latest epoch of each role
@@ -129,7 +126,7 @@ internal class TargetImportedKeys(
         if (keys.isEmpty()) {
             return
         }
-        withContext(Dispatchers.IO) {
+        blocking {
             lock.ensureHeld()
             table.addKeys(checkpoint, keys, fence::admit)
         }
@@ -143,7 +140,7 @@ internal class TargetImportedKeys(
         pages(name) { page ->
             val forgotten = page.filterNot { keep(it.key) }.map { it.position }
             if (forgotten.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
+                blocking {
                     lock.ensureHeld()
                     table.removeKeys(checkpoint, forgotten, fence::admit)
                 }
@@ -154,7 +151,7 @@ internal class TargetImportedKeys(
     private suspend fun pages(prepareKey: String, action: suspend (List<RecordedKey>) -> Unit) {
         var after: String? = null
         do {
-            val page = withContext(Dispatchers.IO) { table.keys(checkpoint, prepareKey, after, pageSize) }
+            val page = blocking { table.keys(checkpoint, prepareKey, after, pageSize) }
             action(page)
             after = page.lastOrNull()?.position
         } while (page.size == pageSize)

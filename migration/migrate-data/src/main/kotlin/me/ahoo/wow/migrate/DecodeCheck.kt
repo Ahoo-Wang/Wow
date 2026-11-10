@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.spi.log.EventRecord
@@ -103,7 +101,7 @@ internal class DecodeCheck(
         val permits = Semaphore(options.concurrency)
         var after: NineXAggregateId? = null
         while (true) {
-            val page = withContext(Dispatchers.IO) {
+            val page = blocking {
                 source.instances(aggregate, after, options.pageSize, options.pageStreams)
             }
             if (page.isEmpty()) {
@@ -148,7 +146,7 @@ internal class DecodeCheck(
         var next = fromVersion
         while (true) {
             val batch = try {
-                withContext(Dispatchers.IO) { source.streams(aggregate, id, next, options.streamBatch) }
+                blocking { source.streams(aggregate, id, next, options.streamBatch) }
             } catch (unreadable: MigrationException) {
                 // A stream the store holds without a field the import needs: the instance's later ones are not read.
                 stats.unconverted.incrementAndGet()

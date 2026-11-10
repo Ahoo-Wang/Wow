@@ -80,7 +80,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                 }.toMap(),
                 streamsWithoutCommand = ofAggregate.filter { it.first.getString("command").isNullOrBlank() }
                     .sumOf { it.second },
-                streamEventTypes = shapes[aggregate].orEmpty(),
+                streamEventTypes = shapes.getValue(aggregate),
                 refusedIds = refused[aggregate].orEmpty(),
                 tenantless = tenantless[aggregate].orEmpty(),
             )
@@ -112,7 +112,6 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                 ),
             ),
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-            .filter { (id, _) -> RefusedIds.reasonOf(id.getString("id")) != null }
             .groupBy({ it.first.aggregate() }) { (id, count) ->
                 NineXAggregateId(id.getString("id"), id.getString("tenant").orEmpty()) to count
             }
