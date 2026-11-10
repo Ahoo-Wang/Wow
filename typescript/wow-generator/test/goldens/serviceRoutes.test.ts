@@ -12,7 +12,7 @@
  */
 
 import { afterAll, describe, expect, it } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import {
   BUNDLER_OPTIONS,
@@ -25,7 +25,8 @@ import {
 /**
  * A context's service routes generate `routes.ts`, one typed method per
  * route, listed in the context's routing Manifest and reached from its
- * client; a collection body or answer is an array of its class.
+ * client; a collection body or answer is an array of its class, and the
+ * answer of a route that may answer 204 for an absent one may be `undefined`.
  */
 const directories: string[] = [];
 afterAll(() => removeDirectories(directories));
@@ -46,6 +47,9 @@ describe('the service routes of a Manifest', () => {
     expect(routes).toContain(
       'replaceNotes(body: Note[], options?: RequestOptions): Promise<Note[]>',
     );
+    expect(routes).toContain(
+      'note(text: string, options?: RequestOptions): Promise<Note | undefined>',
+    );
     expect(routes).toContain('ping(options?: RequestOptions): Promise<void>');
     expect(routes).toContain('@deprecated');
     expect(
@@ -56,6 +60,19 @@ describe('the service routes of a Manifest', () => {
     expect(
       readFileSync(path.join(output, 'shop', 'client.ts'), 'utf8'),
     ).toContain('readonly routes: ShopRoutes;');
+    writeFileSync(
+      path.join(output, 'consumer.ts'),
+      `import type { Note, ShopRoutes, Summary } from './shop/index.js';
+export async function read(routes: ShopRoutes): Promise<void> {
+  const summary: Summary = await routes.summary('mon', { limit: 1 });
+  const found: Note | undefined = await routes.note('a');
+  // @ts-expect-error The answer of a route that may answer 204 may be absent.
+  const note: Note = await routes.note('a');
+  const nothing: void = await routes.ping();
+  void [summary, found, note, nothing];
+}
+`,
+    );
     expect(typeCheck(output, BUNDLER_OPTIONS)).toEqual([]);
     const sent = runGenerated(
       output,
@@ -64,15 +81,23 @@ const shop = await import('./shop/index.js');
 const routes = new shop.ShopClient({ fetcher }).routes;
 await routes.summary('mon', { limit: 3 }, { headers: { 'X-Test': '1' } });
 await routes.replaceNotes([{ text: 'a' }]);
-console.log(JSON.stringify(requests.map(({ method, url, body }) => ({ method, url, body }))));`,
+globalThis.fetch = async (url, init) => {
+  requests.push({ url: String(url), method: init?.method, body: init?.body ?? null });
+  return new Response(null, { status: 204 });
+};
+const absent = await routes.note('none');
+console.log(JSON.stringify({ absent: absent === undefined, requests: requests.map(({ method, url, body }) => ({ method, url, body })) }));`,
     );
-    expect(JSON.parse(sent)).toEqual([
+    const { absent, requests } = JSON.parse(sent);
+    expect(absent).toBe(true);
+    expect(requests).toEqual([
       {
         method: 'GET',
         url: 'http://shop/shop/summaries/mon?limit=3',
         body: null,
       },
       { method: 'PUT', url: 'http://shop/shop/notes', body: '[{"text":"a"}]' },
+      { method: 'GET', url: 'http://shop/shop/notes/none', body: null },
     ]);
   }, 60000);
 });

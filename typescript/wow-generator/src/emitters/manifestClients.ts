@@ -21,9 +21,9 @@ import type {
   ContextModel,
   ManifestModel,
   Route,
-  ServiceRouteModel,
   TypeModel,
 } from '../manifest/analyze';
+import type { ServiceRouteModel } from '../manifest/serviceRoutes';
 import {
   emitTextNumbers,
   routeNumbersOption,
@@ -301,8 +301,8 @@ function emitRouting(context: ContextModel, modules: ModuleSet): void {
  * A context's service routes as one class, a method per route named as the
  * Manifest names it: its path variables in order, then its body, then an
  * object of its query parameters (required when one of them is), then the
- * request's options; it answers the route's answer, or nothing for a route
- * that answers 204.
+ * request's options; it answers the route's answer (`| undefined` when it
+ * may answer 204 for it), or nothing for a route that answers 204 alone.
  */
 function emitServiceRoutes(
   context: ContextModel,

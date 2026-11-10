@@ -30,13 +30,8 @@ import {
   schemaKey,
   typesOf,
 } from './document';
-import {
-  aggregateTypeName,
-  contextTypeName,
-  generatedNames,
-  routeMethodParameters,
-  routeParameterIdentifier,
-} from './names';
+import { aggregateTypeName, contextTypeName, generatedNames } from './names';
+import { type ServiceRouteModel, serviceRouteModel } from './serviceRoutes';
 import {
   TEXT_NUMBER_FORMATS,
   TextNumbers,
@@ -236,36 +231,6 @@ export interface ContextModel {
   readonly routes: readonly ServiceRouteModel[];
   /** The marks of the recursive types declared in it, its `textNumbers.ts`. */
   readonly textNumbers: readonly TextNumbersDeclaration[];
-}
-
-/** A parameter of a service route: a path variable or a query parameter, and its TypeScript type. */
-export interface RouteParameterModel {
-  /** As the route names it: its path variable or its query parameter. */
-  readonly name: string;
-  /** Its name in the method ({@link routeParameterIdentifier}). */
-  readonly identifier: string;
-  readonly location: 'path' | 'query';
-  readonly type: string;
-  readonly required: boolean;
-}
-
-/** A service route: its name, where it is served, its parameters and the types of its body and its answer. */
-export interface ServiceRouteModel {
-  readonly name: string;
-  readonly method: string;
-  readonly path: string;
-  readonly description?: string;
-  readonly deprecated: boolean;
-  readonly parameters: readonly RouteParameterModel[];
-  /** The body's type; absent when the route takes none. */
-  readonly requestType?: string;
-  /** The answer's type; absent when the route answers `204 No Content`. */
-  readonly responseType?: string;
-  /** The exact numbers of its body and of its answer. */
-  readonly textNumbers?: {
-    readonly request?: TextNumbersModel;
-    readonly response?: TextNumbersModel;
-  };
 }
 
 /** What a Manifest generates, decided before anything is written. */
@@ -772,48 +737,9 @@ function contextModel(
     aggregates: (context.aggregates ?? []).map(aggregate =>
       aggregateModel(types, numbers, context, aggregate),
     ),
-    routes: (context.routes ?? []).map(route => {
-      const where = `${context.name} route ${route.name}`;
-      const used = routeMethodParameters();
-      return {
-        name: route.name,
-        method: route.route.method,
-        path: route.route.path,
-        ...(route.description ? { description: route.description } : {}),
-        deprecated: route.deprecated === true,
-        parameters: (route.parameters ?? []).map(parameter => ({
-          name: parameter.name,
-          identifier: routeParameterIdentifier(parameter, used),
-          location: parameter.in === 'path' ? 'path' : 'query',
-          type: types.type(parameter.schema, `${where} ${parameter.name}`),
-          required: parameter.required,
-        })),
-        ...(route.request === undefined
-          ? {}
-          : { requestType: types.type(route.request, `${where} body`) }),
-        ...(route.response === undefined
-          ? {}
-          : { responseType: types.type(route.response, `${where} answer`) }),
-        ...routeNumbers(
-          numbers.marks(route.request, `${where} body`),
-          numbers.marks(route.response, `${where} answer`),
-        ),
-      };
-    }),
-  };
-}
-
-/** The `textNumbers` member of a route's model, when its body or its answer has exact numbers. */
-function routeNumbers(
-  request: TextNumbersModel | undefined,
-  response: TextNumbersModel | undefined,
-): Pick<ServiceRouteModel, 'textNumbers'> {
-  if (request === undefined && response === undefined) return {};
-  return {
-    textNumbers: {
-      ...(request === undefined ? {} : { request }),
-      ...(response === undefined ? {} : { response }),
-    },
+    routes: (context.routes ?? []).map(route =>
+      serviceRouteModel(types, numbers, context, route),
+    ),
   };
 }
 
