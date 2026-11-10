@@ -13,13 +13,17 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.TimerRunner
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.TestTimeSource
@@ -66,6 +70,47 @@ class PartitionRunsTest {
             coVerify { runtime.stopPartition(0) }
             changed.assert().containsExactly(0)
             gates.assert().isEmpty()
+        }
+
+    @Test
+    fun `a start cancelled from within is stopped, released and forgotten, then the cancellation goes on up`(): Unit =
+        runBlocking {
+            // #5879: the cancellation was rethrown before the failed start's way out, and its gate stayed, never open.
+            coEvery { runtime.startPartition(0, any()) } throws CancellationException("The runtime's scope is gone.")
+            assertThrows<CancellationException> { runs.acquire(0, null) }
+            gates.assert().isEmpty()
+            leases.owners(GROUP.name).assert().isEmpty()
+            coVerify { runtime.stopPartition(0) }
+        }
+
+    @Test
+    fun `a start failing at a timer runner stops the intake and the runners that had started`(): Unit =
+        runBlocking {
+            val first = mockk<TimerRunner>(relaxed = true)
+            val second = mockk<TimerRunner>(relaxed = true)
+            coEvery { second.startPartition(0) } throws IllegalStateException("The timer store is gone.")
+            val timed = PartitionRuns(
+                GROUP,
+                NODE,
+                leases,
+                options,
+                time,
+                options.leaseTtl - options.renewInterval,
+                gates,
+                listOf(runtime),
+                intake,
+                listOf(first, second),
+            ) { changed += it }
+            timed.acquire(0, null)
+            coVerify { intake.startPartition(0, any()) }
+            coVerify { first.startPartition(0) }
+            // Nothing of the partition runs once its lease is released: not the intake, nor the runner that started.
+            coVerify { first.stopPartition(0) }
+            coVerify { second.stopPartition(0) }
+            coVerify { intake.stopPartition(0) }
+            coVerify { runtime.stopPartition(0) }
+            gates.assert().isEmpty()
+            leases.owners(GROUP.name).assert().isEmpty()
         }
 
     private companion object {
