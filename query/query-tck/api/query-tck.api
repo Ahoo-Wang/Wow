@@ -242,68 +242,10 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query
 	public static final field OTHER_TENANT Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
-	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
-	public final fun a histogram and an expression group put the records without a value in the null group ()V
-	public final fun a list, a page and a cursor break ties by tenant before aggregate id ()V
-	public final fun a numeric expression over integer fields divides without truncating ()V
 	public final fun a query within its timeout runs as without one ()V
-	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
-	public final fun a stream sees a record written after its position, between two chunks ()V
-	public final fun a string array sorts by its least value ascending, or refuses the sort where storage cannot ()V
-	public final fun aggregation FIRST and LAST pick among the records that hold a value ()V
-	public final fun aggregation HAVING keeps the matching groups ()V
-	public final fun aggregation HAVING that matches no group returns no row ()V
-	public final fun aggregation counts distinct values ()V
-	public final fun aggregation expands elements and sums each element group ()V
-	public final fun aggregation groups a string array by each of its values, or refuses it where storage cannot ()V
-	public final fun aggregation groups an epoch field by day ()V
-	public final fun aggregation groups by terms in group order ()V
-	public final fun aggregation groups numbers by value, whatever their JSON form ()V
-	public final fun aggregation groups the elements by a field of their root record ()V
-	public final fun aggregation metric filters count a subset of each group ()V
-	public final fun aggregation returns one empty summary row ()V
-	public final fun aggregation sorts groups by a metric and takes the top N ()V
-	public final fun aggregation summarizes every record with count, sum, avg, min and max ()V
-	public final fun aggregation without a sort refuses more groups than its limit, and returns every group within it ()V
-	public final fun an array holding a null sorts first ascending, or the sort is refused where storage cannot ()V
 	public final fun an expired timeout fails every primitive with the timeout error ()V
-	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
-	public final fun count is exact below its limit and bounded above it ()V
-	protected final fun createdAtBuckets (Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun cursor over decimals walks each record once, a value no double holds included ()V
-	public final fun cursor returns an empty terminal page ()V
-	public final fun cursor supports descending multi field sort ()V
-	public final fun cursor token issued for another sort is the invalid cursor ()V
-	public final fun cursor traverses tied records once each in sort order ()V
-	public final fun element match selects records with one element matching every predicate ()V
-	public final fun filter semantics cover every field operator ()V
-	public final fun filter semantics matrix ()Ljava/util/List;
-	protected fun getSemanticDivergences ()Ljava/util/Set;
-	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
-	protected final fun given (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	protected final fun indexPlan ([Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun list sorts by several fields in either direction and honors the limit ()V
-	public final fun list without a limit streams every record ()V
-	public final fun logical filters combine AND, OR and NOR ()V
-	public final fun operator system fields filter, sort and read back ()V
-	protected final fun orders ()Ljava/util/List;
-	public final fun paged bounded total stops at its limit and says it is not exact ()V
-	public final fun paged returns its window with the exact total ()V
-	public final fun paged without a total counts nothing ()V
-	public final fun projection keeps an element's position when it lacks the projected leaf ()V
-	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
-	public final fun projection preserves scalar and object subtree semantics ()V
-	public final fun records tied on a sort follow its last direction, in a list, a page and a cursor ()V
-	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
-	public final fun single exposes the snapshot record shape ()V
-	public final fun single returns the first record in sort order, or none ()V
-	protected final fun snapshot (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
-	public static synthetic fun snapshot$default (Lme/ahoo/wow/query/tck/QueryBackendSpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
-	protected abstract fun store (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun system field filters select by id, tenant, owner, space and deletion ()V
 	public final fun the gateway admits snapshot queries with the active default scope ()V
 	public final fun the gateway bounds counts and totals by the entry's budget ()V
-	public final fun the schedules system field filters by a rule's parts and reads back ()V
 }
 
 public final class me/ahoo/wow/query/tck/QueryBackendSpec$Companion {
@@ -311,14 +253,6 @@ public final class me/ahoo/wow/query/tck/QueryBackendSpec$Companion {
 	public final fun getPROBE_FIELDS ()Ljava/util/Map;
 	public final fun getT0 ()J
 	public final fun probeId (Lme/ahoo/wow/query/tck/SemanticProbe;)Ljava/lang/String;
-}
-
-protected final class me/ahoo/wow/query/tck/QueryBackendSpec$Fixture {
-	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
-	public final fun ids (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun ids$default (Lme/ahoo/wow/query/tck/QueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/query/tck/QueryCapabilitiesKt {
@@ -368,7 +302,28 @@ public final class me/ahoo/wow/query/tck/SemanticShape : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/query/tck/SemanticShape;
 }
 
-public abstract class me/ahoo/wow/query/tck/SnapshotDateBucketCases {
+public abstract class me/ahoo/wow/query/tck/SnapshotAggregationCases : me/ahoo/wow/query/tck/SnapshotKeysetCases {
+	public final fun a histogram and an expression group put the records without a value in the null group ()V
+	public final fun a string array sorts by its least value ascending, or refuses the sort where storage cannot ()V
+	public final fun aggregation FIRST and LAST pick among the records that hold a value ()V
+	public final fun aggregation HAVING keeps the matching groups ()V
+	public final fun aggregation HAVING that matches no group returns no row ()V
+	public final fun aggregation counts distinct values ()V
+	public final fun aggregation expands elements and sums each element group ()V
+	public final fun aggregation groups a string array by each of its values, or refuses it where storage cannot ()V
+	public final fun aggregation groups an epoch field by day ()V
+	public final fun aggregation groups by terms in group order ()V
+	public final fun aggregation groups numbers by value, whatever their JSON form ()V
+	public final fun aggregation groups the elements by a field of their root record ()V
+	public final fun aggregation metric filters count a subset of each group ()V
+	public final fun aggregation returns one empty summary row ()V
+	public final fun aggregation sorts groups by a metric and takes the top N ()V
+	public final fun aggregation summarizes every record with count, sum, avg, min and max ()V
+	public final fun aggregation without a sort refuses more groups than its limit, and returns every group within it ()V
+	public final fun an array holding a null sorts first ascending, or the sort is refused where storage cannot ()V
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotDateBucketCases : me/ahoo/wow/query/tck/SnapshotAggregationCases {
 	public static final field Companion Lme/ahoo/wow/query/tck/SnapshotDateBucketCases$Companion;
 	public static final field GAP_MID_UNIT Ljava/lang/String;
 	public static final field GAP_START Ljava/lang/String;
@@ -378,11 +333,69 @@ public abstract class me/ahoo/wow/query/tck/SnapshotDateBucketCases {
 	public final fun an hour whose local start a change skipped begins at the transition ()V
 	public final fun an hourly bucket in a half-hour zone starts at its local hour ()V
 	public final fun an hourly bucket in a region starts where its local hour does, a repeated hour twice ()V
-	protected abstract fun createdAtBuckets (Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun createdAtBuckets$default (Lme/ahoo/wow/query/tck/SnapshotDateBucketCases;Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	protected abstract fun getSemanticDivergences ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/query/tck/SnapshotDateBucketCases$Companion {
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotFilterCases : me/ahoo/wow/query/tck/SnapshotQueryFixtures {
+	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
+	public final fun a numeric expression over integer fields divides without truncating ()V
+	public final fun element match selects records with one element matching every predicate ()V
+	public final fun filter semantics cover every field operator ()V
+	public final fun filter semantics matrix ()Ljava/util/List;
+	public final fun logical filters combine AND, OR and NOR ()V
+	public final fun operator system fields filter, sort and read back ()V
+	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
+	public final fun system field filters select by id, tenant, owner, space and deletion ()V
+	public final fun the schedules system field filters by a rule's parts and reads back ()V
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotKeysetCases : me/ahoo/wow/query/tck/SnapshotRecordCases {
+	public final fun a list, a page and a cursor break ties by tenant before aggregate id ()V
+	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
+	public final fun a stream sees a record written after its position, between two chunks ()V
+	public final fun cursor over decimals walks each record once, a value no double holds included ()V
+	public final fun cursor returns an empty terminal page ()V
+	public final fun cursor supports descending multi field sort ()V
+	public final fun cursor token issued for another sort is the invalid cursor ()V
+	public final fun cursor traverses tied records once each in sort order ()V
+	public final fun records tied on a sort follow its last direction, in a list, a page and a cursor ()V
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotQueryFixtures {
+	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
+	protected final fun blocking (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	protected fun getSemanticDivergences ()Ljava/util/Set;
+	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	protected final fun given (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun indexPlan ([Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun numeric (Lme/ahoo/wow/api/query/AggregationFunction;Ljava/lang/String;)Lme/ahoo/wow/api/query/AggregationMetric$Numeric;
+	protected final fun orders ()Ljava/util/List;
+	protected final fun snapshot (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public static synthetic fun snapshot$default (Lme/ahoo/wow/query/tck/SnapshotQueryFixtures;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	protected abstract fun store (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+protected final class me/ahoo/wow/query/tck/SnapshotQueryFixtures$Fixture {
+	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
+	public final fun ids (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun ids$default (Lme/ahoo/wow/query/tck/SnapshotQueryFixtures$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotRecordCases : me/ahoo/wow/query/tck/SnapshotFilterCases {
+	public final fun count is exact below its limit and bounded above it ()V
+	public final fun list sorts by several fields in either direction and honors the limit ()V
+	public final fun list without a limit streams every record ()V
+	public final fun paged bounded total stops at its limit and says it is not exact ()V
+	public final fun paged returns its window with the exact total ()V
+	public final fun paged without a total counts nothing ()V
+	public final fun projection keeps an element's position when it lacks the projected leaf ()V
+	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
+	public final fun projection preserves scalar and object subtree semantics ()V
+	public final fun single exposes the snapshot record shape ()V
+	public final fun single returns the first record in sort order, or none ()V
 }
 

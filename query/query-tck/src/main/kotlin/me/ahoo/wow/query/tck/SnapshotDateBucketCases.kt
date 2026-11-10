@@ -13,35 +13,59 @@
 
 package me.ahoo.wow.query.tck
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.schema.QueryCapability
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 /**
  * The cases of the snapshot contract ([QueryBackendSpec], which extends this class and is the one a backend's test
  * extends) on date buckets across a zone's offset changes. They hold the bucket rule (`DateBuckets`) at daylight
  * saving's transitions, in a half-hour zone, at a half-hour change (Australia/Lord_Howe) and where a change skipped a
- * unit's local start (Africa/Monrovia's 1972 change). They read through the spec ([createdAtBuckets]).
+ * unit's local start (Africa/Monrovia's 1972 change). They read through [createdAtBuckets], over
+ * [SnapshotQueryFixtures]' fixtures and hooks; see there for the chain of families this class is part of.
  */
-abstract class SnapshotDateBucketCases internal constructor() {
-    /** The case ids this backend is known to diverge on: [QueryBackendSpec.semanticDivergences]. */
-    protected abstract val semanticDivergences: Set<String>
-
+abstract class SnapshotDateBucketCases internal constructor() : SnapshotAggregationCases() {
     /**
      * The buckets of [unit] in [zone], filled when [dense], of snapshots whose `state.createdAt` is each instant of
      * [createdAt]: each bucket's start, ISO-8601, with its count, in key order. A storage that cannot group by time
      * skips the case.
      */
-    protected abstract suspend fun createdAtBuckets(
+    private suspend fun createdAtBuckets(
         createdAt: List<String>,
         unit: AggregationDateUnit,
         zone: String,
         dense: Boolean = false,
-    ): List<Pair<String, Long>>
-
-    private fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
+    ): List<Pair<String, Long>> {
+        val fixture = given(
+            createdAt.mapIndexed { index, at ->
+                snapshot("z$index", """{"createdAt":${java.time.Instant.parse(at).toEpochMilli()}}""")
+            },
+        )
+        assumeBound(
+            fixture.schema.field(QueryField("state.createdAt"))?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val bucket = AggregationGroup.DateHistogram(QueryField("state.createdAt"), "bucket", unit, zone, dense = dense)
+        return fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(bucket),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("bucket"), Sort.Direction.ASC)),
+            ),
+        ).map { java.time.Instant.ofEpochMilli(it.path("bucket").longValue()).toString() to it.path("count").longValue() }
+    }
 
     @Test
     fun `an hourly bucket in a region starts where its local hour does, a repeated hour twice`() = blocking {
