@@ -18,16 +18,21 @@ import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
+import com.mongodb.client.model.Sorts
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.BRANCH
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CONTEXT
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_TO
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.PARTITION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.finalRun
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.positionId
 import me.ahoo.wow.spi.log.LogEntry
 import org.bson.Document
+import org.bson.conversions.Bson
 
 /**
  * The reads of a partition's tail ([MongoEventLog.tail]), a window of [tailBatch] sequences at a time across the
@@ -39,6 +44,9 @@ internal class MongoTailReads(
     private val sequencer: MongoSequencer,
     private val documents: MongoLogDocuments,
     private val tailBatch: Int,
+    /** The registry as a majority has committed it, which [headOf] reads with the collections' heads. */
+    private val committedRegistry: MongoCollection<Document>,
+    private val context: String,
 ) {
     /**
      * One read of the tail after [last]: the counter of [partition], then each aggregate collection's entries and
@@ -123,6 +131,53 @@ internal class MongoTailReads(
         // The counter, then whatever lies past the window.
         return committedCounters.aggregate(pipeline).count() > 1
     }
+
+    tailrec fun headOf(partition: Int): Long? {
+        val known = collections.known()
+        val names = known.mapTo(HashSet()) { it.name }
+        var head: Long? = null
+        var unknown = false
+        for (document in committedRegistry.aggregate(headPipeline(partition, known))) {
+            val sequence = document.getLong(SEQUENCE)
+            when {
+                sequence != null -> head = maxOf(head ?: sequence, sequence)
+                document.getString(ID) !in names -> unknown = true
+            }
+        }
+        if (!unknown) {
+            return head
+        }
+        val found = collections.register().mapTo(HashSet()) { it.name } - names
+        if (found.isEmpty()) {
+            return head
+        }
+        logger.info { "The log of $context found the collections $found, registered by another node; it reads them now." }
+        return headOf(partition)
+    }
+
+    /**
+     * The context's registry entries, then each of [known]'s highest stream in [partition], in one aggregation over
+     * the registry: an entry this log does not know is a collection registered since it last read the registry.
+     */
+    private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
+        val highest = listOf(
+            Aggregates.match(
+                Filters.and(
+                    Filters.eq(PARTITION, partition),
+                    Filters.gte(ID, positionId(partition, 0)),
+                    Filters.lt(ID, positionId(partition + 1, 0)),
+                    Filters.exists(VERSION),
+                ),
+            ),
+            Aggregates.sort(Sorts.descending(ID)),
+            Aggregates.limit(1),
+            Aggregates.project(Projections.include(SEQUENCE)),
+        )
+        return listOf(
+            Aggregates.match(Filters.eq(CONTEXT, context)),
+            Aggregates.project(Projections.include(ID)),
+        ) + known.map { Aggregates.unionWith(it.name, highest) }
+    }
 }
 
 /**
@@ -130,3 +185,6 @@ internal class MongoTailReads(
  * missing sequence with something past it, and whether to read again at once.
  */
 internal class TailBatch(val entries: List<LogEntry>, val through: Long, val missing: Long?, val again: Boolean)
+
+// The log's category, which the head's line on a collection another node registered keeps.
+private val logger = KotlinLogging.logger(MongoEventLog::class.java.name)

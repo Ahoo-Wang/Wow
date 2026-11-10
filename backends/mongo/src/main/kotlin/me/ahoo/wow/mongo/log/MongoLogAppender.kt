@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_CLOSED
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_FAILED
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_NODE
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_SEALED
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_TO
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_UNKNOWN
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ID
@@ -40,7 +41,6 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REQUEST_KEY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.positionId
-import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -484,6 +484,23 @@ internal class MongoLogAppender(
             if (!failure.isDuplicateKey()) throw failure
         }
         sequencer.settle(closing)
+    }
+
+    /**
+     * Seals [block], another node's, from [from]: a placeholder at each of its sequences left in each collection it may
+     * write, so a write of that node still to come meets a taken position; then takes it out of the counter's list.
+     */
+    fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
+        val placeholders = (from..block.to).map { placeholder(partition, it, GAP_SEALED) }
+        block.collections.forEach { name ->
+            try {
+                collections.named(name).appends
+                    .insertMany(placeholders.map(::Document), InsertManyOptions().ordered(false))
+            } catch (failure: MongoBulkWriteException) {
+                if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
+            }
+        }
+        sequencer.remove(partition, block)
     }
 
     fun placeholder(partition: Int, sequence: Long, reason: String): Document =
