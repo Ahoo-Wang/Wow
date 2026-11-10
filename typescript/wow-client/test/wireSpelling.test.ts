@@ -79,6 +79,8 @@ describe('the wire spelling of the types', () => {
     const dsl = [
       'deletionState.ts',
       'descriptor.ts',
+      'fieldDescriptor.ts',
+      'semanticTypes.ts',
       'sort.ts',
       'queryErrorCodes.ts',
       'aggregation/types.ts',
