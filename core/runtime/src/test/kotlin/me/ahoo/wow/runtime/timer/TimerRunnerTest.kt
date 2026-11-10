@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.timer
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -64,10 +65,19 @@ class TimerRunnerTest {
 
     /** The due time each send carried for its slot, as its target reads it. */
     private val sentDue = CopyOnWriteArrayList<Long>()
+
+    /** A send of a timer of that key waits for its gate before it answers. */
+    private val gates = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
+
+    /** A send of a timer of that key takes that long on the clock before it answers. */
+    private val takes = ConcurrentHashMap<String, Duration>()
+
     private val firer = TimerFirer { timer ->
         fired += timer.id
         sentDue += timer.context.due
         firedAt += System.nanoTime()
+        takes[timer.key]?.let(clock::advance)
+        gates[timer.key]?.await()
         when (val answer = answers[timer.key] ?: TimerOutcomes.COMMITTED) {
             is Throwable -> throw answer
             else -> answer as String
@@ -89,9 +99,11 @@ class TimerRunnerTest {
         pollInterval: Duration = 5.milliseconds,
         maxBusyRetries: Int = 20,
         fatals: NodeFatals = NodeFatals.NONE,
+        parallelism: Int = TimerOptions().parallelism,
     ): TimerLoop = TimerLoop(
         TimerOptions(
             pollInterval = pollInterval,
+            parallelism = parallelism,
             lookahead = 1.seconds,
             retry = RetryPolicy(maxAttempts = maxAttempts, initialBackoff = 1.seconds, maxBackoff = 1.minutes),
             expiresAfter = expiresAfter,
@@ -477,6 +489,51 @@ class TimerRunnerTest {
         spanMillis.assert().isGreaterThanOrEqualTo(((BACKLOG - 1) * 1_000 / RATE).toLong() - TOLERANCE)
         eventually { backlog.all { status(it.key).status == TimerStatus.FIRED } }
     }
+
+    @Test
+    fun `a slow send keeps the partition's timers in its wheel, and they start at the rate once it ends`(): Unit =
+        runBlocking {
+            val gate = CompletableDeferred<Unit>().also { gates["due-1"] = it }
+            (1..BACKLOG).forEach { store.put(timer("due-$it")) }
+            val runner = runner(loop = loop(maxFireRate = RATE, parallelism = 1))
+            runner.startPartition(0)
+            eventually { fired.size == 1 }
+            // Longer than the rate's allowance for every other timer: none of them leaves the wheel meanwhile.
+            delay(((BACKLOG * 1_000) / RATE).toLong())
+            fired.size.assert().isEqualTo(1)
+            runner.loaded(0).assert().isEqualTo(BACKLOG - 1)
+            gate.complete(Unit)
+            eventually { fired.size == BACKLOG }
+            // Each send after the slow one starts at the rate, not at once.
+            firedAt.drop(1).zipWithNext { earlier, later -> (later - earlier) / 1_000_000 }
+                .assert().allMatch { it >= (1_000 / RATE).toLong() - TOLERANCE }
+        }
+
+    @Test
+    fun `a failed send is due again its backoff after it failed, however long it took`(): Unit = runBlocking {
+        answers["pay"] = IllegalStateException("down")
+        takes["pay"] = 5.seconds
+        val started = clock.millis()
+        store.put(timer("pay"))
+        runner().startPartition(0)
+        eventually { status("pay").attempts == 1 }
+        status("pay").dueAt.assert().isEqualTo(started + 5_000 + 1_000)
+        delay(50)
+        fired.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a busy target's refusal of a slow send is sent again the first backoff after the refusal`(): Unit =
+        runBlocking {
+            answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
+            takes["pay"] = 5.seconds
+            val started = clock.millis()
+            store.put(timer("pay"))
+            runner().startPartition(0)
+            eventually { fired.size == 1 && status("pay").status == TimerStatus.PENDING }
+            status("pay").dueAt.assert().isEqualTo(started + 5_000 + 1_000)
+            status("pay").attempts.assert().isEqualTo(0)
+        }
 
     @Test
     fun `a rate is positive`() {

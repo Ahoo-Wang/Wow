@@ -23,7 +23,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
@@ -165,19 +164,35 @@ class TimerRunner(
     /**
      * Sends what is due by [now] (the clock's epoch milliseconds) in each partition, as fast as the partitions'
      * parallelism and rate allow; returns how long until the next loaded timer is due or may be sent, infinite when none
-     * is loaded. The rate is measured on the monotonic clock, so a clock set back or forth does not burst nor stall it.
+     * is loaded or every permit is taken (a send that ends wakes the loop). The rate is measured on the monotonic clock,
+     * so a clock set back or forth does not burst nor stall it.
+     *
+     * A timer leaves the wheel only to be sent at once: it takes a permit and its rate allowance together, so the rate
+     * paces the sends as they start. None waits for a permit holding an allowance, to start in a burst once a slow send
+     * ends.
      */
     internal fun dispatch(now: Long): Duration = parts.values.minOfOrNull { part ->
         synchronized(part) {
-            while (part.wheel.isNotEmpty() && part.wheel.first().dueAt <= now && part.mayFire()) {
-                val timer = part.wheel.pollFirst()!!
+            while (true) {
+                val timer = part.take(now) ?: break
                 if (!part.sending.add(timer.id)) {
+                    part.permits.release()
                     continue
                 }
                 part.fired()
-                part.scope.launch { part.permits.withPermit { fire(part, timer) } }
+                part.scope.launch {
+                    try {
+                        fire(part, timer)
+                    } finally {
+                        part.permits.release()
+                        loop.wakeUp()
+                    }
+                }
             }
             val first = part.wheel.firstOrNull() ?: return@synchronized Duration.INFINITE
+            if (part.permits.availablePermits == 0) {
+                return@synchronized Duration.INFINITE
+            }
             maxOf((first.dueAt - now).milliseconds, part.untilNextFire())
         }
     } ?: Duration.INFINITE
@@ -280,7 +295,8 @@ class TimerRunner(
             // Only this runner's own cancellation stops the attempt: a cancellation the sending threw itself, or an
             // Error such as a missing class or a stack overflow, is a failed attempt, retried and then parked.
             currentCoroutineContext().ensureActive()
-            failed(part, claimed, failure, now)
+            // Its backoff runs from the failure, not from the send's start: a slow failure is not sent again at once.
+            failed(part, claimed, failure, loop.clock.millis())
             return
         }
         part.busy.remove(claimed.id)
@@ -306,8 +322,8 @@ class TimerRunner(
     }
 
     /**
-     * One more failed attempt of [timer], as claimed: PENDING again, due after the backoff, or parked once its attempts
-     * are spent.
+     * One more failed attempt of [timer], as claimed, failed at [now]: PENDING again, due the backoff after [now], or
+     * parked once its attempts are spent.
      */
     private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
         val reason = "${failure.javaClass.name}: ${failure.message}"
@@ -399,7 +415,17 @@ class TimerRunner(
         /** When the partition may send its next timer, by its rate. */
         private var next: TimeSource.Monotonic.ValueTimeMark = TimeSource.Monotonic.markNow()
 
-        fun mayFire(): Boolean = !next.hasNotPassedNow()
+        /**
+         * The first timer of the wheel, out of it with a permit taken, when it is due by [now] and the rate lets it go
+         * now; null otherwise. Called under the part's monitor.
+         */
+        fun take(now: Long): Timer? {
+            val first = wheel.firstOrNull() ?: return null
+            if (first.dueAt > now || next.hasNotPassedNow() || !permits.tryAcquire()) {
+                return null
+            }
+            return wheel.pollFirst()
+        }
 
         /** One timer sent: the next one may go [interval] after the later of now and the previous allowance. */
         fun fired() {
