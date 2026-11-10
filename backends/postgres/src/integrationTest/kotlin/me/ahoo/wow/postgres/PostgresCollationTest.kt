@@ -24,6 +24,7 @@ import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.reservation.PostgresReservationTables
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
@@ -158,7 +159,9 @@ class PostgresCollationTest {
             "wow_checkpoint",
             "wow_lease",
             "wow_lease_member",
+            "wow_failure_ledger",
             PostgresEventLogTables(context).aggregate("order").base,
+            PostgresSnapshotTables(context, "order").base,
             PostgresReservationTables(context, "order").name,
             PostgresTimerTables(context).aggregate("order").base,
         )
