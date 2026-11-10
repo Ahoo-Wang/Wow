@@ -246,6 +246,71 @@ class QueryPropertiesTest {
         )
     }
 
+    @Test
+    fun `an internal state's query fields should be internal, so a legal internal domain compiles`() {
+        val domain = SourceFile.kotlin(
+            "Counter.kt",
+            """
+            package sample.visibility
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+
+            @CreateAggregate data class Start(val value: String)
+            data class Started(val value: String)
+            internal enum class Status { NEW, ACTIVE }
+            enum class Level { LOW, HIGH }
+
+            @AggregateRoot internal class Counter(private val state: CounterState) {
+                fun onCommand(command: Start): Started = Started(command.value)
+            }
+            internal class CounterState {
+                var status: Status = Status.NEW
+                var history: List<Status> = emptyList()
+                fun onSourcing(event: Started) { status = Status.ACTIVE }
+            }
+
+            @AggregateRoot class Gauge(private val state: GaugeState) {
+                fun onCommand(command: Start): Started = Started(command.value)
+            }
+            class GaugeState {
+                internal var status: Status = Status.NEW
+                var level: Level = Level.LOW
+                fun onSourcing(event: Started) = Unit
+            }
+            """.trimIndent(),
+        )
+        // The module's own code reads them, as it reads its state.
+        val queries = SourceFile.kotlin(
+            "Queries.kt",
+            """
+            package sample.visibility
+
+            import me.ahoo.wow.api.query.dsl.listQuery
+
+            internal val counters = listQuery {
+                filter {
+                    CounterStateProperties.STATE__STATUS eq Status.ACTIVE
+                    GaugeStateProperties.STATE__LEVEL eq Level.HIGH
+                }
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", domain, queries)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        compilation.generated("CounterStateProperties.kt").assert()
+            .contains("internal object CounterStateProperties")
+            .contains("public val STATE__STATUS: me.ahoo.wow.api.query.QueryField<sample.visibility.Status>")
+        // A public state's object stays public: its public fields are of public types, an internal one is no path.
+        compilation.generated("GaugeStateProperties.kt").assert()
+            .contains("public object GaugeStateProperties")
+            .contains("public val STATE__LEVEL: me.ahoo.wow.api.query.QueryField<sample.visibility.Level>")
+            .doesNotContain("STATE__STATUS")
+    }
+
+    private fun com.tschuchort.compiletesting.KotlinCompilation.generated(name: String): String =
+        workingDir.walkTopDown().single { it.name == name }.readText()
+
     /**
      * The generated object's own constants, in declaration order, as name to path; the snapshot's system fields are
      * those of the `SnapshotProperties` it extends.
