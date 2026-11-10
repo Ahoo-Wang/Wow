@@ -32,8 +32,8 @@ internal class ServerSentEvent(val event: String, val data: String, val id: Stri
 }
 
 /**
- * The events of a `text/event-stream` read from [lines], as a browser's `EventSource` dispatches them: an event ends
- * at a blank line; a line `field: value` (one space after the colon dropped) sets `event`, `data` (appended) or
+ * The events of a `text/event-stream` read from [lines], as a browser's `EventSource` dispatches them: one byte order
+ * mark at the start of the stream is dropped, as its UTF-8 decoding drops it; an event ends at a blank line; a line `field: value` (one space after the colon dropped) sets `event`, `data` (appended) or
  * `id` (one holding NUL is ignored), any other field and a line that starts with a colon (a comment) are ignored; an
  * event without data is not dispatched, and neither is one the stream ends in the middle of.
  */
@@ -42,7 +42,10 @@ internal fun Flow<String>.serverSentEvents(): Flow<ServerSentEvent> = flow {
     val data = StringBuilder()
     var hasData = false
     var lastId: String? = null
-    collect { line ->
+    var first = true
+    collect { read ->
+        val line = if (first) read.removePrefix(BYTE_ORDER_MARK) else read
+        first = false
         if (line.isEmpty()) {
             if (hasData) emit(ServerSentEvent(event ?: "message", data.toString(), lastId))
             event = null
@@ -65,6 +68,8 @@ internal fun Flow<String>.serverSentEvents(): Flow<ServerSentEvent> = flow {
         }
     }
 }
+
+private const val BYTE_ORDER_MARK = "\uFEFF"
 
 /**
  * The lines of a response body the JDK client publishes ([java.net.http.HttpResponse.BodyHandlers.ofPublisher]),

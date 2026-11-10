@@ -17,10 +17,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
@@ -183,32 +184,46 @@ class HttpQueryApi internal constructor(
             fun headers(): Map<String, String> = position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()
 
             /**
-             * Emits the rows of one request's [events] to [collector], never past the limit, whatever the peer sends:
-             * null once the stream is complete, else why it stopped. A stream that ended without an end event was cut,
-             * as a dropped one.
+             * Emits the rows of one request's [events] to [collector]: null once the stream is complete, else why it
+             * stopped. It stops reading at the row that reaches the limit, whatever the peer sends after it, and at an
+             * end or error event, so a connection lost after either is no loss. A connection lost before is the
+             * stream's to resume, as is one that ended without an end event; what [collector] throws is its own, and
+             * propagates as it is.
              */
             suspend fun read(events: Flow<String>, collector: FlowCollector<Positioned<R>>): Stop? {
                 var complete = false
                 var stop: Stop? = null
-                try {
-                    events.serverSentEvents().takeWhile { limit == null || emitted < limit }.collect { event ->
+                events.serverSentEvents()
+                    .transformWhile { event ->
                         when (event.event) {
                             ROW -> {
-                                collector.emit(Positioned.of(row(tree(event.data) as ObjectNode), event.id))
-                                event.id?.let { position = it }
-                                emitted++
-                                failures = 0
+                                emit(event)
+                                limit == null || emitted < limit
                             }
-                            END -> tree(event.data).let { end ->
+                            END -> {
+                                val end = tree(event.data)
                                 complete = end[REASON]?.asString() == COMPLETE
                                 if (!complete) stop = ended(end)
+                                false
                             }
-                            ERROR -> stop = failed(event.data)
+                            ERROR -> {
+                                stop = failed(event.data)
+                                false
+                            }
+                            else -> true
                         }
                     }
-                } catch (dropped: IOException) {
-                    return lost("The connection of the stream of $path was lost ($dropped).", dropped)
-                }
+                    // Upstream of the collector: only the connection's failures are caught.
+                    .catch { dropped ->
+                        if (dropped !is IOException) throw dropped
+                        stop = lost("The connection of the stream of $path was lost ($dropped).", dropped)
+                    }
+                    .collect { event ->
+                        collector.emit(Positioned.of(row(tree(event.data) as ObjectNode), event.id))
+                        event.id?.let { position = it }
+                        emitted++
+                        failures = 0
+                    }
                 if (complete || limit != null && emitted >= limit) return null
                 return stop ?: lost("The stream of $path was cut off.", IOException("No end event."))
             }
