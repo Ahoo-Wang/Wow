@@ -285,10 +285,10 @@ class Kernel(
         val requests = checks.of(model, decider, command, commandType, lease)
         val reach = requests.reach
         requests.beforeWaiting()?.let { return it }
+        awaitScheduled(command)
         val waitBeyondCommitted = wait.beyondCommitted()
         val encode = scopes.encoder(model)
         var attempts = 0
-        awaitScheduled(command)
         while (attempts < maxAttempts) {
             val (loaded, cached) = source.load(model, requests)
             // Checked after every load: a reload may hold the request another node committed meanwhile.

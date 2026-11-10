@@ -278,11 +278,7 @@ internal class AttemptScopes(
     ): AttemptScope? {
         val now = clock()
         val schedule = command.schedule
-        return if (schedule != null && now < schedule.due) {
-            null
-        } else {
-            AttemptScope(command, ids, now, loaded, reservations, options.reservationTtl, wait, observer, encode)
-        }
+        return if (schedule != null && now < schedule.due) null else open(command, loaded, wait, encode, now)
     }
 
     /**
