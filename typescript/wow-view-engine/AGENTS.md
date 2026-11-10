@@ -839,6 +839,7 @@ src/
     sort/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
       SortSettings.tsx        — The sort editor: entries in priority order, direction, drag to reorder
+      SortSummary.tsx         — The sort said in words and arrows: the wording per direction, the toolbar button's name and what it shows (`SortSummary`), the arrow for one field (`DirectionMark`)
     theme/                    — The theme's registry (docs/design/ui/theme.md, D46): the contract as data, structure and never a value
       tokens.ts               — `TOKENS`: every host variable, its tier, kind, modes, group and whether the blocks declare it, a preset sets it, the bridge points it, a chart reads it, and which role a link draws in which resolved token (`link`, docs/design/ui/theme.md); `TOKEN_GROUPS`, `THEME_AXES`; the `FveToken` type; `CHART_TOKENS` and `THEME_ATTRIBUTES` derived from it
       pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand; `PENDING` / `isPending`, a preset's known shortfalls owed by its retuning batch, excused only while still short
