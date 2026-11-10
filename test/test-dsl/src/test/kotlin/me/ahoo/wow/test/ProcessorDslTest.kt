@@ -19,7 +19,9 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -264,6 +266,37 @@ class ProcessorDslTest {
                     expectError<CallRejectedHandlingException>()
                     expectParked()
                 }
+            }
+        }
+    }
+
+    /** A refusal of the inventory, as a client answers it: of a command no call of a handling made. */
+    private fun refusal() = CommandRejectedException(
+        rejectedResult(
+            Command("command-1", "request-1", stock.ref("tenant", "mug"), ReserveStock("order-1", 1)),
+            "closed"
+        ),
+    )
+
+    @Test
+    fun `a rejection a reactor's own client answers should be its failure, not a call's`() {
+        val refused = refusal()
+        val notifier = ProcessorBinding.react("Notifier", "onOrder", Order::class.java) { _, _ -> throw refused }
+        reactorSpec(listOf(notifier)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) { expectError<CommandRejectedException> { assert().isSameAs(refused) } }
+        }
+    }
+
+    @Test
+    fun `a rejection a saga's handler lets through of no call it made should park at once`() {
+        val refused = refusal()
+        val saga = ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { _, _ -> throw refused }
+        sagaSpec(listOf(saga)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                expectError<CallRejectedHandlingException> { rejected.assert().isSameAs(refused) }
+                expectParked()
             }
         }
     }
