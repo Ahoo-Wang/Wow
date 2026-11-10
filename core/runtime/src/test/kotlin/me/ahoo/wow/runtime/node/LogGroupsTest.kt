@@ -48,12 +48,12 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach

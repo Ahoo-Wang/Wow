@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock

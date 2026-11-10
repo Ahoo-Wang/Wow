@@ -20,11 +20,11 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows

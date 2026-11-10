@@ -18,7 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.timer.TimerRunner
@@ -29,6 +28,7 @@ import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * What an operator does with the parked entries of a node's subscriptions: list

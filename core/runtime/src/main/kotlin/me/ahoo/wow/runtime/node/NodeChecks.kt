@@ -18,11 +18,11 @@ import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * The refusals of a [ServiceNode] that is misconfigured, checked while it is built, each before the parts it would

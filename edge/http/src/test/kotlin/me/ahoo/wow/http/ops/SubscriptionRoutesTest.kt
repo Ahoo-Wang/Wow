@@ -44,11 +44,11 @@ import me.ahoo.wow.runtime.node.SubscriptionsView
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.OrphanCheckpoints
 import me.ahoo.wow.runtime.subscription.PausedPartition
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.ThrottledPartition
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.util.concurrent.CopyOnWriteArrayList

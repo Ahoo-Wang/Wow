@@ -42,10 +42,10 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType

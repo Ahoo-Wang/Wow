@@ -16,10 +16,10 @@ package me.ahoo.wow.runtime.node
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.OrphanCheckpoints
 import me.ahoo.wow.runtime.subscription.PausedPartition
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.ThrottledPartition
 import me.ahoo.wow.spi.subscription.Checkpoint
+import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * What an operator reads of the node's subscriptions, the built-in ones included, each by the group it runs in, and

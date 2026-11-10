@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.subscription
+package me.ahoo.wow.spi.subscription
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 

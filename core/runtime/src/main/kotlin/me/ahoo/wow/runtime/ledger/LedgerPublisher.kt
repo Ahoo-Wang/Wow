@@ -38,12 +38,12 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
-import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerEntry
 import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.LedgerRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.security.MessageDigest
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
