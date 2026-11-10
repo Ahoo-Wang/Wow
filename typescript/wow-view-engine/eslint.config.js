@@ -87,11 +87,6 @@ const functionLengthWaivers = [
     reason: '库实例的创建、尺寸、主题与事件绑定是同一个元素的一条生命周期',
   },
   {
-    file: 'src/react/useWorkbench.ts',
-    lines: 301,
-    reason: '打开、持有、交接与离开守卫是一串有先后的 hook，次序就是语义',
-  },
-  {
     file: 'src/ui/record/RecordTable.tsx',
     lines: 291,
     reason: '固定列、展开行、汇总与选择共用同一张表的测量与 ref',

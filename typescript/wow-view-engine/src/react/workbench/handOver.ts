@@ -46,7 +46,7 @@ import {
 } from '../../runtime/navigation.js';
 import { listenerSet } from '../../runtime/listeners.js';
 import type { FilterEditorController } from '../useFilterEditor.js';
-import type { HeldView } from '../useWorkbench.js';
+import type { HeldView } from './heldView.js';
 
 /**
  * Opens each new `handOver` once, through the leave guard:

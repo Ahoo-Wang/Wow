@@ -441,7 +441,7 @@ src/
     useViewRuntime.ts         — `useViewRuntime`: one runtime's snapshot through `useSyncExternalStore`
     useViewList.ts            — View summaries in the user's order
     useViewManager.ts         — Rename, delete, reorder, default, publish as a system view (D81); outcomes per row
-    useWorkbench.ts           — One workbench's shell: list, open, leave, the header's outcomes, a view nobody saved a host hands it (`unsaved`)
+    useWorkbench.ts           — One workbench's shell: list, open, leave, the header's outcomes, a view nobody saved a host hands it (`unsaved`); the views it holds are `workbench/heldView.ts`'s
     writes.ts                 — One write-outcome vocabulary, shared by the save commands and the manager
     index.ts                  — The `/react` entry: hooks and headless controllers over the runtime
     manager/                  — What `useViewManager` composes
@@ -458,6 +458,7 @@ src/
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
       switching.ts            — `useSwitching`: the two ways a workbench changes the open view — `choose`, through the leave guard (the view already open withdraws its question), and `openHanded`
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
+      heldView.ts             — `HeldView`, a view the workbench holds rather than opens by id: `useHold` keeps it and lets each go as it is replaced; `useHeldCommands` makes one from nothing (`create`), follows or drills one out of the view on screen (`follow`, `drill`), and goes `back` to that view or to the board (`toBoard`)
   ui/                         — Default look; may import every layer. Three tiers: `kit/` under every feature folder, the feature folders, and at the root only the `/ui` entry, the five shells and the host's own pieces
     DashboardWorkbench.tsx    — Default Dashboard workbench: no 「正在显示」 band (D27), the board's fixed scope handed to the filter bar, a finding about a filter or a panel said by its name
     DatasetWorkbench.tsx      — The standalone dataset view (D93): a picker of the datasets served, from one catalog or several, over the `DataWorkbench` of the one open; the dataset and the view the host's to route
