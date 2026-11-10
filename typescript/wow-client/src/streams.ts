@@ -213,10 +213,12 @@ export function resumableQueryRows<T>(
   let received = 0;
   let failures = 0;
   // Aborted once the reader cancels: a read in flight then ends, and must not
-  // be taken for a cut-off stream to ask for again; a wait to resume, or a
-  // request to, ends with it, as with `signal`.
+  // be taken for a cut-off stream to ask for again. `halted` aborts with it or
+  // with `signal`, and a wait to resume, or a request to, ends with `halted`
+  // (`AbortSignal.any`: Node 20.3, Chrome 116, Firefox 124, Safari 17.4, all
+  // within the runtimes the compatibility page states).
   const cancelling = new AbortController();
-  const stop =
+  const halted =
     signal === undefined
       ? cancelling.signal
       : AbortSignal.any([signal, cancelling.signal]);
@@ -224,23 +226,23 @@ export function resumableQueryRows<T>(
   /** Asks for the stream again, or throws `cause` once out of retries. */
   async function resume(cause: unknown, delayMs?: number): Promise<boolean> {
     for (;;) {
-      if (stop.aborted) throw stop.reason;
+      if (halted.aborted) throw halted.reason;
       if (failures++ >= maxRetries) throw cause;
       const wait =
         delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
-      if (wait > 0) await sleep(wait, stop);
+      if (wait > 0) await sleep(wait, halted);
       try {
-        const next = await reopen(lastEventId, received, stop);
-        if (stop.aborted) {
+        const next = await reopen(lastEventId, received, halted);
+        if (halted.aborted) {
           // Answered as it was cancelled: nothing reads this response.
-          await next?.body?.cancel(stop.reason);
-          throw stop.reason;
+          await next?.body?.cancel(halted.reason);
+          throw halted.reason;
         }
         if (next) reader = events(next);
         return next !== undefined;
       } catch (error) {
         if (
-          stop.aborted ||
+          halted.aborted ||
           (error instanceof WowProblemError && error.retry === 'none')
         ) {
           throw error;
