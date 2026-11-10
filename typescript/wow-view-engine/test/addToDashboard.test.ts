@@ -226,6 +226,19 @@ describe('放进仪表盘 while the open board is edited', () => {
     expect((config as DashboardViewConfig).refresh.interval).toBe(300);
   });
 
+  // The carry goes by the panel's id: one the draft holds already — the
+  // effect run again for the same write — is not added a second time.
+  it('carries a panel the draft already holds no second time', async () => {
+    const { open, saved } = await addedWhileEdited();
+    const added = panelsOf(saved)[panelsOf(saved).length - 1]!;
+    const before = open.getSnapshot();
+
+    open.carryPanel(added);
+
+    expect(open.getSnapshot().draft).toBe(before.draft);
+    expect(open.getSnapshot().history).toBe(before.history);
+  });
+
   it('ends a retry after an answer lost in the same state', async () => {
     const { engine, store } = engineWith();
     const open = await openBoard(engine);

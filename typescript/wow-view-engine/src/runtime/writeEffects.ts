@@ -12,7 +12,11 @@
  */
 
 import { isOwnedPanel, isViewPanel, panelsOf } from '../dashboard/index.js';
-import type { ViewInstance, ViewPreferences } from '../model/index.js';
+import type {
+  DashboardViewConfig,
+  ViewInstance,
+  ViewPreferences,
+} from '../model/index.js';
 import { isManagedBoard, type ManagedViewRuntime } from './viewRuntimeTypes.js';
 import type { WritePayload } from './write.js';
 import type { WriteLedgerHost, WriteResult } from './writeLedger.js';
@@ -124,11 +128,9 @@ function addedToBoard(
     return;
   }
   holder.moveBaseline(saved);
-  const board = saved.config.kind === 'dashboard' ? saved.config : null;
-  const panel = panelsOf(board ?? { panels: [] }).find(
-    entry => entry.id === panelId,
-  );
-  if (panel) holder.carryPanel(panel);
+  // The board saved is this board, holding the panel the write added.
+  const board = saved.config as DashboardViewConfig;
+  holder.carryPanel(panelsOf(board).find(entry => entry.id === panelId)!);
 }
 
 /**
