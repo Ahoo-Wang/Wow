@@ -17,6 +17,7 @@ tests:
             OTEL_SERVICE_NAME: eshop-basket-service
             WOW_WAIT_MAXTIMEOUT: 60s
             WOW_CLUSTER_DRAINTIMEOUT: 10s
+            WOW_SUBSCRIPTION_STOPTIMEOUT: 10s
 
   - it: gives every config value as text
     set:

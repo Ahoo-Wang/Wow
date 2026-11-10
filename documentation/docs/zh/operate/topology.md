@@ -148,10 +148,10 @@ spring:
 节点只在启动完成后才打开公开端口：后端已就绪、内部端口已绑定、已加入成员。它按相反的顺序停止：
 
 1. 就绪探针报告节点拒绝流量，公开服务器不再接收请求。仍未结束的等待在 `wow.wait.max-timeout`（60 秒）之内完成。
-2. 节点不再接收其分区的命令，在 `wow.cluster.drain-timeout`（10 秒）之内执行完在途的命令，保存订阅的检查点并释放租约。其他节点接管这些分区。
+2. 节点不再接收其分区的命令，在 `wow.cluster.drain-timeout`（10 秒）之内执行完在途的命令，在 `wow.subscription.stop-timeout`（10 秒）之内停止订阅，保存它们的检查点并释放租约。其他节点接管这些分区。
 3. 内部端口最后关闭。
 
-除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段调整到足够长。平台的终止宽限期至少要给这么多；Wow 的 chart 用同样的时限推导它，默认 90 秒（[Kubernetes](./kubernetes#graceful-shutdown)）。
+除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段设为节点的停止上限（`ServiceNodeOptions.stopBound`）：`max(wait.max-timeout, 2 × subscription.stop-timeout + cluster.drain-timeout) + 3 × cluster.drain-timeout`，默认 90 秒。应用设置的更短的阶段会被保留，节点启动时给出警告。公开服务器的优雅关闭在它之前，是一个单独的阶段，持续到它最长的请求结束，最长为 `wow.wait.max-timeout`。平台的终止宽限期至少要给 `preStop` 停顿、这段等待与节点的阶段之和；Wow 的 chart 正是这样推导它，默认 170 秒（[Kubernetes](./kubernetes#graceful-shutdown)）。
 
 类路径上有 Spring Boot Actuator 时，宿主把节点的健康状况加入就绪和存活分组：
 

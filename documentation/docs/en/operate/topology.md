@@ -148,10 +148,10 @@ The design rests on a few assumptions about the environment. A deployment that b
 A node opens its public port only once it has started: its backends are up, its internal port is bound and it has joined the members. It stops in the reverse order:
 
 1. Readiness reports that the node refuses traffic, and the public server stops taking requests. Waits still open finish, within `wow.wait.max-timeout` (60 seconds).
-2. The node stops taking commands for its partitions, finishes those in flight within `wow.cluster.drain-timeout` (10 seconds), saves its subscriptions' checkpoints and releases its leases. Other nodes take the partitions over.
+2. The node stops taking commands for its partitions, finishes those in flight within `wow.cluster.drain-timeout` (10 seconds), stops its subscriptions within `wow.subscription.stop-timeout` (10 seconds), saves their checkpoints and releases its leases. Other nodes take the partitions over.
 3. The internal port closes last.
 
-The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.timeout-per-shutdown-phase` is set. Give the platform's termination grace period at least as much; Wow's chart derives it from the same bounds, 90 seconds by default ([Kubernetes](./kubernetes#graceful-shutdown)).
+Unless `spring.lifecycle.timeout-per-shutdown-phase` is set, the host sets Spring Boot's shutdown phase to the node's stop bound (`ServiceNodeOptions.stopBound`): `max(wait.max-timeout, 2 × subscription.stop-timeout + cluster.drain-timeout) + 3 × cluster.drain-timeout`, 90 seconds by default. A shorter phase set by the application is kept, with a warning when the node starts. The public server's graceful shutdown comes before it, in a phase of its own, and lasts as long as its longest request, up to `wow.wait.max-timeout`. Give the platform's termination grace period at least the `preStop` pause, that wait and the node's phase; Wow's chart derives it so, 170 seconds by default ([Kubernetes](./kubernetes#graceful-shutdown)).
 
 With Spring Boot Actuator on the classpath, the host contributes the node's health to the readiness and liveness groups:
 

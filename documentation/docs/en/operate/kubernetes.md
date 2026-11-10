@@ -300,8 +300,9 @@ When Kubernetes stops a pod, the node first finishes the waits still open, then 
 <!-- sample: deploy/helm/wow-service/values.yaml#shutdown -->
 
 ```yaml
-# The node's shutdown: the grace period is their sum, and the chart sets wow.wait.max-timeout and
-# wow.cluster.drain-timeout from them.
+# The node's shutdown: the grace period is the preStop pause, the public server's longest wait, the node's stop bound
+# from these values and the margin, one after the other; the chart sets wow.wait.max-timeout, wow.cluster.drain-timeout
+# and wow.subscription.stop-timeout from them.
 shutdown:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStopSeconds: 5
@@ -309,11 +310,13 @@ shutdown:
   waitMaxTimeoutSeconds: 60
   # How long a hand-off waits for its partition's commands in flight (wow.cluster.drain-timeout).
   drainTimeoutSeconds: 10
+  # How long a subscription's stop waits for its entries in flight (wow.subscription.stop-timeout).
+  subscriptionStopTimeoutSeconds: 10
   # Room for the checkpoints to be saved and the JVM to exit.
   marginSeconds: 15
 ```
 
-The grace period is their sum, 90 seconds by default, and the chart sets `wow.wait.max-timeout` and `wow.cluster.drain-timeout` from them; setting either in `config` is refused. A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests.
+The grace period counts the shutdown's steps one after the other: the `preStop` pause; the public server's graceful shutdown, which lasts as long as its longest request, a wait (`waitMaxTimeout`); the node's stop, up to its stop bound; and the margin. That is 5 + 60 + 90 + 15 = 170 seconds by default. The stop bound is `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`, 90 seconds by default, the formula of `ServiceNodeOptions.stopBound` and of the host's shutdown phase ([Starting and stopping](./topology#starting-and-stopping)). Its waits are measured from the node's own stop, so they come after the public server's. The chart sets `wow.wait.max-timeout`, `wow.cluster.drain-timeout` and `wow.subscription.stop-timeout` from these values; setting any of them in `config` is refused. A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests.
 
 ## Scale
 

@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.PortProviders.Companion.configured
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.properties.bind.Binder
@@ -20,21 +23,31 @@ import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.core.env.MapPropertySource
 import java.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * Gives the node's stop the time it may take: Spring Boot stops each lifecycle phase within
  * `spring.lifecycle.timeout-per-shutdown-phase` (30 seconds by default), and [me.ahoo.wow.runtime.node.ServiceNode.stop]
- * may take the longest wait (`wow.wait.max-timeout`) after the drain of the partitions it hands off
- * (`wow.cluster.drain-timeout`). Unless the application sets the timeout, it becomes their sum ([required]); a smaller
- * one the application sets is kept, and the host warns of it when it starts.
+ * may take its [ServiceNodeOptions.stopBound], from the node's own options (`wow.wait.max-timeout`,
+ * `wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`): 90 seconds by default. Unless the application sets the
+ * timeout, it becomes that bound ([required]); a smaller one the application sets is kept, and the host warns of it when
+ * it starts. A setting of those groups that the node's options refuse leaves the timeout unset here: the node's assembly
+ * refuses it, as it does every refused setting of the node.
  */
 internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         if (environment.containsProperty(TIMEOUT_PER_SHUTDOWN_PHASE)) {
             return
         }
+        val bound = try {
+            required(environment)
+        } catch (@Suppress("SwallowedException") refused: WowConfigurationException) {
+            // Left unset: the node's assembly refuses the setting where it always did, once Spring Boot's logging is
+            // configured, so the failure analysis reaches the application's own log, not only the console.
+            return
+        }
         environment.propertySources.addLast(
-            MapPropertySource(SOURCE, mapOf(TIMEOUT_PER_SHUTDOWN_PHASE to "${required(environment).toMillis()}ms")),
+            MapPropertySource(SOURCE, mapOf(TIMEOUT_PER_SHUTDOWN_PHASE to "${bound.toMillis()}ms")),
         )
     }
 
@@ -42,10 +55,14 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
         const val TIMEOUT_PER_SHUTDOWN_PHASE: String = "spring.lifecycle.timeout-per-shutdown-phase"
         const val SOURCE: String = "wowShutdownTimeout"
 
-        /** `wow.wait.max-timeout + wow.cluster.drain-timeout`, as [environment] sets them or by default. */
+        /** The node's [ServiceNodeOptions.stopBound], from the options [environment] sets or by default. */
         fun required(environment: Environment): Duration {
             val properties = WowProperties.of(environment)
-            return properties.wait.maxTimeout + properties.cluster.drainTimeout
+            return ServiceNodeOptions(
+                cluster = configured("wow.cluster") { properties.cluster.options(properties.wait.defaultTimeout) },
+                wait = configured("wow.wait") { properties.wait.options() },
+                subscription = configured("wow.subscription") { properties.subscription.options() },
+            ).stopBound.toJavaDuration()
         }
 
         /** The timeout per shutdown phase [environment] sets; null when it sets none. */

@@ -17,6 +17,7 @@ data:
   # The shutdown's bounds, which terminationGracePeriodSeconds counts (shutdown.*).
   WOW_WAIT_MAXTIMEOUT: {{ printf "%ds" (int .Values.shutdown.waitMaxTimeoutSeconds) | quote }}
   WOW_CLUSTER_DRAINTIMEOUT: {{ printf "%ds" (int .Values.shutdown.drainTimeoutSeconds) | quote }}
+  WOW_SUBSCRIPTION_STOPTIMEOUT: {{ printf "%ds" (int .Values.shutdown.subscriptionStopTimeoutSeconds) | quote }}
   {{- range $key, $value := .Values.config }}
   {{ $key }}: {{ $value | toString | quote }}
   {{- end }}

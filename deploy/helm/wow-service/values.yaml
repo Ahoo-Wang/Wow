@@ -71,8 +71,9 @@ envFrom: []
 env: []
 
 # region shutdown
-# The node's shutdown: the grace period is their sum, and the chart sets wow.wait.max-timeout and
-# wow.cluster.drain-timeout from them.
+# The node's shutdown: the grace period is the preStop pause, the public server's longest wait, the node's stop bound
+# from these values and the margin, one after the other; the chart sets wow.wait.max-timeout, wow.cluster.drain-timeout
+# and wow.subscription.stop-timeout from them.
 shutdown:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStopSeconds: 5
@@ -80,6 +81,8 @@ shutdown:
   waitMaxTimeoutSeconds: 60
   # How long a hand-off waits for its partition's commands in flight (wow.cluster.drain-timeout).
   drainTimeoutSeconds: 10
+  # How long a subscription's stop waits for its entries in flight (wow.subscription.stop-timeout).
+  subscriptionStopTimeoutSeconds: 10
   # Room for the checkpoints to be saved and the JVM to exit.
   marginSeconds: 15
 
