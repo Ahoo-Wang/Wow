@@ -13,21 +13,15 @@
 
 package me.ahoo.wow.mongo.log
 
-import com.mongodb.ErrorCategory
-import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
 import com.mongodb.WriteConcern
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
-import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
-import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -126,7 +120,6 @@ import kotlin.time.Duration.Companion.seconds
  * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
-@Suppress("LargeClass") // The log's port, on one collection layout.
 class MongoEventLog(
     private val client: MongoClient,
     databaseName: String,
@@ -192,7 +185,8 @@ class MongoEventLog(
     private val documents = MongoLogDocuments(context)
 
     /** The reads of the partitions' tails. */
-    private val tailReads = MongoTailReads(committedCounters, collections, sequencer, documents, tailBatch)
+    private val tailReads =
+        MongoTailReads(committedCounters, collections, sequencer, documents, tailBatch, committedRegistry, context)
 
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
@@ -385,25 +379,8 @@ class MongoEventLog(
             is MongoSequencer.Resolution.Fill ->
                 appender.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
 
-            is MongoSequencer.Resolution.Seal -> seal(partition, sequence, resolution.block)
+            is MongoSequencer.Resolution.Seal -> appender.seal(partition, sequence, resolution.block)
         }
-    }
-
-    /**
-     * Seals [block], another node's, from [from]: a placeholder at each of its sequences left in each collection it may
-     * write, so a write of that node still to come meets a taken position; then takes it out of the counter's list.
-     */
-    private fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
-        val placeholders = (from..block.to).map { appender.placeholder(partition, it, GAP_SEALED) }
-        block.collections.forEach { name ->
-            try {
-                collections.named(name).appends
-                    .insertMany(placeholders.map(::Document), InsertManyOptions().ordered(false))
-            } catch (failure: MongoBulkWriteException) {
-                if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
-            }
-        }
-        sequencer.remove(partition, block)
     }
 
     /**
@@ -432,59 +409,10 @@ class MongoEventLog(
      */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return dispatcher.mongo { headOf(partition) }
-    }
-
-    private tailrec fun headOf(partition: Int): Long? {
-        val known = collections.known()
-        val names = known.mapTo(HashSet()) { it.name }
-        var head: Long? = null
-        var unknown = false
-        for (document in committedRegistry.aggregate(headPipeline(partition, known))) {
-            val sequence = document.getLong(SEQUENCE)
-            when {
-                sequence != null -> head = maxOf(head ?: sequence, sequence)
-                document.getString(ID) !in names -> unknown = true
-            }
-        }
-        if (!unknown) {
-            return head
-        }
-        val found = collections.register().mapTo(HashSet()) { it.name } - names
-        if (found.isEmpty()) {
-            return head
-        }
-        logger.info { "The log of $context found the collections $found, registered by another node; it reads them now." }
-        return headOf(partition)
-    }
-
-    /**
-     * The context's registry entries, then each of [known]'s highest stream in [partition], in one aggregation over
-     * the registry: an entry this log does not know is a collection registered since it last read the registry.
-     */
-    private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
-        val highest = listOf(
-            Aggregates.match(
-                Filters.and(
-                    Filters.eq(PARTITION, partition),
-                    Filters.gte(ID, positionId(partition, 0)),
-                    Filters.lt(ID, positionId(partition + 1, 0)),
-                    Filters.exists(VERSION),
-                ),
-            ),
-            Aggregates.sort(Sorts.descending(ID)),
-            Aggregates.limit(1),
-            Aggregates.project(Projections.include(SEQUENCE)),
-        )
-        return listOf(
-            Aggregates.match(Filters.eq(CONTEXT, context)),
-            Aggregates.project(Projections.include(ID)),
-        ) + known.map { Aggregates.unionWith(it.name, highest) }
+        return dispatcher.mongo { tailReads.headOf(partition) }
     }
 
     internal companion object {
-        private val logger = KotlinLogging.logger {}
-
         /**
          * The entries of the final run after [last], at most [limit]: each sequence from `last + 1` is an entry of
          * [entries] or a placeholder of [gaps] (its first sequence to its last), until one is neither; and the first
