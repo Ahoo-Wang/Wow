@@ -196,11 +196,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     """.trimIndent()
 
     companion object {
-        /**
-         * The version of this layout: 2 since the registry of the tables ([TABLES]) is keyed by code point
-         * (`COLLATE "C"`); 1 is refused.
-         */
-        const val FORMAT = 2
+        /** The version of this layout: the registry of the tables ([TABLES]) is keyed by code point (`COLLATE "C"`). */
+        const val FORMAT = 1
 
         /**
          * The columns a snapshot is read from ([PostgresSnapshotStore.snapshotOf]) with the SQL type each is read as:

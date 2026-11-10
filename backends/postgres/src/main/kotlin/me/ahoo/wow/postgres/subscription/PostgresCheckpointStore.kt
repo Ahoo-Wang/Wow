@@ -130,8 +130,8 @@ class PostgresCheckpointStore(
     internal companion object {
         const val TABLE = "wow_checkpoint"
 
-        /** The layout version of the table: 2 since its key compares by code point (`COLLATE "C"`); 1 is refused. */
-        const val FORMAT = 2
+        /** The layout version of the table: its key compares by code point (`COLLATE "C"`). */
+        const val FORMAT = 1
 
         val DDL = """
             CREATE TABLE IF NOT EXISTS $TABLE (

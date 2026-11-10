@@ -256,10 +256,10 @@ internal class PostgresEventLogTables(val context: String) {
 
     companion object {
         /**
-         * The version of this layout: 2 since the keys compare by code point (`COLLATE "C"`) and the version key leads
-         * with the tenant; a store of format 1 is refused.
+         * The version of this layout: the keys compare by code point (`COLLATE "C"`) and the version key leads with
+         * the tenant.
          */
-        const val FORMAT = 2
+        const val FORMAT = 1
 
         /** The parameters of a stream in [appendGroupAcross]: its partition, then its own. */
         const val ACROSS_STREAM_PARAMETERS = AggregateLogTable.STREAM_PARAMETERS + 1

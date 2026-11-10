@@ -18,11 +18,10 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
 /**
  * The timer tables of one context: one per aggregate type, `wow_timer__<context>__<aggregate>`,
  * created on the type's first timer and recorded in a registry ([REGISTRY], shared by every context), which the reads
- * across types ([due], [parked]) union. The column layout is part of the format, version [FORMAT]:
- * format 2 added the rule and the slot, format 3 the slot's due time (`slot_due_at`), kept apart from `due_at`, which
- * a claim or a retry moves, format 4 the owner in three columns instead of its joined name, format 5
- * a table per aggregate type, its owner's aggregate the table's. The timers are a view rebuilt from the
- * log: a table of an earlier format is refused, dropped and rebuilt.
+ * across types ([due], [parked]) union. The column layout is part of the format, version [FORMAT]: a table per
+ * aggregate type, its owner's aggregate the table's; the owner in three columns; the rule and the slot; and the slot's
+ * due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves. The timers are a view rebuilt
+ * from the log.
  *
  * One row per timer, keyed by its owner's tenant and id and `key`; `timer_id` is the timer's id, its command sent with
  * the request id `timer_id#slot`; the rule is a `jsonb` object (`{type, ...}`, as Wow's JSON writes it) and the slot a
@@ -96,11 +95,11 @@ internal class PostgresTimerTables(private val context: String) {
 
     companion object {
         /**
-         * The version of this layout: 6 since every text column of a key or an index (the key, the due index's
-         * tie-breaker, the parked index's target, the registry) compares by code point (`COLLATE "C"`) whatever the
-         * database's default; 5 is refused.
+         * The version of this layout: every text column of a key or an index (the key, the due index's tie-breaker,
+         * the parked index's target, the registry) compares by code point (`COLLATE "C"`) whatever the database's
+         * default.
          */
-        const val FORMAT = 6
+        const val FORMAT = 1
         const val PREFIX = "wow_timer"
 
         /** The registry of timer tables, shared by every context. */

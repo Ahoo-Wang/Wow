@@ -42,17 +42,16 @@ import kotlin.time.Duration.Companion.milliseconds
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
  * ledger is of, then the subscription's context and name ([SubscriptionId]): services that share a database, and
  * subscriptions of one name in two contexts, see and resolve only their own entries. The table's layout is recorded as
- * format 4 ([PostgresFormat]), with an index answering what is due in a node's partitions and one answering a
- * tenant's listing.
+ * format [PostgresFailureLedgerTables.FORMAT] ([PostgresFormat]), with an index answering what is due in a node's
+ * partitions and one answering a tenant's listing.
  *
  * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row at the next revision, conditional on the revision read when it claims, takes or schedules. Format 4
- * creates the table with the source partition and position of the entry, the retry state and the revision among its
- * columns. A table of another format, an earlier one among them, or without a format record, is refused
- * ([PostgresFormat]): nothing is converted.
+ * row at the next revision, conditional on the revision read when it claims, takes or schedules. The table holds the
+ * source partition and position of the entry, the retry state and the revision among its columns. A table of
+ * another format, or without a format record, is refused ([PostgresFormat]): nothing is converted.
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).

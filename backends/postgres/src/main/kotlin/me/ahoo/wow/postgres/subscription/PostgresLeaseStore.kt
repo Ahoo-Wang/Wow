@@ -287,8 +287,8 @@ class PostgresLeaseStore(
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
 
-        /** The layout version of both tables: 2 since their keys compare by code point (`COLLATE "C"`); 1 is refused. */
-        const val FORMAT = 2
+        /** The layout version of both tables: their keys compare by code point (`COLLATE "C"`). */
+        const val FORMAT = 1
         const val LEASE_COLUMNS = "subscription_group, partition, owner, epoch, expires_at"
 
         val DDL = listOf(
