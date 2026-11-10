@@ -261,23 +261,27 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         logGroups: List<LogGroupNode>,
         intake: SubscriptionRuntime?,
         states: StateCache,
-    ): PartitionOwnership = PartitionOwnership(
-        group,
-        node,
-        { this.address },
-        backends.log.partitions,
-        backends.leases,
-        options.cluster,
-        logGroups.first().subscriptions,
-        wiring.contextOf(Component.OWNERSHIP, group.name),
-        // Connected ahead of the first forward, so its timeout is not spent opening a connection.
-        peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
-        intake = intake,
-        timers = logGroups.mapNotNull { it.timers?.runner },
-        groups = logGroups.drop(1).map { it.subscriptions },
-        partitionChanged = { partition -> states.invalidate(partition, backends.log.partitions) },
-        membership = membershipOf(backends.leases),
-    )
+    ): PartitionOwnership {
+        // Read once, as the ownership's own count is: the hook runs on every hand-off.
+        val partitions = backends.log.partitions
+        return PartitionOwnership(
+            group,
+            node,
+            { this.address },
+            partitions,
+            backends.leases,
+            options.cluster,
+            logGroups.first().subscriptions,
+            wiring.contextOf(Component.OWNERSHIP, group.name),
+            // Connected ahead of the first forward, so its timeout is not spent opening a connection.
+            peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
+            intake = intake,
+            timers = logGroups.mapNotNull { it.timers?.runner },
+            groups = logGroups.drop(1).map { it.subscriptions },
+            partitionChanged = { partition -> states.invalidate(partition, partitions) },
+            membership = membershipOf(backends.leases),
+        )
+    }
 
     /**
      * A log group [part] of [context] on this node: the runtime [name]d of its subscriptions, the [builtIns] and its
