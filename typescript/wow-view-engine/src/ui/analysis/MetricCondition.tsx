@@ -23,7 +23,7 @@ import type {
 } from '../../model/index.js';
 import { AggregationMetricTypes } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
-import { treeController } from '../../react/useFilterEditor.js';
+import { treeController } from '../../react/filterTree.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { GroupBlock } from '../filter/GroupBlock.js';

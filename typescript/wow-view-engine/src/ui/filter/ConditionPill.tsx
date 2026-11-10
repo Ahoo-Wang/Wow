@@ -32,7 +32,7 @@ import {
 } from '../../filter/index.js';
 import { holdsTime } from '../../filter/kinds/duration.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { treeController } from '../../react/useFilterEditor.js';
+import { treeController } from '../../react/filterTree.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { Badge } from '../components/badge.js';
 import { Toggle } from '../components/toggle.js';
