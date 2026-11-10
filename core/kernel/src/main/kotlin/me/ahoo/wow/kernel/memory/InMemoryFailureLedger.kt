@@ -41,9 +41,9 @@ class InMemoryFailureLedger : FailureLedger {
         true
     }
 
-    override suspend fun repark(entry: ParkedAggregate): Boolean = lock.withLock {
+    override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = lock.withLock {
         val parked = subscriptions[entry.subscription] ?: return false
-        val existing = parked[entry.ref] ?: return false
+        val existing = parked[entry.ref]?.takeIf { it.partition == from } ?: return false
         parked[entry.ref] = existing.placedAs(entry)
         true
     }
@@ -99,6 +99,12 @@ class InMemoryFailureLedger : FailureLedger {
 
     override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.remove(ref) }
+
+    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+        lock.withLock {
+            val parked = subscriptions[subscription] ?: return null
+            if (parked[ref]?.partition == partition) parked.remove(ref) else null
+        }
 
     private companion object {
         /** The ledger's aggregate order: context, aggregate name, tenant, id. */

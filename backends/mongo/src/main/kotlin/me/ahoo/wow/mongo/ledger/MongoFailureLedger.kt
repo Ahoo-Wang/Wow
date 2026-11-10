@@ -139,7 +139,7 @@ class MongoFailureLedger(
         }
     }
 
-    override suspend fun repark(entry: ParkedAggregate): Boolean = dispatcher.mongo {
+    override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = dispatcher.mongo {
         val update = Updates.combine(
             Updates.set(PARTITION, entry.partition),
             Updates.set(FROM_VERSION, entry.fromVersion),
@@ -149,7 +149,7 @@ class MongoFailureLedger(
             UNSCHEDULED,
             NEXT_REVISION,
         )
-        ledger.updateOne(keyFilter(entry.subscription, entry.ref), update).matchedCount > 0
+        ledger.updateOne(inPartition(keyFilter(entry.subscription, entry.ref), from), update).matchedCount > 0
     }
 
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
@@ -216,6 +216,14 @@ class MongoFailureLedger(
     override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
         ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) }
     }
+
+    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+        dispatcher.mongo {
+            ledger.findOneAndDelete(inPartition(keyFilter(subscription, ref), partition))?.let { entryOf(it) }
+        }
+
+    /** [key] while its entry is parked in [partition]. */
+    private fun inPartition(key: Bson, partition: Int): Bson = Filters.and(key, Filters.eq(PARTITION, partition))
 
     override suspend fun amend(
         subscription: String,

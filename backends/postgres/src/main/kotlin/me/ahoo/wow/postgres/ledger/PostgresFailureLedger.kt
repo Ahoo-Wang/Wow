@@ -103,7 +103,7 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun repark(entry: ParkedAggregate): Boolean = jdbc { connection ->
+    override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.repark).use { repark ->
             repark.setInt(1, entry.partition)
             repark.setInt(2, entry.fromVersion)
@@ -111,6 +111,7 @@ class PostgresFailureLedger(
             repark.setLong(4, entry.failedAt)
             repark.setNullableLong(5, entry.fromPosition)
             repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
+            repark.setInt(REPARK_VALUES + KEY_COLUMNS + 1, from)
             repark.executeUpdate() > 0
         }
     }
@@ -204,6 +205,15 @@ class PostgresFailureLedger(
             delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
         }
     }
+
+    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+        jdbc { connection ->
+            connection.prepareStatement(tables.resolveIn).use { delete ->
+                delete.setKey(subscription, ref)
+                delete.setInt(KEY_COLUMNS + 1, partition)
+                delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+            }
+        }
 
     override suspend fun amend(
         subscription: String,

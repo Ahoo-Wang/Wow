@@ -65,16 +65,27 @@ interface FailureLedger {
 
     /**
      * Replaces where the entry parking [entry]'s aggregate stands (its partition, from version and position), why
-     * (its reason) and when (its failure time) with [entry]'s, when the aggregate is parked; it never parks one that is
-     * not. It keeps the entry's retry state, gives it the next revision and clears its schedule.
-     * Unlike [park] it may move the from version later: a retry that handled the aggregate's streams up to a version
-     * and failed again there records where it now stands and why, so the next retry starts at that stream rather
-     * than handling the earlier ones again. Only the subscription retrying the aggregate calls it, while no live entry
-     * of that aggregate is handled.
+     * (its reason) and when (its failure time) with [entry]'s, while the aggregate is parked in partition [from]; it
+     * never parks one that is not. It keeps the entry's retry state, gives it the next revision and clears its
+     * schedule. Its callers:
      *
-     * @return true when an entry was replaced; false when the aggregate is not parked (it was resolved meanwhile).
+     * - **The worker that retried the aggregate**, in the partition it read the entry in ([from], the entry's own
+     *   partition by default): a retry that handled the aggregate's streams up to a version and failed again there
+     *   records where it now stands and why, so the next retry starts at that stream rather than handling the
+     *   earlier ones again; unlike [park] it may move the from version later. It is called while no live entry of
+     *   that aggregate is handled.
+     * - **The owner of the partition the aggregate's key maps to now**, after its source gained partitions: it
+     *   re-homes the entry there ([entry]'s partition), [from] the partition it parked in, so the due scan, an
+     *   operator's request and a skip reach the owner that holds the aggregate's later entries back.
+     *
+     * Fenced by the partition, not by the revision: a worker whose retry ends after the entry was re-homed writes
+     * nothing (the entry is no longer in [from]), while an operator's change during the retry, which does not move the
+     * entry, never voids the retry's own result.
+     *
+     * @return true when an entry was replaced; false when the aggregate is not parked in [from] (it was resolved, or
+     * re-homed, meanwhile).
      */
-    suspend fun repark(entry: ParkedAggregate): Boolean
+    suspend fun repark(entry: ParkedAggregate, from: Int = entry.partition): Boolean
 
     /** The entry parking [ref] for [subscription], if any. */
     suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate?
@@ -117,9 +128,21 @@ interface FailureLedger {
      * successfully or the operator chose to skip it: either way the subscription handles the aggregate's entries
      * again. Which of the two happened is the caller's to publish; the ledger only holds what is still parked.
      *
+     * This resolve is an operator's: it removes the entry wherever it is parked. The worker that retried the aggregate
+     * resolves it in its own partition only ([resolve] with a partition).
+     *
      * @return the removed entry, or null when the aggregate was not parked.
      */
     suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate?
+
+    /**
+     * Resolves the entry parking [ref] for [subscription] as [resolve] does, while the aggregate is parked in
+     * [partition]: the worker of that partition handled every parked stream it read there. An entry re-homed to another
+     * partition meanwhile ([repark]) stays: its streams there were never handled by this worker.
+     *
+     * @return the removed entry, or null when the aggregate is not parked in [partition].
+     */
+    suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate?
 
     /**
      * Changes the retry state of the entry parking [ref] for [subscription] as [amendment] says, in one write, giving

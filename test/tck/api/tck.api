@@ -79,6 +79,7 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun a claim, schedule or take read before another write never applies after it, the entry due again ()V
 	public final fun a new entry's retry state reads back with it, in its page and when resolved ()V
 	public final fun a parked aggregate reads back for its subscription only ()V
+	public final fun a repark or a worker's resolve from the partition an entry left writes nothing ()V
 	public final fun a request is left for the owner and taken once ()V
 	public final fun a retry is claimed only at the revision read, once among concurrent claims ()V
 	public final fun a schedule, claim or take applies at the revision read, and a claim or operator's change unschedules ()V

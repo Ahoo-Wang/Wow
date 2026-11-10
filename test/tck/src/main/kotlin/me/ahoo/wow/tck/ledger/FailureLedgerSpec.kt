@@ -129,11 +129,32 @@ abstract class FailureLedgerSpec {
         ledger.parked(subscription, ref("a")).assert().isEqualTo(sameVersion.at(2))
         // Re-homed to another partition: the owner of that one looks at it from now on.
         val earlier = entry(ref("a"), 2, partition = 3)
-        ledger.repark(earlier).assert().isTrue()
+        ledger.repark(earlier, from = 0).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier.at(3))
         ledger.list(subscription).assert().containsExactly(earlier.at(3))
         ledger.due(subscription, listOf(3), ParkedAggregate.NEVER).map { it.ref }.assert().containsExactly(ref("a"))
         ledger.due(subscription, listOf(0), ParkedAggregate.NEVER).assert().isEmpty()
+    }
+
+    @Test
+    fun `a repark or a worker's resolve from the partition an entry left writes nothing`(): Unit = runBlocking {
+        // #5481: the old owner's retry ends after the new owner re-homed the entry.
+        ledger.park(entry(ref("a"), 3, partition = 0))
+        val rehomed = entry(ref("a"), 3, reason = "${ParkedAggregate.UNRECOVERABLE}: moved", partition = 1)
+            .copyWith(fromPosition = null)
+        ledger.repark(rehomed, from = 0).assert().isTrue()
+        // Read in partition 0 before the move: neither its repark nor its resolve applies.
+        ledger.repark(entry(ref("a"), 5, reason = "failed again", partition = 0)).assert().isFalse()
+        ledger.repark(entry(ref("a"), 5, partition = 2), from = 0).assert().isFalse()
+        ledger.resolve(subscription, ref("a"), 0).assert().isNull()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(rehomed.copyWith(revision = 1))
+        // In the partition it is parked in now, both apply; an operator's resolve applies wherever it is.
+        ledger.repark(rehomed.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: still moved")).assert().isTrue()
+        ledger.resolve(subscription, ref("a"), 1)!!.partition.assert().isEqualTo(1)
+        ledger.park(entry(ref("b"), 1, partition = 4))
+        ledger.resolve(subscription, ref("b"), 5).assert().isNull()
+        ledger.resolve(subscription, ref("b"))!!.partition.assert().isEqualTo(4)
+        ledger.resolve(subscription, ref("c"), 0).assert().isNull()
     }
 
     @Test

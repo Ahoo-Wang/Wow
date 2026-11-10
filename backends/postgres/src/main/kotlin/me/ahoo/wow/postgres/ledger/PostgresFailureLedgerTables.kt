@@ -67,11 +67,11 @@ internal class PostgresFailureLedgerTables(val name: String) {
     """.trimIndent()
 
     /**
-     * Replaces the parked entry's partition, from version, reason, time and position, only when there is one, at the
-     * next revision and unscheduled.
+     * Replaces the parked entry's partition, from version, reason, time and position, only while it is parked in the
+     * partition given last, at the next revision and unscheduled.
      */
     val repark = "UPDATE $table SET partition = ?, from_version = ?, reason = ?, failed_at = ?, from_position = ?, " +
-        "$UNSCHEDULED, $NEXT_REVISION WHERE $MATCH"
+        "$UNSCHEDULED, $NEXT_REVISION WHERE $MATCH AND partition = ?"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
@@ -99,6 +99,9 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val count = "SELECT count(*) FROM (SELECT 1 FROM $table WHERE service = ? AND subscription = ? LIMIT ?) AS parked"
 
     val resolve = "DELETE FROM $table WHERE $MATCH RETURNING *"
+
+    /** Resolves an entry while it is parked in a partition: the key, then the partition. */
+    val resolveIn = "DELETE FROM $table WHERE $MATCH AND partition = ? RETURNING *"
 
     /** Claims a retry: the value is the start, then the key, then the revision read. */
     val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ?, $UNSCHEDULED, $NEXT_REVISION " +
