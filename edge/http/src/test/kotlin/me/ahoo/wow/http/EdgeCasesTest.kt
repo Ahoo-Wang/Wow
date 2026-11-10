@@ -125,6 +125,12 @@ class EdgeCasesTest {
         snapshot(Scope("alice"))
         node.get("/shop/cart/c-1/state", headers = mapOf("Accept" to "application/*;q=0, application/json"))
             .assertStatus(200)
+        // Of two ranges of a type, the one with parameters is the more specific, whichever comes first.
+        node.get(
+            "/shop/cart/c-1/state",
+            headers = mapOf("Accept" to "application/json;q=0, application/json;charset=utf-8")
+        )
+            .assertStatus(200)
         node.get(
             "/shop/cart/c-1/state",
             headers = mapOf("Accept" to "*/*, application/json;q=0, application/problem+json;q=0")
