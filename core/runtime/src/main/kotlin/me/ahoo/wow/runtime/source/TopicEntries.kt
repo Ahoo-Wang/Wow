@@ -55,7 +55,8 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   offset order, committed at or after it, found by reading the partition forward ([SubscriptionStart.At.firstAt]).
  * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
  *   records the offset of the record it failed at; a retry re-scans the partition from it up to the end the
- *   partition has when the retry runs, keeping the records keyed by the ref, of its version or later. When the
+ *   partition has when the retry runs, keeping the records keyed by the ref, of its version or later, and every
+ *   undecodable message of the ref: its entry has no version of its own, and it is after the parked one. When the
  *   partition no longer retains that offset, the retry fails with an [UnrecoverableException].
  * - At least once: a record may be published twice, so the subscriptions drop the copies of a version
  *   they handled ([repeats]).
@@ -112,7 +113,7 @@ internal class TopicEntries(
             .parkedAt(topic, partition, key, fromPosition, offsets.end)
             .filter { it.key == key }
             .mapNotNull { entryOf(partition, it) }
-            .filter { it.stream.ref == ref && it.stream.version >= fromVersion }
+            .filter { it.stream.ref == ref && (UndecodableMessage.isUndecodable(it) || it.stream.version >= fromVersion) }
     }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = null
