@@ -13,6 +13,14 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -23,10 +31,12 @@ import me.ahoo.wow.runtime.source.TopicEntries
 import me.ahoo.wow.runtime.source.order
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /** The park states a run of a topic's subscription runtime starts its partitions with, moved entries re-homed. */
 class ParkedAtStartTest {
@@ -35,6 +45,10 @@ class ParkedAtStartTest {
     private val ledger = InMemoryFailureLedger()
     private val listings = AtomicInteger()
     private val failing = AtomicBoolean()
+
+    /** While set, the next listing waits here after it began, until it is completed. */
+    private val hold = AtomicReference<CompletableDeferred<Unit>?>()
+    private val listing = CompletableDeferred<Unit>()
     private val counted = object : FailureLedger by ledger {
         override suspend fun list(
             subscription: String,
@@ -43,9 +57,21 @@ class ParkedAtStartTest {
             tenantId: String?,
         ): List<ParkedAggregate> {
             listings.incrementAndGet()
+            hold.getAndSet(null)?.let {
+                listing.complete(Unit)
+                it.await()
+            }
             check(!failing.getAndSet(false)) { "the ledger is unavailable" }
             return ledger.list(subscription, after, limit, tenantId)
         }
+    }
+
+    /** The run's scope, which owns the listings. */
+    private val run = CoroutineScope(SupervisorJob())
+
+    @AfterEach
+    fun stop() {
+        run.cancel()
     }
     private val subscription = Subscription(NAME, SubscriptionFilter(ORDER.context, setOf(ORDER.name))) { }
 
@@ -60,7 +86,7 @@ class ParkedAtStartTest {
             val stays = orderIn(0)
             ledger.park(ParkedAggregate(NAME, moved, 0, 3, "failed", 0, 7))
             ledger.park(ParkedAggregate(NAME, stays, 0, 2, "failed", 0, 5))
-            val start = ParkedAtStart(source, counted)
+            val start = ParkedAtStart(source, counted, run)
             // The partition it parked in holds it as it finds it there; re-homing is the other partition's start.
             start.parkedIn(subscription, listOf(0)).assert().isEqualTo(mapOf(0 to mapOf(stays to 2L, moved to 3L)))
             ledger.parked(NAME, moved)!!.partition.assert().isEqualTo(0)
@@ -79,7 +105,7 @@ class ParkedAtStartTest {
     fun `an entry resolved after the listing is neither re-homed nor held`(): Unit = runBlocking {
         val moved = orderIn(1)
         ledger.park(ParkedAggregate(NAME, moved, 0, 3, "failed", 0, 7))
-        val start = ParkedAtStart(source, counted)
+        val start = ParkedAtStart(source, counted, run)
         start.parkedIn(subscription, listOf(0))
         ledger.resolveAnywhere(NAME, moved)
         start.parkedIn(subscription, listOf(1)).assert().isEmpty()
@@ -90,7 +116,7 @@ class ParkedAtStartTest {
     fun `a listing that fails fails the start, and the next start lists again`(): Unit = runBlocking {
         val moved = orderIn(1)
         ledger.park(ParkedAggregate(NAME, moved, 0, 3, "failed", 0, 7))
-        val start = ParkedAtStart(source, counted)
+        val start = ParkedAtStart(source, counted, run)
         failing.set(true)
         assertThrows<IllegalStateException> { runBlocking { start.parkedIn(subscription, listOf(1)) } }
         start.parkedIn(subscription, listOf(1)).assert().isEqualTo(mapOf(1 to mapOf(moved to 3L)))
@@ -98,11 +124,54 @@ class ParkedAtStartTest {
     }
 
     @Test
+    fun `a start that fails for its own reason while the listing runs leaves the listing to the others`(): Unit =
+        runBlocking {
+            othersAfterAFailedStart(listingFails = false)
+        }
+
+    @Test
+    fun `a start waiting on a listing that fails fails with the listing's own failure, and the next lists again`(): Unit =
+        runBlocking {
+            othersAfterAFailedStart(listingFails = true)
+        }
+
+    /**
+     * Two starts of one run: the first asks for the listing and fails for a reason of its own, as a start whose
+     * `coroutineScope` lost another child does, while the listing is held; then the listing ends, or fails.
+     */
+    private suspend fun othersAfterAFailedStart(listingFails: Boolean) = coroutineScope {
+        val moved = orderIn(1)
+        ledger.park(ParkedAggregate(NAME, moved, 0, 3, "failed", 0, 7))
+        val start = ParkedAtStart(source, counted, run)
+        val release = CompletableDeferred<Unit>()
+        hold.set(release)
+        val first = async { start.parkedIn(subscription, listOf(1)) }
+        listing.await()
+        first.cancel(CancellationException("the first start failed for a reason of its own"))
+        // Runs until it waits on the listing the first one started.
+        val second =
+            async(start = CoroutineStart.UNDISPATCHED) { runCatching { start.parkedIn(subscription, listOf(1)) } }
+        failing.set(listingFails)
+        release.complete(Unit)
+        val outcome = second.await()
+        if (listingFails) {
+            outcome.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+            outcome.exceptionOrNull().assert().isNotInstanceOf(CancellationException::class.java)
+            // Taken out: the next start lists again.
+            start.parkedIn(subscription, listOf(1)).assert().isEqualTo(mapOf(1 to mapOf(moved to 3L)))
+            listings.get().assert().isEqualTo(2)
+        } else {
+            outcome.getOrThrow().assert().isEqualTo(mapOf(1 to mapOf(moved to 3L)))
+            listings.get().assert().isEqualTo(1)
+        }
+    }
+
+    @Test
     fun `a source whose partitions do not grow lists nothing`(): Unit = runBlocking {
         val log = me.ahoo.wow.kernel.memory.InMemoryEventLog(partitions = PARTITIONS)
         val ref = cart("x")
         ledger.park(ParkedAggregate(NAME, ref, 1, 2, "failed", 0))
-        ParkedAtStart(LogSource(log), counted).parkedIn(subscription, listOf(1))
+        ParkedAtStart(LogSource(log), counted, run).parkedIn(subscription, listOf(1))
             .assert().isEqualTo(mapOf(1 to mapOf(ref to 2L)))
         listings.get().assert().isEqualTo(0)
     }

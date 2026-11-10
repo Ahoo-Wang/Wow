@@ -14,7 +14,10 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -31,15 +34,20 @@ import java.util.concurrent.ConcurrentHashMap
  * owner that holds them; the entry cannot be retried, only skipped. Those entries are looked for once per subscription
  * in one run of the runtime, a start or a join again after the partitions grew: one paged listing of the
  * subscription's ledger, the first time a partition of it starts, and one [EntrySource.partitionOf] per entry, never
- * per entry read. A run's partitions do not change, so no entry parked during the run is in another partition than its
- * key's.
+ * per entry read. A run starts and stops partitions, but the number of partitions its source maps keys to does not
+ * change during it, so no entry parked during the run is in another partition than its key's.
+ *
+ * The run owns each listing: it runs in the run's [scope], whichever start asks first, so a start that fails for a
+ * reason of its own cancels only its own wait, and the other starts get the listing or its own failure. A listing that
+ * fails is taken out, and the next start lists again.
  */
 internal class ParkedAtStart(
     private val source: EntrySource,
     private val ledger: FailureLedger,
+    private val scope: CoroutineScope,
 ) {
     /** Per subscription, its entries parked in another partition than its key's now, with that partition. */
-    private val moved = ConcurrentHashMap<String, CompletableDeferred<List<Moved>>>()
+    private val moved = ConcurrentHashMap<String, Deferred<List<Moved>>>()
 
     private class Moved(val entry: ParkedAggregate, val now: Int)
 
@@ -65,20 +73,14 @@ internal class ParkedAtStart(
         return parked
     }
 
-    /** [subscription]'s moved entries, listed once for this run; a listing that fails is tried again by the next start. */
-    @Suppress(
-        "TooGenericExceptionCaught"
-    ) // Whatever fails the listing, cancellation too, fails its waiters and is rethrown.
+    /** [subscription]'s moved entries, listed once for this run; a listing that fails is listed again by the next start. */
     private suspend fun movedOf(subscription: String): List<Moved> {
-        val mine = CompletableDeferred<List<Moved>>()
-        moved.putIfAbsent(subscription, mine)?.let { return it.await() }
-        try {
-            mine.complete(listMoved(subscription))
-        } catch (failure: Throwable) {
-            moved.remove(subscription, mine)
-            mine.completeExceptionally(failure)
+        val listing = moved.computeIfAbsent(subscription) { name ->
+            scope.async(start = CoroutineStart.LAZY) { listMoved(name) }
         }
-        return mine.await()
+        // Registered before the wait starts the listing: a failed one is always taken out.
+        listing.invokeOnCompletion { failure -> if (failure != null) moved.remove(subscription, listing) }
+        return listing.await()
     }
 
     private suspend fun listMoved(subscription: String): List<Moved> = buildList {

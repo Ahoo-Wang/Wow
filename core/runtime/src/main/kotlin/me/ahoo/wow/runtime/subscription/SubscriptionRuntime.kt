@@ -188,7 +188,7 @@ class SubscriptionRuntime internal constructor(
         partitions.forEach(::requirePartition)
         val root = SupervisorJob()
         val scope = CoroutineScope(context + root + fatals.contextOf(Component.SUBSCRIPTION, group))
-        val run = Running(root, scope, ParkedAtStart(source, ledger))
+        val run = Running(root, scope, ParkedAtStart(source, ledger, scope))
         var started = false
         try {
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
