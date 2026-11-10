@@ -133,7 +133,10 @@ internal class Transformations(
     private fun decidedBy(type: CommandType): Pair<AggregateModel<*>, DecideFunction<*>>? {
         val (model, _) = deciders[type.type].orEmpty().singleOrNull { (_, commandType) -> commandType.name == type.name }
             ?: return null
-        return model.decider(type.type)?.let { model to it }
+        // Every command type a model lists ([AggregateModel.commandTypes]) is one it decides: its decide functions'
+        // and the system commands the kernel decides for it. AggregateModelTest's "a model lists the command types it
+        // decides, the kernel's lifecycle commands after its own" fails the day a model lists one it does not.
+        return model to model.decider(type.type)!!
     }
 
     /**
