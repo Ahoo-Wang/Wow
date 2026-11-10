@@ -23,6 +23,8 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(kotlin("reflect"))
     testImplementation("com.fasterxml.jackson.core:jackson-annotations")
+    // StateViewNamesTest compiles the state views it generates.
+    testImplementation(libs.kotlin.compile.testing)
     // Only to show that the fingerprint it writes is the one the kernel checks a snapshot against.
     testImplementation(project(":kernel"))
 }
