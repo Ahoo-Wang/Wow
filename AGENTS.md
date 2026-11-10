@@ -221,6 +221,79 @@ Steps:
 - Never edit generated clients in an app's `src/generated/` as the primary fix when the Manifest or the generator can be fixed instead.
 - Never block a thread in the core's runtime paths.
 
+## Working Method
+
+How work is planned, reviewed and merged when several agent sessions work on the repository at once, and what a review holds a change to. Every rule here was paid for by a failure in this repository; the pull request beside a rule is where. [progress.md](documentation/designs/progress.md) §5 is the running record these are drawn from.
+
+### Sessions
+
+- One coordinating session plans, dispatches, reviews, merges and edits the shared records (`documentation/designs/progress.md`, `reviews.md`, `decisions.md`, this file). Implementation goes to sub-sessions, each with one area and a brief that names the files, what done looks like and the rules of this section. A sub-session edits no shared record and no file of another session's area.
+- At most five sub-sessions have work at a time. Count before dispatching, and count a session until its last pull request has merged: one that only waits for CI still holds its place.
+- Work on one file is serial: one open pull request per file or chain of files, at most three open per session. Independent chains (two stores, a worker and its runtime) run side by side.
+- A design comes before code wherever a change spans more than one pull request. The session writes a note, kept outside the repository: what each file holds, what moves and why, what stays whole and why, the invariants a move must keep with the test that holds each, the order of pull requests and what will be measured. The coordinator decides it, and pull requests wait for the decision.
+- A next task, a go-ahead or a decision goes to the session by direct message. A comment on a pull request carries the review of that pull request and nothing else: nobody is woken by a comment on a merged one, and two sessions once sat idle for an hour on decisions written there. After a wave of merges, check that each session that should have started something did.
+- A session stops before a choice that is not its own and says what it found (a rule switched off in a script, a fix that would change behaviour in a move, a figure it cannot explain); the coordinator decides. A session never does for another what that session's permissions refused: it tells the user.
+- Report what was observed, not what was expected. A pushed head is quoted from `git ls-remote` after the push, a pull request number from the command's output, a test count from the run that produced it. Twice a reported hash was wrong, and only the guard on the merge caught it.
+- When a figure or a claim you reported turns out wrong, say so unprompted and correct the record. A coverage figure measured from an overwritten report was corrected by the session that had reported it, and an explanation of a benchmark difference by the reviewer who had given it; each time the decision already taken was checked again against the corrected fact.
+
+### Pull requests
+
+- Commits and pull request titles are conventional commits in English, with no tool or AI attribution.
+- A session opens its pull request as a draft and turns Auto-fix on for it at once, so that CI failures, conflicts and review comments wake it.
+- The coordinator reviews the head. On approval it marks the pull request ready and turns auto-merge on for exactly that commit: `gh pr merge <n> --squash --auto --match-head-commit <sha>`.
+- Never push to a pull request whose auto-merge is on. When CI fails on one, the session tells the coordinator, auto-merge goes off, the session pushes once, the new head is reviewed and auto-merge goes back on.
+- A failure that is not the pull request's (a runner's network, an intermittent test of another module) gets no push: re-run the failed job once its run has completed, and file the intermittent test as an issue.
+- A defect found while moving code is not fixed in the move. File it, then fix it in a pull request of its own with a test that fails on `main` (#5727, #5731 and #5743 were found this way).
+- The description says what is not a move, what behaviour changes, what breaks, the sizes before and after, what was run, and the patch coverage as the gate computes it.
+- A Renovate pull request is merged when green and never pushed to: a commit of ours stops Renovate from rebasing it. When an update needs a change of ours (pages a tool now prints differently, a test that asserted how a browser spells a computed value), that change is a pull request of ours from `main`, and Renovate rebases onto it. Pin a version only for a regression of the dependency, never to keep a generated page still.
+
+### Before a push
+
+"The local checks pass" must cover what depends on the change, not only the modules it touched. Before a push:
+
+- `./gradlew :architecture:test`: it scans every module's sources as text.
+- The unit tests of every module that depends on what changed; the whole build's `test` when a shared module changed.
+- The integration tests of the modules that start a host, a kernel or a query backend on what changed (#5690 passed every unit test and stopped another module's host from starting).
+- The docs checks and, for any change that moves a declaration to another file, the docs generators: a generated page that lists declarations in file order changes with a move-only pull request (#5724). Prettier over changed Markdown and TypeScript.
+- The patch coverage computed as `ci-gate` computes it (`.github/scripts/patch-coverage.mjs`: 89% of changed main-source lines, a partial line counts as uncovered), from a full run of the unit suite. Codecov's project figure is not that number, and a coverage file that a later single-test run overwrote is not either.
+- A reachable changed line that no test takes gets a behaviour test in the same pull request; an unreachable one is named in the description. A new test is shown to fail when the behaviour it holds is broken (break the code locally, see it fail alone, revert).
+
+### What a review holds a change to
+
+- Clean architecture and code, high cohesion, low coupling, performance, extensibility, availability, usability and maintainability; progress.md §5 says what each means here. A review verifies what a description claims: it compares the lines, reads the dump, runs the name comparison, opens the benchmark report.
+- No class or file grows past about 600 lines. A fix that would make one grow extracts the responsibility it adds to, in the same pull request when the extraction is small and mechanical, otherwise in a move-only pull request first. A file that is one thing stays whole and is recorded as an exception with the reason (`QueryViolation.kt`: forty-two public types nested in one sealed interface).
+- A new type does not hand out its state. A mutable collection is private, and the type offers the question its callers ask, with the check and its message inside (#5738, #5761). A function does not write into a collection its caller passes when it can return or offer the value.
+- Visibility says who a member is for. In a contract suite an author extends, `protected` is for what the author implements or uses, or what names a protected type; what the suite's own parents share is `internal`; no setter of the suite's state is visible to a subclass (#5746).
+- A name that a parameter in scope shadows is read wrong without an error: in a local extension function the enclosing function's parameter wins over the receiver's member (#5727). Pass the value as a parameter.
+- An action answers its caller only once its own state is settled. A skip that answered first and cleared its state in `finally` lost the entry taken in between (#5743).
+- Before 10.0.0 GA, a stored or wire format that must change is given a new format number and the old one is refused; there is no conversion and no compatibility code (the user's decision for the 10.0.0 pre-releases).
+
+### Splitting a large file
+
+- A split is move-only. Every removed line is compared with every added line (as whitespace-normalised multisets, with the new receiver's prefix stripped), and the description lists every line that is not a move: visibility, constructor wiring, call sites, imports.
+- What moves is a responsibility with one reason to change. A type that would need most of its owner's private state opened is not an extraction: leave it, and say why. A hot loop whose decisions share one lock stays in one place.
+- State moves with the lock or lane that guards it, and orderings stay visible where they are decided (ledger before memory; state settled before an answer). The description names the invariants its lines touch and the tests, run by name, that hold them.
+- A class that receives moved log lines names its logger after the old owner, so that an operator's filters and alerts see no change.
+- A rename is its own commit, before the move it serves.
+- Tests move like sources. The sorted list of full test names is identical before and after, no assertion, fixture value or timeout changes, the package's coverage is the same, and a helper that one file uses stays in that file.
+- Where two backends hold the same responsibilities, they take the same cut and parallel names, so that a reader finds the same files in both; they share no base class when their statements and failure answers differ.
+- In TypeScript, a documentation link is checked the way an editor resolves it, not the way a report tool does: a type moved out of the file that declares its target loses the link without any check failing (#5740). Lists of known exceptions are keyed by what does not move (file and target with a count), never by line number.
+
+### Benchmarks
+
+- Load tests and benchmarks run on GitHub Actions only (`bench.yml`), never on a developer machine. The workflow keeps one pending run per ref: dispatch one at a time per branch.
+- A pull request on a hot path (decide, append, the per-entry loop of a subscription) carries a run of the tier that passes through the code it changes; name the scenario that does.
+- For the component suites (L1), allocated bytes per operation is the figure to read: identical code stays within 1% on E1 and E1-large and about 1.5% on E3. Store round trips per operation of identical code differ by up to 5% between two arms of one run and more between runs, so a round-trip ratio alone decides nothing. A component run at 1k is a fixed 20,000 operations, so an arm's operation count explains nothing.
+- A single run settles nothing that surprises. A flagged difference is repeated once and set against a pair with the same commit as both arms; it is a finding only when it repeats beyond that pair's spread.
+- For a pure move, compare the compiled classes before and after (`javap -c -p` at the merge base and at the head): the same allocating instructions in each moved function and its callers, the same fields in each continuation and lambda class. It takes minutes, is not a load test, and answers directly what a benchmark only samples.
+- Do not explain a difference with a pattern drawn from a handful of arms. "Round trips follow throughput" held in three runs and was contradicted by the fourth.
+
+### Failures in CI
+
+- A test that fails once is a defect until its cause is known. Find the interleaving by reading the code against the test; do not re-run until it passes, and do not raise a timeout. A slow runner is a candidate to rule out, not an explanation to assume: the ten-second timeout of #5743 was an entry the runtime had lost, which no timeout would have passed.
+- The regression test holds the interleaving with a gate, not a sleep, and fails on `main` at once.
+- When a gate stops a pull request that was approved, the review missed it too: add what would have caught it to the list above, not only to the pull request.
+
 ## Documentation
 
 Each kind of document has one home, chosen by its reader; [Documentation Governance](documentation/docs/en/contribute/documentation.md) is the full policy. `pnpm check:docs-layout` checks the tracked files against it; the `docs-layout` job of `ci.yml` runs it on every pull request.
