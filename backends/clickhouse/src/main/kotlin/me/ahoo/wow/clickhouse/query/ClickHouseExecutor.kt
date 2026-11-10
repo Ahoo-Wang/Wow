@@ -138,7 +138,7 @@ internal class ClickHouseExecutor(
         .setFormat(ClickHouseFormat.JSONEachRow)
         .setQueryId(queryId)
         .apply {
-            val all = OUTPUT_SETTINGS + settings + timeoutSettings(timeout)
+            val all = OUTPUT_SETTINGS + settings + DATE_SETTINGS + timeoutSettings(timeout)
             all.forEach { (name, value) -> serverSetting(name, value) }
         }
 
@@ -147,6 +147,13 @@ internal class ClickHouseExecutor(
 
         /** ClickHouse's error code of a query that ran past `max_execution_time`. */
         const val TIMEOUT_EXCEEDED: Int = 159
+
+        /**
+         * How every statement computes dates, whatever the configured settings: a `toStartOf…` of a `DateTime64` or a
+         * `Date32` keeps its type and range (1900 to 2299), instead of a `DateTime` or a `Date` that wraps an instant
+         * before 1970.
+         */
+        private val DATE_SETTINGS: Map<String, String> = mapOf("enable_extended_results_for_datetime_functions" to "1")
 
         /** How every statement writes its rows: plain JSON numbers, ISO-8601 instants. */
         private val OUTPUT_SETTINGS: Map<String, String> = mapOf(

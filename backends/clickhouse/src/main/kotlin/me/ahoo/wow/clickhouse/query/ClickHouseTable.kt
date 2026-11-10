@@ -59,6 +59,13 @@ internal class TypedColumn(val column: ClickHouseColumn) {
     val temporal: Boolean
         get() = family == ClickHouseTypeFamily.DATE || family == ClickHouseTypeFamily.DATE_TIME
 
+    /**
+     * The fraction digits of the instants a temporal column stores: `p` of `DateTime64(p)`, none for a `DateTime`, a
+     * `Date` or a `Date32`.
+     */
+    val scale: Int
+        get() = DATE_TIME64.matchEntire(baseType)?.groupValues?.get(1)?.toInt() ?: 0
+
     /** The type an operand of this column is bound as: its base type, except where the text form differs. */
     val parameterType: String
         get() = when (family) {
@@ -78,6 +85,7 @@ internal class TypedColumn(val column: ClickHouseColumn) {
         val STRING_TYPES = setOf("String", "UUID")
         val FLOAT_TYPES = setOf("Float32", "Float64")
         val DATE_TYPES = setOf("Date", "Date32")
+        val DATE_TIME64 = Regex("""DateTime64\((\d+)(,.*)?\)""")
 
         fun familyOf(baseType: String): ClickHouseTypeFamily = when {
             baseType in STRING_TYPES || baseType.startsWith("FixedString(") -> ClickHouseTypeFamily.STRING

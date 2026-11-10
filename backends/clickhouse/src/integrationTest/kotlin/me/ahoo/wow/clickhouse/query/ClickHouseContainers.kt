@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit
 /** The ClickHouse server of the Sink's tests, shared by the dataset tests, and SQL helpers to load tables into it. */
 object ClickHouseContainers {
     const val DATABASE = "wow_tck"
+    private const val MICROS = 1_000_000L
+    private const val NANOS_PER_MICRO = 1_000
 
     val client: Client by lazy {
         ClickHouseSinkIntegrationTest.client.also { execute(it, "CREATE DATABASE IF NOT EXISTS $DATABASE") }
@@ -55,7 +57,8 @@ object ClickHouseContainers {
             DatasetColumn.Type.STRING -> "String"
             DatasetColumn.Type.INTEGER -> "Int64"
             DatasetColumn.Type.DECIMAL -> "Decimal(18, 2)"
-            DatasetColumn.Type.DATE -> "DateTime64(3, 'UTC')"
+            // Microseconds, so a position finer than a millisecond is tested.
+            DatasetColumn.Type.DATE -> "DateTime64(6, 'UTC')"
             // An array cannot be Nullable: a missing or null one is empty.
             DatasetColumn.Type.STRING_ARRAY -> return "Array(String)"
         }
@@ -67,7 +70,7 @@ object ClickHouseContainers {
         is String -> "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
         is Long, is Int -> value.toString()
         is BigDecimal -> value.toPlainString()
-        is Instant -> "fromUnixTimestamp64Milli(${value.toEpochMilli()}, 'UTC')"
+        is Instant -> "fromUnixTimestamp64Micro(${Math.addExact(Math.multiplyExact(value.epochSecond, MICROS), value.nano / NANOS_PER_MICRO.toLong())}, 'UTC')"
         is List<*> -> value.joinToString(", ", "[", "]") { literal(it) }
         else -> error("Unsupported test value [$value].")
     }

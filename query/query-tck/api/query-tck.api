@@ -89,8 +89,12 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public static final field Companion Lme/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion;
 	public static final field ID Ljava/lang/String;
 	public fun <init> ()V
+	public final fun NOR holds for a record whose condition has no value ()V
+	public final fun a cursor over instants a microsecond apart walks each record once, in time order ()V
+	public final fun a date histogram buckets instants before 1970 at their own start ()V
 	public final fun a single record is the first in sort order, or none ()V
 	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
+	public final fun an expression past the double range has no value, so no comparison matches it ()V
 	public final fun counts are bounded by their limit ()V
 	protected abstract fun createDatasetBindings ()Lme/ahoo/wow/query/backend/QueryBindings;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -116,6 +120,8 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 }
 
 public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
+	public final fun getHISTORY ()Lme/ahoo/wow/query/tck/DatasetTable;
+	public final fun getMICROS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getORDERS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC_FIELDS ()Ljava/util/Map;

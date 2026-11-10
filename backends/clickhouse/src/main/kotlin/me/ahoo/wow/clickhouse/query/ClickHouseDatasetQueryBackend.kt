@@ -40,6 +40,7 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.schema.QueryViolation
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -242,7 +243,16 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 
         private fun bound(index: Int, value: Any?): String {
             if (value == null) throw QueryExecutionException("Cursor position holds a null value.")
-            return filters.bind(sort[index].first, value)
+            val column = sort[index].first
+            if (!column.temporal) return filters.bind(column, value)
+            // An instant is its exact UTC text ([positionExpression]); anything else is no position of this backend.
+            if (value !is String) throw QueryViolation.InvalidCursor.rejection()
+            val text = parameters.bind(value, "String")
+            return if (column.family == ClickHouseTypeFamily.DATE) {
+                "toDate32($text)"
+            } else {
+                "toDateTime64($text, ${column.scale}, 'UTC')"
+            }
         }
 
         private fun columns(projection: Projection): List<String> = when {
@@ -258,8 +268,9 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         fun positionExpression(column: TypedColumn): String {
             val quoted = quoteIdentifier(column.name)
             return when (column.family) {
-                ClickHouseTypeFamily.DATE, ClickHouseTypeFamily.DATE_TIME ->
-                    "toUnixTimestamp64Milli(toDateTime64($quoted, 3, 'UTC'))"
+                // Exact at the column's own precision, a microsecond or a nanosecond included, as the column orders.
+                ClickHouseTypeFamily.DATE -> "toString($quoted)"
+                ClickHouseTypeFamily.DATE_TIME -> "toString($quoted, 'UTC')"
                 // Exact, as the JSON codec keeps no decimals: bound back as the column's Decimal type.
                 ClickHouseTypeFamily.DECIMAL -> "toString($quoted)"
                 else -> quoted
