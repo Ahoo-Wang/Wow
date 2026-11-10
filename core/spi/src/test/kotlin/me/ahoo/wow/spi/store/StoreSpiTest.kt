@@ -134,6 +134,61 @@ class StoreSpiTest {
         }
 
     @Test
+    fun `a store should close the ports it opened that close, in reverse order, then itself, and open none once closed`() {
+        val closed = mutableListOf<String>()
+        fun <P : Any> closing(name: String, port: Class<P>, fails: Boolean = false): Opened<P> {
+            val handler = java.lang.reflect.InvocationHandler { _, method, _ ->
+                check(method.name == "close") { "unused" }
+                closed += name
+                check(!fails) { "$name fails to close." }
+                null
+            }
+            val proxy = java.lang.reflect.Proxy.newProxyInstance(
+                javaClass.classLoader,
+                arrayOf(port, AutoCloseable::class.java),
+                handler,
+            )
+            return Opened.of(port.cast(proxy))
+        }
+        val store = object : Store(StoreConfig.of("a", "acme")) {
+            override val location: Any = Any()
+
+            override fun closeStore() {
+                closed += "store"
+            }
+
+            override fun openCheckpoints(): Opened<CheckpointStore> =
+                closing("checkpoints", CheckpointStore::class.java, fails = true)
+
+            override fun openLeases(): Opened<LeaseStore> = closing("leases", LeaseStore::class.java, fails = true)
+
+            override fun openLedger(): Opened<FailureLedger> = Opened.of(mockk<FailureLedger>())
+
+            override fun openReservations(): Opened<ReservationStore> =
+                closing("reservations", ReservationStore::class.java)
+
+            override fun openLog(context: String, partitions: Int): Opened<EventLog> = error("unused")
+
+            override fun openSnapshots(context: String): Opened<SnapshotStore> = error("unused")
+
+            override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
+        }
+        store.checkpoints
+        store.leases
+        store.ledger
+        val failure = assertThrows<IllegalStateException> { store.close() }
+        // Every one closed even when one fails, the first failure thrown, the later ones suppressed.
+        closed.assert().containsExactly("leases", "checkpoints", "store")
+        failure.message.assert().isEqualTo("leases fails to close.")
+        failure.suppressed.map { it.message }.assert().containsExactly("checkpoints fails to close.")
+        store.close()
+        closed.assert().containsExactly("leases", "checkpoints", "store")
+        // A port opened once the store is closed is closed at once and refused.
+        assertThrows<IllegalStateException> { store.reservations }.message.assert().contains("closed")
+        closed.assert().containsExactly("leases", "checkpoints", "store", "reservations")
+    }
+
+    @Test
     fun `tail polling is a value, and paces the tails of a log`() {
         val polling = TailPolling(20.milliseconds, 2.seconds)
         polling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds)).isNotEqualTo(TailPolling.DEFAULT)
