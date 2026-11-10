@@ -16,6 +16,7 @@ import type { QueryField } from '../filter/index.js';
 import { aggregationField } from './aliases.js';
 import { requireValidExpressionTrees } from './expressionTrees.js';
 import type { AggregationExpression } from './types.js';
+import { aggregationAlias } from './aliases.js';
 
 /** The kind of an {@link AggregationGroup}, sent as its `type`. */
 export enum AggregationGroupType {
@@ -282,3 +283,196 @@ export function groupScope(
   }
   return { scope };
 }
+
+/** The builders of the groups of an aggregation query: terms, histograms, date histograms and date parts. */
+export const groupBuilders = {
+  /**
+   * Groups by each distinct value of a field, or of a computed expression.
+   * `{ type: 'terms', field, alias, missingKey? }`, or
+   * `{ type: 'terms', expression, alias }`.
+   *
+   * @param input - The field to group by, or an expression in its place
+   *   (Wow 9.2 and later, an expensive computation).
+   * @param alias - The name of the group column in the result rows.
+   * @param options.missingKey - The key of the rows without a value; only
+   *   with a field.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
+   * @throws TypeError when `input` or `alias` is invalid, `missingKey` is
+   *   blank, or `missingKey` is given with an expression.
+   * @example
+   * ```typescript
+   * aggregation.terms('state.status', 'status', { missingKey: 'NONE' });
+   * aggregation.terms(
+   *   aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.DAY),
+   *   'daysToShip',
+   * );
+   * ```
+   */
+  terms<FIELDS extends string>(
+    input: FIELDS | AggregationExpression<FIELDS>,
+    alias: string,
+    { missingKey, scope }: TermsAggregationOptions = {},
+  ): TermsAggregationGroup<FIELDS> {
+    if (
+      missingKey !== undefined &&
+      (typeof missingKey !== 'string' || !missingKey.trim())
+    ) {
+      throw new TypeError('terms missingKey must not be blank.');
+    }
+    const source = groupInput(input, 'terms');
+    if (missingKey !== undefined && source.expression) {
+      throw new TypeError('terms missingKey requires a field input.');
+    }
+    return {
+      type: AggregationGroupType.TERMS,
+      ...(missingKey === undefined ? {} : { missingKey }),
+      ...source,
+      ...groupScope(scope, 'terms', source),
+      alias: aggregationAlias(alias),
+    };
+  },
+  /**
+   * Groups a number field, or a computed expression, into buckets of equal
+   * width. `{ type: 'histogram', field | expression, interval, alias }`.
+   *
+   * @param input - The number field to bucket, or an expression in its
+   *   place (Wow 9.2 and later, an expensive computation).
+   * @param alias - The name of the bucket column in the result rows.
+   * @param options.interval - The bucket width.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
+   * @throws TypeError when `interval` is not finite and greater than 0, or
+   *   `field` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.histogram('state.amount', 'amountBand', { interval: 100 });
+   * ```
+   */
+  histogram<FIELDS extends string>(
+    input: FIELDS | AggregationExpression<FIELDS>,
+    alias: string,
+    { interval, scope }: HistogramAggregationOptions,
+  ): HistogramAggregationGroup<FIELDS> {
+    if (!Number.isFinite(interval) || interval <= 0) {
+      throw new TypeError(
+        'histogram interval must be finite and greater than 0.',
+      );
+    }
+    const source = groupInput(input, 'histogram');
+    return {
+      type: AggregationGroupType.HISTOGRAM,
+      ...source,
+      ...groupScope(scope, 'histogram', source),
+      interval,
+      alias: aggregationAlias(alias),
+    };
+  },
+  /**
+   * Groups a time field into calendar buckets.
+   * `{ type: 'date-histogram', field, unit, alias, timeZone, dense? }`.
+   *
+   * @param field - The time field (epoch milliseconds) to bucket.
+   * @param alias - The name of the bucket column in the result rows.
+   * @param options.unit - The calendar unit of a bucket.
+   * @param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.
+   * @param options.dense - Whether the empty buckets of the range are filled
+   *   in.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
+   * @throws TypeError when `unit` is not an `AggregationDateUnit`,
+   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
+   *   invalid.
+   * @example
+   * ```typescript
+   * aggregation.dateHistogram('createTime', 'day', {
+   *   unit: AggregationDateUnit.DAY,
+   *   timeZone: 'Asia/Shanghai',
+   * });
+   * ```
+   */
+  dateHistogram<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    { unit, timeZone = 'UTC', dense, scope }: DateHistogramAggregationOptions,
+  ): DateHistogramAggregationGroup<FIELDS> {
+    if (dense !== undefined && typeof dense !== 'boolean') {
+      throw new TypeError('date histogram dense must be boolean.');
+    }
+    if (!Object.values(AggregationDateUnit).includes(unit)) {
+      throw new TypeError('date histogram unit is invalid.');
+    }
+    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+      throw new TypeError('date histogram timeZone cannot be blank.');
+    }
+    return {
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      ...(dense === undefined ? {} : { dense }),
+      field: aggregationField(field),
+      ...groupScope(scope, 'date-histogram', {}),
+      unit,
+      alias: aggregationAlias(alias),
+      timeZone,
+    };
+  },
+  /**
+   * Groups a time field by one calendar part of each instant, such as the
+   * weekday or the hour, so records from different days share a bucket.
+   * `{ type: 'date-part', field, part, alias, timeZone, dense? }`.
+   *
+   * The group's keys in the result rows are integers: `DAY_OF_WEEK` is the
+   * ISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;
+   * `HOUR_OF_DAY` 0 to 23 on the wall clock of `timeZone`; `MONTH_OF_YEAR`
+   * 1 to 12. With `dense`, every key of that domain comes back, those
+   * without records carrying each metric's empty value; `dense` needs the
+   * group to be the query's only one. Wow 9.2 and later.
+   *
+   * @param field - The time field (epoch milliseconds) to read the part of.
+   * @param alias - The name of the part column in the result rows.
+   * @param options.part - The calendar part to group by.
+   * @param options.timeZone - The zone the part is read in. Defaults to
+   *   `UTC`.
+   * @param options.dense - Whether every key of the part's domain is
+   *   returned.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
+   * @throws TypeError when `part` is not an `AggregationDatePart`,
+   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
+   *   invalid.
+   * @example
+   * ```typescript
+   * aggregation.datePart('createTime', 'weekday', {
+   *   part: AggregationDatePart.DAY_OF_WEEK,
+   *   timeZone: 'Asia/Shanghai',
+   * });
+   * ```
+   */
+  datePart<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    { part, timeZone = 'UTC', dense, scope }: DatePartAggregationOptions,
+  ): DatePartAggregationGroup<FIELDS> {
+    if (dense !== undefined && typeof dense !== 'boolean') {
+      throw new TypeError('date part dense must be boolean.');
+    }
+    if (!Object.values(AggregationDatePart).includes(part)) {
+      throw new TypeError('date part is invalid.');
+    }
+    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+      throw new TypeError('date part timeZone cannot be blank.');
+    }
+    return {
+      type: AggregationGroupType.DATE_PART,
+      ...(dense === undefined ? {} : { dense }),
+      field: aggregationField(field),
+      ...groupScope(scope, 'date-part', {}),
+      part,
+      alias: aggregationAlias(alias),
+      timeZone,
+    };
+  },
+};

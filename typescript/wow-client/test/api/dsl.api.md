@@ -5,35 +5,7 @@
 ```ts
 
 // @public
-export const aggregation: {
-    element(path: string, predicate?: ElementFilterExpression | ExpressionFilter): AggregationElement;
-    field<FIELDS extends string>(field: FIELDS): FieldAggregationExpression<FIELDS>;
-    constant(value: number): ConstantAggregationExpression;
-    dateDiff<FIELDS extends string>(from: FIELDS, to: FIELDS, unit: DateDiffUnit): DateDiffAggregationExpression<FIELDS>;
-    add: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    subtract: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    multiply: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    divide: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    terms<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
-    histogram<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
-    dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
-    datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
-    any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
-    first<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
-    last<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
-    count<FIELDS extends string = string>(alias: string, input?: AggregationMetricOptions<FIELDS>): CountAggregationMetric<FIELDS>;
-    sum: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    avg: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    min: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    max: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    stddev: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    variance: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    distinctCount<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input?: AggregationMetricOptions<FIELDS>): DistinctCountAggregationMetric<FIELDS>;
-    percentile<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input: PercentileAggregationOptions<FIELDS>): PercentileAggregationMetric<FIELDS>;
-    derived(expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression), alias: string): DerivedAggregationMetric;
-    having: HavingDsl;
-    query<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
-};
+export const aggregation: typeof queryBuilders & typeof groupBuilders & typeof metricBuilders & typeof derivedBuilders & typeof havingBuilders;
 
 // @public
 export const AGGREGATION_LIMITS: Readonly<{
@@ -417,6 +389,11 @@ export interface DerivedAggregationMetric {
     // (undocumented)
     type: AggregationMetricType.DERIVED;
 }
+
+// @public
+const derivedBuilders: {
+    derived(expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression), alias: string): DerivedAggregationMetric;
+};
 
 // @public
 export type DerivedExpression = {
@@ -844,6 +821,19 @@ export interface FilterSingleQuery<FIELDS extends string = string> extends Filte
 }
 
 // @public
+const groupBuilders: {
+    terms<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
+    histogram<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
+    dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
+    datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
+};
+
+// @public
+const havingBuilders: {
+    having: HavingDsl;
+};
+
+// @public
 export interface HavingDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];
 }
@@ -989,6 +979,22 @@ export type MetadataValuesFilter = {
 };
 
 // @public
+const metricBuilders: {
+    any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
+    first<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
+    last<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
+    count<FIELDS extends string = string>(alias: string, input?: AggregationMetricOptions<FIELDS>): CountAggregationMetric<FIELDS>;
+    sum: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    avg: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    min: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    max: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    stddev: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    variance: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
+    distinctCount<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input?: AggregationMetricOptions<FIELDS>): DistinctCountAggregationMetric<FIELDS>;
+    percentile<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input: PercentileAggregationOptions<FIELDS>): PercentileAggregationMetric<FIELDS>;
+};
+
+// @public
 function norFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
 // @public
@@ -1115,6 +1121,19 @@ export interface ProjectionCapable<FIELDS extends string = string> {
     // (undocumented)
     projection?: Projection<FIELDS>;
 }
+
+// @public
+const queryBuilders: {
+    element(path: string, predicate?: ElementFilterExpression | ExpressionFilter): AggregationElement;
+    field<FIELDS extends string>(field: FIELDS): FieldAggregationExpression<FIELDS>;
+    constant(value: number): ConstantAggregationExpression;
+    dateDiff<FIELDS extends string>(from: FIELDS, to: FIELDS, unit: DateDiffUnit): DateDiffAggregationExpression<FIELDS>;
+    add: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
+    subtract: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
+    multiply: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
+    divide: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
+    query<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
+};
 
 // @public
 export type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});

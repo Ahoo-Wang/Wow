@@ -246,3 +246,184 @@ export function edge<FIELDS extends string>(
     ...(predicate === undefined ? {} : { filter: predicate }),
   };
 }
+
+/** The builders of the metrics of an aggregation query: any, first, last, count, the numeric functions, distinct count and percentile. */
+export const metricBuilders = {
+  /**
+   * Any one value of a field within each group, of any type.
+   * `{ type: 'any', field, alias, filter? }`.
+   *
+   * @throws TypeError when `field` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.any('state.customerName', 'customer');
+   * ```
+   */
+  any<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
+  ): AnyAggregationMetric<FIELDS> {
+    return {
+      type: AggregationMetricType.ANY,
+      ...(predicate === undefined ? {} : { filter: predicate }),
+      field: aggregationField(field),
+      alias: aggregationAlias(alias),
+    };
+  },
+  /**
+   * The value of `field` on each group's earliest record by `orderBy`.
+   * `{ type: 'first', field, alias, orderBy?, filter? }`.
+   *
+   * The value comes back in the field's own type, or `null` when no record
+   * of the group has both a value and an `orderBy` position. Without
+   * `orderBy` the server orders by the model's event time, which the
+   * descriptor names as `analysis.firstLastOrderBy`. Neither a derived
+   * metric nor `having` may refer to it. Wow 9.2 and later.
+   *
+   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.first('state.price', 'open', { orderBy: 'createTime' });
+   * ```
+   */
+  first<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: EdgeAggregationOptions<FIELDS> = {},
+  ): EdgeAggregationMetric<FIELDS> {
+    return edge(AggregationMetricType.FIRST, field, alias, options);
+  },
+  /**
+   * The value of `field` on each group's latest record by `orderBy`.
+   * `{ type: 'last', field, alias, orderBy?, filter? }`. As
+   * {@link metricBuilders.first | `aggregation.first`}, from the other end.
+   *
+   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.last('state.price', 'close', { orderBy: 'createTime' });
+   * ```
+   */
+  last<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: EdgeAggregationOptions<FIELDS> = {},
+  ): EdgeAggregationMetric<FIELDS> {
+    return edge(AggregationMetricType.LAST, field, alias, options);
+  },
+  /**
+   * The number of rows in each group. `{ type: 'count', alias, filter? }`.
+   *
+   * @param alias - The name of the metric column in the result rows.
+   * @param options.filter - Counts only the rows that match.
+   * @throws TypeError when `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.count('paid', { filter: filter.eq('state.status', 'PAID') });
+   * ```
+   */
+  count<FIELDS extends string = string>(
+    alias: string,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
+  ): CountAggregationMetric<FIELDS> {
+    return {
+      type: AggregationMetricType.COUNT,
+      ...(predicate === undefined ? {} : { filter: predicate }),
+      alias: aggregationAlias(alias),
+    };
+  },
+  /**
+   * The sum of an expression. `{ type: 'numeric', function: 'sum',
+   * expression, alias, filter? }`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.sum(aggregation.field('state.amount'), 'revenue');
+   * ```
+   */
+  sum: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.SUM, expression, alias, options),
+  /** The average of an expression; see {@link metricBuilders.sum | `aggregation.sum`}. */
+  avg: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.AVG, expression, alias, options),
+  /** The least value of an expression; see {@link metricBuilders.sum | `aggregation.sum`}. */
+  min: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.MIN, expression, alias, options),
+  /** The greatest value of an expression; see {@link metricBuilders.sum | `aggregation.sum`}. */
+  max: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.MAX, expression, alias, options),
+  /** The standard deviation of an expression; see {@link metricBuilders.sum | `aggregation.sum`}. */
+  stddev: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.STDDEV, expression, alias, options),
+  /** The variance of an expression; see {@link metricBuilders.sum | `aggregation.sum`}. */
+  variance: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.VARIANCE, expression, alias, options),
+  /**
+   * The number of distinct values of an expression.
+   * `{ type: 'distinct-count', expression, alias, filter? }`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.distinctCount(aggregation.field('ownerId'), 'customers');
+   * ```
+   */
+  distinctCount<FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
+  ): DistinctCountAggregationMetric<FIELDS> {
+    return {
+      type: AggregationMetricType.DISTINCT_COUNT,
+      expression,
+      alias: aggregationAlias(alias),
+      ...(predicate === undefined ? {} : { filter: predicate }),
+    };
+  },
+  /**
+   * A percentile of an expression.
+   * `{ type: 'percentile', expression, percentile, alias, filter? }`.
+   *
+   * @param options.percentile - Which percentile, within (0, 100).
+   * @throws TypeError when `percentile` is not finite and within (0, 100), or
+   *   `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.percentile(aggregation.field('latency'), 'p95', { percentile: 95 });
+   * ```
+   */
+  percentile<FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+    { percentile, filter: predicate }: PercentileAggregationOptions<FIELDS>,
+  ): PercentileAggregationMetric<FIELDS> {
+    if (!Number.isFinite(percentile) || percentile <= 0 || percentile >= 100) {
+      throw new TypeError('percentile must be finite and within (0, 100).');
+    }
+    return {
+      type: AggregationMetricType.PERCENTILE,
+      expression,
+      percentile,
+      alias: aggregationAlias(alias),
+      ...(predicate === undefined ? {} : { filter: predicate }),
+    };
+  },
+};
