@@ -19,6 +19,8 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /** The query backend contract against MongoDB: each test's fresh context is a fresh snapshot collection. */
@@ -27,6 +29,10 @@ class MongoSnapshotQueryBackendTest : QueryBackendSpec() {
         val store = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
         snapshots.forEach { store.save(it) }
     }
+
+    // MongoDB's time zone offsets are whole minutes: Africa/Monrovia's -00:44:30 reads as -00:44, so its buckets on the
+    // day of its 1972 change start 30 seconds off, and those of the gap at the minute the change skipped to.
+    override val semanticDivergences: Set<String> = setOf(GAP_START, GAP_MID_UNIT)
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!

@@ -67,6 +67,33 @@ class ResidualOperatorsTest {
     }
 
     @Test
+    fun `dense fill between keys a store placed off the core's sequence ends, each bucket once and in order`() {
+        runTest {
+            // Africa/Monrovia, 1972-01-07: a store whose offsets are whole minutes keys -00:44:30's minutes at :00, 30 s
+            // off the core's :30; the core fills between them with its own sequence, across the 00:44:30 transition.
+            val minute = AggregationGroup.DateHistogram(
+                QueryField("createdAt"),
+                "minute",
+                AggregationDateUnit.MINUTE,
+                "Africa/Monrovia",
+            )
+            val keys = listOf(
+                "1972-01-07T00:42:00Z", // the store's
+                "1972-01-07T00:42:30Z",
+                "1972-01-07T00:43:30Z",
+                "1972-01-07T00:44:30Z", // the transition
+                "1972-01-07T00:45:00Z",
+                "1972-01-07T00:46:00Z", // the store's
+            ).map { Instant.parse(it).toEpochMilli() }
+            val fill = DateHistogramFill(minute, listOf(AggregationMetric.Count("count")))
+            fill.fill(flowOf(bucket(keys.first(), 1, "minute"), bucket(keys.last(), 1, "minute")))
+                .map { it["minute"].longValue() }.toList().assert().containsExactlyElementsOf(keys)
+            fill.fill(flowOf(bucket(keys.last(), 1, "minute"), bucket(keys.first(), 1, "minute")))
+                .map { it["minute"].longValue() }.toList().assert().containsExactlyElementsOf(keys.reversed())
+        }
+    }
+
+    @Test
     fun `dense fill follows a descending stream`() {
         runTest {
             DateHistogramFill(day, listOf(AggregationMetric.Count("count")))
@@ -267,7 +294,8 @@ class ResidualOperatorsTest {
 
     private fun json(text: String): ObjectNode = WowJson.mapper.readTree(text) as ObjectNode
 
-    private fun bucket(key: Long, count: Long): ObjectNode = json("""{"day":$key,"count":$count}""")
+    private fun bucket(key: Long, count: Long, alias: String = "day"): ObjectNode =
+        json("""{"$alias":$key,"count":$count}""")
 
     private fun Map<String, Any?>.toObjectNode(): ObjectNode = WowJson.mapper.valueToTree(this)
 

@@ -128,7 +128,7 @@ import kotlin.time.toKotlinDuration
  * groups, temporal aggregation) are assumed only where its facts grant them; a declined feature skips its test.
  */
 @Suppress("LargeClass")
-abstract class QueryBackendSpec {
+abstract class QueryBackendSpec : SnapshotDateBucketCases() {
     /** Stores [snapshots], all of [type], where the backend under test reads them. */
     protected abstract suspend fun store(snapshots: List<SnapshotRecord>)
 
@@ -136,7 +136,34 @@ abstract class QueryBackendSpec {
     protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
 
     /** The ids of the [FilterSemantics] cases this backend is known to diverge on; they are skipped. */
-    protected open val semanticDivergences: Set<String> = emptySet()
+    override val semanticDivergences: Set<String> = emptySet()
+
+    final override suspend fun createdAtBuckets(
+        createdAt: List<String>,
+        unit: AggregationDateUnit,
+        zone: String,
+        dense: Boolean,
+    ): List<Pair<String, Long>> {
+        val fixture = given(
+            createdAt.mapIndexed { index, at ->
+                snapshot("z$index", """{"createdAt":${java.time.Instant.parse(at).toEpochMilli()}}""")
+            },
+        )
+        assumeBound(
+            fixture.schema.field(QueryField("state.createdAt"))?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val bucket = AggregationGroup.DateHistogram(QueryField("state.createdAt"), "bucket", unit, zone, dense = dense)
+        return fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(bucket),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("bucket"), Sort.Direction.ASC)),
+            ),
+        ).map { java.time.Instant.ofEpochMilli(it.path("bucket").longValue()).toString() to it.path("count").longValue() }
+    }
 
     /** The aggregate type of this test: a fresh context, so each test has its own records. */
     protected val type: AggregateType =
@@ -1271,163 +1298,6 @@ abstract class QueryBackendSpec {
                 "day"
             ).longValue()
         }.assert().containsExactly(T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY, T0 + 4 * DAY)
-        Unit
-    }
-
-    @Test
-    fun `an hourly bucket in a region starts where its local hour does, a repeated hour twice`() = blocking {
-        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
-        val fixture = given(
-            listOf(
-                // New York, 2025-11-02: 01:30 EDT, then 01:30 EST an hour later.
-                snapshot("f1", """{"createdAt":${at("2025-11-02T05:30:00Z")}}"""),
-                snapshot("f2", """{"createdAt":${at("2025-11-02T06:30:00Z")}}"""),
-                // New York, 2025-03-09: 01:30 EST, then 03:30 EDT; 02:00 never happens.
-                snapshot("s1", """{"createdAt":${at("2025-03-09T06:30:00Z")}}"""),
-                snapshot("s2", """{"createdAt":${at("2025-03-09T07:30:00Z")}}"""),
-            ),
-        )
-        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
-        assumeBound(
-            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
-            "state.createdAt",
-            QueryCapability.AGGREGATE_TEMPORAL,
-            "temporal grouping",
-        )
-        val rows = fixture.aggregate(
-            AggregationQuery(
-                groupBy = listOf(
-                    AggregationGroup.DateHistogram(
-                        QueryField("state.createdAt"),
-                        "hour",
-                        AggregationDateUnit.HOUR,
-                        "America/New_York",
-                    ),
-                ),
-                metrics = listOf(AggregationMetric.Count("count")),
-                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
-            ),
-        )
-        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
-            at("2025-03-09T06:00:00Z") to 1L,
-            at("2025-03-09T07:00:00Z") to 1L,
-            at("2025-11-02T05:00:00Z") to 1L,
-            at("2025-11-02T06:00:00Z") to 1L,
-        )
-        Unit
-    }
-
-    @Test
-    fun `an hourly bucket in a half-hour zone starts at its local hour`() = blocking {
-        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
-        val fixture = given(
-            listOf(
-                // Asia/Kolkata is +05:30: 05:50 and 06:10 local are in its 05:00 and 06:00, at :30 in UTC.
-                snapshot("k1", """{"createdAt":${at("2026-01-01T00:20:00Z")}}"""),
-                snapshot("k2", """{"createdAt":${at("2026-01-01T00:40:00Z")}}"""),
-            ),
-        )
-        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
-        assumeBound(
-            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
-            "state.createdAt",
-            QueryCapability.AGGREGATE_TEMPORAL,
-            "temporal grouping",
-        )
-        val hour = AggregationGroup.DateHistogram(
-            QueryField("state.createdAt"),
-            "hour",
-            AggregationDateUnit.HOUR,
-            "Asia/Kolkata",
-        )
-        val rows = fixture.aggregate(
-            AggregationQuery(
-                groupBy = listOf(hour),
-                metrics = listOf(AggregationMetric.Count("count")),
-                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
-            ),
-        )
-        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert()
-            .containsExactly(at("2025-12-31T23:30:00Z") to 1L, at("2026-01-01T00:30:00Z") to 1L)
-        Unit
-    }
-
-    @Test
-    fun `a dense hourly histogram fills the buckets between, a repeated hour twice`() = blocking {
-        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
-        val fixture = given(
-            listOf(
-                // New York, 2025-11-02: 00:30 EDT and 01:30 EST; 01:00 EDT between them holds nothing.
-                snapshot("d1", """{"createdAt":${at("2025-11-02T04:30:00Z")}}"""),
-                snapshot("d2", """{"createdAt":${at("2025-11-02T06:30:00Z")}}"""),
-            ),
-        )
-        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
-        assumeBound(
-            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
-            "state.createdAt",
-            QueryCapability.AGGREGATE_TEMPORAL,
-            "temporal grouping",
-        )
-        val hour = AggregationGroup.DateHistogram(
-            QueryField("state.createdAt"),
-            "hour",
-            AggregationDateUnit.HOUR,
-            "America/New_York",
-            dense = true,
-        )
-        val rows = fixture.aggregate(
-            AggregationQuery(
-                groupBy = listOf(hour),
-                metrics = listOf(AggregationMetric.Count("count")),
-                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
-            ),
-        )
-        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
-            at("2025-11-02T04:00:00Z") to 1L,
-            at("2025-11-02T05:00:00Z") to 0L,
-            at("2025-11-02T06:00:00Z") to 1L,
-        )
-        Unit
-    }
-
-    @Test
-    fun `a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long`() = blocking {
-        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
-        val fixture = given(
-            listOf(
-                // Lord Howe, 2026-04-05: 02:00 +11:00 becomes 01:30 +10:30. 00:30 +11:00 and 02:30 +10:30, with the
-                // 01:00 hour between them, from 01:00 +11:00 to 02:00 +10:30, empty.
-                snapshot("h1", """{"createdAt":${at("2026-04-04T13:30:00Z")}}"""),
-                snapshot("h2", """{"createdAt":${at("2026-04-04T16:00:00Z")}}"""),
-            ),
-        )
-        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
-        assumeBound(
-            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
-            "state.createdAt",
-            QueryCapability.AGGREGATE_TEMPORAL,
-            "temporal grouping",
-        )
-        val hour = AggregationGroup.DateHistogram(
-            QueryField("state.createdAt"),
-            "hour",
-            AggregationDateUnit.HOUR,
-            "Australia/Lord_Howe",
-            dense = true,
-        )
-        val rows = fixture.aggregate(
-            AggregationQuery(
-                groupBy = listOf(hour),
-                metrics = listOf(AggregationMetric.Count("count")),
-                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
-            ),
-        )
-        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
-            at("2026-04-04T13:00:00Z") to 1L,
-            at("2026-04-04T14:00:00Z") to 0L,
-            at("2026-04-04T15:30:00Z") to 1L,
-        )
         Unit
     }
 

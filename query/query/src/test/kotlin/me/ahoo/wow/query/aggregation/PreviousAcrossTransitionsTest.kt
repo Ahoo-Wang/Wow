@@ -71,6 +71,19 @@ class PreviousAcrossTransitionsTest {
     }
 
     @Test
+    fun `a step from a key a store placed off the core's sequence reaches an earlier bucket and ends`() {
+        // Africa/Monrovia, 1972-01-07: keys at :00 where the core's -00:44:30 minutes start at :30 (a store whose
+        // offsets are whole minutes). Each step lands on the core's bucket before the key, strictly earlier.
+        val minute = AggregationGroup.DateHistogram(at, "minute", AggregationDateUnit.MINUTE, "Africa/Monrovia")
+        val step = PreviousStep(minute, 1, null)
+        step.previousKey(epoch("1972-01-07T00:44:00Z")).assert().isEqualTo(epoch("1972-01-07T00:43:30Z"))
+        step.previousKey(epoch("1972-01-07T00:43:00Z")).assert().isEqualTo(epoch("1972-01-07T00:42:30Z"))
+        // Three steps from 00:46: 00:45, the transition's 30-second minute, then 23:59 -00:44:30.
+        PreviousStep(minute, 3, null).previousKey(epoch("1972-01-07T00:46:00Z")).assert()
+            .isEqualTo(epoch("1972-01-07T00:43:30Z"))
+    }
+
+    @Test
     fun `the range a step reads moves with its buckets`() {
         val step = PreviousStep(hour, 1, null)
         // The 03:00 EDT hour of 2025-03-09, and its own half hour: back by one bucket is the 01:00 EST hour.

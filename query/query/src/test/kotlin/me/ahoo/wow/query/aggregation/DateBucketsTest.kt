@@ -163,6 +163,36 @@ class DateBucketsTest {
     }
 
     @Test
+    fun `a unit whose local start a change skipped begins at the transition, never after its records`() {
+        // Africa/Monrovia, 1972-01-07T00:44:30Z: -00:44:30 became UTC, skipping local 00:00 to 00:44:30.
+        val monrovia = ZoneId.of("Africa/Monrovia")
+        val minutes = DateBuckets(AggregationDateUnit.MINUTE, monrovia)
+        val aroundMinute = listOf(
+            "1972-01-07T00:42:30Z", // 23:58 -00:44:30
+            "1972-01-07T00:43:30Z", // 23:59 -00:44:30
+            "1972-01-07T00:44:30Z", // the transition: local 00:44 was skipped up to 00:44:30, so its minute lasts 30 s
+            "1972-01-07T00:45:00Z", // 00:45 UTC
+            "1972-01-07T00:46:00Z",
+        ).map(::instant)
+        minutes.start(instant("1972-01-07T00:44:45Z")).assert().isEqualTo(aroundMinute[2])
+        minutes.walk(aroundMinute.first(), aroundMinute.last()).assert().containsExactlyElementsOf(aroundMinute)
+        minutes.walkBack(aroundMinute.last(), aroundMinute.first()).assert()
+            .containsExactlyElementsOf(aroundMinute.reversed())
+        // The hour: local 00:00 was skipped too, so the 00:00 hour begins at the transition and lasts 15.5 minutes.
+        val hours = DateBuckets(AggregationDateUnit.HOUR, monrovia)
+        val aroundHour = listOf(
+            "1972-01-06T22:44:30Z", // 22:00 -00:44:30
+            "1972-01-06T23:44:30Z", // 23:00 -00:44:30
+            "1972-01-07T00:44:30Z", // the transition
+            "1972-01-07T01:00:00Z", // 01:00 UTC
+            "1972-01-07T02:00:00Z",
+        ).map(::instant)
+        hours.start(instant("1972-01-07T00:50:00Z")).assert().isEqualTo(aroundHour[2])
+        hours.walk(aroundHour.first(), aroundHour.last()).assert().containsExactlyElementsOf(aroundHour)
+        hours.walkBack(aroundHour.last(), aroundHour.first()).assert().containsExactlyElementsOf(aroundHour.reversed())
+    }
+
+    @Test
     fun `a half-hour offset keeps the buckets on its local hours`() {
         // Australia/Lord_Howe sits at +10:30 in July: its hours start at local :00, which is :30 in UTC.
         val lordHowe = ZoneId.of("Australia/Lord_Howe")
