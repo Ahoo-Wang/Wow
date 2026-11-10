@@ -217,6 +217,11 @@ export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValid
 | `textNumberOr(marks)` | an exact number, or an object or array marked `marks`, whichever the value is | `textNumberOr({ amount: true })` for `decimal \| { amount: decimal }` |
 | `textNumbersBy(member, cases)` | an object's marks chosen by the string value of its `member` | `textNumbersBy('kind', { decimal: { amount: true } })` |
 
+Two kinds of value are read without marks, so their large numbers are still rounded:
+
+- A command result's `results` are the service's own values, which the Manifest gives no schema: a `Long` or `BigDecimal` a command returns there arrives as a JavaScript `number`. Return such a value as a string, or read it from the aggregate's state.
+- An aggregation's metric values: a sum or a maximum over an exact field that exceeds what a `number` holds is rounded.
+
 ## Keep the clients in step
 
 Generate again whenever the baseline changes, and let CI fail when the committed clients differ from what the generator writes now:

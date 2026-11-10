@@ -217,6 +217,11 @@ export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValid
 | `textNumberOr(marks)` | 精确数字，或以 `marks` 标记的对象或数组，取决于值是哪一种 | `decimal \| { amount: decimal }` 用 `textNumberOr({ amount: true })` |
 | `textNumbersBy(member, cases)` | 按对象成员 `member` 的字符串值选择该对象的标记 | `textNumbersBy('kind', { decimal: { amount: true } })` |
 
+有两类值读取时不带标记，其中的大数字仍会被取整：
+
+- 命令结果的 `results` 是服务自己的值，Manifest 没有给出它们的 schema：命令在其中返回的 `Long` 或 `BigDecimal` 会以 JavaScript `number` 到达。请把这样的值以字符串返回，或者从聚合的状态中读取。
+- 聚合查询的指标值：对精确字段求和或取最大值，结果超出 `number` 能表示的范围时会被取整。
+
 ## 让客户端保持同步 {#keep-the-clients-in-step}
 
 基线改变时就重新生成，并让 CI 在提交的客户端与生成器现在写出的不同时失败：
