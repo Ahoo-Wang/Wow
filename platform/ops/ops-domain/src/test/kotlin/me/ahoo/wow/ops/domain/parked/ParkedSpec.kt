@@ -113,6 +113,53 @@ class ParkedSpec {
     }
 
     @Test
+    fun `a resolution of a later parking keeps its time, so that parking's late record does not reopen the entry`() {
+        parkedSpec {
+            given(ParkedRecorded(ENTRY))
+            // The aggregate parked again at 200 and was resolved before the record of that parking arrived.
+            whenCommand(RecordResolved(resolution(failedAt = 200))) {
+                expectEvents(ParkedResolved(ParkedResolution.RETRIED, 200, 400))
+                expectState {
+                    resolved.assert().isTrue()
+                    failedAt.assert().isEqualTo(200L)
+                }
+            }
+            whenCommand(RecordParked(entry("failedAt" to 200, "recordedAt" to 210))) { expectUnchanged() }
+            whenCommand(RecordParked(entry("failedAt" to 100, "recordedAt" to 220))) { expectUnchanged() }
+        }
+    }
+
+    @Test
+    fun `a resolved entry records the resolution of a later parking, and no other`() {
+        parkedSpec {
+            given(ParkedRecorded(ENTRY), ParkedResolved(ParkedResolution.RETRIED, 100, 400))
+            // Again, of the same parking, of an earlier one, or undated: nothing new.
+            whenCommand(RecordResolved(resolution(failedAt = 100, outcome = ParkedResolution.SKIPPED))) {
+                expectUnchanged()
+            }
+            whenCommand(RecordResolved(resolution(failedAt = 50))) { expectUnchanged() }
+            whenCommand(RecordResolved(resolution(failedAt = null, outcome = ParkedResolution.NOT_PARKED))) {
+                expectUnchanged()
+            }
+            // A later parking's: its time is the bound of the late records from then on.
+            whenCommand(RecordResolved(resolution(failedAt = 300, outcome = ParkedResolution.SKIPPED))) {
+                expectEvents(ParkedResolved(ParkedResolution.SKIPPED, 300, 400))
+                expectState {
+                    failedAt.assert().isEqualTo(300L)
+                    outcome.assert().isEqualTo(ParkedResolution.SKIPPED)
+                }
+            }
+            whenCommand(RecordParked(entry("failedAt" to 300, "recordedAt" to 310))) { expectUnchanged() }
+            // A parking after it opens the entry again.
+            val again = entry("failedAt" to 600, "recordedAt" to 610)
+            whenCommand(RecordParked(again)) {
+                expectEvents(ParkedRecorded(again))
+                expectState { resolved.assert().isFalse() }
+            }
+        }
+    }
+
+    @Test
     fun `the error type is what the reason names before its message, else the whole reason`() {
         ParkedState.errorTypeOf("wow.subscription.unrecoverable: offset 3 is gone").assert()
             .isEqualTo("wow.subscription.unrecoverable")
