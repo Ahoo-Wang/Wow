@@ -187,7 +187,7 @@ class BackendSelectionTest {
     fun `the processors on the class path should be registered beside the application's subscriptions`() {
         val models = BankModels().models(Dependencies.of(DecidedCommands()))
         val providers = ModelProvider.load()
-        val discovered = WowAutoConfiguration.bindings(providers, Dependencies.NONE, Manifest(), emptyList())
+        val discovered = NodeService.bindings(providers, Dependencies.NONE, Manifest(), emptyList())
         discovered.assert().isInstanceOf(SubscriptionBindings::class.java)
         discovered.viewTypes(BANK, models).assert().isEmpty()
         val application = object : SubscriptionFactory {
@@ -195,7 +195,7 @@ class BackendSelectionTest {
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>) = models.map { it.type }.toSet()
         }
-        val both = WowAutoConfiguration.bindings(
+        val both = NodeService.bindings(
             providers,
             Dependencies.NONE,
             Manifest(),

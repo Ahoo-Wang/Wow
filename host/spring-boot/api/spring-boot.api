@@ -162,7 +162,6 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field WOW_AGGREGATE_ID_GENERATOR Ljava/lang/String;
 	public static final field WOW_JSON_MAPPER Ljava/lang/String;
 	public fun <init> ()V
-	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public static final fun wowRetiredQueryPolicies$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;
 	public static final fun wowSingleSeams$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;
