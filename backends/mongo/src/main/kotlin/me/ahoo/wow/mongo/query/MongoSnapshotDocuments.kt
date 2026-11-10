@@ -21,6 +21,7 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -93,7 +94,8 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
     /**
      * A cursor's sort, which admission ends with the tenant and the aggregate ID, read in the order of the `_id`
      * index: those two fields, in one direction, are `_id` (`{t, a}`, which orders as they do) in that direction, and
-     * their position values the key they make. Without it every page would sort the tenant's documents in memory.
+     * their position values the key they make (a value there that is not a string is an invalid cursor). Without it
+     * every page would sort the tenant's documents in memory.
      */
     override fun keyed(sort: List<Sort>): MongoKeyedSort {
         val tenant = sort.getOrNull(sort.size - 2)
@@ -105,7 +107,9 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
         }
         return MongoKeyedSort(sort.dropLast(2) + Sort(QueryField(ID), tenant.direction)) { values ->
             val (tenantId, aggregateId) = values.takeLast(2)
-            values.dropLast(2) + MongoSnapshotStore.keyOf(tenantId as String, aggregateId as String)
+            // A position of another query or a damaged one holds something else there: a caller's bad cursor.
+            if (tenantId !is String || aggregateId !is String) throw QueryViolation.InvalidCursor.rejection()
+            values.dropLast(2) + MongoSnapshotStore.keyOf(tenantId, aggregateId)
         }
     }
 

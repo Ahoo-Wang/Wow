@@ -27,6 +27,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.log.Partitioner
 import org.bson.BsonDocument
@@ -103,6 +105,11 @@ class MongoQueryPartsTest {
         keyed.sort.assert().isEqualTo(sort("state.name" to desc, "_id" to asc))
         keyed.values(listOf("n", "t", "a")).assert()
             .containsExactly("n", BsonDocument("t", BsonString("t")).append("a", BsonString("a")))
+        // A position whose tenant or aggregate value is not a string is another query's or a damaged token.
+        listOf(listOf("n", 1, "a"), listOf("n", "t", 2L), listOf("n", null, "a")).forEach { values ->
+            val refused = runCatching { keyed.values(values) }.exceptionOrNull()
+            (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.InvalidCursor)
+        }
         MongoSnapshotDocuments.keyed(sort("tenant_id" to desc, "aggregate_id" to desc)).sort
             .assert().isEqualTo(sort("_id" to desc))
         // Anything else is sorted as it is.
