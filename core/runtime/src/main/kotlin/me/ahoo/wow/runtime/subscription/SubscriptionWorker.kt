@@ -17,34 +17,24 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.FailureClassification
-import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
-import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.health.NodeFatals
-import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.Recoverable
-import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.FailureClass
@@ -157,6 +147,22 @@ internal class SubscriptionWorker(
 
     /** How the handler is retried before its aggregate is parked: its subscription's budget. */
     private val retry: RetryPolicy = options.retryOf(subscription)
+
+    /** How one entry is handled: its handler attempted within the budget, behind the pause and the throttle. */
+    private val handling = EntryHandling(
+        group,
+        subscription,
+        partition,
+        source,
+        options,
+        retry,
+        classification,
+        pause,
+        throttle,
+        observer,
+        random,
+        importedThrough,
+    )
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
@@ -305,7 +311,7 @@ internal class SubscriptionWorker(
         val handled = if (skipped) {
             Result.success(HandledEntry.NOTHING)
         } else {
-            handle(entry)
+            handling.handle(entry)
         }
         handled.exceptionOrNull()?.let { park(entry, it) }
         synchronized(this) {
@@ -333,7 +339,7 @@ internal class SubscriptionWorker(
             items.map { Batched(it, skippedInLane(it.entry), parkedAt(it.entry)) }
         }
         val handled = batch.filterNot { it.skipped }
-        val result = handled.lastOrNull()?.let { latest -> handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
+        val result = handled.lastOrNull()?.let { latest -> handling.handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
         result.exceptionOrNull()?.let { park(handled.first().item.entry, it) }
         synchronized(this) {
             if (result.isSuccess) {
@@ -373,128 +379,6 @@ internal class SubscriptionWorker(
     /** Called under the monitor: [entry] is handled, so a copy of it, or of an earlier one, is dropped. */
     private fun remember(entry: SourcedEntry) {
         handledThrough?.merge(entry.stream.ref, source.ordinalOf(entry), ::maxOf)
-    }
-
-    /**
-     * Runs the handler with its subscription's retries ([retry]); returns what it did, or the last failure once the
-     * retries are spent. An attempt that outlasts the budget's timeout is cancelled and fails with a
-     * [HandlerTimeoutException]. A [HandlingRejectedException] is not retried: a business outcome does not change.
-     */
-    private suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
-        val stream = sourced.stream
-        val trace = sourced.transport?.trace.orEmpty()
-        val observed = observer.handling(group, subscription.name, subscription.context, stream, trace, source.topic)
-        return observed.observe {
-            retried(sourced).also { handled -> handled.exceptionOrNull()?.let { observed.failed(it) } }
-        }
-    }
-
-    /**
-     * A handler may fail with anything: a [CancellationException] that is not this lane's own, such as
-     * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError] or [StackOverflowError], is a
-     * failure like any other, retried and then parked, so the lane goes on and the checkpoint moves. Only the
-     * cancellation of the lane itself stops the retries, and a fatal error ([NodeFatals.isFatal]: out of memory, say)
-     * propagates at once, to stop the lane ([drain]).
-     *
-     * Each failure is classified ([classification]): an unrecoverable one returns at once, so
-     * the aggregate parks without a retry; a recoverable one is retried within the budget; a systemic one, or any
-     * failure while the partition is paused, is the partition's ([pause]): the entry is tried again once the pause lets
-     * it, spending no attempt.
-     *
-     * A downstream that pushed back ([FailureClass.BACKPRESSURE]: a command refused as busy, a wait
-     * that ran out, a busy query store, a 429 with `Retry-After`) is not a failure of the aggregate:
-     * the entry is tried again after the backpressure backoff with jitter, at least the `Retry-After`, without
-     * spending an attempt of the handler's budget, and the partition is throttled ([throttle]) until attempts succeed
-     * again; once [BackpressureOptions.maxAttempts] are spent, the aggregate parks as after any spent budget. It never
-     * pauses the partition, which would only slow the overloaded downstream's recovery further.
-     */
-    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod", "LongMethod")
-    private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
-        val ref = sourced.stream.ref
-        var failures = 0
-        var pushedBack = 0
-        while (true) {
-            val probing = pause.admit()
-            throttle.acquire()
-            val failure = try {
-                val handled = attempt(sourced)
-                succeeded(ref)
-                return Result.success(handled)
-            } catch (rejected: HandlingRejectedException) {
-                // The handler reached a decision: what it depends on answers.
-                succeeded(ref)
-                return Result.failure(rejected)
-            } catch (failure: Throwable) {
-                if (NodeFatals.isFatal(failure)) {
-                    // Never retried: the lane stops ([drain]).
-                    throw failure
-                }
-                // The lane's own cancellation propagates; any other is the handler's failure.
-                currentCoroutineContext().ensureActive()
-                failure
-            } finally {
-                throttle.release()
-                pause.release(probing)
-            }
-            val kind = classification.classify(failure, subscription.retry)
-            if (pause.failed(ref, kind, failure, probing)) {
-                continue
-            }
-            if (kind == FailureClass.BACKPRESSURE) {
-                // Never the partition's pause: this entry backs off, the partition slows down.
-                pushedBack++
-                throttle.backpressure(ref)
-                observer.observed(ObservedEvent.Backpressured(group, subscription.name, partition, codeOf(failure)))
-                if (pushedBack >= options.backpressure.maxAttempts) {
-                    return Result.failure(failure)
-                }
-                val retryAfter = FailureClassification.retryAfterOf(failure)
-                logger.debug { "Subscription ${subscription.name} met backpressure at $ref: ${failure.message}" }
-                delay(options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
-                continue
-            }
-            failures++
-            if (kind == FailureClass.UNRECOVERABLE || failures >= retry.maxAttempts) {
-                return Result.failure(failure)
-            }
-            delay(retry.backoff(failures))
-        }
-    }
-
-    private fun succeeded(ref: AggregateRef) {
-        pause.succeeded(ref)
-        throttle.succeeded()
-    }
-
-    /** The code a backpressure [failure] names: the downstream's error code, its own or a cause's, else its class's full name. */
-    private fun codeOf(failure: Throwable): String =
-        generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES).firstNotNullOfOrNull {
-            when (it) {
-                is CommandBusyException -> ResultCodes.BUSY
-                is WowProblemException -> it.code
-                else -> null
-            }
-        } ?: failure.javaClass.name
-
-    /** One attempt of the handler, within the budget's timeout when it has one. */
-    private suspend fun attempt(sourced: SourcedEntry): HandledEntry {
-        if (retry.timeout.isInfinite()) {
-            return decodeAndHandle(sourced)
-        }
-        return withTimeoutOrNull(retry.timeout) { decodeAndHandle(sourced) }
-            ?: throw HandlerTimeoutException(subscription.name, sourced.stream.ref, sourced.stream.version, retry.timeout)
-    }
-
-    private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry {
-        (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.reason) }
-        val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
-        val imported = sourced.published?.imported ?: (sourced.position.sequence <= importedThrough)
-        val entry = if (sourced.published == null && sourced.message == null && !imported) {
-            decoded
-        } else {
-            decoded.copy(published = sourced.published, message = sourced.message, imported = imported)
-        }
-        return subscription.handle(entry)
     }
 
     /**
@@ -608,7 +492,7 @@ internal class SubscriptionWorker(
                     continue
                 }
                 val failure = if (subscription.takes(entry.stream) && !passesOver(entry)) {
-                    handle(entry).exceptionOrNull()
+                    handling.handle(entry).exceptionOrNull()
                 } else {
                     null
                 }
@@ -756,6 +640,3 @@ private val logger = KotlinLogging.logger {}
 /** How many aggregates a worker of a source that repeats remembers the last version handled of. */
 private const val REMEMBERED = 4_096
 private const val LOAD_FACTOR = 0.75f
-
-/** The causes [SubscriptionWorker.codeOf] looks through at most. */
-private const val MAX_CAUSES = 16
