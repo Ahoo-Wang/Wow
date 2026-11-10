@@ -193,11 +193,11 @@ class DnsPeerDiscoveryTest {
         @TempDir dir: Path
     ): Unit = runBlocking {
         val properties = WowProperties().apply {
-            peers["mail"] = WowProperties.PeerTarget().apply {
+            peers["mail"] = PeerTargetProperties().apply {
                 url = URI.create("http://mail:9090")
                 publicUrl = URI.create("http://mail:8080")
             }
-            peers["eshop-ordering"] = WowProperties.PeerTarget()
+            peers["eshop-ordering"] = PeerTargetProperties()
         }
         // The node's namespace from its service account, as Kubernetes mounts it.
         val discoveries = PeerDiscoveries(
@@ -218,7 +218,7 @@ class DnsPeerDiscoveryTest {
         }
         val static = WowProperties().apply {
             peer.discovery = "static"
-            peers["mail"] = WowProperties.PeerTarget().apply { url = URI.create("http://mail:9090") }
+            peers["mail"] = PeerTargetProperties().apply { url = URI.create("http://mail:9090") }
         }
         PeerEndpoints.of(static, discoveries, { emptyMap() }, services::get).use { endpoints ->
             endpoints.reaches("eshop-payment", Port.INTERNAL).assert().isFalse()
@@ -341,12 +341,12 @@ class DnsPeerDiscoveryTest {
         fun refused(properties: WowProperties) = assertThrows<WowConfigurationException> {
             PeerEndpoints.of(properties, discoveries, { emptyMap() }) { null }
         }
-        refused(WowProperties().apply { peers["mail"] = WowProperties.PeerTarget() }).message.assert()
+        refused(WowProperties().apply { peers["mail"] = PeerTargetProperties() }).message.assert()
             .contains("no contract on the class path names its service")
         refused(
             WowProperties().apply {
                 peer.discovery = "static"
-                peers["mail"] = WowProperties.PeerTarget()
+                peers["mail"] = PeerTargetProperties()
             },
         ).message.assert().contains("static")
         refused(WowProperties().apply { peer.discovery = "consul" }).key.assert().isEqualTo("wow.peer.discovery")

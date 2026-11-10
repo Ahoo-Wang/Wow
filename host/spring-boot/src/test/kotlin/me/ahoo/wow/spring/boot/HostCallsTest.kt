@@ -221,7 +221,7 @@ class HostCallsTest {
 
     @Test
     fun `a listed peer without a URL or a service to look up should refuse the start`() {
-        val properties = WowProperties().apply { peers["mail"] = WowProperties.PeerTarget() }
+        val properties = WowProperties().apply { peers["mail"] = PeerTargetProperties() }
         assertThrows<IllegalStateException> {
             PeerEndpoints.of(properties, PeerDiscoveries.load(javaClass.classLoader), { emptyMap() }) { null }
         }.message.assert().contains("Peer mail has no url")

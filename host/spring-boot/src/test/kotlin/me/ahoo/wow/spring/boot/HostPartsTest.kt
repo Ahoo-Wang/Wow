@@ -387,7 +387,7 @@ class WowPropertiesTest {
             ),
         )
         WowProperties().subscription.retry.timeout.assert().isNull()
-        WowProperties.Retry.of(options.retry).timeout.assert().isEqualTo(Duration.ofSeconds(30))
+        RetryProperties.of(options.retry).timeout.assert().isEqualTo(Duration.ofSeconds(30))
     }
 
     @Test

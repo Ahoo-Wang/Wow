@@ -103,8 +103,8 @@ class HostParkedOpsTest {
         ).assert().isEqualTo(ParkedRetrySpec(1, 200.milliseconds, 100.milliseconds))
         parked.specOf(SubscriptionId(BANK, FLAKY)).assert().isEqualTo(parked.spec)
         host.context.getBean(WebhookNotifier::class.java).toString().assert().contains("GENERIC")
-        WowProperties.ParkedSpec().specOver(ParkedRetrySpec()).assert().isNull()
-        WowProperties.Parked().spec().assert().isEqualTo(ParkedRetrySpec(10, 3.minutes, 2.minutes))
+        ParkedSpecProperties().specOver(ParkedRetrySpec()).assert().isNull()
+        ParkedProperties().spec().assert().isEqualTo(ParkedRetrySpec(10, 3.minutes, 2.minutes))
         // Decision D312: auto, the default, publishes the ledger while the node's transport has the ops command topic.
         // This node in development keeps its topics in its JVM, where no ops context made that topic: it waits.
         host.node.options.ledger?.automatic.assert().isTrue()

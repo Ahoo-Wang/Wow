@@ -119,7 +119,7 @@ internal class NodePeers {
     ): PeerClients {
         val peer = properties.peer
         val described = properties.peers
-            .filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
+            .filterValues { it.contract == PeerTargetProperties.Contract.MANIFEST }.keys
 
         /** A client of the peers, its mode named by [mode]: as the node's service, or forwarding the end user's. */
         fun client(mode: WowClient.Builder.() -> Unit) = lazy {

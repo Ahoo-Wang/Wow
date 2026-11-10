@@ -255,13 +255,13 @@ class ConfigurationKeys(
          * schedule's and error code's settings.
          */
         val MAPS: List<CheckedMap> = listOf(
-            CheckedMap("wow.callers", "<service>", WowProperties.CallerPermits::class.java),
-            CheckedMap("wow.peers", "<context>", WowProperties.PeerTarget::class.java),
+            CheckedMap("wow.callers", "<service>", CallerPermitsProperties::class.java),
+            CheckedMap("wow.peers", "<context>", PeerTargetProperties::class.java),
             CheckedMap("wow.aggregates", "[<context>.<aggregate>]", AggregateProperties::class.java),
             CheckedMap("wow.stores", "<name>", StoreProperties::class.java),
-            CheckedMap("wow.subscriptions", "[<context>.<name>]", WowProperties.SubscriptionSettings::class.java),
-            CheckedMap("wow.schedules", "<name>", WowProperties.Schedule::class.java),
-            CheckedMap("wow.http.errors", "[<code>]", WowProperties.Http.Error::class.java),
+            CheckedMap("wow.subscriptions", "[<context>.<name>]", SubscriptionSettingsProperties::class.java),
+            CheckedMap("wow.schedules", "<name>", ScheduleProperties::class.java),
+            CheckedMap("wow.http.errors", "[<code>]", HttpProperties.Error::class.java),
         )
 
         private val CHECKED_MAPS: Map<ConfigurationPropertyName, Class<*>> =

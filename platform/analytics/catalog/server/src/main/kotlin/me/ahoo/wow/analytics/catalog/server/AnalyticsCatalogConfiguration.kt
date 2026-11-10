@@ -37,6 +37,7 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.PeerTargetProperties
 import me.ahoo.wow.spring.boot.SignedInCallerResolver
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
@@ -176,7 +177,7 @@ class AnalyticsCatalogConfiguration {
     /** The peer contexts `wow.peers.<context>.contract: manifest` describes by their Manifest alone, the host's. */
     @OptIn(InternalWowApi::class)
     private fun manifestPeers(wow: WowProperties): Set<String> =
-        wow.peers.filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
+        wow.peers.filterValues { it.contract == PeerTargetProperties.Contract.MANIFEST }.keys
 
     @Bean
     fun datasetWarehouse(client: ObjectProvider<Client>): DatasetWarehouse =
