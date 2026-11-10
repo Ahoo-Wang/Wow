@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.manifest.Manifest
 import java.io.PrintStream
@@ -196,7 +195,7 @@ internal class MigrateData(
             CHECK -> if (DECODE in options) decodeCheck(plan, config, connections) else check(plan, connections)
             IMPORT -> import(plan, checkpoints, options)
             TAIL -> checkpoints.holding(setOf(CheckpointRole.IMPORT)) { repository, _ ->
-                tail(plan, config, connections, repository, ONCE in options)
+                ImportPasses(out, running).tail(plan, config, connections, repository, ONCE in options)
             }
             COMPARE -> checkpoints.holding(setOf(CheckpointRole.COMPARE)) { repository, keys ->
                 CompareCommand(out, models)
@@ -346,118 +345,30 @@ internal class MigrateData(
             return FAILED
         }
         val config = checkpoints.config
+        val passes = ImportPasses(out, running)
         if (DRY_RUN in options) {
-            return importAll(plan, config, connections, options, InMemoryCheckpointRepository(), InMemoryImportedKeys())
+            return passes.importAll(
+                plan,
+                config,
+                connections,
+                options,
+                InMemoryCheckpointRepository(),
+                InMemoryImportedKeys()
+            )
         }
         val roles = setOfNotNull(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT.takeIf { SNAPSHOTS in options })
         return checkpoints.holding(roles) { repository, keys ->
-            if (FINAL in options) {
-                finalPass(plan, config, connections, repository, keys, SNAPSHOTS in options)
+            val done = if (FINAL in options) {
+                passes.finalPass(plan, config, connections, repository, keys)
             } else {
-                importAll(plan, config, connections, options, repository, keys)
+                passes.importAll(plan, config, connections, options, repository, keys)
+            }
+            if (done == OK && SNAPSHOTS in options) {
+                snapshot(plan, config, connections, repository, RESTART in options)
+            } else {
+                done
             }
         }
-    }
-
-    @Suppress("LongParameterList") // A command's inputs.
-    private suspend fun importAll(
-        plan: MigrationPlan,
-        config: MigrationConfig,
-        connections: MigrationConnections,
-        options: List<String>,
-        checkpoints: CheckpointRepository,
-        keys: ImportedKeys,
-    ): Int {
-        val dryRun = DRY_RUN in options
-        val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
-        passedOver(plan.aggregates.keys.map { importer.importAll(it) })?.let(out::println)
-        if (!dryRun) {
-            recordCutover(plan, connections)
-        }
-        val reservations = ReservationImporter(
-            source = connections.source,
-            reservations = connections.reservations,
-            plan = plan,
-            store = connections::reservationStore,
-            checkpoints = checkpoints,
-            options = config.options(dryRun, RESTART in options),
-            progress = { out.println(it.render()) },
-            report = out::println,
-            imported = keys,
-        )
-        plan.reservations.keys.forEach { reservations.importAll(it) }
-        connections.compensation?.let { compensation ->
-            CompensationImporter(
-                source = compensation,
-                plan = plan,
-                logOf = connections::logOf,
-                ledger = connections::failureLedger,
-                checkpoints = checkpoints,
-                options = config.options(dryRun, RESTART in options),
-                progress = { out.println(it.render()) },
-                report = out::println,
-            ).importAll()
-        }
-        out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
-        return if (SNAPSHOTS in options) snapshot(plan, config, connections, checkpoints, RESTART in options) else OK
-    }
-
-    /**
-     * The final pass once 9.x has stopped writing (`import --final`, step 3): one pass of the tail from
-     * its checkpoint with the final look-back window, then the reservations and the compensation executions walked
-     * from the first. It refuses, writing nothing, when an aggregate's tail did not follow 9.x continuously: the final
-     * pass is then `import --restart`.
-     */
-    @Suppress("LongParameterList") // A command's inputs.
-    private suspend fun finalPass(
-        plan: MigrationPlan,
-        config: MigrationConfig,
-        connections: MigrationConnections,
-        checkpoints: CheckpointRepository,
-        keys: ImportedKeys,
-        snapshots: Boolean,
-    ): Int {
-        val importer = importer(
-            plan,
-            config.options().copy(lookbackMillis = config.final.lookbackMillis),
-            connections,
-            checkpoints,
-        )
-        val problems = plan.aggregates.keys.mapNotNull { importer.finalProblem(it, config.final.maxTailAgeMillis) }
-        if (problems.isNotEmpty()) {
-            problems.forEach { out.println("FAILED $it") }
-            out.println("The final pass needs a tail that followed 9.x until it stopped: run import $RESTART instead.")
-            return FAILED
-        }
-        plan.aggregates.keys.forEach { importer.tailOnce(it) }
-        recordCutover(plan, connections)
-        ReservationImporter(
-            source = connections.source,
-            reservations = connections.reservations,
-            plan = plan,
-            store = connections::reservationStore,
-            checkpoints = checkpoints,
-            options = config.options(restart = true),
-            progress = { out.println(it.render()) },
-            report = out::println,
-            imported = keys,
-        ).let { reservations -> plan.reservations.keys.forEach { reservations.importAll(it) } }
-        connections.compensation?.let { compensation ->
-            CompensationImporter(
-                source = compensation,
-                plan = plan,
-                logOf = connections::logOf,
-                ledger = connections::failureLedger,
-                checkpoints = checkpoints,
-                options = config.options(restart = true),
-                progress = { out.println(it.render()) },
-                report = out::println,
-            ).importAll()
-        }
-        out.println(
-            "Final pass done: the tail from its checkpoint, the reservations and the compensation walked again."
-        )
-        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = false) else OK
     }
 
     private suspend fun snapshot(
@@ -535,76 +446,6 @@ internal class MigrateData(
         return DIFFERS
     }
 
-    private suspend fun tail(
-        plan: MigrationPlan,
-        config: MigrationConfig,
-        connections: MigrationConnections,
-        checkpoints: CheckpointRepository,
-        once: Boolean,
-    ): Int {
-        val source = connections.source
-        if (source is CommitTimeIndexed) {
-            if (config.source.createCommitTimeIndex) {
-                plan.aggregates.keys.forEach(source::ensureCommitTimeIndex)
-            }
-            val missing = source.missingCommitTimeIndexes(plan.aggregates.keys)
-            if (missing.isNotEmpty()) {
-                out.println(missingIndexes(missing))
-                return FAILED
-            }
-        }
-        val importer = importer(plan, config.options(), connections, checkpoints)
-        do {
-            plan.aggregates.keys.forEach { importer.tailOnce(it) }
-            recordCutover(plan, connections)
-            if (!once) {
-                delay(config.pollIntervalMillis)
-            }
-        } while (!once && running())
-        out.println("Tail stopped.")
-        return OK
-    }
-
-    private fun missingIndexes(missing: Map<String, String>): String = buildString {
-        appendLine(
-            "The tail reads the 9.x collections ${missing.keys} by (createTime, _id), which they do not index, and " +
-                "this tool does not write to the 9.x store unless told to. Create the index when convenient:",
-        )
-        missing.values.forEach { appendLine("  $it") }
-        append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
-    }
-
-    /**
-     * What an import's [progress] passed over: the streams the log already held, from an earlier run, kept as they
-     * were converted then, so a change of the map since does not reach them. Null when it passed over none.
-     */
-    private fun passedOver(progress: List<ImportProgress>): String? {
-        val skipped = progress.filter { it.skipped > 0 }.ifEmpty { return null }
-        return "${skipped.sumOf { it.skipped }} streams of ${skipped.map { it.aggregate }} were already in the log, " +
-            "and were passed over as they were converted then: a change of the map since reaches them only in a " +
-            "fresh target."
-    }
-
-    /** Records where the imported history ends in each context's log, after a pass that appended to it. */
-    private suspend fun recordCutover(plan: MigrationPlan, connections: MigrationConnections) {
-        val recorder = CutoverRecorder.of(plan, connections)
-        out.println(recorder.render(recorder.record()))
-    }
-
-    private fun importer(
-        plan: MigrationPlan,
-        options: ImportOptions,
-        connections: MigrationConnections,
-        checkpoints: CheckpointRepository,
-    ): EventStreamImporter = EventStreamImporter(
-        source = connections.source,
-        plan = plan,
-        logOf = connections::logOf,
-        checkpoints = checkpoints,
-        options = options,
-        progress = { out.println(it.render()) },
-    )
-
     companion object {
         const val OK = 0
         const val FAILED = 1
@@ -618,7 +459,7 @@ internal class MigrateData(
         private const val SNAPSHOT = "snapshot"
         private const val EXPORT = "export"
         private const val CONFIG = "--config"
-        private const val DRY_RUN = "--dry-run"
+        internal const val DRY_RUN = "--dry-run"
         internal const val RESTART = "--restart"
         private const val FINAL = "--final"
         private const val SNAPSHOTS = "--snapshots"

@@ -266,6 +266,18 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `a final pass that refuses writes no snapshot, even with --snapshots`(): Unit = runBlocking {
+        val config = config().toString()
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+        // The tail never ran: the final pass refuses before it writes, and --snapshots writes nothing after it.
+        run("import", "--config", config, "--final", "--snapshots").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("FAILED the tail of example-service.order never ran")
+            .doesNotContain("Snapshots done.")
+        val id = NineXExample.stream("order-stream-v1.json").aggregateId
+        store.load(NineXExample.orderModel.type.ref(id.tenantId, id.id)).assert().isNull()
+    }
+
+    @Test
     fun `import --final walks the reservations and the compensation again`(): Unit = runBlocking {
         val id = NineXExample.stream("order-stream-v1.json").aggregateId
         prepared.add(NineXPreparedKey("order_no", "NO-1", WowJson.mapper.readTree("""{"orderId":"${id.id}"}"""), null))
