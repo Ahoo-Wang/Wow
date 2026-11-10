@@ -37,7 +37,6 @@ import {
   cpuSplit,
   GENERATOR_BOUND,
   generatorWithKafka,
-  HANDOVER_SCRIPT,
   HOST_PROCESSES,
   hostProcesses,
   javaHome,
@@ -59,7 +58,6 @@ import {
   renderReport,
   renderSuite,
   resolveInputs,
-  roundOrder,
   lastSignals,
   signalsWithin,
   BUSY,
@@ -75,7 +73,6 @@ import {
   SAME,
   sameRateBasis,
   SESSIONS,
-  spread,
   SUITES,
   suitesOf,
   sustainableStep,
@@ -90,6 +87,11 @@ import {
   sweepPlanOf,
   usesBus,
 } from './bench.mjs';
+import {
+  HANDOVER_SCRIPT,
+  roundOrder,
+  spread,
+} from './bench-common.mjs';
 
 // This file runs under Node's test runner alone (`pnpm test:ci-scripts`), whose NODE_TEST_CONTEXT makes
 // hostProcesses refuse: no test here finds or signals a process of the host (X-66).

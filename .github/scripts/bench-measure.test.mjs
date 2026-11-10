@@ -8,7 +8,13 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-// bench.mjs first: it builds its SUITES with bench-measure.mjs's run lists while it is evaluated.
+import {
+  MEASURE,
+  WALK,
+  quantile,
+  readMeasure,
+  walkTables,
+} from './bench-measure.mjs';
 import {
   anomalies,
   pairs,
@@ -19,13 +25,6 @@ import {
   suitesOf,
   usesBase,
 } from './bench.mjs';
-import {
-  MEASURE,
-  WALK,
-  quantile,
-  readMeasure,
-  walkTables,
-} from './bench-measure.mjs';
 
 // A stand-in for bench.sh's `measure` command: each run writes its measure.json, the times, answers and query log of
 // two queries.

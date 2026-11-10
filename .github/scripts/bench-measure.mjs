@@ -6,7 +6,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  anomalies,
   anomalyTable,
   bench,
   labelOf,
@@ -18,11 +17,10 @@ import {
   roundOrder,
   spread,
   withProps,
-} from './bench.mjs';
+} from './bench-common.mjs';
 
 // The `measure` kind of bench.mjs's suites, run through bench.sh's `measure` command: its programs' settings, runs,
-// results, tables and anomalies. bench.mjs builds its SUITES with the run lists below while it is evaluated, so this
-// module is evaluated first: a module that imports both imports bench.mjs first.
+// results, tables and anomalies. It imports bench-common.mjs only; bench.mjs imports it.
 
 // kind `measure`, measure `walk` (bench.sh measure --program=walk, AccessWalkBench): the access walk of the data set's
 // accounts of `streams` streams each under `rate` E1 deposits a second, open loop, over `warmUp` and `measure` seconds;
@@ -436,7 +434,7 @@ export function renderMeasure(suite, definition) {
       ...walkTables(suite),
       '',
     ];
-    const found = anomalyTable(anomalies(suite));
+    const found = anomalyTable(measureAnomalies(suite));
     if (found.length > 0) lines.push('Anomalies:', '', ...found, '');
     if (suite.failures > 0)
       lines.push(`**${suite.failures} run(s) failed**; see the job log.`, '');
@@ -458,7 +456,7 @@ export function renderMeasure(suite, definition) {
       ...measureTables(suite),
       '',
     ];
-    const found = anomalyTable(anomalies(suite));
+    const found = anomalyTable(measureAnomalies(suite));
     if (found.length > 0) lines.push('Anomalies:', '', ...found, '');
     if (suite.failures > 0)
       lines.push(`**${suite.failures} run(s) failed**; see the job log.`, '');

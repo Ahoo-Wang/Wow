@@ -15,6 +15,19 @@ import {
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
+  anomalyTable,
+  bench,
+  labelOf,
+  ms,
+  num,
+  propsText,
+  readJson,
+  readJsonIfThere,
+  roundOrder,
+  spread,
+  withProps,
+} from './bench-common.mjs';
+import {
   armsOfRuns,
   measureAnomalies,
   renderMeasure,
@@ -51,7 +64,6 @@ const HEAD_MONGO = arm('head', 'mongo');
 const BASE_MONGO = arm('base', 'mongo');
 const HEAD_PG = arm('head', 'postgres');
 const BASE_PG = arm('base', 'postgres');
-export const withProps = (arm, id, props) => ({ ...arm, id, props });
 export const SIGNALS = { 'bench.signals.enabled': true };
 // The industry comparison's arms (test/benchmarks/README.md): Wow with no bus (`--wow.transport=none`, X-33), as the
 // Axon server has none, and Axon Framework 4 (`test/benchmarks/axon-server`), each on the one PostgreSQL. The `axon`
@@ -2157,8 +2169,6 @@ function datasetsOf(dataset, tier) {
   return names;
 }
 
-/** A suite's name with its data set, as the report shows it: `e1-mongo-uniform@100k`. */
-export const labelOf = suite => `${suite.name}@${suite.dataset ?? '100k'}`;
 /** The key of a suite's A/A thresholds in noise.json: its own label, or its `noiseFrom` suite's. */
 export const noiseLabel = suite =>
   labelOf({ ...suite, name: SUITES[suite.name]?.noiseFrom ?? suite.name });
@@ -2225,13 +2235,6 @@ export function planMatrix({
     ),
   );
   return { suites: runnable, jobs, skipped, builds };
-}
-
-/** The spread of values: max / min - 1, 0 for fewer than two. */
-export function spread(values) {
-  const present = values.filter(value => Number.isFinite(value) && value > 0);
-  if (present.length < 2) return 0;
-  return Math.max(...present) / Math.min(...present) - 1;
 }
 
 /** The numbers of one run's result.json that the summaries use. */
@@ -2453,11 +2456,6 @@ export function drifted(runs, arms) {
   });
 }
 
-/** The arms of round `round` (0-based) in their order: ABBA. */
-export function roundOrder(arms, round) {
-  return round % 2 === 0 ? arms : [...arms].reverse();
-}
-
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
 export function pairs(suite, mode = CALIBRATED) {
   // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
@@ -2605,8 +2603,6 @@ export function range(values) {
   };
 }
 
-export const ms = value =>
-  Number.isFinite(value) ? `${value.toFixed(1)} ms` : '-';
 /** Bytes in KB from 1 KB up. */
 const bytes = value =>
   Number.isFinite(value)
@@ -2614,17 +2610,9 @@ const bytes = value =>
       ? `${(value / 1024).toFixed(1)} KB`
       : `${value.toFixed(0)} B`
     : '-';
-export const num = (value, digits = 1) =>
-  Number.isFinite(value) ? value.toFixed(digits) : '-';
 const ratio = value => (Number.isFinite(value) ? value.toFixed(3) : '-');
 const ratioRange = r =>
   r ? `${ratio(r.median)} (${ratio(r.min)}–${ratio(r.max)}, n=${r.n})` : '-';
-export const propsText = props =>
-  props && Object.keys(props).length > 0
-    ? Object.entries(props)
-        .map(([key, value]) => `${key}=${value}`)
-        .join(', ')
-    : 'defaults';
 
 /** The errors of a run other than the bulkhead's refusals, which a column of their own shows. */
 const otherErrors = errors =>
@@ -2673,19 +2661,6 @@ function cliffTable(suite) {
     );
   }
   return lines;
-}
-
-/** The anomalies of suites as a table, or nothing. */
-export function anomalyTable(rows) {
-  if (rows.length === 0) return [];
-  return [
-    '| Suite | Run | Context | Anomaly | Detail |',
-    '| --- | --- | --- | --- | --- |',
-    ...rows.map(
-      row =>
-        `| ${row.suite} | ${row.run} | ${row.context} | **${row.kind}** | ${row.detail} |`,
-    ),
-  ];
 }
 
 /** A component suite's counts per scenario and arm, and the head's against the baseline's. */
@@ -3369,102 +3344,6 @@ export function hostProcesses(env = process.env) {
     );
   }
   return HOST_PROCESSES;
-}
-
-// A cluster run with a hand-over: bench.sh runs with its output teed to a log, and a helper waits for the load
-// generator's measured phase, stops the node on NODE_PORT (SIGTERM: a graceful stop, its partitions hand over),
-// and after DOWN seconds starts it again with its own command line, working directory and environment. The
-// restarted node is stopped once bench.sh is done (bench.sh only knows the pids it started). Every dealing with
-// the node goes through the process functions (HOST_PROCESSES) run before it; the script stops only its own helper
-// itself.
-export const HANDOVER_SCRIPT = `
-set -uo pipefail
-bench=$1; shift
-mkdir -p "$RUN_DIR"
-log="$RUN_DIR/bench-output.log"; : > "$log"
-handover() {
-  for _ in $(seq 1 900); do grep -q ': measure$' "$log" && break; sleep 1; done
-  grep -q ': measure$' "$log" || return 0
-  sleep "$STOP_AFTER"
-  pid=$(node_pid "$NODE_PORT")
-  if [ -z "$pid" ]; then echo "[handover] no node on port $NODE_PORT"; return 0; fi
-  node_argv "$pid"
-  cwd=$(node_cwd "$pid")
-  echo "[handover] $(date +%s.%N) stopping the node on port $NODE_PORT (pid $pid)"
-  signal TERM "$pid"
-  for _ in $(seq 1 300); do signal 0 "$pid" 2>/dev/null || break; sleep 0.1; done
-  echo "[handover] $(date +%s.%N) stopped; down for $DOWN s"
-  sleep "$DOWN"
-  (cd "$cwd" && exec "\${ARGV[@]}") >> "$RUN_DIR/node-restarted.log" 2>&1 &
-  echo $! > "$RUN_DIR/node-restarted.pid"
-  echo "[handover] $(date +%s.%N) restarted (pid $!)"
-}
-handover >> "$RUN_DIR/handover.log" 2>&1 &
-helper=$!
-"$bench" "$@" 2>&1 | tee -a "$log"
-status=\${PIPESTATUS[0]}
-kill "$helper" 2>/dev/null; wait "$helper" 2>/dev/null
-if [ -f "$RUN_DIR/node-restarted.pid" ]; then
-  restarted=$(cat "$RUN_DIR/node-restarted.pid")
-  signal TERM "$restarted" 2>/dev/null
-  for _ in $(seq 1 150); do signal 0 "$restarted" 2>/dev/null || break; sleep 0.2; done
-fi
-exit "$status"
-`;
-
-/**
- * Runs bench.sh with `args`, the arm's properties in SPRING_APPLICATION_JSON; true when it succeeded. With `handover`
- * (`{ dir, stopAfter, down, nodePort, processes }`) it runs through HANDOVER_SCRIPT, after the process functions
- * `processes`.
- */
-export function bench(benchPath, args, props, handover) {
-  const env = { ...process.env };
-  delete env.SPRING_APPLICATION_JSON;
-  if (props && Object.keys(props).length > 0)
-    env.SPRING_APPLICATION_JSON = JSON.stringify(props);
-  console.log(
-    `::group::bench.sh ${args.join(' ')}${props ? ` (${propsText(props)})` : ''}${handover ? ' (hand-over)' : ''}`,
-  );
-  const result = handover
-    ? spawnSync(
-        'bash',
-        [
-          '-c',
-          `${handover.processes}\n${HANDOVER_SCRIPT}`,
-          'handover',
-          benchPath,
-          ...args,
-        ],
-        {
-          stdio: 'inherit',
-          env: {
-            ...env,
-            RUN_DIR: handover.dir,
-            STOP_AFTER: String(handover.stopAfter),
-            DOWN: String(handover.down),
-            NODE_PORT: String(handover.nodePort),
-          },
-        },
-      )
-    : spawnSync(benchPath, args, { stdio: 'inherit', env });
-  console.log('::endgroup::');
-  if (result.status !== 0) {
-    console.log(
-      `::warning::bench.sh ${args[0]} failed (${result.status ?? result.signal}): ${args.join(' ')}`,
-    );
-  }
-  return result.status ?? -1;
-}
-
-export const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
-
-/** A JSON file a step may not have written, or written partly (a store query that failed): its value, or undefined. */
-export function readJsonIfThere(path) {
-  try {
-    return existsSync(path) ? readJson(path) : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** Where `installDist` puts the Axon server, under the repository. */
