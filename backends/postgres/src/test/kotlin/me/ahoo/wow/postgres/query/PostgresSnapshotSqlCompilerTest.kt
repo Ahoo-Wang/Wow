@@ -294,6 +294,15 @@ class PostgresSnapshotSqlCompilerTest {
         // Mixed directions: the first key bounds the rows that hold a value; the expanded form orders the rest.
         after(listOf(Sort(NAME, Sort.Direction.DESC), Sort(AMOUNT, Sort.Direction.ASC)), "n", BigDecimal.ONE, "t", "id")
             .assert().startsWith("$name <= ? AND ((")
+        // A descending key that may hold NULL ends the row past the first: its NULLs sort after its values.
+        after(
+            listOf(Sort(QueryField("version"), Sort.Direction.DESC), Sort(NAME, Sort.Direction.DESC)),
+            BigDecimal.ONE,
+            "n",
+            "t",
+            "id"
+        )
+            .assert().startsWith("version <= ? AND ((version < ?) OR ")
         // After a NULL descending: only NULLs follow, no bound.
         after(listOf(Sort(NAME, Sort.Direction.DESC)), null, "t", "id").assert().startsWith("((")
         // A NULL position ascending: what follows is a value or another NULL, no bound.
