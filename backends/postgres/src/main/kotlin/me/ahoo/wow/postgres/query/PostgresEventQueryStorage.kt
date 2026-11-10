@@ -116,7 +116,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         EventStreamFields.ACCESS to PostgresQueryType.JSONB,
         EventStreamFields.EVENTS to PostgresQueryType.JSONB,
     ),
-    notNull = setOf(
+    notNullFields = setOf(
         EventStreamFields.TENANT_ID,
         EventStreamFields.AGGREGATE_ID,
         EventStreamFields.VERSION,

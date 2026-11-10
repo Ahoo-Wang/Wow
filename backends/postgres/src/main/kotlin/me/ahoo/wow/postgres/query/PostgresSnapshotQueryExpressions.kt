@@ -131,7 +131,7 @@ internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
         SnapshotFields.SCHEDULES to PostgresQueryType.JSONB,
         SnapshotFields.STATE to PostgresQueryType.JSONB,
     ),
-    notNull = setOf(
+    notNullFields = setOf(
         SnapshotFields.TENANT_ID,
         SnapshotFields.AGGREGATE_ID,
         SnapshotFields.VERSION,
@@ -145,15 +145,15 @@ internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
  * The SQL expressions of one query table's fields: [columns] holds the column of each top-level physical field, and
  * [columnTypes] its type, `jsonb` for a column a path may go below (see [PostgresSnapshotQueryExpressions], whose
  * table the snapshot queries read; the events model reads the log tables, [PostgresEventQueryExpressions]);
- * [notNull] the fields whose column is `NOT NULL`.
+ * [notNullFields] the fields whose column is `NOT NULL`, which the catalog test ties to the tables.
  */
 internal open class PostgresQueryExpressions(
     columns: Map<String, String>,
     columnTypes: Map<String, PostgresQueryType>,
-    private val notNull: Set<String> = emptySet(),
+    val notNullFields: Set<String> = emptySet(),
 ) {
     /** Whether the field at the absolute physical [path] is a column that holds no `NULL`. */
-    fun notNull(path: QueryField<*>): Boolean = path.path in notNull
+    fun notNull(path: QueryField<*>): Boolean = path.path in notNullFields
 
     /** The columns of the system fields, by physical name. */
     @Suppress("VariableNaming") // Kept the snapshot object's constant names.
