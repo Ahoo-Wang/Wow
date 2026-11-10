@@ -24,6 +24,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.EventCodec
 import org.junit.jupiter.api.Test
+import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.ServerRequest
 
@@ -92,6 +93,43 @@ class EdgeCasesTest {
         snapshot(Scope("alice"))
         node.get("/shop/cart/c-1/state", headers = mapOf("Accept" to "text/event-stream")).assertStatus(406)
         node.get("/shop/cart/c-1/state", headers = mapOf("Accept" to "application/*")).assertStatus(200)
+    }
+
+    /** A command's answer to a caller that sends [accept]: its status and its media type. */
+    private fun commandAnswered(accept: String): Pair<Int, MediaType?> {
+        val result = node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
+            .header("Accept", accept).contentType(MediaType.APPLICATION_JSON).bodyValue("""{"sku":"apple"}""")
+            .exchange().returnResult(String::class.java)
+        return result.status.value() to result.responseHeaders.contentType?.let { MediaType(it.type, it.subtype) }
+    }
+
+    @Test
+    fun `the Accept qualities decide between JSON and an event stream, and q=0 refuses a type`() {
+        val json = 200 to MediaType.APPLICATION_JSON
+        val stream = 200 to MediaType.TEXT_EVENT_STREAM
+        commandAnswered("application/json, text/event-stream;q=0").assert().isEqualTo(json)
+        commandAnswered("application/json, text/event-stream;q=0.5").assert().isEqualTo(json)
+        commandAnswered("application/json;q=0.5, text/event-stream").assert().isEqualTo(stream)
+        commandAnswered("application/json, text/event-stream").assert().isEqualTo(stream)
+        // A wildcard alone never asks for a stream; a more specific range weighs a type over it.
+        commandAnswered("*/*").assert().isEqualTo(json)
+        commandAnswered("*/*;q=0, text/event-stream").assert().isEqualTo(stream)
+        // Every type the route answers in refused: 406.
+        commandAnswered("application/json;q=0, application/problem+json;q=0, text/event-stream;q=0").first.assert()
+            .isEqualTo(406)
+        commandAnswered("application/*;q=0, text/event-stream;q=0").first.assert().isEqualTo(406)
+    }
+
+    @Test
+    fun `a state read weighs the most specific range of its Accept`() {
+        snapshot(Scope("alice"))
+        node.get("/shop/cart/c-1/state", headers = mapOf("Accept" to "application/*;q=0, application/json"))
+            .assertStatus(200)
+        node.get(
+            "/shop/cart/c-1/state",
+            headers = mapOf("Accept" to "*/*, application/json;q=0, application/problem+json;q=0")
+        )
+            .assertStatus(406)
     }
 
     @Test
