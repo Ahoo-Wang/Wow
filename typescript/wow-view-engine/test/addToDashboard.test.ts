@@ -164,19 +164,29 @@ describe('放进仪表盘 while the open board is edited', () => {
     expect(snapshot.draft.panels).toHaveLength(2);
   }
 
-  it('keeps the edits made while it was out, and carries the panel onto them', async () => {
+  /** The add with `open` edited while it was out, and a second holder that is not. */
+  async function addedWhileEdited() {
     const { engine, store, reading, release } = held();
     const open = await openBoard(engine);
     const untouched = await engine.open('board-1');
-
     const adding = engine.addToDashboard('board-1', mine.id);
     await reading.promise;
     edit(open);
     release.resolve();
     const saved = await adding;
+    return { engine, store, open, untouched, saved };
+  }
+
+  it('carries the panel onto the edits made while it was out, keeping them', async () => {
+    const { open, saved } = await addedWhileEdited();
 
     expectCarried(open, saved);
-    // The other holder had nothing of its own: it takes the board as saved.
+  });
+
+  it('has a second holder with an untouched draft adopt the saved board while the edited one carries', async () => {
+    const { open, untouched, saved } = await addedWhileEdited();
+
+    expectCarried(open, saved);
     expect(untouched.getSnapshot()).toMatchObject({
       dirty: false,
       saved: { revision: saved.revision },
@@ -184,19 +194,27 @@ describe('放进仪表盘 while the open board is edited', () => {
     expect(
       panelsOf({ ...board, config: untouched.getSnapshot().draft }),
     ).toEqual(panelsOf(saved));
+  });
 
-    // One undo takes back only the carried panel; the draft then differs
-    // from the saved board again.
+  it('takes off only the carried panel with one undo, the reader’s own edits staying', async () => {
+    const { open } = await addedWhileEdited();
+
     expect(open.undo()).toMatchObject({ command: 'addPanel' });
-    expect(open.getSnapshot().draft.panels.map(entry => entry.id)).toEqual([
-      'orders',
-    ]);
-    expect(open.getSnapshot().draft.panels[0]).toMatchObject({
-      title: 'Renamed',
-    });
-    open.redo();
 
-    // One save sends all of it, against the saved revision.
+    // The draft differs from the saved board again: a save now would take
+    // the panel off there too.
+    const snapshot = open.getSnapshot();
+    expect(snapshot.draft.panels.map(entry => entry.id)).toEqual(['orders']);
+    expect(snapshot.draft.panels[0]).toMatchObject({
+      title: 'Renamed',
+      layout: { x: 6, y: 0, w: 6, h: 4 },
+    });
+    expect(snapshot.draft.refresh.interval).toBe(300);
+    expect(snapshot.dirty).toBe(true);
+  });
+
+  it('sends the carried panel and the edits in one save, against the saved revision', async () => {
+    const { engine, store, open, saved } = await addedWhileEdited();
     const save = vi.spyOn(store, 'save');
     await engine.save(open);
     const [, config, revision] = save.mock.calls[0]!;

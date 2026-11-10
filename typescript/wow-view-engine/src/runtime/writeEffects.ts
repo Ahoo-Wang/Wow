@@ -13,8 +13,7 @@
 
 import { isOwnedPanel, isViewPanel, panelsOf } from '../dashboard/index.js';
 import type { ViewInstance, ViewPreferences } from '../model/index.js';
-import { DashboardViewRuntime } from './dashboardRuntime.js';
-import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
+import { isManagedBoard, type ManagedViewRuntime } from './viewRuntimeTypes.js';
 import type { WritePayload } from './write.js';
 import type { WriteLedgerHost, WriteResult } from './writeLedger.js';
 
@@ -114,7 +113,12 @@ function addedToBoard(
   saved: ViewInstance,
   panelId: string,
 ): void {
-  if (!(holder instanceof DashboardViewRuntime)) return;
+  // Only a board takes a panel; any other holder of the instance moves its
+  // baseline, as every holder does after a save.
+  if (!isManagedBoard(holder)) {
+    holder.moveBaseline(saved);
+    return;
+  }
   if (!holder.getSnapshot().dirty) {
     holder.adoptSaved(saved);
     return;
@@ -140,7 +144,7 @@ function promotePanel(
   { id, shows }: { id: string; shows: string | null },
   instance: ViewInstance,
 ): void {
-  if (!(board instanceof DashboardViewRuntime) || board.disposed) return;
+  if (!isManagedBoard(board) || board.disposed) return;
   const panel = board.getSnapshot().draft.panels.find(entry => entry.id === id);
   const stillShows =
     shows === null

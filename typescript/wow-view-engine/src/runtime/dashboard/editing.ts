@@ -371,7 +371,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
       const panels = placed.config.panels.map(entry =>
         entry.id === placed.id ? { ...entry, id } : entry,
       );
-      const carried = panels[panels.length - 1];
+      const carried = panels.find(entry => entry.id === id)!;
       const next = [
         { ...placed.config, panels },
         applied.panels.some(entry => entry.id === id)
