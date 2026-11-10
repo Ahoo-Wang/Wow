@@ -97,12 +97,12 @@ internal class ElasticsearchQueryBackend(
                 query = ElasticsearchFilterCompiler.compile(listQuery.filter, query),
                 sourceFilter = sourceFilter(listQuery.projection, query),
                 sort = totalSort(query) + SHARD_DOC_SORT,
-            ).collect { emit(it.record()) }
+            ).collect { emit(it.record(query)) }
         } else {
             val request = searchRequest(query, listQuery, totalSort(query)) {
                 it.from(0).size(limit).trackTotalHits { trackHits -> trackHits.enabled(false) }
             }
-            search(request).hits().hits().forEach { emit(it.record()) }
+            search(request).hits().hits().forEach { emit(it.record(query)) }
         }
     }.orMissing(query)
 
@@ -125,7 +125,7 @@ internal class ElasticsearchQueryBackend(
             }
         }
         val hits = search(request).hits()
-        val rows = hits.hits().map { it.record() }
+        val rows = hits.hits().map { it.record(query) }
         return if (window.withTotal) BackendPage(rows, hits.total()?.value() ?: 0) else BackendPage(rows)
     }
 
@@ -142,7 +142,7 @@ internal class ElasticsearchQueryBackend(
         checkExecution(hits.all { it.sort().size == queryable.sort.size }) {
             "Elasticsearch hit sort values must match the sort."
         }
-        return BackendPage(rows = hits.map { it.record() }, positions = hits.map { CursorPosition(it.sort()) })
+        return BackendPage(rows = hits.map { it.record(query) }, positions = hits.map { CursorPosition(it.sort()) })
     }
 
     override suspend fun count(query: AdmittedQuery<CountQuery>): Long = orMissing(query, { 0L }) {
@@ -211,8 +211,13 @@ internal class ElasticsearchQueryBackend(
     private suspend fun search(request: SearchRequest) =
         client.search(request, ObjectNode::class.java).awaitElasticsearch().requireComplete()
 
-    private fun Hit<ObjectNode>.record(): ObjectNode =
-        documents.record(source() ?: throw QueryExecutionException("Elasticsearch hit is missing _source."))
+    /** The record of this hit, with only what [query]'s projection keeps. */
+    private fun Hit<ObjectNode>.record(
+        query: AdmittedQuery<Queryable<*>>
+    ): ObjectNode = ElasticsearchProjectionCompiler.project(
+        query,
+        documents.record(source() ?: throw QueryExecutionException("Elasticsearch hit is missing _source.")),
+    )
 
     private fun emptyPage(window: PageWindow): BackendPage = when (window) {
         is PageWindow.Offset -> if (window.withTotal) BackendPage(emptyList(), 0) else BackendPage(emptyList())

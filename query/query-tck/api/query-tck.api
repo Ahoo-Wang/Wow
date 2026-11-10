@@ -220,6 +220,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
+	public final fun a histogram and an expression group put the records without a value in the null group ()V
 	public final fun a query within its timeout runs as without one ()V
 	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
 	public final fun a stream sees a record written after its position, between two chunks ()V
@@ -261,6 +262,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun paged bounded total stops at its limit and says it is not exact ()V
 	public final fun paged returns its window with the exact total ()V
 	public final fun paged without a total counts nothing ()V
+	public final fun projection keeps an element's position when it lacks the projected leaf ()V
 	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
 	public final fun projection preserves scalar and object subtree semantics ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V

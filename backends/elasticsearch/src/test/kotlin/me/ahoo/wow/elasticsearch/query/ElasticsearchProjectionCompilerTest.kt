@@ -26,20 +26,20 @@ class ElasticsearchProjectionCompilerTest {
         fields = mapOf(
             QueryField("state") to projectionFieldSchema(QueryField("document")),
             QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
+            QueryField("state.lines.sku") to projectionFieldSchema(QueryField("document.lines.sku")),
         ),
     )
 
     @Test
-    fun `should compile included logical subtrees to source filters`() {
+    fun `should fetch the subtrees of the includes, two segments deep at most, once each`() {
         val include = listOf(QueryField("state"), QueryField("state.name"))
         val projection = Projection(include = include)
 
-        ElasticsearchProjectionCompiler.compile(projection, schema).includes().assert().containsExactly(
-            "document",
-            "document.*",
-            "document.name",
-            "document.name.*",
-        )
+        // `document.name` is within `document`, so `document` alone is fetched; the record is projected after.
+        ElasticsearchProjectionCompiler.compile(projection, schema).includes().assert()
+            .containsExactly("document", "document.*")
+        ElasticsearchProjectionCompiler.compile(Projection(include = listOf(QueryField("state.lines.sku"))), schema)
+            .includes().assert().containsExactly("document.lines", "document.lines.*")
         projection.include.assert().isSameAs(include)
     }
 

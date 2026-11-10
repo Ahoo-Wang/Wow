@@ -68,11 +68,13 @@ internal fun AggregationGroup.toSource(
             }
         }
 
+        // A record without a value forms the null group, as for a TERMS field.
         is AggregationGroup.Histogram -> CompositeAggregationSource.of {
             it.histogram { histogram ->
                 histogram.field(admitted.physicalPath(checkNotNull(field)))
                     .interval(interval)
                     .order(sort.direction.toSortOrder())
+                    .missingBucket(true)
             }
         }
 
@@ -106,7 +108,10 @@ internal fun AggregationGroup.toSource(
  * The calendar part of a single-valued temporal field as a long, computed in the group's time zone from the same
  * temporal encodings a date histogram accepts; records with no value emit nothing and form no bucket.
  */
-/** A TERMS or HISTOGRAM source over the group's computed input, a request-local runtime field. */
+/**
+ * A TERMS or HISTOGRAM source over the group's computed input, a request-local runtime field; a record whose input
+ * has no value (a field without one, a division by zero) forms the null group.
+ */
 private fun AggregationGroup.expressionSource(
     input: AggregationExpression,
     sort: Sort,
@@ -120,8 +125,11 @@ private fun AggregationGroup.expressionSource(
         when (this) {
             is AggregationGroup.Histogram -> it.histogram { histogram ->
                 histogram.field(runtimeFieldName).interval(interval).order(sort.direction.toSortOrder())
+                    .missingBucket(true)
             }
-            else -> it.terms { terms -> terms.field(runtimeFieldName).order(sort.direction.toSortOrder()) }
+            else -> it.terms { terms ->
+                terms.field(runtimeFieldName).order(sort.direction.toSortOrder()).missingBucket(true)
+            }
         }
     }
 }
