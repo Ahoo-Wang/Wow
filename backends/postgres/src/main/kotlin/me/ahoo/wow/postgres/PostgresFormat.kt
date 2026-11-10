@@ -162,7 +162,7 @@ internal object PostgresFormat {
     }
 
     /** The format records' table. */
-    private const val FORMAT_TABLE = "CREATE TABLE IF NOT EXISTS $TABLE (structure text PRIMARY KEY, version integer NOT NULL)"
+    private const val FORMAT_TABLE = "CREATE TABLE IF NOT EXISTS $TABLE (structure text COLLATE \"C\" PRIMARY KEY, version integer NOT NULL)"
 
     /** The key of the advisory lock [creating] takes. */
     internal const val CREATION_LOCK = 0x776f775f666d74L

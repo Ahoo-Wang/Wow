@@ -55,27 +55,6 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         assertThrownBy<IllegalStateException> { runBlocking { PostgresFixture.snapshotStore(context).save(saved) } }
     }
 
-    @Test
-    fun `a table of a version that recorded tags loses them under auto, and is refused under validate`(): Unit =
-        runBlocking {
-            val context = PostgresFixture.newContext()
-            val type = AggregateType(context, "aggregate")
-            val tags = "wow_snapshot__${context.replace('-', '_')}__aggregate"
-            // The table as 10.0.0-beta.1 left it: its tags NOT NULL, no access attributes.
-            PostgresFixture.snapshotStore(context).createTable(type.name)
-            execute("ALTER TABLE \"$tags\" DROP COLUMN access, ADD COLUMN tags jsonb NOT NULL DEFAULT '{}'")
-            execute("ALTER TABLE \"$tags\" ALTER COLUMN tags DROP DEFAULT")
-            assertThrownBy<IllegalStateException> {
-                PostgresSnapshotStore(PostgresFixture.dataSource, context, ddl = Ddl.VALIDATE).createTable(type.name)
-            }.hasMessageContaining("DROP COLUMN IF EXISTS tags").hasMessageContaining("ddl validate")
-            val saved = snapshot("a", 1).copyWith(ref = type.ref("tenant", "a"))
-            PostgresFixture.snapshotStore(context).save(saved).assert().isTrue()
-            // jsonb keeps the state's value, not its text: the access attributes and the version are what the beta lacked.
-            val loaded = checkNotNull(PostgresFixture.snapshotStore(context).load(saved.ref))
-            loaded.version.assert().isEqualTo(saved.version)
-            loaded.access.assert().isEqualTo(saved.access)
-        }
-
     private fun execute(sql: String) {
         PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
     }

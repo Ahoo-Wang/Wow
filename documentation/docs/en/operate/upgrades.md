@@ -59,9 +59,9 @@ A new major version may change formats and protocols. Its nodes do not run besid
 
 ## From a 10.0.0 pre-release
 
-A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from an alpha needs a fresh database; what it wrote is not migrated or read.
+A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ. This version does not open a store a pre-release wrote in an earlier format: at start, the format check refuses it, naming the structure and the format it is stored in. On PostgreSQL that is every table of the store a pre-release wrote but the failure ledger: the log, snapshot, reservation, timer, checkpoint and lease tables and their registries (every text column of a key or an index now compares by code point, and the log's version key leads with the tenant). Start such a store fresh, in a new database or with its tables dropped; a service migrating from 9.x imports its history again with `migrate-data` ([Migrate the Data](../migrate/data)). Nothing a pre-release wrote is migrated or read.
 
-A log a released beta wrote still loads. Its streams and snapshots carry no access attributes until the access walk of each aggregate type has stamped them, and until then some reads leave them out:
+Streams imported without access attributes, as an import from 9.x may write them, carry none until the access walk of each aggregate type has stamped them, and until then some reads leave them out:
 
 - **What is hidden.** Under an access policy, a snapshot query leaves out the type's unstamped snapshots, and an events query its unstamped streams. Without one, an events query by a caller acting as an owner or in a space leaves out the unstamped streams. A caller of the whole tenant still reads them, and a state read, a version, a time or a trace is not affected.
 - **Why.** A read decides by the access attributes a record carries: the policy's, or, on the events, the aggregate's owner and space of now, which each stream records so that its history follows the aggregate after a transfer ([Who sees what](../guide/event-queries#who-sees-what)). A record that carries none grants nothing, rather than showing to every caller.

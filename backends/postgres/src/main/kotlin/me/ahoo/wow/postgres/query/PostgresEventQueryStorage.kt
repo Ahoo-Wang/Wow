@@ -42,7 +42,7 @@ import javax.sql.DataSource
  * of its aggregate types over that aggregate's own log table (`wow_log__<ctx>__<agg>`), which
  * `PostgresEventLog` appends to, with the facts of [PostgresEventStorageAdapter]. One record per stream, as stored.
  *
- * The log is the write store: its indexes are the version key `(aggregate_id, tenant_id, version)`, the request key
+ * The log is the write store: its indexes are the version key `(tenant_id, aggregate_id, version)`, the request key
  * `(tenant_id, request_id)`, the position `(partition, sequence)` and those of the access attributes, each partial on
  * the attribute holding a value ([PostgresQueryIndexes.planLog]), so a query under an access policy uses its
  * attributes' indexes, and any other that does not pin the aggregate (or the request) scans the aggregate type's

@@ -82,7 +82,7 @@ class PostgresEventLogTest : EventLogSpec() {
     private fun table(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
 
     @Test
-    fun `a partition's stored lineage reads back, and a counter table created without it gets it`(): Unit =
+    fun `a partition's stored lineage reads back`(): Unit =
         runBlocking {
             val context = PostgresFixture.newContext()
             val log = PostgresFixture.log(2, context)
@@ -91,49 +91,9 @@ class PostgresEventLogTest : EventLogSpec() {
             execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
             log.lineage(0).assert().isEqualTo(PartitionLineage.ROOT)
             log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
-            // A counter table of format 1 created before the lineage columns reads as the partitions it was created with.
-            execute("ALTER TABLE $counters DROP COLUMN parent, DROP COLUMN epoch")
-            log.lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
-            log.createSchema()
-            execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
-            log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
             execute("DELETE FROM $counters WHERE partition = 1")
             runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         }
-
-    @Test
-    fun `a log table created before the access attributes gets them, its streams reading as not stamped`(): Unit =
-        runBlocking {
-            val context = PostgresFixture.newContext()
-            val order = AggregateType(context, "order")
-            val log = PostgresFixture.log(1, context, listOf(order.name))
-            val legacy = stream("o-1", 1, aggregate = order, access = mapOf("owner" to "owner", "region" to "east"))
-            (log.append(legacy) is AppendOutcome.Committed).assert().isTrue()
-            // A table of format 1 created before the access attributes, with the tags of the version that wrote it.
-            execute("ALTER TABLE \"${table(context, order.name)}\" DROP COLUMN access")
-            execute("ALTER TABLE \"${table(context, order.name)}\" ADD COLUMN tags jsonb")
-            // The next node to start adds the column.
-            val upgraded = PostgresFixture.log(1, context, listOf(order.name))
-            upgraded.read(legacy.ref).toList().single().access.assert().isNull()
-            val none = stream("o-1", 2, aggregate = order, access = emptyMap())
-            (upgraded.append(none) is AppendOutcome.Committed).assert().isTrue()
-            upgraded.read(legacy.ref, 2).toList().single().access.assert().isEqualTo(emptyMap<String, Any?>())
-        }
-
-    @Test
-    fun `a registry created before the access walks gets their column, its types not walked`(): Unit = runBlocking {
-        val context = PostgresFixture.newContext()
-        val order = AggregateType(context, "order")
-        PostgresFixture.log(1, context, listOf(order.name))
-        // The registry of a version before the walks; the tests run one at a time.
-        execute("ALTER TABLE ${PostgresEventLogTables.REGISTRY} DROP COLUMN access_walk")
-        // The next node to start adds it.
-        val upgraded = PostgresFixture.log(1, context, listOf(order.name))
-        upgraded.walk(order).assert().isNull()
-        val walk = AccessWalk("region:string", mapOf(0 to 0L))
-        upgraded.claim(order, walk, expected = null).assert().isTrue()
-        upgraded.walk(order).assert().isEqualTo(walk)
-    }
 
     @Test
     fun `the access walk of a type without history creates no table, and its first append creates it`(): Unit =
