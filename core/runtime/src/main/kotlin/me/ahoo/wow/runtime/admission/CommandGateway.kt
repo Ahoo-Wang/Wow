@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
@@ -370,7 +371,8 @@ class CommandGateway @InternalWowApi constructor(
      *
      * An admission ends by its own send's deadline once admitted (`min(plan, wait.maxTimeout)`), but the application's
      * plugins it runs first and a detached command's run (its execution or forward) are bounded by nothing of the
-     * gateway's: what still runs at [timeout] is logged and cancelled with the scope.
+     * gateway's. At [timeout], the detached commands still running are cancelled with the scope, and an admission still
+     * under way is refused ([FrameworkCodes.NODE_CLOSING]) once its plugins return: nothing of it is launched or sent.
      */
     @InternalWowApi
     suspend fun close(timeout: Duration) {
@@ -388,8 +390,9 @@ class CommandGateway @InternalWowApi constructor(
         }
         if (ended == null) {
             logger.warn {
-                "The gateway closes after $timeout with ${admissions.value} admissions under way and " +
-                    "${detached.coroutineContext.job.children.count()} detached commands running: they are cancelled."
+                "The gateway closes after $timeout: ${admissions.value} admissions under way are refused when they " +
+                    "get past admission, ${detached.coroutineContext.job.children.count()} detached commands running " +
+                    "are cancelled."
             }
         }
         detached.cancel()
@@ -419,17 +422,24 @@ class CommandGateway @InternalWowApi constructor(
             clock,
         )
         return try {
-            admit(request, facts)
+            val admission = admit(request, facts)
+            // Admitted once the close stopped waiting for it (its plugins outlived the bound): refused as one after the
+            // close, so that nothing is launched on the cancelled scope nor sent, and no caller is told ACCEPTED.
+            if (!detached.isActive && admission !is Admission.Refused) closing(facts) else admission
         } catch (unavailable: StorageUnavailableException) {
             logger.warn(unavailable) { "Request ${facts.requestId} was not admitted: a store is unavailable." }
             facts.refuse(FrameworkCodes.STORAGE_UNAVAILABLE, unavailable.message!!, CommandResult.Status.FAILED)
         }
     }
 
+    /** [facts] refused because the node is closing. */
+    private fun closing(facts: Facts): Admission =
+        facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
+
     @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
     private suspend fun admit(request: ServerCommandRequest, facts: Facts): Admission {
         if (closed) {
-            return facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
+            return closing(facts)
         }
         if (standby) {
             return facts.refuse(

@@ -18,17 +18,20 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.runtime.admission.Authorization
+import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
@@ -91,6 +94,12 @@ class GatewayStopTest {
         cluster = fastOptions(drainTimeout = DRAIN),
     )
 
+    /** A peer's stock reservation, ACCEPTED only. */
+    private fun request() = ServerCommandRequest.builder(Reserve(2), ITEM.ref(TENANT, "i-1"))
+        .caller(clerk)
+        .wait(WaitPlan.ACCEPTED)
+        .build()
+
     private fun reserve(item: String) = ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, item))
         .caller(clerk)
         .wait(WaitPlan.ACCEPTED)
@@ -109,7 +118,12 @@ class GatewayStopTest {
         return appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
     }
 
-    private fun salesNode(producer: TopicProducer, listener: (ServiceNode.Step) -> Unit): ServiceNode = ServiceNode(
+    private fun salesNode(
+        producer: TopicProducer,
+        options: ServiceNodeOptions = fastNodeOptions(),
+        authorizer: CommandAuthorizer? = null,
+        listener: (ServiceNode.Step) -> Unit,
+    ): ServiceNode = ServiceNode(
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
@@ -117,8 +131,8 @@ class GatewayStopTest {
         salesManifest(),
         InMemoryBackends(PARTITIONS),
         channel,
-        options = fastNodeOptions(),
-        admission = AdmissionPlugins(tenants = TenantPolicy.CALLERS),
+        options = options,
+        admission = AdmissionPlugins(authorizer = authorizer, tenants = TenantPolicy.CALLERS),
         contracts = ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
         topics = SourceTopics(topics, PREFIX, producer),
         listener = listener,
@@ -154,13 +168,9 @@ class GatewayStopTest {
                     else -> Unit
                 }
             }.also { it.start() }
-            val request = ServerCommandRequest.builder(Reserve(2), ITEM.ref(TENANT, "i-1"))
-                .caller(clerk)
-                .wait(WaitPlan.ACCEPTED)
-                .build()
             // On the test's one thread, as the stop is: the relay resumes only when the stop suspends, so the gateway's
             // close can only see it answered by waiting for it.
-            val calling = async { answered.complete(sales.gateway.execute(request)) }
+            val calling = async { answered.complete(sales.gateway.execute(request())) }
             sending.await()
             sales.stop()
             nodes -= sales
@@ -173,29 +183,69 @@ class GatewayStopTest {
             topics.messages(COMMANDS).size.assert().isEqualTo(1)
         }
 
+    /**
+     * An authorizer that holds each admission until [released]: past the gateway's bound, as the application's plugin
+     * may, since nothing of the gateway's bounds it. [authorizing] once one waits.
+     */
+    private class HeldAuthorizer : CommandAuthorizer {
+        val authorizing = CompletableDeferred<Unit>()
+        val released = CompletableDeferred<Unit>()
+
+        override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
+            authorizing.complete(Unit)
+            released.await()
+            return Authorization.Allowed
+        }
+    }
+
+    /**
+     * Stops [node] while [held] holds an admission past the gateway's bound, then releases it: the warning the gateway
+     * logs, and what [calling]'s caller is answered.
+     */
+    private suspend fun stopPastAdmission(
+        node: ServiceNode,
+        held: HeldAuthorizer,
+        calling: Deferred<CommandResult>,
+    ): Pair<List<String>, CommandResult> {
+        try {
+            held.authorizing.await()
+            val warned = gatewayWarnings { withTimeout(STOPPED_WITHIN) { node.stop() } }
+            nodes -= node
+            held.released.complete(Unit)
+            return warned to withTimeout(STOPPED_WITHIN) { calling.await() }
+        } finally {
+            held.released.complete(Unit)
+        }
+    }
+
     @Test
     @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
-    fun `an admission that never ends should hold the gateway's close at most the drain timeout, logged`(): Unit =
+    fun `an admission that outlives the gateway's bound should be refused as closing, its command never run`(): Unit =
         runBlocking {
-            val authorizing = CompletableDeferred<Unit>()
-            // The application's authorizer, which nothing of the gateway's bounds, never answers.
-            val node = stockNode(shortDrain(), authorizer = { _, _ ->
-                authorizing.complete(Unit)
-                awaitCancellation()
-            }, intake = false).also { it.start() }
-            val calling = async { runCatching { node.gateway.execute(reserve("i-a")) } }
-            try {
-                authorizing.await()
-                val warned = gatewayWarnings { withTimeout(STOPPED_WITHIN) { node.stop() } }
-                nodes -= node
-                warned.assert().containsExactly(
-                    "The gateway closes after $DRAIN with 1 admissions under way and 0 detached commands running: " +
-                        "they are cancelled.",
-                )
-            } finally {
-                calling.cancel()
-            }
+            val held = HeldAuthorizer()
+            val node = stockNode(shortDrain(), authorizer = held, intake = false).also { it.start() }
+            val calling = async { node.gateway.execute(reserve("i-a")) }
+            val (warned, answered) = stopPastAdmission(node, held, calling)
+            warned.assert().containsExactly(ADMISSION_OUTLIVED)
+            answered.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            answered.error!!.code.assert().isEqualTo(FrameworkCodes.NODE_CLOSING)
+            stock.decided.assert().isEmpty()
         }
+
+    @Test
+    @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun `a peer's command whose admission outlives the gateway's bound should be refused as closing, never sent`():
+        Unit = runBlocking {
+        stockNode().start()
+        val held = HeldAuthorizer()
+        val sales = salesNode(topics, shortDrain(), held) { }.also { it.start() }
+        val calling = async { sales.gateway.execute(request()) }
+        val (warned, answered) = stopPastAdmission(sales, held, calling)
+        warned.assert().containsExactly(ADMISSION_OUTLIVED)
+        answered.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        answered.error!!.code.assert().isEqualTo(FrameworkCodes.NODE_CLOSING)
+        topics.messages(COMMANDS).assert().isEmpty()
+    }
 
     @Test
     @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
@@ -210,8 +260,8 @@ class GatewayStopTest {
                 val warned = gatewayWarnings { withTimeout(STOPPED_WITHIN) { node.stop() } }
                 nodes -= node
                 warned.assert().containsExactly(
-                    "The gateway closes after $DRAIN with 0 admissions under way and 1 detached commands running: " +
-                        "they are cancelled.",
+                    "The gateway closes after $DRAIN: 0 admissions under way are refused when they get past " +
+                        "admission, 1 detached commands running are cancelled.",
                 )
                 stock.decided.assert().doesNotContain(accepted.commandId)
             } finally {
@@ -224,6 +274,10 @@ class GatewayStopTest {
         const val PARTITIONS = 4
         const val COMMANDS = PREFIX + "wow.stock.commands"
         val DRAIN = 200.milliseconds
+
+        /** The gateway's warning for one admission held past its bound, and nothing detached. */
+        val ADMISSION_OUTLIVED = "The gateway closes after $DRAIN: 1 admissions under way are refused when they get " +
+            "past admission, 0 detached commands running are cancelled."
 
         /** Far past the drain timeout: a stop the gateway does not hold ends well within it. */
         val STOPPED_WITHIN = 10.seconds
