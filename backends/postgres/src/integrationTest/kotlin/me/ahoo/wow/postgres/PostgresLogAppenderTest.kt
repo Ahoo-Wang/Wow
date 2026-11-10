@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -33,7 +34,9 @@ import java.lang.reflect.Proxy
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
+import java.sql.SQLTransientConnectionException
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 
 /** How the log's appends answer the failures of their statements, and how a large group is cut into statements. */
@@ -56,15 +59,37 @@ class PostgresLogAppenderTest {
         }
 
     @Test
-    fun `an append that fails before its statement leaves, other than transiently, is unknown`(): Unit = runBlocking {
-        // Only a transient failure before the statement is thrown as the storage error; any other is unknown.
-        val context = PostgresFixture.newContext()
-        val refused = SQLException("permission denied for table", "42501")
-        PostgresFixture.log(1, context)
-        val log = PostgresEventLog(unreachable(refused), context, 1)
-        val outcome = log.append(stream(AggregateType(context, "order").ref("tenant", "a"), 1), null)
-        (outcome as AppendOutcome.Unknown).cause.assert().isSameAs(refused)
-    }
+    fun `an append that fails before its statement leaves is thrown, whatever the failure, never unknown`(): Unit =
+        runBlocking {
+            // Nothing was written: the command is answered with the failure, translated as the log translates it.
+            val context = PostgresFixture.newContext()
+            val refused = SQLException("permission denied for table", "42501")
+            PostgresFixture.log(1, context)
+            val log = PostgresEventLog(unreachable(refused), context, 1)
+            assertThrownBy<SQLException> {
+                runBlocking { log.append(stream(AggregateType(context, "order").ref("tenant", "a"), 1), null) }
+            }.isSameAs(refused)
+        }
+
+    @Test
+    fun `a group whose later chunk gets no connection keeps the first chunk's commits, the rest unknown`(): Unit =
+        runBlocking {
+            // The call commits a chunk a time: once one was sent, a later one that fails unsent cannot be thrown,
+            // or every command of the call would be answered as committing nothing.
+            val context = PostgresFixture.newContext()
+            val lost = SQLTransientConnectionException("The pool timed out.")
+            PostgresFixture.log(1, context, listOf("order"))
+            val lent = AtomicInteger()
+            val log = PostgresEventLog(connections(PostgresFixture.dataSource, lent, failing = 2, lost), context, 1)
+            val order = AggregateType(context, "order")
+            // Three chunks: the first commits, the second gets no connection, the third is not tried.
+            val streams = (0..2 * STATEMENT_STREAMS).map { stream(order.ref("tenant", "a$it"), 1) to null }
+            val outcomes = log.appendAll(streams)
+            outcomes.take(STATEMENT_STREAMS).assert().isEqualTo((1L..STATEMENT_STREAMS).map { committed(it) })
+            outcomes.drop(STATEMENT_STREAMS).forEach { (it as AppendOutcome.Unknown).cause.assert().isSameAs(lost) }
+            lent.get().assert().isEqualTo(2)
+            PostgresFixture.log(1, context).head(0).assert().isEqualTo(STATEMENT_STREAMS.toLong())
+        }
 
     @Test
     fun `a group PostgreSQL ends a deadlock with is appended one by one, and commits`(): Unit = runBlocking {
@@ -171,6 +196,15 @@ class PostgresLogAppenderTest {
         }
 
     /** A data source whose every connection fails with [failure]. */
+    /**
+     * A data source whose [failing]th connection, counted from one in [lent], fails with [failure]; the others are
+     * lent.
+     */
+    private fun connections(target: DataSource, lent: AtomicInteger, failing: Int, failure: SQLException): DataSource =
+        proxy(DataSource::class.java, target) { name, _ ->
+            if (name == "getConnection" && lent.incrementAndGet() == failing) throw failure else null
+        }
+
     private fun unreachable(failure: SQLException): DataSource =
         proxy(DataSource::class.java, PostgresFixture.dataSource) { name, _ ->
             if (name == "getConnection") throw failure else null

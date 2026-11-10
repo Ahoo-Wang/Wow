@@ -141,19 +141,36 @@ internal class MongoLogAppender(
         insertMembers(members, outcomes)
         // A member whose position was taken (its block sealed), one after it of its aggregate, or one a too-large
         // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
-        // its aggregate's did not commit.
+        // its aggregate's did not commit. Once a stream of the call may have committed, a failure of the store here
+        // is not thrown: that stream and those not tried after it are unknown ([EventLog.appendAll]).
         failed.clear()
+        var written = outcomes.any { it.mayHaveCommitted() }
+        var stopped: MongoException? = null
         return outcomes.mapIndexed { index, outcome ->
             val (stream, transport) = streams[index]
-            failed[stream.ref] ?: (outcome ?: appendNow(stream, transport)).also {
-                if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it)
+            failed[stream.ref]?.let { return@mapIndexed it }
+            val settled = outcome ?: stopped?.let { AppendOutcome.Unknown(it) } ?: try {
+                appendNow(stream, transport)
+            } catch (failure: MongoException) {
+                if (!written) throw failure
+                stopped = failure
+                AppendOutcome.Unknown(failure)
             }
+            written = written || settled.mayHaveCommitted()
+            if (settled !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, settled)
+            settled
         }
     }
+
+    /** Whether this outcome's stream may be in the log: a call that has one no longer throws ([EventLog.appendAll]). */
+    private fun AppendOutcome?.mayHaveCommitted(): Boolean =
+        this is AppendOutcome.Committed || this is AppendOutcome.Unknown
 
     /**
      * Inserts [members] into [outcomes], each collection's with [insertAll]. The placeholders are written once the
      * inserts are done, or before a failure the store answered is thrown, for every member without an outcome then.
+     * It is thrown only while no member may have committed: once one did (an earlier collection's, or an earlier
+     * round's), the members without an outcome are [AppendOutcome.Unknown] instead ([EventLog.appendAll]).
      */
     private fun insertMembers(members: List<Member>, outcomes: Array<AppendOutcome?>) {
         val gaps = Gaps()
@@ -165,7 +182,9 @@ internal class MongoLogAppender(
             // Answered by the store, the insert wrote nothing: no member without an outcome lands now.
             members.filter { outcomes[it.index] == null && it !in gaps }.forEach { gaps.add(it, GAP_FAILED) }
             gaps.write()
-            throw failure
+            if (outcomes.none { it.mayHaveCommitted() }) throw failure
+            members.filter { outcomes[it.index] == null }.forEach { outcomes[it.index] = AppendOutcome.Unknown(failure) }
+            return
         }
         gaps.write()
     }

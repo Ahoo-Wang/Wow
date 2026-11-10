@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.log
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -79,13 +80,34 @@ interface EventLog {
      *
      * Across partitions, each partition's streams take its sequences in the order they come, and one partition's
      * outcomes do not depend on another's: a stream that does not commit stops only its own aggregate's later streams.
+     *
+     * A failure of the store is thrown only while nothing of the call may have been written. Once any stream of the
+     * call may have committed, the call returns an outcome for every stream: a stream whose write failed, and those
+     * after it that were not tried, are [AppendOutcome.Unknown], so that a caller never answers a committed stream as
+     * one that wrote nothing.
      */
     suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
+        var written = false
+        var stopped: Exception? = null
         return streams.map { (stream, transport) ->
             failed[stream.ref]?.let { return@map it }
-            append(stream, transport).also { outcome ->
-                if (outcome !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, outcome)
+            stopped?.let { return@map AppendOutcome.Unknown(it) }
+            val outcome = try {
+                append(stream, transport)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Whatever the store threw, what it committed stands.
+                failure: Exception,
+            ) {
+                if (!written) throw failure
+                stopped = failure
+                AppendOutcome.Unknown(failure)
+            }
+            written = written || outcome is AppendOutcome.Committed || outcome is AppendOutcome.Unknown
+            outcome.also {
+                if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it)
             }
         }
     }
