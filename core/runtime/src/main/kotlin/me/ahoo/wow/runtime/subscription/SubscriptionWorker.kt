@@ -29,10 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
@@ -41,7 +38,6 @@ import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
-import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.Recoverable
@@ -132,6 +128,9 @@ internal class SubscriptionWorker(
     private val fatals: NodeFatals = NodeFatals.NONE,
 ) {
     private val permits = Semaphore(options.maxInFlight)
+
+    /** The waits whose next hop is this subscription: whether an entry's is, and its signal once done with. */
+    private val hops = WaitHops(subscription, signals, clock)
 
     /** Whether the handler acts on what it reads, so passes over a peer's imported records: a saga's or a reactor's. */
     private val actsOnEntries = subscription.kind == FunctionKind.SAGA || subscription.kind == FunctionKind.REACT
@@ -236,9 +235,9 @@ internal class SubscriptionWorker(
         outstanding.set(pending.size)
         if (!subscription.takes(stream) || skippedOnAdmit(entry) || passesOver(entry)) {
             complete(slot)
-            if (waitsHere(entry)) {
+            if (hops.waitsHere(entry)) {
                 val parked = parkedAt(entry)
-                lanes.launch { signal(entry, Result.success(HandledEntry.NOTHING), parked) }
+                lanes.launch { hops.signal(entry, Result.success(HandledEntry.NOTHING), parked) }
             }
         } else {
             enqueue(stream.ref, Item.Live(entry, slot), first = false)
@@ -254,63 +253,6 @@ internal class SubscriptionWorker(
 
     /** Called under the monitor: whether [entry]'s aggregate is parked at or before it. */
     private fun parkedAt(entry: SourcedEntry): Boolean = parking.holds(entry.stream.ref, source.ordinalOf(entry))
-
-    /** Whether a wait on [entry] waits for this subscription next. */
-    private fun waitsHere(entry: SourcedEntry): Boolean {
-        val hop = entry.transport?.wait?.nextHandled ?: return false
-        return hop.subscription == subscription.hopOf(entry.stream.ref.type) &&
-            (hop.context ?: subscription.context) == subscription.context
-    }
-
-    /**
-     * Signals the wait on [entry], if it waits for this subscription next and is not over: SUCCEEDED with the
-     * commands [handled] derived, REJECTED with the rejection it met, or FAILED when it failed or the aggregate is
-     * [parked]. A FAILED signal carries the code and where the aggregate parked, never the handler's exception: its
-     * class and message, which may name a database, an address or a third party's answer, go to the ledger and the
-     * logs only.
-     */
-    @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
-    private suspend fun signal(entry: SourcedEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
-        if (!waitsHere(entry)) {
-            return
-        }
-        val wait = checkNotNull(entry.transport?.wait)
-        val now = clock.millis()
-        if (wait.expiredAt(now)) {
-            return
-        }
-        val failure = handled.exceptionOrNull()
-        val rejection = (failure as? HandlingRejectedException)?.error ?: handled.getOrNull()?.rejection
-        val error = when {
-            rejection != null -> rejection
-            failure != null || parked -> {
-                // The handler's exception stays in the ledger and the logs; the caller learns only where.
-                failure?.let { logger.debug(it) { "Wait ${wait.waitId} fails: ${subscription.name} parked." } }
-                ErrorInfo(
-                    ResultCodes.SUBSCRIPTION_PARKED,
-                    "${entry.stream.ref}@${entry.stream.version} is parked by ${subscription.name}; the failure " +
-                        "ledger has the cause.",
-                )
-            }
-            else -> null
-        }
-        val hop = checkNotNull(wait.nextHandled)
-        val result = handledResult(
-            entry.stream,
-            hop,
-            subscription.function,
-            now,
-            handled.getOrNull()?.derived.orEmpty(),
-            error,
-        ).let { if (rejection != null) it.copyWith(status = CommandResult.Status.REJECTED) else it }
-        try {
-            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result), wait.deadline)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to signal wait ${wait.waitId} from ${subscription.name}." }
-        }
-    }
 
     /** Called under the monitor. */
     private fun enqueue(ref: AggregateRef, item: Item, first: Boolean) {
@@ -372,7 +314,7 @@ internal class SubscriptionWorker(
             }
             complete(item.slot)
         }
-        signal(entry, handled, skipped && parked)
+        hops.signal(entry, handled, skipped && parked)
     }
 
     /**
@@ -401,9 +343,9 @@ internal class SubscriptionWorker(
         }
         batch.forEach {
             if (it.skipped) {
-                signal(it.item.entry, Result.success(HandledEntry.NOTHING), it.parked)
+                hops.signal(it.item.entry, Result.success(HandledEntry.NOTHING), it.parked)
             } else {
-                signal(it.item.entry, result)
+                hops.signal(it.item.entry, result)
             }
         }
     }
