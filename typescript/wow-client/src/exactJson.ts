@@ -15,70 +15,138 @@ import type { AggregateType } from './wire.js';
 
 /**
  * Which numbers of a JSON value a client reads and writes as their exact
- * text: an `int64`, `bigint` or `decimal`
- * field of a Manifest, which JavaScript's `number` would round. The wire
- * keeps JSON numbers (decision D122); such a field is a `string` in the
- * generated types, its digits exactly as the server wrote them.
+ * text: an `int64`, `bigint` or `decimal` field of a Manifest, which
+ * JavaScript's `number` would round. The wire keeps JSON numbers (decision
+ * D122); such a field is a `string` in the generated types, its digits
+ * exactly as the server wrote them. A generated client carries the marks of
+ * its Manifest; a hand-written one writes them in these forms:
  *
- * - `true`: this value is such a number.
- * - An object: the marks of its members by name, `'*'` for every item of an
- *   array and every value of a map.
- * - {@link textNumbersBy}: the marks of one member chosen by a sibling's
- *   value, such as an event's `body` by its `name`.
+ * - `true`: this value is such a number — `{ price: true }`.
+ * - Members: the marks of an object's members by name, `'*'` for every item
+ *   of an array and every value of a map — `{ lines: { '*': { amount: true } } }`.
+ * - Lazy, `() => marks`: marks read only when a value reaches them, for a
+ *   recursive type — `const tree: TextNumbers = { amount: true, children:
+ *   { '*': () => tree } }`.
+ * - {@link textNumberOr}: a number read exactly, or an object or array
+ *   marked as given — `textNumberOr({ amount: true })` for a `decimal |
+ *   { amount: decimal }`.
+ * - {@link textNumbersBy}: the marks of an object chosen by the string value
+ *   of one of its members — `textNumbersBy('kind', { decimal: { amount: true
+ *   } })` for a union its `kind` tells apart.
  */
 export type TextNumbers =
-  true | TextNumbersByName | { readonly [member: string]: TextNumbers };
+  | true
+  | (() => TextNumbers)
+  | TextNumbersOr
+  | TextNumbersByName
+  | { readonly [member: string]: TextNumbers };
+
+/** The key of a {@link TextNumbersOr}: a symbol, so no member name is mistaken for it. */
+const OR: unique symbol = Symbol('wow.textNumberOr');
 
 /** The key of a {@link TextNumbersByName}: a symbol, so no member name is mistaken for it. */
 const BY: unique symbol = Symbol('wow.textNumbersBy');
 
-/** The marks of one member of an object chosen by the value of another. */
+/** A number read exactly, or an object or array marked as given: {@link textNumberOr}. */
+export interface TextNumbersOr {
+  readonly [OR]: TextNumbers;
+}
+
+/** The marks of an object chosen by the value of one of its members: {@link textNumbersBy}. */
 export interface TextNumbersByName {
   readonly [BY]: {
     readonly discriminant: string;
-    readonly member: string;
     readonly cases: Readonly<Record<string, TextNumbers>>;
   };
 }
 
 /**
- * The marks of `member` chosen by the string value of `discriminant`, its
- * sibling: `textNumbersBy('name', 'body', { 'shop.cart.ItemAdded': { price:
- * true } })` reads an event's body by the event's name.
+ * The marks of a value that is either an exact number or an object or array
+ * marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and
+ * `{ "amount": 12.50 }` both as their text.
+ */
+export function textNumberOr(marks: TextNumbers): TextNumbersOr {
+  return { [OR]: marks };
+}
+
+/**
+ * The marks of an object chosen by the string value of its member
+ * `discriminant`: `textNumbersBy('name', { 'shop.cart.ItemAdded': { body:
+ * { price: true } } })` reads an event by its name. An object whose
+ * discriminant names no case has no exact numbers.
  */
 export function textNumbersBy(
   discriminant: string,
-  member: string,
   cases: Readonly<Record<string, TextNumbers>>,
 ): TextNumbersByName {
-  return { [BY]: { discriminant, member, cases } };
+  return { [BY]: { discriminant, cases } };
 }
 
 /** Whether `marks` marks nothing, so plain `JSON.parse` reads the value. */
 export function marksNothing(marks: TextNumbers | undefined): boolean {
   if (marks === undefined) return true;
-  if (marks === true) return false;
-  if (BY in marks) {
-    return Object.values(marks[BY].cases).every(marksNothing);
+  // A lazy mark is a recursive type's, which the generator writes only for a
+  // type that marks something: following it could go round forever.
+  if (marks === true || typeof marks === 'function' || OR in marks) {
+    return false;
   }
-  return Object.values(marks).every(marksNothing);
+  return Object.values(BY in marks ? marks[BY].cases : marks).every(
+    marksNothing,
+  );
 }
 
-/** A number of a captured member, kept as its text until its marks are known. */
+/** A number of a captured object, kept as its text until its marks are known. */
 class Captured {
   constructor(readonly text: string) {}
 }
 
-/** The marks of a member or item of a value marked `marks`. */
+/**
+ * The marks of a value of one kind, a number or else an object or array:
+ * lazy marks read, and the side of a {@link textNumberOr} that kind takes.
+ */
+function kind(
+  marks: TextNumbers | undefined,
+  compound: boolean,
+): TextNumbers | undefined {
+  while (typeof marks === 'function') marks = marks();
+  return marks !== undefined && marks !== true && OR in marks
+    ? compound
+      ? kind(marks[OR], true)
+      : true
+    : marks;
+}
+
+/** The marks of `value` itself: of its kind, and of its case where a member chooses it. */
+function own(
+  marks: TextNumbers | undefined,
+  value: unknown,
+): TextNumbers | undefined {
+  const object = typeof value === 'object' && value !== null;
+  const mine = kind(marks, object);
+  if (mine === undefined || mine === true || !(BY in mine)) return mine;
+  const { discriminant, cases } = mine[BY];
+  const name = object
+    ? (value as Record<string, unknown>)[discriminant]
+    : undefined;
+  return typeof name === 'string' &&
+    Object.prototype.hasOwnProperty.call(cases, name)
+    ? own(cases[name], value)
+    : undefined;
+}
+
+/** The marks of a member or item, by name, of a value whose own marks are `marks`. */
 function child(
   marks: TextNumbers | undefined,
   name: string,
 ): TextNumbers | undefined {
-  if (marks === undefined || marks === true || BY in marks) return undefined;
-  return Object.prototype.hasOwnProperty.call(marks, name)
-    ? marks[name]
-    : Object.prototype.hasOwnProperty.call(marks, '*')
-      ? marks['*']
+  if (marks === undefined || marks === true || typeof marks === 'function') {
+    return undefined;
+  }
+  const members = marks as Readonly<Record<string, TextNumbers>>;
+  return Object.prototype.hasOwnProperty.call(members, name)
+    ? members[name]
+    : Object.prototype.hasOwnProperty.call(members, '*')
+      ? members['*']
       : undefined;
 }
 
@@ -99,29 +167,17 @@ function define(target: Record<string, unknown>, key: string, value: unknown) {
 /** Resolves the numbers of a captured value against its now known marks. */
 function resolve(value: unknown, marks: TextNumbers | undefined): unknown {
   if (value instanceof Captured) {
-    return marks === true ? value.text : Number(value.text);
+    return kind(marks, false) === true ? value.text : Number(value.text);
   }
+  const mine = own(marks, value);
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index++) {
-      value[index] = resolve(value[index], child(marks, String(index)));
+      value[index] = resolve(value[index], child(mine, String(index)));
     }
-    return value;
-  }
-  if (value !== null && typeof value === 'object') {
+  } else if (value !== null && typeof value === 'object') {
     const object = value as Record<string, unknown>;
-    const by =
-      marks !== undefined && marks !== true && BY in marks
-        ? marks[BY]
-        : undefined;
-    const discriminant = by === undefined ? undefined : object[by.discriminant];
     for (const key of Object.keys(object)) {
-      const marksOf =
-        by === undefined
-          ? child(marks, key)
-          : key === by.member && typeof discriminant === 'string'
-            ? by.cases[discriminant]
-            : undefined;
-      define(object, key, resolve(object[key], marksOf));
+      define(object, key, resolve(object[key], child(mine, key)));
     }
   }
   return value;
@@ -179,9 +235,14 @@ class Parser {
     const code = this.text.charCodeAt(this.at);
     switch (code) {
       case Code.OPEN_BRACE:
-        return this.object(marks, capture);
-      case Code.OPEN_BRACKET:
-        return this.array(marks, capture);
+      case Code.OPEN_BRACKET: {
+        if (capture) return this.compound(code, undefined, true);
+        const mine = kind(marks, true);
+        // An object marked by a member's value is read whole, then marked.
+        return mine !== undefined && mine !== true && BY in mine
+          ? resolve(this.compound(code, undefined, true), mine)
+          : this.compound(code, mine, false);
+      }
       case Code.QUOTE:
         return this.string();
       case 0x74: // t
@@ -193,71 +254,41 @@ class Parser {
       default: {
         const text = this.number();
         if (capture) return new Captured(text);
-        return marks === true ? text : Number(text);
+        return kind(marks, false) === true ? text : Number(text);
       }
     }
   }
 
-  private object(marks: TextNumbers | undefined, capture: boolean): unknown {
-    this.at++;
+  /** An object or an array whose own marks are `marks`. */
+  private compound(
+    open: number,
+    marks: TextNumbers | undefined,
+    capture: boolean,
+  ): unknown {
+    const array = open === Code.OPEN_BRACKET;
+    const close = array ? Code.CLOSE_BRACKET : Code.CLOSE_BRACE;
+    const items: unknown[] = [];
     const object: Record<string, unknown> = {};
-    const by =
-      !capture && marks !== undefined && marks !== true && BY in marks
-        ? marks[BY]
-        : undefined;
-    this.skipSpaces();
-    if (this.text.charCodeAt(this.at) === Code.CLOSE_BRACE) {
-      this.at++;
-      return object;
-    }
-    for (;;) {
-      if (this.text.charCodeAt(this.at) !== Code.QUOTE) this.fail();
-      const key = this.string();
-      this.skipSpaces();
-      this.expect(Code.COLON);
-      this.skipSpaces();
-      const member =
-        by !== undefined && key === by.member
-          ? this.value(undefined, true)
-          : this.value(capture ? undefined : child(marks, key), capture);
-      define(object, key, member);
-      this.skipSpaces();
-      const next = this.text.charCodeAt(this.at++);
-      if (next === Code.CLOSE_BRACE) break;
-      if (next !== Code.COMMA) this.fail(this.at - 1);
-      this.skipSpaces();
-    }
-    if (
-      by !== undefined &&
-      Object.prototype.hasOwnProperty.call(object, by.member)
-    ) {
-      const discriminant = object[by.discriminant];
-      define(
-        object,
-        by.member,
-        resolve(
-          object[by.member],
-          typeof discriminant === 'string' ? by.cases[discriminant] : undefined,
-        ),
-      );
-    }
-    return object;
-  }
-
-  private array(marks: TextNumbers | undefined, capture: boolean): unknown[] {
     this.at++;
-    const array: unknown[] = [];
     this.skipSpaces();
-    if (this.text.charCodeAt(this.at) === Code.CLOSE_BRACKET) {
+    if (this.text.charCodeAt(this.at) === close) {
       this.at++;
-      return array;
+      return array ? items : object;
     }
-    const items = capture ? undefined : child(marks, '*');
     for (;;) {
-      array.push(this.value(items, capture));
+      if (array) {
+        items.push(this.value(child(marks, '*'), capture));
+      } else {
+        if (this.text.charCodeAt(this.at) !== Code.QUOTE) this.fail();
+        const key = this.string();
+        this.skipSpaces();
+        this.expect(Code.COLON);
+        this.skipSpaces();
+        define(object, key, this.value(child(marks, key), capture));
+      }
       this.skipSpaces();
       const next = this.text.charCodeAt(this.at++);
-      if (next === Code.CLOSE_BRACKET) return array;
+      if (next === close) return array ? items : object;
       if (next !== Code.COMMA) this.fail(this.at - 1);
       this.skipSpaces();
     }
@@ -412,10 +443,11 @@ function replace(
   numbers: string[],
   prefix: string,
 ): unknown {
-  if (marks === undefined || value === null || value === undefined) {
+  const mine = own(marks, value);
+  if (mine === undefined || value === null || value === undefined) {
     return value;
   }
-  if (marks === true) {
+  if (mine === true) {
     if (typeof value !== 'string') return value;
     if (!JSON_NUMBER.test(value)) {
       throw new TypeError(`Not a JSON number: [${value}].`);
@@ -425,24 +457,16 @@ function replace(
   }
   if (Array.isArray(value)) {
     return value.map((item, index) =>
-      replace(item, child(marks, String(index)), numbers, prefix),
+      replace(item, child(mine, String(index)), numbers, prefix),
     );
   }
   if (typeof value !== 'object') return value;
   const object = value as Record<string, unknown>;
   // `JSON.stringify` writes what `toJSON` returns (a `Date`, say): not a path.
   if (typeof object.toJSON === 'function') return value;
-  const by = BY in marks ? marks[BY] : undefined;
-  const discriminant = by === undefined ? undefined : object[by.discriminant];
   const copy: Record<string, unknown> = {};
   for (const key of Object.keys(object)) {
-    const marksOf =
-      by === undefined
-        ? child(marks, key)
-        : key === by.member && typeof discriminant === 'string'
-          ? by.cases[discriminant]
-          : undefined;
-    define(copy, key, replace(object[key], marksOf, numbers, prefix));
+    define(copy, key, replace(object[key], child(mine, key), numbers, prefix));
   }
   return copy;
 }
@@ -468,5 +492,10 @@ export function eventNumbers(type: AggregateType): TextNumbers | undefined {
   const events = type.textNumbers?.events;
   return events === undefined
     ? undefined
-    : textNumbersBy('name', 'body', events);
+    : textNumbersBy(
+        'name',
+        Object.fromEntries(
+          Object.entries(events).map(([name, body]) => [name, { body }]),
+        ),
+      );
 }

@@ -19,6 +19,7 @@ import type { ReadOptions, WriteOptions } from '../store/ViewStore.js';
 import type { ViewDefinition } from '../model/index.js';
 import type { ViewSource } from './source.js';
 import type { ViewResource } from './viewEngineOptions.js';
+import { Generations, type Ticket } from './generations.js';
 
 /**
  * One dataset of a service's directory, named as wow-client's `DatasetEntry`
@@ -195,8 +196,23 @@ interface Listed {
 export class DatasetResources {
   private readonly catalogs: readonly DatasetCatalog[];
   private readonly held = new Map<string, DatasetResource>();
-  /** The overrides each dataset was registered with, as JSON: new words register it again. */
+  /**
+   * The wording each dataset was registered with, words and revision
+   * (`wordedAs`): new words register it again, and so does a revision moved
+   * on with the same words — its editor saves against the revision it was
+   * made with, and kept, every save was refused as a conflict (#5473).
+   */
   private readonly worded = new Map<string, string>();
+  /** Which refresh is in force, and which wording read a save overtook (`Generations`). */
+  private readonly generations = new Generations<string>();
+  /**
+   * The refresh in force, which an overtaken one answers with; every
+   * refresh sets it as it starts. Before the first, nothing is served.
+   */
+  private inForceRun: Promise<DatasetRefresh> = Promise.resolve({
+    datasets: [],
+    duplicates: [],
+  });
   /** The wording each catalog's store held when it was last read (`DatasetCatalog.wordings`). */
   private stored: ReadonlyMap<
     number,
@@ -235,13 +251,38 @@ export class DatasetResources {
   /**
    * Reads every catalog and brings the engine in step with what they list;
    * answers the datasets served and the ones left out as duplicates.
+   *
+   * The refresh last begun is the one in force. One overtaken by a later
+   * one changes nothing after the read it was waiting on — no wording, no
+   * dataset registered or removed — and answers what the later one answers:
+   * a descriptor it asked for before the later refresh registered a newer
+   * version would otherwise register the older one over it (#5472). One
+   * called off by its signal changes nothing either, and rejects with the
+   * abort.
    */
   async refresh(options: ReadOptions = {}): Promise<DatasetRefresh> {
-    await this.readWordings(options);
+    try {
+      return await this.generations.run(REFRESH, ticket => {
+        const running = this.refreshAs(options, ticket);
+        this.inForceRun = running;
+        return running;
+      });
+    } catch (error) {
+      if (error instanceof Overtaken) return this.inForceRun;
+      throw error;
+    }
+  }
+
+  /** One refresh, which writes only while it is the one in force (`inForce`). */
+  private async refreshAs(
+    options: ReadOptions,
+    ticket: Ticket<string>,
+  ): Promise<DatasetRefresh> {
+    await this.readWordings(options, ticket);
     const lists = await Promise.allSettled(
       this.catalogs.map(catalog => catalog.list(options)),
     );
-    options.signal?.throwIfAborted();
+    this.requireInForce(options, ticket);
     if (lists.every(list => list.status === 'rejected')) throw lists[0].reason;
     const servable = new Map<string, Listed>();
     const duplicates: DatasetDuplicate[] = [];
@@ -276,8 +317,11 @@ export class DatasetResources {
         this.derived.delete(id);
       }
     await Promise.all(
-      [...servable].map(([id, listed]) => this.serve(id, listed, options)),
+      [...servable].map(([id, listed]) =>
+        this.serve(id, listed, options, ticket),
+      ),
     );
+    this.requireInForce(options, ticket);
     const order = [...servable.keys()];
     const datasets = [...this.held.values()].sort(
       (a, b) => order.indexOf(a.id) - order.indexOf(b.id),
@@ -285,24 +329,56 @@ export class DatasetResources {
     return { datasets, duplicates };
   }
 
+  /** Whether `ticket`'s refresh is still the one in force: not called off, not overtaken. */
+  private inForce(options: ReadOptions, ticket: Ticket<string>): boolean {
+    return options.signal?.aborted !== true && this.generations.latest(ticket);
+  }
+
+  /** Stops a refresh no longer in force: called off, or overtaken. */
+  private requireInForce(options: ReadOptions, ticket: Ticket<string>): void {
+    options.signal?.throwIfAborted();
+    if (!this.generations.latest(ticket)) throw new Overtaken();
+  }
+
   /**
    * Reads the stored wording before a refresh registers; one that cannot be
    * read leaves what was read last, and is told for no dataset in particular.
+   * A wording an editor saved while the read was out keeps what that save
+   * confirmed: the read began before it, and its revision is gone.
    */
-  private async readWordings(options: ReadOptions): Promise<void> {
+  private async readWordings(
+    options: ReadOptions,
+    ticket: Ticket<string>,
+  ): Promise<void> {
     const read = new Map(this.stored);
     await Promise.all(
       this.catalogs.map(async (catalog, index) => {
         const store = catalog.wordings;
         if (!store) return;
         try {
-          read.set(index, await store.list(options));
+          const listed = await store.list(options);
+          const before =
+            this.stored.get(index) ?? new Map<string, StoredDatasetWording>();
+          // What was listed stands, absence included: a wording no longer
+          // listed is gone. Only a save of this engine confirmed after the
+          // read was issued is newer than the listing, and keeps its value.
+          const kept = new Map<string, StoredDatasetWording>();
+          for (const id of new Set([...listed.keys(), ...before.keys()])) {
+            const wording = this.generations.admit(
+              ticket,
+              wordingKey(index, id),
+            )
+              ? listed.get(id)
+              : before.get(id);
+            if (wording) kept.set(id, wording);
+          }
+          read.set(index, kept);
         } catch (error) {
           this.options.onWordingError?.(error);
         }
       }),
     );
-    this.stored = read;
+    if (this.inForce(options, ticket)) this.stored = read;
   }
 
   /** The wording a dataset registers in: its catalog's stored one, else the host's. */
@@ -319,21 +395,21 @@ export class DatasetResources {
     id: string,
     listed: Listed,
     options: ReadOptions,
+    ticket: Ticket<string>,
   ): Promise<void> {
     const { entry, catalog } = listed;
     const held = this.held.get(id);
-    const { wording } = this.wordingOf(id, listed);
-    const words = JSON.stringify(wording);
     if (
       held?.catalog === catalog &&
       held.entry.version === entry.version &&
-      this.worded.get(id) === words
+      this.worded.get(id) === wordedAs(this.wordingOf(id, listed))
     )
       return;
     if (!held && this.engine.definitions.has(id)) return;
     try {
       const source = this.catalogs[catalog].source(entry);
       const described = await source.describe?.(undefined, options);
+      if (!this.inForce(options, ticket)) return;
       if (!described || described.notModified)
         throw new Error(`Dataset [${id}] does not describe itself.`);
       this.derived.set(id, {
@@ -369,7 +445,7 @@ export class DatasetResources {
         : {}),
     });
     this.held.set(id, { id, entry, catalog });
-    this.worded.set(id, JSON.stringify(current.wording));
+    this.worded.set(id, wordedAs(current));
   }
 
   private editorOf(
@@ -399,6 +475,8 @@ export class DatasetResources {
           current.revision,
           context,
         );
+        // A refresh's read of the wording that was out is older now.
+        this.generations.confirm(wordingKey(catalog, id));
         const stored = new Map(this.stored);
         stored.set(
           catalog,
@@ -410,3 +488,19 @@ export class DatasetResources {
     };
   }
 }
+
+/** The key every refresh is issued under: one is in force at a time. */
+const REFRESH = 'refresh';
+
+/** The key a dataset's stored wording is judged by, within its catalog. */
+function wordingKey(catalog: number, id: string): string {
+  return `wording\u0000${catalog}\u0000${id}`;
+}
+
+/** What a dataset is registered in: its words and the revision its editor saves against. */
+function wordedAs({ wording, revision }: StoredDatasetWording): string {
+  return JSON.stringify([wording, revision]);
+}
+
+/** A refresh a later one overtook; `refresh` answers with the later one's. */
+class Overtaken extends Error {}

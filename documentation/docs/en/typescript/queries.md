@@ -148,7 +148,7 @@ for (;;) {
 }
 ```
 
-A failure the client cannot resume errors the stream with its `WowProblemError`.
+A failure the client cannot resume errors the stream with its `WowProblemError`. Cancelling the reader (`reader.cancel()`, or leaving a `for await` early) or aborting the `signal` stops the stream wherever it is: a wait to resume ends, a request asking again is aborted, and nothing more is sent.
 
 ## Query event streams
 

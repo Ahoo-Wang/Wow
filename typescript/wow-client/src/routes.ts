@@ -20,11 +20,11 @@
  * @packageDocumentation
  */
 
+import type { TextNumbers } from './exactJson.js';
 import {
   type Call,
   type RequestOptions,
   send,
-  json,
   WowHeaders,
   type WowClientOptions,
 } from './http.js';
@@ -44,6 +44,15 @@ export interface ServiceRouteCall {
   readonly requestId?: string;
 }
 
+/**
+ * The exact numbers ({@link TextNumbers}) of a service route: of the body it
+ * takes and of the JSON it answers.
+ */
+export interface ServiceRouteNumbers {
+  readonly request?: TextNumbers;
+  readonly response?: TextNumbers;
+}
+
 /** Options of a {@link ServiceRoutes}. */
 export interface ServiceRoutesOptions {
   /**
@@ -51,6 +60,11 @@ export interface ServiceRoutesOptions {
    * it the client reads the service's (`GET /wow/manifest`) once.
    */
   readonly manifest?: RoutingManifest;
+  /**
+   * The exact numbers of the routes that have any, by `context.route`: a
+   * generated client passes those of its Manifest.
+   */
+  readonly textNumbers?: Readonly<Record<string, ServiceRouteNumbers>>;
 }
 
 const VARIABLE = /\{([A-Za-z][A-Za-z0-9]*)}/g;
@@ -63,6 +77,7 @@ const VARIABLE = /\{([A-Za-z][A-Za-z0-9]*)}/g;
  */
 export class ServiceRoutes {
   private readonly manifest: ManifestSource;
+  private readonly numbers: Readonly<Record<string, ServiceRouteNumbers>>;
 
   /**
    * @param client - How the service is reached
@@ -73,6 +88,7 @@ export class ServiceRoutes {
     options: ServiceRoutesOptions = {},
   ) {
     this.manifest = new ManifestSource(client, options.manifest);
+    this.numbers = options.textNumbers ?? {};
   }
 
   /**
@@ -116,7 +132,8 @@ export class ServiceRoutes {
           ]),
         )
       : undefined;
-    const response = await send(this.client, {
+    const numbers = this.numbers[`${context}.${name}`];
+    const answer = await send(this.client, {
       method: route.method as Call['method'],
       path,
       ...(query === undefined ? {} : { query }),
@@ -124,8 +141,9 @@ export class ServiceRoutes {
       ...(call.requestId === undefined
         ? {}
         : { headers: { [WowHeaders.REQUEST_ID]: call.requestId } }),
+      numbers: { body: numbers?.request, answer: numbers?.response },
       options,
     });
-    return response.status === 204 ? undefined : json<T>(response);
+    return answer.response.status === 204 ? undefined : answer.json<T>();
   }
 }

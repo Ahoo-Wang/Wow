@@ -105,7 +105,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `cron` | Six fields, as Spring's `CronExpression` reads them: `0 0 6 * * *` is 06:00 every day. A macro such as `@daily` is read too |
 | `zone` | The zone `cron` is read in, UTC by default |
 | `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.Enable` in that tenant; the host never starts one, and each tenant may override the rule, its zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
-| `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. `CATCH_UP`: each missed slot runs |
+| `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. Its `due` is that slot's own time, a time the expression names, and `wow.timers.expires-after` judges it late from that time; beyond 100,000 missed slots `skipped` is an estimate. `CATCH_UP`: each missed slot runs |
 
 The host configures a job under `wow.schedules.<name>`, and only there, without a new build:
 
