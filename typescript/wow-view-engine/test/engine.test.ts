@@ -625,6 +625,39 @@ describe('ViewEngine list commands', () => {
     expect(next).toMatchObject({ order: ['orders-1'], revision: '2' });
   });
 
+  // #5545: the same rule for a view listed but not open, whose next write
+  // starts from the summary the engine holds.
+  it('keeps the revision a rename confirmed over a listing that left before it', async () => {
+    const { engine, store } = harness();
+    await engine.list('orders');
+    const received = deferred<void>();
+    const release = deferred<void>();
+    const list = store.list.bind(store);
+    vi.spyOn(store, 'list').mockImplementationOnce(async (id, options) => {
+      const page = await list(id, options);
+      received.resolve();
+      await release.promise;
+      return page;
+    });
+    const rename = vi.spyOn(store, 'rename');
+
+    const listing = engine.list('orders');
+    await received.promise;
+    expect(await engine.rename('orders-1', 'One')).toMatchObject({
+      revision: '2',
+    });
+    release.resolve();
+
+    expect(
+      (await listing).items.find(item => item.id === 'orders-1'),
+    ).toMatchObject({ title: 'One', revision: '2' });
+    expect(await engine.rename('orders-1', 'Two')).toMatchObject({
+      title: 'Two',
+      revision: '3',
+    });
+    expect(rename.mock.calls.map(call => call[2])).toEqual(['1', '2']);
+  });
+
   it('sets and clears the default view', async () => {
     const { engine } = harness();
 

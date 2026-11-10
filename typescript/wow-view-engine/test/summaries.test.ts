@@ -12,26 +12,31 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { toSummary } from '../src/model/instance.js';
+import { toSummary, type ViewInstanceSummary } from '../src/model/instance.js';
 import { SummaryCache } from '../src/runtime/summaries.js';
-import { savedInstance } from './fixtures.js';
+import { deferred, savedInstance } from './fixtures.js';
 
 /**
  * The cache the engine consults before the store for a command it was given
  * only an id of. Its rules used to be four lines spread over `ViewEngine`;
  * they are one module and this suite now (A8).
  */
+/** One listing of `stored`, answered at once. */
+function listed(cache: SummaryCache, stored: ViewInstanceSummary[]) {
+  return cache.listing('orders', [], () => Promise.resolve({ stored }));
+}
+
 describe('SummaryCache', () => {
   it('knows nothing it was never told', () => {
     expect(new SummaryCache().get('missing')).toBeUndefined();
   });
 
-  it('remembers a whole listing at once', () => {
+  it('remembers a whole listing at once', async () => {
     const cache = new SummaryCache();
     const one = toSummary(savedInstance({ id: 'one', title: 'One' }));
     const two = toSummary(savedInstance({ id: 'two', title: 'Two' }));
 
-    cache.noteAll([one, two]);
+    await listed(cache, [one, two]);
 
     expect(cache.get('one')).toEqual(one);
     expect(cache.get('two')).toEqual(two);
@@ -43,31 +48,100 @@ describe('SummaryCache', () => {
    * listing carried would send every save after the first against a revision
    * the store has already moved past.
    */
-  it('takes the summary of a confirmed write, revision and all', () => {
+  it('takes the summary of a confirmed write, revision and all', async () => {
     const cache = new SummaryCache();
-    cache.noteAll([toSummary(savedInstance({ id: 'one', revision: '1' }))]);
+    await listed(cache, [
+      toSummary(savedInstance({ id: 'one', revision: '1' })),
+    ]);
 
     cache.note(savedInstance({ id: 'one', title: 'Renamed', revision: '2' }));
 
     expect(cache.get('one')).toMatchObject({ title: 'Renamed', revision: '2' });
   });
 
-  it('forgets a view that was deleted', () => {
+  it('forgets a view that was deleted', async () => {
     const cache = new SummaryCache();
-    cache.noteAll([toSummary(savedInstance({ id: 'one' }))]);
+    await listed(cache, [toSummary(savedInstance({ id: 'one' }))]);
 
     cache.drop('one');
 
     expect(cache.get('one')).toBeUndefined();
   });
 
-  it('is unmoved by a delete of something it never held', () => {
+  it('is unmoved by a delete of something it never held', async () => {
     const cache = new SummaryCache();
     const kept = toSummary(savedInstance({ id: 'one' }));
-    cache.noteAll([kept]);
+    await listed(cache, [kept]);
 
     cache.drop('another');
 
     expect(cache.get('one')).toEqual(kept);
+  });
+
+  /**
+   * #5545: a listing that was out while this engine confirmed a write, or a
+   * delete, does not put back what it said before them: the view is listed
+   * and kept as it is known now, or not at all once deleted.
+   */
+  describe('a listing that was out while a write landed', () => {
+    it('keeps the summary a write confirmed, and lists it so', async () => {
+      const cache = new SummaryCache();
+      const answer = deferred<{ stored: ViewInstanceSummary[] }>();
+      const listing = cache.listing('orders', [], () => answer.promise);
+      cache.note(savedInstance({ id: 'one', title: 'One', revision: '2' }));
+      answer.resolve({
+        stored: [
+          toSummary(savedInstance({ id: 'one', title: 'Mine', revision: '1' })),
+          toSummary(savedInstance({ id: 'two', revision: '1' })),
+        ],
+      });
+
+      const { items } = await listing;
+
+      expect(items.map(item => [item.id, item.revision])).toEqual([
+        ['one', '2'],
+        ['two', '1'],
+      ]);
+      expect(cache.get('one')).toMatchObject({ title: 'One', revision: '2' });
+    });
+
+    it('leaves out a view deleted while it was out', async () => {
+      const cache = new SummaryCache();
+      const answer = deferred<{ stored: ViewInstanceSummary[] }>();
+      const listing = cache.listing('orders', [], () => answer.promise);
+      cache.drop('one');
+      answer.resolve({ stored: [toSummary(savedInstance({ id: 'one' }))] });
+
+      expect((await listing).items).toEqual([]);
+      expect(cache.get('one')).toBeUndefined();
+    });
+
+    it('lets a listing issued later, landing first, stand over an earlier one', async () => {
+      const cache = new SummaryCache();
+      const earlier = deferred<{ stored: ViewInstanceSummary[] }>();
+      const later = deferred<{ stored: ViewInstanceSummary[] }>();
+      const first = cache.listing('orders', [], () => earlier.promise);
+      const second = cache.listing('orders', [], () => later.promise);
+      later.resolve({
+        stored: [toSummary(savedInstance({ id: 'one', revision: '3' }))],
+      });
+      await second;
+      earlier.resolve({
+        stored: [toSummary(savedInstance({ id: 'one', revision: '2' }))],
+      });
+
+      expect((await first).items[0]?.revision).toBe('3');
+      expect(cache.get('one')?.revision).toBe('3');
+    });
+
+    it('keeps the store’s failure beside what it lists', async () => {
+      const cache = new SummaryCache();
+      const failed = { code: 'view.list.failed' };
+      expect(
+        await cache.listing('orders', [], () =>
+          Promise.resolve({ stored: [], failed }),
+        ),
+      ).toEqual({ items: [], failed });
+    });
   });
 });
