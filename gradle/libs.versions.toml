@@ -5,7 +5,7 @@ cosid = "5.0.0"
 cocache = "8.0.0"
 # The train of Spring Boot 4.0.x and 4.1.x (spring-cloud-commons 5.0.x; 2026.0 is the 4.2 train), for wow-spring-cloud (D396)
 spring-cloud = "2025.1.4"
-cosec = "8.0.0-alpha.3"
+cosec = "8.0.0-alpha.4"
 testcontainers = "2.0.5"
 opentelemetry = "1.68.0"
 opentelemetry-instrumentation = "2.33.1"
