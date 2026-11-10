@@ -19,7 +19,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
-import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
@@ -53,7 +52,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      * name: a subscription is one by both, since each context has its own `snapshot`.
      */
     val groupedSubscriptions: List<ParkedSubscription>
-        get() = scopes().flatMapTo(sortedSetOf()) { scope -> scope.names().map { ParkedSubscription(scope.group, it) } }
+        get() = scopes()
+            .flatMapTo(sortedSetOf()) { scope -> scope.ids().map { ParkedSubscription(scope.group, it.name) } }
             .toList()
 
     /**
@@ -63,8 +63,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     suspend fun count(subscription: ParkedSubscription, max: Int): Int {
         require(max >= 1) { "At least one parked entry is counted." }
         var count = 0
-        for (scope in scopes().filter { it.group == subscription.group && subscription.name in it.names() }) {
-            val id = checkNotNull(scope.idOf(subscription.name)) { "${subscription.name} has no context." }
+        for (scope in scopes().filter { it.group == subscription.group }) {
+            val id = scope.ids().firstOrNull { it.name == subscription.name } ?: continue
             count += scope.ledger.count(id, max - count)
             if (count >= max) {
                 break
@@ -246,28 +246,20 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /**
-     * Where a node's subscriptions keep their entries: the [ledger] of the subscriptions [names] lists, retried by
-     * [options], acted on by [runner] when this node has one, [covers] telling whether a subscription takes a type and
-     * [contextOf] the context a subscription belongs to.
+     * Where a node's subscriptions keep their entries: the [ledger] of the subscriptions [ids] lists, by their contexts
+     * and names, retried by [options], acted on by [runner] when this node has one, [covers] telling whether a
+     * subscription takes a type.
      */
     internal class Scope(
         val group: String,
-        val names: () -> Set<String>,
+        val ids: () -> Set<SubscriptionId>,
         val ledger: FailureLedger,
         val options: ParkedRetryOptions,
         val runner: () -> Runner?,
         val covers: (String, AggregateType) -> Boolean,
-        val contextOf: (String) -> String?,
     ) {
-        /** The subscriptions of the scope, by their contexts and names. */
-        fun ids(): List<SubscriptionId> = names().mapNotNull(::idOf)
-
-        /** The scope's subscription of [name], by its context and name; null when the scope has none. */
-        fun idOf(name: String): SubscriptionId? = contextOf(name)?.let { SubscriptionId(it, name) }
-
-        /** Whether the scope holds [subscription]'s entries: it runs a subscription of that name in that context. */
-        fun holds(subscription: SubscriptionId): Boolean =
-            subscription.name in names() && contextOf(subscription.name) == subscription.context
+        /** Whether the scope holds [subscription]'s entries: it runs that subscription of that context. */
+        fun holds(subscription: SubscriptionId): Boolean = subscription in ids()
 
         /** [entry] as an operator sees it: its subscription's context and spec are the entry's own subscription's. */
         fun view(entry: ParkedAggregate): ParkedView = ParkedView(entry, options.specOf(entry), group)
@@ -275,23 +267,22 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         companion object {
             fun of(runtime: SubscriptionRuntime): Scope = Scope(
                 runtime.group,
-                { runtime.subscriptionNames },
+                { runtime.subscriptionIds },
                 runtime.ledger,
                 runtime.options.parked,
                 { runnerOf(runtime) },
                 runtime::covers,
-                runtime::contextOf,
             )
 
             /**
-             * The parked timers of [context]'s log [group] sent by [timers] over a log of [partitions] partitions,
-             * each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
+             * The parked timers of a context's log [group] sent by its [timers] over a log of [partitions] partitions,
+             * each entry a target whose timers are parked ([TimerRunner.parkedSubscription]).
              * Nothing retries them automatically: they wait for an operator. Retrying or skipping changes the timers
              * in their store, so any node acts at once; the node that runs the target's partition of the group
              * publishes the entry.
              */
-            fun of(group: String, context: String, timers: TimerRunner, partitions: Int): Scope {
-                val names = setOf(TimerOptions.PARKED_SUBSCRIPTION)
+            fun of(group: String, timers: TimerRunner, partitions: Int): Scope {
+                val ids = setOf(timers.parkedSubscription)
                 val runner = object : Runner {
                     override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
                         Partitioner.partitionOf(ref, partitions) in timers.partitions
@@ -310,12 +301,11 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                 }
                 return Scope(
                     group,
-                    { names },
+                    { ids },
                     timers.ledger,
                     ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0)),
                     { runner },
                     { _, _ -> true },
-                    { context },
                 )
             }
 
@@ -331,15 +321,14 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             }
 
             fun of(topic: TopicSubscriptions, options: ParkedRetryOptions): Scope {
-                val names = topic.subscriptions.mapTo(HashSet()) { it.name }
+                val ids = topic.subscriptions.mapTo(HashSet()) { it.id }
                 return Scope(
                     topic.group.name,
-                    { names },
+                    { ids },
                     topic.ledger,
                     options,
                     { topic.runtime?.let(::runnerOf) },
                     { name, type -> topic.subscriptions.any { it.name == name && it.filter.context == type.context } },
-                    { name -> topic.subscriptions.firstOrNull { it.name == name }?.context },
                 )
             }
         }
@@ -361,7 +350,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             timers: Map<TimerRunner, Pair<SubscriptionRuntime, Int>> = emptyMap(),
         ): ParkedOps {
             val scopes = runtimes.map { Scope.of(it) } +
-                timers.map { (runner, group) -> Scope.of(group.first.group, runner.context, runner, group.second) }
+                timers.map { (runner, group) -> Scope.of(group.first.group, runner, group.second) }
             return ParkedOps { scopes }
         }
 

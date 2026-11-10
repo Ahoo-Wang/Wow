@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -395,6 +396,9 @@ class SubscriptionRuntime internal constructor(
 
     /** The names of the subscriptions registered, read from any thread. */
     val subscriptionNames: Set<String> get() = directory.keys.toSet()
+
+    /** The subscriptions registered, by their contexts and names, read from any thread. */
+    val subscriptionIds: Set<SubscriptionId> get() = directory.values.mapTo(HashSet()) { it.id }
 
     /** The bounded context [subscription] belongs to ([Subscription.context]), null when it is not registered. */
     fun contextOf(subscription: String): String? = directory[subscription]?.context
