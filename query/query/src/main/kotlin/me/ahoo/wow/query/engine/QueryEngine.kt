@@ -16,7 +16,6 @@ package me.ahoo.wow.query.engine
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.DefaultQueryGateway
@@ -123,15 +122,6 @@ class QueryEngine private constructor(
 
     /** The events query gateway of [type], or null when no backend serves its events. */
     fun events(type: AggregateType): QueryGateway? = eventGateways[type]
-
-    /**
-     * The owner and space of [scope], a caller's, that a read of [type]'s state holds the caller to, as its snapshot
-     * queries do: none where an access policy of its own governs [type], which decides them instead; otherwise what
-     * [type]'s ownership checks of [scope].
-     */
-    @InternalWowApi
-    fun readScopeOf(type: AggregateType, scope: Scope): Scope =
-        if (access.governs(type)) Scope.NONE else ownerships.ownershipOf(type).scopeOf(scope)
 
     /** The gateway whose policies decide which of [type]'s states a caller sees, or null when none applies. */
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
