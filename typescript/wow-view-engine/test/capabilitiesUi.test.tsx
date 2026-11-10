@@ -30,7 +30,7 @@ import { elementFields } from '../src/filter/kinds/elementMatch.js';
 import { emptyFilter } from '../src/filter/tree.js';
 import { maxSortFields } from '../src/record/validate.js';
 import { useFilterEditor, useSearchBox } from '../src/react/index.js';
-import { treeController } from '../src/react/useFilterEditor.js';
+import { treeController } from '../src/react/filterTree.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
   ordersDefinition,

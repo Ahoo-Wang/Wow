@@ -422,7 +422,8 @@ src/
     useDatasets.ts            — `useDatasets` (D93): the datasets a `DatasetResources` serves, read again when the host's `key` (the caller) changes and on `refresh`, nothing read while `paused`, with the duplicates left out, `loading` and `error`
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
     usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`ViewNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
-    useFilterEditor.ts        — Filter tree editor controller
+    useFilterEditor.ts        — One view's filter editor: the tree bound to its runtime's draft, with the mode, what is in force, and when to run
+    filterTree.ts             — `FilterTreeController` and `treeController`: editing a filter tree and nothing about the view around it, the one stateless implementation a view's draft, a condition's predicate and a metric's condition each bind
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then; which record is open held by the host (`RecordDetailControl`: `open` / `onOpenChange`, a key off the page included), `reload` after a failed read, 401/403 read as `record.detail.forbidden`
     useRecordTable.ts         — Record controller

@@ -100,9 +100,9 @@ export {
 } from './usePanelFollowUps.js';
 export {
   type FilterEditorController,
-  type FilterTreeController,
   useFilterEditor,
 } from './useFilterEditor.js';
+export { type FilterTreeController } from './filterTree.js';
 export {
   type RecordDetailControl,
   type RecordDetailController,
