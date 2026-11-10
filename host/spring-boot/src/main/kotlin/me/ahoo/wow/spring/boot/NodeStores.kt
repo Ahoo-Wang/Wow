@@ -54,7 +54,7 @@ internal class NodeStores {
         )
     }
 
-    @Bean
+    @Bean(BACKENDS)
     @ConditionalOnMissingBean
     @InternalWowApi
     @Suppress("LongParameterList") // One parameter per input of the stores, each a bean the application may give.
@@ -76,7 +76,7 @@ internal class NodeStores {
         val stores = StoreInstances.open(
             properties,
             providers,
-            BeanStoreResources(beanFactory),
+            BeanStoreResources(beanFactory, BACKENDS),
             node?.service.orEmpty(),
             development.reason,
             clock,
@@ -88,4 +88,9 @@ internal class NodeStores {
     @Bean
     @InternalWowApi
     fun wowBackendsLifecycle(backends: HostBackends): BackendsLifecycle = BackendsLifecycle(backends)
+
+    companion object {
+        /** The name of the [HostBackends] bean, which owns the stores the host opens. */
+        const val BACKENDS: String = "wowBackends"
+    }
 }

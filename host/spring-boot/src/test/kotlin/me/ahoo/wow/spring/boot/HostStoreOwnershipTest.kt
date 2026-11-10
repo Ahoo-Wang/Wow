@@ -24,8 +24,10 @@ import me.ahoo.wow.spi.store.StoreProvider
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -60,6 +62,56 @@ open class OwnedStore(config: StoreConfig) : SearchStore(config) {
 
     companion object {
         val record: MutableList<String> = CopyOnWriteArrayList()
+    }
+}
+
+/** A pool the `pooled` stores are opened over, as a `DataSource` is: it counts its uses on its [meter]. */
+class Pool(private val meter: PoolMeter) : AutoCloseable {
+    @Volatile
+    var open: Boolean = true
+        private set
+
+    fun use() = meter.count()
+
+    override fun close() {
+        open = false
+        OwnedStore.record += "close:pool"
+    }
+}
+
+/** What a [Pool] counts its uses on: a registration of its own, closed with the context. */
+interface PoolMeter : AutoCloseable {
+    fun count()
+}
+
+/**
+ * The `pooled` stores, each over the [Pool] bean. The pool's meter is resolved on the pool's first use, after the node
+ * started, so Spring creates the meter after the backends, and destroys it, with the pool that depends on it, first.
+ */
+@Configuration(proxyBeanMethods = false)
+class PooledStores {
+    @Bean
+    fun pool(@Lazy meter: PoolMeter): Pool = Pool(meter)
+
+    @Bean
+    @Lazy
+    fun poolMeter(): PoolMeter = object : PoolMeter {
+        override fun count() = Unit
+
+        override fun close() = Unit
+    }
+
+    @Bean
+    fun pooledStoreProvider(): StoreProvider = object : AcmeStoreProvider("pooled") {
+        override fun open(config: StoreConfig): Store {
+            val pool = config.resources.resource(Pool::class.java, null, config.key)
+            return object : OwnedStore(config) {
+                override fun closeStore() {
+                    super.closeStore()
+                    record += "close:$name over ${if (pool.open) "an open" else "a closed"} pool"
+                }
+            }
+        }
     }
 }
 
@@ -173,6 +225,56 @@ class HostStoreOwnershipTest {
         // Closing again closes nothing twice.
         backends.close()
         closedInReverse("a", "b", "c")
+    }
+
+    @Test
+    fun `a store closes before the resource bean it is opened over, whichever of the two Spring would destroy first`() {
+        val host = startHost(
+            "wow.stores.main.type" to "pooled",
+            "wow.log.store" to "main",
+            sources = sources + PooledStores::class.java,
+        )
+        host.context.getBean(Pool::class.java).use()
+        host.close()
+        OwnedStore.record.filterNot { it.startsWith("node:") }.assert()
+            .containsExactly("open:main", "close:main", "close:main over an open pool", "close:pool")
+    }
+
+    /** A [PoolMeter] that counts nothing. */
+    private val meter = object : PoolMeter {
+        override fun count() = Unit
+
+        override fun close() = Unit
+    }
+
+    @Test
+    fun `a resource bean named for a store is declared a dependency of the bean it is given to`() {
+        val beans = DefaultListableBeanFactory().apply {
+            registerSingleton("main", Pool(meter))
+            registerSingleton("other", Pool(meter))
+        }
+        val other = BeanStoreResources(beans, "sinks").resource(Pool::class.java, "other", "wow.stores.main.pool")
+        other.assert().isSameAs(beans.getBean("other"))
+        beans.getDependentBeans("other").assert().containsExactly("sinks")
+        beans.getDependentBeans("main").assert().isEmpty()
+    }
+
+    @Test
+    fun `a blank resource name should take the only bean of its type, and a bean of another type is refused`() {
+        val beans = DefaultListableBeanFactory().apply {
+            registerSingleton("main", Pool(meter))
+            registerSingleton("text", "no pool")
+        }
+        val resources = BeanStoreResources(beans, "sinks")
+        resources.resource(Pool::class.java, " ", "wow.stores.main.pool").assert().isSameAs(beans.getBean("main"))
+        beans.getDependentBeans("main").assert().containsExactly("sinks")
+        assertThrows<WowConfigurationException> {
+            resources.resource(Pool::class.java, "text", "wow.stores.main.pool")
+        }.apply {
+            key.assert().isEqualTo("wow.stores.main.pool")
+            message.assert().isEqualTo("wow.stores.main.pool names text, which is no Pool bean. Name a Pool bean.")
+        }
+        beans.getDependentBeans("text").assert().isEmpty()
     }
 
     private fun Throwable.causes(): List<Throwable> = generateSequence(this) { it.cause }.toList()

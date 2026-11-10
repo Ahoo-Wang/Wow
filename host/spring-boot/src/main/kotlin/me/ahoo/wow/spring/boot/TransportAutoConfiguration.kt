@@ -30,8 +30,8 @@ import me.ahoo.wow.spi.transport.TopicTransport
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
-import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -85,7 +85,7 @@ class TransportAutoConfiguration {
         internal fun wowSelectedTransport(
             providers: PortProviders,
             environment: Environment,
-            beanFactory: ListableBeanFactory,
+            beanFactory: ConfigurableListableBeanFactory,
             development: ObjectProvider<DevelopmentMode>,
             properties: ObjectProvider<WowProperties>,
         ): SelectedTransport {
@@ -94,7 +94,7 @@ class TransportAutoConfiguration {
             val (provider, config) = configNotNull(
                 providers.transportConfig(
                     environment,
-                    BeanStoreResources(beanFactory),
+                    BeanStoreResources(beanFactory, TOPIC_TRANSPORT),
                     development.ifAvailable?.active == true,
                     named,
                 ),
@@ -109,7 +109,7 @@ class TransportAutoConfiguration {
         }
 
         /** The transport, opened with the node's observers. */
-        @Bean(destroyMethod = "close")
+        @Bean(TOPIC_TRANSPORT, destroyMethod = "close")
         internal fun wowTopicTransport(
             selected: SelectedTransport,
             observers: ObjectProvider<Observer>
@@ -198,6 +198,9 @@ class TransportAutoConfiguration {
 
         /** The name of the transport's [PublishedSinks] bean. */
         const val TRANSPORT_SINKS: String = "wowTransportSinks"
+
+        /** The name of the [TopicTransport] bean, which closes the transport its provider opened. */
+        internal const val TOPIC_TRANSPORT: String = "wowTopicTransport"
     }
 }
 

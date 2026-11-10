@@ -49,7 +49,8 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
-import org.springframework.beans.factory.ListableBeanFactory
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.config.NamedBeanHolder
 import java.time.Clock
 
 /**
@@ -261,24 +262,35 @@ internal object StoreInstances {
     }
 }
 
-/** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */
-internal class BeanStoreResources(private val beanFactory: ListableBeanFactory) : StoreResources {
+/**
+ * The application's beans as the resources that the bean named [user] opens its stores, Sinks or transport over (a
+ * `DataSource`, a `MongoClient`), and closes them before the context ends. Each bean it gives is declared a dependency of
+ * [user], so Spring destroys [user] first, and so closes nothing over a resource already closed, whichever of the two
+ * it created first.
+ */
+internal class BeanStoreResources(
+    private val beanFactory: ConfigurableListableBeanFactory,
+    private val user: String,
+) : StoreResources {
     override fun has(type: Class<*>): Boolean = beanFactory.getBeanNamesForType(type).isNotEmpty()
 
     override fun <T : Any> resource(type: Class<T>, name: String?, key: String): T {
-        if (name.isNullOrBlank()) {
+        val resource = if (name.isNullOrBlank()) {
             configCheck(has(type), key, null, "Set it, or declare a ${type.simpleName} bean.") {
                 "$key is not set, and there is no ${type.simpleName} bean."
             }
-            return beanFactory.getBean(type)
+            beanFactory.resolveNamedBean(type)
+        } else {
+            configCheck(
+                beanFactory.containsBean(name) && beanFactory.isTypeMatch(name, type),
+                key,
+                name,
+                "Name a ${type.simpleName} bean.",
+            ) { "$key names $name, which is no ${type.simpleName} bean." }
+            NamedBeanHolder(name, beanFactory.getBean(name, type))
         }
-        configCheck(
-            beanFactory.containsBean(name) && beanFactory.isTypeMatch(name, type),
-            key,
-            name,
-            "Name a ${type.simpleName} bean.",
-        ) { "$key names $name, which is no ${type.simpleName} bean." }
-        return beanFactory.getBean(name, type)
+        beanFactory.registerDependentBean(resource.beanName, user)
+        return resource.beanInstance
     }
 }
 

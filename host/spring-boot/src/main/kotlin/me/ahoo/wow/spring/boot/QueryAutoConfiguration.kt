@@ -379,7 +379,7 @@ class QueryAutoConfiguration {
          * The bindings of the datasets: the application's `QueryBindings<QueryDataset>` bean, else the one dataset
          * backend on the class path that is available ([HostDatasets.provided]), else none.
          */
-        @Bean
+        @Bean(DATASET_BINDINGS)
         @InternalWowApi
         fun wowDatasetBindings(
             application: ObjectProvider<QueryBindings<QueryDataset>>,
@@ -388,7 +388,7 @@ class QueryAutoConfiguration {
         ): HostDatasetBindings = application.ifAvailable?.let { HostDatasetBindings(it) } ?: HostDatasetBindings(
             HostDatasets.provided(
                 HostDatasets.providers(beanFactory.beanClassLoader),
-                BeanStoreResources(beanFactory),
+                BeanStoreResources(beanFactory, DATASET_BINDINGS),
             ) { type -> PortProviders.optionsOf(environment, type) },
             provided = true,
         )
@@ -542,6 +542,9 @@ class QueryAutoConfiguration {
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** The name of the [HostDatasetBindings] bean, which closes the bindings a dataset backend opened. */
+        const val DATASET_BINDINGS: String = "wowDatasetBindings"
     }
 }
 
