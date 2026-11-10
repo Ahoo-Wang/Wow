@@ -219,13 +219,19 @@ class SnapshotMaintenanceTest {
     ) : SnapshotStore by memory {
         val scans = mutableListOf<String?>()
 
+        /** Runs before each scan, with where it starts: what happens to the table meanwhile. */
+        var beforeScan: suspend (after: AggregateRef?) -> Unit = {}
+
         override val rebuilds = object : SnapshotRebuildStore by memory {
             override suspend fun pending(
                 type: AggregateType,
                 revision: Int,
                 after: AggregateRef?,
                 limit: Int,
-            ): List<AggregateRef> = memory.pending(type, revision, after, limit).also { scans += after?.id }
+            ): List<AggregateRef> {
+                beforeScan(after)
+                return memory.pending(type, revision, after, limit).also { scans += after?.id }
+            }
         }
     }
 
@@ -252,6 +258,33 @@ class SnapshotMaintenanceTest {
             store.memory.pending(type, 2, limit = 10).assert().isEmpty()
             store.memory.load(refs[2])!!.stateRevision.assert().isEqualTo(2)
         }
+
+    @Test
+    fun `a snapshot marked stale behind the cursor during a pass should be rewritten before the table is rebuilt`():
+        Unit = runBlocking {
+        val store = RecordingStore()
+        val (a, b, c) = listOf("a", "b", "c").map { id ->
+            commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
+        }
+        // One run passes the whole table, a page a snapshot.
+        val options = SnapshotOptions(
+            interval = 1.hours,
+            batch = 1,
+            pages = 10,
+            leaseTtl = 2.hours,
+            memberTtl = 2.hours
+        )
+        val maintenance = maintenance(2, store, options = options)
+        maintenance.prepare()
+        // Once a and b are rewritten, a refused save of a node of the old revision marks a stale again.
+        store.beforeScan = { after -> if (after == b) store.memory.markStale(a) }
+        maintenance.maintain()
+        // The pass reaches the end, starts over, finds a, rewrites it, and only an empty scan from the first ends it.
+        store.scans.assert().containsExactly(null, "a", "b", "c", null, "a", null)
+        store.memory.pending(type, 2, limit = 10).assert().isEmpty()
+        store.memory.table(type)!!.rebuilding.assert().isFalse()
+        listOf(a, b, c).forEach { store.memory.load(it)!!.stateRevision.assert().isEqualTo(2) }
+    }
 
     @Test
     fun `a rebuild should mark its table rebuilt only once a scan from the first finds nothing`(): Unit =
