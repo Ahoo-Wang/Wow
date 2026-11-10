@@ -191,7 +191,7 @@ Manifest 中上下文的 `routes` 列出每条路由（[Manifest 参考](../refe
 
 - `operationId` 为 `<context>.<name>`（`eshop-catalog.listing`），上下文为它的 tag，名字为 summary，KDoc 为 description。
 - 参数是各路径变量和查询参数及其 schema；`requestBody` 为必填，其 schema 是请求体的。
-- 应答为带应答 schema 的 `200`；`responseOptional` 的路由在 `200` 旁还有 `204`，没有应答的路由只有 `204`。它列出 `400`（`wow.route.malformed`）、`401` 和 `403`；列出了错误码的路由还列出其上下文的各个状态码及其错误码，`x-wow-route.errors` 是路由自己的错误码。
+- 应答为带应答 schema 的 `200`；`responseOptional` 的路由在 `200` 旁还有 `204`，没有应答的路由只有 `204`。它列出框架对路由的答复 `400`（`wow.route.malformed`）、`401` 和 `403`，以及 `errors` 中每个错误码的状态码，只带该错误码：类目列表的 `400` 列出 `wow.route.malformed` 与 `eshop-catalog.limit-out-of-range`，报价的 `409` 列出 `eshop-catalog.not-on-sale`，任何路由都不列出其他路由或命令的错误码。`@ErrorCode` 未声明状态码的错误码为 `422`。`x-wow-route.errors` 也是路由自己的错误码。
 
 ## 生成的 TypeScript 客户端 {#the-generated-typescript-client}
 

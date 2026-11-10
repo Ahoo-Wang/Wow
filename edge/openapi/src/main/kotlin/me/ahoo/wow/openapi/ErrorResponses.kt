@@ -77,6 +77,38 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             }
     }
 
+    /**
+     * The responses of the service route [name] of [context]: the framework's answers to a route ([ROUTE]), in a
+     * route's words, and the statuses of the codes it refuses with, its [errors], each with the codes of that status
+     * alone. A status the framework's codes alone answer is the shared `wow.route.<status>`; one that carries a code of
+     * the route's is the route's own, `<context>.route.<name>.<status>`. A route refuses with its codes' statuses, so
+     * it lists no `422` of a domain rejection it does not list. A code's status is the edge's: the host's override,
+     * else its table's.
+     *
+     * @throws IllegalStateException naming the route and the code, for a code neither the context's table nor the
+     * framework's declares: the guard of a Manifest that was never merged, since the merger refuses such a route.
+     */
+    fun ofRoute(context: String, name: String, errors: List<String>): Map<String, Any?> {
+        // A route is one of its context's, which the Manifest lists.
+        val table = byContext.getValue(context).associateBy { it.code }
+        val answers = ROUTE.map(framework::getValue).map { status(it) to Entry(it.code, routeWords(it)) }
+        val own = errors.map { code ->
+            val error = checkNotNull(table[code] ?: framework[code]) {
+                "Service route $context.$name refuses with $code, which neither its context nor the framework declares."
+            }
+            status(error) to Entry(error.code, error.description)
+        }
+        val routeStatuses = own.map { it.first }.toSet()
+        return (answers + own).groupBy({ it.first }, { it.second }).toSortedMap()
+            .entries.associateTo(LinkedHashMap()) { (status, listed) ->
+                val scope = if (status in routeStatuses) "$context.route.$name" else "${WowSchemas.PREFIX}route"
+                status.toString() to register("$scope.$status", response(listed))
+            }
+    }
+
+    /** What a framework code means for a service route, which sends no command. */
+    private fun routeWords(error: ErrorManifest): String? = ROUTE_WORDS[error.code] ?: error.description
+
     /** A reference to the component response [name], registering [response] as it. */
     fun register(name: String, response: Map<String, Any?>): Map<String, Any?> {
         val known = registered.putIfAbsent(name, response)
@@ -185,6 +217,12 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkErrors.AUTH_UNAUTHENTICATED,
             FrameworkErrors.AUTH_FORBIDDEN,
             FrameworkErrors.ROUTE_MALFORMED,
+        )
+
+        /** The framework codes whose description speaks of a command, as a route's answers say them. */
+        private val ROUTE_WORDS: Map<String, String> = mapOf(
+            FrameworkErrors.AUTH_FORBIDDEN to "The caller may not call this route: an authorizer refused it, or it " +
+                "names a scope it may not act in.",
         )
 
         private const val QUERY_PREFIX = "wow.query."

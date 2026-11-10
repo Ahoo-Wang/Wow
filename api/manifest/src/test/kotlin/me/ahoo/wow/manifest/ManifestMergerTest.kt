@@ -488,6 +488,12 @@ class ManifestMergerTest {
                 ServiceRouteManifest("carts", RouteManifest("GET", "/shop/cart/all")),
                 ServiceRouteManifest("states", RouteManifest("GET", "/shop/reports/state")),
                 ServiceRouteManifest("odd", RouteManifest("GET", "/shop/odd"), errors = listOf("shop.odd")),
+                // The framework's code, and one the framework does not have.
+                ServiceRouteManifest(
+                    "lookup",
+                    RouteManifest("GET", "/shop/lookup"),
+                    errors = listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, "wow.aggregate.notfound"),
+                ),
             )
             fragment.copyWith(contexts = listOf(context.copyWith(routes = routes)))
         }
@@ -497,7 +503,10 @@ class ManifestMergerTest {
         conflicts.assert().contains(
             "service route summary of context shop is declared twice in a.json",
             "service route shop.odd (a.json) refuses with shop.odd, which is not an error of the context",
+            "service route shop.lookup (a.json) refuses with wow.aggregate.notfound, which is not an error of the " +
+                "framework",
         )
+        conflicts.filter { it.contains(FrameworkErrors.AGGREGATE_NOT_FOUND) }.assert().isEmpty()
         conflicts.filter { it.contains("takes a segment an aggregate, the jobs or the framework reserves") }
             .assert().hasSize(2)
     }

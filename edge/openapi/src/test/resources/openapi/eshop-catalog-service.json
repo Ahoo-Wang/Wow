@@ -4023,19 +4023,13 @@
             }
           },
           "400" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.400"
+            "$ref" : "#/components/responses/eshop-catalog.route.categoryListings.400"
           },
           "401" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.401"
+            "$ref" : "#/components/responses/wow.route.401"
           },
           "403" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.403"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.409"
-          },
-          "422" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.422"
+            "$ref" : "#/components/responses/wow.route.403"
           }
         },
         "x-wow-route" : {
@@ -4115,19 +4109,16 @@
             }
           },
           "400" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.400"
+            "$ref" : "#/components/responses/eshop-catalog.route.quote.400"
           },
           "401" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.401"
+            "$ref" : "#/components/responses/wow.route.401"
           },
           "403" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.403"
+            "$ref" : "#/components/responses/wow.route.403"
           },
           "409" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.409"
-          },
-          "422" : {
-            "$ref" : "#/components/responses/eshop-catalog.route.422"
+            "$ref" : "#/components/responses/eshop-catalog.route.quote.409"
           }
         },
         "x-wow-route" : {
@@ -6697,8 +6688,8 @@
         },
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
-      "eshop-catalog.route.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+      "eshop-catalog.route.categoryListings.400" : {
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6706,61 +6697,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.limit-out-of-range", "eshop-catalog.quantity-not-positive" ]
-      },
-      "eshop-catalog.route.401" : {
-        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
-        "content" : {
-          "application/problem+json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.Problem"
-            }
-          }
-        },
-        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
-      },
-      "eshop-catalog.route.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
-        "content" : {
-          "application/problem+json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.Problem"
-            }
-          }
-        },
-        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
-      },
-      "eshop-catalog.route.409" : {
-        "description" : "`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
-        "content" : {
-          "application/problem+json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.Problem"
-            }
-          }
-        },
-        "x-wow-error-codes" : [ "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.not-on-sale", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
-      },
-      "eshop-catalog.route.422" : {
-        "description" : "A rejection by the domain, with the code it chose; the problem carries the command's result.",
-        "content" : {
-          "application/problem+json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.Problem"
-            }
-          }
-        }
-      },
-      "wow.route.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
-        "content" : {
-          "application/problem+json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.Problem"
-            }
-          }
-        },
-        "x-wow-error-codes" : [ "wow.route.malformed" ]
+        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.limit-out-of-range" ]
       },
       "wow.route.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6774,7 +6711,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.route.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "description" : "`wow.auth.forbidden`: The caller may not call this route: an authorizer refused it, or it names a scope it may not act in.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6783,6 +6720,39 @@
           }
         },
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
+      },
+      "wow.route.400" : {
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.route.malformed" ]
+      },
+      "eshop-catalog.route.quote.400" : {
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.quantity-not-positive" ]
+      },
+      "eshop-catalog.route.quote.409" : {
+        "description" : "`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "eshop-catalog.not-on-sale" ]
       }
     },
     "parameters" : {

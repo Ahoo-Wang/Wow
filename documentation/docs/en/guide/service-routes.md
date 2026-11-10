@@ -191,7 +191,7 @@ The compatibility check compares a route with its baseline by name ([The Manifes
 
 - `operationId` is `<context>.<name>` (`eshop-catalog.listing`), the context its tag, the name its summary and the KDoc its description.
 - Its parameters are the path variables and query parameters with their schemas, and its `requestBody`, required, the body's schema.
-- Its answers are `200` with the answer's schema, `204` beside `200` for a `responseOptional` route, and `204` alone for one of no answer. It lists `400` (`wow.route.malformed`), `401` and `403`; a route that lists errors also lists its context's statuses with their codes, and `x-wow-route.errors` holds the route's own.
+- Its answers are `200` with the answer's schema, `204` beside `200` for a `responseOptional` route, and `204` alone for one of no answer. It lists `400` (`wow.route.malformed`), `401` and `403`, the framework's answers to a route, and the status of each code in its `errors`, with that code alone: the category listing's `400` lists `wow.route.malformed` and `eshop-catalog.limit-out-of-range`, the quote's `409` lists `eshop-catalog.not-on-sale`, and no route lists another route's codes or a command's. A code whose `@ErrorCode` declares no status is `422`. `x-wow-route.errors` holds the route's codes too.
 
 ## The generated TypeScript client
 

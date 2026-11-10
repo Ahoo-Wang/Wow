@@ -212,12 +212,7 @@ internal class OpenApiPaths(
                     "requestBody" to route.request?.let {
                         obj("required" to true, "content" to json(schemas.inline(it)))
                     },
-                    "responses" to answer + errors.of(
-                        "route",
-                        ErrorResponses.ROUTE,
-                        context.name,
-                        domain = route.errors.isNotEmpty(),
-                    ),
+                    "responses" to answer + errors.ofRoute(context.name, route.name, route.errors),
                     "x-wow-route" to obj("name" to route.name, "errors" to route.errors.ifEmpty { null }),
                 ),
             )
