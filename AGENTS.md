@@ -266,6 +266,8 @@ How work is planned, reviewed and merged when several agent sessions work on the
 - A new type does not hand out its state. A mutable collection is private, and the type offers the question its callers ask, with the check and its message inside (#5738, #5761). A function does not write into a collection its caller passes when it can return or offer the value.
 - Visibility says who a member is for. In a contract suite an author extends, `protected` is for what the author implements or uses, or what names a protected type; what the suite's own parents share is `internal`; no setter of the suite's state is visible to a subclass (#5746).
 - A name that a parameter in scope shadows is read wrong without an error: in a local extension function the enclosing function's parameter wins over the receiver's member (#5727). Pass the value as a parameter.
+- A bound on a wait is checked for what it lets through: when a close stops waiting, whatever it stopped waiting for must still be refused or finished, never answered as done. A gateway whose close gained a bound answered ACCEPTED for a command it launched on a cancelled scope until the admission was refused instead (#5829).
+- A call made of parts never throws once a part of it may have been written: it returns an outcome for every part, or the caller answers what was committed as writing nothing (#5814).
 - An action answers its caller only once its own state is settled. A skip that answered first and cleared its state in `finally` lost the entry taken in between (#5743).
 - Before 10.0.0 GA, a stored or wire format that must change is given a new format number and the old one is refused; there is no conversion and no compatibility code (the user's decision for the 10.0.0 pre-releases).
 
@@ -293,7 +295,7 @@ How work is planned, reviewed and merged when several agent sessions work on the
 ### Failures in CI
 
 - A test that fails once is a defect until its cause is known, in whatever run it failed and however unrelated the pull request: it is filed that day, not noted as "unrelated, then green". Find the interleaving by reading the code against the test; do not re-run until it passes, and do not raise a timeout. A slow runner is a candidate to rule out, not an explanation to assume: the ten-second timeout of #5743 was an entry the runtime had lost, which no timeout would have passed.
-- The regression test holds the interleaving with a gate, not a sleep, and fails on `main` at once.
+- The regression test holds the interleaving with a gate, not a sleep, and fails on `main` at once. A test that proves an order does not compare a duration either: it is built so that the wrong order cannot finish (#5831).
 - When a gate stops a pull request that was approved, the review missed it too: add what would have caught it to the list above, not only to the pull request.
 
 ## Documentation
