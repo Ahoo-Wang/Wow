@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.IdsFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -460,6 +461,35 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own`() =
+        blocking {
+            val zoned = target(ZONED)
+            fun hours(zone: String, ids: List<String>) = blocking {
+                zoned.aggregate(
+                    AggregationQuery(
+                        filter = InFilter(QueryField(ID), ids),
+                        groupBy = listOf(
+                            AggregationGroup.DateHistogram(CREATED_AT, "hour", AggregationDateUnit.HOUR, zone)
+                        ),
+                        metrics = listOf(AggregationMetric.Count("count")),
+                        sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+                    ),
+                ).map { Instant.ofEpochMilli(it.path("hour").longValue()).toString() to it.path("count").longValue() }
+            }
+            // New York: 01:30 EST then 03:30 EDT (02:00 never happens); 01:30 EDT then 01:30 EST, two hours.
+            hours("America/New_York", listOf("s1", "s2", "f1", "f2")).assert().containsExactly(
+                "2025-03-09T06:00:00Z" to 1L,
+                "2025-03-09T07:00:00Z" to 1L,
+                "2025-11-02T05:00:00Z" to 1L,
+                "2025-11-02T06:00:00Z" to 1L,
+            )
+            // Asia/Kolkata (+05:30): its hours start at :30 in UTC.
+            hours("Asia/Kolkata", listOf("k1", "k2")).assert()
+                .containsExactly("2025-12-31T23:30:00Z" to 1L, "2026-01-01T00:30:00Z" to 1L)
+            Unit
+        }
+
+    @Test
     fun `a date histogram buckets instants before 1970 at their own start`() = blocking {
         val history = target(HISTORY)
         fun buckets(unit: AggregationDateUnit, zone: String) = blocking {
@@ -804,6 +834,24 @@ abstract class DatasetQueryBackendSpec {
                 "u1" to "2026-01-01T00:00:00.000200Z",
                 "u2" to "2026-01-01T00:00:00.000100Z",
                 "u3" to "2026-01-01T00:00:00.000300Z",
+            ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
+        )
+
+        /** Instants around New York's 2025 transitions and in a half-hour zone's hours. */
+        val ZONED = DatasetTable(
+            name = "zoned",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn("created_at", DatasetColumn.Type.DATE),
+            ),
+            rows = listOf(
+                "s1" to "2025-03-09T06:30:00Z",
+                "s2" to "2025-03-09T07:30:00Z",
+                "f1" to "2025-11-02T05:30:00Z",
+                "f2" to "2025-11-02T06:30:00Z",
+                "k1" to "2026-01-01T00:20:00Z",
+                "k2" to "2026-01-01T00:40:00Z",
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 

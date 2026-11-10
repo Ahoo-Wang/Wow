@@ -1275,6 +1275,41 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `an hourly bucket in a half-hour zone starts at its local hour`() = blocking {
+        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
+        val fixture = given(
+            listOf(
+                // Asia/Kolkata is +05:30: 05:50 and 06:10 local are in its 05:00 and 06:00, at :30 in UTC.
+                snapshot("k1", """{"createdAt":${at("2026-01-01T00:20:00Z")}}"""),
+                snapshot("k2", """{"createdAt":${at("2026-01-01T00:40:00Z")}}"""),
+            ),
+        )
+        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
+        assumeBound(
+            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val hour = AggregationGroup.DateHistogram(
+            QueryField("state.createdAt"),
+            "hour",
+            AggregationDateUnit.HOUR,
+            "Asia/Kolkata",
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(hour),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert()
+            .containsExactly(at("2025-12-31T23:30:00Z") to 1L, at("2026-01-01T00:30:00Z") to 1L)
+        Unit
+    }
+
+    @Test
     fun `a dense hourly histogram fills the buckets between, a repeated hour twice`() = blocking {
         fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
         val fixture = given(
