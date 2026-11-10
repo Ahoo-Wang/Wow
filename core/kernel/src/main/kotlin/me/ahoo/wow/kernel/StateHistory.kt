@@ -27,7 +27,7 @@ import java.time.Instant
  * [Kernel.replayed], [Kernel.evolved] and [Kernel.trace].
  */
 internal class StateHistory(
-    private val kernel: Kernel,
+    private val source: StateSourcing,
     private val log: EventLog,
     private val codec: EventCodec,
 ) {
@@ -45,14 +45,14 @@ internal class StateHistory(
             if (version - snapshot.version > maxReplay) {
                 throw ReplayLimitExceededException(ref, maxReplay)
             }
-            kernel.fromSnapshot(model, snapshot, version, maxReplay = maxReplay)?.let {
+            source.fromSnapshot(model, snapshot, version, maxReplay = maxReplay)?.let {
                 return it.takeIf { state -> state.version == version }
             }
         }
         if (version > maxReplay) {
             throw ReplayLimitExceededException(ref, maxReplay)
         }
-        return kernel.replay(model, ref, CachedState(model.initialState(ref), 0), log.read(ref, 1, version), maxReplay)
+        return source.replay(model, ref, CachedState(model.initialState(ref), 0), log.read(ref, 1, version), maxReplay)
             .takeIf { it.version == version }
     }
 
@@ -65,7 +65,7 @@ internal class StateHistory(
         if (streams.isEmpty() || streams.withIndex().any { (index, stream) -> stream.version != index + 1 }) {
             return null
         }
-        return kernel.replay(model, CachedState(model.initialState(ref), 0), streams)
+        return source.replay(model, CachedState(model.initialState(ref), 0), streams)
     }
 
     fun <S : Any> evolved(model: AggregateModel<S>, base: CachedState, stream: EventStreamRecord): CachedState? {
@@ -73,7 +73,7 @@ internal class StateHistory(
         if (stream.version != base.version + 1) {
             return null
         }
-        return kernel.evolve(model, base, stream)
+        return source.evolve(model, base, stream)
     }
 
     suspend fun <S : Any> stateAt(
@@ -94,7 +94,7 @@ internal class StateHistory(
             .collect { stream ->
                 val at = checkNotNull(current)
                 // A version the log does not hold ends it: the state at [version] cannot be told.
-                current = if (stream.version == at.version + 1) kernel.evolve(model, at, stream) else null
+                current = if (stream.version == at.version + 1) source.evolve(model, at, stream) else null
             }
         return current?.takeIf { it.version == version }
     }
@@ -110,10 +110,10 @@ internal class StateHistory(
         require(maxReplay >= 1) { "A replay folds at least one stream." }
         val by = at.epochMillis()
         if (snapshot != null && snapshot.ref == ref && snapshot.lastEventTime <= by) {
-            kernel.fromSnapshot(model, snapshot, committedBy = by, maxReplay = maxReplay)?.let { return it }
+            source.fromSnapshot(model, snapshot, committedBy = by, maxReplay = maxReplay)?.let { return it }
         }
         val streams = log.read(ref).takeWhile { it.commitTime <= by }
-        return kernel.replay(model, ref, CachedState(model.initialState(ref), 0), streams, maxReplay)
+        return source.replay(model, ref, CachedState(model.initialState(ref), 0), streams, maxReplay)
             .takeIf { it.version > 0 }
     }
 
@@ -140,7 +140,7 @@ internal class StateHistory(
         val traces = ArrayList<CommitTrace>()
         log.read(ref, fromVersion, last).collect { stream ->
             val events = ArrayList<Any>(stream.events.size)
-            current = kernel.evolve(model, current, stream, events)
+            current = source.evolve(model, current, stream, events)
             // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
             val state = current.state
             traces += CommitTrace(stream, events, codec.stateTree(state), current.deleted, codec.accessOf(model, state))

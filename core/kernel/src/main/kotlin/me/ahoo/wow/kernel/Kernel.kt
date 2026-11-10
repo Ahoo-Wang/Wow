@@ -19,11 +19,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -42,7 +38,6 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
-import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -94,10 +89,8 @@ import kotlin.coroutines.CoroutineContext
  * `lateinit` property still unassigned cannot be written, and is not checked: the creation event's sourcing assigns
  * it, and no state is written before that.
  *
- * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped. On a miss, the state
- * comes from the aggregate's snapshot in [snapshots] and the log's tail after it when the snapshot fits the model's
- * state schema (03-log-and-snapshot.md §3), else from replaying the whole log. A snapshot is only a cache: one that
- * does not fit, or a store that fails, is logged and costs a full replay, never the command.
+ * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped, and [StateSourcing]
+ * for where a state comes from on a miss.
  *
  * [reservations] backs [DecideScope.reserve] and [DecideScope.release]; a pending reservation lives for
  * [KernelOptions.reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
@@ -161,7 +154,7 @@ class Kernel(
     private val clock: () -> Long = System::currentTimeMillis,
     private val reservations: ReservationStore? = null,
     private val states: StateCache = StateCache.None,
-    private val snapshots: SnapshotStore? = null,
+    snapshots: SnapshotStore? = null,
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     private val ids: Ids = IdGenerators.DEFAULT,
     private val observer: Observer = Observer.NONE,
@@ -172,24 +165,21 @@ class Kernel(
      * The one-round-trip read of each aggregate type's snapshot with its tail, for the types whose log and primary
      * snapshots are on one store that reads them together; none, the reads are done apart.
      */
-    private val snapshotTailReaders: (AggregateType) -> SnapshotTailReader? = { null },
+    snapshotTailReaders: (AggregateType) -> SnapshotTailReader? = { null },
     /**
      * The access policy of each aggregate type, which decides who changes it before and after deciding; none, every
      * aggregate is changed by the default rule ([me.ahoo.wow.api.access.ScopeAccess]).
      */
     private val policies: WritePolicies = WritePolicies.NONE,
 ) {
+    /** Where a state comes from on a cache miss, and how streams fold into it. */
+    private val source = StateSourcing(log, codec, observer, snapshots, snapshotTailReaders)
+
     /** The reads of a committed state at a version or a time, and of its history. */
-    private val history = StateHistory(this, log, codec)
+    private val history = StateHistory(source, log, codec)
 
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
-
-    /** The snapshots a cache miss reads with the log's tail, a failing load read as none. */
-    private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
-
-    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can. */
-    private val snapshotTails = SnapshotTailReads(log, snapshotTailReaders, observer)
 
     /**
      * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
@@ -310,7 +300,7 @@ class Kernel(
             }
             // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
             if (!requests.pure || command.schedule != null) break
-            val current = state ?: load(model, requests).first.also {
+            val current = state ?: source.load(model, requests).first.also {
                 state = it
                 caching = requests.caching
             }
@@ -475,7 +465,7 @@ class Kernel(
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         var attempts = 0
         while (attempts < maxAttempts) {
-            val (loaded, cached) = load(model, requests)
+            val (loaded, cached) = source.load(model, requests)
             // Checked after every load: a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
             admissible(decider, command, loaded, reach)?.let {
@@ -893,34 +883,6 @@ class Kernel(
             commitTime == stream.commitTime
 
     /**
-     * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
-     * whether it came from the cache. A state loaded from the log carries the aggregate's recent requests,
-     * which [requests] derives from what was read; see [RequestCheck.cached] for when a cached state is used.
-     */
-    private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
-        val ref = requests.ref
-        requests.cached()?.let {
-            observer.observed(ObservedEvent.StateCache(ref.type.context, ObservedEvent.StateCache.Outcome.HIT))
-            return it to true
-        }
-        observer.observed(ObservedEvent.StateCache(ref.type.context, ObservedEvent.StateCache.Outcome.MISS))
-        val read = loading?.let { snapshotTails.read(ref, it, requests.earlier) }
-        read?.snapshot?.let { snapshot ->
-            codec.fitting(model, snapshot)?.let { state ->
-                fromSnapshot(model, snapshot, state, read.tail.streams.asFlow())?.let { loaded ->
-                    loaded.first = FirstCommit.of(snapshot)
-                    return requests.derived(loaded, read.tail) to false
-                }
-            }
-        }
-        // Without a snapshot the read holds every stream; with one that does not fit, the log is read again whole.
-        val streams = read?.takeIf { it.snapshot == null }?.tail?.streams ?: log.read(ref).toList()
-        val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
-        replayed.first = streams.firstOrNull()?.let(FirstCommit::of)
-        return requests.derived(replayed, AggregateTail.of(streams, emptyList())) to false
-    }
-
-    /**
      * The committed state of [ref] at [version], read-only (the state a subscription hands over when
      * the commit's shared state is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
@@ -1048,151 +1010,6 @@ class Kernel(
         maxReplay: Int = options.maxReplay,
     ): List<CommitTrace> =
         history.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay)
-
-    /**
-     * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
-     * at another state revision or for another state schema, not decodable, or newer than the log.
-     * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
-     * stream is already folded and is skipped. The
-     * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
-     * snapshot whose own stream committed after it does not fit either. The tail is folded as it is read, at most
-     * [maxReplay] streams of it ([ReplayLimitExceededException] past them).
-     */
-    internal suspend fun <S : Any> fromSnapshot(
-        model: AggregateModel<S>,
-        snapshot: SnapshotRecord,
-        until: Int = Int.MAX_VALUE,
-        committedBy: Long = Long.MAX_VALUE,
-        maxReplay: Int = Int.MAX_VALUE,
-    ): CachedState? {
-        val state = codec.fitting(model, snapshot) ?: return null
-        return fromSnapshot(
-            model,
-            snapshot,
-            state,
-            log.read(snapshot.ref, snapshot.version, until),
-            committedBy,
-            maxReplay
-        )
-    }
-
-    /**
-     * [state], decoded from [snapshot], evolved with [tail], the log's streams of its aggregate from the snapshot's
-     * own version on, or null when the tail does not start with the snapshot's own stream (see the other
-     * [fromSnapshot]).
-     */
-    @Suppress("LongParameterList")
-    internal suspend fun <S : Any> fromSnapshot(
-        model: AggregateModel<S>,
-        snapshot: SnapshotRecord,
-        state: S,
-        tail: Flow<EventStreamRecord>,
-        committedBy: Long = Long.MAX_VALUE,
-        maxReplay: Int = Int.MAX_VALUE,
-    ): CachedState? {
-        val restored =
-            CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
-        var current: CachedState? = null
-        var replayed = 0
-        tail
-            // The first stream must be the snapshot's own: else the snapshot is beyond the log, and nothing is folded.
-            .takeWhile { it.commitTime <= committedBy && (current != null || it.version == snapshot.version) }
-            .collect { stream ->
-                val base = current
-                current = if (base == null) {
-                    // Its own stream is already folded.
-                    restored
-                } else {
-                    if (++replayed > maxReplay) {
-                        throw ReplayLimitExceededException(snapshot.ref, maxReplay)
-                    }
-                    evolve(model, base, stream)
-                }
-            }
-        return current ?: run {
-            logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
-            null
-        }
-    }
-
-    /**
-     * Evolves [initial] with the events of [streams]: the state, and the deleted mark and schedules by the
-     * lifecycle and schedule events; the version and the scope are the last stream's, or [initial]'s when there is none.
-     */
-    internal fun <S : Any> replay(
-        model: AggregateModel<S>,
-        initial: CachedState,
-        streams: List<EventStreamRecord>,
-    ): CachedState = streams.fold(initial) { current, stream -> evolve(model, current, stream) }
-
-    /**
-     * Evolves [initial] with [streams] of [ref] as they are read, never holding them, as the other
-     * [replay] does; [ReplayLimitExceededException] before folding a stream past [maxReplay].
-     */
-    internal suspend fun <S : Any> replay(
-        model: AggregateModel<S>,
-        ref: AggregateRef,
-        initial: CachedState,
-        streams: Flow<EventStreamRecord>,
-        maxReplay: Int,
-    ): CachedState {
-        var current = initial
-        var replayed = 0
-        streams.collect { stream ->
-            if (++replayed > maxReplay) {
-                throw ReplayLimitExceededException(ref, maxReplay)
-            }
-            current = evolve(model, current, stream)
-        }
-        return current
-    }
-
-    /**
-     * Evolves [current] with the events of [stream], adding each event, read as the model's current schema, to
-     * [events] when given: the state, and the deleted mark and schedules by the lifecycle and schedule events; the
-     * version and the scope become the stream's.
-     */
-    internal fun <S : Any> evolve(
-        model: AggregateModel<S>,
-        current: CachedState,
-        stream: EventStreamRecord,
-        events: MutableList<Any>? = null,
-    ): CachedState {
-        @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
-        var state = current.state as S
-        var metadata = current.metadata
-        // A retired event is skipped: the stream still counts as a version, the state stays as it is.
-        val decoded = stream.events.mapNotNull { record ->
-            try {
-                codec.decodeUnlessRetired(model, record)
-            } catch (@Suppress("TooGenericExceptionCaught") unreadable: RuntimeException) {
-                // An event the model cannot read, an upgrade that refuses a record among them, names its aggregate.
-                throw UnreadableEventException(stream.ref, stream.version, record.name, record.revision, unreadable)
-            }
-        }
-        // The commit as the log records it, which an evolve function that reads it reads alike on every rebuild.
-        val commit = if (model.readsCommits) {
-            model.commitOf(
-                stream.ref,
-                stream.version,
-                stream.commitTime,
-                stream.commandId,
-                stream.requestId,
-                stream.commandType,
-                stream.scope,
-                stream.operator,
-                decoded,
-            )
-        } else {
-            null
-        }
-        decoded.forEach { event ->
-            events?.add(event)
-            state = model.evolve(state, event, commit)
-            metadata = KernelLifecycle.evolve(metadata, event)
-        }
-        return current.with(state, stream.version, metadata.copy(scope = stream.scope))
-    }
 
     /**
      * The answer to [decision] when it is a rejection that writes nothing: one without events, at the [version] the
