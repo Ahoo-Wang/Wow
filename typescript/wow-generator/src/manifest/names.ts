@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { pascalCase, toTypeIdentifier } from '../naming/naming';
+import {
+  pascalCase,
+  toTypeIdentifier,
+  uniqueParameterName,
+} from '../naming/naming';
 import type {
   ManifestAggregate,
   ManifestContext,
@@ -114,4 +118,18 @@ export function generatedNames(manifest: ManifestDocument): Set<string> {
  */
 export function routeMethodParameters(): Set<string> {
   return new Set(['body', 'query', 'options']);
+}
+
+/**
+ * A route parameter's name in its method: a path variable's, an identifier no
+ * other parameter of the method takes (`used`, updated); a query
+ * parameter's, its name, a member of the method's `query`, which takes none.
+ */
+export function routeParameterIdentifier(
+  parameter: { readonly name: string; readonly in: string },
+  used: Set<string>,
+): string {
+  return parameter.in === 'path'
+    ? uniqueParameterName(parameter.name, used)
+    : parameter.name;
 }

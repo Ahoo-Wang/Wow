@@ -17,7 +17,6 @@ import {
   resolvePropertyName,
   toIdentifier,
   toTypeIdentifier,
-  uniqueParameterName,
   upperSnakeCase,
 } from '../naming/naming';
 import { compareNames } from '../naming/order';
@@ -34,6 +33,7 @@ import {
   contextTypeName,
   generatedNames,
   routeMethodParameters,
+  routeParameterIdentifier,
 } from './names';
 import { compound, join, literal } from './typeText';
 
@@ -253,7 +253,7 @@ export interface ContextModel {
 export interface RouteParameterModel {
   /** As the route names it: its path variable or its query parameter. */
   readonly name: string;
-  /** Its method parameter: an identifier no other parameter of the method takes. */
+  /** Its name in the method ({@link routeParameterIdentifier}). */
   readonly identifier: string;
   readonly location: 'path' | 'query';
   readonly type: string;
@@ -860,7 +860,7 @@ function contextModel(
         deprecated: route.deprecated === true,
         parameters: (route.parameters ?? []).map(parameter => ({
           name: parameter.name,
-          identifier: uniqueParameterName(parameter.name, used),
+          identifier: routeParameterIdentifier(parameter, used),
           location: parameter.in === 'path' ? 'path' : 'query',
           type: types.type(parameter.schema, `${where} ${parameter.name}`),
           required: parameter.required,

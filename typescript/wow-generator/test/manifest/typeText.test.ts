@@ -25,6 +25,20 @@ describe('the text of composed types', () => {
     expect(compound(literal("it's | b"))).toBe(false);
   });
 
+  it('ends at the end of the text, a literal left open included', () => {
+    expect(compound("'a | b")).toBe(false);
+    expect(compound("A | 'b")).toBe(true);
+    expect(compound("'a\\")).toBe(false);
+  });
+
+  it('takes no arrow for a closing bracket', () => {
+    expect(compound('{ f: () => A } | B')).toBe(true);
+    expect(compound('Record<string, () => A> & B')).toBe(true);
+    // An arrow's return type reaches to the end: as one member it needs parentheses.
+    expect(compound('() => A | B')).toBe(true);
+    expect(compound('{ f: () => A | B }')).toBe(false);
+  });
+
   it('groups the compound members of a union or an intersection, once each', () => {
     expect(join(['{ k: 1 } | { k: 2 }', '{ r: number }'], ' & ')).toBe(
       '({ k: 1 } | { k: 2 }) & { r: number }',
