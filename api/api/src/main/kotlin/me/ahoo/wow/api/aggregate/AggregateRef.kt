@@ -64,8 +64,8 @@ data class AggregateRef(val type: AggregateType, val tenantId: String, val id: S
     override fun hashCode(): Int = hash
 
     /**
-     * `context.aggregate/tenant/id`, each name with its separators and `%` percent-escaped ([Escapes], decision
-     * D408): `%` and `/` in each, and `.` in the context. A ref whose names hold none of them reads as they are, and
+     * `context.aggregate/tenant/id`, each name with its separators and `%` percent-escaped ([Escapes]): `%` and
+     * `/` in each, and `.` in the context. A ref whose names hold none of them reads as they are, and
      * no two refs share a text, so the published texts built on it (an envelope's id, a topic message's key, an
      * execution's invocation key) name one aggregate each.
      */

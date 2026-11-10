@@ -39,8 +39,8 @@ data class ExecutionId(val subscription: String, val ref: AggregateRef, val vers
 
     /**
      * `subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`: the
-     * subscription with its `%` and `:` percent-escaped and the ref as its own text writes it ([Escapes], decision
-     * D408), so no two executions share a text.
+     * subscription with its `%` and `:` percent-escaped and the ref as its own text writes it ([Escapes]), so no two
+     * executions share a text.
      */
     override fun toString(): String = "${Escapes.escaped(subscription, "%:")}:$ref@$version"
 }

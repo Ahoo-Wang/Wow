@@ -68,7 +68,7 @@ object Partitioner {
 
     /**
      * The text the partition is hashed from; part of the format, and deliberately independent of
-     * [AggregateRef.toString], which escapes its separators (D408): this key keeps them raw, so an aggregate whose tenant
+     * [AggregateRef.toString], which escapes its separators: this key keeps them raw, so an aggregate whose tenant
      * or id holds a `/` or a `%` stays in the partition its stored streams are in. That two refs may share a key only
      * puts them in one partition.
      */

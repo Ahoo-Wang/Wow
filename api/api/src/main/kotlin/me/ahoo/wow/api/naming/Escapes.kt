@@ -15,7 +15,7 @@ package me.ahoo.wow.api.naming
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The one escaping rule of Wow's identity texts (decision D408): a name joined into a text with separators has each
+ * The one escaping rule of Wow's identity texts: a name joined into a text with separators has each
  * separator it holds, and `%` itself, percent-escaped as `%` and two upper-case hex digits, so the text splits back one
  * way only. A name that holds none of them is the text as it is, so an ordinary name reads the same in every text.
  * [AggregateRef][me.ahoo.wow.api.aggregate.AggregateRef]'s and [ExecutionId][me.ahoo.wow.api.subscribe.ExecutionId]'s
