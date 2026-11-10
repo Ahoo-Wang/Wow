@@ -18,7 +18,7 @@ import displayMeta, {
   NarrowTitleBar as DisplayNarrowTitleBar,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
-import { listItem, tooltipOn } from './recordWorkbenchTest.js';
+import { listItem, startAligned, tooltipOn } from './recordWorkbenchTest.js';
 
 /**
  * The view list beside the workbench: its colours, how it folds, and its rows.
@@ -194,7 +194,9 @@ export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
     await expect(switcher).not.toBeNull();
     // Sized to what it says and reading from its beginning — not a 470px
     // pill with a short name floating in the middle of it.
-    await expect(getComputedStyle(switcher).justifyContent).toBe('flex-start');
+    await expect(startAligned(switcher), 'label reads from its start').toBe(
+      true,
+    );
     const label = switcher.querySelector<HTMLElement>('span')!;
     await expect(
       switcher.getBoundingClientRect().right -

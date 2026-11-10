@@ -259,3 +259,19 @@ export function tooltipOn(doc: Document): HTMLElement | null {
     '[data-slot="tooltip-content"][data-open]',
   );
 }
+
+/**
+ * Whether `element` lays its contents out from its start along the main
+ * axis — `justify-content: flex-start`, as `justify-start` writes it.
+ *
+ * Asked of the computed value, which is the only thing that tells it from
+ * centring once the element is as wide as what it holds; but a browser may
+ * spell that value two ways. Chromium 158 serialises a computed `flex-start`
+ * as `flow-start` (crbug 555299635, behind `CSSFlowStartAndEndSerialization`
+ * and on in the build Playwright 1.65 ships), the same alignment under its
+ * new name; earlier builds say `flex-start`.
+ */
+export function startAligned(element: HTMLElement): boolean {
+  const { justifyContent } = getComputedStyle(element);
+  return justifyContent === 'flex-start' || justifyContent === 'flow-start';
+}

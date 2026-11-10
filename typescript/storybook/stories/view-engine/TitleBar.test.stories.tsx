@@ -18,6 +18,7 @@ import displayMeta, {
   NarrowTitleBar as DisplayNarrowTitleBar,
   WithActions as DisplayWithActions,
 } from './RecordWorkbench.stories.js';
+import { startAligned } from './recordWorkbenchTest.js';
 
 /**
  * How the title bar narrows.
@@ -261,7 +262,9 @@ export const NarrowColumn: Story = {
     // centred in it. Sized to what it says, the label starts where the icon
     // ends and the group ends where the label does.
     host.style.width = '760px';
-    await expect(getComputedStyle(switcher).justifyContent).toBe('flex-start');
+    await expect(startAligned(switcher), 'label reads from its start').toBe(
+      true,
+    );
     const label = switcher.querySelector<HTMLElement>('span')!;
     await expect(
       box(switcher).right - box(label).right,
