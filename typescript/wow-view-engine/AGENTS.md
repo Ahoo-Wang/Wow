@@ -191,6 +191,7 @@ src/
     summaryAlias.ts           — `summaryAlias`: the alias a summary cell is asked and read back by; a leaf both the compiler and `summaryCurrency` read
     summaryCurrency.ts        — `summaryCurrency`: what a total of money in each record's own currency asks beside itself to tell one currency from several
     project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging, a kanban's lanes (`RecordLaneView`)
+    summaries.ts              — projectSummaries, pageSummaries — the summary row (`SummaryCell`, `SummaryRow`): its cells over the rows on screen (`page`) or read back from their own aggregation (`total`), the two scopes reduced by one arithmetic so they cannot drift
     validate.ts               — validateRecord — columns, sort, card, summaries and the kanban against the definition
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
   analysis/                   — Analysis kernel — imports model and filter

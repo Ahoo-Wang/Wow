@@ -23,7 +23,7 @@ import {
   type Issue,
   type RecordViewConfig,
 } from '../src/index.js';
-import { pageSummaries, projectSummaries } from '../src/record/project.js';
+import { pageSummaries, projectSummaries } from '../src/record/summaries.js';
 
 function definition(
   overrides: Partial<DataViewDefinition> = {},

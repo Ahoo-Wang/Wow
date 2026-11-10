@@ -45,11 +45,11 @@ import {
 import { summaryMetrics } from './compile.js';
 import {
   projectRecord,
-  projectSummaries,
   type RecordLaneView,
   type RecordProjection,
   type RecordRow,
 } from './project.js';
+import { projectSummaries } from './summaries.js';
 
 /** One lane a kanban asks for: an option of the lane field, or「其他」. */
 export interface KanbanLane {

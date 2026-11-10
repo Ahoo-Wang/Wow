@@ -289,10 +289,9 @@ export {
   type RecordLaneView,
   type RecordRow,
   type RecordProjection,
-  type SummaryCell,
-  type SummaryRow,
   projectRecord,
 } from './record/project.js';
+export { type SummaryCell, type SummaryRow } from './record/summaries.js';
 export {
   type ValidateRecordOptions,
   validateRecord,
