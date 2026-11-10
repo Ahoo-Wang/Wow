@@ -175,19 +175,16 @@ internal class TargetCheckpointLeases(
     /**
      * Runs [block] holding [roles], renewing their leases on a thread of its own, so a run whose own thread blocks
      * keeps them; releases them when [block] ends, however it ends, and those it took when it cannot take them all.
+     *
+     * The roles are taken one at a time, in their order, and each is renewed from the moment it is taken: waiting for a
+     * later role, which a crashed run may hold for up to a lease, never lets an earlier one expire. [block] starts only
+     * while every role is still held.
      */
     suspend fun <T> holding(roles: Set<CheckpointRole>, block: suspend (CheckpointLock) -> T): T = coroutineScope {
         if (roles.isEmpty()) {
             return@coroutineScope block(CheckpointLock.None)
         }
-        val leases = LinkedHashMap<CheckpointRole, Lease>()
-        try {
-            roles.sorted().forEach { leases[it] = acquire(it) }
-        } catch (@Suppress("TooGenericExceptionCaught") refused: Throwable) {
-            withContext(NonCancellable) { release(leases.keys) }
-            throw refused
-        }
-        val held = Held(leases)
+        val held = Held()
         val renewer = launch(renewing) {
             while (isActive) {
                 delay(renewal)
@@ -195,10 +192,12 @@ internal class TargetCheckpointLeases(
             }
         }
         try {
+            roles.sorted().forEach { held.add(it, acquire(it)) }
+            held.ensureHeld()
             block(held)
         } finally {
             renewer.cancel()
-            withContext(NonCancellable) { release(leases.keys) }
+            withContext(NonCancellable) { release(held.roles) }
         }
     }
 
@@ -244,18 +243,33 @@ internal class TargetCheckpointLeases(
             "${inUse(role)}: stop that run, or wait for it to end."
     }
 
-    private inner class Held(leases: Map<CheckpointRole, Lease>) : CheckpointLock {
-        override val epochs: Map<CheckpointRole, Long> = leases.mapValues { it.value.epoch }
+    /**
+     * The leases a run holds, each from the moment it was taken ([add]); the renewal ([renew]) runs on another thread
+     * than the run, so the leases are replaced whole, under [lock], and read without it.
+     */
+    private inner class Held : CheckpointLock {
+        private val lock = Any()
 
         @Volatile
-        private var expiresAt: Long = leases.values.minOf { it.expiresAt }
+        private var leases: Map<CheckpointRole, Lease> = emptyMap()
 
         @Volatile
         private var lost: CheckpointRole? = null
 
+        /** The roles taken so far, to release. */
+        val roles: Set<CheckpointRole> get() = leases.keys
+
+        override val epochs: Map<CheckpointRole, Long> get() = leases.mapValues { it.value.epoch }
+
+        fun add(role: CheckpointRole, lease: Lease) = synchronized(lock) { leases = leases + (role to lease) }
+
         suspend fun renew() {
+            val renewing = leases.keys
+            if (renewing.isEmpty()) {
+                return
+            }
             val renewed = try {
-                store.renew(group, epochs.keys.map { it.partition }, holder.toString(), ttl)
+                store.renew(group, renewing.map { it.partition }, holder.toString(), ttl)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (@Suppress("TooGenericExceptionCaught") unavailable: RuntimeException) {
@@ -265,15 +279,16 @@ internal class TargetCheckpointLeases(
                 )
                 return
             }
-            val partitions = renewed.map { it.partition }.toSet()
-            lost = epochs.keys.firstOrNull { it.partition !in partitions }
-            if (lost == null) {
-                expiresAt = renewed.minOf { it.expiresAt }
+            val byPartition = renewed.associateBy { it.partition }
+            synchronized(lock) {
+                lost = lost ?: renewing.firstOrNull { it.partition !in byPartition }
+                leases = leases.mapValues { (role, lease) -> byPartition[role.partition] ?: lease }
             }
         }
 
         override fun ensureHeld() {
-            val role = lost ?: epochs.keys.first().takeIf { clock() >= expiresAt } ?: return
+            val now = clock()
+            val role = lost ?: leases.entries.firstOrNull { now >= it.value.expiresAt }?.key ?: return
             throw MigrationException(
                 "This run lost its ${role.label} lease of the checkpoint target:$name: it was not renewed in time, " +
                     "and another run may hold it now. It stops without writing.",

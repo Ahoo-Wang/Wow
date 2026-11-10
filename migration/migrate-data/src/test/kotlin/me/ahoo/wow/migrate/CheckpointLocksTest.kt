@@ -139,6 +139,48 @@ class CheckpointLocksTest {
     }
 
     @Test
+    fun `a role taken first should be renewed while the run waits for a later one a crashed run held`() = runTest {
+        val store = InMemoryLeaseStore(virtualClock())
+        val group = "${TargetCheckpointLeases.GROUP_PREFIX}order-service"
+        // A snapshot run that crashed just now: its lease lasts one TTL more, renewed by nothing.
+        store.acquire(group, CheckpointRole.SNAPSHOT.partition, tail.toString(), TargetCheckpointLeases.TTL)
+        var enteredAt = -1L
+        leases(store, import).holding(setOf(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT)) { lock ->
+            enteredAt = testScheduler.currentTime
+            lock.ensureHeld()
+            lock.epochs.keys.assert().containsExactly(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT)
+            // Both are renewed on: a lease past the first TTL from the start still holds.
+            delay(TargetCheckpointLeases.TTL)
+            lock.ensureHeld()
+            store.owners(group).map { it.owner }.toSet().assert().containsExactly(import.toString())
+        }
+        (enteredAt >= TargetCheckpointLeases.TTL.inWholeMilliseconds).assert().isTrue()
+        store.owners(group).assert().isEmpty()
+    }
+
+    @Test
+    fun `a role lost while the run waits for a later one should stop the run before its block`() = runTest {
+        val store = InMemoryLeaseStore(virtualClock())
+        val group = "${TargetCheckpointLeases.GROUP_PREFIX}order-service"
+        store.acquire(group, CheckpointRole.SNAPSHOT.partition, tail.toString(), TargetCheckpointLeases.TTL)
+        // The store forgets the import lease once it was taken: its renewal finds it gone.
+        val forgetful = object : LeaseStore by store {
+            override suspend fun renew(
+                group: String,
+                partitions: Collection<Int>,
+                owner: String,
+                ttl: kotlin.time.Duration,
+            ) = emptyList<me.ahoo.wow.spi.subscription.Lease>()
+        }
+        var entered = false
+        assertThrows<MigrationException> {
+            leases(forgetful, import).holding(setOf(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT)) { entered = true }
+        }.message.assert().startsWith("This run lost its import lease of the checkpoint target:order-service")
+        entered.assert().isFalse()
+        store.owners(group).assert().isEmpty()
+    }
+
+    @Test
     fun `a run should wait at most one lease for a holder that renews nothing, then fail naming it`() = runTest {
         val store = InMemoryLeaseStore(virtualClock())
         // A holder of a longer lease than this run's, which it does not renew while this run waits.
