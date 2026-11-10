@@ -25,7 +25,8 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.TimedEntry
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
-import me.ahoo.wow.runtime.subscription.parkedAt
+import me.ahoo.wow.runtime.subscription.requireUnmoved
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
@@ -53,11 +54,12 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   gives the services their own topics.
  * - A start from the end is the partition's end offset; from an instant, the offset of the first record retained, in
  *   offset order, committed at or after it, found by reading the partition forward ([SubscriptionStart.At.firstAt]).
- * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
- *   records the offset of the record it failed at; a retry re-scans the partition from it up to the end the
- *   partition has when the retry runs, keeping the records keyed by the ref, of its version or later, and every
- *   undecodable message of the ref: its entry has no version of its own, and it is after the parked one. When the
- *   partition no longer retains that offset, the retry fails with an [UnrecoverableException].
+ * - An aggregate's records are in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]), which
+ *   another may become when the topic gains partitions ([partitionsGrow]). A park records the partition and the
+ *   offset of the record it failed at; a retry re-scans that partition from it up to the end the partition has when
+ *   the retry runs, keeping the records keyed by the ref, of its version or later, and every undecodable message of
+ *   the ref: its entry has no version of its own, and it is after the parked one. When the partition no longer
+ *   retains that offset, or the key maps to another partition now, the retry fails with an [UnrecoverableException].
  * - At least once: a record may be published twice, so the subscriptions drop the copies of a version
  *   they handled ([repeats]).
  */
@@ -97,11 +99,15 @@ internal class TopicEntries(
     override fun ordinalOf(entry: SourcedEntry): Long =
         if (UndecodableMessage.isUndecodable(entry)) Long.MAX_VALUE else entry.stream.version.toLong()
 
-    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
-        if (fromPosition == null) {
-            throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
-        }
+    override val partitionsGrow: Boolean get() = true
+
+    override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
+        val ref = parked.ref
+        val fromVersion = parked.fromVersion
         val partition = partitionOf(ref)
+        requireUnmoved(topic, parked, partition)
+        val fromPosition = parked.fromPosition
+            ?: throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
         val offsets = source.offsets(topic, partition)
         if (offsets.start > fromPosition) {
             throw UnrecoverableException(
@@ -110,7 +116,6 @@ internal class TopicEntries(
         }
         val key = ref.toString()
         return source.read(topic, partition, fromPosition, offsets.end)
-            .parkedAt(topic, partition, key, fromPosition, offsets.end)
             .filter { it.key == key }
             .mapNotNull { entryOf(partition, it) }
             .filter { it.stream.ref == ref && (UndecodableMessage.isUndecodable(it) || it.stream.version >= fromVersion) }

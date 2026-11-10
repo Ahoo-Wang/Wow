@@ -39,7 +39,6 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
@@ -188,7 +187,8 @@ class SubscriptionRuntime internal constructor(
         check(running == null) { "Subscription group $group is already running." }
         partitions.forEach(::requirePartition)
         val root = SupervisorJob()
-        val run = Running(root, CoroutineScope(context + root + fatals.contextOf(Component.SUBSCRIPTION, group)))
+        val scope = CoroutineScope(context + root + fatals.contextOf(Component.SUBSCRIPTION, group))
+        val run = Running(root, scope, ParkedAtStart(source, ledger, scope))
         var started = false
         try {
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
@@ -329,7 +329,7 @@ class SubscriptionRuntime internal constructor(
             launch { importedThrough(partition) }
             named.map { subscription ->
                 async {
-                    val parked = async { parkedIn(subscription, listOf(partition))[partition].orEmpty() }
+                    val parked = async { run.parked.parkedIn(subscription, listOf(partition))[partition].orEmpty() }
                     workerStart(subscription, partition, run.joined, parked.await())
                 }
             }.awaitAll()
@@ -364,7 +364,7 @@ class SubscriptionRuntime internal constructor(
     suspend fun add(subscription: Subscription): Unit = lifecycle.withLock {
         register(subscription)
         val run = running ?: return@withLock
-        val parked = parkedIn(subscription, run.partitions.keys)
+        val parked = run.parked.parkedIn(subscription, run.partitions.keys)
         val joined = joinedSubscriptions()
         for (part in run.partitions.values) {
             val start = workerStart(subscription, part.partition, joined, parked[part.partition].orEmpty())
@@ -602,24 +602,6 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * [subscription]'s parked aggregates in [partitions], by partition, with the version each is parked from: the
-     * ledger's entries of those partitions alone ([FailureLedger.due] at [ParkedAggregate.NEVER]).
-     */
-    private suspend fun parkedIn(
-        subscription: Subscription,
-        partitions: Collection<Int>,
-    ): Map<Int, Map<AggregateRef, Long>> {
-        val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
-        var after: AggregateRef? = null
-        do {
-            val page = ledger.due(subscription.name, partitions, ParkedAggregate.NEVER, after)
-            page.forEach { parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it) }
-            after = page.lastOrNull()?.ref
-        } while (page.size == FailureLedger.DEFAULT_PAGE)
-        return parked
-    }
-
-    /**
      * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (B.D diagnostics:
      * one round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
      */
@@ -644,7 +626,12 @@ class SubscriptionRuntime internal constructor(
     }
 
     /** Guarded by `lifecycle`, except [workers], which waits and the checkpoint ticker read from any thread. */
-    private class Running(val root: Job, val scope: CoroutineScope) {
+    private class Running(
+        val root: Job,
+        val scope: CoroutineScope,
+        /** The aggregates held back in the partitions the run starts, the moved ones looked for once. */
+        val parked: ParkedAtStart,
+    ) {
         val partitions = ConcurrentHashMap<Int, PartitionRun>()
         val workers = ConcurrentHashMap<Pair<String, Int>, SubscriptionWorker>()
 
