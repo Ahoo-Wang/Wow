@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -33,22 +32,11 @@ internal class UndecodableMessage(val reason: String) {
         /** The event name of the entry of an undecodable message: no model has it. */
         const val EVENT: String = "wow.undecodable"
 
-        /** The aggregate a message's [key] names (`<context>.<aggregate>/<tenant>/<id>`), or null. */
-        fun refOf(key: String?): AggregateRef? {
-            val parts = key?.split('/', limit = REF_PARTS)?.takeIf { it.size == REF_PARTS } ?: return null
-            val type = parts[0]
-            val dot = type.lastIndexOf('.')
-            if (dot <= 0 || dot == type.lastIndex) {
-                return null
-            }
-            return runCatching {
-                AggregateType(
-                    type.substring(0, dot),
-                    type.substring(dot + 1)
-                ).ref(parts[1], parts[2])
-            }
-                .getOrNull()
-        }
+        /**
+         * The aggregate a message's [key] names, the text its ref writes ([AggregateRef.parse]), or null: no key, or
+         * one no ref writes (a foreign or hand-published message, a malformed escape), whose message is passed over.
+         */
+        fun refOf(key: String?): AggregateRef? = key?.let(AggregateRef::parse)
 
         /** The entry of an undecodable message about [ref] at [position], failing for [reason]. */
         fun entryOf(ref: AggregateRef, position: LogPosition, reason: String): SourcedEntry = SourcedEntry(
@@ -73,7 +61,6 @@ internal class UndecodableMessage(val reason: String) {
         /** Whether [stream] is the stream of an undecodable message's entry. */
         fun isUndecodable(stream: EventStreamRecord): Boolean = stream.events.singleOrNull()?.name == EVENT
 
-        private const val REF_PARTS = 3
         private const val UNDECODABLE = "(undecodable)"
     }
 }

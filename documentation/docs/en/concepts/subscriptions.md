@@ -39,7 +39,7 @@ The only ordering guarantee is per aggregate. A projection that combines several
 
 A subscription delivers each entry at least once. During a hand-over, the old and the new owner of a partition may briefly handle the same entries. Wow does not fence them off; it makes repeating safe instead:
 
-- Each handler call has a deterministic **execution id**: subscription, aggregate and version. An external call takes the context's `invocationKey` as its idempotency key: the execution id, and the event's index for a handler of each event.
+- Each handler call has a deterministic **execution id**: subscription, aggregate and version. An external call takes the context's `invocationKey` as its idempotency key: the execution id, and the event's index for a handler of each event. Its text escapes the separators a name holds (a `/` in a tenant or an id, a `:` in a subscription's name, and `%`), so two executions never share a key.
 - A command a saga sends has a request id derived from that execution id, its target and its command type, so sending it twice commits it once, whatever order the saga derives its commands in.
 - A projection writes guarded by the version it has applied.
 - A checkpoint only moves forward, and recording a failure is idempotent.
