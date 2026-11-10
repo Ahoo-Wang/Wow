@@ -50,7 +50,7 @@
 | 跨聚合唯一键 | `PrepareKey`/`@PreparableKey` | B | `DecideScope.reserve`/`release`（D38、D225）；数据 8b.3（D227 ③）；Skill 覆盖 |
 | `PrepareKey` 查找、自定义值、TTL | `PrepareKey.get/getValue` | E | G-7 |
 | 期望版本 | `Command-Aggregate-Version` | A | `If-Match`，412 |
-| 命令总线（内存、本地优先、Kafka、Redis） | `CommandBus` 系列 | B | 集群通道 + Partitioned/Local（D6、D71）；按聚合 Kafka Router（D143，`WowProperties.AggregateRouting`，6.5 已合并）；Redis 见 C |
+| 命令总线（内存、本地优先、Kafka、Redis） | `CommandBus` 系列 | B | 集群通道 + Partitioned/Local（D6、D71）；按聚合 Kafka Router（D143，`wow.aggregates.<aggregate>.routing`，`CommandRouting`，6.5 已合并）；Redis 见 C |
 | 统一命令入口 `/wow/command/send` | `CommandFacadeHandlerFunction` | B | 每命令一条路由；Skill「REST clients」覆盖 |
 | 命令过滤器（9.3 已退役）与 `CommandInstrumentation` | `filter/*` | B | `core/spi/.../observation/Observer.kt` 与 `:opentelemetry`（D188） |
 | 错误码到 HTTP 状态 | `ErrorHttpStatusMapping` | A | `wow.http.errors.[code].status`、`@ErrorCode(status)` |
