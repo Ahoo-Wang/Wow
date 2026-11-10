@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.query.admission
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
@@ -57,6 +61,27 @@ class AdmittedQuery<out Q : Any> internal constructor(
      */
     val provisional: Boolean
         get() = schema.provisional
+
+    /**
+     * The one tenant every record [query] matches belongs to, or `null` when its filter does not pin one. Its filter
+     * pins a tenant when it requires a [TenantIdFilter]: alone, or among the operands of an `AND` (at any depth of
+     * `AND`s), as admission ANDs a caller's scope, all of one value. Any other shape (an `OR`, a `NOT`, several values)
+     * pins none, so a trusted cross-tenant query is never read as one tenant's. A backend whose order breaks ties by
+     * the tenant reads that key as a constant under a pinned tenant: it orders nothing and bounds nothing.
+     */
+    @InternalWowApi
+    val pinnedTenant: String?
+        get() {
+            val filter = (query as? FilterCapable<*>)?.filter ?: return null
+            return tenantsRequiredBy(filter).distinct().singleOrNull()
+        }
+
+    /** The tenants [filter] requires of every record it matches: its own, and those of the operands it ANDs. */
+    private fun tenantsRequiredBy(filter: FilterExpression): List<String> = when (filter) {
+        is TenantIdFilter -> listOf(filter.value)
+        is AndFilter -> filter.operands.flatMap(::tenantsRequiredBy)
+        else -> emptyList()
+    }
 
     /** The resolution of one field reference of [query], by the identity of its [QueryField] instance. */
     fun field(reference: QueryField<*>): ResolvedField = resolved(reference)
