@@ -233,15 +233,15 @@ class HostEventStoresTest {
     fun `only the types that name a store are routed`() {
         HostEventStores.configured(null, setOf("main")).assert().isEmpty()
         val properties = WowProperties().apply {
-            aggregates["bank.account"] = WowProperties.Aggregate().apply { query.events.store = "main" }
-            aggregates["bank.card"] = WowProperties.Aggregate()
+            aggregates["bank.account"] = AggregateProperties().apply { query.events.store = "main" }
+            aggregates["bank.card"] = AggregateProperties()
         }
         HostEventStores.configured(properties, setOf("main")).assert()
             .isEqualTo(mapOf(AggregateType(BANK, "account") to "main"))
         assertThrows<WowConfigurationException> {
             HostEventStores.configured(
                 WowProperties().apply {
-                    aggregates["bank."] = WowProperties.Aggregate().apply { query.events.store = "main" }
+                    aggregates["bank."] = AggregateProperties().apply { query.events.store = "main" }
                 },
                 setOf("main"),
             )
@@ -253,7 +253,7 @@ class HostEventStoresTest {
         val failure = assertThrows<WowConfigurationException> {
             HostEventStores.configured(
                 WowProperties().apply {
-                    aggregates["account"] = WowProperties.Aggregate().apply { query.events.store = "main" }
+                    aggregates["account"] = AggregateProperties().apply { query.events.store = "main" }
                 },
                 setOf("main"),
             )

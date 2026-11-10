@@ -31,14 +31,14 @@ class QueryStoreSettingsTest {
             dataset.maxWait = Duration.ofSeconds(4)
             dataset.maxQueued = 9
         }
-        val store = WowProperties.Store().apply {
+        val store = StoreProperties().apply {
             query.maxConcurrent = 5
             query.maxWait = Duration.ofSeconds(1)
             query.maxQueued = 7
             query.adaptive.floor = 2
             query.adaptive.ceiling = 20
         }
-        val settings = properties.storeSettings(mapOf("main" to store, "plain" to WowProperties.Store()))
+        val settings = properties.storeSettings(mapOf("main" to store, "plain" to StoreProperties()))
         settings.maxConcurrent.assert().isEqualTo(12)
         settings.maxWait.assert().isEqualTo(2.seconds)
         settings.maxQueued.assert().isEqualTo(30)

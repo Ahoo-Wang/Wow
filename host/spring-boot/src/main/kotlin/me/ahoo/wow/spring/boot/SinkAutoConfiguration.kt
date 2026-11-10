@@ -112,7 +112,7 @@ class SinkAutoConfiguration {
          * The per-aggregate settings of the Sinks of [type] under `wow.aggregates.[<context>.<aggregate>].<type>.*`, as
          * options `aggregates.<context>.<aggregate>.*`: the ClickHouse Sink's history today.
          */
-        fun aggregateOptions(type: String, aggregates: Map<String, WowProperties.Aggregate>): Map<String, String> =
+        fun aggregateOptions(type: String, aggregates: Map<String, AggregateProperties>): Map<String, String> =
             if (type != CLICKHOUSE) {
                 emptyMap()
             } else {

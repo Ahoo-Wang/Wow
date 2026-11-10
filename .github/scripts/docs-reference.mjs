@@ -267,12 +267,20 @@ const page = (locale, title, description, sources, body) =>
 
 // Configuration
 
-const javaType = (type = '') =>
+/**
+ * A configuration type as an operator reads it: the JDK's and Kotlin's packages dropped, and a Wow class by its own name,
+ * a nested one by its last name (`WowProperties$Switch` is `Switch`). A host properties class, the class of one area of
+ * the `wow.*` tree (`me.ahoo.wow.spring.boot.StoreProperties`), is the group it binds: `Store`.
+ */
+export const javaType = (type = '') =>
   type
     .replace(/\b(?:java\.(?:lang|time|util)|kotlin)\./g, '')
-    .replace(/\bme\.ahoo\.wow\.[\w.]+\.(\w+(?:\$\w+)*)/g, (_, name) =>
-      name.split('$').at(-1),
-    );
+    .replace(/\bme\.ahoo\.wow\.[\w.]+\.(\w+(?:\$\w+)*)/g, (qualified, name) => {
+      const last = name.split('$').at(-1);
+      return qualified.startsWith('me.ahoo.wow.spring.boot.') && last === name
+        ? last.replace(/(?<=\w)Properties$/, '')
+        : last;
+    });
 
 const defaultOf = value => {
   if (value === undefined) return '';
