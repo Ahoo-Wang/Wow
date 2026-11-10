@@ -44,6 +44,7 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.SpringApplication
+import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import org.springframework.core.env.MapPropertySource
@@ -388,6 +389,42 @@ class WowPropertiesTest {
         )
         WowProperties().subscription.retry.timeout.assert().isNull()
         RetryProperties.of(options.retry).timeout.assert().isEqualTo(Duration.ofSeconds(30))
+    }
+
+    @Test
+    fun `a subscription's parked retries should take its own settings over the global ones, and the global ones where it is silent`() {
+        val properties = bind(
+            "wow.subscription.parked.max-retries" to "5",
+            "wow.subscription.parked.initial-backoff" to "200ms",
+            "wow.subscription.parked.claim-ttl" to "100ms",
+            "wow.subscriptions.[shop.Mail.send].parked.max-retries" to "1",
+            "wow.subscriptions.[shop.Audit.onEvent].parked.claim-ttl" to "2s",
+            "wow.subscriptions.[shop.View.onEvent].start" to "end",
+        )
+        val parked = properties.subscription.options(properties.subscriptions).parked
+        parked.spec.maxRetries.assert().isEqualTo(5)
+        // Its own max-retries; the global backoff and claim TTL, which it does not set.
+        val mail = parked.specs.getValue(SubscriptionId("shop", "Mail.send"))
+        mail.maxRetries.assert().isEqualTo(1)
+        mail.initialBackoff.assert().isEqualTo(200.milliseconds)
+        mail.claimTtl.assert().isEqualTo(100.milliseconds)
+        val audit = parked.specs.getValue(SubscriptionId("shop", "Audit.onEvent"))
+        audit.maxRetries.assert().isEqualTo(5)
+        audit.initialBackoff.assert().isEqualTo(200.milliseconds)
+        audit.claimTtl.assert().isEqualTo(2.seconds)
+        // A subscription that sets nothing of its parked retries has no spec of its own: the global one is its.
+        parked.specs.keys.assert().containsExactlyInAnyOrder(
+            SubscriptionId("shop", "Mail.send"),
+            SubscriptionId("shop", "Audit.onEvent"),
+        )
+    }
+
+    @Test
+    fun `the in-memory topics should keep at least one message, refusing a retention below that with its key`() {
+        bind("wow.memory.topic-retention" to "1").memory.topicRetention.assert().isEqualTo(1)
+        val refused = assertThrows<BindException> { bind("wow.memory.topic-retention" to "0") }
+        generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }.toList().assert()
+            .anySatisfy { it.assert().contains("wow.memory.topic-retention keeps at least one message: 0.") }
     }
 
     @Test
