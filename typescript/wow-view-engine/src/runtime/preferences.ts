@@ -23,17 +23,13 @@
 
 import type { ViewInstanceSummary, ViewPreferences } from '../model/index.js';
 import type { ReadOptions, ViewStore } from '../store/ViewStore.js';
+import { Generations } from './generations.js';
 
 export class PreferenceCache {
   private readonly store: ViewStore;
   private readonly cache = new Map<string, ViewPreferences>();
-  /**
-   * How many times each definition's preferences were confirmed by a write
-   * (`note`). Revisions are opaque, so which of two is newer cannot be read
-   * off them; what can be told is that a write confirmed while a read was
-   * on its way, and the read then answers the state before it.
-   */
-  private readonly notes = new Map<string, number>();
+  /** Which read of a definition's preferences may still be applied (`Generations`). */
+  private readonly generations = new Generations<string>();
 
   constructor(store: ViewStore) {
     this.store = store;
@@ -41,26 +37,34 @@ export class PreferenceCache {
 
   /**
    * Reads through to the store, and remembers what came back — unless a
-   * write confirmed newer preferences while the read was on its way: the
-   * read started before that write, so it answers the cached ones instead,
-   * and the next reorder does not start from a revision already gone.
+   * write confirmed newer preferences while the read was on its way, or a
+   * read issued after it landed first: the read answers an older state, so
+   * it answers the cached one instead, and the next reorder does not start
+   * from a revision already gone.
    */
   async read(
     definitionId: string,
     options: ReadOptions = {},
   ): Promise<ViewPreferences> {
-    const before = this.notes.get(definitionId) ?? 0;
-    const preferences = await this.store.getPreferences(definitionId, options);
-    const newer = this.cache.get(definitionId);
-    if (newer && (this.notes.get(definitionId) ?? 0) !== before) return newer;
-    this.cache.set(definitionId, preferences);
-    return preferences;
+    const ticket = this.generations.issue(definitionId);
+    try {
+      const preferences = await this.store.getPreferences(
+        definitionId,
+        options,
+      );
+      const newer = this.cache.get(definitionId);
+      if (!this.generations.admit(ticket) && newer) return newer;
+      this.cache.set(definitionId, preferences);
+      return preferences;
+    } finally {
+      this.generations.release(ticket);
+    }
   }
 
   /** Remembers preferences a write has just confirmed. */
   note(definitionId: string, preferences: ViewPreferences): void {
     this.cache.set(definitionId, preferences);
-    this.notes.set(definitionId, (this.notes.get(definitionId) ?? 0) + 1);
+    this.generations.confirm(definitionId);
   }
 
   /** What a write starts from: the last value known, else a read. */
