@@ -145,6 +145,13 @@ class ModelProviderTest {
     )
 
     @Test
+    fun `the provider should be registered where ServiceLoader and the service's merge read it`() {
+        // The resource name the merge reads (Manifest.MODEL_PROVIDERS) is ServiceLoader's for the kernel's port.
+        Manifest.MODEL_PROVIDERS.assert().isEqualTo("META-INF/services/${ModelProvider::class.java.name}")
+        ModelProviderSource.MODEL_PROVIDER.assert().isEqualTo(ModelProvider::class.java.name)
+    }
+
+    @Test
     fun `the module's provider should build every model with the dependencies of its factory`() {
         val (compilation, result) = compile(account, ledger, scenario)
         val services = generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!

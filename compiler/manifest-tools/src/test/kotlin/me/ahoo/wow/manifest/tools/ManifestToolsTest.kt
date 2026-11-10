@@ -57,33 +57,39 @@ class ManifestToolsTest {
         defs = defs,
     )
 
-    /** A class path directory holding [manifests] as fragments, by module name. */
+    /** A class path directory holding [manifests] as fragments, by module name (a path, `orders/domain`). */
     private fun classesDirectory(name: String, vararg manifests: Pair<String, Manifest>): File =
         File(directory, name).also { classes ->
             manifests.forEach { (module, manifest) ->
                 ManifestJson.write(manifest, File(classes, "${Manifest.FRAGMENT_DIRECTORY}/$module.json"))
             }
-            // Neither a nested directory nor another file type is a fragment.
-            File(
-                classes,
-                "${Manifest.FRAGMENT_DIRECTORY}/nested/ignored.json"
-            ).apply { parentFile.mkdirs() }.writeText("{}")
-            File(classes, "${Manifest.FRAGMENT_DIRECTORY}/README.txt").writeText("not a fragment")
+            // Another file type is no fragment.
+            File(classes, "${Manifest.FRAGMENT_DIRECTORY}/README.txt").apply { parentFile.mkdirs() }
+                .writeText("not a fragment")
         }
 
-    /** A jar holding [manifest] as the fragment of [module]. */
-    private fun jar(module: String, manifest: Manifest): File {
-        val fragment = File(directory, "$module-fragment.json").also { ManifestJson.write(manifest, it) }
-        return File(directory, "$module.jar").also { jar ->
+    /** The jar [name] holding [manifest] as the fragment of [module] (a path, `orders/domain`). */
+    private fun jar(
+        module: String,
+        manifest: Manifest,
+        name: String = module.replace('/', '-'),
+        provider: String? = null,
+    ): File {
+        val fragment = File(directory, "$name-fragment.json").also { ManifestJson.write(manifest, it) }
+        return File(directory, "$name.jar").also { jar ->
             ZipOutputStream(jar.outputStream()).use { zip ->
                 zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/"))
                 zip.closeEntry()
                 zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/$module.json"))
                 zip.write(fragment.readBytes())
                 zip.closeEntry()
-                zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/nested/ignored.json"))
-                zip.write("{}".toByteArray())
+                zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/README.txt"))
                 zip.closeEntry()
+                provider?.let {
+                    zip.putNextEntry(ZipEntry("META-INF/services/me.ahoo.wow.kernel.ModelProvider"))
+                    zip.write("$it\n".toByteArray())
+                    zip.closeEntry()
+                }
                 zip.putNextEntry(ZipEntry("sample/Other.class"))
                 zip.closeEntry()
             }
@@ -116,9 +122,10 @@ class ManifestToolsTest {
                 mapOf(AccountState::class.java.name to mapOf("type" to "object"))
             )
         val output = File(directory, "manifest.json")
+        // A nested project's fragment is in a directory of its path.
         val classpath = listOf(
-            classesDirectory("classes", "shop" to shop),
-            jar("billing", billing),
+            classesDirectory("classes", "shop/domain" to shop),
+            jar("billing/domain", billing),
             File(directory, "missing.jar"),
             File(directory, "classes-without-fragments").apply { mkdirs() },
         )
@@ -166,6 +173,66 @@ class ManifestToolsTest {
         }.message.assert().contains(
             "The Manifest fragment META-INF/wow/manifest/domain.json is in project ':domain' and com.acme:domain:1.0.0",
         ).doesNotContain(directory.path)
+    }
+
+    @Test
+    fun `fragments of two project paths that join to one name should both be merged`() {
+        val shop =
+            fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+        val billing = fragment(
+            "billing",
+            AccountState::class.java,
+            mapOf(AccountState::class.java.name to mapOf("type" to "object")),
+        )
+        // `:a-b` and `:a:b`: `a-b.json` and `a/b.json`, two names, wherever each is found.
+        val output = File(directory, "manifest.json")
+        listOf(
+            listOf(classesDirectory("flat", "a-b" to shop), classesDirectory("nested", "a/b" to billing)),
+            listOf(jar("a-b", shop, "flat"), jar("a/b", billing, "nested")),
+        ).forEach { classpath ->
+            ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, output).assert().isEqualTo(2)
+            ManifestJson.read(output).contexts.map { it.name }.assert().containsExactly("billing", "shop")
+        }
+    }
+
+    @Test
+    fun `merging should refuse a model provider two modules register, naming both`() {
+        val shop =
+            fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+        val billing = fragment(
+            "billing",
+            AccountState::class.java,
+            mapOf(AccountState::class.java.name to mapOf("type" to "object")),
+        )
+        fun registering(entry: File, vararg providers: String) = entry.also {
+            File(it, "META-INF/services/me.ahoo.wow.kernel.ModelProvider").apply { parentFile.mkdirs() }
+                .writeText("# the module's binding index\n" + providers.joinToString("\n") + "\n")
+        }
+        // `:orders:domain` and `:orders-domain`, their models in one package: one provider class, one of them unbound.
+        val nested = registering(
+            classesDirectory("nested", "orders/domain" to shop),
+            "orders.OrdersDomainModelProvider"
+        )
+        val flat = jar("orders-domain", billing, provider = "orders.OrdersDomainModelProvider")
+        val owners = mapOf(nested.path to "project ':orders:domain'", flat.path to "project ':orders-domain'")
+        val output = File(directory, "manifest.json")
+        assertThrows<IllegalStateException> {
+            ManifestTools.merge(listOf(nested, flat), owners, "store", "fallback", null, output)
+        }.message.assert().contains(
+            "The model provider orders.OrdersDomainModelProvider is registered by project ':orders:domain' and " +
+                "project ':orders-domain'",
+        )
+        // Apart in two packages, both bound; a jar that registers none and a file that is no jar register nothing.
+        val apart = jar("orders-domain", billing, provider = "refunds.OrdersDomainModelProvider")
+        val other = File(directory, "notes.txt").apply { writeText("no class path entry") }
+        ManifestTools.merge(
+            listOf(nested, apart, other),
+            owners,
+            "store",
+            "fallback",
+            null,
+            output
+        ).assert().isEqualTo(2)
     }
 
     @Test

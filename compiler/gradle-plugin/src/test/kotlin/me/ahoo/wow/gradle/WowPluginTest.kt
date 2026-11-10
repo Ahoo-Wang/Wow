@@ -101,7 +101,7 @@ class WowPluginTest {
         val ksp = project.extensions.getByType(KspExtension::class.java)
         ksp.arguments.assert()
             .containsEntry("wow.model", "generate")
-            .containsEntry("wow.manifest.module", "shop")
+            .containsEntry("wow.manifest.module", WowPlugin.ROOT_FRAGMENT)
     }
 
     @Test
@@ -482,10 +482,20 @@ class WowPluginTest {
     }
 
     @Test
-    fun `a module should be named by its project path`() {
-        WowPlugin.moduleName(":eshop:ordering-domain", "root").assert().isEqualTo("eshop-ordering-domain")
-        WowPlugin.moduleName(":shop", "root").assert().isEqualTo("shop")
-        WowPlugin.moduleName(":", "root").assert().isEqualTo("root")
+    fun `a module's fragment should be named by its project path, one name per path`() {
+        WowPlugin.fragmentName(":eshop:ordering-domain").assert().isEqualTo("eshop/ordering-domain")
+        WowPlugin.fragmentName(":eshop-ordering-domain").assert().isEqualTo("eshop-ordering-domain")
+        // Two paths that a `-` would join to one name, and a root project named as a child is.
+        listOf(":a-b", ":a:b", ":a", ":").map(WowPlugin::fragmentName).assert()
+            .containsExactly("a-b", "a/b", "a", WowPlugin.ROOT_FRAGMENT)
+        WowRoles.coreVariant(":a-b").assert().isNotEqualTo(WowRoles.coreVariant(":a:b"))
+        WowRoles.coreVariant(":eshop:ordering-domain").assert().isEqualTo("wowCore:eshop:ordering-domain")
+    }
+
+    @Test
+    fun `a service should be named by its project path by default`() {
+        WowPlugin.defaultServiceName(":eshop:ordering-server", "root").assert().isEqualTo("eshop-ordering-server")
+        WowPlugin.defaultServiceName(":", "root").assert().isEqualTo("root")
     }
 
     @Test

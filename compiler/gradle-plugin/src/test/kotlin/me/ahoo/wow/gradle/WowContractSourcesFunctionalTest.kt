@@ -249,10 +249,14 @@ class WowContractSourcesFunctionalTest {
         )
     }
 
+    /**
+     * A build of [dir]; a deprecation fails it (`--warning-mode=fail`), so the names the plugin gives Gradle (a core
+     * variant named by the domain module's path, `wowCore:shop-domain`) hold for the next Gradle too.
+     */
     private fun runner(vararg arguments: String, dir: File = projectDir): GradleRunner = GradleRunner.create()
         .withProjectDir(dir)
         .withPluginClasspath()
-        .withArguments(*arguments, "--configuration-cache", "--stacktrace")
+        .withArguments(*arguments, "--configuration-cache", "--stacktrace", "--warning-mode=fail")
         .forwardOutput()
 
     /** `orders`, a Wow domain module of the context `orders`. */

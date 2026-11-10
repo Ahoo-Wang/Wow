@@ -35,8 +35,9 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.TOOLS_CONFIGURATION
 import me.ahoo.wow.gradle.WowPlugin.Companion.UPDATE_BASELINE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.coreView
+import me.ahoo.wow.gradle.WowPlugin.Companion.defaultServiceName
+import me.ahoo.wow.gradle.WowPlugin.Companion.fragmentName
 import me.ahoo.wow.gradle.WowPlugin.Companion.missingKotlinJvm
-import me.ahoo.wow.gradle.WowPlugin.Companion.moduleName
 import me.ahoo.wow.gradle.WowPlugin.Companion.requireKotlin
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
 import org.gradle.api.GradleException
@@ -117,7 +118,7 @@ internal object WowRoles {
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))
             .builtBy(KSP_TASK)
             .asFileTree
-            .matching { it.include("${FRAGMENT_RESOURCES}/*.json") }
+            .matching { it.include("${FRAGMENT_RESOURCES}/**/*.json") }
         val fragmentDirectory = project.layout.buildDirectory.dir(FRAGMENT_DIRECTORY)
         val generate = project.tasks.register(GENERATE_FRAGMENT_TASK, GenerateManifestFragment::class.java) { task ->
             task.description = "Completes this module's Manifest fragment with the schemas of its types."
@@ -165,7 +166,7 @@ internal object WowRoles {
         val unpaired = unpairedProjectsOf(compileClasspath)
         val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
-            task.fragments.from(fragments.matching { it.include("${FRAGMENT_RESOURCES}/*.json") })
+            task.fragments.from(fragments.matching { it.include("${FRAGMENT_RESOURCES}/**/*.json") })
             task.service.set(extension.service)
             task.module.set(project.path)
             task.unpaired.set(unpaired)
@@ -177,7 +178,6 @@ internal object WowRoles {
             configuration.description = "The peer contract of the module's contexts, which its api modules carry."
             configuration.isCanBeConsumed = true
             configuration.isCanBeResolved = false
-            configuration.isVisible = false
             documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
         }
         project.artifacts.add(elements.name, generate.flatMap { it.outputFile }) { it.builtBy(generate) }
@@ -214,7 +214,7 @@ internal object WowRoles {
         project.pluginManager.apply(KSP)
         project.extensions.configure(KspExtension::class.java) { ksp ->
             ksp.arg(MODEL_OPTION, "generate")
-            ksp.arg(MODULE_OPTION, moduleName(project.path, project.rootProject.name))
+            ksp.arg(MODULE_OPTION, fragmentName(project.path))
             ksp.arg(ContextArgument(extension.context))
         }
         val runs = KspRuns.of(project)
@@ -312,7 +312,6 @@ internal object WowRoles {
             configuration.extendsFrom(declared)
             configuration.isCanBeConsumed = false
             configuration.isTransitive = false
-            configuration.isVisible = false
             documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
         }
         val main = project.extensions.getByType(SourceSetContainer::class.java)
@@ -408,9 +407,8 @@ internal object WowRoles {
         }
     }
 
-    /** The name of the core variant for the domain module at [path]: `:eshop:ordering-domain` is `wowCoreEshopOrderingDomain`. */
-    internal fun coreVariant(path: String): String = CORE_VARIANT + path.split(':', '-', '_', '.')
-        .filter(String::isNotEmpty).joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+    /** The core variant of the domain module at [path], one per path: `:eshop:ordering-domain` is `wowCore:eshop:ordering-domain`. */
+    internal fun coreVariant(path: String): String = CORE_VARIANT + path
 
     /**
      * Keeps [api]'s core views out of its publication: a secondary variant with a jar would otherwise be published
@@ -473,7 +471,7 @@ internal object WowRoles {
             task.tools.from(tools)
             // The module's own contexts name their service as the contracts on the class path do.
             task.serviceName.set(extension.service)
-            task.defaultServiceName.set(moduleName(project.path, project.rootProject.name))
+            task.defaultServiceName.set(defaultServiceName(project.path, project.rootProject.name))
             task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
@@ -574,7 +572,6 @@ internal object WowRoles {
         return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
             configuration.description = "The tools the Wow tasks run in their isolated workers."
             configuration.isCanBeConsumed = false
-            configuration.isVisible = false
             configuration.attributes { attributes ->
                 attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                 attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
@@ -649,7 +646,7 @@ internal object WowRoles {
     private const val FRAGMENT_DIRECTORY = "wow/manifest-fragment"
 
     /** Where the compiler writes a module's Manifest fragments, and where a jar carries them. */
-    private const val FRAGMENT_RESOURCES = "META-INF/wow/manifest"
+    internal const val FRAGMENT_RESOURCES = "META-INF/wow/manifest"
 
     /** The peer contract an api module's jar carries. */
     const val CONTRACT_RESOURCE = "META-INF/wow/contract.json"

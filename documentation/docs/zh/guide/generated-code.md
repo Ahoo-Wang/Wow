@@ -40,7 +40,7 @@ build/generated/ksp/main/
 
 ## Manifest 片段 {#the-manifest-fragment}
 
-编译器把模块那部分服务契约写到 `META-INF/wow/manifest/<module>.json`：上下文；它的聚合，带着它们的命令、事件、生命周期命令、查询模型和定时；它的订阅，带着每个订阅派生、定时和调用的东西；它发布的事件流和错误码。在 Gradle 插件用按 Jackson 规则得出的 JSON Schema（包括查询关键字）补全之前，其中的类型 schema 都是引用。它接下来会怎样，见 [Manifest 与兼容](./manifest)。
+编译器把模块那部分服务契约写到 `META-INF/wow/manifest/<module>.json`，按模块的项目路径命名、路径的各段作为目录（`:eshop:ordering-domain` 写成 `eshop/ordering-domain.json`，`:eshop-ordering-domain` 写成 `eshop-ordering-domain.json`，根项目写成 `.root.json`），所以两个项目绝不会共用一个：上下文；它的聚合，带着它们的命令、事件、生命周期命令、查询模型和定时；它的订阅，带着每个订阅派生、定时和调用的东西；它发布的事件流和错误码。在 Gradle 插件用按 Jackson 规则得出的 JSON Schema（包括查询关键字）补全之前，其中的类型 schema 都是引用。它接下来会怎样，见 [Manifest 与兼容](./manifest)。
 
 ## api 模块的契约代码 {#the-contract-code-of-the-api-module}
 

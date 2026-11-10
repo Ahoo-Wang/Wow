@@ -90,6 +90,13 @@ class Manifest @InternalWowApi constructor(
         /** Where a module's fragment lives on the classpath: `META-INF/wow/manifest/<module>.json`. */
         const val FRAGMENT_DIRECTORY: String = "META-INF/wow/manifest"
 
+        /**
+         * Where a module registers, beside its fragment, the model provider the compiler generates, for `ServiceLoader`:
+         * a resource's name both the compiler, which writes it, and the service's merge, which reads it, use.
+         */
+        @InternalWowApi
+        const val MODEL_PROVIDERS: String = "META-INF/services/me.ahoo.wow.kernel.ModelProvider"
+
         private const val DEFS_PREFIX = "#/\$defs/"
 
         /** The reference to the schema [key] of `$defs`. */
@@ -813,19 +820,3 @@ class FunctionManifest @InternalWowApi constructor(
 
 /** The kinds of `me.ahoo.wow.api.result.FunctionKind` a Manifest names. */
 enum class FunctionKind { COMMAND, PROJECT, REACT, SAGA }
-
-/**
- * A fragment and where it was read from, for the messages of [ManifestMerger].
- *
- * Fields may be added: pass the constructor's arguments by name.
- */
-class ManifestFragment @InternalWowApi constructor(val source: String, val manifest: Manifest) {
-    override fun equals(other: Any?): Boolean =
-        this === other || other is ManifestFragment && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String = "ManifestFragment(source=$source, manifest=$manifest)"
-
-    private fun valueFields(): List<Any?> = listOf(source, manifest)
-}

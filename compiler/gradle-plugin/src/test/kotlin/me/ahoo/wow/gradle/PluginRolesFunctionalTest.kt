@@ -145,7 +145,8 @@ class PluginRolesFunctionalTest {
         manifest.contexts.single().aggregates.single().name.assert().isEqualTo("account")
         File(root, "build/wow/openapi.json").isFile.assert().isTrue()
         ZipFile(File(root, "build/libs/bank.jar")).use { jar ->
-            jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/bank.json").assert().isNotNull()
+            // The root project's fragment: a name no project takes, whatever the checkout is called.
+            jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/${WowPlugin.ROOT_FRAGMENT}.json").assert().isNotNull()
         }
         // No api module of its own: the contract of its context, for an api module to carry once it splits one out.
         ManifestJson.read(File(root, "build/wow/contract.json")).let { contract ->

@@ -100,9 +100,9 @@ import tools.jackson.databind.json.JsonMapper
  * ([ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
  * under its bounded context, with schemas left as references for the build to fill in. The KSP option
  * `wow.context` names the context (else the module's one `@BoundedContext` does; with neither, no fragment is
- * written), and `wow.manifest.module` names the file (else the context does). Beside the fragment goes the module's
- * binding index ([ModelProviderSource]): a `ModelProvider` that builds every model of the module with
- * the factories' parameters from the host's `Dependencies`, registered in `META-INF/services` for `ServiceLoader`.
+ * written), and `wow.manifest.module` names the file, a path that may hold `/`, else the context does. Beside the
+ * fragment goes the module's binding index ([ModelProviderSource]): a `ModelProvider` that builds every model of the
+ * module with the factories' parameters from the host's `Dependencies`, registered for `ServiceLoader`.
  *
  * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles: the generated
  * model calls `lifecycle(...)` with them before `configure`, and the fragment lists them.
@@ -576,7 +576,7 @@ internal class ModelSymbolProcessor(
     /**
      * Writes the module's binding index ([ModelProviderSource]) beside its fragment, with the handlers
      * of its subscription processors, and registers it for `ServiceLoader` in
-     * `META-INF/services/me.ahoo.wow.kernel.ModelProvider`.
+     * [Manifest.MODEL_PROVIDERS].
      */
     private fun writeModelProvider(context: String, fragment: String, module: String) {
         val packageName = ModelProviderSource.commonPackage(packages)
@@ -589,7 +589,7 @@ internal class ModelSymbolProcessor(
         }
         codeGenerator.createNewFileByPath(
             dependencies,
-            "META-INF/services/${ModelProviderSource.MODEL_PROVIDER}",
+            Manifest.MODEL_PROVIDERS,
             "",
         ).bufferedWriter().use {
             it.write((if (packageName.isEmpty()) className else "$packageName.$className") + "\n")
