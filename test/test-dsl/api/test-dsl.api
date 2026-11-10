@@ -52,7 +52,7 @@ public final class me/ahoo/wow/test/AggregateSpec {
 	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Caller;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
-public final class me/ahoo/wow/test/AggregateSpecKt {
+public final class me/ahoo/wow/test/AggregateSpecsKt {
 	public static final field ANOTHER_AGGREGATE Ljava/lang/String;
 	public static final field DEFAULT_TENANT Ljava/lang/String;
 	public static final fun aggregateSpec (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;)V
