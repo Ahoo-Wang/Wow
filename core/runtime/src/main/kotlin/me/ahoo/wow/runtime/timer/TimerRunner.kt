@@ -175,10 +175,8 @@ class TimerRunner(
         synchronized(part) {
             while (true) {
                 val timer = part.take(now) ?: break
-                if (!part.sending.add(timer.id)) {
-                    part.permits.release()
-                    continue
-                }
+                // Never one being sent already: [load] and [offer] keep those out of the wheel.
+                part.sending += timer.id
                 part.fired()
                 part.scope.launch {
                     try {
