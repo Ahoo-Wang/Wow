@@ -756,7 +756,10 @@ src/
       ViewManager.tsx         — Rename, delete, reorder and the default view, from the sidebar; the dataset's wording beside them
       ViewManagerRow.tsx      — One managed view: drag handle, rename in place, default, move of audience, publish as a system view (D81), delete
     messages/                 — the catalogue, one file per prefix family
-      analysis.ts             — the analysis editor and its charts, with the two kernels behind them
+      analysis.ts             — the analysis editor and the analysis kernel (`label.analysis.*`, `analysis.*`), with the date units, parts and group types it names
+      chart.ts                — a chart's settings in the analysis editor (`label.chart.*`): which chart, its slots, legend, labels, axes, references and each family's options
+      chartReading.ts         — what a drawn chart and a metric card say about the data: the chart in one sentence and as a table, a period under way, a filled value or a gap, a card's period and change
+      chartIssues.ts          — what the chart kernels report (`chart.*` issue codes)
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
       capabilities.ts         — a source's capability descriptor read against a definition (`capability.*`), worded for whoever wrote the release
       actions.ts              — declared actions: the row's menu, the selection's count, the default question, the refused and 「只选能做的」, the engine's own reasons
