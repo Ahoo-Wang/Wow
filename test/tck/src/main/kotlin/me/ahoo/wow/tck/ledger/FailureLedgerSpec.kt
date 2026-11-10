@@ -260,7 +260,7 @@ abstract class FailureLedgerSpec {
     @Test
     fun `a claim, schedule or take read before another write never applies after it, the entry due again`(): Unit =
         runBlocking {
-            // D404: each of these writes changes what the owner read, a retry state or where and why it is parked.
+            // Each of these writes changes what the owner read, a retry state or where and why it is parked.
             unconditionalWrites(ref("w")).forEach { (name, write) ->
                 ledger.resolve(subscription, ref("w"))
                 ledger.park(entry(ref("w"), 5))
@@ -479,7 +479,7 @@ abstract class FailureLedgerSpec {
 
     @Test
     fun `every amendment is classified, as conditional on a revision read or as an unconditional write`() {
-        // D404: a new amendment must say which it is, so the contract above covers it.
+        // A new amendment must say which it is, so the contract above covers it.
         (operatorAmendments() + conditionalAmendments(0)).map { it::class }.toSet().assert()
             .isEqualTo(ParkedAmendment::class.sealedSubclasses.toSet())
         conditionalAmendments(0).forEach { classified(it).assert().isTrue() }
