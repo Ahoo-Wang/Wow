@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -43,6 +44,7 @@ import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -57,6 +59,10 @@ class CommandTransformerTest {
     data class Note(val text: String = "")
     data class Registered(val username: String)
     data class PasswordChanged(val password: String)
+    data class OpenLedger(val owner: String)
+    data class LedgerOpened(val owner: String)
+
+    class Ledger
 
     class Account {
         var password: String? = null
@@ -81,6 +87,16 @@ class CommandTransformerTest {
         mount<Note>()
         evolve<Registered> { }
         evolve<PasswordChanged> { password = it.password }
+    }
+
+    /** A ledger, an aggregate type whose tenant a test fixes, which a registration may become. */
+    private val ledger: AggregateModel<Ledger> = aggregate(CONTEXT, "ledger") {
+        initial { Ledger() }
+        decide<OpenLedger>(Creation.REQUIRED) { _, body ->
+            decided += command
+            Decision.events(LedgerOpened(body.owner))
+        }
+        evolve<LedgerOpened> { }
     }
 
     private val reservations = InMemoryReservationStore()
@@ -127,10 +143,12 @@ class CommandTransformerTest {
         authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
         models: List<AggregateModel<*>> = listOf(account),
         ids: IdGenerators = IdGenerators.DEFAULT,
+        tenants: TenantPolicy = TenantPolicy.CALLERS,
     ) = CommandGateway(
         ModelRegistry(models),
         mapOf(CONTEXT to coordinator),
         ids = ids,
+        tenants = tenants,
         authorizer = CommandAuthorizer { caller, action ->
             actions += action
             authorizer.authorize(caller, action)
@@ -287,6 +305,33 @@ class CommandTransformerTest {
         result.error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         result.transformedFrom.assert().isNull()
     }
+
+    @Test
+    fun `a result whose aggregate type fixes another tenant than the request's target is malformed`(): Unit =
+        runBlocking {
+            val toLedger = transformer(register) { input ->
+                CommandTarget(
+                    ledger.commandType(OpenLedger::class.java),
+                    "l-1",
+                    OpenLedger((input.body as Register).username)
+                )
+            }
+            val gateway = gateway(
+                transformers = listOf(byUsername, importer, callbacks, notes, toLedger),
+                models = listOf(account, ledger),
+                tenants = TenantPolicy { if (it == ledger.type) "ledgers" else null },
+            )
+            val elsewhere = request("Register", """{"username":"gina"}""")
+                .copyWith(caller = alice.copyWith(crossScope = true), target = TargetScope("other", Scope("alice")))
+            val result = gateway.execute(elsewhere)
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            result.error!!.message.assert().isEqualTo(
+                "The tenant of shop.ledger is fixed to ledgers; the request names other."
+            )
+            result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.Register"))
+            decided.assert().isEmpty()
+        }
 
     @Test
     fun `a result no aggregate decides is unhandled`(): Unit = runBlocking {
