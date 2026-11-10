@@ -77,7 +77,7 @@ class PostgresSnapshotSqlCompilerTest {
                 "FROM \"wow_snapshot__shop__order\" WHERE (tenant_id = ? AND " +
                 "(((CASE WHEN jsonb_typeof((state #> '{name}')) = 'string' THEN state #>> '{name}' END) COLLATE \"C\") = ?)) " +
                 "ORDER BY (CASE WHEN jsonb_typeof((state #> '{amount}')) = 'number' THEN (state #>> '{amount}')::numeric END) " +
-                "DESC NULLS LAST, aggregate_id DESC, tenant_id DESC LIMIT ?",
+                "DESC NULLS LAST, tenant_id DESC, aggregate_id DESC LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
             SqlParameter.Text("t"),
