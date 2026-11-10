@@ -20,13 +20,15 @@ package me.ahoo.wow.api.annotation
  * its caller as it admits a query's, so it is a route of the service's contract like any other.
  *
  * The function is a `suspend` member of a class the host provides (a bean). Its parameters bind by kind:
- * - a parameter named as a variable of [path] (`{id}`) binds that path segment: a `String`, a number or an enum;
+ * - a parameter named as a variable of [path] (`{id}`) binds that path segment: a `String`, an `Int`, a `Long`, a
+ *   `Double`, a `Boolean` or an enum;
  * - a [RouteQuery] parameter binds the query parameter of its name: nullable when it is optional;
  * - a `me.ahoo.wow.api.route.RouteCall` parameter is the call: the admitted caller, its scope and the commands it
  *   may send;
  * - the one other parameter, on a `POST`, `PUT` or `PATCH`, is the request body.
  *
- * The return type is the response, written as JSON; `Unit` answers `204 No Content`. A body and a response are a
+ * The return type is the response, written as JSON; `Unit` answers `204 No Content`, and so does a nullable return
+ * type when the function returns `null`, which the Manifest marks `responseOptional`. A body and a response are a
  * class of their own, or a `List`, a `Set` or a `Collection` of one; a map, a scalar, a bare `JsonNode` or a stream
  * (a `Flow`, a `Publisher`) fails the compilation. A Jackson `ObjectNode`, a JSON object of any shape, is for a route
  * that relays a body it does not own, such as another service's command: a route of your own takes a class, so its
@@ -37,8 +39,9 @@ package me.ahoo.wow.api.annotation
  * @param path the path below the context, `system-views/{id}`: its variables in braces, no reserved segment.
  * @param name the route's name in the Manifest, its identity for compatibility and its generated client's method;
  *   the function's name when empty.
- * @param errors the codes the route refuses with, each an `@ErrorCode` of the module; a constant code the handler
- *   throws that is not listed fails the compilation.
+ * @param errors the codes the route refuses with, each a full code (`context.code`) of an `@ErrorCode` of the
+ *   module; the service's merged Manifest refuses one its context does not declare. A code the handler throws that
+ *   is not listed is still answered, and logged once.
  */
 @Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented

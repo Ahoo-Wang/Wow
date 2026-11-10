@@ -32,6 +32,7 @@ import me.ahoo.wow.example.eshop.catalog.api.product.ProductStateView
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
+import me.ahoo.wow.example.eshop.catalog.domain.product.Storefront
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
@@ -135,6 +136,29 @@ class CatalogEndToEndTest {
     }
 
     /**
+     * Over HTTP: the storefront's service routes answer a listing as JSON, none as `204 No Content` while the product
+     * is not published, and a refusal as an RFC 9457 problem with its code's status.
+     */
+    @Test
+    fun `the storefront should answer a listing, none or a refusal`() {
+        val catalog = catalog()
+        val brand = send { catalog.wait(CreateBrand(unique("Brand"))) }.ref.id
+        val category = send { catalog.wait(CreateCategory(unique("Cups"))) }.ref.id
+        val id = send { catalog.wait(CreateProduct("Wow cup", BigDecimal("4.00"), "", brand, category)) }.ref.id
+        server.http.get("/eshop-catalog/listings/$id").let { answer ->
+            answer.status.assert().isEqualTo(NO_CONTENT)
+            answer.text.assert().isEmpty()
+        }
+        send { catalog.wait(PublishProduct, id) }
+        val listing = server.http.get("/eshop-catalog/listings/$id").body!!
+        listing["price"].decimalValue().assert().isEqualByComparingTo("4.00")
+        server.http.get("/eshop-catalog/categories/$category/listings?limit=0").problem!!.let { refused ->
+            refused.status.assert().isEqualTo(BAD_REQUEST)
+            refused.code.assert().isEqualTo(Storefront.Refusals.LIMIT_OUT_OF_RANGE)
+        }
+    }
+
+    /**
      * Over HTTP: the snapshot rebuild's command class (`RebuildSnapshot`, of `:spi`) is internal to Wow, which an
      * application does not opt in to, so the test sends it to its route.
      */
@@ -174,6 +198,8 @@ class CatalogEndToEndTest {
     }
 
     private companion object {
+        const val NO_CONTENT = 204
+        const val BAD_REQUEST = 400
         const val CONFLICT = 409
         const val BRAND_NAME_TAKEN = "eshop-catalog.brand.name-taken"
     }

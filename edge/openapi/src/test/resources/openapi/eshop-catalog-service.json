@@ -3985,6 +3985,156 @@
           }
         }
       }
+    },
+    "/eshop-catalog/categories/{categoryId}/listings" : {
+      "get" : {
+        "tags" : [ "eshop-catalog" ],
+        "summary" : "categoryListings",
+        "description" : "The published products of categoryId, cheapest first: limit of them, 20 when it is not given.",
+        "operationId" : "eshop-catalog.categoryListings",
+        "parameters" : [ {
+          "name" : "categoryId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The route's answer.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.ProductListing"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.403"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.409"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.422"
+          }
+        },
+        "x-wow-route" : {
+          "name" : "categoryListings",
+          "errors" : [ "eshop-catalog.limit-out-of-range" ]
+        }
+      }
+    },
+    "/eshop-catalog/listings/{id}" : {
+      "get" : {
+        "tags" : [ "eshop-catalog" ],
+        "summary" : "listing",
+        "description" : "The product id as the storefront shows it; none (`204 No Content`) while it is not published.",
+        "operationId" : "eshop-catalog.listing",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The route's answer.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.ProductListing"
+                }
+              }
+            }
+          },
+          "204" : {
+            "description" : "The route answers no body."
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.route.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.route.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.route.403"
+          }
+        },
+        "x-wow-route" : {
+          "name" : "listing"
+        }
+      }
+    },
+    "/eshop-catalog/quotes" : {
+      "post" : {
+        "tags" : [ "eshop-catalog" ],
+        "summary" : "quote",
+        "description" : "The price of request's lines, each at its product's price; refused when one is not on the storefront.",
+        "operationId" : "eshop-catalog.quote",
+        "requestBody" : {
+          "required" : true,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "The route's answer.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.Quote"
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.403"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.409"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-catalog.route.422"
+          }
+        },
+        "x-wow-route" : {
+          "name" : "quote",
+          "errors" : [ "eshop-catalog.not-on-sale", "eshop-catalog.quantity-not-positive" ]
+        }
+      }
     }
   },
   "components" : {
@@ -5504,6 +5654,31 @@
         "required" : [ "reason" ],
         "description" : "A product was discontinued for good"
       },
+      "me.ahoo.wow.example.eshop.catalog.api.product.ProductListing" : {
+        "type" : "object",
+        "properties" : {
+          "brandId" : {
+            "type" : [ "string", "null" ]
+          },
+          "categoryId" : {
+            "type" : [ "string", "null" ]
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number",
+            "format" : "decimal"
+          }
+        },
+        "required" : [ "description", "id", "name", "price" ]
+      },
       "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
         "type" : "object",
         "properties" : {
@@ -5545,6 +5720,62 @@
       "me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct" : {
         "type" : "object",
         "description" : "Publish a product"
+      },
+      "me.ahoo.wow.example.eshop.catalog.api.product.Quote" : {
+        "type" : "object",
+        "properties" : {
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "amount" : {
+                  "type" : "number",
+                  "format" : "decimal"
+                },
+                "productId" : {
+                  "type" : "string"
+                },
+                "quantity" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                },
+                "unitPrice" : {
+                  "type" : "number",
+                  "format" : "decimal"
+                }
+              },
+              "required" : [ "amount", "productId", "quantity", "unitPrice" ]
+            }
+          },
+          "total" : {
+            "type" : "number",
+            "format" : "decimal"
+          }
+        },
+        "required" : [ "lines", "total" ]
+      },
+      "me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "productId" : {
+                  "type" : "string"
+                },
+                "quantity" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "required" : [ "productId", "quantity" ]
+            }
+          }
+        },
+        "required" : [ "lines" ]
       },
       "me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct" : {
         "type" : "object",
@@ -5912,7 +6143,7 @@
         }
       },
       "eshop-catalog.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5920,7 +6151,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid", "wow.route.malformed" ]
+        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid", "wow.route.malformed", "eshop-catalog.limit-out-of-range", "eshop-catalog.quantity-not-positive" ]
       },
       "eshop-catalog.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -5966,7 +6197,7 @@
         }
       },
       "eshop-catalog.command.409" : {
-        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.\n`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.\n`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5974,7 +6205,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused", "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused", "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.not-on-sale", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
       },
       "eshop-catalog.command.410" : {
         "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",
@@ -6465,6 +6696,93 @@
           }
         },
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "eshop-catalog.route.400" : {
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.limit-out-of-range", "eshop-catalog.quantity-not-positive" ]
+      },
+      "eshop-catalog.route.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "eshop-catalog.route.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
+      },
+      "eshop-catalog.route.409" : {
+        "description" : "`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.not-on-sale", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
+      },
+      "eshop-catalog.route.422" : {
+        "description" : "A rejection by the domain, with the code it chose; the problem carries the command's result.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.route.400" : {
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.route.malformed" ]
+      },
+      "wow.route.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.route.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       }
     },
     "parameters" : {

@@ -197,6 +197,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 - 目标: `FUNCTION`
 - 参数: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
+- 指南: [服务路由](../guide/service-routes)
 
 ## `@Summary`
 

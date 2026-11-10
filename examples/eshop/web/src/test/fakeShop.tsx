@@ -27,11 +27,13 @@ export interface Received {
 }
 
 /**
- * An answer: a JSON body with its status, a server-sent event stream of
- * results, or such a stream as a service wrote it, byte for byte.
+ * An answer: a JSON body with its status, none (`204 No Content`), a
+ * server-sent event stream of results, or such a stream as a service wrote
+ * it, byte for byte.
  */
 export type Answer =
   | { readonly status?: number; readonly json: unknown }
+  | { readonly noContent: true }
   | { readonly events: readonly CommandResult[] }
   | { readonly stream: string };
 
@@ -64,6 +66,7 @@ export function fakeServices(routes: Route[]) {
     );
     if (!route) return problem(404, "Not Found", "wow.route.not-found");
     const answer = route[2](request);
+    if ("noContent" in answer) return new Response(null, { status: 204 });
     if ("stream" in answer) {
       return new Response(answer.stream, {
         status: 200,

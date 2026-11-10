@@ -197,6 +197,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 - Targets: `FUNCTION`
 - Parameters: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
+- Guide: [Service Routes](../guide/service-routes)
 
 ## `@Summary`
 

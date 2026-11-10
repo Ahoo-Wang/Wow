@@ -175,6 +175,8 @@ curl -s -X POST localhost:8081/eshop-catalog/product/snapshot/query -H 'Content-
 
 `GET` on the same path answers the model's descriptor: its fields and their operators. The guide does not describe the filter language yet ([G15](DX-GAPS.md)).
 
+The catalog also serves service routes of its own code, `Storefront` (`@ServiceRoute`, [Service Routes](https://wow.ahoo.me/guide/service-routes)): `GET /eshop-catalog/listings/{id}`, a published product as a shopper sees it, `204 No Content` for any other; `GET /eshop-catalog/categories/{categoryId}/listings?limit=`, a category's published products, cheapest first; and `POST /eshop-catalog/quotes`, the price of a basket's lines. The web app's generated client calls them as `catalog.routes`.
+
 ## Running
 
 Use JDK 21. Start a service from the repository root. Each one runs on the memory backend by default, on its own public port and its own internal (cluster) port:

@@ -48,6 +48,8 @@ const FRAMEWORK_ERRORS_SNAPSHOT =
 const QUERY_ERROR_CODES =
   'api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt';
 const ANNOTATIONS = 'api/api/src/main/kotlin/me/ahoo/wow/api/annotation';
+/** The guide's page of an annotation, by its name, when the guide has one of its own. */
+const GUIDES = { ServiceRoute: 'service-routes' };
 const MANIFEST_TREE =
   'api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt';
 const BUILD = 'build.gradle.kts';
@@ -91,6 +93,8 @@ const WORDS = {
       targets: 'Targets',
       parameters: 'Parameters',
       none: 'None.',
+      guide: 'Guide',
+      guides: { 'service-routes': 'Service Routes' },
     },
     modules: {
       title: 'Modules and Artifacts',
@@ -169,6 +173,8 @@ const WORDS = {
       targets: '目标',
       parameters: '参数',
       none: '无。',
+      guide: '指南',
+      guides: { 'service-routes': '服务路由' },
     },
     modules: {
       title: '模块与制品',
@@ -528,8 +534,10 @@ export function annotationsPage(locale, annotations) {
           )
           .join(', ') || words.none
       }`,
-      '',
     );
+    const guide = GUIDES[annotation.name];
+    if (guide) body.push(`- ${words.guide}: [${words.guides[guide]}](../guide/${guide})`);
+    body.push('');
   }
   return page(locale, words.title, words.description, ANNOTATIONS, body);
 }

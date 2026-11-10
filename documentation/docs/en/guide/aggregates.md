@@ -365,6 +365,21 @@ fun onSourcing(event: OrderSubmitted) {
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
 - A member marked `@Access` is one of the aggregate's access attributes, which its access policy compares with the caller's claims ([Declare access attributes](./ownership#declare-access-attributes)).
 
+### Construct the initial state
+
+The generated model builds an aggregate's state, before its first event, with the state class's constructor: its primary one, a Java class's first. The compiler takes four shapes and refuses any other:
+
+| The constructor | The state is built |
+| --- | --- |
+| `()` | With no argument. Recommended: the aggregate's id and tenant are in its ref and its event streams, not in its state |
+| Parameters that all have default values | With no argument: each parameter keeps its default |
+| `(id: String)`, with no default | With the aggregate's id |
+| `(id: String, tenantId: String)`, with no default | With the aggregate's id and its tenant |
+
+- The id and the tenant are passed by position, whatever the parameters are named.
+- A parameter with a default does not receive the id: `(id: String = "")` is a constructor whose parameters all have defaults, so the state starts with `""`. Give `id` no default for the state to receive it. Take the id only when the domain cannot work without it.
+- A root that is its own state, with no state class beside it, is built the same way.
+
 ### Read the commit
 
 A sourcing function may take, after its event, the commit the event belongs to: an `EventStream`, with the commit time, the operator, the version and the command's ids, as the log records them. The kernel gives the same commit when it decides and when it replays, from the log or from a snapshot and the streams after it, so a state rebuilt later is the same state. A state that keeps a time reads it from the commit, never from a clock:
