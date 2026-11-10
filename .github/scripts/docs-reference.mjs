@@ -536,7 +536,10 @@ export function annotationsPage(locale, annotations) {
       }`,
     );
     const guide = GUIDES[annotation.name];
-    if (guide) body.push(`- ${words.guide}: [${words.guides[guide]}](../guide/${guide})`);
+    if (guide)
+      body.push(
+        `- ${words.guide}: [${words.guides[guide]}](../guide/${guide})`,
+      );
     body.push('');
   }
   return page(locale, words.title, words.description, ANNOTATIONS, body);

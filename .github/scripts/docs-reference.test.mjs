@@ -177,9 +177,15 @@ test('an annotation the guide explains links its page, in each locale', () => {
     annotation: { name, summary: 'A marker.', targets: [], parameters: [] },
   }));
   const en = annotationsPage('en', annotations);
-  assert.match(en, /- Guide: \[Service Routes\]\(\.\.\/guide\/service-routes\)/);
+  assert.match(
+    en,
+    /- Guide: \[Service Routes\]\(\.\.\/guide\/service-routes\)/,
+  );
   assert.equal(en.match(/- Guide:/g).length, 1);
-  assert.match(annotationsPage('zh', annotations), /- 指南: \[服务路由\]\(\.\.\/guide\/service-routes\)/);
+  assert.match(
+    annotationsPage('zh', annotations),
+    /- 指南: \[服务路由\]\(\.\.\/guide\/service-routes\)/,
+  );
 });
 
 test('the committed reference pages are what their sources give', () => {

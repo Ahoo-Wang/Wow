@@ -104,9 +104,9 @@ suspend fun quote(call: RouteCall, request: QuoteRequest): Quote {
     val lines = request.lines.map { line ->
         if (line.quantity < 1) {
             throw RouteRefusal(
-            Refusals.QUANTITY_NOT_POSITIVE,
-            "Product [${line.productId}] is quoted ${line.quantity}.",
-        )
+                Refusals.QUANTITY_NOT_POSITIVE,
+                "Product [${line.productId}] is quoted ${line.quantity}.",
+            )
         }
         val product = products.state(line.productId)?.state?.takeIf { it.status == ProductStatus.PUBLISHED }
             ?: throw RouteRefusal(Refusals.NOT_ON_SALE, "Product [${line.productId}] is not on the storefront.")
