@@ -43,7 +43,7 @@ internal class RequestCheck(
     decider: DecideFunction<*>,
     private val command: Command<*>,
     lease: ExecutionLease?,
-    /** Who the command may reach: a duplicate is answered within it ([me.ahoo.wow.kernel.duplicate]). */
+    /** Who the command may reach: a duplicate is answered within it ([duplicate]). */
     val reach: CommandReach,
     private val commandType: CommandType,
     private val codec: EventCodec,
@@ -74,7 +74,7 @@ internal class RequestCheck(
     suspend fun lookUp(): CommandOutcome? {
         val existing = log.findByRequestId(command.ref, command.requestId)
         lookedUp = existing == null
-        return existing?.let { duplicate(it) }
+        return existing?.let { duplicateOf(it) }
     }
 
     /**
@@ -86,7 +86,7 @@ internal class RequestCheck(
         val collided = loaded.recentVersionOf(command.requestId)?.let { version ->
             val existing = log.read(command.ref, version, version).firstOrNull()
             if (existing?.requestId == command.requestId) {
-                return answered(loaded, duplicate(existing))
+                return answered(loaded, duplicateOf(existing))
             }
             true
         } ?: false
@@ -98,11 +98,8 @@ internal class RequestCheck(
     }
 
     /** The answer to the command when [existing] committed its request: a duplicate, or a refusal. */
-    fun duplicateOf(existing: EventStreamRecord): CommandOutcome = duplicate(existing)
-
-    /** The answer to the command when [existing] committed its request, within its [reach]. */
-    private fun duplicate(existing: EventStreamRecord): CommandOutcome =
-        me.ahoo.wow.kernel.duplicate(existing, command, commandType, reach, codec)
+    fun duplicateOf(existing: EventStreamRecord): CommandOutcome =
+        duplicate(existing, command, commandType, reach, codec)
 
     /**
      * [outcome], a refusal decided on [loaded] once its events evolved the state, which may have changed it in place:
