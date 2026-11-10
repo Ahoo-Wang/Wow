@@ -42,12 +42,11 @@ export class PreferenceCache {
    * it answers the cached one instead, and the next reorder does not start
    * from a revision already gone.
    */
-  async read(
+  read(
     definitionId: string,
     options: ReadOptions = {},
   ): Promise<ViewPreferences> {
-    const ticket = this.generations.issue(definitionId);
-    try {
+    return this.generations.run(definitionId, async ticket => {
       const preferences = await this.store.getPreferences(
         definitionId,
         options,
@@ -56,9 +55,7 @@ export class PreferenceCache {
       if (!this.generations.admit(ticket) && newer) return newer;
       this.cache.set(definitionId, preferences);
       return preferences;
-    } finally {
-      this.generations.release(ticket);
-    }
+    });
   }
 
   /** Remembers preferences a write has just confirmed. */

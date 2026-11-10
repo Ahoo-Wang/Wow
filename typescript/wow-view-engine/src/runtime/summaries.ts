@@ -101,13 +101,12 @@ export class SummaryCache {
    * as it came, the next rename went out against a revision this engine had
    * itself moved past and was refused as a conflict nobody caused (#5545).
    */
-  async listing<T extends { stored: ViewInstanceSummary[] }>(
+  listing<T extends { stored: ViewInstanceSummary[] }>(
     definitionId: string,
     declared: readonly ViewInstanceSummary[],
     read: () => Promise<T>,
   ): Promise<Omit<T, 'stored'> & { items: ViewInstanceSummary[] }> {
-    const ticket = this.generations.issue(`list\u0000${definitionId}`);
-    try {
+    return this.generations.run(`list\u0000${definitionId}`, async ticket => {
       const { stored, ...told } = await read();
       const items = [...declared, ...stored].flatMap(summary => {
         if (this.generations.admit(ticket, summary.id)) {
@@ -118,9 +117,7 @@ export class SummaryCache {
         return known ? [known] : [];
       });
       return { items, ...told };
-    } finally {
-      this.generations.release(ticket);
-    }
+    });
   }
 
   /** Remembers the instance a write has just confirmed, as its summary. */

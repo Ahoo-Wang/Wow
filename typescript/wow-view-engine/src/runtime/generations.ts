@@ -80,10 +80,15 @@ export class Generations<K> {
     return true;
   }
 
-  /** Whether `ticket` is still the last operation started for its key. */
+  /**
+   * Whether `ticket` is still the last operation started for its key. Asked
+   * while the operation is in flight: a ticket already released answers
+   * `false`, whatever was started since — it is no operation's any more.
+   */
   latest(ticket: Ticket<K>): boolean {
     return (
-      (this.marks.get(ticket.key)?.issued ?? ticket.stamp) === ticket.stamp
+      this.inFlight.has(ticket.stamp) &&
+      this.marks.get(ticket.key)?.issued === ticket.stamp
     );
   }
 
@@ -98,6 +103,23 @@ export class Generations<K> {
   /** An intent of nothing for `key` — a cancel: no operation started before it is the latest. */
   supersede(key: K): void {
     this.mark(key, 'issued');
+  }
+
+  /**
+   * Runs `operation` with a ticket for `key`, issued now and released when
+   * it settles, however it settles: the pairing a caller could otherwise
+   * forget, and a forgotten release keeps its key's marks for good.
+   */
+  async run<T>(
+    key: K,
+    operation: (ticket: Ticket<K>) => Promise<T>,
+  ): Promise<T> {
+    const ticket = this.issue(key);
+    try {
+      return await operation(ticket);
+    } finally {
+      this.release(ticket);
+    }
   }
 
   /** `ticket`'s operation is over, whether its answer landed, failed or was dropped. */

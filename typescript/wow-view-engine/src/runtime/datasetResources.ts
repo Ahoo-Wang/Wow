@@ -205,8 +205,11 @@ export class DatasetResources {
   private readonly worded = new Map<string, string>();
   /** Which refresh is in force, and which wording read a save overtook (`Generations`). */
   private readonly generations = new Generations<string>();
-  /** The refresh in force, which an overtaken one answers with. */
-  private inForceRun: Promise<DatasetRefresh> | null = null;
+  /**
+   * The refresh in force, which an overtaken one answers with: set by every
+   * refresh as it starts, so always before one can be overtaken.
+   */
+  private inForceRun!: Promise<DatasetRefresh>;
   /** The wording each catalog's store held when it was last read (`DatasetCatalog.wordings`). */
   private stored: ReadonlyMap<
     number,
@@ -255,21 +258,20 @@ export class DatasetResources {
    * abort.
    */
   async refresh(options: ReadOptions = {}): Promise<DatasetRefresh> {
-    const ticket = this.generations.issue(REFRESH);
-    const running = this.run(options, ticket);
-    this.inForceRun = running;
     try {
-      return await running;
+      return await this.generations.run(REFRESH, ticket => {
+        const running = this.refreshAs(options, ticket);
+        this.inForceRun = running;
+        return running;
+      });
     } catch (error) {
       if (error instanceof Overtaken) return this.inForceRun;
       throw error;
-    } finally {
-      this.generations.release(ticket);
     }
   }
 
   /** One refresh, which writes only while it is the one in force (`inForce`). */
-  private async run(
+  private async refreshAs(
     options: ReadOptions,
     ticket: Ticket<string>,
   ): Promise<DatasetRefresh> {
