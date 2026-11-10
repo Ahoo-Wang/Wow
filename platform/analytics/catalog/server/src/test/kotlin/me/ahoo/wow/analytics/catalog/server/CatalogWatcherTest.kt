@@ -83,7 +83,7 @@ class CatalogWatcherTest {
     @Test
     fun `a table is synced until its SyncSource succeeds, as the catalog administrator`(): Unit = runBlocking {
         val commands = Commands()
-        val watcher = CatalogWatcher(catalog, { commands }, Duration.ofSeconds(1))
+        val watcher = CatalogWatcher(catalog, { commands }, Duration.ofSeconds(1), NONE)
         watcher.look().assert().isEqualTo(1)
         sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("ok", "bad", "down")
         sent.all { it.first == CatalogWatcher.CALLER }.assert().isTrue()
@@ -109,10 +109,63 @@ class CatalogWatcherTest {
             override suspend fun tables(database: String): List<WarehouseTableInfo> =
                 listOf(WarehouseTableInfo("ok", "u-ok", "MergeTree", "2026-10-20 10:00:00", fingerprint))
         }
-        val watcher = CatalogWatcher(altered, { commands }, Duration.ofSeconds(1))
+        val watcher = CatalogWatcher(altered, { commands }, Duration.ofSeconds(1), NONE)
         watcher.look().assert().isEqualTo(1)
         watcher.look().assert().isEqualTo(0)
         fingerprint = "f-2"
         watcher.look().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a table dropped while the catalog was down is synced at the first look after it starts`(): Unit =
+        runBlocking {
+            val commands = Commands().apply { down = false }
+            var listed = listOf("ok", "orders")
+            val warehouse = object : WarehouseCatalog by WarehouseCatalog.NONE {
+                override val connection: String = "ch"
+                override val databases: List<String> = listOf("db")
+
+                override suspend fun tables(database: String): List<WarehouseTableInfo> =
+                    listed.map { WarehouseTableInfo(it, "u-$it", "MergeTree", "0") }
+            }
+            // The catalog holds both sources: the first process synced them.
+            val held = mutableListOf<Pair<String, String>>()
+            val sources = CatalogSources { connection, database ->
+                held += connection to database
+                setOf("ok", "orders")
+            }
+            CatalogWatcher(warehouse, { commands }, Duration.ofSeconds(1), sources).look().assert().isEqualTo(2)
+            // The table is dropped while no watcher runs; the next process's watcher syncs it, once.
+            listed = listOf("ok")
+            sent.clear()
+            held.clear()
+            val restarted = CatalogWatcher(warehouse, { commands }, Duration.ofSeconds(1), sources)
+            restarted.look().assert().isEqualTo(2)
+            sent.map { (it.second.command as SyncSource).table }.assert().containsExactlyInAnyOrder("ok", "orders")
+            sent.clear()
+            restarted.look().assert().isEqualTo(0)
+            restarted.look().assert().isEqualTo(0)
+            sent.assert().isEmpty()
+            // The sources the catalog holds are read once, at the first look of the database.
+            held.assert().containsExactly("ch" to "db")
+        }
+
+    @Test
+    fun `a dropped table whose sync failed is synced again at the next look`(): Unit = runBlocking {
+        val commands = Commands()
+        val warehouse = object : WarehouseCatalog by WarehouseCatalog.NONE {
+            override val connection: String = "ch"
+            override val databases: List<String> = listOf("db")
+        }
+        val watcher = CatalogWatcher(warehouse, { commands }, Duration.ofSeconds(1)) { _, _ -> setOf("down") }
+        watcher.look().assert().isEqualTo(0)
+        commands.down = false
+        watcher.look().assert().isEqualTo(1)
+        sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("down", "down")
+    }
+
+    private companion object {
+        /** A catalog that holds no source yet. */
+        val NONE = CatalogSources { _, _ -> emptySet() }
     }
 }

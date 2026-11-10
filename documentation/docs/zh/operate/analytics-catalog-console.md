@@ -36,7 +36,7 @@ description: 部署分析目录的控制台，让数据负责人登录，并用�
 | `analytics.catalog.admin` | 编辑者能做的一切，以及把数据源标记为已审查 |
 
 - **查看目录**需要这四个角色之一。四个都没有的调用者什么也读不到：它对数据源与数据集的查询以 403 `wow.auth.forbidden` 拒绝，控制台会说明。这保护的是控制面，即定义、列、保护与血缘，而不是数据集的行。
-- **目录自己的命令是内部命令**（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）：同步数据源（`SyncSource`）、重新编译数据集（`RecompileDataset`）、删除已下线数据集的视图（`DropDatasetViews`）。它们由目录的监视器、数据源变化后的重新编译和下线时安排的定时发送，公开端口对它们的路由答 `404`，对管理员也一样。监视器每隔 `wow.analytics.catalog.refresh-interval`（30 秒）同步清单有变化的每张表，节点启动时同步每张表，所以要手动同步整个目录，就重启一个节点。
+- **目录自己的命令是内部命令**（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）：同步数据源（`SyncSource`）、重新编译数据集（`RecompileDataset`）、删除已下线数据集的视图（`DropDatasetViews`）。它们由目录的监视器、数据源变化后的重新编译和下线时安排的定时发送，公开端口对它们的路由答 `404`，对管理员也一样。监视器每隔 `wow.analytics.catalog.refresh-interval`（30 秒）同步清单有变化的每张表，节点启动时同步每张表，也同步目录持有数据源、而仓库已不再列出的每张表（目录停机期间被删除的表此时标记为缺失），所以要手动同步整个目录，就重启一个节点。
 - **审批只属于审批者。** 管理员不能审批降低的保护、数据源或发布：这些是特权审查，与管理目录的人分开。
 - **由 CoSec 决定时**（`wow.cosec.authorizer.enabled: true`），它的策略决定每条命令，目录的角色什么也不决定。控制台无法预先读取策略，所以这时它提供每个操作，拒绝以服务的回答 `wow.auth.forbidden` 返回。
 

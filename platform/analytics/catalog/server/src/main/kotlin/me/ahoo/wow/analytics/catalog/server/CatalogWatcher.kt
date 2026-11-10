@@ -41,8 +41,9 @@ import java.time.Duration
  * `system.columns`: the time is in seconds, so an `ALTER` in the second of the last look shows only in the columns)
  * and when each last got a `wow_catalog` row, and
  * sends `SyncSource` for each table whose listing changed since it last looked, or that is gone: the source's
- * aggregate reads the table again and applies the trust rules. Its first look, at startup, syncs every table, which
- * changes nothing where nothing changed.
+ * aggregate reads the table again and applies the trust rules. Its first look of a database, at startup, syncs every
+ * table, which changes nothing where nothing changed, and every table the catalog holds a source of there ([sources])
+ * that the warehouse no longer lists: one dropped while the catalog was down is marked missing too.
  *
  * It sends through the node's [CommandClient] as [CALLER], a catalog administrator (`SyncSource` reads only what the warehouse says, so whoever sends
  * it changes nothing the warehouse does not). A failed look is logged and tried again at the next one.
@@ -51,8 +52,13 @@ class CatalogWatcher(
     private val catalog: WarehouseCatalog,
     private val commands: () -> CommandClient,
     private val interval: Duration,
+    private val sources: CatalogSources,
 ) : SmartLifecycle {
+    /** Each table's listing as of its last successful sync, by `<database>\u0000<table>`. */
     private val seen = HashMap<String, String>()
+
+    /** The databases whose sources the catalog holds were read into [seen]: once each, at their first look. */
+    private val reconciled = HashSet<String>()
     private var scope: CoroutineScope? = null
     private var job: Job? = null
 
@@ -60,9 +66,13 @@ class CatalogWatcher(
     suspend fun look(): Int {
         var synced = 0
         catalog.databases.forEach { database ->
+            if (database !in reconciled) {
+                sources.present(catalog.connection, database).forEach { seen.putIfAbsent(keyOf(database, it), HELD) }
+                reconciled += database
+            }
             val changes = catalog.catalogChanges(database)
             val now = catalog.tables(database).associate { table ->
-                "$database\u0000${table.name}" to
+                keyOf(database, table.name) to
                     "${table.uuid}|${table.modifiedAt}|${table.columns}|${changes[table.name].orEmpty()}"
             }
             val gone = seen.keys.filter { it.startsWith("$database\u0000") && it !in now }
@@ -76,6 +86,8 @@ class CatalogWatcher(
         }
         return synced
     }
+
+    private fun keyOf(database: String, table: String): String = "$database\u0000$table"
 
     /** Sends `SyncSource` of [database]'s [table]; whether it succeeded, so a failed one is sent again next time. */
     private suspend fun sync(database: String, table: String): Boolean {
@@ -124,6 +136,8 @@ class CatalogWatcher(
     override fun getPhase(): Int = SmartLifecycle.DEFAULT_PHASE
 
     companion object {
+        /** The listing of a table the catalog holds a source of and the watcher has not synced: no table's listing. */
+        private const val HELD = ""
 
         /** The catalog administrator the watcher sends as. */
         @JvmField
@@ -136,4 +150,12 @@ class CatalogWatcher(
 
         private val logger = KotlinLogging.logger {}
     }
+}
+
+/**
+ * The sources the catalog holds: the tables of [connection]'s [database] it holds a source of that it has not marked
+ * missing, which the watcher compares with what the warehouse lists when it starts.
+ */
+fun interface CatalogSources {
+    suspend fun present(connection: String, database: String): Set<String>
 }
