@@ -12,7 +12,7 @@ export class AnalyticsCatalogRoutes {
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.routes = new ServiceRoutes(options, { manifest: AnalyticsCatalogManifest });
+    this.routes = new ServiceRoutes(options, { manifest: AnalyticsCatalogManifest, textNumbers: { 'analytics-catalog.sendReferenceAction': { response: { signalTime: true } } } });
   }
 
   /**

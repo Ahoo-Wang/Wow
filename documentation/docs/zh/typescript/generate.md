@@ -158,6 +158,8 @@ CI 正是用这个 `tsconfig.json` 编译本页的代码。
 
 Kotlin 的 `Long`、`BigInteger` 或 `BigDecimal` 字段（schema 格式为 `int64`、`bigint` 或 `decimal`），在生成的类型中是 `string`，按服务写出的样子精确地保存数字；JavaScript 的 `number` 会对它们取整。线上仍然传输 JSON 数字：聚合的描述符列出这些字段，客户端从响应的文本中读取它们，并在命令体中不加引号地写回去。
 
+这在任何深度、客户端读写的每条路径上都成立：状态、事件、命令体、查询的记录，以及服务路由的请求体和响应。递归类型（`children` 仍是树的树）只在上下文的 `textNumbers.ts` 中标记一次，值到达哪里就在哪里读取。联合类型的各个分支保留各自的数字：一个值是 `decimal` 或由它们组成的对象时，按它实际是哪一种读取；由某个取常量值的成员区分的对象（Jackson 的 `@JsonTypeInfo` 写出子类型的方式）各自按自己的标记读取。如果分支对同一个数字的读法不同（一个精确、一个按数字），又没有这样的成员可以区分，生成就会失败（退出码 4），并指明 schema、路径和两种格式：给这些分支加上判别字段，或者使用同一种数字格式。
+
 <!-- typecheck: skip — generated code, compiled with the rest of the eShop web UI -->
 
 <!-- sample: examples/eshop/web/src/generated/ordering/eshop-ordering/order/aggregate.ts -->
