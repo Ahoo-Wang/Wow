@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 282 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 284 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -152,6 +152,7 @@ The settings of every elasticsearch store; a store's own options override them.
 | --- | --- | --- | --- |
 | `wow.elasticsearch.index-prefix` | `String` |  | A prefix of every index name of the store (&lt;prefix&gt;_wow_snapshot__&lt;context&gt;__&lt;aggregate&gt;), for a cluster several services or environments share; none when not set. |
 | `wow.elasticsearch.refresh` | `ElasticsearchRefresh` | `wait-for` | When a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval). |
+| `wow.elasticsearch.reindex-requests-per-second` | `Integer` | `1000` | How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
 
 ## `wow.executor`
 
@@ -657,6 +658,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 | `wow.stores.<name>.query.max-queued` | `Integer` |  | How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. |
 | `wow.stores.<name>.query.max-wait` | `Duration` |  | How long a query beyond the bound waits for a permit, over `wow.query.max-wait`. |
 | `wow.stores.<name>.refresh` | `ElasticsearchRefresh` | `wait-for` | On elasticsearch: when a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval). |
+| `wow.stores.<name>.reindex-requests-per-second` | `Integer` | `1000` | On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
 | `wow.stores.<name>.sharding` | `MongoSharding` | `auto` | On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard. |
 | `wow.stores.<name>.type` | `String` |  | The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. |
 

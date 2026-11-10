@@ -51,6 +51,7 @@ import me.ahoo.wow.query.schema.querySchema
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.io.StringReader
+import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /** How each logical value of a state schema maps, and how lists stream past one page. */
 class ElasticsearchStateMappingsTest {
@@ -143,6 +144,24 @@ class ElasticsearchStateMappingsTest {
             field("state.extra") { types(QueryValueType.BOOLEAN) }
         }
         validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing.assert().containsExactly("state.extra")
+    }
+
+    @Test
+    fun `the documents written before a field is mapped are indexed again by a throttled task`(): Unit = runBlocking {
+        ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names).prepare(type)
+        (1..3).forEach { store.save(snapshot("r$it", """{"name":"N$it"}""")) }
+        val mappings = ElasticsearchStateMappings(
+            ElasticsearchFixture.client,
+            ElasticsearchIndexMappingResolver(ElasticsearchFixture.client),
+            ElasticsearchPayload.Root(SnapshotFields.STATE),
+            rewriteRate = 50,
+        )
+        val task = mappings.rewrite(index, listOf("state.name"))
+        val done = ElasticsearchFixture.client.tasks().get { it.taskId(task).waitForCompletion(true) }.get()
+        done.completed().assert().isTrue()
+        val response = checkNotNull(done.response()).toJson().asJsonObject()
+        response.getJsonNumber("requests_per_second").doubleValue().assert().isEqualTo(50.0)
+        response.getInt("updated").assert().isEqualTo(3)
     }
 
     @Test

@@ -21,9 +21,11 @@ import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
 import me.ahoo.wow.elasticsearch.query.ElasticsearchQueries
+import me.ahoo.wow.elasticsearch.query.ElasticsearchStateMappings
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -49,7 +51,9 @@ import me.ahoo.wow.spi.timer.TimerStore
  * - `refresh`: when a write becomes visible to searches, `wait_for` (the default: a snapshot is queryable once its
  *   write returns), `true` (an immediate refresh, for tests) or `false` (within the index's refresh interval);
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
- *   instead of the one the snapshot writes use; the store's `client` by default.
+ *   instead of the one the snapshot writes use; the store's `client` by default;
+ * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
+ *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit.
  *
  * Found by `ServiceLoader`. It is never `available`: Elasticsearch holds no log, so `wow.backend=auto` never takes it.
  */
@@ -58,7 +62,8 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
-    override val options: List<ProviderOption<*>> = listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH)
+    override val options: List<ProviderOption<*>> =
+        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND)
 
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
@@ -69,12 +74,20 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         val queryClient = config.option(QUERY_CLIENT)?.let {
             config.resources.resource(Rest5Client::class.java, it, "${config.key}.${QUERY_CLIENT.key}")
         }
+        val rewriteRate = config.option(REINDEX_REQUESTS_PER_SECOND)
+        configCheck(
+            rewriteRate > 0 || rewriteRate == -1,
+            "${config.key}.${REINDEX_REQUESTS_PER_SECOND.key}",
+            rewriteRate,
+            "Set a number of documents a second, or -1 for no limit.",
+        ) { "The rate of an Elasticsearch mapping's rewrite cannot be $rewriteRate." }
         return ElasticsearchStore(
             config,
             restClient,
             ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
             config.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
+            rewriteRate = rewriteRate,
         )
     }
 
@@ -110,6 +123,15 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             ElasticsearchRefresh::class.java,
             ElasticsearchRefresh.WAIT_FOR,
         )
+
+        /** The option of how fast an index's documents are indexed again for a field the store's queries map. */
+        val REINDEX_REQUESTS_PER_SECOND = ProviderOption.int(
+            "reindex-requests-per-second",
+            "how many documents a second the store indexes again when its queries map a field an index lacks, so " +
+                "that the documents written before it are found by it too; a search of the field misses them until " +
+                "the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+            ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
+        )
     }
 }
 
@@ -137,6 +159,8 @@ internal class ElasticsearchStore(
     val names: ElasticsearchNames,
     val refresh: Refresh = Refresh.WaitFor,
     val queryRestClient: Rest5Client? = null,
+    /** How many documents a second a mapping's rewrite indexes again (`reindex-requests-per-second`). */
+    val rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
 ) : Store(config) {
     /** The client of Wow's JSON: a state's numbers are read and written exactly. */
     val client: ElasticsearchAsyncClient by lazy { client(restClient) }
