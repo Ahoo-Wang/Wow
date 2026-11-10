@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.log
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -31,7 +32,9 @@ import me.ahoo.wow.spi.log.PartitionLineage
  * [tail], [head] and [lineage] are not served here: each group's log has its own sequences.
  *
  * Every group has the context's partitions; an append of streams of several groups appends each group's streams to
- * its own log, and the outcomes come back in the order of the streams.
+ * its own log, and the outcomes come back in the order of the streams. A group's log that throws once another group's
+ * share may have committed does not throw the call: its streams and those of the groups after it, which are not tried,
+ * are [AppendOutcome.Unknown] ([EventLog.appendAll]).
  */
 internal class LogGroupRouter(
     private val default: EventLog,
@@ -63,8 +66,23 @@ internal class LogGroupRouter(
             return byLog.keys.single().appendAll(streams)
         }
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+        var written = false
+        var stopped: Exception? = null
         byLog.forEach { (log, indices) ->
-            log.appendAll(indices.map { streams[it] }).forEachIndexed { at, outcome -> outcomes[indices[at]] = outcome }
+            val share = stopped?.let { failure -> indices.map { AppendOutcome.Unknown(failure) } } ?: try {
+                log.appendAll(indices.map { streams[it] })
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Whatever a group's log threw, what the others committed stands.
+                failure: Exception,
+            ) {
+                if (!written) throw failure
+                stopped = failure
+                indices.map { AppendOutcome.Unknown(failure) }
+            }
+            written = written || share.any { it is AppendOutcome.Committed || it is AppendOutcome.Unknown }
+            share.forEachIndexed { at, outcome -> outcomes[indices[at]] = outcome }
         }
         return outcomes.map { checkNotNull(it) }
     }

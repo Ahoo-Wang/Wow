@@ -118,14 +118,24 @@ internal class PostgresLogAppender(
      * one partition: a stream's conflict or duplicate decides its own partition's group only.
      *
      * A group of more than [MAX_GROUP] streams is committed [MAX_GROUP] at a time, keeping a statement's parameters
-     * within the protocol's limit.
+     * within the protocol's limit. A chunk whose statement surely did not leave throws ([unsentOrOutcome]) only while
+     * no chunk of the call was sent: once one was, the call returns, and that chunk's streams and the streams of the
+     * chunks after it, which it does not try, are [AppendOutcome.Unknown] ([EventLog.appendAll]).
      */
     fun appendAll(parts: List<Int>, streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+        var sent = false
+        var stopped: SQLException? = null
         chunksOf(streams, MAX_GROUP).forEach { chunk ->
-            appendChunk(chunk.map { parts[it.index] }, chunk.map { it.value }).forEachIndexed { at, outcome ->
-                outcomes[chunk[at].index] = outcome
+            val group = chunk.map { it.value }
+            val chunkOutcomes = stopped?.let { failure -> group.map { AppendOutcome.Unknown(failure) } } ?: try {
+                appendChunk(chunk.map { parts[it.index] }, group).also { sent = true }
+            } catch (failure: SQLException) {
+                if (!sent) throw failure
+                stopped = failure
+                group.map { AppendOutcome.Unknown(failure) }
             }
+            chunkOutcomes.forEachIndexed { at, outcome -> outcomes[chunk[at].index] = outcome }
         }
         return outcomes.map { checkNotNull(it) }
     }
@@ -269,12 +279,13 @@ internal class PostgresLogAppender(
 
     /**
      * The outcome of an append that failed with [failure]; [sent] says whether its statement may have reached the
-     * server. One that surely did not, failing to get a connection or the table, wrote nothing: a transient failure is
-     * thrown, so the command is answered with the retryable storage error rather than an unknown outcome
-     * (unknown is kept for what may have reached the store).
+     * server. One that surely did not, failing to get a connection or the table, wrote nothing, whatever the failure:
+     * it is thrown, translated as every failure of the log is (a transient one is the retryable storage error), never
+     * an unknown outcome, which is kept for what may have reached the store. In a group, [appendAll] decides whether a
+     * later chunk may still throw.
      */
     private fun unsentOrOutcome(failure: SQLException, sent: Boolean): AppendOutcome =
-        if (!sent && PostgresFailures.isTransient(failure)) throw failure else outcomeOf(failure)
+        if (!sent) throw failure else outcomeOf(failure)
 
     /**
      * The outcome of an append that failed with [failure]: [AppendOutcome.Rejected] when PostgreSQL refused a value of

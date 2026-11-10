@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.log
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.assertThrows
 class LogGroupRouterTest {
     private val orders = AggregateType("sales", "order")
     private val invoices = AggregateType("sales", "invoice")
+    private val receipts = AggregateType("sales", "receipt")
     private val default = InMemoryEventLog(PARTITIONS)
     private val grouped = InMemoryEventLog(PARTITIONS)
     private val router = LogGroupRouter(default, mapOf(invoices to grouped))
@@ -87,6 +89,62 @@ class LogGroupRouterTest {
         router.appendAll(listOf(stream(orders.ref("t", "o-2")) to null)).single().assert()
             .isInstanceOf(AppendOutcome.Committed::class.java)
         grouped.read(invoices.ref("t", "i-2")).toList().assert().hasSize(1)
+    }
+
+    @Test
+    fun `a group's log that fails once another group's share may have committed does not throw the call`(): Unit =
+        runBlocking {
+            val lost = IllegalStateException("The pool timed out.")
+            val third = InMemoryEventLog(PARTITIONS)
+            val router = LogGroupRouter(default, mapOf(invoices to failing(lost), receipts to third))
+            // The default group's share is first and commits; the invoices' failure is unknown for each of its
+            // streams, and the receipts' share after it is not tried.
+            val streams = listOf(
+                stream(orders.ref("t", "o-1")),
+                stream(invoices.ref("t", "i-1")),
+                stream(receipts.ref("t", "r-1")),
+            )
+            val outcomes = router.appendAll(streams.map { it to null })
+            outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (outcomes[1] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
+            (outcomes[2] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
+            third.read(receipts.ref("t", "r-1")).toList().assert().isEmpty()
+            // A share whose outcome is unknown may have committed too.
+            val timedOut = IllegalStateException("timed out")
+            val unknown = object : EventLog by third {
+                override suspend fun appendAll(
+                    streams: List<Pair<EventStreamRecord, ByteArray?>>,
+                ): List<AppendOutcome> = streams.map { AppendOutcome.Unknown(timedOut) }
+            }
+            val afterUnknown = LogGroupRouter(default, mapOf(invoices to failing(lost), receipts to unknown))
+            val shares = listOf(stream(receipts.ref("t", "r-2")) to null, stream(invoices.ref("t", "i-2")) to null)
+            afterUnknown.appendAll(shares).map { (it as AppendOutcome.Unknown).cause }.assert()
+                .containsExactly(timedOut, lost)
+        }
+
+    @Test
+    fun `a group's log that fails while no other share may have committed is thrown, as is a cancellation`(): Unit =
+        runBlocking {
+            val lost = IllegalStateException("The pool timed out.")
+            val router = LogGroupRouter(default, mapOf(invoices to failing(lost)))
+            val first = listOf(stream(invoices.ref("t", "i-1")) to null, stream(orders.ref("t", "o-1")) to null)
+            assertThrows<IllegalStateException> { runBlocking { router.appendAll(first) } }.assert().isSameAs(lost)
+            // A share that only conflicted wrote nothing.
+            default.append(stream(orders.ref("t", "o-2")))
+            val conflicted = listOf(
+                stream(orders.ref("t", "o-2"), requestId = "o-2-again") to null,
+                stream(invoices.ref("t", "i-2")) to null,
+            )
+            assertThrows<IllegalStateException> { runBlocking { router.appendAll(conflicted) } }.assert().isSameAs(lost)
+            val cancelling = LogGroupRouter(default, mapOf(invoices to failing(CancellationException("cancelled"))))
+            val streams = listOf(stream(orders.ref("t", "o-3")) to null, stream(invoices.ref("t", "i-3")) to null)
+            assertThrows<CancellationException> { runBlocking { cancelling.appendAll(streams) } }
+        }
+
+    /** A group's log whose every group commit throws [failure]. */
+    private fun failing(failure: Exception): EventLog = object : EventLog by grouped {
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+            throw failure
     }
 
     @Test
