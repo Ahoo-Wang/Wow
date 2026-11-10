@@ -360,11 +360,13 @@ export { type HavingOperator, type HavingRow } from './analysis/having.js';
 export { type MetricCondition } from './analysis/metricCondition.js';
 export { type MetricFunction } from './analysis/metricFormat.js';
 export {
-  type AnalysisColumnView,
   type AnalysisProjection,
-  type ColumnCurrency,
   projectAnalysis,
 } from './analysis/project.js';
+export {
+  type AnalysisColumnView,
+  type ColumnCurrency,
+} from './analysis/columns.js';
 export {
   type ValidateAnalysisOptions,
   validateAnalysis,

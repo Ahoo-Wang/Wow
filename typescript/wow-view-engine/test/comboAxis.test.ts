@@ -22,7 +22,7 @@ import {
   type FieldDefinition,
 } from '../src/index.js';
 import { comboAxis } from '../src/analysis/familySlots.js';
-import { measureColumns } from '../src/analysis/project.js';
+import { measureColumns } from '../src/analysis/columns.js';
 import { metricMeasure, metricMeasures } from '../src/analysis/metricFormat.js';
 import { switchChartType } from '../src/analysis/chartSwitch.js';
 import {

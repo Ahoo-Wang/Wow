@@ -246,7 +246,8 @@ src/
     metricCondition.ts        — `metricCondition`: a metric's own condition as its name reads it (D20 显示名) — the whole condition, and the one value of one field that names it (「金额的合计 · 已发运」) when there is one
     metricOrder.ts            — `moveMetric`: a metric moved as far as the order allows — a derived metric after what it reads, a metric before what reads it — and where it stopped (D71)
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print; `readsAsItsField` (MIN/MAX/PERCENTILE/ANY read as the field does) and `momentMetrics` (those over a date: read, never measured by a mark); `metricMeasure`/`metricMeasures`: what a metric is a quantity of, from its function and its field's declared unit
-    project.ts                — projectAnalysis — table columns and rows
+    project.ts                — projectAnalysis — table columns and rows: the rows settled, cut short and ordered, the totals and the chart shaped
+    columns.ts                — What a result column is (`AnalysisColumnView`, `ColumnCurrency`): its title, values, buckets, number and currency read off the definition and the config; `momentColumns`, `measureColumns` and `rowCurrency` read back off the columns
     queryFilter.ts            — A filter in metric or element position, and the scope it may name
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
