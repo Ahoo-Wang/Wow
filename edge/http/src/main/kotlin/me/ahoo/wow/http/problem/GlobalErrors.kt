@@ -30,7 +30,6 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
-import kotlin.math.ceil
 
 /**
  * The error handling of the application's own routes (review M; 9.x
@@ -73,14 +72,7 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
     /** The problem [failure] is answered with. */
     internal fun problemOf(failure: Throwable): Problem = when (failure) {
         is CommandRejectedException -> statuses.problemOf(failure.result)
-        is WowProblemException -> failure.result?.let(statuses::problemOf)?.copyWith(status = failure.status) ?: Problem(
-            status = failure.status,
-            title = statuses.title(failure.code, null, failure.status),
-            detail = failure.message,
-            code = failure.code,
-            retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
-            retry = failure.retry,
-        )
+        is WowProblemException -> statuses.problemOf(failure)
         is ResponseStatusException -> {
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
             Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
@@ -100,8 +92,6 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
     companion object {
         /** Before Spring Boot's `DefaultErrorWebExceptionHandler` (-1) and WebFlux's status handler (0). */
         const val ORDER: Int = -2
-
-        private const val MILLIS_PER_SECOND = 1000.0
         private val logger = KotlinLogging.logger {}
     }
 }

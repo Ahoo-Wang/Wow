@@ -30,7 +30,6 @@ import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
-import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
@@ -183,16 +182,8 @@ internal class ServiceRouteHandling(
                 ),
             )
         } catch (relayed: WowProblemException) {
-            // Another service's answer, relayed: its status, code and result, as that service answered.
-            throw ProblemException(
-                Problem.of(
-                    relayed.status,
-                    statuses.title(relayed.code, context.name, relayed.status),
-                    relayed.message,
-                    relayed.code,
-                    result = relayed.result,
-                ),
-            )
+            // Another service's answer, relayed as that service answered: what a retry may do included.
+            throw ProblemException(statuses.problemOf(relayed, context.name))
         } catch (refusal: RouteRefusal) {
             val framework = refusal.code.startsWith(FrameworkErrors.PREFIX)
             if (!framework && refusal.code !in route.errors && undeclared.add(route.name to refusal.code)) {
