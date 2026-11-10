@@ -747,6 +747,73 @@ describe('a workbench a host routes', () => {
   });
 
   /**
+   * #5490: the host may move again while the question is up — Back twice in
+   * the browser's history. The question is then about the newest place: a
+   * yes opens it, a no stays and says so, and a move back to the view on
+   * screen takes the question away. Asked once, whatever happened.
+   */
+  describe('a route that moves again while the question is up', () => {
+    const third: ViewInstance = { ...mine, id: 'orders-3', title: 'Third' };
+
+    async function asking() {
+      const told = vi.fn();
+      const view = routed(engineWith([mine, second, third]), 'orders-1', told);
+      await waitFor(() =>
+        expect(view.result.current.state?.title).toBe('Mine'),
+      );
+      act(() => {
+        view.result.current.runtime?.edit({ pageSize: 50 });
+      });
+      await waitFor(() => expect(view.result.current.state?.dirty).toBe(true));
+      view.rerender({ id: 'orders-2' });
+      expect(view.result.current.leave.asking).toBe(true);
+      return { ...view, told };
+    }
+
+    it('opens the newest place on a yes', async () => {
+      const { result, rerender, told } = await asking();
+
+      rerender({ id: 'orders-3' });
+      expect(result.current.leave.asking).toBe(true);
+      expect(told).not.toHaveBeenCalled();
+      act(() => {
+        result.current.leave.confirm();
+      });
+
+      await waitFor(() => expect(result.current.state?.title).toBe('Third'));
+      expect(result.current.openId).toBe('orders-3');
+      expect(result.current.leave.asking).toBe(false);
+      expect(told).not.toHaveBeenCalled();
+    });
+
+    it('stays on a no, asks nothing more, and says what stayed', async () => {
+      const { result, rerender, told } = await asking();
+
+      rerender({ id: 'orders-3' });
+      act(() => {
+        result.current.leave.cancel();
+      });
+
+      await waitFor(() => expect(told).toHaveBeenCalledWith('orders-1'));
+      expect(told).toHaveBeenCalledTimes(1);
+      expect(result.current.leave.asking).toBe(false);
+      expect(result.current.openId).toBe('orders-1');
+      expect(result.current.state?.dirty).toBe(true);
+    });
+
+    it('takes the question away when the route comes back to the view on screen', async () => {
+      const { result, rerender, told } = await asking();
+
+      rerender({ id: 'orders-1' });
+
+      expect(result.current.leave.asking).toBe(false);
+      expect(result.current.openId).toBe('orders-1');
+      expect(result.current.state?.dirty).toBe(true);
+      expect(told).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
    * The uncontrolled form is `instanceId` left out entirely, and `null` is
    * not it: a host that passes `null` is holding a value. Left out, the
    * workbench owns the open view and still reports every move.

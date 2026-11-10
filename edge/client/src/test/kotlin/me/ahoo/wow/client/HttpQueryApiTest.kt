@@ -170,6 +170,52 @@ class HttpQueryApiTest {
     }
 
     @Test
+    fun `a stream should end at the row that reaches its limit, or at its complete end, whatever comes after`():
+        Unit = runBlocking {
+        // The connection lost after the last row of the limit: the query is complete, nothing is asked again.
+        peer.reply(Reply.cut(row("b-1")))
+        boxes.stream(ListQuery.of(MatchAllFilter, limit = 1)).toList().map { it.row.ref.id }.assert()
+            .containsExactly("b-1")
+        peer.taken.assert().hasSize(1)
+        // The connection lost after the end that says the stream is complete: no resume either (a resume would be
+        // answered the same, and read the row twice).
+        peer.taken.clear()
+        peer.reply(Reply.cut(row("b-1"), complete))
+        boxes.stream(ListQuery(MatchAllFilter)).toList().map { it.row.ref.id }.assert().containsExactly("b-1")
+        peer.taken.assert().hasSize(1)
+        // The same row and a clean end of the body, without an end event: complete by its limit.
+        peer.taken.clear()
+        peer.reply(Reply.events(row("b-1")))
+        boxes.stream(ListQuery.of(MatchAllFilter, limit = 1)).toList().assert().hasSize(1)
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `what the collector throws should propagate as it is, the stream not asked for again`(): Unit =
+        runBlocking {
+            peer.reply(Reply.events(row("b-1"), complete))
+            val local = IOException("Local output file is full")
+            var collected = 0
+            caught<IOException> {
+                runBlocking {
+                    boxes.stream(ListQuery(MatchAllFilter)).collect {
+                        collected++
+                        throw local
+                    }
+                }
+            }.assert().isSameAs(local)
+            collected.assert().isEqualTo(1)
+            peer.taken.assert().hasSize(1)
+        }
+
+    @Test
+    fun `a stream that starts with a byte order mark should read its first row`(): Unit = runBlocking {
+        peer.reply(Reply.events("\uFEFF" + row("b-1"), row("b-2"), complete))
+        boxes.stream(ListQuery(MatchAllFilter)).toList().map { it.row.ref.id }.assert().containsExactly("b-1", "b-2")
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
     fun `a stream whose permit was reclaimed should resume after the retry policy's backoff`(): Unit = runBlocking {
         val reclaimed = "event: end\ndata: {\"reason\":\"permit-reclaimed\",\"resumable\":true}\n\n"
         peer.reply(Reply.events(row("b-1"), reclaimed), Reply.events(reclaimed), Reply.events(row("b-2"), complete))

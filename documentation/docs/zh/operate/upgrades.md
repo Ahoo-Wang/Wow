@@ -59,9 +59,9 @@ outline: deep
 
 ## 从 10.0.0 预发布版升级 {#from-a-10-0-0-pre-release}
 
-10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据不做兼容承诺：之后版本的存储格式可能在原地改变。从 alpha 升级需要一个全新的数据库；它写下的数据既不迁移，也不读取。
+10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据不做兼容承诺：之后版本的存储格式可能不同。本版本不打开预发布版以更早格式写下的存储：启动时格式检查拒绝它，并说出是哪个结构、以什么格式存储。在 PostgreSQL 上，这是预发布版写下的、除失败台账外的每张表：日志、快照、预留、定时器、检查点和租约表以及它们的注册表（键和索引里的每个文本列现在都按码点比较，日志的版本键以租户开头）。请全新开始这样的存储：用新的数据库，或者删掉它的表；从 9.x 迁移的服务用 `migrate-data` 重新导入它的历史（[迁移数据](../migrate/data)）。预发布版写下的数据既不迁移，也不读取。
 
-已发布的 beta 写下的日志仍然可以加载。在每个聚合类型的访问遍历为它们盖章之前，它的流和快照没有访问属性，这段时间里有些读取不包含它们：
+导入时没有访问属性的流（从 9.x 导入可能这样写入），在每个聚合类型的访问遍历为它们盖章之前没有访问属性，这段时间里有些读取不包含它们：
 
 - **隐藏什么。** 在访问策略下，快照查询不包含该类型未盖章的快照，事件查询不包含它未盖章的流。没有访问策略时，以所有者身份或在某个空间里行事的调用方，其事件查询不包含未盖章的流。整个租户的调用方仍能读到它们；状态读取，以及按版本、按时间和 trace 的读取不受影响。
 - **为什么。** 读取按记录所带的访问属性判定：策略比较的属性，或者在事件上比较聚合现在的所有者和空间。每条流都记着它们，所以转移之后，聚合的历史跟着聚合走（[谁能看到什么](../guide/event-queries#who-sees-what)）。不带访问属性的记录什么也不授予，而不是对所有调用方都显示。
@@ -75,6 +75,8 @@ outline: deep
 要在那之前让它们显示，就从日志重新填充数仓：重置每个这类聚合的 Sink 订阅 `wow.clickhouse-sink.<aggregate>`，它会用日志现在记录的属性把每次提交重新写一遍，`_state` 保留每个聚合最新的一行（[重建与重放](./replay#access-attributes)、[重建数仓](./clickhouse#rebuild-the-warehouse)）。
 
 `wow_catalog` 新增 `access` 列：该聚合的访问策略是否决定它的行（[wow_catalog](./clickhouse#wow-catalog)）。`wow.clickhouse.ddl: auto` 的 Sink 在第一次检查时补上它；`validate` 的 Sink 在这一列存在之前拒绝写入：`ALTER TABLE <database>.wow_catalog ADD COLUMN IF NOT EXISTS access LowCardinality(String) AFTER columns_hash`。较早版本的 Sink 写下的行没有说明是否有策略，所以分析目录按有策略处理：基于这些表的目录数据集转为需要修订，查询答 `409 wow.query.dataset-unavailable`，直到拥有该聚合的服务运行这个版本，它的 Sink 在启动后第一次检查时重新写出这些行。不需要重放。聚合有策略的表仍然被拒绝：它的数据集改由拥有该聚合的服务提供（[数据集](../data/datasets#define-a-dataset)）。
+
+失败账本的条目新增修订号（revision），它决定一个条目上并发的写入哪些生效（[失败处理](../guide/failures)）：`wow.ddl: auto` 时，PostgreSQL 在下一次检查时为 `wow_failure_ledger` 表补上 `revision` 列，已停放的条目都为 0（`validate` 时请先执行 `ALTER TABLE wow_failure_ledger ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0`）；MongoDB 把没有修订号的条目读作 0。已停放的条目保持不变。beta 与这个版本的节点并行运行期间，beta 的写入不推进修订号，所以运维人员对停放条目的操作仍可能被 beta 节点的排期掩盖，直到发布完成；那时若条目仍在停放，请再执行一次。
 
 从 10.0.0 起，分析目录把数据集某个版本的视图命名为 `ds_<context>_<name>_<digest>_v<N>`，digest 取自数据集的精确 id（[发布与版本](../data/datasets#publish-and-version)）。之前发布的版本保留发布时的视图：回滚、退役和重新编译读取每个版本记录的名字，不会改名。预发布版会给 id 只在大小写、`-`、`_` 或 context 结束位置上不同的两个数据集（`shop.a-b` 与 `shop.a_b`，`a_b.c` 与 `a.b_c`）同一个视图，后发布的那个替换了先发布的。如果你发布过这样的一对，请为每个各发布一个新版本：每个都会得到自己的视图。
 

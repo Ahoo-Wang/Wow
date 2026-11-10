@@ -141,23 +141,7 @@ class PostgresEventLog(
                 PostgresSchema.execute(connection, tables.ddl())
             }
             if (ddl.creates) {
-                // A counter table created before the lineage columns gets them before its counters are written.
-                PostgresFormat.addColumns(
-                    connection,
-                    tables.partitionsBase,
-                    PostgresEventLogTables.PARTITION_ADDED,
-                    tables.partitionAdditions,
-                )
                 connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
-                // A registry created before the access walks gets their column.
-                PostgresFormat.addColumns(
-                    connection,
-                    PostgresEventLogTables.REGISTRY,
-                    PostgresEventLogTables.REGISTRY_ADDED,
-                    tables.registryAdditions,
-                )
-                // A table created before format 1's added columns gets them, so the tail reads every table.
-                register(connection).forEach { addColumns(connection, it) }
                 // Read again on first use, with the tables created from now on.
                 registered = null
             }
@@ -234,14 +218,7 @@ class PostgresEventLog(
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
         }
-        if (ddl.creates) {
-            addColumns(connection, table)
-        }
     }
-
-    /** Adds format 1's added columns to [table] when it was created before them ([PostgresFormat.addColumns]). */
-    private fun addColumns(connection: Connection, table: AggregateLogTable) =
-        PostgresFormat.addColumns(connection, table.base, AggregateLogTable.ADDED, table.additions)
 
     /**
      * The table of [type] when it exists: one this log made sure of, or one the registry lists, read again when this
@@ -608,8 +585,8 @@ class PostgresEventLog(
                 connection.prepareStatement(if (key == null) table.firstAggregates else table.aggregatesAfter).use {
                     var index = 1
                     key?.let { (id, tenant) ->
-                        it.setString(index++, id)
                         it.setString(index++, tenant)
+                        it.setString(index++, id)
                     }
                     it.setInt(index, limit)
                     it.executeQuery().use { rows -> rows.map { type.ref(it.getString(2), it.getString(1)) } }
@@ -875,10 +852,7 @@ class PostgresEventLog(
     /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
     private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
-    /**
-     * The lineage of [partition] from its counter row: its `parent` and `epoch`, read as
-     * [PartitionLineage.ROOT] when the columns are null or missing (a schema created before them).
-     */
+    /** The lineage of [partition] from its counter row: its `parent`, null for one the log began with, and `epoch`. */
     override suspend fun lineage(partition: Int): PartitionLineage {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.jdbc {
@@ -887,10 +861,8 @@ class PostgresEventLog(
                     query.setInt(1, partition)
                     query.executeQuery().use { rows ->
                         check(rows.next()) { "The log of $context has no counter of partition $partition." }
-                        val columns = (1..rows.metaData.columnCount).map { rows.metaData.getColumnName(it) }.toSet()
-                        val parent = if (PARENT in columns) rows.getInt(PARENT).takeUnless { rows.wasNull() } else null
-                        val epoch = if (EPOCH in columns) rows.getInt(EPOCH) else 0
-                        PartitionLineage.of(parent, epoch)
+                        val parent = rows.getInt(PARENT).takeUnless { rows.wasNull() }
+                        PartitionLineage.of(parent, rows.getInt(EPOCH))
                     }
                 }
             }

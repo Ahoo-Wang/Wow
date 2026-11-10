@@ -208,14 +208,14 @@ class PostgresLeaseStore(
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
 
-        /** The layout version of both tables. */
-        const val FORMAT = 1
+        /** The layout version of both tables: 2 since their keys compare by code point (`COLLATE "C"`); 1 is refused. */
+        const val FORMAT = 2
         const val LEASE_COLUMNS = "subscription_group, partition, owner, epoch, expires_at"
 
         val DDL = listOf(
             """
             CREATE TABLE IF NOT EXISTS $LEASES (
-                subscription_group text NOT NULL,
+                subscription_group text COLLATE "C" NOT NULL,
                 partition integer NOT NULL,
                 owner text NOT NULL,
                 epoch bigint NOT NULL,
@@ -225,16 +225,14 @@ class PostgresLeaseStore(
             """.trimIndent(),
             """
             CREATE TABLE IF NOT EXISTS $MEMBERS_TABLE (
-                subscription_group text NOT NULL,
-                node text NOT NULL,
+                subscription_group text COLLATE "C" NOT NULL,
+                node text COLLATE "C" NOT NULL,
                 address text NOT NULL,
                 expires_at bigint NOT NULL,
                 groups text[] NOT NULL DEFAULT '{}',
                 PRIMARY KEY (subscription_group, node)
             )
             """.trimIndent(),
-            // The member's lease groups, added within format 1, for a table created before them.
-            "ALTER TABLE $MEMBERS_TABLE ADD COLUMN IF NOT EXISTS groups text[] NOT NULL DEFAULT '{}'",
         )
 
         /**
@@ -269,7 +267,7 @@ class PostgresLeaseStore(
             "DO UPDATE SET address = excluded.address, expires_at = excluded.expires_at, groups = excluded.groups"
 
         const val MEMBERS = "SELECT subscription_group, node, address, expires_at, groups FROM $MEMBERS_TABLE " +
-            "WHERE subscription_group = ? AND expires_at > ? ORDER BY node COLLATE \"C\""
+            "WHERE subscription_group = ? AND expires_at > ? ORDER BY node"
 
         const val LEAVE = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND node = ?"
     }

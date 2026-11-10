@@ -383,6 +383,26 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `first and last pick among the records that hold a value`() = blocking {
+        val rows = orders.aggregate(
+            AggregationQuery(
+                filter = EqualFilter(TENANT_COLUMN, "t1"),
+                groupBy = listOf(AggregationGroup.Terms(CITY, "city")),
+                metrics = listOf(
+                    AggregationMetric.First(QueryField("discount"), "first", orderBy = CREATED_AT),
+                    AggregationMetric.Last(QueryField("discount"), "last", orderBy = CREATED_AT),
+                ),
+            ),
+        ).associateBy { it.path("city").stringValue() }
+        // Hangzhou's earliest order and Beijing's latest hold no discount: each edge is the nearest order with one.
+        rows.getValue("Hangzhou").get("first").decimalValue().assert().isEqualByComparingTo(BigDecimal("0.10"))
+        rows.getValue("Hangzhou").get("last").decimalValue().assert().isEqualByComparingTo(BigDecimal("0.10"))
+        rows.getValue("Beijing").get("first").decimalValue().assert().isEqualByComparingTo(BigDecimal("0.20"))
+        rows.getValue("Beijing").get("last").decimalValue().assert().isEqualByComparingTo(BigDecimal("0.20"))
+        Unit
+    }
+
+    @Test
     fun `having filters groups before the metric sort and limit`() = blocking {
         val rows = orders.aggregate(
             AggregationQuery(

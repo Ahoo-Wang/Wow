@@ -246,6 +246,13 @@ async function fetchPage(
       ...(typeof page.total === 'number' ? { total: page.total } : {}),
       next: page.list.length < size ? null : { index: target.index + 1 },
     };
+  } catch (error) {
+    // A source called off rejects as its client does — `fetch` with the
+    // signal's reason — and that is the cancel, said as the export says
+    // one (`ExportCancelledError`), whichever error the client threw; a
+    // read that failed while the export still wanted it fails (#5502).
+    stopIfCancelled(signal);
+    throw error;
   } finally {
     unlink();
   }

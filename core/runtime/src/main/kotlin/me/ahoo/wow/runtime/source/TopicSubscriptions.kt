@@ -399,7 +399,7 @@ class TopicSubscriptions internal constructor(
     /** Resolves [subscription]'s parked aggregate [ref] without handling what was skipped. */
     suspend fun skip(subscription: String, ref: AggregateRef): Boolean {
         require(subscriptions.any { it.name == subscription }) { "No subscription $subscription reads $topic." }
-        return runtime?.skip(subscription, ref) ?: (ledger.resolve(subscription, ref) != null)
+        return runtime?.skip(subscription, ref) ?: (ledger.resolveAnywhere(subscription, ref) != null)
     }
 
     override fun toString(): String = "TopicSubscriptions($topic, ${subscriptions.map { it.name }})"

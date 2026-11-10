@@ -177,8 +177,9 @@ internal class HttpTransport(
      * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
      * most once, without spending a retry. When every target failed to connect, the resolver hears it
      * ([EndpointResolver.unreachable]); so it does when the lookup lists no target ([NoNodeListed]). Either way the
-     * request was not sent, and is retried. What the last target answered is then retried while [kind] says so. A
-     * request no attempt could send is `wow.peer.unavailable`; one sent and not answered is what its [kind] says.
+     * request was not sent, and is retried. What the last target answered is then retried while [kind] says so, and
+     * so is a request sent and not answered, as the problem its [kind] gives it (a command again with its request id;
+     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`.
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -190,20 +191,23 @@ internal class HttpTransport(
             val answer = try {
                 failover(request, attempt)
             } catch (failure: IOException) {
-                if (!failure.unsent()) return Answer.Problem(kind.unanswered(request, failure))
-                // A connection that was not made sent nothing: refused, or not answered in time.
-                val wait = retry.delayBefore(attempts, null)
-                    ?: return Answer.Problem(
-                        PeerProblem.of(
-                            FrameworkErrors.PEER_UNAVAILABLE,
-                            (failure as? NoNodeListed)?.message
-                                ?: "No node of ${request.context} could be reached ($failure).",
-                            failure,
-                        ),
-                    )
-                delay(wait)
-                attempts++
-                continue
+                if (failure.unsent()) {
+                    // A connection that was not made sent nothing: refused, or not answered in time.
+                    val wait = retry.delayBefore(attempts, null)
+                        ?: return Answer.Problem(
+                            PeerProblem.of(
+                                FrameworkErrors.PEER_UNAVAILABLE,
+                                (failure as? NoNodeListed)?.message
+                                    ?: "No node of ${request.context} could be reached ($failure).",
+                                failure,
+                            ),
+                        )
+                    delay(wait)
+                    attempts++
+                    continue
+                }
+                // Sent and not answered: the problem its kind says, retried as an answered one is.
+                Answer.Problem(kind.unanswered(request, failure))
             }
             if (answer is Answer.Problem && kind.retries(answer.problem)) {
                 val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return answer

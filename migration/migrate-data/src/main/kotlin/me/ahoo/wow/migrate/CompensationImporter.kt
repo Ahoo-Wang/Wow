@@ -280,7 +280,7 @@ internal class CompensationImporter(
         val ledger = ledger()
         var resolved = 0L
         plan.compensation.importedEntries(ledger, source, options.pageSize) { entry, execution ->
-            ledger.resolve(entry.subscription, entry.ref)
+            ledger.resolveAnywhere(entry.subscription, entry.ref)
             report(
                 "RESOLVED ${entry.subscription} ${entry.ref} from v${entry.fromVersion}: the 9.x execution " +
                     "${execution ?: CompensationPlan.originOf(entry.reason)} it was imported for is " +

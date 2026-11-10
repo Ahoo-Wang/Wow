@@ -383,7 +383,6 @@ class WaitCoordinator(
             )
             return
         }
-        val settled = AtomicBoolean()
         var expiry: ScheduledFuture<*>? = null
         try {
             if (relay != null) {
@@ -395,7 +394,7 @@ class WaitCoordinator(
                     return
                 }
                 waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
-                expiry = expireAt(deadline, waiting, settled)
+                expiry = expireAt(deadline, waiting)
                 for (result in waiting.results) {
                     emit(waiting.carry(result))
                 }
@@ -403,16 +402,15 @@ class WaitCoordinator(
             }
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
-            expiry = expireAt(deadline, waiting, settled)
+            expiry = expireAt(deadline, waiting)
             val wait = WaitContext(waitId, origin, chain.hops, deadline)
             settle(checkNotNull(model), command, wait, waiting)?.let { settlement ->
                 if (withdrawn(settlement)) {
                     // Withdrawn because the deadline passed: the wait ends as the deadline ends it,
                     // whichever of the lane's timer and the deadline thread fired first.
-                    waiting.expire(clock.millis()) { hop -> timedOut(hop, settled = false) }
+                    waiting.expire(clock.millis(), ::timedOut)
                     return@let
                 }
-                settled.set(true)
                 waiting.offer(settlement.committed)
                 settlement.reached.forEach { waiting.offer(it) }
                 if (settlement.committed.duplicate) {
@@ -431,21 +429,21 @@ class WaitCoordinator(
     }
 
     /**
-     * Ends [waiting] with a timeout at [deadline], from one of [DEADLINES], apart from the waiter:
-     * at ACCEPTED, saying the outcome is not known, until the waiter has the command's settlement ([settled]), else at
-     * the last hop it reached. Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
+     * Ends [waiting] with a timeout at [deadline], from one of [DEADLINES], apart from the waiter, at the last hop it
+     * reached ([timedOut]). Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
      */
-    private fun expireAt(deadline: Long, waiting: Waiting, settled: AtomicBoolean): ScheduledFuture<*> =
+    private fun expireAt(deadline: Long, waiting: Waiting): ScheduledFuture<*> =
         DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
-            {
-                waiting.expire(clock.millis()) { hop -> timedOut(hop, settled.get()) }
-            },
+            { waiting.expire(clock.millis(), ::timedOut) },
             (deadline - clock.millis()).coerceAtLeast(0),
             TimeUnit.MILLISECONDS,
         )
 
-    /** The message of a wait that timed out at [hop], once the command's outcome was known ([settled]) or before. */
-    private fun timedOut(hop: Hop, settled: Boolean): String = if (settled) {
+    /**
+     * The message of a wait that timed out at [hop]: the command's outcome is known once it reached COMMITTED, however
+     * the wait learned it (its own settlement, or a signal of the node that ran it); before, it is not.
+     */
+    private fun timedOut(hop: Hop): String = if (hop.stage >= Stage.COMMITTED) {
         "The wait timed out after reaching $hop."
     } else {
         "The wait timed out at $hop, before the command's outcome was known."

@@ -229,6 +229,8 @@ class RecordValuesTest {
         valueSemantics({ ParkedRetrySpec.of() }, ParkedRetrySpec.of(maxRetries = 1))
         ParkedRetrySpec.of().copyWith(maxRetries = 1).assert().isEqualTo(ParkedRetrySpec.of(maxRetries = 1))
         valueSemantics({ ParkedAmendment.ClaimRetry.of(1, 2L) }, ParkedAmendment.ClaimRetry.of(2, 2L))
+        valueSemantics({ ParkedAmendment.Schedule.of(1, 2L) }, ParkedAmendment.Schedule.of(2, 2L))
+        valueSemantics({ parked() }, parked().copyWith(revision = 1))
         valueSemantics(
             { ParkedAmendment.MarkRecoverable.of(Recoverable.RECOVERABLE) },
             ParkedAmendment.MarkRecoverable.of(Recoverable.UNRECOVERABLE),
@@ -242,8 +244,8 @@ class RecordValuesTest {
             ParkedAmendment.Request.of(LedgerRequest.SKIP)
         )
         valueSemantics(
-            { ParkedAmendment.TakeRequest.of(LedgerRequest.RETRY) },
-            ParkedAmendment.TakeRequest.of(LedgerRequest.SKIP),
+            { ParkedAmendment.TakeRequest.of(1) },
+            ParkedAmendment.TakeRequest.of(2),
         )
         valueSemantics({ Lease.of("g", 0, "node-1", 1L, 9L) }, Lease.of("g", 0, "node-1", 2L, 9L))
         Lease.of("g", 0, "node-1", 1L, 9L).copyWith(epoch = 2L).assert().isEqualTo(Lease.of("g", 0, "node-1", 2L, 9L))
