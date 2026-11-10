@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */
 class OpenApiOptionsTest {
@@ -37,6 +38,11 @@ class OpenApiOptionsTest {
             OpenApiSecurityScheme.bearer("JWT"),
             OpenApiSecurityScheme.header("X-User"),
         )
+    }
+
+    @Test
+    fun `a header security scheme should name its header`() {
+        assertThrows<IllegalArgumentException> { OpenApiSecurityScheme.header(" ") }
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {
