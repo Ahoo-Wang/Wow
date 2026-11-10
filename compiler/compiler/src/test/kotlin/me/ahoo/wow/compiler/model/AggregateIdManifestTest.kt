@@ -69,6 +69,8 @@ class AggregateIdManifestTest {
             import me.ahoo.wow.api.annotation.AllowCreate
             import me.ahoo.wow.api.annotation.CreateAggregate
             import me.ahoo.wow.api.annotation.Unaddressed
+            import tools.jackson.databind.PropertyNamingStrategies
+            import tools.jackson.databind.annotation.JsonNaming
 
             $commands
             data class Stocked(val quantity: Int)
@@ -101,6 +103,8 @@ class AggregateIdManifestTest {
                     val productId: String get() = "${'$'}warehouse-${'$'}sku"
                 }
                 data class Count(@AggregateId @JsonProperty("product") val productId: String)
+                @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+                data class Tally(@AggregateId val productId: String)
                 data class Close(val reason: String)
                 """.trimIndent(),
                 functions = """
@@ -109,6 +113,7 @@ class AggregateIdManifestTest {
                 fun onCommand(command: Restock): Stocked = Stocked(command.quantity)
                 fun onCommand(command: Adjust): Stocked = Stocked(0)
                 fun onCommand(command: Count): Stocked = Stocked(0)
+                fun onCommand(command: Tally): Stocked = Stocked(0)
                 fun onCommand(command: Close): Stocked = Stocked(0)
                 """.trimIndent(),
             ),
@@ -131,6 +136,7 @@ class AggregateIdManifestTest {
         }
         // Its name in JSON, which a sender without the class reads.
         commands.getValue("Count").idProperty.assert().isEqualTo("product")
+        commands.getValue("Tally").idProperty.assert().isEqualTo("product_id")
         commands.getValue("Close").idProperty.assert().isNull()
         commands.getValue("Close").routes.assert().containsExactly(RouteManifest("POST", "/shop/stock/{id}/close"))
         // The lifecycle commands keep their routes by id.

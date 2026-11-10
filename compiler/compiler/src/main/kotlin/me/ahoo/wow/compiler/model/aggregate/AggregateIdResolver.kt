@@ -23,6 +23,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
+import me.ahoo.wow.compiler.model.symbol.jsonNaming
 import me.ahoo.wow.compiler.model.symbol.suppresses
 import me.ahoo.wow.compiler.model.symbol.wireName
 
@@ -81,7 +82,7 @@ internal object AggregateIdResolver {
             problems += "$where is not visible to the generated model: make it public or internal"
         }
         val ignored = command.jsonIgnoredProperties(problems)
-        val wireName = property.wireName(problems)
+        val wireName = property.wireName(problems, command.jsonNaming(problems))
         if (property.jsonIgnored(problems) || propertyName in ignored || wireName in ignored) {
             problems += "$where is not written by Wow's JSON (@JsonIgnore, @JsonIgnoreProperties): it writes the " +
                 "property that holds the aggregate's id, so a sender's body holds it"

@@ -246,6 +246,91 @@ class QueryPropertiesTest {
         )
     }
 
+    @Test
+    fun `paths should follow the JSON naming strategy Jackson writes the state with`() {
+        val source = SourceFile.kotlin(
+            "Contact.kt",
+            """
+            @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
+            package sample.naming
+
+            import com.fasterxml.jackson.annotation.JsonProperty
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.spi.json.StateJson
+            import tools.jackson.databind.PropertyNamingStrategies
+            import tools.jackson.databind.annotation.JsonNaming
+
+            data class Rename(val name: String)
+            data class Renamed(val name: String)
+
+            @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy::class)
+            data class Address(val postalCode: String = "1")
+
+            @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+            abstract class Named { var displayName: String = "Alice" }
+
+            @AggregateRoot class Contact(private val state: ContactState) {
+                fun onCommand(command: Rename): Renamed = Renamed(command.name)
+            }
+            class ContactState : Named() {
+                var homeAddress: Address = Address()
+                @JsonProperty("nickName") var nickname: String = "Al"
+                fun onSourcing(event: Renamed) { displayName = event.name }
+            }
+
+            fun serialized(): String = StateJson.mapper.writeValueAsString(ContactState())
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", source)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.properties("sample.naming.ContactStateProperties").values.assert().containsExactlyInAnyOrder(
+            "state.home_address",
+            "state.home_address.PostalCode",
+            "state.nickName",
+            "state.display_name",
+        )
+        // The paths are the snapshot's own: what Wow's JSON writes the state as.
+        result.classLoader.loadClass("sample.naming.ContactKt").getMethod("serialized").invoke(null).assert()
+            .isEqualTo("{\"display_name\":\"Alice\",\"home_address\":{\"PostalCode\":\"1\"},\"nickName\":\"Al\"}")
+    }
+
+    @Test
+    fun `a naming strategy the processor cannot run should be a problem`() {
+        val source = SourceFile.kotlin(
+            "Contact.kt",
+            """
+            package sample.naming
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import tools.jackson.databind.PropertyNamingStrategies
+            import tools.jackson.databind.annotation.JsonNaming
+
+            data class Rename(val name: String)
+            data class Renamed(val name: String)
+
+            class Shouting : PropertyNamingStrategies.NamingBase() {
+                override fun translate(propertyName: String): String = propertyName.uppercase()
+            }
+
+            @AggregateRoot class Contact(private val state: ContactState) {
+                fun onCommand(command: Rename): Renamed = Renamed(command.name)
+            }
+            @JsonNaming(Shouting::class)
+            class ContactState {
+                var displayName: String = "Alice"
+                fun onSourcing(event: Renamed) { displayName = event.name }
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", source)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "@JsonNaming of sample.naming.ContactState names sample.naming.Shouting: the model names its properties " +
+                "as Jackson writes them only with one of Jackson's PropertyNamingStrategies",
+        )
+    }
+
     /**
      * The generated object's own constants, in declaration order, as name to path; the snapshot's system fields are
      * those of the `SnapshotProperties` it extends.

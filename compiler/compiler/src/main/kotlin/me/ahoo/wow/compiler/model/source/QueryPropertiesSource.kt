@@ -28,6 +28,7 @@ import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
+import me.ahoo.wow.compiler.model.symbol.jsonNaming
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.wireName
 import me.ahoo.wow.manifest.QueryFieldNames
@@ -39,7 +40,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *
  * A path follows what Jackson writes and the state schema of the Manifest describes: each public property, with a
  * backing field or computed (a getter alone, `val total: Int get() = ...`, which Jackson writes into the snapshot
- * too), under its `@JsonProperty` name, without the `@JsonIgnore`d ones and those a class's `@JsonIgnoreProperties`
+ * too), under its `@JsonProperty` name or its name as the class's `@JsonNaming` translates it, without the `@JsonIgnore`d ones and those a class's `@JsonIgnoreProperties`
  * names. It descends into a property of an application class or interface, an interface's properties being those its
  * getters give, a default one included, as the schema describes them, and into the element class of a collection or an
  * array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to the element); a map,
@@ -135,9 +136,10 @@ internal object QueryPropertiesSource {
         problems: MutableList<String>,
     ) {
         val ignored = owner.jsonIgnoredProperties(problems)
-        owner.getAllProperties().filter { it.isQueryable(ignored, problems) }.forEach { property ->
-            val wireName = property.wireName(problems)
-            if (!QueryFieldNames.isSegment(wireName)) return@forEach
+        val naming = owner.jsonNaming(problems)
+        owner.getAllProperties().forEach { property ->
+            val wireName = property.wireName(problems, naming)
+            if (!property.isQueryable(wireName, ignored, problems) || !QueryFieldNames.isSegment(wireName)) return@forEach
             val childPath = "$path.$wireName"
             val childName = QueryFieldNames.constantOf(childPath)
             val type = property.type.resolve()
@@ -176,10 +178,13 @@ internal object QueryPropertiesSource {
         return name + arguments + if (nullability == Nullability.NOT_NULL) "" else "?"
     }
 
-    private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>, problems: MutableList<String>): Boolean =
-        isPublic() && extensionReceiver == null &&
-            simpleName.asString() !in ignored && wireName(problems) !in ignored &&
-            !jsonIgnored(problems)
+    private fun KSPropertyDeclaration.isQueryable(
+        wireName: String,
+        ignored: Set<String>,
+        problems: MutableList<String>,
+    ): Boolean = isPublic() && extensionReceiver == null &&
+        simpleName.asString() !in ignored && wireName !in ignored &&
+        !jsonIgnored(problems)
 
     /** The class whose properties a path continues into: the type itself, or a collection's element type. */
     private fun KSType.nestedClass(): KSClassDeclaration? {
