@@ -220,7 +220,7 @@ class QueryModelSchema(
             QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
         }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.distinct().sorted()
             .mapNotNull { path -> field(QueryField(path)) }
-            .filter { it.comparable && it.elementAncestors?.isEmpty() == true }
+            .filter { it.comparable && it.elementAncestors == emptyList<QueryField<*>>() }
     }
 
     internal val maskedValues = definition.maskedValues

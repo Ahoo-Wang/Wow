@@ -156,6 +156,7 @@ class ElasticsearchStateMappingsTest {
                 it.index(index).withJson(
                     StringReader(
                         """{"properties":{"state":{"properties":{"later":{"type":"keyword","ignore_above":100},""" +
+                            """"bare":{"type":"keyword"},""" +
                             """"odd":{"type":"keyword","fields":{"text":{"type":"keyword"}}},""" +
                             """"unmarked":{"type":"keyword","fields":{"text":{"type":"text"}}}}}}}""",
                     ),
@@ -178,6 +179,10 @@ class ElasticsearchStateMappingsTest {
                 types(QueryValueType.STRING)
                 text()
             }
+            field("state.bare") {
+                types(QueryValueType.STRING)
+                text()
+            }
             field("state.odd") {
                 types(QueryValueType.STRING)
                 text()
@@ -187,7 +192,7 @@ class ElasticsearchStateMappingsTest {
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
         val planned = schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), prose)
         val report = queries.manageIndexes(type, QueryIndexPlan.of(planned, emptyList()))
-        report.created.assert().contains("state.title", "state.code", "state.tags", "state.later.text")
+        report.created.assert().contains("state.title", "state.code", "state.tags", "state.later.text", "state.bare.text")
         report.invalid.assert().containsExactly("state.odd.text")
         val mapping = ElasticsearchIndexMappingResolver(ElasticsearchFixture.client).refresh(index)
         mapping.fields.getValue("state.title").multiFields.assert().containsExactly("state.title.text")
@@ -197,6 +202,8 @@ class ElasticsearchStateMappingsTest {
         // The keyword mapped before keeps its cap and gains the text field; a removed marker leaves its field.
         mapping.fields.getValue("state.later").ignoreAbove.assert().isEqualTo(100)
         mapping.fields.getValue("state.later.text").kind.assert().isEqualTo(Property.Kind.Text)
+        mapping.fields.getValue("state.bare").ignoreAbove.assert().isNull()
+        mapping.fields.getValue("state.bare.text").kind.assert().isEqualTo(Property.Kind.Text)
         mapping.fields.getValue("state.unmarked.text").kind.assert().isEqualTo(Property.Kind.Text)
         // What the schema grants: search on the marked strings the index maps a text field for, and nothing else.
         val bound = schema(queries, prose)

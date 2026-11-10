@@ -52,15 +52,16 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `a search that names no field searches the record's searchable fields, one that names fields those`() {
-        // SCHEMA binds full text on `state.value` only: what the descriptor lists as `record.search.fields`.
+        // SCHEMA binds full text on `state.value` (terms and phrase), `state.words` (terms) and `state.phrases`
+        // (phrase) at the record, and on `state.items.title` inside an element, which no record search reads.
         ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().let { search ->
-            search.fields().assert().containsExactly("state.value")
+            search.fields().assert().containsExactly("state.value", "state.words")
             search.lenient().assert().isNull()
             search.type().assert().isNull()
         }
         ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value", mode = SearchMode.PHRASE)).multiMatch()
             .let { search ->
-                search.fields().assert().containsExactly("state.value")
+                search.fields().assert().containsExactly("state.phrases", "state.value")
                 search.type().assert().isEqualTo(TextQueryType.Phrase)
             }
         ElasticsearchFilterCompiler.compileAdmitted(
@@ -308,6 +309,14 @@ class ElasticsearchFilterCompilerTest {
                 )
                 put(QueryField("state.text"), nativeBindings(QueryField("state.text"), QueryCapability.LITERAL_MATCH))
                 put(
+                    QueryField("state.words"),
+                    nativeBindings(QueryField("state.words"), QueryCapability.FULL_TEXT_TERMS)
+                )
+                put(
+                    QueryField("state.phrases"),
+                    nativeBindings(QueryField("state.phrases"), QueryCapability.FULL_TEXT_PHRASE),
+                )
+                put(
                     QueryField("state.tags"),
                     nativeBindings(QueryField("state.tags"), QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
                 )
@@ -322,6 +331,14 @@ class ElasticsearchFilterCompilerTest {
                         QueryField("storage.items.name"),
                         QueryCapability.EXACT_MATCH,
                         QueryCapability.PRESENCE,
+                    ),
+                )
+                put(
+                    QueryField("state.items.title"),
+                    nativeBindings(
+                        QueryField("storage.items.title"),
+                        QueryCapability.FULL_TEXT_TERMS,
+                        QueryCapability.FULL_TEXT_PHRASE,
                     ),
                 )
                 put(

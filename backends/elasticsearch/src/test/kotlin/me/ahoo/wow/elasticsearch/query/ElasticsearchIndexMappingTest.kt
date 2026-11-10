@@ -165,8 +165,27 @@ class ElasticsearchIndexMappingTest {
         }
         val withTextToo = ElasticsearchIndexMapping.from(
             "c",
-            mapping("""{"properties":{"name":{"type":"keyword","fields":{"text":{"type":"text"}}}}}"""),
+            mapping(
+                """{"properties":{"name":{"type":"keyword","fields":{"text":{"type":"text"}}},""" +
+                    """"code":{"type":"keyword","null_value":"n/a"}}}""",
+            ),
         )
+        val withNullValue = ElasticsearchIndexMapping.from(
+            "d",
+            mapping(
+                """{"properties":{"name":{"type":"keyword","fields":{"text":{"type":"text"}}},""" +
+                    """"code":{"type":"keyword","null_value":"n/a"}}}""",
+            ),
+        )
+        // A null_value compares by its text, alike in both.
+        ElasticsearchIndexMapping.common("name", mapOf("c" to withTextToo, "d" to withNullValue)).fields.keys
+            .assert().contains("code")
+        val withoutNullValue = ElasticsearchIndexMapping.from(
+            "e",
+            mapping("""{"properties":{"code":{"type":"keyword"}}}"""),
+        )
+        listOf(mapOf("c" to withTextToo, "e" to withoutNullValue), mapOf("e" to withoutNullValue, "c" to withTextToo))
+            .forEach { ElasticsearchIndexMapping.common("name", it).fields.keys.assert().doesNotContain("code") }
         ElasticsearchIndexMapping.common("name", mapOf("b" to withText, "c" to withTextToo)).let { common ->
             common.fields.keys.assert().containsExactly("name", "name.text")
             common.fields.getValue("name").multiFields.assert().containsExactly("name.text")
