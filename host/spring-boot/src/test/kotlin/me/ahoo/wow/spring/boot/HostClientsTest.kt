@@ -206,7 +206,7 @@ class HostClientsTest {
         val client = mockk<WowClient>(relaxed = true)
         every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
         val named = ContractDirectory(Manifest(service = ServiceInfo("basket-service")), contracts.peers)
-        val peers = WowAutoConfiguration().wowPeerClients(
+        val peers = NodePeers().wowPeerClients(
             WowProperties().apply { peers[BANK] = WowProperties.PeerTarget() },
             EndpointResolver.of(emptyMap(), emptyMap()),
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
@@ -230,7 +230,7 @@ class HostClientsTest {
         callers.single().subject.assert().isEqualTo("service:basket-service")
         // A Manifest that names no service has no identity to read a peer as.
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration().wowPeerClients(
+            NodePeers().wowPeerClients(
                 WowProperties(),
                 EndpointResolver.of(emptyMap(), emptyMap()),
                 NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
@@ -338,7 +338,7 @@ class HostClientsTest {
                 setOf(BANK)
             )
         }.message.assert().contains("whose contract is on the class path")
-        val peers = WowAutoConfiguration().wowPeerClients(
+        val peers = NodePeers().wowPeerClients(
             WowProperties().apply {
                 peers["mail"] = WowProperties.PeerTarget().apply {
                     contract = WowProperties.PeerTarget.Contract.MANIFEST
@@ -373,7 +373,7 @@ class HostClientsTest {
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
         resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
-        val peers = WowAutoConfiguration().wowPeerClients(
+        val peers = NodePeers().wowPeerClients(
             WowProperties().apply {
                 peers[BANK] = WowProperties.PeerTarget().apply { timeout = java.time.Duration.ofSeconds(5) }
             },
@@ -384,12 +384,12 @@ class HostClientsTest {
             HttpCommandCaller.client(),
         )
         peers.contexts.assert().containsExactly(BANK)
-        WowAutoConfiguration().wowClient(peers).assert().isSameAs(peers.client)
+        NodePeers().wowClient(peers).assert().isSameAs(peers.client)
     }
 
     @Test
     fun `the public requests' credential headers should be in the coroutine context of their handling`() {
-        val filter = WowAutoConfiguration().wowForwardedHeadersFilter(
+        val filter = NodePeers().wowForwardedHeadersFilter(
             WowProperties().apply { peer.forwardedHeaders = mutableListOf("Authorization", " ") },
         )
         fun contextOf(request: MockServerHttpRequest): CoroutineContext? {
