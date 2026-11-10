@@ -176,7 +176,9 @@ class PostgresEventLog(
 
     /**
      * One statement of the stamps of distinct streams ([PostgresEventLogTables] `stampRows`), autocommitted, per
-     * aggregate type; stamps that overlap are written one at a time, so the later version of two wins.
+     * aggregate type; stamps that overlap are written one at a time, so the later version of two wins. MongoDB's log
+     * writes overlapping stamps in its one bulk write instead, each update guarded by the version it stamps: both leave
+     * the later version's attributes.
      */
     @InternalWowApi
     override suspend fun stampAll(stamps: List<AccessStamp>): Int {

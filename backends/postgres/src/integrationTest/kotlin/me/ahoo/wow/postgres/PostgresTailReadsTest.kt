@@ -52,7 +52,7 @@ class PostgresTailReadsTest {
     }
 
     @Test
-    fun `head refuses a partition the log does not have, and is null for a partition without its counter row`(): Unit =
+    fun `head refuses a partition the log does not have, and one without its counter row, as lineage does`(): Unit =
         runBlocking {
             val context = PostgresFixture.newContext()
             val log = PostgresFixture.log(2, context)
@@ -64,7 +64,10 @@ class PostgresTailReadsTest {
             PostgresFixture.dataSource.connection.use { connection ->
                 connection.createStatement().use { it.execute("DELETE FROM $counters WHERE partition = 1") }
             }
-            log.head(1).assert().isNull()
+            // A damaged store: the partition is not empty, it has no counter, and both reads say so.
+            val missing = "The log of $context has no counter of partition 1."
+            assertThrownBy<IllegalStateException> { runBlocking { log.head(1) } }.hasMessage(missing)
+            assertThrownBy<IllegalStateException> { runBlocking { log.lineage(1) } }.hasMessage(missing)
         }
 
     private fun stream(ref: AggregateRef) = EventStreamRecord(

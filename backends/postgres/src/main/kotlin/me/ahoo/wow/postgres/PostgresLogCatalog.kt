@@ -83,6 +83,9 @@ internal class PostgresLogCatalog(
     /**
      * Runs [block] on [type]'s table. When the table is gone (`42P01`: dropped since this log made sure of it, by a
      * test or a migration), the statement ran nothing: it makes sure of the table again and runs [block] once more.
+     * Being inline, [block] is compiled in twice at every call site, and its second copy runs only on that path, on the
+     * table just made again, so a test reaches its rows with a writer between the making and the read
+     * (`PostgresAggregateReadsTest`).
      */
     // Inline, as it was a private member of the log: every append and read runs through it, and a lambda passed to a
     // function that is not inline is an object per call. Being internal, it reaches the cache through [forget].

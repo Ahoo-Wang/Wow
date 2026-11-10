@@ -44,7 +44,7 @@ internal class MongoTailReads(
     private val sequencer: MongoSequencer,
     private val documents: MongoLogDocuments,
     private val tailBatch: Int,
-    /** The registry as a majority has committed it, which [headOf] reads with the collections' heads. */
+    /** The registry as a majority committed it, which [headOf] reads with the counter and the collections' heads. */
     private val committedRegistry: MongoCollection<Document>,
     private val context: String,
 ) {
@@ -137,13 +137,17 @@ internal class MongoTailReads(
         val names = known.mapTo(HashSet()) { it.name }
         var head: Long? = null
         var unknown = false
-        for (document in committedRegistry.aggregate(headPipeline(partition, known))) {
+        var counted = false
+        for (document in committedCounters.aggregate(headPipeline(partition, known))) {
             val sequence = document.getLong(SEQUENCE)
+            val id = document[ID]
             when {
                 sequence != null -> head = maxOf(head ?: sequence, sequence)
-                document.getString(ID) !in names -> unknown = true
+                id !is String -> counted = true
+                id !in names -> unknown = true
             }
         }
+        check(counted) { "The log of $context has no counter of partition $partition." }
         if (!unknown) {
             return head
         }
@@ -156,8 +160,9 @@ internal class MongoTailReads(
     }
 
     /**
-     * The context's registry entries, then each of [known]'s highest stream in [partition], in one aggregation over
-     * the registry: an entry this log does not know is a collection registered since it last read the registry.
+     * The counter of [partition], the context's registry entries, then each of [known]'s highest stream in [partition],
+     * in one aggregation over the counters: an entry this log does not know is a collection registered since it last
+     * read the registry, and no counter is a damaged store.
      */
     private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
         val highest = listOf(
@@ -173,9 +178,12 @@ internal class MongoTailReads(
             Aggregates.limit(1),
             Aggregates.project(Projections.include(SEQUENCE)),
         )
+        val registry =
+            listOf(Aggregates.match(Filters.eq(CONTEXT, context)), Aggregates.project(Projections.include(ID)))
         return listOf(
-            Aggregates.match(Filters.eq(CONTEXT, context)),
+            Aggregates.match(Filters.eq(ID, partition)),
             Aggregates.project(Projections.include(ID)),
+            Aggregates.unionWith(committedRegistry.namespace.collectionName, registry),
         ) + known.map { Aggregates.unionWith(it.name, highest) }
     }
 }

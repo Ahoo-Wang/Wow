@@ -406,6 +406,7 @@ class MongoEventLog(
      * The aggregation also reads the context's registry: a collection another node registered since this log last
      * read it (a new aggregate type's first commit, written by the partition's previous owner) makes it read the
      * registry again and look once more, so the head never misses the streams of a collection it has not seen yet.
+     * It starts from the partition's counter: a partition without one is refused, as [lineage] refuses it.
      */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
