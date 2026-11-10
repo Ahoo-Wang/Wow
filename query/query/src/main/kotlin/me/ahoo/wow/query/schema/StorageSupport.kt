@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 
@@ -241,6 +242,17 @@ class StorageSupport @InternalWowApi constructor(
             absentValues: AbsentValues = AbsentValues.DISTINCT,
             arrayEquality: SupportMode = SupportMode.NATIVE,
         ): StorageSupport = StorageSupport(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
+    }
+}
+
+/** Refuses a sort by [field], which holds [value], where this storage cannot order it as the protocol does. */
+internal fun StorageSupport.requireSorts(value: QueryValueSchema, field: QueryField<*>) {
+    if (!sorts(value)) {
+        throw QueryViolation.StorageUnsupported(
+            "sorting by an array whose elements may be null, which it does not index: it cannot order a null " +
+                "element least",
+            field,
+        ).rejection()
     }
 }
 
