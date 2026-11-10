@@ -3,6 +3,8 @@ description = "Wow HTTP: routes materialized from the Manifest, problem+json, SS
 dependencies {
     // The guard of the hand-written equals (finding R5.B-13).
     testImplementation(project(":tck"))
+    // HeldDeadlines: the tests that time a wait out after a hop pass its deadline themselves.
+    testImplementation(testFixtures(project(":runtime")))
     api(project(":runtime"))
     // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
     api(project(":query"))

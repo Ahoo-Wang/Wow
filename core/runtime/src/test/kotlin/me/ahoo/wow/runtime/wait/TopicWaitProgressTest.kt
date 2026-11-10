@@ -46,7 +46,6 @@ import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * A wait through a command topic whose commit is signalled before or after the broker acknowledged the command: the
@@ -112,6 +111,9 @@ class TopicWaitProgressTest {
     /** Open once the snapshot subscription may handle the commit. */
     private val snapshotGate = CompletableDeferred<Unit>()
 
+    /** The deadline of the scenario's wait, passed once its commit is reached. */
+    private val held = HeldDeadlines()
+
     private fun runtime(name: String, entries: EntrySource, subscription: Subscription) = SubscriptionRuntime(
         name,
         entries,
@@ -130,7 +132,10 @@ class TopicWaitProgressTest {
         }
     }
 
-    /** Runs a command with the default wait (its snapshot) within a second: its result. */
+    /**
+     * Runs a command that waits for its commit, then its snapshot: its result. Unless [snapshotTaken], its deadline
+     * passes once the commit is reached, whatever the time it took.
+     */
     private suspend fun scenario(
         topicRouted: Boolean,
         acknowledgedAfterCommit: Boolean,
@@ -154,6 +159,7 @@ class TopicWaitProgressTest {
             signals,
             origin,
             topicRouter = router.takeIf { topicRouted },
+            deadlines = held,
         )
         val intake = CommandIntake("shop", listOf(order), coordinator, SourceTopics(topics, producer = topics))
         val intakeRuntime = runtime("intake", MessageEntries.commands(TOPIC, topics, 1), intake.subscription)
@@ -161,10 +167,9 @@ class TopicWaitProgressTest {
             snapshots.start(setOf(0))
             intakeRuntime.start(setOf(0))
             val ref = order.type.ref("t", "o-1")
-            val result = coordinator.execute(
-                order,
-                Command("c-1", "r-1", ref, Place(3), wait = WaitPlan.DEFAULT.within(1.seconds))
-            )
+            val plan = WaitPlan.of(Hop.committed(), Hop.snapshot())
+            val results = coordinator.stream(order, Command("c-1", "r-1", ref, Place(3), wait = plan))
+            val result = held.timedOut(results) { !snapshotTaken && it.hop.stage == Stage.COMMITTED }.last()
             log.read(ref).toList().single().version.assert().isEqualTo(1)
             return result
         } finally {

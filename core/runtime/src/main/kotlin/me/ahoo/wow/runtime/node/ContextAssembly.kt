@@ -488,6 +488,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 topicRouter = topicRouterOf(context, backends),
                 observer = observer,
                 clock = clock,
+                deadlines = wiring.deadlines,
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), clock, observer = observer)
             firing.firer = ContextTimerFirer(models, coordinator, sender, observer, admission.validators)

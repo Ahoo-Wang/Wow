@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.WaitDeadlines
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
@@ -164,6 +165,8 @@ class ServiceNode @InternalWowApi constructor(
      * under too; [ReplayGate.OPEN], the default for a node built without it, runs each replay at once.
      */
     replayGate: ReplayGate = ReplayGate.OPEN,
+    /** Ends the node's waits at their deadlines: the runtime's deadline threads, unless a test holds them. */
+    deadlines: WaitDeadlines = WaitDeadlines.SHARDED,
 ) {
     private val assembly = NodeAssembly(
         service,
@@ -187,6 +190,7 @@ class ServiceNode @InternalWowApi constructor(
         failureClassifiers,
         queries,
         replayGate,
+        deadlines,
     )
 
     /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */

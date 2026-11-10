@@ -20,6 +20,7 @@ import jakarta.validation.Path
 import jakarta.validation.Validator
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.metadata.ConstraintDescriptor
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -28,8 +29,11 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.command.JakartaCommandValidator
+import me.ahoo.wow.runtime.wait.HeldDeadlines
 import org.junit.jupiter.api.Test
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -144,11 +148,19 @@ class CommandRoutesTest {
 
     @Test
     fun `a wait that runs out of time is 504 with the last hop reached`() {
-        val answer = node.post(
-            "/shop/cart/c-1/add-item",
-            """{"sku":"apple"}""",
-            headers = mapOf(WowHeaders.WAIT to "handled(shop/audit)", WowHeaders.WAIT_TIMEOUT to "200ms"),
-        ).assertProblem(504, FrameworkCodes.WAIT_TIMEOUT, withResult = true)
+        // The audit never answers: the deadline passes once the command committed, however long that took.
+        val held = HeldDeadlines()
+        val node = HttpNode(deadlines = held)
+        val appended = CompletableDeferred<Unit>().also { node.appended = it }
+        val posted = CompletableFuture.supplyAsync {
+            node.post(
+                "/shop/cart/c-1/add-item",
+                """{"sku":"apple"}""",
+                headers = mapOf(WowHeaders.WAIT to "handled(shop/audit)"),
+            )
+        }
+        node.passDeadlinesAfter(appended)
+        val answer = posted.get(10, TimeUnit.SECONDS).assertProblem(504, FrameworkCodes.WAIT_TIMEOUT, withResult = true)
         answer.body!!["result"]["hop"]["stage"].asString().assert().isEqualTo("committed")
         answer.body!!["result"]["status"].asString().assert().isEqualTo("failed")
     }
