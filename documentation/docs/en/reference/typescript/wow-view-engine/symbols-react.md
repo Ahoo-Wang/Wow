@@ -52,7 +52,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `LeaveGuardState` | interface | What the guard reads off the open view. | — |
 | `ManagedInstanceAbilities` | interface | What may be done to one row. | — |
 | `ManagedWording` | interface | The manager's hold on a dataset's wording; see `ViewManagerController.wording`. | — |
-| `MetricRemoval` | type | Whether a metric's ✕ may take it out: `last` when it is the only one,`cascade` when every other metric reads it and would leave with it — the edit #3777 makes as asked, leaving admission to refuse it. | — |
+| `MetricRemoval` | type | Whether a metric's ✕ may take it out: `last` when it is the only one, `cascade` when every other metric reads it and would leave with it — the edit #3777 makes as asked, leaving admission to refuse it. | — |
 | `NewViewOptions` | interface | What a workbench needs before it can make a view from nothing. | — |
 | `OpenViewOptions` | interface | How `useOpenView` opens: what narrows the view, and what it opens on. | [React Hooks](./react#api-useOpenView) |
 | `OpenViewState` | interface | — | [React Hooks](./react#api-useOpenView) |
@@ -137,7 +137,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `useSaveCommands` | function | The write commands of one open view, with the permissions that decide which buttons are live. | [React Hooks](./react#api-useSaveCommands) |
 | `useSearchBox` | function | — | — |
 | `useUnavailable` | function | The view's unavailable parts, read again whenever its snapshot changes, or `null` when there are none — so a surface draws its strip only where there is something to say. | — |
-| `useValueCandidates` | function | A condition's values offered from the data: the list of one`ValueCandidateSource`, asked for while `active`. | — |
+| `useValueCandidates` | function | A condition's values offered from the data: the list of one `ValueCandidateSource`, asked for while `active`. | — |
 | `useViewList` | function | The list, the preferences and the permissions of one definition. | [React Hooks](./react#api-useViewList) |
 | `useViewManager` | function | Managing the views a list shows, rather than the one that is open: rename, move to the other audience, delete, reorder and choose a default, with the recovery actions for writes that no runtime owns. | [React Hooks](./react#api-useViewList) |
 | `useViewRuntime` | function | Subscribes to a runtime. | [React Hooks](./react#api-useOpenView) |

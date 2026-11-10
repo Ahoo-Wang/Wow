@@ -23,13 +23,13 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `AggregateRef` | interface | One aggregate: its type, its tenant and its id. | — |
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
-| `CommandClient` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the Manifest the client is given, else the service's, fetched once (`GET /wow/manifest`). | — |
+| `CommandClient` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without `{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the Manifest the client is given, else the service's, fetched once (`GET /wow/manifest`). | — |
 | `CommandClientOptions` | interface | How a `CommandClient` sends, beside how it reaches the service. | — |
 | `CommandManifest` | interface | A command of an aggregate or a context, and the routes that send it. | — |
 | `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, body and type. | — |
 | `CommandRef` | interface | The aggregate a command names: an `AggregateRef` whose `id` is null while admission has not chosen it, as for a creation that leaves its id to the server and was refused before one was chosen. | — |
 | `CommandRejectedError` | class | The command was rejected: its result's status is `rejected`, decided by its aggregate (a business outcome with the domain's code) or at admission (an unknown command, an invalid one, a caller the authorizer forbids). | — |
-| `CommandRequest` | interface | One command a `CommandClient` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
+| `CommandRequest` | interface | One command a `CommandClient` sends, and how: the TypeScript `CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type, const | A `CommandResultStatus` value. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
@@ -40,7 +40,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
 | `CreateCommandOptions` | interface | The options of a command that may create its aggregate, with its id or not. | — |
 | `Creation` | type | Whether a command creates its aggregate. | — |
-| `DEFAULT_RETRY` | const | How often, and after how long, a client sends a request again by default when a retry may get past its error, as the Kotlin client does (`RetryPolicy.DEFAULT`): at most `attempts` attempts, the first included,`backoffMs` before the first retry without a `Retry-After`, doubled at each attempt up to `maxWaitMs`. | — |
+| `DEFAULT_RETRY` | const | How often, and after how long, a client sends a request again by default when a retry may get past its error, as the Kotlin client does (`RetryPolicy.DEFAULT`): at most `attempts` attempts, the first included, `backoffMs` before the first retry without a `Retry-After`, doubled at each attempt up to `maxWaitMs`. | — |
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
@@ -50,7 +50,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `EventManifest` | interface | An event of an aggregate and its revision. | — |
 | `EventQueryClient` | class | Queries an aggregate type's event streams on the same engine as its snapshots: one record per commit, `count` counts commits, a condition on an event is an `elementMatch` on `events`, and per-event analytics expand `events` in an aggregation (`elements`). | — |
 | `EventStream` | interface | A record of the `events` query model: one commit of one aggregate and its events. | — |
-| `EventStreamField` | type | The fields of an event stream record a query names: its system fields, `access` and its built-in `owner` and `space` (a declared attribute is an `AccessField`), and `events`, the array an`elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own `name`, `revision` and `body.*`. | — |
+| `EventStreamField` | type | The fields of an event stream record a query names: its system fields, `access` and its built-in `owner` and `space` (a declared attribute is an `AccessField`), and `events`, the array an `elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own `name`, `revision` and `body.*`. | — |
 | `FRAMEWORK_ERROR_PREFIX` | const | The prefix of every framework code, and of no domain code. | — |
 | `FRAMEWORK_RETRIES` | const | What a retry may do of each framework code a retry may get past, by code; a retry of every other code, a domain's among them, is `none`. | — |
 | `FrameworkErrorCode` | type | A `FrameworkErrorCodes` value. | — |
@@ -59,7 +59,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
 | `FunctionKind` | type, const | A `FunctionKind` value. | — |
 | `FunctionManifest` | interface | The handler function of a subscription. | — |
-| `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is`handled`. | — |
+| `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is `handled`. | — |
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
 | `JobManifest` | interface | The scheduled job a subscription runs. | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
@@ -67,14 +67,14 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `MANIFEST_FEATURES` | const | The markers of a Manifest's `requires` this client understands, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest, or a module's fragment (without service), format 1. | — |
-| `NoAccess` | type | The access attributes of an aggregate that declares none: a record's`access` is then empty, and a query names no `access.<name>`. | — |
+| `NoAccess` | type | The access attributes of an aggregate that declares none: a record's `access` is then empty, and a query names no `access.<name>`. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
-| `OwnStateClient` | class | Reads the states of an aggregate type whose id is its owner's (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`): by id as `StateClient` does, for a caller with no owner, and the caller's own by no id, `GET /{context}/{aggregate}/state` and`…/state/trace`, its id the owner the caller reads as. | — |
+| `OwnStateClient` | class | Reads the states of an aggregate type whose id is its owner's (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`): by id as `StateClient` does, for a caller with no owner, and the caller's own by no id, `GET /{context}/{aggregate}/state` and `…/state/trace`, its id the owner the caller reads as. | — |
 | `OwnerTransferred` | interface | The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. | — |
 | `Ownership` | type | How an aggregate belongs to its callers. | — |
 | `PROBLEM_TYPE_PREFIX` | const | The prefix of a problem's `type` that carries a Wow code. | — |
 | `Positioned` | interface | One row of a streamed list, with its position. | — |
-| `Problem` | interface | An RFC 9457 problem as a Wow service writes it:`type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
+| `Problem` | interface | An RFC 9457 problem as a Wow service writes it: `type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
@@ -101,7 +101,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `SourceManifest` | interface | What a subscription reads: a context, aggregate types and events. | — |
 | `SpaceTransferred` | interface | The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. | — |
 | `Stage` | type, const | A `Stage` value. | — |
-| `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
+| `StateClient` | class | Reads an aggregate type's states: `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
 | `StateManifest` | interface | An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. | — |
 | `StateReadOptions` | interface | Which state a read asks for: the latest, at a version or as of a time. | — |
 | `StateReadResult` | type | A state read: the snapshot and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
@@ -130,7 +130,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |
-| `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and`handled(subscription)`, each with its context when it has one:`committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`. | — |
+| `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`. | — |
 | `formatScope` | function | A target scope as the `Wow-Scope` header spells it, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"`. | — |
 | `formatWaitPlan` | function | A wait plan as the `Wow-Wait` header spells it: its hops, in order, separated by `>`; the inverse of `parseWaitPlan`. | — |
 | `formatWaitTimeout` | function | A wait timeout as the `Wow-Wait-Timeout` header spells it: milliseconds as `<n>s` when whole seconds, else `<n>ms`. | — |
@@ -139,14 +139,14 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `parseHop` | function | The hop one part of a `Wow-Wait` value spells; see `parseWaitPlan`. | — |
 | `parseJson` | function | `text` read as `JSON.parse` reads it, but each number `marks` marks comes back as its exact text, a string. | — |
 | `parseRetryAfter` | function | The milliseconds of a `Retry-After` header: delay seconds or an HTTP date. | — |
-| `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot` or`handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of`formatWaitPlan`. | — |
+| `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of `formatWaitPlan`. | — |
 | `queryPath` | function | The query route of a model of an aggregate type. | — |
 | `readProblem` | function | The problem a response that did not succeed carries: its body when it is a problem (or a code the `type` names), else one made of its status. | — |
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |
 | `retryOf` | function | What a retry of `problem` may do: its `retry` member, which every problem a Wow service writes carries; else the error catalog's for its code; else, for a body that is no Wow problem (a proxy's 503 or 429), `same-request`. | — |
 | `stringifyJson` | function | `value` written as `JSON.stringify` writes it, but each string `marks` marks goes on the wire as the JSON number it spells, unquoted: `{"price": "19.99"}` marked `{price: true}` is `{"price":19.99}`. | — |
-| `textNumberOr` | function | The marks of a value that is either an exact number or an object or array marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and`{ "amount": 12.50 }` both as their text. | — |
-| `textNumbersBy` | function | The marks of an object chosen by the string value of its member`discriminant`: `textNumbersBy('name', { 'shop.cart.ItemAdded': { body:{ price: true } } })` reads an event by its name. | — |
+| `textNumberOr` | function | The marks of a value that is either an exact number or an object or array marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and `{ "amount": 12.50 }` both as their text. | — |
+| `textNumbersBy` | function | The marks of an object chosen by the string value of its member `discriminant`: `textNumbersBy('name', { 'shop.cart.ItemAdded': { body: { price: true } } })` reads an event by its name. | — |
 | `toWowProblemError` | function | The `WowProblemError` of an error a request rejected with: the fetcher's `ExchangeError` of a response that is not 2xx, read as a problem. | — |
 | `wait` | const | Builds the hops of a wait chain. | — |
 

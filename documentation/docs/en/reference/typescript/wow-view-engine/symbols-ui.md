@@ -34,7 +34,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `ChartImageSlot` | interface | Where a chart hands over its capture; `null` takes it back. | — |
 | `ChartMapGeoJson` | interface | A GeoJSON feature collection, as far as a map chart reads one: each feature's `properties.name` is the region's name, which the region dimension's values — as their column shows them — are matched against. | — |
 | `ChartMapSource` | interface | A map a host offers the map chart. | — |
-| `ColorMode` | type | Light or dark: `light` or `dark` pins it, `system` follows the reader's`prefers-color-scheme`, live — the mode a surface is asked for, and the one a reader picks on `ViewHost` (`useColorMode`). | — |
+| `ColorMode` | type | Light or dark: `light` or `dark` pins it, `system` follows the reader's `prefers-color-scheme`, live — the mode a surface is asked for, and the one a reader picks on `ViewHost` (`useColorMode`). | — |
 | `ColorModeControl` | interface | What `useColorMode` hands a host's switch. | — |
 | `ColumnSettings` | function | Which columns the table shows, in which order, pinned where, summarised how. | — |
 | `ColumnSettingsProps` | interface | — | — |
@@ -63,7 +63,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `DatasetWorkbenchProps` | interface | A standalone dataset view's props: the datasets served, which one is open, and what `DataWorkbench` takes for it. | — |
 | `DetachedDialog` | interface | A window opened from a toolbar, whose content is drawn outside it: the export's (`ExportButton`, `ExportMenu`). | — |
 | `DetachedPopover` | interface | A popover opened from a toolbar, whose content is drawn outside it. | — |
-| `DialogHandle` | interface | The handle `DetachedDialog` joins its two halves by, opaque as`PopoverHandle` is. | — |
+| `DialogHandle` | interface | The handle `DetachedDialog` joins its two halves by, opaque as `PopoverHandle` is. | — |
 | `DisplayContext` | interface | Where a value is shown: the language, and the zone its times read in. | — |
 | `DisplayField` | interface | What a column knows about the field behind it. | — |
 | `EditingCommands` | interface | 「编辑面板」: what a panel offers while the board is being built. | — |
@@ -96,7 +96,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `FilterValueEditor` | function | One value control, chosen by the descriptor the field kind produced. | — |
 | `FilterValueEditorProps` | interface | — | — |
 | `FinalFocus` | type | Where a dialog the board opened hands the keyboard back as it closes. | — |
-| `FveToken` | type | Every host variable of the contract: `--fve-<token>`, and`--fve-dark-<token>` for a token with a dark half. | — |
+| `FveToken` | type | Every host variable of the contract: `--fve-<token>`, and `--fve-dark-<token>` for a token with a dark half. | — |
 | `HandleMove` | type | One move a handle asks its list for: a place either way (an arrow key, or 「往前移一位」／「往后移一位」 in its menu), or either end of the list. | — |
 | `HeaderSorting` | interface | What the analysis table's headers read and write the sort through. | — |
 | `HeadingLevel` | type | — | — |
@@ -221,9 +221,9 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `ViewMessages` | type | Wording, by key. | [Host Wiring](./host#api-MessagesProvider) |
 | `ViewNavigationItem` | interface | One resource the host routes to, as a place of its navigation. | — |
 | `ViewNavigationView` | interface | One system view (or system board) of a resource, as a link. | — |
-| `ViewPreset` | type | What a `preset` prop takes: a built-in preset, with completion, or the name of one the host wrote the same way (`:where([data-fve-preset='acme'])`).`string & {}` keeps the built-in names in completion while any string still type-checks; a bare `string` would swallow the union. | — |
+| `ViewPreset` | type | What a `preset` prop takes: a built-in preset, with completion, or the name of one the host wrote the same way (`:where([data-fve-preset='acme'])`). | — |
 | `ViewRoute` | interface | A way off a board or a view, resolved through its definition's `route`: the host's path, and what the page there is handed. | — |
-| `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address.`target` is the way off it was asked for; it is absent where the engine asks for a link rather than a way off — a resource's or a system view's place in the host's navigation (`useViewNavigation`). | — |
+| `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address. | — |
 | `ViewRouteState` | interface | What the page a route opens is handed with it, as history state. | — |
 | `ViewRouter` | interface | The router port (host-integration.md 4.2): the host's router as the engine reads and moves it — the one bridge to it, whichever library it is. | [Host Wiring](./host#api-ViewRouter) |
 | `ViewSurface` | function | — | — |
@@ -255,7 +255,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `kindIssue` | function | An issue about the thing open, said as its kind says it: 「仪表盘保存失败」 on a board where a view says 「视图保存失败」. | — |
 | `kindWord` | function | The key a kind says `key` with: its own where it has one. | — |
 | `registerChartMap` | function | Offers a map to every map chart on the page, by name; a second one of the same name takes its place. | — |
-| `tableTime` | function | A time as a table cell writes it: short, and numeric where the language writes it so — `09-17 21:19` in Chinese, `Sep 17, 9:19 PM` in English — with the year only when it is not the current one (`2025-09-17 21:19`,`Sep 17, 2025, 9:19 PM`), and the seconds only when the column asks for them (`timePrecision: 'second'`). | — |
+| `tableTime` | function | A time as a table cell writes it: short, and numeric where the language writes it so — `09-17 21:19` in Chinese, `Sep 17, 9:19 PM` in English — with the year only when it is not the current one (`2025-09-17 21:19`, `Sep 17, 2025, 9:19 PM`), and the seconds only when the column asks for them (`timePrecision: 'second'`). | — |
 | `useColorMode` | function | The page's mode and a way to pick one, for the host's own switch (a menu in its top bar): what the `ViewHost` above paints. | — |
 | `useDashboardEditExtensions` | function | The extensions in force; none by default. | — |
 | `useDashboardExtensions` | function | The board's extensions (`DashboardEditExtensions`) as the default workbench fills them: 「新建分析」 opens the dialog a board-owned analysis is made in, 「改这里的展示」 the visualization panel for one panel's look, 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as dialog that promotes an owned analysis, 「复制为共享视图并替换」 the same dialog copying a personal view for a shared board, and the tab bar. | — |
@@ -266,7 +266,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `useSurfaceDisplay` | function | The language and zone the nearest surface shows values in. | — |
 | `useViewExpansion` | function | Let a surface fill the screen **where it stands**. | — |
 | `useViewMessages` | function | The formatters for the wording in force here, with `messages` merged over it and its numbers grouped in `locale`. | — |
-| `useViewNavigation` | function | The places of the host's navigation (host-integration.md 4.3), from the`ViewHost` above: every registered resource the host bound a `route` to, in the order they were registered, with its system views; titles said in the words in force, so a change of language redraws it, and a resource registered or bound differently changes it. | — |
+| `useViewNavigation` | function | The places of the host's navigation (host-integration.md 4.3), from the `ViewHost` above: every registered resource the host bound a `route` to, in the order they were registered, with its system views; titles said in the words in force, so a change of language redraws it, and a resource registered or bound differently changes it. | — |
 | `zhCN` | const | 简体中文文案，与 `en` 逐键对应。 | — |
 
 :::

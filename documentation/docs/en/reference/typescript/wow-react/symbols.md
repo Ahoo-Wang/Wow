@@ -15,7 +15,7 @@ Every name `@ahoo-wang/wow-react` exports — 26 — with its kind and the first
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
-| `QueryExecutor` | type | Runs one query: a query client's method, such as a generated`…SnapshotQueryClient`'s `paged`, or any function that resolves to the result. | — |
+| `QueryExecutor` | type | Runs one query: a query client's method, such as a generated `…SnapshotQueryClient`'s `paged`, or any function that resolves to the result. | — |
 | `QueryHookOptions` | interface | The options every query hook takes. | — |
 | `QueryHookReturn` | interface | What every query hook returns. | — |
 | `QueryStatus` | type | Where a query hook stands: | — |
@@ -29,10 +29,10 @@ Every name `@ahoo-wang/wow-react` exports — 26 — with its kind and the first
 | `UseListQueryOptions` | interface | Options of `useListQuery`: a list query and an `execute` that resolves to its rows. | — |
 | `UseListQueryReturn` | interface | What `useListQuery` returns: the rows as `result`. | — |
 | `UsePagedQueryOptions` | interface | Options of `usePagedQuery`: a paged query and an `execute` that resolves to one page. | — |
-| `UsePagedQueryReturn` | interface | What `usePagedQuery` returns: the page (`total` and `list`) as`result`. | — |
+| `UsePagedQueryReturn` | interface | What `usePagedQuery` returns: the page (`total` and `list`) as `result`. | — |
 | `UseSingleQueryOptions` | interface | Options of `useSingleQuery`: a single query and an `execute` that resolves to one item, or `undefined` when nothing matches, as a query client's `single` does. | — |
-| `UseSingleQueryReturn` | interface | What `useSingleQuery` returns: the item as `result`, `undefined` before the first run and when nothing matched (tell them apart by`status`). | — |
-| `UseStreamQueryOptions` | interface | Options of `useStreamQuery`: those of every query hook, with an`execute` that opens the stream and `requestOptions` that take the stream's `resume`. | — |
+| `UseSingleQueryReturn` | interface | What `useSingleQuery` returns: the item as `result`, `undefined` before the first run and when nothing matched (tell them apart by `status`). | — |
+| `UseStreamQueryOptions` | interface | Options of `useStreamQuery`: those of every query hook, with an `execute` that opens the stream and `requestOptions` that take the stream's `resume`. | — |
 | `UseStreamQueryReturn` | interface | What `useStreamQuery` returns: the records as they arrive, whether the stream has ended, and where it stopped. | — |
 | `useAggregateQuery` | function | Runs an aggregation through your own `execute` function and keeps its rows as state: typically a query client's `aggregate`, one row per group. | — |
 | `useCountQuery` | function | Counts what a filter matches through your own `execute` function and keeps the count as state: typically a query client's `count`. | — |

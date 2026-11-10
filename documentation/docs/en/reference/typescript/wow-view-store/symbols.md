@@ -21,8 +21,8 @@ Every name `@ahoo-wang/wow-view-store` exports — 9 — with its kind and the f
 | `WowDatasetWordingsOptions` | interface | How a V10 `WowDatasetWordings` reaches the view store service: as a V10 `WowViewStore` does. | — |
 | `WowViewStore` | class | The view engine's `ViewStore` over the **V10** view store service (`platform/view-store` in the Wow repository): saved views and preferences as two Wow V10 aggregates, reached through the clients generated from the service's Manifest (`@ahoo-wang/wow-client`), and the system views and the read by id through the service's own routes. | [wow-view-store reference](./#api-WowViewStore) |
 | `WowViewStoreErrorCode` | type | One of `WowViewStoreErrorCodes`: a problem code the server answers. | [wow-view-store reference](./#api-WowViewStoreErrorCodes) |
-| `WowViewStoreErrorCodes` | const | The V10 view store's own problem codes (`ViewStoreRejections` of`platform/view-store`), beside the framework's (`FrameworkErrorCodes` of`@ahoo-wang/wow-client`): generated from the service's Manifest. | [wow-view-store reference](./#api-WowViewStoreErrorCodes) |
+| `WowViewStoreErrorCodes` | const | The V10 view store's own problem codes (`ViewStoreRejections` of `platform/view-store`), beside the framework's (`FrameworkErrorCodes` of `@ahoo-wang/wow-client`): generated from the service's Manifest. | [wow-view-store reference](./#api-WowViewStoreErrorCodes) |
 | `WowViewStoreOptions` | interface | How a V10 `WowViewStore` reaches the view store service. | — |
-| `datasetCatalogOf` | function | What a `DatasetCatalog` reads of a Wow **V10** service's datasets: the directory (`GET /wow/dataset`) and each dataset's query client, which is a`ViewSource` as it is. | — |
+| `datasetCatalogOf` | function | What a `DatasetCatalog` reads of a Wow **V10** service's datasets: the directory (`GET /wow/dataset`) and each dataset's query client, which is a `ViewSource` as it is. | — |
 
 :::
