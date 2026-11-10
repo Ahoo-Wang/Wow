@@ -576,7 +576,7 @@ internal class ModelSymbolProcessor(
     /**
      * Writes the module's binding index ([ModelProviderSource]) beside its fragment, with the handlers
      * of its subscription processors, and registers it for `ServiceLoader` in
-     * `META-INF/services/me.ahoo.wow.kernel.ModelProvider`.
+     * [Manifest.MODEL_PROVIDERS].
      */
     private fun writeModelProvider(context: String, fragment: String, module: String) {
         val packageName = ModelProviderSource.commonPackage(packages)
@@ -589,7 +589,7 @@ internal class ModelSymbolProcessor(
         }
         codeGenerator.createNewFileByPath(
             dependencies,
-            "META-INF/services/${ModelProviderSource.MODEL_PROVIDER}",
+            Manifest.MODEL_PROVIDERS,
             "",
         ).bufferedWriter().use {
             it.write((if (packageName.isEmpty()) className else "$packageName.$className") + "\n")

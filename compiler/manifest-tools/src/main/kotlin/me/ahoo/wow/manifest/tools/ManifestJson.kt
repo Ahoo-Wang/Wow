@@ -77,14 +77,14 @@ object ManifestJson {
 
     /**
      * The model providers [entry], a directory or a jar, registers for `ServiceLoader`: the class names its
-     * `META-INF/services/me.ahoo.wow.kernel.ModelProvider` lists, which the compiler writes beside a fragment.
+     * [Manifest.MODEL_PROVIDERS] lists, which the compiler writes beside a fragment.
      */
     fun modelProviders(entry: File): List<String> {
         val text = when {
-            entry.isDirectory -> File(entry, MODEL_PROVIDERS).takeIf { it.isFile }?.readText()
+            entry.isDirectory -> File(entry, Manifest.MODEL_PROVIDERS).takeIf { it.isFile }?.readText()
             entry.isFile && entry.name.endsWith(".jar") -> ZipFile(entry).use { jar ->
                 // Closing the jar closes the stream.
-                jar.getEntry(MODEL_PROVIDERS)?.let { jar.getInputStream(it).reader().readText() }
+                jar.getEntry(Manifest.MODEL_PROVIDERS)?.let { jar.getInputStream(it).reader().readText() }
             }
             else -> null
         }
@@ -97,5 +97,4 @@ object ManifestJson {
             source.replace('\\', '/').substringAfterLast("${Manifest.FRAGMENT_DIRECTORY}/")
 
     private const val JSON = ".json"
-    private const val MODEL_PROVIDERS = "META-INF/services/me.ahoo.wow.kernel.ModelProvider"
 }
