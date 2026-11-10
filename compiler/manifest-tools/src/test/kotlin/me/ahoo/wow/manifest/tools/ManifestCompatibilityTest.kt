@@ -1072,6 +1072,26 @@ class ManifestCompatibilityTest {
     }
 
     @Test
+    fun `a route's number narrowed should break its request, widened its response`() {
+        val long = mapOf("type" to "integer", "format" to "int64")
+        val int = mapOf("type" to "integer", "format" to "int32")
+        val baseline = routeBaseline.def("shop.Filter", schema("amount" to long))
+            .def("shop.Summary", schema("total" to int, required = listOf("total")))
+        ManifestCompatibility.compare(baseline, baseline.def("shop.Filter", schema("amount" to int))).changes
+            .map { it.toString() }.assert()
+            .containsExactly(
+                "BREAKING contexts[shop].routes[summary].request.amount: format changed from int64 to int32"
+            )
+        ManifestCompatibility.compare(
+            baseline,
+            baseline.def("shop.Summary", schema("total" to long, required = listOf("total"))),
+        ).changes.map { it.toString() }.assert()
+            .containsExactly(
+                "BREAKING contexts[shop].routes[summary].response[].total: format changed from int32 to int64"
+            )
+    }
+
+    @Test
     fun `a service route's parameters, bodies and refusal codes should be classified`() {
         routeChanges(
             route {

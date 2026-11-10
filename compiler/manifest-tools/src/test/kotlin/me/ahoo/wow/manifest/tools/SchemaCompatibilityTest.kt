@@ -161,14 +161,43 @@ class SchemaCompatibilityTest {
             ),
             row("format imposed", STRING, STRING + ("format" to "date"), "BREAKING s: format date imposed"),
             row("format lifted", STRING + ("format" to "date"), STRING, "ADDITIVE s: format date lifted"),
-            // A wire format says how a client reads the number, not which numbers are valid (review R4-Q, Q-9).
-            row("wire format added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int64")),
-            row("int32 added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int32")),
+            // A numeric format is a range of its type: an input that refuses a number old clients sent breaks.
             row(
-                "wire format swapped",
+                "numeric format imposed",
+                mapOf("type" to "integer"),
+                mapOf("type" to "integer", "format" to "int64"),
+                "BREAKING s: format changed from any to int64",
+            ),
+            row(
+                "Long narrowed to Int",
+                mapOf("type" to "integer", "format" to "int64"),
+                mapOf("type" to "integer", "format" to "int32"),
+                "BREAKING s: format changed from int64 to int32",
+            ),
+            row(
+                "Int widened to Long",
+                mapOf("type" to "integer", "format" to "int32"),
+                mapOf("type" to "integer", "format" to "int64"),
+                "ADDITIVE s: format changed from int32 to int64",
+            ),
+            row(
+                "Double narrowed to Float",
+                NUMBER,
+                NUMBER + ("format" to "float"),
+                "BREAKING s: format changed from any to float",
+            ),
+            row(
+                "numeric formats neither holding the other",
+                NUMBER + ("format" to "int64"),
+                NUMBER + ("format" to "float"),
+                "BREAKING s: format changed from int64 to float",
+            ),
+            row(
+                "Long widened to BigDecimal",
                 mapOf("type" to "integer", "format" to "int64"),
                 mapOf("type" to "number", "format" to "decimal"),
                 "ADDITIVE s: type widened from [integer] to [number]",
+                "ADDITIVE s: format changed from int64 to decimal",
             ),
             // The Jakarta constraints of a command's field (decision D380): a tighter one is breaking for the
             // input old clients send, a looser one additive (D349 ③).
@@ -402,6 +431,61 @@ class SchemaCompatibilityTest {
             "BREAKING s.name: field removed",
             "ADDITIVE s.title: optional field added",
         )
+    }
+
+    @Test
+    fun `a numeric format narrowed should break what is read, widened what is written`() {
+        val long = mapOf("type" to "integer", "format" to "int64")
+        val int = mapOf("type" to "integer", "format" to "int32")
+        fun compared(old: Any?, new: Any?, direction: SchemaDirection) =
+            SchemaCompatibility(mapOf("t" to old), mapOf("t" to new))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction)
+                .map { it.toString() }
+        // A stored 2^31 no longer reads back as an Int; a reader generated as an Int cannot hold a Long.
+        compared(long, int, SchemaDirection.STORED).assert()
+            .containsExactly("BREAKING s: format changed from int64 to int32")
+        compared(long, int, SchemaDirection.OUTPUT).assert()
+            .containsExactly("ADDITIVE s: format changed from int64 to int32")
+        compared(int, long, SchemaDirection.STORED).assert()
+            .containsExactly("ADDITIVE s: format changed from int32 to int64")
+        compared(int, long, SchemaDirection.OUTPUT).assert()
+            .containsExactly("BREAKING s: format changed from int32 to int64")
+        // A format of no number keeps the general rule: a format imposed breaks an input.
+        compared(STRING, STRING + ("format" to "uuid"), SchemaDirection.INPUT).assert()
+            .containsExactly("BREAKING s: format uuid imposed")
+    }
+
+    @Test
+    fun `an alternative of oneOf that may match a value another matches should break what is read`() {
+        val integer = mapOf("type" to "integer")
+        fun alternatives(keyword: String, vararg types: String) = mapOf(keyword to types.map { mapOf("type" to it) })
+        // 7 matched [integer] alone; with number beside it, it matches two, and oneOf refuses it.
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "integer", "number")).assert()
+            .containsExactlyInAnyOrder(
+                "ADDITIVE s.oneOf[1]: alternative added",
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused",
+            )
+        // An alternative widened into another's type.
+        changes(
+            alternatives("oneOf", "integer", "string"),
+            mapOf("oneOf" to listOf(integer, mapOf("type" to listOf("number", "string")))),
+        ).assert().containsExactly(
+            "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused",
+        )
+        // The neighbouring extensions keep every old value matching once: a disjoint oneOf alternative, a widened one
+        // that stays disjoint, and any alternative of anyOf.
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "integer", "string")).assert()
+            .containsExactly("ADDITIVE s.oneOf[1]: alternative added")
+        changes(alternatives("oneOf", "integer", "string"), alternatives("oneOf", "number", "string")).assert()
+            .isEmpty()
+        changes(alternatives("anyOf", "integer"), alternatives("anyOf", "integer", "number")).assert()
+            .containsExactly("ADDITIVE s.anyOf[1]: alternative added")
+        // A stored record is read back as an input is.
+        SchemaCompatibility(
+            mapOf("t" to alternatives("oneOf", "integer")),
+            mapOf("t" to alternatives("oneOf", "integer", "number")),
+        ).compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.STORED).map { it.toString() }.assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
     }
 
     @Test
