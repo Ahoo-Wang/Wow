@@ -56,5 +56,22 @@ class ElasticsearchProjectionCompilerTest {
         )
     }
 
+    @Test
+    fun `should leave to the record projection what the source filter cannot drop exactly`() {
+        // An exclude deeper than two segments may cross an array: the record is fetched whole and projected after.
+        ElasticsearchProjectionCompiler.compile(
+            Projection(exclude = listOf(QueryField("state.lines.sku"), QueryField("state.name"))),
+            schema,
+        ).excludes().assert().containsExactly("document.name", "document.name.*")
+        // With an include, the include's subtree is fetched and every exclude applies to the record.
+        ElasticsearchProjectionCompiler.compile(
+            Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.name"))),
+            schema,
+        ).let { filter ->
+            filter.includes().assert().containsExactly("document", "document.*")
+            filter.excludes().assert().isEmpty()
+        }
+    }
+
     private fun projectionFieldSchema(field: QueryField<*>) = nativeBindings(field)
 }

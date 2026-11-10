@@ -17,8 +17,6 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
-import com.mongodb.client.model.IndexOptions
-import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -48,17 +46,18 @@ import kotlin.time.Duration
 /**
  * The [ReservationStore] on MongoDB (documentation/designs/01-programming-model.md §7): one collection
  * per aggregate type, `wow_reservation__<context>__<aggregate>` (the type is the unit of placement, so
- * its reservations follow its log's store), created with its format record and owner index on the type's first use. One
+ * its reservations follow its log's store), created with its format record on the type's first use. One
  * document per reserved key, `{_id: {t: tenant_id, n: namespace, k: key}, tenant_id, key, owner: {tenant_id, id},
  * expires_at, holds, version}`: the key is the `_id` (the system tenant is the empty string), its tenant and key also
  * plain fields, the shard key's; the owner is of the collection's type. A null `expires_at` marks a confirmed
  * reservation, `version` the owner's fact that last confirmed it; a pending one expires at that epoch millisecond and
- * is held by the attempts in `holds`, without a version. The layout is format [FORMAT].
+ * is held by the attempts in `holds`, without a version. Every operation finds a reservation by its key, so the
+ * collection has no index but the `_id`'s (and the shard key's when sharded). The layout is format [FORMAT].
  *
  * **Sharded cluster**: with [MongoSharding.AUTO] on a mongos, each collection is sharded by
  * `(tenant_id, hashed key)`, as the snapshots are. Every write's filter names the `_id` and the shard key's two fields,
  * so it routes to the one shard a key lives on, and the `_id`'s uniqueness on that shard holds the key unique across the
- * cluster. A read by owner, which only an operator's tooling does, gathers from every shard.
+ * cluster.
  *
  * A reserve or a confirm is a conditional upsert (see [conditionalUpsert]) whose filter admits only the key's owner or
  * an expired pending reservation (a null expiry never passes `$lte`); a reserve's pipeline update keeps a confirmed
@@ -99,17 +98,11 @@ class MongoReservationStore(
      */
     fun createSchema() = Unit
 
-    /** The collection of [type]'s reservations, its format claimed and its indexes made sure of on first use. */
+    /** The collection of [type]'s reservations, its format claimed on first use. */
     private fun reservationsOf(type: AggregateType): MongoCollection<Document> = ensured.get(type.toString()) {
         val name = MongoNames.of(PREFIX, type.context, type.name)
         MongoFormat.claim(database, name, FORMAT, ddl)
         database.getCollection(name).also { collection ->
-            MongoFormat.index(
-                collection,
-                Indexes.ascending(OWNER_TENANT_ID, OWNER_ID),
-                IndexOptions().name(RESERVATION_OWNER),
-                ddl,
-            )
             if (sharded) {
                 // Sharded by tenant, then the key's hash, so the keys of a tenant spread over the shards.
                 MongoShards.shardReservations(client, database, collection)
@@ -277,11 +270,10 @@ class MongoReservationStore(
     }
 
     private companion object {
-        /** The version of this layout. */
-        const val FORMAT = 2
+        /** The version of this layout: 3 since the collection has no owner index; 2 is refused. */
+        const val FORMAT = 3
         const val WRITE_ATTEMPTS = 8
         const val PREFIX = "wow_reservation"
-        const val RESERVATION_OWNER = "reservation_owner"
         const val ID_FIELD = "_id"
         const val T = "t"
         const val N = "n"

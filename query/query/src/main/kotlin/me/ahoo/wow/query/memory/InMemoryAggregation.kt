@@ -25,6 +25,8 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.backend.orderOf
+import me.ahoo.wow.query.backend.valueKey
 import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -54,19 +56,21 @@ internal class InMemoryAggregation(
 
     fun run(records: List<ObjectNode>, window: GroupWindow): List<ObjectNode> {
         val scopes = records.map(::RecordScope).filter { filters.matches(query.filter, it) }.flatMap(::expand)
-        val groups = LinkedHashMap<List<JsonNode?>, MutableList<RecordScope>>()
+        // Each group under the exact values of its keys, so `1` and `1L` are one group; it shows its first record's keys.
+        val groups = LinkedHashMap<List<Any?>, Pair<List<JsonNode?>, MutableList<RecordScope>>>()
         scopes.forEach { scope ->
             // A record joins the group of each combination of its keys: a terms field gives one key per value.
             val combinations = query.groupBy.fold(listOf(emptyList<JsonNode?>())) { prefixes, group ->
                 val keys = keys(group, scope)
                 prefixes.flatMap { prefix -> keys.map { prefix + it } }
             }
-            combinations.filterNot { keys -> keys.any { it == UNGROUPED } }
-                .forEach { keys -> groups.getOrPut(keys) { mutableListOf() }.add(scope) }
+            combinations.filterNot { keys -> keys.any { it == UNGROUPED } }.forEach { keys ->
+                groups.getOrPut(keys.map { it.valueKey() }) { keys to mutableListOf() }.second.add(scope)
+            }
         }
         // Without groups and without a match there is no row: the core emits the empty summary, as with MongoDB.
         if (groups.isEmpty()) return emptyList()
-        val rows = groups.map { (keys, members) -> row(keys, members) }
+        val rows = groups.values.map { (keys, members) -> row(keys, members) }
         val sorted = rows.sortedWith(comparator(query.effectiveSort()))
         return when (window) {
             GroupWindow.All -> sorted
@@ -94,7 +98,7 @@ internal class InMemoryAggregation(
     private fun keys(group: AggregationGroup, scope: RecordScope): List<JsonNode?> {
         if (group !is AggregationGroup.Terms || group.expression != null) return listOf(key(group, scope))
         val values = groupScope(group, scope).values(admitted.field(checkNotNull(group.field))).flattened()
-            .filterNot { it.isNull }.distinct()
+            .filterNot { it.isNull }.distinctBy { it.valueKey() }
         return values.ifEmpty { listOf(group.missingKey?.let(nodes::stringNode) ?: nodes.nullNode()) }
     }
 
@@ -199,10 +203,8 @@ internal class InMemoryAggregation(
         if (expression !is me.ahoo.wow.api.query.AggregationExpression.Field) {
             return members.mapNotNull { filters.expression(expression, it) }.distinct().size
         }
-        val values = members.flatMap { it.values(admitted.field(expression.field)).flattened() }.filterNot { it.isNull }
-        val seen = mutableListOf<JsonNode>()
-        values.forEach { value -> if (seen.none { it.sameValue(value) }) seen.add(value) }
-        return seen.size
+        return members.flatMap { it.values(admitted.field(expression.field)).flattened() }
+            .filterNot { it.isNull }.distinctBy { it.valueKey() }.size
     }
 
     private fun numeric(function: AggregationFunction, values: List<Double>): JsonNode {
@@ -251,7 +253,9 @@ internal class InMemoryAggregation(
             val value = scope.values(field).singleOrNull()?.takeUnless(JsonNode::isNull)
             if (position == null || value == null) null else position to value
         }
-        val byPosition = Comparator<Pair<JsonNode, JsonNode>> { left, right -> orderOf(left.first, right.first) }
+        val byPosition = Comparator<Pair<JsonNode, JsonNode>> { left, right ->
+            orderOf(left.first, right.first, orderBy.temporal)
+        }
         val chosen = if (metric is AggregationMetric.First) {
             candidates.minWithOrNull(byPosition)
         } else {

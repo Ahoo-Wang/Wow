@@ -59,11 +59,13 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.compareScalars
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.schema.Temporal
+import me.ahoo.wow.query.schema.epochMilliOrNull
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -209,8 +211,8 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>, private val 
         val bound = operand.operandNode()
         return values.flattened().filterNot { it.isNull }.any { value ->
             val order = if (temporal == Temporal.Date) {
-                val left = value.epochMillis(temporal)
-                val right = bound.epochMillis(temporal)
+                val left = value.instant(temporal)
+                val right = bound.instant(temporal)
                 if (left == null || right == null) null else left.compareTo(right)
             } else {
                 compareScalars(value, bound)
@@ -262,7 +264,7 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>, private val 
     /** The instant [field] holds here, in epoch milliseconds. */
     fun instant(field: QueryField<*>, scope: RecordScope): Long? {
         val resolved = query.field(field)
-        return scope.values(resolved).singleOrNull()?.epochMillis(resolved.temporal)
+        return scope.values(resolved).singleOrNull()?.instant(resolved.temporal)?.epochMilliOrNull()
     }
 
     companion object {

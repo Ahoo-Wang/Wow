@@ -14,7 +14,11 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.backend.decimal
+import me.ahoo.wow.query.backend.orderOf
+import me.ahoo.wow.query.schema.EPOCH_MILLIS
 import me.ahoo.wow.query.schema.Temporal
+import me.ahoo.wow.query.schema.instantOf
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
@@ -25,7 +29,6 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeParseException
-import java.util.concurrent.TimeUnit
 
 /*
  * The value semantics of the in-memory reference backend, the canonical semantics of the filter matrix: numbers compare
@@ -70,45 +73,34 @@ internal fun JsonNode.sameValue(other: JsonNode): Boolean = when {
 internal fun JsonNode.matches(operand: JsonNode): Boolean =
     sameValue(operand) || (isArray && !operand.isArray && any { it.sameValue(operand) })
 
-internal fun JsonNode.decimal(): BigDecimal = if (isIntegralNumber) BigDecimal(bigIntegerValue()) else decimalValue()
-
-/** The order of two values of one kind (numbers, strings, booleans), or `null` when they do not compare. */
-internal fun compareScalars(left: JsonNode, right: JsonNode): Int? = when {
-    left.isNumber && right.isNumber -> left.decimal().compareTo(right.decimal())
-    left.isString && right.isString -> left.stringValue().compareTo(right.stringValue())
-    left.isBoolean && right.isBoolean -> left.booleanValue().compareTo(right.booleanValue())
-    else -> null
-}
-
 /**
- * The sort key of a field's stored values, as MongoDB orders them: a missing field and `null` are the lowest value;
- * an array sorts by its least element ascending and its greatest descending.
+ * The sort key of a field's stored values, read as [temporal] says, as MongoDB orders them: a missing field and `null`
+ * are the lowest value; an array sorts by its least element ascending and its greatest descending. The key is the
+ * stored value itself; [orderKey] is what it is compared by.
  */
-internal fun List<JsonNode>.sortKey(ascending: Boolean): JsonNode? {
+internal fun List<JsonNode>.sortKey(ascending: Boolean, temporal: Temporal?): JsonNode? {
     val scalars = flattened().filterNot { it.isNull }
     if (scalars.isEmpty()) return null
     return scalars.reduce { best, next ->
-        val order = orderOf(next, best)
+        val order = orderOf(next, best, temporal)
         val better = if (ascending) order < 0 else order > 0
         if (better) next else best
     }
 }
 
-/** A total order over sort keys: `null` first, then numbers, strings and booleans, each by value. */
-internal fun orderOf(left: JsonNode?, right: JsonNode?): Int {
-    val leftRank = left.kindRank()
-    val rightRank = right.kindRank()
-    if (leftRank != rightRank) return leftRank.compareTo(rightRank)
-    if (left == null || right == null) return 0
-    return compareScalars(left, right) ?: left.toString().compareTo(right.toString())
-}
+/** The order of two stored values of a field read as [temporal] says: [orderOf] of their [orderKey]s. */
+internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal?): Int =
+    orderOf(left?.orderKey(temporal), right?.orderKey(temporal))
 
-private fun JsonNode?.kindRank(): Int = when {
-    this == null || isNull -> 0
-    isNumber -> 1
-    isString -> 2
-    isBoolean -> 3
-    else -> 4
+/**
+ * What a stored value orders by: a date string ([Temporal.Date]) by its instant, as an exact number of seconds, so
+ * `…T00:00:00Z`, `…T00:00:00.001Z` and `…T01:00:00+01:00` order by time and not by text; any other value itself. A
+ * string that is not a date stays a string, after every date.
+ */
+internal fun JsonNode.orderKey(temporal: Temporal?): JsonNode {
+    if (temporal != Temporal.Date || !isString) return this
+    val instant = parseInstant(stringValue()) ?: return this
+    return nodes.numberNode(BigDecimal.valueOf(instant.epochSecond).add(BigDecimal.valueOf(instant.nano.toLong(), 9)))
 }
 
 /** A sort key as a cursor position value: a JSON scalar the core's codec encodes. */
@@ -139,18 +131,18 @@ internal fun JsonNode.numberOrNull(): Double? = when {
     else -> null
 }
 
-/** This stored value as epoch milliseconds, read as [temporal] says it stores time; `null` when it is not one. */
-internal fun JsonNode.epochMillis(temporal: Temporal?): Long? = when {
-    isIntegralNumber -> {
-        val unit = (temporal as? Temporal.Epoch)?.timeUnit ?: TimeUnit.MILLISECONDS
-        Math.floorDiv(unit.toNanos(longValue()), NANOS_PER_MILLI)
-    }
-    isString -> parseInstant(stringValue())?.toEpochMilli()
-    isArray && size() == 1 -> get(0).epochMillis(temporal)
+/**
+ * The instant this stored value holds, read as [temporal] says it stores time (an integer as an epoch of its unit,
+ * milliseconds by default; a string as ISO-8601), exactly; `null` when it holds none.
+ */
+internal fun JsonNode.instant(temporal: Temporal?): Instant? = when {
+    isIntegralNumber -> longOrNull()?.let { (temporal as? Temporal.Epoch ?: EPOCH_MILLIS).instantOf(it) }
+    isString -> parseInstant(stringValue())
+    isArray && size() == 1 -> get(0).instant(temporal)
     else -> null
 }
 
-private const val NANOS_PER_MILLI = 1_000_000L
+private fun JsonNode.longOrNull(): Long? = if (canConvertToLong()) longValue() else null
 
 /** An ISO-8601 instant, offset date-time, local date-time (at UTC) or date (its start, at UTC). */
 internal fun parseInstant(text: String): Instant? = try {

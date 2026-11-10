@@ -94,7 +94,8 @@ data class CompatibilityReport(val changes: List<ManifestChange>) {
  *   `@Upgrade` from each earlier one) only reads the service's own old records. A lowered revision
  *   breaks.
  * - A service route ([ServiceRouteManifest]) is matched by its name: removing it, or changing its method or path,
- *   breaks; a parameter removed, moved, retyped or made required breaks, and so does a required one added; its
+ *   breaks; a parameter (named by where it is read from and its name, `query:limit`) removed, retyped or made required
+ *   breaks, and so does a required one added; one moved between the path and the query is one removed and one added; its
  *   request is an input and its response an output ([SchemaDirection]); a route that no longer takes or answers a
  *   body, or newly does, breaks. Its refusal codes are documentation for a client that handles unknown codes, so a
  *   code added or removed is additive.
@@ -125,7 +126,7 @@ object ManifestCompatibility {
     }
 }
 
-private class Changes(val schemas: SchemaCompatibility) {
+internal class Changes(val schemas: SchemaCompatibility) {
     val list = mutableListOf<ManifestChange>()
 
     fun breaking(path: String, description: String) {
@@ -199,7 +200,7 @@ private class Changes(val schemas: SchemaCompatibility) {
         compareValues(path, baseline.map(::route), current.map(::route), "route")
     }
 
-    private fun route(route: RouteManifest): String = "${route.method} ${route.path}"
+    fun route(route: RouteManifest): String = "${route.method} ${route.path}"
 
     fun compareContext(path: String, baseline: ContextManifest, current: ContextManifest) {
         compareNamed(
@@ -233,62 +234,11 @@ private class Changes(val schemas: SchemaCompatibility) {
             current.routes,
             { it.name },
             "service route",
-            ::compareServiceRoute
+            { entry, old, new -> compareServiceRoute(entry, old, new) },
         )
     }
 
-    fun compareServiceRoute(path: String, baseline: ServiceRouteManifest, current: ServiceRouteManifest) {
-        if (route(baseline.route) != route(current.route)) {
-            breaking("$path.route", "route changed from ${route(baseline.route)} to ${route(current.route)}")
-        }
-        compareNamed(
-            "$path.parameters",
-            baseline.parameters,
-            current.parameters,
-            { it.name },
-            "parameter",
-            { entry, old, new ->
-                if (old.location != new.location) {
-                    breaking(
-                        entry,
-                        "parameter moved from ${old.location} to ${new.location}"
-                    )
-                }
-                if (new.required && !old.required) breaking(entry, "parameter made required")
-                if (old.schema != new.schema) {
-                    breaking(
-                        entry,
-                        "parameter schema changed from ${old.schema} to ${new.schema}"
-                    )
-                }
-            },
-        )
-        current.parameters.filter { new -> new.required && baseline.parameters.none { it.name == new.name } }
-            .forEach { breaking("$path.parameters[${it.name}]", "required parameter added") }
-        compareBody("$path.request", baseline.request, current.request, SchemaDirection.INPUT)
-        compareBody("$path.response", baseline.response, current.response, SchemaDirection.OUTPUT)
-        (baseline.errors - current.errors.toSet()).forEach {
-            additive(
-                "$path.errors",
-                "refusal code $it no longer listed"
-            )
-        }
-        (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
-    }
-
-    private fun compareBody(
-        path: String,
-        baseline: Map<String, Any?>?,
-        current: Map<String, Any?>?,
-        direction: SchemaDirection,
-    ) {
-        when {
-            baseline != null && current != null -> list += schemas.compareInline(path, baseline, current, direction)
-            baseline != current -> breaking(path, if (current == null) "body removed" else "body added")
-        }
-    }
-
-    fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {
+    private fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {
         compareState(path, baseline, current, exposure)
         if (baseline.snapshot.enabled != current.snapshot.enabled) {
             if (current.snapshot.enabled) {
@@ -444,7 +394,7 @@ private class Changes(val schemas: SchemaCompatibility) {
      * A command; [owned] is the side whose aggregate's id is its owner's when the id source changed: its routes by no
      * id that the other side lacks are that change's, already reported.
      */
-    fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
+    private fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         list += schemas.compare("$path.schema", baseline.schema, current.schema)
         compareInternal("$path.internal", baseline.internal, current.internal)
@@ -491,7 +441,7 @@ private class Changes(val schemas: SchemaCompatibility) {
      * history readable, and a new event beside the old one keeps the contract. The stored records are compared as
      * [SchemaDirection.STORED], so a constraint counts for the readers alone ([readerBreaks]).
      */
-    fun compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
+    private fun compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         val schemaChanges =
             schemas.compare("$path.schema", baseline.schema, current.schema, direction = SchemaDirection.STORED)
