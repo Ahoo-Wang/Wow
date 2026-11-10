@@ -44,7 +44,7 @@ import {
 import {
   type ItemFields,
   type RootFields,
-} from '../support/aggregationQueries';
+} from '../fixtures/aggregationQueries';
 
 describe('AggregationQuery', () => {
   it('uses the Wow wire enum values', () => {

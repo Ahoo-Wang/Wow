@@ -27,7 +27,7 @@ import {
 import {
   type ItemFields,
   type RootFields,
-} from '../../support/aggregationQueries';
+} from '../../fixtures/aggregationQueries';
 
 describe('AggregationQuery', () => {
   it('measures the time between two fields and groups by expressions', () => {

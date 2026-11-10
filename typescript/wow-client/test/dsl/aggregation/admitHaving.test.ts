@@ -18,7 +18,7 @@ import {
   type HavingExpression,
   aggregation,
 } from '../../../src/dsl.js';
-import { count } from '../../support/aggregationQueries';
+import { count } from '../../fixtures/aggregationQueries';
 
 /**
  * Wow admits an `AggregationQuery` in its constructor and answers one that

@@ -25,7 +25,7 @@ import {
 import {
   type ItemFields,
   type RootFields,
-} from '../../support/aggregationQueries';
+} from '../../fixtures/aggregationQueries';
 
 describe('AggregationQuery', () => {
   it('builds filtered metrics without changing unfiltered JSON', () => {
