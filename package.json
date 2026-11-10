@@ -15,7 +15,7 @@
     "typecheck": "pnpm -r --filter './typescript/*' --filter '!wow-storybook' --filter '!wow-integration-test' exec tsc --noEmit --incremental false --composite false && pnpm --filter wow-integration-test typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:ci-scripts": "node --test .github/scripts/*.test.mjs",
+    "test:ci-scripts": "node --test .github/scripts/*.test.mjs scripts/*.test.mjs",
     "bench:compare": "node .github/scripts/bench-compare.mjs",
     "set-version": "node .github/scripts/project-version.mjs set",
     "check:versions": "node .github/scripts/project-version.mjs check",

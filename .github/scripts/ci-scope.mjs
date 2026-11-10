@@ -283,6 +283,9 @@ const RULES = [
     /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|examples|gradle)\//,
     [],
   ],
+  // The repository's own Node scripts and their tests: the Quality job runs
+  // them with the CI scripts' (test:ci-scripts).
+  [/^scripts\/[^/]+\.mjs$/, [TYPESCRIPT]],
   // Other Gradle modules and prose.
   [/^(?:test|config|deploy|docs|skills|scripts|\.claude\/skills)\//, []],
   [
