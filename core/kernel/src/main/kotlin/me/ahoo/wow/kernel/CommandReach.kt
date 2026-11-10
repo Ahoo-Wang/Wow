@@ -18,6 +18,7 @@ import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.AccessPredicate
 import me.ahoo.wow.api.access.ScopeAccess
 import me.ahoo.wow.api.access.resolveAccessPolicies
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -143,3 +144,33 @@ internal class CommandReach(
     private fun declared(attribute: AccessAttribute<*, *>, declared: Map<String, Any?>): Any? =
         declared[attribute.name]?.takeIf { attribute in model.accessAttributes }
 }
+
+/**
+ * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate neither
+ * records nor checks an owner, only that part of the scope counts. An aggregate whose id is its owner's takes its id
+ * for the owner of a command with none, or derived: a caller's other owner is kept, and refused ([admissible],
+ * [creatable]).
+ */
+internal fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
+    val owned = model.ownsById && (scope.ownerId == null || isDerived)
+    val narrowed = if (owned) scope.copy(ownerId = ref.id) else model.ownership.scopeOf(scope)
+    return if (narrowed == scope) this else copyWith(scope = narrowed)
+}
+
+/** Whether the model's aggregate's id is its owner's. */
+internal val AggregateModel<*>.ownsById: Boolean get() = idSource == AggregateIdSource.OWNER
+
+/**
+ * The scope of the aggregate [command] creates: the command's, but for an aggregate whose id is its owner's, whose
+ * owner is its id whoever creates it ([creatable] refuses a caller of another owner).
+ */
+internal fun createdIn(model: AggregateModel<*>, command: Command<*>): Scope =
+    if (model.ownsById) command.scope.copy(ownerId = command.ref.id) else command.scope
+
+/**
+ * Whether this command was derived by the server's own code rather than sent by a caller: a saga's,
+ * an `@OnRejected` compensation, a timer's, or one another context sent through its command topic. Such a command
+ * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
+ */
+@InternalWowApi
+val Command<*>.isDerived: Boolean get() = causation != null

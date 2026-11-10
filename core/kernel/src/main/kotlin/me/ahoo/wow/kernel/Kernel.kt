@@ -20,22 +20,15 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Misuse
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.spi.access.AccessValues
-import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -50,9 +43,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
-import tools.jackson.core.JacksonException
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -81,11 +72,8 @@ import kotlin.coroutines.CoroutineContext
  * an append commits, the rest of the attempt does not observe cancellation: a caller giving up must not tear what is
  * already a fact.
  *
- * [KernelOptions.verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
- * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log. The
- * test DSL turns it on; it costs two serializations of the state per command. A fresh state (version 0) with a
- * `lateinit` property still unassigned cannot be written, and is not checked: the creation event's sourcing assigns
- * it, and no state is written before that.
+ * [KernelOptions.verifyDecidePurity] fails a command whose decide function or after hook changed the state
+ * ([Preparation]).
  *
  * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped, and [StateSourcing]
  * for where a state comes from on a miss.
@@ -98,7 +86,7 @@ import kotlin.coroutines.CoroutineContext
  * that writes nothing does: its entry carries none of them.
  *
  * Every stream carries the aggregate's scope after it: the creating command's scope, carried forward by every
- * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
+ * later command and changed only by the lifecycle commands transferring the owner or the space (see [Preparation.metadataAfter]).
  * The kernel keeps the deleted mark beside the state too, evolved by the lifecycle events: a deleted
  * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]).
  *
@@ -137,9 +125,7 @@ import kotlin.coroutines.CoroutineContext
  * A decide function takes its ids from [ids] ([DecideScope.ids]): the node's generators, fixed ids in
  * the test DSL.
  *
- * A decide function or after hook marked `@Blocking` ([DecideFunction.Suspending.blocking]) runs on
- * [blocking], by default the node's virtual threads ([BlockingDispatcher]); every other one runs inline in the
- * caller's coroutine.
+ * A decide function or after hook marked `@Blocking` runs on [blocking] ([Decisions]).
  *
  * [observer] sees each execution, decision and append; what an append carries for delivery holds the
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
@@ -156,7 +142,7 @@ class Kernel(
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     private val ids: Ids = IdGenerators.DEFAULT,
     private val observer: Observer = Observer.NONE,
-    private val blocking: CoroutineContext = BlockingDispatcher.dispatcher,
+    blocking: CoroutineContext = BlockingDispatcher.dispatcher,
     /** The kernel's tuning: attempts, purity check, reservations, early waits, recent requests, replays. */
     private val options: KernelOptions = KernelOptions(),
     /**
@@ -178,6 +164,9 @@ class Kernel(
 
     /** The append of a decided stream, and what its outcome means for the command. */
     private val appends = Appends(log, observer)
+
+    /** A decision on a loaded state, turned into what it commits. */
+    private val preparation = Preparation(codec, observer, options, Decisions(blocking))
 
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
@@ -349,7 +338,7 @@ class Kernel(
         val attempt =
             AttemptScope(command, ids, clock(), current, reservations, options.reservationTtl, wait, observer, encode)
         val prepared = try {
-            prepare(model, decider, attempt, current, command, commandType.name, reach)
+            preparation.prepare(model, decider, attempt, current, command, commandType.name, reach)
         } catch (cancelled: CancellationException) {
             attempt.compensate(cancelled)
             throw cancelled
@@ -468,7 +457,7 @@ class Kernel(
                 command, ids, clock(), loaded, reservations, options.reservationTtl, waitBeyondCommitted, observer, encode,
             )
             val prepared = try {
-                prepare(model, decider, attempt, loaded, command, commandType.name, reach)
+                preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
                 @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
                 failure: Throwable,
@@ -527,149 +516,6 @@ class Kernel(
     }
 
     /**
-     * [state] as decide receives it, for the purity check; null when it is fresh ([version] 0) and cannot be written
-     * because a `lateinit` property is still unassigned, which the creation event's sourcing assigns. Any other failure
-     * to write it fails the command.
-     */
-    private fun purityBaseline(state: Any, version: Int): String? = try {
-        codec.stateText(state)
-    } catch (failure: JacksonException) {
-        val unassigned = generateSequence<Throwable>(failure) { it.cause }
-            .any { it is UninitializedPropertyAccessException }
-        if (version == 0 && unassigned) null else throw failure
-    }
-
-    /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
-    @Suppress("LongParameterList")
-    private suspend fun <S : Any> prepare(
-        model: AggregateModel<S>,
-        decider: DecideFunction<S>,
-        scope: AttemptScope,
-        loaded: CachedState,
-        command: Command<*>,
-        commandType: String,
-        reach: CommandReach,
-    ): Prepared {
-        @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
-        val state = loaded.state as S
-        val version = loaded.version
-        val before = if (options.verifyDecidePurity) purityBaseline(state, version) else null
-        // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
-        val deciding = DecidingCommand(command.id)
-        val decision = observer.deciding(command).observe {
-            withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
-        }
-        // Checked for every decision, a rejection that writes nothing included: its state is cached again as it is.
-        if (before != null) {
-            check(codec.stateText(state) == before) {
-                "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
-            }
-        }
-        rejectedUnwritten(decision, model, commandType, version, command)?.let { return it }
-        // A rejection's events are committed as any are, the rejection recorded on their stream.
-        val rejection = (decision as? Decision.Rejected)?.let {
-            RejectionCodes.qualified(it.rejection, model.type, commandType)
-        }
-        val domain = decision.events
-        // A rejection commits its own events alone: what the refused decision scheduled is not.
-        val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()
-        val events = domain + schedules
-        if (events.isEmpty()) {
-            return Prepared.Done(CommandOutcome.Unchanged(version))
-        }
-        check(domain.isNotEmpty() || version > 0) {
-            "${command.ref} does not exist: a decision that only schedules needs an aggregate that exists."
-        }
-        // The decision's own time: what it read as `now` is the time its events are committed at.
-        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach)
-    }
-
-    /**
-     * The stream [command] appends with [events] (a rejection's when [rejection] is not null) on [loaded] at
-     * [commitTime], and the state after it; refused ([Prepared.Done.evolved]) when it leaves the aggregate out of its
-     * caller's reach ([leaves]), checked once the events evolved the state, on the attributes the stream records.
-     */
-    @Suppress("LongParameterList") // The facts of the commit.
-    private fun <S : Any> appended(
-        model: AggregateModel<S>,
-        loaded: CachedState,
-        command: Command<*>,
-        commandType: String,
-        events: List<Any>,
-        rejection: Rejection?,
-        commitTime: Long,
-        reach: CommandReach,
-    ): Prepared {
-        val version = loaded.version
-
-        @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
-        val state = loaded.state as S
-        val metadata = metadataAfter(model, loaded, command, events)
-        // Read before the events evolve the state, which may change it in place.
-        val before = if (reach.governed) loaded.declared(model) else emptyMap()
-        val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
-        val declared = model.accessOf(evolved)
-        leaves(command, reach, version, metadata.scope, before, declared)?.let {
-            return Prepared.Done(it, evolved = true)
-        }
-        val stream = EventStreamRecord(
-            ref = command.ref,
-            version = version + 1,
-            commandId = command.id,
-            requestId = command.requestId,
-            commandType = commandType,
-            commitTime = commitTime,
-            events = events.map { codec.encode(model, it) },
-            scope = metadata.scope,
-            causation = command.causation,
-            headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
-            operator = command.operator,
-            access = AccessValues.ofStream(codec.stored(declared), metadata.scope),
-            // The attributes after this commit are of its own version, until a later change stamps them.
-            accessVersion = version + 1,
-        )
-        val after = loaded.with(evolved, stream.version, metadata)
-        after.access = declared
-        if (stream.version == 1) {
-            after.first = FirstCommit.of(stream)
-        }
-        return Prepared.Append(stream, after)
-    }
-
-    /**
-     * [state] evolved by [events], decided on [command] and committed at [version] and [commitTime] in [scope]: an
-     * evolve function that reads its commit reads it as the log will record it, so a rebuild reads the same.
-     */
-    @Suppress("LongParameterList") // The facts of the commit.
-    private fun <S : Any> evolveDecided(
-        model: AggregateModel<S>,
-        state: S,
-        events: List<Any>,
-        command: Command<*>,
-        commandType: String,
-        version: Int,
-        commitTime: Long,
-        scope: Scope,
-    ): S {
-        val commit = if (model.readsCommits) {
-            model.commitOf(
-                command.ref,
-                version,
-                commitTime,
-                command.id,
-                command.requestId,
-                commandType,
-                scope,
-                command.operator,
-                events,
-            )
-        } else {
-            null
-        }
-        return events.fold(state) { current, event -> model.evolve(current, event, commit) }
-    }
-
-    /**
      * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
      * model names its own commands, [commandTypes] those of other aggregate types. A body that holds its aggregate's
      * id (`@AggregateId`) names [target]'s.
@@ -691,26 +537,6 @@ class Kernel(
             )
         }
         return type to codec.commandText(body)
-    }
-
-    /**
-     * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope: a command that
-     * creates the aggregate gives it the caller's scope ([createdIn]); every other command carries the aggregate's
-     * scope forward, and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
-     * changes only by its lifecycle events too.
-     */
-    private fun metadataAfter(
-        model: AggregateModel<*>,
-        loaded: CachedState,
-        command: Command<*>,
-        events: List<Any>,
-    ): KernelLifecycle.Metadata {
-        val before = if (loaded.version == 0) {
-            loaded.metadata.copy(scope = createdIn(model, command))
-        } else {
-            loaded.metadata
-        }
-        return events.fold(before, KernelLifecycle::evolve)
     }
 
     /**
@@ -842,141 +668,6 @@ class Kernel(
     ): List<CommitTrace> =
         history.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay)
 
-    /**
-     * The answer to [decision] when it is a rejection that writes nothing: one without events, at the [version] the
-     * decision saw, or one of a creation, whose aggregate does not exist ([creationRejectedWithEvents]); null
-     * otherwise. A local code is named by the deciding command's aggregate type from here on.
-     */
-    private fun rejectedUnwritten(
-        decision: Decision,
-        model: AggregateModel<*>,
-        commandType: String,
-        version: Int,
-        command: Command<*>,
-    ): Prepared.Done? {
-        if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
-        val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
-        observer.rejected(model.type, commandType, rejection, command, withEvents = false)
-        val outcome = CommandOutcome.Rejected(
-            rejection,
-            version.takeIf { it > 0 },
-            droppedEvents = decision.events.size
-        )
-        if (outcome.droppedEvents > 0) creationRejectedWithEvents(commandType)
-        return Prepared.Done(outcome)
-    }
-
-    /** The command types whose creation was rejected with events, warned about once each. */
-    private val creationRejections: MutableSet<String> = ConcurrentHashMap.newKeySet()
-
-    /**
-     * A creation of [commandType] rejected with events: its aggregate does not exist, so nothing is written and the
-     * events are dropped ([CommandOutcome.Rejected.droppedEvents]), which the test DSL refuses; warned about once per
-     * command type.
-     */
-    private fun creationRejectedWithEvents(commandType: String) {
-        if (creationRejections.add(commandType)) {
-            logger.warn {
-                "A creation of $commandType was rejected with events: its aggregate does not exist, so they are " +
-                    "dropped and nothing is written. Reject it without events."
-            }
-        }
-    }
-
-    /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks. */
-    private suspend fun <S : Any> decideAll(
-        model: AggregateModel<S>,
-        decider: DecideFunction<S>,
-        scope: DecideScope,
-        state: S,
-        body: Any,
-    ): Decision {
-        val decision = decide(decider, scope, state, body)
-        val decided = when (decision) {
-            is Decision.Events -> decision.events
-            Decision.NoOp -> emptyList()
-            is Decision.Rejected -> return decision
-        }
-        declared(model, body, decided, decider.produces, "decide function")
-        val afters = model.afterFunctions(body.javaClass)
-        if (afters.isEmpty()) {
-            return decision
-        }
-        val domain = decided + afters.flatMap { hook ->
-            after(hook, scope, state, body).also { declared(model, body, it, hook.produces, "after hook") }
-        }
-        return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
-    }
-
-    /**
-     * [events], which a [function] of [model] produced for [command]; an [UndeclaredEventException] when one is not of
-     * [produces], the events it declares. Not checked when they are unknown.
-     */
-    private fun declared(
-        model: AggregateModel<*>,
-        command: Any,
-        events: List<Any>,
-        produces: Set<Class<*>>?,
-        function: String,
-    ) {
-        if (produces == null) return
-        val undeclared = events.firstOrNull { it.javaClass !in produces } ?: return
-        val commandClass = command.javaClass
-        throw UndeclaredEventException(
-            model.type,
-            commandClass,
-            undeclared.javaClass,
-            "${model.type}'s $function of ${commandClass.simpleName} produced ${undeclared.javaClass.simpleName}, " +
-                "which it does not declare: neither its return type nor its produces lists it.",
-        )
-    }
-
-    /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections]). */
-    private suspend fun <S : Any> decide(
-        decider: DecideFunction<S>,
-        scope: DecideScope,
-        state: S,
-        body: Any,
-    ): Decision = try {
-        when (decider) {
-            is DecideFunction.Sync -> decider.decide(scope, state, body)
-            is DecideFunction.Suspending -> if (decider.blocking) {
-                withContext(blocking) { decider.decide(scope, state, body) }
-            } else {
-                decider.decide(scope, state, body)
-            }
-        }
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (@Suppress("TooGenericExceptionCaught") thrown: Exception) {
-        ThrownRejections.rejectionOf(thrown)?.let { Decision.Rejected(it, (thrown as? RejectedException)?.events.orEmpty()) }
-            ?: throw thrown
-    }
-
-    private suspend fun <S : Any> after(
-        after: AfterFunction<S>,
-        scope: DecideScope,
-        state: S,
-        body: Any,
-    ): List<Any> = when (after) {
-        is AfterFunction.Sync -> after.after(scope, state, body)
-        is AfterFunction.Suspending -> if (after.blocking) {
-            withContext(blocking) { after.after(scope, state, body) }
-        } else {
-            after.after(scope, state, body)
-        }
-    }
-
-    private sealed interface Prepared {
-        /**
-         * An outcome that appends nothing; [evolved] when it is a refusal once the decision's events evolved the
-         * state ([leaves]), which may have changed it in place.
-         */
-        class Done(val outcome: CommandOutcome, val evolved: Boolean = false) : Prepared
-
-        class Append(val stream: EventStreamRecord, val evolved: CachedState) : Prepared
-    }
-
     @InternalWowApi
     companion object {
         /**
@@ -989,36 +680,6 @@ class Kernel(
         private val logger = KotlinLogging.logger {}
     }
 }
-
-/**
- * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate neither
- * records nor checks an owner, only that part of the scope counts. An aggregate whose id is its owner's takes its id
- * for the owner of a command with none, or derived: a caller's other owner is kept, and refused ([admissible],
- * [creatable]).
- */
-private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
-    val owned = model.ownsById && (scope.ownerId == null || isDerived)
-    val narrowed = if (owned) scope.copy(ownerId = ref.id) else model.ownership.scopeOf(scope)
-    return if (narrowed == scope) this else copyWith(scope = narrowed)
-}
-
-/** The domain events this decision commits: none for a no-op, a rejection's own with it. */
-private val Decision.events: List<Any>
-    get() = when (this) {
-        is Decision.Events -> events
-        Decision.NoOp -> emptyList()
-        is Decision.Rejected -> events
-    }
-
-/** Whether the model's aggregate's id is its owner's. */
-private val AggregateModel<*>.ownsById: Boolean get() = idSource == AggregateIdSource.OWNER
-
-/**
- * The scope of the aggregate [command] creates: the command's, but for an aggregate whose id is its owner's, whose
- * owner is its id whoever creates it ([creatable] refuses a caller of another owner).
- */
-private fun createdIn(model: AggregateModel<*>, command: Command<*>): Scope =
-    if (model.ownsById) command.scope.copy(ownerId = command.ref.id) else command.scope
 
 /** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
 private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
@@ -1061,14 +722,6 @@ fun interface CommandTypes {
         val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${typeNameOf(command)}" }
     }
 }
-
-/**
- * Whether this command was derived by the server's own code rather than sent by a caller: a saga's,
- * an `@OnRejected` compensation, a timer's, or one another context sent through its command topic. Such a command
- * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
- */
-@InternalWowApi
-val Command<*>.isDerived: Boolean get() = causation != null
 
 /** How an execution ended, as its observation names it. */
 internal val CommandOutcome.observedName: ObservedOutcome
