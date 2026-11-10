@@ -90,13 +90,20 @@ internal class PostgresTailReads(
         }
     }
 
+    /**
+     * The last sequence the counter of [partition] gave, null for a partition with none yet; a partition without its
+     * counter row is refused, as [lineage] refuses it: the store is damaged, and an empty head would be a wrong answer.
+     */
     suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
                 connection.prepareStatement(tables.head).use { query ->
                     query.setInt(1, partition)
-                    query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1).takeIf { it > 0 } else null }
+                    query.executeQuery().use { rows ->
+                        check(rows.next()) { "The log of $context has no counter of partition $partition." }
+                        rows.getLong(1).takeIf { it > 0 }
+                    }
                 }
             }
         }
