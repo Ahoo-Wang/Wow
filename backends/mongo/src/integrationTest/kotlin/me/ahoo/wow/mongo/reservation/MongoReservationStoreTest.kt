@@ -40,10 +40,11 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
         val scope = ReservationScope(type, "t", "names")
         store().reserve(scope, "k", type.ref("t", "u-1"), "h", TTL).assert().isNotNull()
         store().find(scope, "k")?.owner.assert().isEqualTo(type.ref("t", "u-1"))
-        // Every operation finds a reservation by its key: no index but the _id's.
+        // Every operation finds a reservation by its key: no index but the _id's (and the shard key's when sharded).
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
             .getCollection(MongoNames.of("wow_reservation", type.context, type.name))
-            .listIndexes().map { it.getString("name") }.toList().assert().containsExactly("_id_")
+            .listIndexes().map { it.getString("name") }.toList()
+            .assert().containsExactlyInAnyOrderElementsOf(listOf("_id_") + MongoLogFixture.shardIndexes)
     }
 
     @Test
