@@ -103,16 +103,18 @@ class LedgerPublishing @InternalWowApi constructor(
  *   reconciliation loop: every entry whose partition this node runs ([ParkedOps.owns]) is published again, and an entry
  *   this node published that has since left the ledger, not to another owner, is published as resolved. A record that
  *   is lost (the broker down, the node killed) is so published again; one entry's failure does not stop the others. A
- *   resolution whose send failed is kept as it was and sent again by each scan until it is delivered, unless the
- *   aggregate is published parked again first.
+ *   resolution whose send failed is kept in memory as it was and sent again by each scan of this node, whether or
+ *   not it still runs the partition, until it is delivered, the aggregate is published parked again first, or the
+ *   node stops.
  * - **Idempotence**: a record's request id is deterministic: a digest of the entry's ops id and its content, and of
  *   when this node first saw that content, so a record sent twice is one request to the ops aggregate, while an entry
  *   that comes back to an earlier content (an operator's request taken, say) is a new request. The ops aggregate
  *   ignores a record that changes nothing, so the records a scan sends again leave its log as it is.
  * - **Operator**: the records are a framework component's, `system:ledger`.
  *
- * After a restart the node no longer knows what it published: an entry resolved while it was down stays parked in the
- * ops view until an operator acts on it there, which the owning service answers with [LedgerResolution.NOT_PARKED].
+ * After a restart the node no longer knows what it published, nor the resolutions it had not sent yet: an entry
+ * resolved while it was down, or whose resolution it had not delivered, stays parked in the ops view until an operator
+ * acts on it there, which the owning service answers with [LedgerResolution.NOT_PARKED].
  *
  * With [available] (an [LedgerPublishing.automatic] publishing), it publishes only while [available]
  * says the ops context can take the records: asked at [start] and every [availability] after. While it cannot,
@@ -159,7 +161,8 @@ class LedgerPublisher internal constructor(
 
     /**
      * The resolutions whose send failed, by key, each as it was built: every scan sends them again, the same record
-     * under the same request id, until one is delivered or the aggregate is published parked again.
+     * under the same request id, until one is delivered or the aggregate is published parked again. In memory only: a
+     * restart forgets them (see the class).
      */
     private val unsent = HashMap<ParkedKey, Unsent>()
 
