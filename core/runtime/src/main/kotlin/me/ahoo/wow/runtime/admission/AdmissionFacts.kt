@@ -39,7 +39,7 @@ internal class Resolved(
     val type: CommandType,
     val body: Any,
     val headers: Map<String, String>,
-)
+) : Transformed
 
 /** The facts decided so far about a request, to refuse it with. */
 internal class Facts(
@@ -100,7 +100,7 @@ internal sealed interface Admission {
         val call: CallContext? = null,
     ) : Admission
 
-    class Refused(val result: CommandResult) : Admission
+    class Refused(val result: CommandResult) : Admission, Transformed
 
     /** A peer context's command, sent to its command topic through [relay]. */
     data class Relayed(
@@ -113,3 +113,8 @@ internal sealed interface Admission {
     val observedName: ObservedOutcome
         get() = if (this is Refused) ObservedOutcome.REFUSED else ObservedOutcome.ADMITTED
 }
+
+internal val CommandType.shortName: String get() = name.substringAfterLast('.')
+
+internal fun functionOf(type: AggregateType, command: CommandType): FunctionInfo =
+    FunctionInfo(FunctionKind.COMMAND, type.context, type.name, command.shortName)
