@@ -27,8 +27,10 @@
  * Other declarations' docs link into the objects (`{@link filter.search}`),
  * and an editor shows such a link as a link only where TypeScript resolves
  * it. Every one is resolved here as an editor resolves it; those that do not
- * resolve today are listed in `golden/unresolved-builder-links.json`, by file
- * and line, so a link that stops resolving fails by name.
+ * resolve today are listed in `golden/unresolved-builder-links.json` by file
+ * and link, with how many times the file holds it, so a link that stops
+ * resolving adds an entry or raises a count and fails by name, while an edit
+ * elsewhere in the file changes nothing.
  */
 
 import { dirname, join, resolve } from 'node:path';
@@ -130,16 +132,16 @@ function membersOf(
 /**
  * Every link in the docs of the emitted declarations that points at a member
  * of the builder object `name`, by its target or by the text it shows (a
- * link to a member through its group shows the member's name): where it is
- * written, and whether TypeScript resolves its target to a declaration, as
- * an editor does when it shows the doc.
+ * link to a member through its group shows the member's name): the
+ * declaration file it is written in, and whether TypeScript resolves its
+ * target to a declaration, as an editor does when it shows the doc.
  */
 function linksInto(
   program: ts.Program,
   name: string,
-): { where: string; link: string; resolved: boolean }[] {
+): { file: string; link: string; resolved: boolean }[] {
   const checker = program.getTypeChecker();
-  const links: { where: string; link: string; resolved: boolean }[] = [];
+  const links: { file: string; link: string; resolved: boolean }[] = [];
   for (const file of program.getSourceFiles()) {
     if (!file.fileName.startsWith(OUT)) continue;
     const visit = (node: ts.Node): void => {
@@ -150,11 +152,8 @@ function linksInto(
           .replace(/`/g, '')
           .trim();
         if (target.startsWith(`${name}.`) || shown.startsWith(`${name}.`)) {
-          const { line } = file.getLineAndCharacterOfPosition(
-            node.getStart(file),
-          );
           links.push({
-            where: `${file.fileName.slice(OUT.length + 1)}:${line + 1}`,
+            file: file.fileName.slice(OUT.length + 1),
             link: shown ? `${target} | ${shown}` : target,
             resolved:
               (checker.getSymbolAtLocation(node.name)?.declarations?.length ??
@@ -203,9 +202,13 @@ describe('the doc links into the builders', () => {
       linksInto(program, name),
     );
     expect(links.length).toBeGreaterThan(50);
-    const unresolved = links
-      .filter(link => !link.resolved)
-      .map(link => `${link.where} ${link.link}`)
+    const counts = new Map<string, number>();
+    for (const link of links.filter(each => !each.resolved)) {
+      const key = `${link.file} ${link.link}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const unresolved = [...counts]
+      .map(([key, count]) => `${key} ×${count}`)
       .sort();
     await expect(
       JSON.stringify(unresolved, null, 2) + '\n',
