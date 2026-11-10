@@ -133,32 +133,16 @@ protected final class me/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion {
 	public final fun getSPEC ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 }
 
-public abstract class me/ahoo/wow/tck/log/EventLogSpec {
-	public static final field CONTEXT_SUFFIX I
-	protected static final field Companion Lme/ahoo/wow/tck/log/EventLogSpec$Companion;
-	public static final field DEFAULT_PARTITIONS I
-	public static final field TAIL_TIMEOUT_MS J
-	public fun <init> ()V
-	public final fun a long read is whole and in order across its pages, read and readEntries alike ()V
+public abstract class me/ahoo/wow/tck/log/EventLogAccessCases : me/ahoo/wow/tck/log/EventLogRecordCases {
 	public final fun a page's stamps are written together, each under its own guard, the later of two that overlap kept ()V
-	public final fun a partition count that is not a power of two dividing 4096 is refused ()V
-	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
-	public final fun a request id is unique within its tenant and aggregate type ()V
-	public final fun a request id reused by aggregates of two partitions is answered by the first commit or commits again ()V
-	public final fun a request id reused by another command type finds the stream committed for it ()V
-	public final fun a request id reused in a tenant and aggregate type answers the first commit, in another tenant it commits ()V
-	public final fun a retry of a request at the version it committed is a duplicate, not a conflict ()V
-	public final fun a snapshot tail read gives the snapshot and the tail from its version with the earlier request keys ()V
-	public final fun a snapshot tail read without a snapshot gives every stream and no earlier request keys ()V
 	public final fun a stamp writes the attributes over its range but the streams stamped later, however often it runs ()V
-	public final fun a stream reads back exactly as appended ()V
-	public final fun a stream the backend refuses is rejected, and in appendAll fails alone ()V
 	public final fun a type the log holds no history of has no walk and claims none, and its first append creates its store ()V
 	public final fun a type's aggregates are paged once each, in the log's order, whatever their tenants ()V
 	public final fun a walk is claimed by its schema, once among concurrent claims, and advances while recorded ()V
-	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V
-	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
-	public final fun an unknown future transport field round-trips unchanged through tail and readEntries ()V
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogBatchCases : me/ahoo/wow/tck/log/EventLogReadCases {
+	public final fun a stream the backend refuses is rejected, and in appendAll fails alone ()V
 	public final fun appendAll across partitions sequences each partition on its own, and one's conflict stops none of the others ()V
 	public final fun appendAll appends none of an aggregate's streams after its first conflicts ()V
 	public final fun appendAll commits a request id repeated in a group once, the repeat is a duplicate ()V
@@ -166,43 +150,74 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun appendAll commits an aggregate's streams up to one that is a duplicate, and none after it ()V
 	public final fun appendAll fails alone a stream whose version another writer took since, and commits the others in order ()V
 	public final fun appendAll gives each stream the outcome append would ()V
-	public final fun appendAll keeps each stream's transport ()V
-	public final fun appendAll reports a retry of a request at the version it committed as a duplicate ()V
 	public final fun appendAll sequences a group of two aggregate types in order ()V
 	public final fun appendAll sequences a group without gaps ()V
 	public final fun appendAll sequences the streams around a conflict in order ()V
-	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
-	protected final fun assertIncreasingAfter (Ljava/util/List;J)V
-	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
-	public final fun concurrent appends to one version let exactly one win ()V
-	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
-	protected fun createSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	public final fun every partition is created with no parent at epoch 0, and keeps that lineage as entries land ()V
-	protected fun getOpensOneStorePerContext ()Z
-	public final fun head is the last committed sequence of a partition, null when it is empty ()V
-	public final fun one aggregate id under two aggregate types is two streams ()V
-	public final fun payload numbers read back exactly as appended ()V
-	public final fun positionOf finds where a version of an aggregate was committed ()V
-	public final fun read returns a version range in version order ()V
-	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
-	public final fun readTail gives fewer earlier request keys only when none is left before them ()V
-	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
-	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
-	protected fun snapshotTailsOf (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/snapshot/SnapshotStore;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
-	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public final fun tail never skips a committed entry, however appends interleave ()V
-	public final fun tail resumes after a position with the same entries ()V
-	public final fun the access attributes read back as appended, none and not stamped told apart ()V
-	public final fun the entry an append's outcome names is what tail reads back ()V
-	public final fun the lookup by aggregate type returns facts only, as appended ()V
-	public final fun the schedule system events read back as appended, alone or with the events ()V
-	public final fun transport is given back by tail and readEntries only ()V
-	public final fun two tenants may use the same aggregate id ()V
 }
 
-protected final class me/ahoo/wow/tck/log/EventLogSpec$Companion {
+public abstract class me/ahoo/wow/tck/log/EventLogEntryCases : me/ahoo/wow/tck/log/EventLogAccessCases {
+	public final fun a partition count that is not a power of two dividing 4096 is refused ()V
+	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
+	public final fun an unknown future transport field round-trips unchanged through tail and readEntries ()V
+	public final fun appendAll keeps each stream's transport ()V
+	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
+	public final fun every partition is created with no parent at epoch 0, and keeps that lineage as entries land ()V
+	public final fun head is the last committed sequence of a partition, null when it is empty ()V
+	public final fun positionOf finds where a version of an aggregate was committed ()V
+	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
+	public final fun tail never skips a committed entry, however appends interleave ()V
+	public final fun tail resumes after a position with the same entries ()V
+	public final fun the entry an append's outcome names is what tail reads back ()V
+	public final fun transport is given back by tail and readEntries only ()V
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogFixtures {
+	protected static final field Companion Lme/ahoo/wow/tck/log/EventLogFixtures$Companion;
+	public static final field TAIL_TIMEOUT_MS J
+	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
+	protected fun createSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
+	protected fun getOpensOneStorePerContext ()Z
+	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	protected fun snapshotTailsOf (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/snapshot/SnapshotStore;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
+	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogFixtures;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+}
+
+protected final class me/ahoo/wow/tck/log/EventLogFixtures$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogReadCases : me/ahoo/wow/tck/log/EventLogEntryCases {
+	public final fun a long read is whole and in order across its pages, read and readEntries alike ()V
+	public final fun a snapshot tail read gives the snapshot and the tail from its version with the earlier request keys ()V
+	public final fun a snapshot tail read without a snapshot gives every stream and no earlier request keys ()V
+	public final fun read returns a version range in version order ()V
+	public final fun readTail gives fewer earlier request keys only when none is left before them ()V
+	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogRecordCases : me/ahoo/wow/tck/log/EventLogFixtures {
+	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
+	public final fun a stream reads back exactly as appended ()V
+	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V
+	public final fun one aggregate id under two aggregate types is two streams ()V
+	public final fun payload numbers read back exactly as appended ()V
+	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
+	public final fun the access attributes read back as appended, none and not stamped told apart ()V
+	public final fun the lookup by aggregate type returns facts only, as appended ()V
+	public final fun the schedule system events read back as appended, alone or with the events ()V
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogSpec : me/ahoo/wow/tck/log/EventLogBatchCases {
+	public fun <init> ()V
+	public final fun a request id is unique within its tenant and aggregate type ()V
+	public final fun a request id reused by aggregates of two partitions is answered by the first commit or commits again ()V
+	public final fun a request id reused by another command type finds the stream committed for it ()V
+	public final fun a request id reused in a tenant and aggregate type answers the first commit, in another tenant it commits ()V
+	public final fun a retry of a request at the version it committed is a duplicate, not a conflict ()V
+	public final fun appendAll reports a retry of a request at the version it committed as a duplicate ()V
+	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
+	public final fun concurrent appends to one version let exactly one win ()V
+	public final fun two tenants may use the same aggregate id ()V
 }
 
 public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
