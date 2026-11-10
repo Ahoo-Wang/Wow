@@ -408,6 +408,51 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `a gap a dry run meets one stream at a time stops it`(): Unit = runTest {
+        val streams = NineXExample.streams().filter { it.aggregate == order && it.version != 2 }
+        assertThrows<MigrationException> {
+            importer(InMemoryNineXEventSource(streams), ImportOptions(dryRun = true)).importAll(order)
+        }.message!!.assert().contains("is version 3 where 2 was expected: the 9.x history has a gap")
+    }
+
+    @Test
+    fun `a request id an instance's earlier stream holds is imported under a stable new one`(): Unit = runTest {
+        val streams = NineXExample.streams().filter { it.aggregate == order }
+        val first = streams.single { it.version == 1 }
+        // A 9.x client sent two commands to one instance under one request id.
+        val reused = streams.map { if (it.version == 2) it.copy(requestId = first.requestId) else it }
+        importer(InMemoryNineXEventSource(reused)).importAll(order).also {
+            it.imported.assert().isEqualTo(4)
+            it.rewritten.assert().isEqualTo(1)
+        }
+        val second = reused.single { it.version == 2 }
+        log.read(NineXExample.orderModel.type.ref("(0)", first.aggregateId.id)).toList().map { it.requestId }.assert()
+            .containsExactly(
+                first.requestId,
+                "${first.requestId}#${second.id}",
+                streams[2].requestId,
+                streams[3].requestId
+            )
+    }
+
+    @Test
+    fun `a log holding a version 9x lacks stops the import, whatever later version 9x holds`(): Unit = runTest {
+        val streams = NineXExample.streams().filter { it.aggregate == order }
+        val converter = StreamConverter(NineXExample.plan)
+        // The log holds 9.x's v1, its v2 under another request id, and a v3 V10 wrote itself; 9.x has no v3, but a v4.
+        log.append(converter.convert(streams[0]))
+        log.append(converter.convert(streams[1]).copyWith(requestId = "r2"))
+        log.append(converter.convert(streams[1]).copyWith(version = 3, requestId = "v10", commandId = "v10"))
+        val inMemory = InMemoryNineXEventSource(streams.filter { it.version != 3 })
+        val inPart = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(aggregate, after, limit, 2)
+        }
+        assertThrows<MigrationException> { importer(inPart).importAll(order) }.message!!.assert()
+            .contains("v3 in the V10 log is not the 9.x stream there (none)")
+    }
+
+    @Test
     fun `an unknown outcome is tried again, then stops the import`(): Unit = runTest {
         val first = NineXExample.stream("order-stream-v1.json")
         val position = LogPosition(0, 1)
