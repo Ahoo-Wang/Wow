@@ -226,6 +226,7 @@ internal class NodePublicPort {
                 context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD } }
         }
 
-        private val logger = KotlinLogging.logger {}
+        /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */
+        private val logger = KotlinLogging.logger(WowAutoConfiguration::class.java.name)
     }
 }
