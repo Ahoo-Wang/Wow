@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { CURRENCY_CODE_PATTERN, type NumberFormat } from './field.js';
+import { CURRENCY_CODE_PATTERN, type NumberFormat } from './fieldNumeric.js';
 import type { RecordData } from './record.js';
 
 /**
