@@ -21,7 +21,7 @@ import type {
 } from './types.js';
 
 /**
- * The overloads of {@link filter.search}: naming at least one field, as an
+ * The overloads of {@link searchFilters.search | `filter.search`}: naming at least one field, as an
  * array literal, types the result as an {@link ElementSearchFilter}, which
  * `ELEMENT_MATCH` takes; otherwise it is a {@link SearchFilter}, root-only
  * when its `fields` are empty.
