@@ -181,6 +181,86 @@ class ServiceRouteTest {
         )
     }
 
+    /** Routes of nullable bodies, items and answers, and a call of one that echoes a list holding null. */
+    private val itemRoutes = SourceFile.kotlin(
+        "NullableRoutes.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.RouteMethod
+        import me.ahoo.wow.api.annotation.ServiceRoute
+
+        data class Item(val id: String)
+
+        class ItemRoutes {
+            @ServiceRoute(method = RouteMethod.POST, path = "echo")
+            suspend fun echo(items: List<Item?>): List<Item?> = items
+
+            @ServiceRoute(method = RouteMethod.PUT, path = "tags")
+            suspend fun tags(items: Set<Item?>?): Set<Item> = items.orEmpty().filterNotNull().toSet()
+
+            @ServiceRoute(method = RouteMethod.POST, path = "find")
+            suspend fun find(item: Item?): Item? = item
+        }
+        """.trimIndent(),
+    )
+    private val itemScenario = SourceFile.kotlin(
+        "NullableScenario.kt",
+        """
+        package sample
+
+        import kotlinx.coroutines.runBlocking
+        import me.ahoo.wow.kernel.Dependencies
+        import kotlin.reflect.KClass
+        import kotlin.reflect.KType
+
+        object ItemCall : me.ahoo.wow.api.route.RouteCall {
+            @OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+            override val caller = me.ahoo.wow.api.caller.Caller(tenantId = "t1")
+            override val tenantId: String = "t1"
+            override val scope = me.ahoo.wow.api.aggregate.Scope.NONE
+            override val requestId: String = "r1"
+            override val commands: me.ahoo.wow.api.client.CommandClient get() = error("no commands")
+            override val queries: me.ahoo.wow.api.read.Queries get() = error("no queries")
+        }
+
+        object Items : me.ahoo.wow.kernel.route.RouteRequest {
+            override fun <T : Any> path(name: String, type: KClass<T>): T = error("no path")
+            override fun <T : Any> query(name: String, type: KClass<T>): T? = null
+            @Suppress("UNCHECKED_CAST")
+            override fun <T> body(type: KType): T = listOf(null, Item("one")) as T
+        }
+
+        fun run(): String = runBlocking {
+            val echo = ShopServerModelProvider().routes(Dependencies.of(ItemRoutes())).single { it.name == "echo" }
+            echo.handle(ItemCall, Items).toString()
+        }
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `a nullable body or item should accept null in the fragment, and a nullable answer be its value's`() {
+        val (compilation, result) = compileModel("generate", options, itemRoutes, itemScenario)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.classLoader.loadClass("sample.NullableScenarioKt").getMethod("run").invoke(null).assert()
+            .isEqualTo("[null, Item(id=one)]")
+        val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-server.json" }
+        val routes = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java)).contexts.single().routes
+            .associateBy { it.name }
+        val item = Manifest.refSchema("sample.Item")
+        val nullableItem = mapOf("anyOf" to listOf(mapOf("type" to "null"), item))
+        routes.getValue("echo").request.assert().isEqualTo(Manifest.arraySchema(nullableItem))
+        routes.getValue("echo").response.assert().isEqualTo(Manifest.arraySchema(nullableItem))
+        routes.getValue("tags").request.assert().isEqualTo(
+            mapOf("type" to listOf("array", "null"), "items" to nullableItem, "uniqueItems" to true),
+        )
+        // A non-null item keeps its non-null contract.
+        routes.getValue("tags").response.assert().isEqualTo(Manifest.arraySchema(item, unique = true))
+        // A body of JSON null reads as null; a null answer is 204, no body.
+        routes.getValue("find").request.assert().isEqualTo(nullableItem)
+        routes.getValue("find").response.assert().isEqualTo(item)
+    }
+
     @Test
     fun `a route that binds wrongly, streams or answers a collection should fail the compilation`() {
         val broken = SourceFile.kotlin(
@@ -205,6 +285,9 @@ class ServiceRouteTest {
                 @ServiceRoute(method = RouteMethod.GET, path = "stream")
                 suspend fun stream(): Flow<Item> = error("no")
 
+                @ServiceRoute(method = RouteMethod.GET, path = "names")
+                suspend fun names(): List<String> = emptyList()
+
                 @ServiceRoute(method = RouteMethod.GET, path = "tree")
                 suspend fun tree(): tools.jackson.databind.JsonNode = error("no")
 
@@ -220,6 +303,8 @@ class ServiceRouteTest {
             .contains("parameter other binds nothing, and a GET takes no body")
             .contains("its answer is a kotlin.collections.Map<kotlin.String, sample.Item>")
             .contains("its answer is a kotlinx.coroutines.flow.Flow<sample.Item>")
+            // A collection of no class of its own: its items have no schema to refer to.
+            .contains("its answer is a kotlin.collections.List<kotlin.String>")
             .contains("its answer is a tools.jackson.databind.JsonNode")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")

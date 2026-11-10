@@ -138,8 +138,9 @@ internal object ServiceRouteResolver {
         val arguments = function.parameters.map(reading::argument)
         reading.checkBound(arguments)
         val returnType = function.returnType?.resolve()
+        // A null answer is `204 No Content`: no body, so the answer's schema is its value's alone.
         val response = returnType?.takeUnless { it.declaration.qualifiedName?.asString() == "kotlin.Unit" }
-            ?.let { reading.schemaType(it, "answer") }
+            ?.let { reading.schemaType(it.makeNotNullable(), "answer") }
         return ServiceRouteBinding(
             handler = owner?.binaryName() ?: "",
             handlerType = owner?.qualifiedName?.asString() ?: "",
@@ -267,14 +268,23 @@ internal object ServiceRouteResolver {
         /**
          * The inline schema of a body or an answer: a reference to its class's schema, which its binary name keys, or
          * an array of one for a `List`, a `Set` (of distinct items) or a `Collection`; null, told, for anything else.
+         * A nullable type, the value or an item, accepts `null` too ([Manifest.nullableSchema]).
          */
         fun schemaType(type: KSType, what: String): Map<String, Any?>? {
+            val schema = valueSchema(type, what) ?: return null
+            return if (type.isMarkedNullable) Manifest.nullableSchema(schema) else schema
+        }
+
+        private fun valueSchema(type: KSType, what: String): Map<String, Any?>? {
             val name = type.declaration.qualifiedName?.asString()
             TREES[name]?.let { return it }
             val items = type.arguments.singleOrNull()?.type?.resolve()
             if (name in COLLECTIONS && items != null) {
-                return schemaClassOf(items)?.let { Manifest.arraySchema(Manifest.refSchema(it), unique = name == SET) }
-                    ?: refuse(type, what)
+                val item = schemaClassOf(items)?.let(Manifest::refSchema) ?: return refuse(type, what)
+                return Manifest.arraySchema(
+                    if (items.isMarkedNullable) Manifest.nullableSchema(item) else item,
+                    unique = name == SET,
+                )
             }
             if (type.arguments.isNotEmpty()) return refuse(type, what)
             return schemaClassOf(type)?.let(Manifest::refSchema) ?: refuse(type, what)
