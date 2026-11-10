@@ -144,11 +144,11 @@ export class TextNumbers {
 
   /**
    * Refuses an alternative set beside a union's cases that holds exact numbers
-   * besides its own, which no mark could choose: asked once every type it
-   * reaches is read, since one still being read would answer that it holds none.
+   * besides its own, which no mark could choose. {@link marks} runs it once its
+   * schema is read: every type an alternative reaches is then known, where a
+   * type still being read would have answered that it holds none.
    */
   private settle(): void {
-    if (this.reading.size > 0) return;
     for (const { where, name, index, shape } of this.setAside.splice(0)) {
       if (this.exact(shape, new Set())) {
         throw new GeneratorError(
