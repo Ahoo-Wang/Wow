@@ -64,6 +64,16 @@ class PostgresStoreDdlTest {
     }
 
     @Test
+    fun `validate refuses a table without a format record`() {
+        val context = PostgresFixture.newContext("ddl")
+        PostgresEventLog(dataSource, context, 2).createSchema()
+        PostgresFixture.createUnrecorded(PostgresEventLogTables(context).aggregate("order").base)
+        assertThrows<IllegalStateException> {
+            PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
+        }.message.assert().contains("exists without a format record", "Drop it, or restore its record with it.")
+    }
+
+    @Test
     fun `none creates and checks nothing`() {
         val context = PostgresFixture.newContext("ddl")
         PostgresTimerStore(dataSource, context, ddl = Ddl.NONE).createSchema()
