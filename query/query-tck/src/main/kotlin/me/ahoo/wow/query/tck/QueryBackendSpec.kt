@@ -1110,6 +1110,49 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `an hourly bucket in a region starts where its local hour does, a repeated hour twice`() = blocking {
+        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
+        val fixture = given(
+            listOf(
+                // New York, 2025-11-02: 01:30 EDT, then 01:30 EST an hour later.
+                snapshot("f1", """{"createdAt":${at("2025-11-02T05:30:00Z")}}"""),
+                snapshot("f2", """{"createdAt":${at("2025-11-02T06:30:00Z")}}"""),
+                // New York, 2025-03-09: 01:30 EST, then 03:30 EDT; 02:00 never happens.
+                snapshot("s1", """{"createdAt":${at("2025-03-09T06:30:00Z")}}"""),
+                snapshot("s2", """{"createdAt":${at("2025-03-09T07:30:00Z")}}"""),
+            ),
+        )
+        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
+        assumeBound(
+            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(
+                        QueryField("state.createdAt"),
+                        "hour",
+                        AggregationDateUnit.HOUR,
+                        "America/New_York",
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
+            at("2025-03-09T06:00:00Z") to 1L,
+            at("2025-03-09T07:00:00Z") to 1L,
+            at("2025-11-02T05:00:00Z") to 1L,
+            at("2025-11-02T06:00:00Z") to 1L,
+        )
+        Unit
+    }
+
     // Timeouts
 
     @Test

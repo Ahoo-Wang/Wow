@@ -119,6 +119,10 @@ class PostgresQueryPartsTest {
         )
         AggregationFunction.entries.map(PostgresAggregationCompiler::function).assert()
             .containsExactlyInAnyOrder("sum", "avg", "min", "max", "stddev_pop", "var_pop")
+        // A region's offset changes, so its buckets are truncated in the zone as instants; a fixed offset's is not.
+        PostgresAggregationCompiler.region("America/New_York").assert().isTrue()
+        PostgresAggregationCompiler.region("+08:00").assert().isFalse()
+        PostgresAggregationCompiler.region("UTC").assert().isFalse()
     }
 
     @Test

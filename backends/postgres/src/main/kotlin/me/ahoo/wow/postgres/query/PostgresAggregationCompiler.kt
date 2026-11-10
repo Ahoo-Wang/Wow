@@ -137,9 +137,17 @@ internal class PostgresAggregationCompiler(
         }
         is AggregationGroup.DateHistogram -> {
             val millis = compiler.epochMillis(group.field).also(present::add)
-            val local = "to_timestamp($millis / 1000.0) AT TIME ZONE ${zone(parameters, group.timeZone)}"
-            "(extract(epoch from (date_trunc('${unit(group.unit)}', $local) AT TIME ZONE " +
-                "${zone(parameters, group.timeZone)})) * 1000)::bigint"
+            val instant = "to_timestamp($millis / 1000.0)"
+            val start = if (region(group.timeZone)) {
+                // Truncated in the zone and kept an instant: the period starts in its own offset, so a repeated
+                // fall-back hour is two buckets and a bucket never starts after its record.
+                "date_trunc('${unit(group.unit)}', $instant, ${zone(parameters, group.timeZone)})"
+            } else {
+                // A fixed offset has one offset: the local time round-trips exactly.
+                "(date_trunc('${unit(group.unit)}', $instant AT TIME ZONE ${zone(parameters, group.timeZone)}) " +
+                    "AT TIME ZONE ${zone(parameters, group.timeZone)})"
+            }
+            "(extract(epoch from $start) * 1000)::bigint"
         }
         is AggregationGroup.DatePart -> {
             val millis = compiler.epochMillis(group.field).also(present::add)
@@ -288,16 +296,21 @@ internal class PostgresAggregationCompiler(
          * reads a text offset such as `+08:00` with the POSIX sign; a region by its tz database ID, as Java names it.
          */
         fun zone(parameters: SqlParameters, timeZone: String): String {
-            val zone = try {
-                ZoneId.of(timeZone).normalized()
-            } catch (error: DateTimeException) {
-                throw QueryExecutionException("Time zone [$timeZone] is not a time zone.", error)
-            }
+            val zone = zoneOf(timeZone)
             return if (zone is ZoneOffset) {
                 parameters.bind(SqlParameter.Text("${zone.totalSeconds} seconds")) + "::interval"
             } else {
                 parameters.bind(SqlParameter.Text(zone.id)) + "::text"
             }
+        }
+
+        /** Whether [timeZone] is a region, whose offset changes, rather than a fixed offset. */
+        fun region(timeZone: String): Boolean = zoneOf(timeZone) !is ZoneOffset
+
+        private fun zoneOf(timeZone: String): ZoneId = try {
+            ZoneId.of(timeZone).normalized()
+        } catch (error: DateTimeException) {
+            throw QueryExecutionException("Time zone [$timeZone] is not a time zone.", error)
         }
     }
 }
