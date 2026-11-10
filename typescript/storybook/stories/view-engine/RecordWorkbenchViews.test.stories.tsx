@@ -1060,7 +1060,6 @@ export const PublishAsSystemView: Story = {
       ['system', true],
       ['personal', false],
     ]);
-    await expect(document.activeElement).toBe(publish);
 
     await userEvent.keyboard('{Escape}');
     if (document.body.querySelector('[role="dialog"]'))

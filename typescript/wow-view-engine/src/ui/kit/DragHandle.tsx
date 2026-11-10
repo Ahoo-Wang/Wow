@@ -92,6 +92,12 @@ interface DragHandleProps {
    * a list that cannot be reordered at all draws no handle in the first place.
    */
   disabled?: boolean;
+  /**
+   * Out of reach while a write the handle's list started runs, and still
+   * where the keyboard is (`IconButton.held`): an arrow on the handle starts
+   * that write, so the native `disabled` lost the keyboard to `<body>` (#5820).
+   */
+  held?: boolean;
   /** The row's own sentence saying why the handle is off, when it is off. */
   describedBy?: string;
   /**
@@ -145,6 +151,7 @@ export function DragHandle({
   total,
   dragging,
   disabled,
+  held: holding,
   describedBy,
   size = 'icon-xs',
   axis = 'vertical',
@@ -182,6 +189,7 @@ export function DragHandle({
         size={size}
         className="fve:cursor-grab"
         disabled={disabled}
+        held={holding}
         aria-describedby={describedBy}
         aria-haspopup="menu"
         aria-expanded={open}

@@ -200,8 +200,9 @@ export function ViewManagerRow({
               // Not a permission, so not an absence (D4): while a write is
               // in flight or this row's title is being edited, the row is
               // busy with something else and comes back as soon as it is
-              // done.
-              disabled={busy || renaming}
+              // done. A write keeps the keyboard on the handle (`held`).
+              disabled={renaming}
+              held={busy}
               onMove={onMove}
             />
           )}
@@ -308,7 +309,7 @@ export function ViewManagerRow({
                     // name tells a reader what the press would do, and
                     // this tells them what pressing it already did.
                     aria-pressed={isDefault}
-                    disabled={busy}
+                    held={busy}
                     onClick={() =>
                       void manager.setDefault(isDefault ? null : item.id)
                     }
@@ -329,7 +330,7 @@ export function ViewManagerRow({
                     label={messages.label('label.manage.rename')}
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy}
+                    held={busy}
                     onClick={() => setRenaming(true)}
                   >
                     <PencilIcon />
@@ -350,7 +351,7 @@ export function ViewManagerRow({
                     variant="ghost"
                     size="icon-sm"
                     data-audience-target={target}
-                    disabled={busy}
+                    held={busy}
                     onClick={() => onChangeAudience(target)}
                   >
                     <Audience />
@@ -365,7 +366,7 @@ export function ViewManagerRow({
                     variant="ghost"
                     size="icon-sm"
                     data-publish=""
-                    disabled={busy}
+                    held={busy}
                     onClick={onPublish}
                   >
                     <UploadIcon />
@@ -376,7 +377,7 @@ export function ViewManagerRow({
                     label={messages.label('label.manage.delete')}
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy}
+                    held={busy}
                     onClick={() => setDeleting(true)}
                   >
                     <TrashIcon />
