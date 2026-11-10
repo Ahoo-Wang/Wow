@@ -65,7 +65,7 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 
 - **A replica set of three data-bearing members**, in three failure domains, without an arbiter ([In production](#in-production)). Outside development, a log on a standalone `mongod` refuses to start: the log writes with majority, which a standalone server cannot keep.
 - **Write concern `majority`, throughout.** Wow writes every collection with majority, the log and the snapshots, timers, reservations, checkpoints, leases and ledger alike, whatever the client's default ([A replica set is required](#a-replica-set-is-required)): a failover loses no acknowledged write.
-- **Queries on a secondary if they compete with the appends**: `wow.mongo.query-read-preference: secondaryPreferred` ([Queries and read preferences](#queries-and-read-preferences)). Commands and state reads always read the primary.
+- **Queries on a secondary if they compete with the appends**: `wow.mongo.query-read-preference: secondaryPreferred` ([Queries and read preferences](#queries-and-read-preferences)). Commands, state reads and every other read of Wow's stores (the log, checkpoints, leases, timers, reservations, the ledger) always read the primary, whatever `readPreference` the connection string sets.
 - **A sharded cluster** once one replica set cannot carry the writes or the data: the log and the timers are sharded by partition, the snapshots and the reservations by tenant and a hashed key ([Sharded clusters](#sharded-clusters)).
 
 ## A replica set is required
@@ -106,7 +106,7 @@ On a sharded cluster the service connects to the mongos routers (`mongodb://mong
 | `wow_log__<context>__<aggregate>` | `{partition: 1}` | A partition's entries are one range; the version and request keys lead with the partition, so they stay unique, and a read by aggregate or a tail reads one shard |
 | `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | A snapshot's `_id` is its key; new aggregates spread over the shards, a load reads one, a query of one tenant reads that tenant's chunks |
 | `wow_timer__<context>__<aggregate>` | `{partition: 1}` | A timer is in its owner's partition; the key `(partition, owner, key)` leads with it, so it stays unique, a read or write by owner reaches one shard, and a node's due read the shards of its partitions. A resume's read of a target's parked timers reads every shard |
-| `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | A key's `_id` is `{t: tenant, n: namespace, k: key}`; keys spread over the shards, and a reserve, a confirmation or a lookup of a key reads one. Reading an owner's keys (the owner index) reads every shard |
+| `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | A key's `_id` is `{t: tenant, n: namespace, k: key}`; keys spread over the shards, and a reserve, a confirmation or a lookup of a key reads one |
 
 - A new log or timer collection is split at each partition and its chunks spread over the shards in turn, while it is empty; a new snapshot collection starts with one chunk, and the balancer spreads it by data size.
 - The counters, the registries, the checkpoints, leases and ledger are small and stay unsharded on the database's primary shard.

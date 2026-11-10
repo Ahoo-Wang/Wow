@@ -21,6 +21,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
 class StateComparisonTest {
@@ -110,6 +111,17 @@ class StateComparisonTest {
         }
         comparison(listOf(tampered)).compare(order).kinds.keys.assert()
             .containsExactlyInAnyOrder("status", "\$deleted", "\$ownerId", "\$spaceId")
+    }
+
+    @Test
+    fun `a null array element the V10 state lacks is a difference`() = runTest {
+        imported()
+        val longer = changed("order-snapshot.json") { node ->
+            (node.path("state").path("items") as ArrayNode).addNull()
+        }
+        val report = comparison(listOf(longer)).compare(order)
+        report.passed.assert().isFalse()
+        report.kinds.assert().isEqualTo(mapOf("items[]" to 1L))
     }
 
     @Test

@@ -108,6 +108,51 @@ class StateConstructorTest {
     }
 
     @Test
+    fun `a state whose String parameters all have defaults keeps them`() {
+        val (result, source) = generate(
+            """
+            class CounterState(var label: String = "NEW") {
+                var count = 0
+                fun onSourcing(event: Started) { count += event.by }
+                fun describe() = label + "=" + count
+            }
+            """,
+        )
+        source.assert().contains("initial { _ -> sample.CounterState() }")
+        result.run().assert().isEqualTo("NEW=3")
+    }
+
+    @Test
+    fun `a state whose two String parameters all have defaults keeps them`() {
+        val (result, source) = generate(
+            """
+            class CounterState(val label: String = "NEW", val owner: String = "nobody") {
+                var count = 0
+                fun onSourcing(event: Started) { count += event.by }
+                fun describe() = owner + "/" + label + "=" + count
+            }
+            """,
+        )
+        source.assert().contains("initial { _ -> sample.CounterState() }")
+        result.run().assert().isEqualTo("nobody/NEW=3")
+    }
+
+    @Test
+    fun `a state that takes the id and defaults the tenant id is built with the ref's`() {
+        val (result, source) = generate(
+            """
+            class CounterState(val id: String, val tenantId: String = "none") {
+                var count = 0
+                fun onSourcing(event: Started) { count += event.by }
+                fun describe() = tenantId + "/" + id + "=" + count
+            }
+            """,
+        )
+        source.assert().contains("initial { ref -> sample.CounterState(ref.id, ref.tenantId) }")
+        result.run().assert().isEqualTo("t/c-1=3")
+    }
+
+    @Test
     fun `a state that takes the id is built with the ref's`() {
         val (result, source) = generate(
             """

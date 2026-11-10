@@ -72,6 +72,47 @@ class ImportedKeysTest {
     }
 
     @Test
+    fun `keys added after a line cut short follow the last whole line, and every key is read back`(): Unit = runTest {
+        val path = directory.resolve("keys.jsonl")
+        val keys = FileImportedKeys(path)
+        keys.add(listOf(key("order_no", "NO-1")))
+        val whole = Files.size(path)
+        Files.writeString(path, "{\"name\":\"order_no\",\"cont", StandardOpenOption.APPEND)
+        keys.add(listOf(key("order_no", "NO-2"), key("order_no", "NO-3")))
+        keys.keysOf("order_no").assert()
+            .containsExactly(key("order_no", "NO-1"), key("order_no", "NO-2"), key("order_no", "NO-3"))
+
+        // A single key after the cut is read back too, not taken for a last line cut short.
+        Files.writeString(path, "{\"name\":", StandardOpenOption.APPEND)
+        keys.add(listOf(key("order_no", "NO-4")))
+        keys.keysOf("order_no").map { it.key }.assert().containsExactly("NO-1", "NO-2", "NO-3", "NO-4")
+        keys.retain("order_no") { true }
+        keys.keysOf("order_no").map { it.key }.assert().containsExactly("NO-1", "NO-2", "NO-3", "NO-4")
+
+        // A whole key the stop left without its line break was never confirmed: it is cut off like any cut line.
+        val cutWhole = directory.resolve("cut-whole.jsonl")
+        Files.write(cutWhole, Files.readAllBytes(path).copyOf(whole.toInt() - 1))
+        FileImportedKeys(cutWhole).keysOf("order_no").assert().isEmpty()
+        FileImportedKeys(cutWhole).add(listOf(key("order_no", "NO-5")))
+        FileImportedKeys(cutWhole).keysOf("order_no").map { it.key }.assert().containsExactly("NO-5")
+    }
+
+    @Test
+    fun `a line cut short longer than a read of the tail is cut off whole`(): Unit = runTest {
+        val path = directory.resolve("keys.jsonl")
+        val keys = FileImportedKeys(path)
+        keys.add(listOf(key("order_no", "NO-1")))
+        Files.writeString(path, "x".repeat(10_000), StandardOpenOption.APPEND)
+        keys.add(listOf(key("order_no", "NO-2")))
+        keys.keysOf("order_no").map { it.key }.assert().containsExactly("NO-1", "NO-2")
+
+        val noBreak = directory.resolve("no-break.jsonl")
+        Files.writeString(noBreak, "y".repeat(10_000))
+        FileImportedKeys(noBreak).add(listOf(key("order_no", "NO-3")))
+        FileImportedKeys(noBreak).keysOf("order_no").map { it.key }.assert().containsExactly("NO-3")
+    }
+
+    @Test
     fun `in memory keys retain as the file does`(): Unit = runTest {
         val keys = InMemoryImportedKeys()
         keys.add(listOf(key("order_no", "NO-1"), key("order_code", "C-1"), key("order_no", "NO-2")))

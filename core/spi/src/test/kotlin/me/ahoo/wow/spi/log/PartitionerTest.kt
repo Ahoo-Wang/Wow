@@ -36,6 +36,19 @@ class PartitionerTest {
     }
 
     @Test
+    fun `the partition key is built from the fields, whatever the ref's own text escapes`() {
+        val cart = AggregateType("example", "cart")
+        // A '/' or '%' in a tenant or an id stays as it is: the key is not the ref's text (D408), so no stored
+        // aggregate moves.
+        Partitioner.key(cart.ref("a/b", "c")).assert().isEqualTo("example.cart/a/b/c")
+        Partitioner.key(cart.ref("t", "50%")).assert().isEqualTo("example.cart/t/50%")
+        Partitioner.slotOf(cart.ref("a/b", "c")).assert().isEqualTo(356)
+        Partitioner.slotOf(cart.ref("a", "b/c")).assert().isEqualTo(356)
+        Partitioner.slotOf(cart.ref("t", "50%")).assert().isEqualTo(611)
+        Partitioner.slotOf(cart.ref("tenant", "id-1")).assert().isEqualTo(1610)
+    }
+
+    @Test
     fun `a ref keeps its partition`() {
         val ref = AggregateType("example", "cart").ref("tenant", "id-1")
         Partitioner.partitionOf(

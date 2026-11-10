@@ -21,7 +21,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * A field whose value differs between a 9.x snapshot and the V10 state rebuilt from the imported log: [path] names it
  * (`items[0].price`; a metadata field is `$deleted`, `$ownerId` or `$spaceId`), and [nineX] and [v10] are
- * its two values, null where that side lacks the field.
+ * its two values, null where that side lacks the field (a JSON `null` where it holds an array element that is null).
  */
 internal data class FieldDifference(val path: String, val nineX: JsonNode?, val v10: JsonNode?) {
     /** The class of the difference: its path with the array indexes left out (`items[].price`), for the summary. */
@@ -41,7 +41,8 @@ internal data class FieldDifference(val path: String, val nineX: JsonNode?, val 
  *
  * - objects compare field by field, in any order, and a `null` field is the same as a missing one;
  * - numbers compare by value: the 9.x `25.00` (a `Decimal128`) is the V10 `25.0`, and `2` is `2.0`;
- * - arrays compare element by element, in order: an element only one side has is a difference of its own;
+ * - arrays compare element by element, in order: an element only one side has is a difference of its own, a `null`
+ *   one too (an array element is never missing, so `[1, null]` is not `[1]`);
  * - anything else compares by equality, so the string `"1"` is not the number `1`.
  *
  * Before comparing, [StateMapping.fields] renames the 9.x state's top-level fields and [StateMapping.ignore] removes
@@ -90,7 +91,13 @@ internal object StateDiff {
 
             nineX is ArrayNode && v10 is ArrayNode -> {
                 for (index in 0 until maxOf(nineX.size(), v10.size())) {
-                    compare("$path[$index]", nineX.get(index), v10.get(index), into)
+                    val element = "$path[$index]"
+                    if (index < nineX.size() && index < v10.size()) {
+                        compare(element, nineX.get(index), v10.get(index), into)
+                    } else {
+                        // An element only one side has, a null one too: the arrays' lengths differ.
+                        into += FieldDifference(element, nineX.get(index), v10.get(index))
+                    }
                 }
             }
 

@@ -23,6 +23,8 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(kotlin("reflect"))
     testImplementation("com.fasterxml.jackson.core:jackson-annotations")
+    // StateViewNamesTest compiles the state views it generates.
+    testImplementation(libs.kotlin.compile.testing)
     // Only to show that the fingerprint it writes is the one the kernel checks a snapshot against.
     testImplementation(project(":kernel"))
 }
@@ -44,6 +46,18 @@ mapOf("noCompatibility" to JvmDefaultMode.NO_COMPATIBILITY, "enable" to JvmDefau
         inputs.files(classes).withPropertyName("jvmDefault.$mode")
         jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dwow-test.jvm-default.$mode=${classes.asPath}") })
     }
+}
+
+// SelfComparisonTest compares every Manifest of the repository with itself: its baselines, fragments and contracts.
+tasks.named<Test>("test") {
+    val root = rootDir
+    inputs.files(
+        fileTree(root) {
+            include("**/manifest/baseline.json", "**/META-INF/wow/manifest/*.json", "**/META-INF/wow/contract.json")
+            exclude("**/build/**", "**/node_modules/**", ".claude/**", ".git/**", ".gradle/**")
+        },
+    ).withPropertyName("repositoryManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.repository.root", root.path)
 }
 
 // detekt (and so :check) covers the fixtures, which no other check reads.

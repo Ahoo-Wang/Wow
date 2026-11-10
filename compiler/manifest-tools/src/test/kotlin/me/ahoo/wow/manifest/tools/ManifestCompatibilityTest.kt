@@ -1024,7 +1024,7 @@ class ManifestCompatibilityTest {
         routeChanges(
             route { it.copyWith(parameters = it.parameters.map { p -> p.copyWith(required = true) }) }
         ).assert()
-            .containsExactly("BREAKING contexts[shop].routes[summary].parameters[limit]: parameter made required")
+            .containsExactly("BREAKING contexts[shop].routes[summary].parameters[query:limit]: parameter made required")
         routeChanges(
             route {
                 it.copyWith(
@@ -1032,7 +1032,7 @@ class ManifestCompatibilityTest {
                         RouteParameterManifest("page", RouteParameterManifest.Location.QUERY, INTEGER, required = true),
                 )
             },
-        ).assert().contains("BREAKING contexts[shop].routes[summary].parameters[page]: required parameter added")
+        ).assert().contains("BREAKING contexts[shop].routes[summary].parameters[query:page]: required parameter added")
         // The request may accept more; the response may not produce more.
         routeChanges(routeBaseline.def("shop.Filter", schema("status" to STRING, "since" to STRING))).assert()
             .containsExactly("ADDITIVE contexts[shop].routes[summary].request.since: optional field added")
@@ -1040,6 +1040,35 @@ class ManifestCompatibilityTest {
             .containsExactly("BREAKING contexts[shop].routes[summary].response[].total: field made optional")
         routeChanges(route { it.copyWith(response = null) }).assert()
             .containsExactly("BREAKING contexts[shop].routes[summary].response: body removed")
+    }
+
+    @Test
+    fun `a path variable and a query parameter of one name should each be compared with its own`() {
+        val lookup = summary.copyWith(
+            route = RouteManifest("GET", "/shop/summaries/{day}"),
+            parameters = listOf(
+                RouteParameterManifest("day", RouteParameterManifest.Location.PATH, STRING),
+                RouteParameterManifest("day", RouteParameterManifest.Location.QUERY, STRING, required = false),
+            ),
+        )
+        val baseline = routeBaseline.context { it.copyWith(routes = listOf(lookup)) }
+        ManifestCompatibility.compare(baseline, baseline).changes.assert().isEmpty()
+        val required = baseline.context {
+            it.copyWith(
+                routes = listOf(
+                    lookup.copyWith(parameters = lookup.parameters.map { p -> p.copyWith(required = true) })
+                )
+            )
+        }
+        ManifestCompatibility.compare(baseline, required).changes.map { it.toString() }.assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary].parameters[query:day]: parameter made required")
+        val withoutQuery = baseline.context {
+            it.copyWith(routes = listOf(lookup.copyWith(parameters = lookup.parameters.take(1))))
+        }
+        ManifestCompatibility.compare(baseline, withoutQuery).changes.map { it.toString() }.assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary].parameters[query:day]: parameter removed")
+        ManifestCompatibility.compare(withoutQuery, baseline).changes.map { it.toString() }.assert()
+            .containsExactly("ADDITIVE contexts[shop].routes[summary].parameters[query:day]: parameter added")
     }
 
     @Test
@@ -1058,8 +1087,10 @@ class ManifestCompatibilityTest {
                 )
             },
         ).assert().containsExactlyInAnyOrder(
-            "BREAKING contexts[shop].routes[summary].parameters[day]: parameter moved from PATH to QUERY",
-            "BREAKING contexts[shop].routes[summary].parameters[limit]: parameter removed",
+            "BREAKING contexts[shop].routes[summary].parameters[path:day]: parameter removed",
+            "ADDITIVE contexts[shop].routes[summary].parameters[query:day]: parameter added",
+            "BREAKING contexts[shop].routes[summary].parameters[query:day]: required parameter added",
+            "BREAKING contexts[shop].routes[summary].parameters[query:limit]: parameter removed",
         )
         routeChanges(
             route {
@@ -1069,7 +1100,7 @@ class ManifestCompatibilityTest {
             }
         )
             .assert().contains(
-                "BREAKING contexts[shop].routes[summary].parameters[limit]: parameter schema changed from " +
+                "BREAKING contexts[shop].routes[summary].parameters[query:limit]: parameter schema changed from " +
                     "{type=integer} to {type=string}",
             )
         routeChanges(route { it.copyWith(request = null) }).assert()

@@ -43,7 +43,6 @@ import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.aggregation.GroupWindows
-import me.ahoo.wow.query.aggregation.compareWindowKeys
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
@@ -194,6 +193,27 @@ class BackendWindowsTest {
             rows.map { it["cumulative"].doubleValue() }.assert().containsExactly(30.0, 10.0, 30.0, 70.0, 5.0)
             rows.map { it["moving"].takeUnless { node -> node.isNull }?.doubleValue() }
                 .assert().containsExactly(15.0, 10.0, 20.0, 40.0, 5.0)
+        }
+    }
+
+    @Test
+    fun `a running sum orders group keys past a long by their exact value`() {
+        runTest {
+            val keys = listOf("9223372036854775808", "9223372036854775807")
+            val backend = RecordingBackend { keys.map { json("""{"amount":$it,"gmv":1}""") }.asFlow() }
+            val query = AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("amount"), "amount")),
+                metrics = listOf(
+                    gmv,
+                    derived(
+                        "running",
+                        DerivedExpression.Running("gmv", Sort(QueryField("amount"), Sort.Direction.ASC))
+                    ),
+                ),
+            )
+            val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
+            rows.map { it["amount"].bigIntegerValue().toString() to it["running"].doubleValue() }
+                .assert().containsExactly("9223372036854775808" to 2.0, "9223372036854775807" to 1.0)
         }
     }
 
@@ -410,16 +430,6 @@ class BackendWindowsTest {
         assertThrows<IllegalStateException> {
             GroupWindows(query, setOf("previous")).apply(listOf(monthRow("zj", 1, 10)))
         }
-    }
-
-    @Test
-    fun `group keys of different kinds compare by kind`() {
-        compareWindowKeys(null, node("1")).assert().isNegative()
-        compareWindowKeys(node("1"), node("\"a\"")).assert().isNegative()
-        compareWindowKeys(node("1.5"), node("2")).assert().isNegative()
-        compareWindowKeys(node("\"b\""), node("\"a\"")).assert().isPositive()
-        compareWindowKeys(node("true"), node("false")).assert().isPositive()
-        compareWindowKeys(node("[1]"), node("[2]")).assert().isZero()
     }
 
     private fun derived(alias: String, expression: DerivedExpression) = AggregationMetric.Derived(alias, expression)

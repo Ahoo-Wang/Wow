@@ -40,8 +40,8 @@ import java.time.Instant
  *
  * - **Records**: the owning service publishes the entry as it stands ([RecordParked]), again on every scan, and that
  *   it is resolved ([RecordResolved]). A record that says what the entry holds already changes nothing, so the scans
- *   leave the log as it is; a record of a parking older than the one resolved (one a scan sent before the resolution,
- *   delivered after it), and one published before the record the entry holds, change nothing either.
+ *   leave the log as it is; a record of a parking at or before the latest one resolved (one a scan sent before the
+ *   resolution, delivered after it), and one published before the record the entry holds, change nothing either.
  * - **Actions**: [Retry], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
  *   ([RetryRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
  *   service's next record, or, when the service refuses the request, as the saga's [RecordActionRefused]
@@ -65,14 +65,21 @@ class Parked(private val state: ParkedState) {
         else -> ParkedRecorded(entry)
     }
 
+    /**
+     * Resolves the entry: the parking the resolution names ([command]`.resolution.failedAt`), or, undated, the one it
+     * holds. A resolution of a parking older than the one recorded, or of one resolved already, changes nothing; one of
+     * a later parking than the one resolved (its record never arrived, or not yet) is recorded, so that parking's late
+     * record changes nothing either.
+     */
     fun onCommand(command: RecordResolved): ParkedResolved? {
         val resolution = command.resolution
         val failedAt = resolution.failedAt
-        // Resolved already, or the resolution of an older parking than the one recorded.
-        if (state.resolved || (failedAt != null && failedAt < state.failedAt)) {
-            return null
+        val stale = if (failedAt == null) {
+            state.resolved
+        } else {
+            failedAt < state.failedAt || state.resolved && failedAt == state.failedAt
         }
-        return ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt)
+        return if (stale) null else ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt)
     }
 
     /** The owning service refused the last request; a resolved entry has none to refuse. */

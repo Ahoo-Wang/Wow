@@ -332,6 +332,19 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `a date sorts by time, instants a millisecond apart included`() = blocking {
+        val dates = target(DATES)
+        val ascending = Sort(CREATED_AT, Sort.Direction.ASC)
+        // By text, `…00.001Z` and `…00.010Z` would come before `…00Z`.
+        dates.list(ListQuery(MatchAllFilter, sort = listOf(ascending))).map { it.path(ID).stringValue() }
+            .assert().containsExactly("d2", "d1", "d3")
+        assumeSupported(dates.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
+        walk(ascending, dates, size = 1).assert().containsExactly("d2", "d1", "d3")
+        walk(Sort(CREATED_AT, Sort.Direction.DESC), dates, size = 1).assert().containsExactly("d3", "d1", "d2")
+        Unit
+    }
+
+    @Test
     fun `a stream reads keyset chunks with positions and resumes strictly after one`() = blocking {
         assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))
@@ -664,12 +677,12 @@ abstract class DatasetQueryBackendSpec {
         Unit
     }
 
-    private suspend fun walk(sort: Sort): List<String> {
+    private suspend fun walk(sort: Sort, target: Target = orders, size: Int = 2): List<String> {
         val ids = mutableListOf<String>()
         var cursor: String? = null
         do {
-            val query = CursorQuery(MatchAllFilter, sort = listOf(sort), size = 2, cursor = cursor)
-            val page = orders.backend.cursor(QueryAdmission.Trusted.cursor(query, orders.schema))
+            val query = CursorQuery(MatchAllFilter, sort = listOf(sort), size = size, cursor = cursor)
+            val page = target.backend.cursor(QueryAdmission.Trusted.cursor(query, target.schema))
             ids += page.list.map { it.path(ID).stringValue() }
             cursor = page.nextCursor
         } while (cursor != null && ids.size <= MAX_LIST)
@@ -806,6 +819,21 @@ abstract class DatasetQueryBackendSpec {
                 "h1" to "1969-12-31T12:34:56Z",
                 "h2" to "1969-12-31T12:10:00Z",
                 "h3" to "1970-01-01T00:30:00Z",
+            ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
+        )
+
+        /** Instants a millisecond apart, whose ISO texts order otherwise than their times. */
+        val DATES = DatasetTable(
+            name = "dates",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn("created_at", DatasetColumn.Type.DATE),
+            ),
+            rows = listOf(
+                "d1" to "2025-03-01T00:00:00.001Z",
+                "d2" to "2025-03-01T00:00:00Z",
+                "d3" to "2025-03-01T00:00:00.010Z",
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 

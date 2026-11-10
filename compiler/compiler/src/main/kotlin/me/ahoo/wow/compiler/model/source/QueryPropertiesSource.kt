@@ -26,6 +26,7 @@ import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Variance
+import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
 import me.ahoo.wow.compiler.model.symbol.jsonNaming
@@ -48,7 +49,8 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * leaves, and so is a class already on the path. Each constant is named after its path, as
  * `wow-manifest`'s [QueryFieldNames] names it, the same function the api module's generated `<Context>Contract` names
  * the state schema's paths with: the JSON property names in upper snake case, a nested one after
- * `__`: `STATE__ITEMS__PRODUCT_ID`.
+ * `__`: `STATE__ITEMS__PRODUCT_ID`. The object is `internal` when its state is (or a class it is nested in): its
+ * constants are typed by the state's fields, which may be of the module's `internal` types.
  */
 internal object QueryPropertiesSource {
     const val SNAPSHOT_PROPERTIES = "me.ahoo.wow.api.query.SnapshotProperties"
@@ -121,7 +123,9 @@ internal object QueryPropertiesSource {
         appendLine(" * The query fields of [${state.qualifiedName!!.asString()}] snapshots: the system fields of")
         appendLine(" * [$SNAPSHOT_PROPERTIES] and the state's own, `state.*`.")
         appendLine(" */")
-        appendLine("public object ${className(state)} : $SNAPSHOT_PROPERTIES() {")
+        // As visible as its state: an internal state's fields may be of the module's internal types.
+        val visibility = if (state.isModuleInternal()) "internal" else "public"
+        appendLine("$visibility object ${className(state)} : $SNAPSHOT_PROPERTIES() {")
         properties.forEach {
             appendLine("    public val ${it.name}: $QUERY_FIELD<${it.type}> = $QUERY_FIELD.of(\"${it.path}\")")
         }

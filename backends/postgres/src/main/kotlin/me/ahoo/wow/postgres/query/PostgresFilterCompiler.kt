@@ -290,13 +290,17 @@ internal class PostgresFilterCompiler(
         field.logicalField
     )
 
-    /** The numeric SQL value of an aggregation [expression]; `NULL` where a field holds no number or a divisor is 0. */
+    /**
+     * The numeric SQL value of an aggregation [expression], computed in `numeric`; `NULL` where a field holds no
+     * number or a divisor is 0. An `integer` or `bigint` column enters as `numeric`, so a division keeps its fraction
+     * (PostgreSQL divides two integers as integers) and a product cannot overflow its type.
+     */
     fun numeric(expression: AggregationExpression): String = when (expression) {
         is AggregationExpression.Field -> {
             val field = query.field(expression.field)
             val (value, type) = typed(field)
             requireExecution(type.numeric) { "Field [${field.logicalField}] is not numeric." }
-            value
+            if (type == PostgresQueryType.NUMERIC) value else "($value)::numeric"
         }
         is AggregationExpression.Constant -> "${parameters.bind(
             SqlParameter.Numeric(BigDecimal.valueOf(expression.value))

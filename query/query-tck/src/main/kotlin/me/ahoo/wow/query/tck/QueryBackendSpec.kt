@@ -442,6 +442,32 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `a numeric expression over integer fields divides without truncating`() = blocking {
+        // (lastEventTime - firstEventTime) / version: 5 / 2 is 2.5 on every storage, not an integer division's 2.
+        val fixture = given(
+            listOf(
+                snapshot("d1", "{}", version = 2, lastEventTime = T0 - DAY + 5),
+                snapshot("d2", "{}", version = 4, lastEventTime = T0 - DAY + 4),
+            ),
+        )
+        val rate = AggregationExpression.Binary(
+            me.ahoo.wow.api.query.AggregationExpressionOperator.DIVIDE,
+            AggregationExpression.Binary(
+                me.ahoo.wow.api.query.AggregationExpressionOperator.SUBTRACT,
+                AggregationExpression.Field(QueryField("lastEventTime")),
+                AggregationExpression.Field(QueryField("firstEventTime")),
+            ),
+            AggregationExpression.Field(QueryField("version")),
+        )
+        fixture.ids(ExpressionFilter(rate, ComparisonOperator.GT, 2.25)).assert().containsExactly("d1")
+        val average = fixture.aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Numeric(AggregationFunction.AVG, rate, "rate"))),
+        ).single()
+        average.path("rate").doubleValue().assert().isEqualTo(1.75)
+        Unit
+    }
+
     // Sort, list, single and projection
 
     @Test
@@ -832,6 +858,27 @@ abstract class QueryBackendSpec {
     )
 
     @Test
+    fun `aggregation groups numbers by value, whatever their JSON form`() = blocking {
+        val fixture = given(
+            listOf(
+                snapshot("q1", """{"quantity":1}"""),
+                snapshot("q2", """{"quantity":1.0}"""),
+                snapshot("q3", """{"quantity":2}"""),
+            ),
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.quantity"), "quantity")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("quantity"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("quantity").doubleValue() to it.path("count").longValue() }
+            .assert().containsExactly(1.0 to 2L, 2.0 to 1L)
+        Unit
+    }
+
+    @Test
     fun `aggregation groups a string array by each of its values, or refuses it where storage cannot`() = blocking {
         val fixture = given(keywordOrders())
         val byKeyword = AggregationQuery(
@@ -1081,6 +1128,49 @@ abstract class QueryBackendSpec {
                 "day"
             ).longValue()
         }.assert().containsExactly(T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY, T0 + 4 * DAY)
+        Unit
+    }
+
+    @Test
+    fun `an hourly bucket in a region starts where its local hour does, a repeated hour twice`() = blocking {
+        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
+        val fixture = given(
+            listOf(
+                // New York, 2025-11-02: 01:30 EDT, then 01:30 EST an hour later.
+                snapshot("f1", """{"createdAt":${at("2025-11-02T05:30:00Z")}}"""),
+                snapshot("f2", """{"createdAt":${at("2025-11-02T06:30:00Z")}}"""),
+                // New York, 2025-03-09: 01:30 EST, then 03:30 EDT; 02:00 never happens.
+                snapshot("s1", """{"createdAt":${at("2025-03-09T06:30:00Z")}}"""),
+                snapshot("s2", """{"createdAt":${at("2025-03-09T07:30:00Z")}}"""),
+            ),
+        )
+        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
+        assumeBound(
+            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(
+                        QueryField("state.createdAt"),
+                        "hour",
+                        AggregationDateUnit.HOUR,
+                        "America/New_York",
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
+            at("2025-03-09T06:00:00Z") to 1L,
+            at("2025-03-09T07:00:00Z") to 1L,
+            at("2025-11-02T05:00:00Z") to 1L,
+            at("2025-11-02T06:00:00Z") to 1L,
+        )
         Unit
     }
 

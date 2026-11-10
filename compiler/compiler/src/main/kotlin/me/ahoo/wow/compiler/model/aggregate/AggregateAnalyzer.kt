@@ -54,6 +54,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
@@ -130,7 +131,8 @@ internal class AggregateAnalyzer(
             access = AccessResolver.of(state, problems),
             accessObject = AccessSource.qualifiedName(state),
             warnings = warnings,
-            internal = with(RootStateResolver) { root.isInternal() || state.isInternal() },
+            // The generated factory exposes the state in its signature: `internal` too, the module's provider calls it.
+            internal = root.isModuleInternal() || state.isModuleInternal(),
         )
     }
 
@@ -254,17 +256,18 @@ internal class AggregateAnalyzer(
     /**
      * The arguments the initial state is built with. The recommended constructor is `()`, or one whose
      * parameters all have default values: the aggregate's identity lives in its ref and stream, so the state is built
-     * without arguments. Allowed alternatives, for a domain that cannot work without the id: `(id: String)`, built
-     * with `ref.id`, and `(id: String, tenantId: String)`, built with `ref.id, ref.tenantId`.
+     * without arguments, and a defaulted `String` keeps its default. Allowed alternatives, for a domain that cannot
+     * work without the id: `(id: String)`, built with `ref.id`, and `(id: String, tenantId: String)`, built with
+     * `ref.id, ref.tenantId`, each with a parameter that has no default.
      */
     private fun stateArguments(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
         val parameters = (state.primaryConstructor ?: state.getConstructors().firstOrNull())?.parameters
         val strings = parameters.orEmpty().all { it.type.resolve().declaration.qualifiedName?.asString() == STRING }
         return when {
             parameters == null -> stateConstructorProblem(state, problems)
+            parameters.all { it.hasDefault } -> emptyList()
             parameters.size == 1 && strings -> listOf("ref.id")
             parameters.size == 2 && strings -> listOf("ref.id", "ref.tenantId")
-            parameters.all { it.hasDefault } -> emptyList()
             else -> stateConstructorProblem(state, problems)
         }
     }

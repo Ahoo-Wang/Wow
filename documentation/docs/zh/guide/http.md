@@ -75,7 +75,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
 
 ## 流式获取结果 {#stream-the-outcome}
 
-带 `Accept: text/event-stream` 时，命令每到达一跳就以一个服务端推送事件回答，事件以这一跳的阶段命名，数据是这一跳的结果，直到等待结束。客户端不用轮询就能显示进度：已接收、已提交，然后是链经过的每个服务。
+带 `Accept: text/event-stream` 时，命令每到达一跳就以一个服务端推送事件回答，事件以这一跳的阶段命名，数据是这一跳的结果，直到等待结束。客户端不用轮询就能显示进度：已接收、已提交，然后是链经过的每个服务。`Accept` 按质量值权衡：明确写出 `text/event-stream`、质量大于零且不低于 `application/json` 时才回答事件流；只有通配符时回答 JSON；`q=0` 拒绝该类型；路由能回答的每种类型都被拒绝时回答 406。
 
 快照 `list` 以同样的方式流式返回它的行，可以用 `Last-Event-ID` 续读（[查询快照](./queries#over-http)）。
 

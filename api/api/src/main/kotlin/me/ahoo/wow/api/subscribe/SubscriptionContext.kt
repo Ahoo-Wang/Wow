@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.naming.Escapes
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
@@ -36,8 +37,12 @@ data class ExecutionId(val subscription: String, val ref: AggregateRef, val vers
         require(version >= 1) { "A committed version starts at 1." }
     }
 
-    /** `subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`. */
-    override fun toString(): String = "$subscription:$ref@$version"
+    /**
+     * `subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`: the
+     * subscription with its `%` and `:` percent-escaped and the ref as its own text writes it ([Escapes]), so no two
+     * executions share a text.
+     */
+    override fun toString(): String = "${Escapes.escaped(subscription, "%:")}:$ref@$version"
 }
 
 /**
