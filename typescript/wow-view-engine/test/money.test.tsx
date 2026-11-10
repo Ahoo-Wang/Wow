@@ -41,7 +41,7 @@ import {
   type RecordData,
 } from '../src/index.js';
 import { compileSummaries, recordProjection } from '../src/record/compile.js';
-import { numberFormatOf } from '../src/model/field.js';
+import { numberFormatOf } from '../src/model/fieldNumeric.js';
 import { pageSummaries, projectSummaries } from '../src/record/summaries.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { numericOf, semanticText } from '../src/capabilities/fields.js';

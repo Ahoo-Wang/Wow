@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { projectRecord, type FieldDefinition } from '../src/index.js';
 import { cardField } from '../src/record/project.js';
-import { epochUnitOf } from '../src/model/field.js';
+import { epochUnitOf } from '../src/model/fieldTemporal.js';
 import { readInstant } from '../src/filter/kinds/dateTime.js';
 import { displayValue } from '../src/ui/kit/display.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';

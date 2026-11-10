@@ -140,26 +140,30 @@ export {
 } from './model/definition.js';
 export {
   type BuiltinFieldKindId,
-  type DateTemporal,
-  type DecimalNumeric,
-  type EpochTemporal,
-  type EpochTimeUnit,
   type FieldCellId,
   type FieldDefinition,
   type FieldKindId,
-  type FieldNumeric,
   type FieldOption,
-  type FieldTemporal,
   type FieldTone,
-  type FixedMoneyNumeric,
   type MetadataFieldKindId,
-  type NumberFormat,
-  type RowMoneyNumeric,
   type SearchModeName,
   type StringComparisonName,
   type SummaryFunction,
-  type TimePrecision,
 } from './model/field.js';
+export {
+  type DecimalNumeric,
+  type FieldNumeric,
+  type FixedMoneyNumeric,
+  type NumberFormat,
+  type RowMoneyNumeric,
+} from './model/fieldNumeric.js';
+export {
+  type DateTemporal,
+  type EpochTemporal,
+  type EpochTimeUnit,
+  type FieldTemporal,
+  type TimePrecision,
+} from './model/fieldTemporal.js';
 export {
   type FilterGroup,
   type FilterGroupOperator,

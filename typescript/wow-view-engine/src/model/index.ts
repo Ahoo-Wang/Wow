@@ -24,6 +24,8 @@ export type { CurrencyReading } from './currency.js';
 export * from './dashboard.js';
 export * from './definition.js';
 export * from './field.js';
+export * from './fieldNumeric.js';
+export * from './fieldTemporal.js';
 export * from './filter.js';
 export * from './instance.js';
 export * from './issue.js';
