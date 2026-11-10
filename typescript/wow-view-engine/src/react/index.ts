@@ -171,13 +171,15 @@ export type {
 } from './manager/abilities.js';
 export type { ManagedWording } from './manager/wording.js';
 export {
-  type DrillTarget,
-  type HeldView,
-  type ViewOrigin,
   type WorkbenchController,
   type WorkbenchOptions,
   useWorkbench,
 } from './useWorkbench.js';
+export {
+  type DrillTarget,
+  type HeldView,
+  type ViewOrigin,
+} from './workbench/heldView.js';
 // The outcome of a write, as the save commands' state names it; the rules
 // that read one stay behind the entry (`/ui` imports them from `writes.ts`).
 export type { RecoveredWrite, SettledWrite } from './writes.js';

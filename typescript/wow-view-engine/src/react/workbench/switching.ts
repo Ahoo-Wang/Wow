@@ -13,7 +13,7 @@
 
 import { useCallback } from 'react';
 import type { SavedViewTarget } from '../../runtime/index.js';
-import type { HeldView } from '../useWorkbench.js';
+import type { HeldView } from './heldView.js';
 
 /** What the workbench holds about which view is open, and the guard it asks. */
 export interface SwitchingOptions {
