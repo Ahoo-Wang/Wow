@@ -288,7 +288,7 @@ class ConfigurationMetadata(
     private fun kebab(name: String): String = name.replace(Regex("([a-z0-9])([A-Z])"), "$1-$2").lowercase()
 
     /**
-     * The KDoc of the classes and properties of the host's sources, by nesting path (`WowProperties.Executor`): read by
+     * The KDoc of the classes and properties of the host's sources, by nesting path (`ExecutorProperties`, `HttpProperties.Error`): read by
      * indentation, as the official code style lays the classes out.
      */
     private class KDocIndex(sources: Path) {

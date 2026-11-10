@@ -33,8 +33,8 @@ internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         // The key's one reader is its properties bean, bound here before the beans are.
         val settings = when (WowProperties.of(environment).cosec.mode ?: return) {
-            WowProperties.CoSec.CoSecMode.GATEWAY -> GATEWAY
-            WowProperties.CoSec.CoSecMode.DISABLED -> DISABLED
+            CoSecProperties.CoSecMode.GATEWAY -> GATEWAY
+            CoSecProperties.CoSecMode.DISABLED -> DISABLED
         }
         environment.propertySources.addLast(MapPropertySource(SOURCE, settings))
     }

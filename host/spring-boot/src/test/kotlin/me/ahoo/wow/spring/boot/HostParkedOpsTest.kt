@@ -109,7 +109,7 @@ class HostParkedOpsTest {
         // This node in development keeps its topics in its JVM, where no ops context made that topic: it waits.
         host.node.options.ledger?.automatic.assert().isTrue()
         host.node.ledgerPublisher?.open.assert().isFalse()
-        val publish = WowProperties.Publish().apply {
+        val publish = PublishProperties().apply {
             context = "platform-ops"
             interval = java.time.Duration.ofSeconds(5)
         }
