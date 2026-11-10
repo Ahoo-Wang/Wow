@@ -22,6 +22,14 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.migrate.NineXBson.toNode
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_ID
+import me.ahoo.wow.migrate.NineXMongoFields.BODY
+import me.ahoo.wow.migrate.NineXMongoFields.CONTEXT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.CREATE_TIME
+import me.ahoo.wow.migrate.NineXMongoFields.EVENT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.ID
+import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
+import me.ahoo.wow.migrate.NineXMongoFields.VERSION
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.nio.charset.StandardCharsets
@@ -249,9 +257,9 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         val facets = collectionOf(aggregate).aggregate(
             listOf(
                 Document("\$match", Document(CONTEXT_NAME, aggregate.context)),
-                Document("\$unwind", "\$body"),
-                Document("\$match", Document("body.body.$TAGS", Document("\$type", "object"))),
-                Document("\$project", Document("name", "\$body.name").append(TAGS, "\$body.body.$TAGS")),
+                Document("\$unwind", "\$$BODY"),
+                Document("\$match", Document("$BODY.$BODY.$TAGS", Document("\$type", "object"))),
+                Document("\$project", Document("name", "\$$BODY.$EVENT_NAME").append(TAGS, "\$$BODY.$BODY.$TAGS")),
                 Document(
                     "\$facet",
                     Document(
@@ -277,11 +285,11 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         problem: TagValueProblem,
         limit: Int
     ): List<String> {
-        val holding = MongoTags.holding("body.body.$TAGS", key, problem) ?: return emptyList()
+        val holding = MongoTags.holding("$BODY.$BODY.$TAGS", key, problem) ?: return emptyList()
         return collectionOf(aggregate).aggregate(
             listOf(
-                Document("\$match", Document(CONTEXT_NAME, aggregate.context).append("body.body.$TAGS.$key", Document("\$exists", true))),
-                Document("\$unwind", "\$body"),
+                Document("\$match", Document(CONTEXT_NAME, aggregate.context).append("$BODY.$BODY.$TAGS.$key", Document("\$exists", true))),
+                Document("\$unwind", "\$$BODY"),
             ) + holding + listOf(
                 Document("\$group", Document(ID, "\$$ID")),
                 Document("\$sort", Document(ID, 1)),
@@ -410,12 +418,6 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
     companion object {
         /** The suffix of a 9.x event stream collection. */
         const val SUFFIX: String = "_event_stream"
-        private const val ID = "_id"
-        private const val CONTEXT_NAME = "contextName"
-        internal const val AGGREGATE_ID = "aggregateId"
-        internal const val TENANT_ID = "tenantId"
-        private const val VERSION = "version"
-        private const val CREATE_TIME = "createTime"
 
         /**
          * Whether an index [key] is `{createTime: 1, _id: 1}`, however its numbers were written (the shell writes

@@ -16,6 +16,9 @@ package me.ahoo.wow.migrate
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
+import me.ahoo.wow.migrate.NineXMongoFields.CONTEXT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.ID
+import me.ahoo.wow.migrate.NineXMongoFields.VERSION
 import org.bson.Document
 
 /**
@@ -91,9 +94,6 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
     companion object {
         /** The suffix of a 9.x snapshot collection. */
         const val SUFFIX: String = "_snapshot"
-        private const val ID = "_id"
-        private const val CONTEXT_NAME = "contextName"
-        private const val VERSION = "version"
         private const val DELETED = "deleted"
         private const val SNAPSHOT_TIME = "snapshotTime"
     }

@@ -20,6 +20,19 @@ import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import me.ahoo.wow.migrate.NineXBson.bsonOf
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_ID
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.BODY
+import me.ahoo.wow.migrate.NineXMongoFields.BODY_TYPE
+import me.ahoo.wow.migrate.NineXMongoFields.COMMAND_ID
+import me.ahoo.wow.migrate.NineXMongoFields.CONTEXT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.CREATE_TIME
+import me.ahoo.wow.migrate.NineXMongoFields.EVENT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.EVENT_REVISION
+import me.ahoo.wow.migrate.NineXMongoFields.HEADER
+import me.ahoo.wow.migrate.NineXMongoFields.ID
+import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
+import me.ahoo.wow.migrate.NineXMongoFields.VERSION
 import org.bson.Document
 import java.util.concurrent.ConcurrentHashMap
 
@@ -117,7 +130,7 @@ internal class MongoNineXEventTarget(private val database: MongoDatabase) : Nine
             Document("\$unwind", "\$$BODY"),
             Document(
                 "\$group",
-                Document("_id", Document("name", "\$$BODY.name").append("revision", "\$$BODY.revision"))
+                Document("_id", Document("name", "\$$BODY.$EVENT_NAME").append("revision", "\$$BODY.$EVENT_REVISION"))
                     .append(BODY_TYPE, Document("\$last", "\$$BODY.$BODY_TYPE")),
             ),
         ),
@@ -129,8 +142,8 @@ internal class MongoNineXEventTarget(private val database: MongoDatabase) : Nine
 
     private fun documentOf(stream: NineXStream, types: Map<NineXEventType, String>): Document = Document(ID, stream.id)
         .append(CONTEXT_NAME, stream.aggregate.context)
-        .append("aggregateName", stream.aggregate.name)
-        .append("header", Document(stream.header))
+        .append(AGGREGATE_NAME, stream.aggregate.name)
+        .append(HEADER, Document(stream.header))
         .append(AGGREGATE_ID, stream.aggregateId.id)
         .append(TENANT_ID, stream.aggregateId.tenantId)
         .append("ownerId", stream.ownerId)
@@ -142,26 +155,15 @@ internal class MongoNineXEventTarget(private val database: MongoDatabase) : Nine
             BODY,
             stream.events.map { event ->
                 Document("id", event.id)
-                    .append("name", event.name)
-                    .append("revision", event.revision)
+                    .append(EVENT_NAME, event.name)
+                    .append(EVENT_REVISION, event.revision)
                     .append(BODY_TYPE, types[NineXEventType(event.name, event.revision)] ?: event.name)
                     .append(BODY, bsonOf(event.body))
             },
         )
-        .append("createTime", stream.createTime)
+        .append(CREATE_TIME, stream.createTime)
         .append("size", stream.events.size)
 
     private fun collectionOf(aggregate: NineXAggregate): MongoCollection<Document> =
         database.getCollection(aggregate.name + MongoNineXEventSource.SUFFIX)
-
-    companion object {
-        private const val ID = "_id"
-        private const val CONTEXT_NAME = "contextName"
-        private const val AGGREGATE_ID = "aggregateId"
-        private const val TENANT_ID = "tenantId"
-        private const val COMMAND_ID = "commandId"
-        private const val VERSION = "version"
-        private const val BODY = "body"
-        private const val BODY_TYPE = "bodyType"
-    }
 }
