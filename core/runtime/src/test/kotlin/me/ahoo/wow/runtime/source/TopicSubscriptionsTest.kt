@@ -17,41 +17,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.StartFrom
-import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
-import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.cluster.FlakyLeases
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
-import me.ahoo.wow.runtime.subscription.Handled
-import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
-import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
-import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
-import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.ParkedAmendment
-import me.ahoo.wow.spi.observation.ObservedEvent
-import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
-import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -61,84 +42,7 @@ import kotlin.time.Duration.Companion.seconds
  * HRW in the group `(service, "topic:<name>")`, offsets in the checkpoint store, copies dropped, and parking retried
  * by re-scanning the partition from the offset parked, unless retention passed it.
  */
-class TopicSubscriptionsTest {
-    private val topics = InMemoryTopics(PARTITIONS).also { it.create(ORDER_TOPIC, PARTITIONS) }
-    private val leases = InMemoryLeaseStore()
-    private val checkpoints = RecordingCheckpoints()
-    private val ledger = InMemoryFailureLedger()
-    private val handled = Handled()
-    private val started = CopyOnWriteArrayList<TopicSubscriptions>()
-
-    /** The undecodable messages the observer heard of: offset and whether it was parked. */
-    private val undecodable = CopyOnWriteArrayList<Pair<Long, Boolean>>()
-    private val observer = object : Observer {
-        override fun observed(event: ObservedEvent) {
-            when (event) {
-                is ObservedEvent.Undecodable -> undecodable += event.offset to event.parked
-                else -> Unit
-            }
-        }
-    }
-
-    /** While set, the handler fails for this aggregate at this version. */
-    @Volatile
-    private var failing: Pair<String, Int>? = null
-
-    private val board = Subscription(BOARD, SubscriptionFilter(ORDER.context, setOf(ORDER.name))) { entry ->
-        val failure = failing
-        if (failure != null && entry.ref.id == failure.first && entry.version >= failure.second) {
-            throw IllegalStateException("${entry.ref}@${entry.version} fails")
-        }
-        checkNotNull(entry.published) { "A record read from a topic carries it." }
-        handled.record(entry)
-    }
-
-    @AfterEach
-    fun stop(): Unit = runBlocking {
-        started.forEach { it.stop() }
-    }
-
-    private suspend fun start(
-        node: String,
-        subscription: Subscription = board,
-        starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
-    ): TopicSubscriptions = TopicSubscriptions(
-        service = SERVICE,
-        topic = ORDER_TOPIC,
-        node = node,
-        addressOf = { "$node.internal:9090" },
-        source = topics,
-        checkpoints = checkpoints,
-        leases = leases,
-        ledger = ledger,
-        subscriptions = listOf(subscription),
-        options = testOptions().copyWith(starts = starts),
-        cluster = fastOptions(),
-        observer = observer,
-    ).also {
-        started += it
-        it.start()
-        it.awaitStarted()
-    }
-
-    private suspend fun partitionOf(id: String): Int = topics.partitionOf(ORDER_TOPIC, order(id).toString())
-
-    /** The offset of [id]'s record at [version] in its partition. */
-    private suspend fun offsetOf(id: String, version: Int): Long = topics.messages(ORDER_TOPIC).single {
-        it.key == order(id).toString() && EnvelopeCodec.stateEventOf(it.value).version == version
-    }.offset
-
-    /** The ids of [count] orders of [partition]. */
-    private suspend fun idsIn(partition: Int, count: Int): List<String> = buildList {
-        var n = 0
-        while (size < count) {
-            val id = "o-${n++}"
-            if (partitionOf(id) == partition) {
-                add(id)
-            }
-        }
-    }
-
+class TopicSubscriptionsTest : TopicSubscriptionsFixtures() {
     @Test
     fun `a node that steps out of a topic's group should hand its partitions to the other and join it no more`(): Unit =
         runBlocking {
@@ -203,185 +107,6 @@ class TopicSubscriptionsTest {
     }
 
     @Test
-    fun `a message without a key that holds no state event should be passed over`(): Unit = runBlocking {
-        start("node-1")
-        val partition = partitionOf("o-1")
-        topics.send(ORDER_TOPIC, TopicMessage.of("not a ref", BAD.toByteArray(), partition = partition))
-        topics.publish(orderRecord("o-1", 1))
-        eventually { handled.size == 1 }
-        eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) == 2L }
-        ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
-        undecodable.assert().containsExactly(0L to false)
-    }
-
-    @Test
-    fun `a record of another producer, such as 9x on a topic of the same name, should stop the read before it`(): Unit =
-        runBlocking {
-            val partition = partitionOf("o-1")
-            topics.send(ORDER_TOPIC, TopicMessage.of("o-1", NINE_X_STATE_EVENT.toByteArray(), partition = partition))
-            val foreign = assertThrows<ForeignTopicRecordException> {
-                TopicEntries(ORDER_TOPIC, topics, PARTITIONS).tail(partition, null).toList()
-            }
-            foreign.offset.assert().isEqualTo(0L)
-            foreign.message.assert().contains("Offset 0 of partition $partition of $ORDER_TOPIC")
-                .contains("not a Wow envelope").contains("such as a 9.x service")
-                .contains("wow.kafka.topics.prefix")
-
-            // A wrong topic is no failure of an aggregate: nothing parks, and the record after it is never reached.
-            start("node-1")
-            topics.publish(orderRecord("o-1", 1))
-            delay(READ_RETRIES)
-            handled.size.assert().isZero()
-            (checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) ?: 0L).assert().isZero()
-            ledger.list(BOARD_ID).assert().isEmpty()
-            undecodable.assert().isEmpty()
-            // Another partition reads on.
-            val other = idsIn((partition + 1) % PARTITIONS, 1).single()
-            topics.publish(orderRecord(other, 1))
-            eventually { handled.versionsOf(other) == listOf(1) }
-        }
-
-    @Test
-    fun `an undecodable message keyed by a ref whose tenant holds a slash should park that aggregate`(): Unit =
-        runBlocking {
-            // D408: the key is the ref's own text, its '/' escaped, so it reads back as this aggregate and no other.
-            start("node-1")
-            val slashed = ORDER.ref("a/b", "o-1")
-            topics.send(ORDER_TOPIC, TopicMessage.of(slashed.toString(), BAD.toByteArray()))
-            eventually { ledger.parked(BOARD_ID, slashed) != null }
-            ledger.parked(BOARD_ID, ORDER.ref("a", "b/o-1")).assert().isNull()
-        }
-
-    @Test
-    fun `a message whose key is no ref's text should be passed over, as one without a key`(): Unit = runBlocking {
-        start("node-1")
-        val partition = partitionOf("o-1")
-        topics.send(ORDER_TOPIC, TopicMessage.of("sales.order/t/%zz", BAD.toByteArray(), partition = partition))
-        topics.publish(orderRecord("o-1", 1))
-        eventually { handled.size == 1 }
-        undecodable.assert().containsExactly(0L to false)
-    }
-
-    @Test
-    fun `a message of an aggregate that holds no state event should park the aggregate there`(): Unit =
-        runBlocking {
-            // Review A3-14: failure is data; the operator sees it and decides.
-            val subscriptions = start("node-1")
-            topics.publish(orderRecord("o-1", 1))
-            eventually { handled.versionsOf("o-1") == listOf(1) }
-            topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
-            topics.publish(orderRecord("o-1", 2))
-            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
-            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.reason.assert().contains("cannot be decoded")
-            undecodable.assert().containsExactly(parked.fromPosition!! to true)
-            parked.fromPosition.assert().isEqualTo(
-                topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
-            )
-            // The aggregate's later record waits behind it; the checkpoint moves past both.
-            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 3L }
-            handled.versionsOf("o-1").assert().containsExactly(1)
-            // A retry meets it again; a skip resolves it.
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
-            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
-        }
-
-    @Test
-    fun `a retry from a later version should stop at an undecodable message of the aggregate after it`(): Unit =
-        runBlocking {
-            // #5542: the undecodable message's entry has no version of its own; it is never older than the parked one.
-            val subscriptions = start("node-1")
-            failing = "o-1" to 2
-            topics.publish(orderRecord("o-1", 1), orderRecord("o-1", 2))
-            eventually { ledger.parked(BOARD_ID, order("o-1"))?.fromVersion == 2 }
-            topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
-            topics.publish(orderRecord("o-1", 4))
-            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 4L }
-            failing = null
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            handled.versionsOf("o-1").assert().containsExactly(1, 2)
-            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.reason.assert().contains("cannot be decoded")
-            parked.fromPosition.assert().isEqualTo(
-                topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
-            )
-            // Still parked there: neither a retry nor the tail goes past it, until it is skipped.
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            topics.publish(orderRecord("o-1", 5))
-            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 5L }
-            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
-            topics.publish(orderRecord("o-1", 6))
-            eventually { handled.versionsOf("o-1") == listOf(1, 2, 6) }
-        }
-
-    @Test
-    fun `a failing aggregate should be parked at its offset and retried by re-scanning its partition`(): Unit =
-        runBlocking {
-            val (parkedId, otherId) = idsIn(partitionOf("o-1"), 2)
-            val subscriptions = start("node-1")
-            failing = parkedId to 2
-            topics.publish(orderRecord(parkedId, 1), orderRecord(parkedId, 2), orderRecord(otherId, 1))
-            topics.publish(orderRecord(parkedId, 3))
-            eventually { ledger.parked(BOARD_ID, order(parkedId)) != null }
-            val parked = ledger.parked(BOARD_ID, order(parkedId))!!
-            parked.fromVersion.assert().isEqualTo(2)
-            parked.fromPosition.assert().isEqualTo(offsetOf(parkedId, 2))
-            parked.unrecoverable.assert().isFalse()
-            // The other aggregate of the partition goes on; the parked one's later records wait.
-            eventually { handled.versionsOf(otherId) == listOf(1) }
-            handled.versionsOf(parkedId).assert().containsExactly(1)
-            failing = null
-            subscriptions.retry(BOARD, order(parkedId)).assert().isTrue()
-            handled.versionsOf(parkedId).assert().containsExactly(1, 2, 3)
-            ledger.parked(BOARD_ID, order(parkedId)).assert().isNull()
-            topics.publish(orderRecord(parkedId, 4))
-            eventually { handled.versionsOf(parkedId) == listOf(1, 2, 3, 4) }
-        }
-
-    @Test
-    fun `a retry that fails again should stay parked from where it failed, at that record's offset`(): Unit =
-        runBlocking {
-            val subscriptions = start("node-1")
-            failing = "o-1" to 2
-            topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
-            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
-            failing = "o-1" to 3
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.fromVersion.assert().isEqualTo(3)
-            parked.fromPosition.assert().isEqualTo(offsetOf("o-1", 3))
-            failing = null
-            subscriptions.retry(BOARD, order("o-1")).assert().isTrue()
-            handled.versionsOf("o-1").assert().containsExactly(1, 2, 3, 4)
-        }
-
-    @Test
-    fun `a parked aggregate whose offset retention passed should be unrecoverable and only skipped`(): Unit =
-        runBlocking {
-            val subscriptions = start("node-1")
-            failing = "o-1" to 2
-            topics.publish(*(1..3).map { orderRecord("o-1", it) }.toTypedArray())
-            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
-            val position = ledger.parked(BOARD_ID, order("o-1"))!!.fromPosition!!
-            topics.retain(ORDER_TOPIC, partitionOf("o-1"), position + 1)
-            failing = null
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.unrecoverable.assert().isTrue()
-            parked.reason.assert().startsWith(ParkedAggregate.UNRECOVERABLE)
-            parked.fromVersion.assert().isEqualTo(2)
-            parked.fromPosition.assert().isEqualTo(position)
-            // Marked once: a retry no longer tries.
-            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
-            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
-            topics.publish(orderRecord("o-1", 4))
-            eventually { handled.versionsOf("o-1") == listOf(1, 4) }
-            assertThrows<IllegalArgumentException> { runBlocking { subscriptions.skip("Other.onOrder", order("o-1")) } }
-        }
-
-    @Test
     fun `a subscription without a checkpoint should start where it says`(): Unit = runBlocking {
         topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
         val end = Subscription("Tail.onOrder", SubscriptionFilter(ORDER.context), StartFrom.END) { handled.record(it) }
@@ -405,41 +130,6 @@ class TopicSubscriptionsTest {
     }
 
     @Test
-    fun `a topic without partitions yet should be read once it has some`(): Unit = runBlocking {
-        val empty = object : me.ahoo.wow.spi.transport.PartitionedSource by topics {
-            @Volatile
-            var ready = false
-
-            override suspend fun partitions(topic: String): List<Int> =
-                if (ready) topics.partitions(topic) else emptyList()
-        }
-        val subscriptions = TopicSubscriptions(
-            SERVICE,
-            ORDER_TOPIC,
-            "node-1",
-            { "node-1.internal:9090" },
-            empty,
-            checkpoints,
-            leases,
-            ledger,
-            listOf(board),
-            testOptions(),
-            fastOptions(),
-        )
-        started += subscriptions
-        subscriptions.start()
-        subscriptions.runtime.assert().isNull()
-        assertThrows<IllegalStateException> { runBlocking { subscriptions.retry(BOARD, order("o-1")) } }
-        // Skipping needs no partition: the ledger entry is resolved.
-        subscriptions.skip(BOARD, order("o-1")).assert().isFalse()
-        empty.ready = true
-        subscriptions.awaitStarted()
-        topics.publish(orderRecord("o-1", 1))
-        eventually { handled.size == 1 }
-        subscriptions.toString().assert().contains(ORDER_TOPIC)
-    }
-
-    @Test
     fun `a topic's subscriptions should be named apart`() {
         assertThrows<IllegalArgumentException> {
             TopicSubscriptions(SERVICE, ORDER_TOPIC, "n", { "a" }, topics, checkpoints, leases, ledger, emptyList())
@@ -449,161 +139,6 @@ class TopicSubscriptionsTest {
             TopicSubscriptions(SERVICE, ORDER_TOPIC, "n", { "a" }, topics, checkpoints, leases, ledger, twice)
         }
     }
-
-    @Test
-    fun `partitions added while reading should be read too, the others going on from their checkpoints`(): Unit =
-        runBlocking {
-            val topic = "wow.sales.growing.state"
-            topics.create(topic, 2)
-            val growing = TopicSubscriptions(
-                service = SERVICE,
-                topic = topic,
-                node = "node-1",
-                addressOf = { "node-1.internal:9090" },
-                source = topics,
-                checkpoints = checkpoints,
-                leases = leases,
-                ledger = ledger,
-                subscriptions = listOf(board),
-                options = testOptions(),
-                cluster = fastOptions(),
-                partitionRefresh = 20.milliseconds,
-            ).also {
-                started += it
-                it.start()
-                it.awaitStarted()
-            }
-            topics.publish(orderRecord("o-1", 1), orderRecord("o-2", 1), topic = topic)
-            eventually { handled.size == 2 }
-            topics.grow(topic, PARTITIONS)
-            eventually { growing.ownership?.owned == (0 until PARTITIONS).toSet() }
-            val record = EnvelopeCodec.message(orderRecord("o-3", 1))
-            topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
-            eventually { handled.versionsOf("o-3") == listOf(1) }
-            delay(50.milliseconds)
-            // Nothing read before the partitions were added was handled again.
-            handled.size.assert().isEqualTo(3)
-        }
-
-    /** Reads [topic] on [node] with [subscription], looking for new partitions every 20 ms. */
-    private suspend fun growing(
-        node: String,
-        topic: String,
-        subscription: Subscription = board,
-        ledger: FailureLedger = this.ledger,
-        options: SubscriptionOptions = testOptions(),
-    ): TopicSubscriptions = TopicSubscriptions(
-        service = SERVICE,
-        topic = topic,
-        node = node,
-        addressOf = { "$node.internal:9090" },
-        source = topics,
-        checkpoints = checkpoints,
-        leases = leases,
-        ledger = ledger,
-        subscriptions = listOf(subscription),
-        options = options.copyWith(parked = ParkedRetryOptions(scanInterval = 10.milliseconds)),
-        cluster = fastOptions(),
-        partitionRefresh = 20.milliseconds,
-    ).also {
-        started += it
-        it.start()
-        it.awaitStarted()
-    }
-
-    @Test
-    fun `an aggregate parked before its key moved to an added partition is re-homed, held and only skipped`(): Unit =
-        runBlocking {
-            // #5481: version 2 lands at the parked offset of the new partition; it must not stand in for version 1.
-            val topic = "wow.sales.moving.state"
-            topics.create(topic, 1)
-            val id = generateSequence(0) { it + 1 }.map { "o-$it" }
-                .first { Math.floorMod(order(it).toString().hashCode(), 2) == 1 }
-            val listings = AtomicInteger()
-            val counting = object : FailureLedger by ledger {
-                override suspend fun list(
-                    subscription: SubscriptionId,
-                    after: AggregateRef?,
-                    limit: Int,
-                    tenantId: String?,
-                ): List<ParkedAggregate> = ledger.list(subscription, after, limit, tenantId).also {
-                    listings.incrementAndGet()
-                }
-            }
-            val growing = growing("node-1", topic, ledger = counting)
-            failing = id to 1
-            topics.publish(orderRecord(id, 1), topic = topic)
-            eventually { ledger.parked(BOARD_ID, order(id)) != null }
-            val parked = ledger.parked(BOARD_ID, order(id))!!
-            topics.grow(topic, 2)
-            eventually {
-                growing.ownership?.owned == setOf(0, 1) && ledger.parked(BOARD_ID, order(id))?.partition == 1
-            }
-            val rehomed = ledger.parked(BOARD_ID, order(id))!!
-            rehomed.unrecoverable.assert().isTrue()
-            rehomed.reason.assert().contains(
-                "$topic gained partitions",
-                "partition 0 from offset ${parked.fromPosition}"
-            )
-            rehomed.fromPosition.assert().isNull()
-            rehomed.fromVersion.assert().isEqualTo(1)
-            failing = null
-            topics.publish(orderRecord(id, 2), topic = topic)
-            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, topic).name, BOARD, 1) == 1L }
-            handled.versionsOf(id).assert().isEmpty()
-            growing.retry(BOARD, order(id)).assert().isFalse()
-            growing.skip(BOARD, order(id)).assert().isTrue()
-            topics.publish(orderRecord(id, 3), topic = topic)
-            eventually { handled.versionsOf(id) == listOf(3) }
-            // One listing of the ledger a run: the first join's, and the join again over two partitions.
-            listings.get().assert().isEqualTo(2)
-        }
-
-    @Test
-    fun `a moved aggregate is held, skipped and answered by the owner of the partition its key maps to now`(): Unit =
-        runBlocking {
-            // #5481, two owners: the entry parked on partition 0's owner; its key maps to a partition the other owns.
-            val topic = "wow.sales.split.state"
-            topics.create(topic, 1)
-            val broken = AtomicBoolean(true)
-            val split = Subscription(BOARD, SubscriptionFilter(ORDER.context, setOf(ORDER.name))) { entry ->
-                check(!(broken.get() && entry.version == 1)) { "${entry.ref}@1 fails" }
-                handled.record(entry)
-            }
-            // Many aggregates fail at once here, which is no systemic failure.
-            val options = testOptions().copyWith(systemic = SystemicFailureOptions(failingAggregates = Int.MAX_VALUE))
-            val nodes = listOf("node-1", "node-2").map { growing(it, topic, split, options = options) }
-            val ids = (0 until 16).map { "s-$it" }
-            topics.publish(*ids.map { orderRecord(it, 1) }.toTypedArray(), topic = topic)
-            eventually { ids.all { ledger.parked(BOARD_ID, order(it)) != null } }
-            topics.grow(topic, PARTITIONS)
-            eventually {
-                val owned = nodes.map { it.ownership?.owned.orEmpty() }
-                owned.all { it.isNotEmpty() } && owned.flatten().sorted() == (0 until PARTITIONS).toList()
-            }
-            val (old, new) = nodes.partition { 0 in it.ownership!!.owned }.let { it.first.single() to it.second.single() }
-            val id = ids.first { topics.partitionOf(topic, order(it).toString()) in new.ownership!!.owned }
-            val now = topics.partitionOf(topic, order(id).toString())
-            eventually { ledger.parked(BOARD_ID, order(id))?.partition == now }
-            ledger.parked(BOARD_ID, order(id))!!.unrecoverable.assert().isTrue()
-            broken.set(false)
-            // Its later version waits on the new owner.
-            topics.publish(orderRecord(id, 2), topic = topic)
-            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, topic).name, BOARD, now) == 1L }
-            handled.versionsOf(id).assert().isEmpty()
-            // An operator's retry, left as a request by a node that does not run the partition, is taken by the new
-            // owner and answered: the entry cannot be retried, and stays parked.
-            ledger.amend(BOARD_ID, order(id), ParkedAmendment.Request(LedgerRequest.RETRY))
-            eventually { ledger.parked(BOARD_ID, order(id))?.request == null }
-            ledger.parked(BOARD_ID, order(id))!!.partition.assert().isEqualTo(now)
-            handled.versionsOf(id).assert().isEmpty()
-            // The old owner runs no worker of it; the new owner's skip resolves it.
-            old.ownership!!.owned.assert().doesNotContain(now)
-            new.skip(BOARD, order(id)).assert().isTrue()
-            ledger.parked(BOARD_ID, order(id)).assert().isNull()
-            topics.publish(orderRecord(id, 3), topic = topic)
-            eventually { handled.versionsOf(id) == listOf(3) }
-        }
 
     @Test
     fun `a join that fails should be retried until the node reads the topic`(): Unit = runBlocking {
@@ -683,17 +218,4 @@ class TopicSubscriptionsTest {
         cluster = fastOptions(),
         partitionRefresh = partitionRefresh,
     ).also { started += it }
-
-    private companion object {
-        val BOARD_ID = SubscriptionId(ORDER.context, BOARD)
-        const val SERVICE = "board-service"
-        const val BOARD = "Board.onOrder"
-        const val PARTITIONS = 4
-
-        /** Long enough for a read that fails to have been retried several times. */
-        val READ_RETRIES = 300.milliseconds
-
-        /** An envelope a later version may read: of another format, which this version does not. */
-        const val BAD = """{"format":2,"kind":"state-event","id":"sales.order/t/o-1@2","payload":{}}"""
-    }
 }
