@@ -23,12 +23,25 @@ import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.spi.Ddl
 import org.slf4j.LoggerFactory
+import java.security.MessageDigest
 import java.sql.Connection
 import javax.sql.DataSource
 
 /** A planned expression index: its physical name, its table (quoted) and the statement that creates it. */
 @InternalWowApi
-data class PostgresQueryIndex(val name: String, val table: String, val ddl: String)
+data class PostgresQueryIndex(val name: String, val table: String, val ddl: String) {
+    /**
+     * The fingerprint of the planned definition, recorded on the index as its comment when it is built: an existing
+     * index of the name whose comment differs (another definition, or none: built before) is drift.
+     */
+    val fingerprint: String
+        get() = "wow:" + MessageDigest.getInstance("SHA-256").digest(ddl.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }.take(FINGERPRINT_CHARS)
+
+    private companion object {
+        const val FINGERPRINT_CHARS = 32
+    }
+}
 
 /** What [PostgresSnapshotQueryStorage.manageIndexes] did: the indexes it created, and the ones it found missing or invalid. */
 @InternalWowApi
@@ -43,7 +56,7 @@ data class PostgresQueryIndexReport(
  * declares in the Manifest becomes
  *
  * ```sql
- * CREATE INDEX CONCURRENTLY IF NOT EXISTS "<table>_<name>" ON "<table>" (tenant_id, <key> NULLS FIRST, ...)
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS "<table>_<name>" ON "<table>" (tenant_id, <key> NULLS FIRST, ..., aggregate_id)
  *     WHERE NOT deleted
  * ```
  *
@@ -65,13 +78,16 @@ data class PostgresQueryIndexReport(
 object PostgresQueryIndexes {
     private val log = LoggerFactory.getLogger(PostgresQueryIndexes::class.java)
 
+    /** The column every snapshot sort ends with under the tenant's equality, which ends a declared B-tree index. */
+    private const val TIE_BREAKER = "aggregate_id"
+
     /**
      * The indexes of [plan] on the snapshot table of [aggregate] in [context], keyed by the expressions of its keys'
      * physical fields. Fails on a key with many values (an array): a B-tree indexes one.
      */
     fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val tables = PostgresSnapshotTables(context, aggregate)
-        return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions) { "NOT deleted" }
+        return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions, TIE_BREAKER) { "NOT deleted" }
     }
 
     /**
@@ -83,7 +99,7 @@ object PostgresQueryIndexes {
      */
     fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val table = PostgresEventLogTables(context).aggregate(aggregate)
-        return plan(table.base, table.log, plan, PostgresEventQueryExpressions) { key -> "$key IS NOT NULL" }
+        return plan(table.base, table.log, plan, PostgresEventQueryExpressions, null) { key -> "$key IS NOT NULL" }
     }
 
     private fun plan(
@@ -91,6 +107,7 @@ object PostgresQueryIndexes {
         table: String,
         plan: QueryIndexPlan,
         expressions: PostgresQueryExpressions,
+        tieBreaker: String?,
         predicate: (key: String) -> String,
     ): List<PostgresQueryIndex> = plan.indexes.map { index ->
         val name = PostgresIdentifiers.limited(base + "_" + index.name)
@@ -100,7 +117,10 @@ object PostgresQueryIndexes {
             "USING gin ($node jsonb_path_ops)" to node
         } else {
             val keys = index.keys.map { key(index, it, expressions) }
-            "(tenant_id, ${keys.joinToString(", ") { "$it NULLS FIRST" }})" to keys.first()
+            // Ended by the aggregate ID, the tie-breaker every sort ends with under the tenant's equality, so a sort by
+            // the keys is the index's order (a NOT NULL column, ordered plainly as the compiler orders it).
+            val columns = keys.map { "$it NULLS FIRST" } + listOfNotNull(tieBreaker).filterNot { it in keys }
+            "(tenant_id, ${columns.joinToString(", ")})" to keys.first()
         }
         PostgresQueryIndex(
             name,
@@ -144,7 +164,7 @@ object PostgresQueryIndexes {
         val missing = indexes.filter { it.name !in valid }
         val invalid = indexes.filter { valid[it.name] == false }
         if (!mode.creates) {
-            // Validating reports every missing or invalid index at once: the host refuses the startup naming them.
+            // Validating reports every missing, invalid or drifted index at once: the host refuses the startup naming them.
             return@autoCommitted PostgresQueryIndexReport(
                 missing = missing.map { it.name },
                 invalid = invalid.map { it.name },
@@ -165,6 +185,8 @@ object PostgresQueryIndexes {
                             connection.createStatement().use { statement ->
                                 statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${index.name}\"")
                                 statement.execute(index.ddl)
+                                // A node stopped before this leaves no fingerprint: the next start rebuilds the index.
+                                statement.execute("COMMENT ON INDEX \"${index.name}\" IS '${index.fingerprint}'")
                             }
                         }
                     }
@@ -178,20 +200,30 @@ object PostgresQueryIndexes {
         )
     }
 
-    /** Whether each of [indexes] on [table] that exists is valid, by name. */
+    /**
+     * Whether each of [indexes] on [table] that exists is the planned one, by name: valid (a build that timed out
+     * leaves an invalid one) and recording the planned definition's fingerprint (another definition is drift).
+     */
     private fun validity(
         connection: Connection,
         table: String,
         indexes: List<PostgresQueryIndex>
-    ): Map<String, Boolean> =
-        connection.prepareStatement(
-            "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
-                "WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
+    ): Map<String, Boolean> {
+        val planned = indexes.associateBy { it.name }
+        return connection.prepareStatement(
+            "SELECT c.relname, i.indisvalid, obj_description(i.indexrelid, 'pg_class') FROM pg_index i " +
+                "JOIN pg_class c ON c.oid = i.indexrelid WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
         ).use { query ->
             query.setString(1, table)
             query.setArray(2, connection.createArrayOf("text", indexes.map { it.name }.toTypedArray()))
             query.executeQuery().use { rows ->
-                buildMap { while (rows.next()) put(rows.getString(1), rows.getBoolean(2)) }
+                buildMap {
+                    while (rows.next()) {
+                        val name = rows.getString(1)
+                        put(name, rows.getBoolean(2) && rows.getString(3) == planned.getValue(name).fingerprint)
+                    }
+                }
             }
         }
+    }
 }

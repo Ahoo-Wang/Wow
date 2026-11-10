@@ -53,7 +53,7 @@ class PostgresQueryIndexesTest {
         val amount = PostgresSnapshotQueryExpressions.value(QueryField("state.amount"), PostgresQueryType.NUMERIC)
         index.ddl.assert().isEqualTo(
             "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot__shop__order_ix_order_state_name\" ON \"wow_snapshot__shop__order\" " +
-                "(tenant_id, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST) WHERE NOT deleted",
+                "(tenant_id, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST, aggregate_id) WHERE NOT deleted",
         )
     }
 

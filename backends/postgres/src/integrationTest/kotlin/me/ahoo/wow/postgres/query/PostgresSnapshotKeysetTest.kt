@@ -29,6 +29,7 @@ import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.index.QueryIndexPlan
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.util.UUID
@@ -72,8 +73,43 @@ class PostgresSnapshotKeysetTest {
         // A declared field, ascending: its index, from the field's position on.
         val amount = Sort(QueryField("state.amount"), Sort.Direction.ASC)
         val byAmount = deepPage(listOf(amount), listOf(BigDecimal(DEEP), "t1", "id-%06d".format(DEEP)))
-        byAmount.assert().contains("Index Scan using").contains("_amount").contains(">= ROW(")
+        byAmount.assert().contains("Index Scan using").contains("_amount").contains("ROW(")
         removed(byAmount).assert().isLessThanOrEqualTo(PAGE.toLong())
+        // The declared index ends with the aggregate ID, so it gives the whole order: no sort of any kind (MG-2/PG-11).
+        byAmount.assert().doesNotContain("Sort")
+    }
+
+    @Test
+    fun `a declared index of another definition is drift, reported under validate and rebuilt under auto`() {
+        val type = AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
+        PostgresFixture.snapshotStore(type.context).createTable(type.name)
+        val schema = runBlocking { QueryFixtures.schema(type, PostgresSnapshotStorageAdapter) }
+        val planned = PostgresQueryIndexes.plan(
+            type.context,
+            type.name,
+            QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("amount", listOf("state.amount")))),
+        ).single()
+        // The index of the name as a build before the tie-breaker made it: its keys without the aggregate ID.
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use {
+                it.execute(planned.ddl.replace(", aggregate_id)", ")").replace(" CONCURRENTLY", ""))
+            }
+        }
+        PostgresQueryIndexes.manage(PostgresFixture.dataSource, Ddl.VALIDATE, listOf(planned)).invalid.assert()
+            .containsExactly(planned.name)
+        PostgresQueryIndexes.manage(PostgresFixture.dataSource, Ddl.AUTO, listOf(planned)).created.assert()
+            .containsExactly(planned.name)
+        PostgresQueryIndexes.manage(PostgresFixture.dataSource, Ddl.VALIDATE, listOf(planned)).assert()
+            .isEqualTo(PostgresQueryIndexReport())
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("SELECT pg_get_indexdef(to_regclass(?))").use { query ->
+                query.setString(1, "\"${planned.name}\"")
+                query.executeQuery().use { rows ->
+                    rows.next()
+                    rows.getString(1).assert().endsWith("aggregate_id) WHERE (NOT deleted)")
+                }
+            }
+        }
     }
 
     /** The rows every node of [plan] read and then filtered out. */

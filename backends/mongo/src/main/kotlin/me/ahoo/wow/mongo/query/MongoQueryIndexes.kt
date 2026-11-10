@@ -65,14 +65,16 @@ data class MongoQueryIndexReport(
  * ```
  * owner_ix: {tenant_id: 1, owner_id: 1}, partialFilterExpression: {deleted: false}
  * space_ix: {tenant_id: 1, space_id: 1}, partialFilterExpression: {deleted: false}
- * <name>:   {tenant_id: 1, <key>: 1, ...}, partialFilterExpression: {deleted: false}   (each x-wow-index entry)
+ * <name>:   {tenant_id: 1, <key>: 1, ..., _id: 1}, partialFilterExpression: {deleted: false}   (each x-wow-index entry)
  * ```
  *
  * Every index leads with the tenant, which admission adds to every query, and is partial on the snapshots that are not
  * deleted, its default scope: a query whose filter holds `deleted: false` can use it. A key is the document path the
  * filter, sort and aggregation compilers read for it ([MongoSnapshotDocuments]), so the planner matches the two.
- * MongoDB names indexes per collection, so a declared index keeps its own name. The store creates the two scope
- * indexes with the collection; planning them here lets `validate` report them too.
+ * A declared index ends with `_id`, the tie-breaker every snapshot sort ends with, so a sort by its keys under the
+ * tenant's equality is the index's order, with no sort stage; an existing one of another shape is drift, as any other
+ * ([manage]). MongoDB names indexes per collection, so a declared index keeps its own name. The store creates the two
+ * scope indexes with the collection; planning them here lets `validate` report them too.
  */
 @InternalWowApi
 object MongoQueryIndexes {
@@ -98,11 +100,12 @@ object MongoQueryIndexes {
             require(index.keys.count { it.cardinality != QueryCardinality.SINGLE } <= 1) {
                 "Index [${index.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
             }
+            // Ended by `_id`, the tie-breaker every snapshot sort ends with, so a sort by the keys is the index's order.
             val paths = listOf(MongoSnapshotDocuments.TENANT_ID) + index.keys.map { key ->
                 // A planned key, not an admitted query: no admission resolved it, so its physical field is read directly.
                 val physical = key.physicalField
                 MongoSnapshotDocuments.checked(physical.path)
-            }
+            } + MongoSnapshotDocuments.ID
             MongoQueryIndex(context, aggregate, index.name, paths.distinct())
         }
         return scope + declared
