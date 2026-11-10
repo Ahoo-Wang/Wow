@@ -145,7 +145,7 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 
 `compare` rebuilds each aggregate that has a 9.x snapshot to the snapshot's version, with the V10 model, and compares:
 
-- the state, as normalized JSON: fields in any order, null the same as missing, numbers by value, arrays in order;
+- the state, as normalized JSON: fields in any order, a null field the same as a missing one, numbers by value, arrays in order and by length (a null element still counts);
 - the deleted mark, the owner and the space;
 - the access attributes the map's `tags` name, as `$access.<attribute>`: the 9.x snapshot's tags converted as the import converts them, against the attributes V10 derives from the rebuilt state, each side normalized the same way, so the order of a key's values is never a difference;
 - whether the V10 log holds the snapshot's version at all.

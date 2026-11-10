@@ -48,6 +48,19 @@ class StateDiffTest {
     }
 
     @Test
+    fun `an array element only one side has is a difference, a null one too, while a null field is still a missing one`() {
+        diff("""{"items":[1,null]}""", """{"items":[1]}""").map { it.render() }.assert()
+            .containsExactly("items[1]: 9.x null, V10 (none)")
+        diff("""{"items":[1]}""", """{"items":[1,null,null]}""").map { it.render() }.assert()
+            .containsExactly("items[1]: 9.x (none), V10 null", "items[2]: 9.x (none), V10 null")
+        diff("""{"rows":[[1],[2,null]]}""", """{"rows":[[1,null],[2]]}""").map { it.path }.assert()
+            .containsExactly("rows[0][1]", "rows[1][1]")
+        diff("""{"items":[1,null],"note":null}""", """{"items":[1.0,null]}""").assert().isEmpty()
+        diff("""{"items":[{"a":null}]}""", """{"items":[{}]}""").assert().isEmpty()
+        diff("""{"items":[null]}""", """{"items":[{}]}""").single().path.assert().isEqualTo("items[0]")
+    }
+
+    @Test
     fun `a whole state that differs in kind is one difference`() {
         diff("[1]", """{"a":1}""").single().path.assert().isEqualTo("(state)")
     }
