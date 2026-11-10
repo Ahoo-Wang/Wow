@@ -25,7 +25,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
@@ -49,7 +48,6 @@ import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.querySchema
 import org.junit.jupiter.api.Test
-import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.time.Instant
 import kotlin.time.toKotlinDuration
@@ -164,16 +162,12 @@ abstract class QueryBackendSpec : SnapshotDateBucketCases() {
     }
 
     companion object {
-        internal const val CONTEXT_SUFFIX = 12
-        internal const val MAX_LIST = 100
         const val TENANT: String = "tenant"
         const val OTHER_TENANT: String = "other-tenant"
 
         /** 2026-01-05T00:00:00Z, a Monday. */
         val T0: Long = Instant.parse("2026-01-05T00:00:00Z").toEpochMilli()
         const val DAY: Long = 86_400_000L
-        internal val AMOUNT = QueryField("state.amount")
-        internal val KEYWORDS = QueryField("state.keywords")
         private val GENEROUS: Duration = Duration.ofSeconds(30)
 
         /** The state field each semantic shape's probes are stored in. */
@@ -224,7 +218,5 @@ abstract class QueryBackendSpec : SnapshotDateBucketCases() {
             field("access.region") { types(QueryValueType.STRING) }
             field("access.teams") { items { types(QueryValueType.STRING) } }
         }
-
-        internal fun ObjectNode.id(): String = path("aggregateId").stringValue()
     }
 }

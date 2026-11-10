@@ -40,9 +40,7 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.AMOUNT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DAY
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.KEYWORDS
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
