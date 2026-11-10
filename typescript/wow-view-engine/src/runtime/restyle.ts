@@ -50,8 +50,8 @@ export function restyledOnly(
   next: RecordViewConfig,
 ): 'drawn' | 'summaries' | null {
   if (!dequal(question(ran), question(next))) return null;
-  const held = recordProjection(definition, ran).include ?? [];
-  const asked = recordProjection(definition, next).include ?? [];
+  const held = recordProjection(definition, ran).include;
+  const asked = recordProjection(definition, next).include;
   // A path is held as itself, or under an ancestor that brings it whole.
   const holds = asked.every(path =>
     held.some(have => path === have || path.startsWith(`${have}.`)),
