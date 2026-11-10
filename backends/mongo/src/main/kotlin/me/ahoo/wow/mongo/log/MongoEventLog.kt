@@ -143,7 +143,7 @@ class MongoEventLog(
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
-    private val tailBatch: Int = DEFAULT_TAIL_BATCH,
+    tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
@@ -199,6 +199,9 @@ class MongoEventLog(
 
     /** The documents of the streams and placeholders. */
     private val documents = MongoLogDocuments(context)
+
+    /** The reads of the partitions' tails. */
+    private val tailReads = MongoTailReads(committedCounters, collections, sequencer, documents, tailBatch)
 
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
@@ -524,7 +527,7 @@ class MongoEventLog(
         var since = 0L
         while (true) {
             val mark = pacer.mark(partition)
-            val batch = dispatcher.mongo { readTail(partition, last) }
+            val batch = dispatcher.mongo { tailReads.read(partition, last) }
             batch.entries.forEach { emit(it) }
             last = batch.through
             val missing = batch.missing
@@ -547,66 +550,6 @@ class MongoEventLog(
             }
         }
     }
-
-    /**
-     * One read of the tail after [last]: the counter of [partition], then each aggregate collection's entries and
-     * placeholders up to `last + tailBatch` (a sequence is one collection's: at most [tailBatch] in all), in one
-     * aggregation over the counters. It gives the entries of the final run from `last + 1` (placeholders stepped over),
-     * the sequence that run reaches, and the first missing one when anything lies past it. Reads again at once when the
-     * run reached `last + tailBatch`, or when the counter's open blocks name a collection this log does not know, or
-     * entries lie past a missing sequence (a collection created since: the registry is read again).
-     */
-    private fun readTail(partition: Int, last: Long): TailBatch {
-        val known = collections.known()
-        val pipeline = listOf(
-            Aggregates.match(Filters.eq(ID, partition)),
-            Aggregates.project(Projections.fields(Projections.excludeId(), Projections.include(MongoSequencer.BLOCKS))),
-        ) + known.withIndex().map { (index, collection) ->
-            Aggregates.unionWith(
-                collection.name,
-                listOf(
-                    Aggregates.match(
-                        Filters.and(
-                            Filters.eq(PARTITION, partition),
-                            Filters.gt(ID, positionId(partition, last)),
-                            Filters.lte(ID, positionId(partition, last + tailBatch)),
-                        ),
-                    ),
-                    Aggregates.sort(Sorts.ascending(ID)),
-                    Aggregates.limit(tailBatch),
-                    Aggregates.addFields(Field(BRANCH, index)),
-                ),
-            )
-        }
-        val entries = HashMap<Long, LogEntry>()
-        val gaps = HashMap<Long, Long>()
-        var counter: Document? = null
-        committedCounters.aggregate(pipeline).forEach { document ->
-            val branch = document.getInteger(BRANCH)
-            val sequence = document.getLong(SEQUENCE)
-            when {
-                branch == null -> counter = document
-                document.containsKey(GAP) -> gaps.merge(sequence, document.getLong(GAP_TO) ?: sequence, ::maxOf)
-                else -> entries[sequence] = documents.entryOf(known[branch].aggregate, document)
-            }
-        }
-        val (run, next) = finalRun(entries, gaps, last, tailBatch)
-        val missing = next.takeIf { entries.keys.any { it > next } || gaps.keys.any { it > next } }
-        val names = known.map { it.name }.toSet()
-        val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
-        val again = when {
-            next > last + tailBatch -> true
-            unknown || missing != null -> collections.register().map { it.name }.toSet() != names
-            else -> false
-        }
-        return TailBatch(run, through = next - 1, missing, again)
-    }
-
-    /**
-     * One read of a tail: its [entries], the last sequence of its final run ([through], past placeholders), the first
-     * missing sequence with something past it, and whether to read again at once.
-     */
-    private class TailBatch(val entries: List<LogEntry>, val through: Long, val missing: Long?, val again: Boolean)
 
     /**
      * Resolves [sequence] of [partition], missing past the grace while something lies past it, through the counter's
