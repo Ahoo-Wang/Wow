@@ -16,6 +16,7 @@ import {
   camelCase,
   pascalCase,
   toTypeIdentifier,
+  uniqueParameterName,
   upperSnakeCase,
 } from '../../src/naming/naming';
 
@@ -194,6 +195,16 @@ describe('naming', () => {
       expect(upperSnakeCase(['hello'])).toBe('HELLO');
       expect(upperSnakeCase(['API'])).toBe('API');
       expect(upperSnakeCase(['user123'])).toBe('USER123');
+    });
+  });
+
+  describe('uniqueParameterName', () => {
+    it('turns names into identifiers and numbers repeats', () => {
+      const used = new Set(['attributes']);
+      expect(uniqueParameterName('item-id', used)).toBe('itemId');
+      expect(uniqueParameterName('itemId', used)).toBe('itemId2');
+      expect(uniqueParameterName('attributes', used)).toBe('attributes2');
+      expect(uniqueParameterName('default', used)).toBe('default_');
     });
   });
 });

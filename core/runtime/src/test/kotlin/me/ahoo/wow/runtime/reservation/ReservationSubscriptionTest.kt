@@ -42,6 +42,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -50,7 +51,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
-/** The built-in `reservation` subscription (decision D50): it confirms the keys a committed entry reserved pending. */
+/** The built-in `reservation` subscription (decision D50): it confirms the keys a committed entry reserved. */
 class ReservationSubscriptionTest {
     data class Register(val name: String)
     data class Registered(val name: String)
@@ -327,6 +328,41 @@ class ReservationSubscriptionTest {
         confirmedBy("ahoo", "u-1").assert().isTrue()
         find("bob").assert().isNull()
     }
+
+    @Test
+    fun `replaying a release whose fast path failed never frees the key a later entry re-reserved`(): Unit =
+        runBlocking {
+            // The second entry's release of ahoo failed after its append; the third re-reserved ahoo, still held.
+            var failed = false
+            val releaseFails = object : ReservationStore by reservations {
+                override suspend fun release(
+                    scope: ReservationScope,
+                    key: String,
+                    owner: AggregateRef,
+                    version: Int,
+                ): Boolean {
+                    if (key == "ahoo" && !failed) {
+                        failed = true
+                        throw IOException("The reservation store is down for one release.")
+                    }
+                    return reservations.release(scope, key, owner, version)
+                }
+            }
+            val live = Kernel(log, reservations = releaseFails, options = KernelOptions(reservationTtl = TTL))
+            listOf(Register("ahoo"), Move("bob"), Move("ahoo")).forEachIndexed { n, body ->
+                live.execute(model, Command("live-$n", "live-$n", user("u-1"), body))
+                    .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            }
+            failed.assert().isTrue()
+
+            // The subscription catches up through all three entries, the failed release included.
+            runtime().start(setOf(0, 1))
+            eventually { store.releases.size == 2 }
+            confirmedBy("ahoo", "u-1").assert().isTrue()
+            find("ahoo")?.version.assert().isEqualTo(3)
+            find("bob").assert().isNull()
+            register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+        }
 
     @Test
     fun `a key taken after its pending reservation expired stays with whoever took it`(): Unit = runBlocking {

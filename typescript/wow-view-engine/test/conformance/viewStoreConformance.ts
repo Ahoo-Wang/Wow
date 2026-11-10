@@ -879,6 +879,43 @@ export function describeViewStoreConformance(
         );
       });
 
+      // #5557: what a caller handed in or read back is its own. A draft
+      // edited in place is no write, and a replay still answers the first.
+      it('are not changed by a caller editing what it handed in or read back', async () => {
+        const { alice, definitionId } = await setup();
+        const start = await alice.getPreferences(definitionId);
+        const context = write();
+        const given = {
+          ...start,
+          order: ['a', 'b'],
+          lastTabs: { board: 'one' },
+        };
+        const first = await alice.setPreferences(definitionId, given, context);
+
+        given.order.reverse();
+        given.lastTabs.board = 'two';
+        first.order.push('c');
+        const read = await alice.getPreferences(definitionId);
+        read.order.length = 0;
+        read.autoRun = false;
+
+        const expected = {
+          order: ['a', 'b'],
+          lastTabs: { board: 'one' },
+          revision: first.revision,
+        };
+        const after = await alice.getPreferences(definitionId);
+        expect(after).toMatchObject(expected);
+        expect(after.autoRun).toBe(start.autoRun);
+        expect(
+          await alice.setPreferences(
+            definitionId,
+            { ...start, order: ['a', 'b'], lastTabs: { board: 'one' } },
+            context,
+          ),
+        ).toMatchObject(expected);
+      });
+
       it.skipIf(!capabilities.owners)('are kept per owner', async () => {
         const { open, alice, definitionId } = await setup();
         const start = await alice.getPreferences(definitionId);

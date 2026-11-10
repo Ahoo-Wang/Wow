@@ -14,9 +14,12 @@
 package me.ahoo.wow.runtime.snapshot
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -30,6 +33,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.seconds
 
 /** The batched snapshot writes of a partition (decision D248 ②). */
 class SnapshotWritesTest {
@@ -212,6 +216,36 @@ class SnapshotWritesTest {
         store.batches.last().assert().containsExactly("b@1")
         writes.waiting.assert().isEqualTo(0)
     }
+
+    @Test
+    fun `a leader cancelled before its first batch leaves the queue, and the next save is written`(): Unit =
+        runBlocking {
+            val writes = SnapshotWrites(store, 8)
+            // Undispatched: the leader runs to its yield before the batch, its own save queued.
+            val leader = async(start = CoroutineStart.UNDISPATCHED) { writes.save(snapshot("a")) }
+            writes.waiting.assert().isEqualTo(1)
+            leader.cancelAndJoin()
+            writes.waiting.assert().isEqualTo(0)
+            withTimeout(5.seconds) { writes.save(snapshot("b")) }.assert().isTrue()
+            store.batches.assert().containsExactly(listOf("b@1"))
+            store.load(type.ref("t", "a")).assert().isNull()
+        }
+
+    @Test
+    fun `a leader cancelled before its first batch hands the saves queued behind it to the next leader`(): Unit =
+        runBlocking {
+            val writes = SnapshotWrites(store, 8)
+            val leader = async(start = CoroutineStart.UNDISPATCHED) { writes.save(snapshot("a")) }
+            val waiting = listOf("b", "c").map { id ->
+                async(start = CoroutineStart.UNDISPATCHED) { writes.save(snapshot(id)) }
+            }
+            writes.waiting.assert().isEqualTo(3)
+            leader.cancelAndJoin()
+            withTimeout(5.seconds) { waiting.awaitAll() }.assert().containsExactly(true, true)
+            store.batches.assert().containsExactly(listOf("b@1", "c@1"))
+            store.load(type.ref("t", "a")).assert().isNull()
+            writes.waiting.assert().isEqualTo(0)
+        }
 
     @Test
     fun `a waiting save cancelled leaves the queue, handed the lead or not`(): Unit = runBlocking {

@@ -79,10 +79,20 @@ export function bucketStart(
   )
     return Math.floor(ms / MS[unit]) * MS[unit];
   const wall = zonedParts(ms, timeZone);
+  // An hour is cut back from the moment itself, by what its wall clock shows
+  // past the hour, so it keeps that moment's offset: through `zonedToUtc`
+  // the 01:00 read twice the night the clocks go back always named the
+  // first one, and a moment in the second sat in a bucket that ended before
+  // it (#5517). A zone half an hour off UTC is cut at its own top too.
+  if (unit === AggregationDateUnits.HOUR)
+    return (
+      ms -
+      wall.minute * MS[AggregationDateUnits.MINUTE] -
+      wall.second * MS[AggregationDateUnits.SECOND] -
+      (((ms % 1000) + 1000) % 1000)
+    );
   const top = { ...wall, minute: 0, second: 0 };
   switch (unit) {
-    case AggregationDateUnits.HOUR:
-      return zonedToUtc(top, timeZone);
     case AggregationDateUnits.DAY:
       return zonedToUtc({ ...top, hour: 0 }, timeZone);
     case AggregationDateUnits.WEEK: {

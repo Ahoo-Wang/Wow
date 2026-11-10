@@ -146,6 +146,9 @@ interface EventLog {
     /**
      * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its
      * transport. The flow does not complete: after the committed entries it waits for new ones.
+     *
+     * Their commit times are not ordered along the sequence: a stream's is its decision's time, and decisions of
+     * different aggregates are appended in another order than they read the time, as imported history is.
      */
     fun tail(partition: Int, after: Long? = null): Flow<LogEntry>
 

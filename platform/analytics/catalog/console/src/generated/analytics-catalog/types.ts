@@ -31,28 +31,6 @@ export interface CatalogSettings {
 }
 
 
-/** - key: `me.ahoo.wow.api.result.CommandResult` */
-export interface CommandResult {
-  chainEnded?: boolean;
-  commandId: string;
-  correlationId: string;
-  derived?: string[];
-  duplicate?: boolean;
-  error?: { code: string; extensions?: Record<string, unknown>; message: string; violations?: { code: string; message: string; path: string; }[]; } | null;
-  format?: number;
-  function: { context: string; kind: 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers'; name: string; processor: string; };
-  hop: Hop;
-  pending?: Hop[];
-  ref: { id: string; tenantId: string; type: { context: string; name: string; }; };
-  requestId: string;
-  results?: Record<string, unknown>;
-  signalTime: string;
-  status: 'succeeded' | 'rejected' | 'failed';
-  transformedFrom?: { aggregateId?: string | null; command: string; } | null;
-  version?: number | null;
-}
-
-
 /** - key: `me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact` */
 export interface DatasetArtifact {
   approvals?: string[];
@@ -61,7 +39,7 @@ export interface DatasetArtifact {
   database: string;
   ddl: string;
   eventTime?: string | null;
-  fields: ({ computed?: boolean; inputs?: string[]; name: string; reference?: { aggregate: string; context: string; } | null; sensitivity?: DatasetSensitivityNullable; title?: string | null; })[];
+  fields: { computed?: boolean; inputs?: string[]; name: string; reference?: { aggregate: string; context: string; } | null; sensitivity?: DatasetSensitivityNullable; title?: string | null; }[];
   identity?: string | null;
   name: string;
   scope: { owner?: string | null; platform?: boolean; space?: string | null; tenant?: string | null; };
@@ -75,11 +53,11 @@ export interface DatasetArtifact {
 
 /** - key: `me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition` */
 export interface DatasetDefinition {
-  columns: ({ expression?: string | null; from?: string | null; name: string; sensitivity?: DatasetSensitivityNullable; title?: string | null; })[];
+  columns: { expression?: string | null; from?: string | null; name: string; sensitivity?: DatasetSensitivityNullable; title?: string | null; }[];
   eventTime?: string | null;
   filters?: string[];
   identity?: string | null;
-  joins?: ({ alias: string; kind?: 'INNER' | 'LEFT'; on: { left: string; right: string; }[]; })[];
+  joins?: { alias: string; kind?: 'INNER' | 'LEFT'; on: { left: string; right: string; }[]; }[];
   sources: { alias: string; sourceId: string; }[];
   subject: string;
 }
@@ -245,14 +223,6 @@ export interface FieldSensitivity {
 }
 
 
-/** - key: `me.ahoo.wow.api.result.Hop` */
-export interface Hop {
-  context?: string | null;
-  stage: 'accepted' | 'committed' | 'handled';
-  subscription?: string | null;
-}
-
-
 /**
  * Mark an analyst's source reviewed
  * - key: `me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed`
@@ -268,7 +238,7 @@ export type PublishDataset = Record<string, unknown>;
 /** - key: `me.ahoo.wow.analytics.catalog.server.ReferenceActions` */
 export interface ReferenceActions {
   dataset: string;
-  fields: ({ aggregate: string; commands: ({ description?: string | null; inputs: ({ description?: string | null; name: string; nullable?: boolean; options?: string[] | null; required: boolean; type: string; })[]; name: string; })[]; context: string; field: string; })[];
+  fields: { aggregate: string; commands: { description?: string | null; inputs: { description?: string | null; name: string; nullable?: boolean; options?: string[] | null; required: boolean; type: string; }[]; name: string; }[]; context: string; field: string; }[];
 }
 
 
@@ -278,6 +248,36 @@ export interface ReferenceActions {
  */
 export interface RefuseDatasetPublication {
   reason: string;
+}
+
+
+/** - key: `me.ahoo.wow.api.result.CommandResult` */
+export interface ResultCommandResult {
+  chainEnded?: boolean;
+  commandId: string;
+  correlationId: string;
+  derived?: string[];
+  duplicate?: boolean;
+  error?: { code: string; extensions?: Record<string, unknown>; message: string; violations?: { code: string; message: string; path: string; }[]; } | null;
+  format?: number;
+  function: { context: string; kind: 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers'; name: string; processor: string; };
+  hop: ResultHop;
+  pending?: ResultHop[];
+  ref: { id: string; tenantId: string; type: { context: string; name: string; }; };
+  requestId: string;
+  results?: Record<string, unknown>;
+  signalTime: string;
+  status: 'succeeded' | 'rejected' | 'failed';
+  transformedFrom?: { aggregateId?: string | null; command: string; } | null;
+  version?: number | null;
+}
+
+
+/** - key: `me.ahoo.wow.api.result.Hop` */
+export interface ResultHop {
+  context?: string | null;
+  stage: 'accepted' | 'committed' | 'handled';
+  subscription?: string | null;
 }
 
 

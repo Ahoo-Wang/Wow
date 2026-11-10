@@ -78,6 +78,8 @@ outline: deep
 
 失败账本的条目新增修订号（revision），它决定一个条目上并发的写入哪些生效（[失败处理](../guide/failures)）：`wow.ddl: auto` 时，PostgreSQL 在下一次检查时为 `wow_failure_ledger` 表补上 `revision` 列，已停放的条目都为 0（`validate` 时请先执行 `ALTER TABLE wow_failure_ledger ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0`）；MongoDB 把没有修订号的条目读作 0。已停放的条目保持不变。beta 与这个版本的节点并行运行期间，beta 的写入不推进修订号，所以运维人员对停放条目的操作仍可能被 beta 节点的排期掩盖，直到发布完成；那时若条目仍在停放，请再执行一次。
 
+从 10.0.0 起，分析目录把数据集某个版本的视图命名为 `ds_<context>_<name>_<digest>_v<N>`，digest 取自数据集的精确 id（[发布与版本](../data/datasets#publish-and-version)）。之前发布的版本保留发布时的视图：回滚、退役和重新编译读取每个版本记录的名字，不会改名。预发布版会给 id 只在大小写、`-`、`_` 或 context 结束位置上不同的两个数据集（`shop.a-b` 与 `shop.a_b`，`a_b.c` 与 `a.b_c`）同一个视图，后发布的那个替换了先发布的。如果你发布过这样的一对，请为每个各发布一个新版本：每个都会得到自己的视图。
+
 TypeScript 包随之改变：`@ahoo-wang/wow-client` 不再有 `ApplyTags`、`TagsApplied` 与 `Tags`，记录的 `tags` 改为 `access`，`wow-generator` 生成的客户端为每个聚合的访问属性给出类型。请重新生成客户端；步骤见[命令](../typescript/commands#lifecycle-commands-scope-and-space)。
 
 从 10.0.0 起，对调用方作用域之外的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它的回答一致；预发布版回答 `403 wow.aggregate.forbidden`，现在只有指明这样的聚合的创建命令仍得到它（[内核检查什么](../guide/ownership#what-the-kernel-checks)）。按状态码区分两者的客户端改为显示它的"未找到"回答。

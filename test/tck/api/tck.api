@@ -188,6 +188,7 @@ public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
 	public fun <init> ()V
 	public final fun a confirmed reservation never expires ()V
 	public final fun a key is unique within its aggregate type, however many owners of it ask ()V
+	public final fun a key re-reserved while held confirmed and confirmed again outlives the release of an older fact ()V
 	public final fun a live reservation keeps the key from another owner ()V
 	public final fun a pending key is released by any fact, and any version frees a confirmed one ()V
 	public final fun a release frees only a key no later fact confirmed ()V
