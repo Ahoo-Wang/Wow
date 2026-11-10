@@ -20,9 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.FailureClassification
@@ -35,7 +33,6 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 import kotlin.random.Random
@@ -193,11 +190,9 @@ internal class SubscriptionWorker(
     } else {
         null
     }
-    private val flushLock = Mutex()
 
-    /** The last position stored. Written under `flushLock`. */
-    @Volatile
-    private var saved = checkpoint
+    /** Where the worker's watermark is stored, and up to where it was. */
+    val saves = CheckpointSaves(group, subscription, partition, checkpoints, checkpoint) { watermark }
 
     /** Set by [abandon] under the monitor: the lanes are cancelled, so a retry would never run. */
     private var abandoned = false
@@ -549,31 +544,6 @@ internal class SubscriptionWorker(
         }
         outcome.fold({ item.result.complete(it) }, { item.result.completeExceptionally(it) })
         (outcome.exceptionOrNull() as? CancellationException)?.let { throw it }
-    }
-
-    /** Saves the watermark if it moved since the last save. */
-    suspend fun flush() = flushLock.withLock {
-        val position = watermark
-        if (position > saved) {
-            checkpoints.save(group, subscription.name, partition, position)
-            saved = position
-        }
-    }
-
-    /**
-     * The watermark when it moved since the last save, else null: what the runtime's periodic save stores, for all
-     * its workers at once ([CheckpointStore.saveAll]), then reports with [saved].
-     */
-    fun unsaved(): Checkpoint? {
-        val position = watermark
-        return if (position > saved) Checkpoint.of(subscription.name, partition, position) else null
-    }
-
-    /** Records that [checkpoint], from [unsaved], is stored. */
-    suspend fun saved(checkpoint: Checkpoint) = flushLock.withLock {
-        if (checkpoint.position > saved) {
-            saved = checkpoint.position
-        }
     }
 
     /** Waits until every taken entry is complete. */

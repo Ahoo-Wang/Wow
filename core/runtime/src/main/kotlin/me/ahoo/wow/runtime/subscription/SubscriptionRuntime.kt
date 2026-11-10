@@ -364,7 +364,7 @@ class SubscriptionRuntime internal constructor(
         withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.awaitDrained() } }
         parts.forEach { it.lanesJob.cancelAndJoin() }
         workers.forEach { it.abandon() }
-        workers.forEach { it.flush() }
+        workers.forEach { it.saves.flush() }
     }
 
     /**
@@ -517,13 +517,13 @@ class SubscriptionRuntime internal constructor(
      */
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.
     private suspend fun flushQuietly(workers: Collection<SubscriptionWorker>) {
-        val due = workers.mapNotNull { worker -> worker.unsaved()?.let { worker to it } }
+        val due = workers.mapNotNull { worker -> worker.saves.unsaved()?.let { worker to it } }
         if (due.isEmpty()) {
             return
         }
         try {
             checkpoints.saveAll(group, due.map { it.second })
-            due.forEach { (worker, checkpoint) -> worker.saved(checkpoint) }
+            due.forEach { (worker, checkpoint) -> worker.saves.saved(checkpoint) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
