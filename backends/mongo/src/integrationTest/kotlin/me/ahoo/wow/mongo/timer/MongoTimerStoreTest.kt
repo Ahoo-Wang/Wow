@@ -13,15 +13,12 @@
 
 package me.ahoo.wow.mongo.timer
 
-import com.mongodb.client.model.Filters
-import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
@@ -48,36 +45,6 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         store(context).put(timer(ref))
         MongoLogFixture.bumpFormat(store(context).collectionName("order"))
         assertThrownBy<IllegalStateException> { runBlocking { store(context).find(ref, "k") } }
-    }
-
-    @Test
-    fun `a collection of format 4, one per context, is refused`(): Unit = runBlocking {
-        val ref = AggregateType(context, "order").ref("t", "o-1")
-        store(context).put(timer(ref))
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
-            .updateOne(Filters.eq("_id", store(context).collectionName("order")), Updates.set("version", 4))
-            .matchedCount.assert().isEqualTo(1L)
-        assertThrownBy<IllegalStateException> { runBlocking { store(context).find(ref, "k") } }
-    }
-
-    @Test
-    fun `a timer written before the skipped count reads as having skipped none`(): Unit = runBlocking {
-        val ref = AggregateType(context, "order").ref("t", "skipped-${System.nanoTime()}")
-        val timer = timer(ref).copyWith(rule = ScheduleRule.Cron("0 0 0 1 * *"), slot = 4, skipped = 3)
-        val store = store(context)
-        store.put(timer).assert().isTrue()
-        store.find(timer.owner, "k")?.skipped.assert().isEqualTo(3L)
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(store.collectionName("order"))
-            // By the owner's partition too: a single update of a sharded collection names its shard key.
-            .updateOne(
-                Filters.and(
-                    Filters.eq("partition", Partitioner.partitionOf(ref, logPartitions)),
-                    Filters.eq("owner.id", ref.id),
-                ),
-                Updates.unset("skipped"),
-            )
-            .matchedCount.assert().isEqualTo(1L)
-        store.find(timer.owner, "k")?.skipped.assert().isEqualTo(0L)
     }
 
     @Test

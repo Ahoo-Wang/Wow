@@ -384,8 +384,8 @@ class MongoEventLog(
     }
 
     /**
-     * The lineage of [partition] from its counter document: its `parent` and `epoch`, read as
-     * [PartitionLineage.ROOT] when they are null or missing (a counter written before them).
+     * The lineage of [partition] from its counter document: its `parent` (null for a partition the log was created
+     * with) and `epoch`.
      */
     override suspend fun lineage(partition: Int): PartitionLineage {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
@@ -393,7 +393,7 @@ class MongoEventLog(
             val counter = checkNotNull(committedCounters.find(Filters.eq(ID, partition)).first()) {
                 "The log of $context has no counter of partition $partition."
             }
-            PartitionLineage.of(counter.getInteger(PARENT), counter.getInteger(EPOCH) ?: 0)
+            PartitionLineage.of(counter.getInteger(PARENT), counter.getInteger(EPOCH))
         }
     }
 

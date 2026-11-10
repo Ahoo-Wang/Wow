@@ -17,14 +17,12 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.tck.reservation.ReservationStoreSpec
-import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.time.Clock
 
@@ -45,17 +43,6 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
             .getCollection(MongoNames.of("wow_reservation", type.context, type.name))
             .listIndexes().map { it.getString("name") }.toList()
             .assert().containsExactlyInAnyOrderElementsOf(listOf("_id_") + MongoLogFixture.shardIndexes)
-    }
-
-    @Test
-    fun `a collection of format 2, which had an owner index, is refused`() {
-        val earlier = AggregateType("reservation_format_2", "user")
-        val name = MongoNames.of("wow_reservation", earlier.context, earlier.name)
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
-            .insertOne(Document("_id", name).append("version", 2))
-        assertThrownBy<IllegalStateException> {
-            runBlocking { store().find(ReservationScope(earlier, "t", "names"), "k") }
-        }.hasMessageContaining("format 2")
     }
 
     @Test

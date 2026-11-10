@@ -236,21 +236,13 @@ class MongoSnapshotStore(
 
     /**
      * The filter of [snapshot]'s save, as BSON: its key, a lower stored version, of the same or a lower state
-     * revision. A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
+     * revision.
      */
     private fun guardOf(snapshot: SnapshotRecord): Bson = BsonDocument(ID, keyOf(snapshot.ref))
         .append(TENANT_ID, BsonString(snapshot.ref.tenantId))
         .append(AGGREGATE_ID, BsonString(snapshot.ref.id))
         .append(VERSION, BsonDocument("\$lt", BsonInt32(snapshot.version)))
-        .append(
-            "\$or",
-            BsonArray(
-                listOf(
-                    BsonDocument(STATE_REVISION, BsonDocument("\$lte", BsonInt32(snapshot.stateRevision))),
-                    BsonDocument(STATE_REVISION, BsonDocument("\$exists", BsonBoolean.FALSE)),
-                ),
-            ),
-        )
+        .append(STATE_REVISION, BsonDocument("\$lte", BsonInt32(snapshot.stateRevision)))
 
     /**
      * The update of [snapshot]'s save as a pipeline: every field set to its value (`$literal`, so a value that reads
@@ -350,13 +342,7 @@ class MongoSnapshotStore(
     ): List<AggregateRef> = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
         require(limit >= 1) { "A page holds at least one ref." }
-        // A document without a state revision is of revision 1; `$ne` matches a missing field.
-        val otherRevision = if (revision == 1) {
-            Filters.and(Filters.exists(STATE_REVISION), Filters.ne(STATE_REVISION, revision))
-        } else {
-            Filters.ne(STATE_REVISION, revision)
-        }
-        val pending = Filters.or(otherRevision, Filters.exists(STALE_VERSION))
+        val pending = Filters.or(Filters.ne(STATE_REVISION, revision), Filters.exists(STALE_VERSION))
         val filter = if (after == null) {
             pending
         } else {
@@ -457,7 +443,7 @@ class MongoSnapshotStore(
             schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
                 schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
             }.orEmpty(),
-            stateRevision = document.getInteger(STATE_REVISION) ?: 1,
+            stateRevision = document.getInteger(STATE_REVISION),
         )
     }
 

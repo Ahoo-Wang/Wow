@@ -17,9 +17,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import com.mongodb.client.model.Filters
-import com.mongodb.client.model.Updates
-import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -69,14 +66,11 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a format 3 collection, keyed by the bare subscription name, is refused rather than converted`() {
-        // Issue 5678: the key gained the subscription's context; an earlier ledger is not read.
-        ledger("ledger_format_3")
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
-            .updateOne(Filters.eq("_id", "ledger_format_3"), Updates.set("version", 3))
-            .matchedCount.assert().isEqualTo(1L)
-        assertThrownBy<IllegalStateException> { ledger("ledger_format_3") }
-            .message().contains("format 3", "format 4")
+    fun `a ledger collection recorded in another format is refused`() {
+        ledger("ledger_other_format")
+        MongoLogFixture.bumpFormat("ledger_other_format")
+        assertThrownBy<IllegalStateException> { ledger("ledger_other_format") }
+            .message().contains("format 2", "format 1")
     }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */
