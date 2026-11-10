@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 132 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -116,7 +116,8 @@ Every name `@ahoo-wang/wow-client` exports — 132 — with its kind and the fir
 | `SystemEvent` | type | The system events the kernel gives every aggregate: the lifecycle events and the schedule events. | — |
 | `TargetScope` | interface | The scope a caller allowed to act across scopes acts in: the `Wow-Scope` header. | — |
 | `TextNumbers` | type | Which numbers of a JSON value a client reads and writes as their exact text: an `int64`, `bigint` or `decimal` field of a Manifest, which JavaScript's `number` would round. | — |
-| `TextNumbersByName` | interface | The marks of one member of an object chosen by the value of another. | — |
+| `TextNumbersByName` | interface | The marks of an object chosen by the value of one of its members: `textNumbersBy`. | — |
+| `TextNumbersOr` | interface | A number read exactly, or an object or array marked as given: `textNumberOr`. | — |
 | `TransferOwner` | interface | The body of `wow.lifecycle.TransferOwner`. | — |
 | `TransferSpace` | interface | The body of `wow.lifecycle.TransferSpace`. | — |
 | `TransformedFrom` | interface | The command a request named before a transformer turned it into the one that ran. | — |
@@ -144,7 +145,8 @@ Every name `@ahoo-wang/wow-client` exports — 132 — with its kind and the fir
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |
 | `retryOf` | function | What a retry of `problem` may do: its `retry` member, which every problem a Wow service writes carries; else the error catalog's for its code; else, for a body that is no Wow problem (a proxy's 503 or 429), `same-request`. | — |
 | `stringifyJson` | function | `value` written as `JSON.stringify` writes it, but each string `marks` marks goes on the wire as the JSON number it spells, unquoted: `{"price": "19.99"}` marked `{price: true}` is `{"price":19.99}`. | — |
-| `textNumbersBy` | function | The marks of `member` chosen by the string value of `discriminant`, its sibling: `textNumbersBy('name', 'body', { 'shop.cart.ItemAdded': { price: true } })` reads an event's body by the event's name. | — |
+| `textNumberOr` | function | The marks of a value that is either an exact number or an object or array marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and`{ "amount": 12.50 }` both as their text. | — |
+| `textNumbersBy` | function | The marks of an object chosen by the string value of its member`discriminant`: `textNumbersBy('name', { 'shop.cart.ItemAdded': { body:{ price: true } } })` reads an event by its name. | — |
 | `toWowProblemError` | function | The `WowProblemError` of an error a request rejected with: the fetcher's `ExchangeError` of a response that is not 2xx, read as a problem. | — |
 | `wait` | const | Builds the hops of a wait chain. | — |
 

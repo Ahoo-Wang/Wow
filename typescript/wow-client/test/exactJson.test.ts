@@ -188,8 +188,8 @@ describe('exact JSON (review R4-Q, Q-9)', () => {
         '*': {
           state: { lines: { '*': { amount: true } }, totals: { '*': true } },
           events: {
-            '*': textNumbersBy('name', 'body', {
-              'shop.cart.Paid': { amount: true },
+            '*': textNumbersBy('name', {
+              'shop.cart.Paid': { body: { amount: true } },
             }),
           },
         },
@@ -248,12 +248,14 @@ describe('exact JSON (review R4-Q, Q-9)', () => {
     expect(stringifyJson(body)).toBe(JSON.stringify(body));
   });
 
-  it('reads and writes the marks of a member chosen by its sibling, however deep', () => {
+  it('reads and writes the marks of an object chosen by its member, however deep', () => {
     const lines: TextNumbers = { lines: { '*': { amount: true } } };
     const marks: TextNumbers = {
-      '*': textNumbersBy('name', 'body', {
-        Placed: lines,
-        Nested: { inner: textNumbersBy('kind', 'value', { exact: true }) },
+      '*': textNumbersBy('name', {
+        Placed: { body: lines },
+        Nested: {
+          body: { inner: textNumbersBy('kind', { exact: { value: true } }) },
+        },
       }),
     };
     const text =
@@ -285,9 +287,9 @@ describe('exact JSON (review R4-Q, Q-9)', () => {
     expect(marksNothing(undefined)).toBe(true);
     expect(marksNothing({})).toBe(true);
     expect(marksNothing({ a: {} })).toBe(true);
-    expect(marksNothing(textNumbersBy('name', 'body', { x: {} }))).toBe(true);
+    expect(marksNothing(textNumbersBy('name', { x: { body: {} } }))).toBe(true);
     expect(marksNothing({ a: { b: true } })).toBe(false);
-    expect(marksNothing(textNumbersBy('name', 'body', { x: true }))).toBe(
+    expect(marksNothing(textNumbersBy('name', { x: { body: true } }))).toBe(
       false,
     );
     expect(parseJson('9007199254740993')).toBe(9007199254740992);

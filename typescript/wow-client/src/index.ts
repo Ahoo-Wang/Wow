@@ -35,9 +35,11 @@ export {
 export {
   parseJson,
   stringifyJson,
+  textNumberOr,
   type TextNumbers,
   textNumbersBy,
   type TextNumbersByName,
+  type TextNumbersOr,
 } from './exactJson.js';
 export {
   type DevelopmentCaller,
