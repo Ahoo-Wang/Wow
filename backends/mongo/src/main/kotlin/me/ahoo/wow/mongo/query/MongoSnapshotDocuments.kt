@@ -167,6 +167,15 @@ internal interface MongoQueryDocuments {
      */
     fun keysOf(tenantId: String): Bson? = null
 
+    /**
+     * The documents of [tenantId]'s aggregates [aggregateIds] as a condition on what leads their key's index, which a
+     * query pinned to them adds; null when nothing more than their fields leads it.
+     */
+    fun keysOf(tenantId: String, aggregateIds: Collection<String>): Bson? = null
+
+    /** The stored fields no record reads, which a native projection that keeps the rest leaves out. */
+    val unread: List<String> get() = emptyList()
+
     /** [path], a logical path of the model, where the document stores it. */
     fun physical(path: QueryPathTemplate): QueryPathTemplate
 

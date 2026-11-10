@@ -50,7 +50,13 @@ private class MongoEventQueries(private val store: MongoStore, options: StoreQue
 
     override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? =
         storages.computeIfAbsent(key.context) {
-            MongoEventQueryStorage(store.client, store.database, it, readPreference = preference)
+            MongoEventQueryStorage(
+                store.client,
+                store.database,
+                it,
+                readPreference = preference,
+                partitions = { store.openedLog(key.context)?.partitions },
+            )
         }.binding(key)
 
     override val managesIndexes: Boolean get() = true

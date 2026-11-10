@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -81,7 +83,7 @@ class MongoSnapshotQueryBackend internal constructor(
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val find = collection.find(match(query.query.filter, query))
-            .projection(MongoProjections.native(query))
+            .projection(MongoProjections.native(query, unread = documents.unread))
             .sort(totalSort(query))
             .batchSize(options.fetchSize)
             .maxTime(query.timeout)
@@ -109,7 +111,7 @@ class MongoSnapshotQueryBackend internal constructor(
             emptyList()
         } else {
             collection.find(filter)
-                .projection(MongoProjections.native(query))
+                .projection(MongoProjections.native(query, unread = documents.unread))
                 .sort(totalSort(query))
                 .skip(Math.toIntExact(window.offset))
                 .limit(window.limit)
@@ -137,7 +139,7 @@ class MongoSnapshotQueryBackend internal constructor(
         } ?: match
         val positions = ArrayList<CursorPosition>()
         val rows = collection.find(filter)
-            .projection(MongoProjections.native(query, paths))
+            .projection(MongoProjections.native(query, paths, documents.unread))
             .sort(MongoKeyset.sort(keyed.sort))
             .limit(window.limit)
             .batchSize(window.limit)
@@ -166,11 +168,22 @@ class MongoSnapshotQueryBackend internal constructor(
 
     /**
      * The documents' [MongoQueryDocuments.scope] and, when [filter] holds one tenant, that tenant's keys
-     * ([MongoQueryDocuments.keysOf]).
+     * ([MongoQueryDocuments.keysOf]), or those of its aggregates when it pins them.
      */
     private fun scopeOf(filter: FilterExpression): Bson? {
-        val keys = tenantOf(filter)?.let(documents::keysOf)
+        val tenant = tenantOf(filter)
+        val keys = tenant?.let { tenantId ->
+            aggregatesOf(filter)?.let { documents.keysOf(tenantId, it) } ?: documents.keysOf(tenantId)
+        }
         return listOfNotNull(documents.scope, keys).let { if (it.size > 1) Filters.and(it) else it.singleOrNull() }
+    }
+
+    /** The aggregates [filter] pins, as admission adds them: an aggregate ID filter, alone or among an AND's operands. */
+    private fun aggregatesOf(filter: FilterExpression): Collection<String>? = when (filter) {
+        is AggregateIdFilter -> listOf(filter.value)
+        is AggregateIdsFilter -> filter.values
+        is AndFilter -> filter.operands.firstNotNullOfOrNull(::aggregatesOf)
+        else -> null
     }
 
     /** The tenant [filter] requires, as admission adds it: a tenant filter, alone or among the operands of an AND. */

@@ -33,9 +33,13 @@ internal object MongoProjections {
 
     /**
      * The native projection of [query]: the superset of its projection, with the physical [sortPaths] a keyset page
-     * reads; `_id` always excluded.
+     * reads; `_id` always excluded, and the documents' [unread] fields where the projection keeps the rest.
      */
-    fun native(query: AdmittedQuery<Queryable<*>>, sortPaths: List<String> = emptyList()): Bson {
+    fun native(
+        query: AdmittedQuery<Queryable<*>>,
+        sortPaths: List<String> = emptyList(),
+        unread: List<String> = emptyList(),
+    ): Bson {
         val projection = query.query.projection
         val includes = projection.include.map { physical(query, it) }
         if (includes.isNotEmpty()) {
@@ -48,7 +52,7 @@ internal object MongoProjections {
             .filterNot { path -> sortPaths.any { it == path || it.startsWith("$path.") } }
             .distinct()
         val dropped = excludes.filterNot { path -> excludes.any { path.startsWith("$it.") } }
-        return Projections.exclude(dropped + MongoSnapshotDocuments.ID)
+        return Projections.exclude(dropped + unread + MongoSnapshotDocuments.ID)
     }
 
     private fun physical(query: AdmittedQuery<Queryable<*>>, field: QueryField<*>): String =

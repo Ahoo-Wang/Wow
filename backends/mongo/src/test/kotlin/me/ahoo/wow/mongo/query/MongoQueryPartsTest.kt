@@ -16,8 +16,10 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.MongoCommandException
 import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.ServerAddress
+import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -26,6 +28,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.spi.StorageTimeoutException
+import me.ahoo.wow.spi.log.Partitioner
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
@@ -115,6 +118,24 @@ class MongoQueryPartsTest {
         }
         MongoEventDocuments.keyed(sort("tenant_id" to asc, "aggregate_id" to asc)).sort
             .assert().isEqualTo(sort("tenant_id" to asc, "aggregate_id" to asc))
+    }
+
+    @Test
+    fun `a stream query leaves out the log's own fields and is given the partitions of the aggregates it pins`() {
+        val unread = MongoEventDocuments.unread
+        MongoProjections.native(admitted(Projection.ALL), unread = unread).toBsonDocument().toJson().assert().isEqualTo(
+            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "transport": 0, "_id": 0}""",
+        )
+        MongoProjections.native(admitted(Projection(include = listOf(QueryField("tenantId")))), unread = unread)
+            .toBsonDocument().toJson().assert().isEqualTo("""{"tenant_id": 1, "_id": 0}""")
+        val type = AggregateType("ctx", "order")
+        val partitions = listOf("a", "b", "c").map { Partitioner.partitionOf(type.ref("t", it), 4) }.distinct()
+        MongoEventStreams(type) { 4 }.keysOf("t", listOf("a", "b", "c"))!!.toBsonDocument().toJson().assert()
+            .isEqualTo(Filters.`in`("partition", partitions).toBsonDocument().toJson())
+        // A node without the context's log open has no partition count: the query is not given partitions.
+        MongoEventStreams(type) { null }.keysOf("t", listOf("a")).assert().isNull()
+        MongoSnapshotDocuments.keysOf("t", listOf("a")).assert().isNull()
+        MongoSnapshotDocuments.unread.assert().isEmpty()
     }
 
     @Test
