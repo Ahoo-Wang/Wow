@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.WaitDeadlines
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
@@ -81,6 +82,8 @@ internal class NodeWiring(
     val fatals: NodeFatals,
     /** How the rebuilds of the subscriptions' states replay the log ([SharedStates.rebuild]). */
     val replayGate: ReplayGate,
+    /** Ends the node's waits at their deadlines, as its [clock] tells their time. */
+    val deadlines: WaitDeadlines,
 ) {
     /** Where [component]'s coroutines on [name] run: the default dispatcher, with the node's handler of fatal errors. */
     fun contextOf(component: Component, name: String): CoroutineContext =

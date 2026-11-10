@@ -14,8 +14,13 @@
 package me.ahoo.wow.http
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -65,9 +70,11 @@ import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.runtime.wait.HeldDeadlines
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.WaitDeadlines
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -85,6 +92,8 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
@@ -266,6 +275,11 @@ class HttpNode(
     aggregates: List<AggregateModel<*>> = emptyList(),
     /** The node's authorizer; none by default, as a node without the application's. */
     authorizer: CommandAuthorizer? = null,
+    /**
+     * The deadlines of the node's waits, held until a test passes them; the runtime's deadline threads by default. While
+     * held, the waits and their executions run on one thread of their own ([passDeadlinesAfter]).
+     */
+    private val deadlines: HeldDeadlines? = null,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -273,6 +287,10 @@ class HttpNode(
     /** While set, every append waits for it: the commands stay in flight, as on a store that slowed down. */
     @Volatile
     var appendGate: CompletableDeferred<Unit>? = null
+
+    /** While set, completed once the next append is in [log]. */
+    @Volatile
+    var appended: CompletableDeferred<Unit>? = null
 
     /** While set, every read of [log] by the kernel, the state reads and the queries fails as a store that is down. */
     @Volatile
@@ -296,7 +314,7 @@ class HttpNode(
 
         override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             appendGate?.await()
-            return log.append(stream, transport)
+            return log.append(stream, transport).also { appended?.complete(Unit) }
         }
 
         private fun ensureAvailable() {
@@ -313,6 +331,11 @@ class HttpNode(
     val snapshots = InMemorySnapshotStore()
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
+
+    /** The one thread the waits and their executions run on while the [deadlines] are held. */
+    private val waits: ExecutorService? = deadlines?.let {
+        Executors.newSingleThreadExecutor { task -> Thread(task, "http-node-waits").apply { isDaemon = true } }
+    }
     private val coordinator = WaitCoordinator(
         Executor(kernel, limit = inFlight),
         registry,
@@ -320,7 +343,22 @@ class HttpNode(
         LocalSignalSender(origin.node, registry),
         origin,
         WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
+        executionContext = waits?.asCoroutineDispatcher() ?: Dispatchers.Default,
+        deadlines = deadlines ?: WaitDeadlines.SHARDED,
     )
+
+    /**
+     * Passes the held [deadlines] once [appended] completed and the command that appended has settled: on the waits'
+     * thread, behind its waiter, which reaches the hop it settled at first. A command's answer then times out after
+     * its commit, however long the commit took.
+     */
+    fun passDeadlinesAfter(appended: Deferred<Unit>) = runBlocking {
+        withTimeout(10.seconds) {
+            appended.await()
+            coordinator.join()
+        }
+        checkNotNull(deadlines).passOn(checkNotNull(waits))
+    }
     private val models = ModelRegistry(
         listOf(cartModel(commands, mounted)) + aggregates +
             listOfNotNull(jobs.takeIf { it.isNotEmpty() }?.let { ScheduleJobModel.model(CONTEXT, it) }) +

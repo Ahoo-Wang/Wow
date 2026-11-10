@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.runtime.wait.HeldDeadlines
 import org.junit.jupiter.api.Test
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
@@ -26,7 +27,7 @@ import java.time.Duration
 class EventStreamTest {
     private val node = HttpNode()
 
-    private fun stream(path: String, body: String, headers: Map<String, String> = emptyMap()) =
+    private fun stream(path: String, body: String, headers: Map<String, String> = emptyMap(), node: HttpNode = this.node) =
         node.client.post().uri(path)
             .header("X-User", "alice")
             .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
@@ -35,14 +36,35 @@ class EventStreamTest {
             .bodyValue(body)
             .exchange()
 
-    private fun events(path: String, body: String, headers: Map<String, String> = emptyMap()) =
-        stream(path, body, headers)
-            .expectStatus().isOk
-            .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
-            .returnResult(EVENT)
-            .responseBody
-            .collectList()
-            .block(Duration.ofSeconds(10))!!
+    /** The events of a stream, each one seen by [seen] as it arrives. */
+    private fun events(
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+        node: HttpNode = this.node,
+        seen: (ServerSentEvent<String>) -> Unit = {},
+    ) = stream(path, body, headers, node)
+        .expectStatus().isOk
+        .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
+        .returnResult(EVENT)
+        .responseBody
+        .doOnNext(seen)
+        .collectList()
+        .block(Duration.ofSeconds(10))!!
+
+    /**
+     * The events of a command that waits for its commit, then an audit that never answers: the deadline passes once
+     * the commit's event arrived, however long the commit took.
+     */
+    private fun timedOutAfterCommit(): List<ServerSentEvent<String>> {
+        val held = HeldDeadlines()
+        return events(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            mapOf(WowHeaders.WAIT to "committed > handled(audit)"),
+            HttpNode(deadlines = held),
+        ) { if (it.event() == "committed") held.pass() }
+    }
 
     @Test
     fun `a decide function that throws ends the stream with its failed result`() {
@@ -57,11 +79,7 @@ class EventStreamTest {
 
     @Test
     fun `each hop reached is an event, until the wait ends`() {
-        val events = events(
-            "/shop/cart/c-1/add-item",
-            """{"sku":"apple"}""",
-            mapOf(WowHeaders.WAIT to "committed > handled(audit)", WowHeaders.WAIT_TIMEOUT to "300ms"),
-        )
+        val events = timedOutAfterCommit()
         events.map { it.id() }.assert().containsExactly("0", "1")
         events.map { it.event() }.assert().containsExactly("committed", "committed")
         val committed = json.readTree(events.first().data())
@@ -82,11 +100,7 @@ class EventStreamTest {
 
     @Test
     fun `a wait that times out ends the stream with the timeout`() {
-        val events = events(
-            "/shop/cart/c-1/add-item",
-            """{"sku":"apple"}""",
-            mapOf(WowHeaders.WAIT to "committed > handled(audit)", WowHeaders.WAIT_TIMEOUT to "200ms"),
-        )
+        val events = timedOutAfterCommit()
         events.size.assert().isEqualTo(2)
         json.readTree(events.last().data())["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.WAIT_TIMEOUT)
     }

@@ -31,6 +31,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
@@ -104,6 +105,11 @@ class WaitAnswerTest {
     )
     private val coordinator = WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, origin, WaitOptions())
 
+    /** The deadlines of [holding]'s waits, which a test passes once a wait reached the hop it times out at. */
+    private val held = HeldDeadlines()
+    private val holding =
+        WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, origin, WaitOptions(), deadlines = held)
+
     private fun <C : Any> command(body: C, wait: WaitPlan = WaitPlan.DEFAULT): Command<C> {
         val id = "o-${sequence.incrementAndGet()}"
         return Command("c-$id", "r-$id", order.type.ref("t", id), body, wait = wait)
@@ -151,7 +157,9 @@ class WaitAnswerTest {
     @Test
     fun `a timeout after the commit answers its results`(): Unit = runBlocking {
         snapshotGate = CompletableDeferred()
-        val result = coordinator.execute(order, command(Place(5), WaitPlan.SNAPSHOT.within(200.milliseconds)))
+        // The snapshot is held: the deadline passes once the commit, which the plan names, is reached and emitted.
+        val results = holding.stream(order, command(Place(5), WaitPlan.of(Hop.committed(), Hop.snapshot())))
+        val result = held.timedOut(results) { it.hop.stage == Stage.COMMITTED }.last()
         result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
         result.hop.assert().isEqualTo(Hop.committed("shop"))
         result.error!!.message.assert().isEqualTo("The wait timed out after reaching committed(shop).")
@@ -165,7 +173,8 @@ class WaitAnswerTest {
         // kotlinx's single DefaultExecutor thread when that thread is held up: the deadline is the wait's, not theirs.
         val result = withTimeout(5.seconds) {
             withContext(StalledTimers) {
-                coordinator.execute(order, command(Place(2), WaitPlan.SNAPSHOT.within(300.milliseconds)))
+                val results = holding.stream(order, command(Place(2), WaitPlan.of(Hop.committed(), Hop.snapshot())))
+                held.timedOut(results) { it.hop.stage == Stage.COMMITTED }.last()
             }
         }
         result.status.assert().isEqualTo(CommandResult.Status.FAILED)

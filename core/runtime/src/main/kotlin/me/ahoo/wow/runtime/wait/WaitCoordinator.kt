@@ -60,11 +60,7 @@ import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Clock
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.ScheduledThreadPoolExecutor
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -181,8 +177,8 @@ enum class UnknownContexts {
  *   with the same request id finds it, as the kernel deduplicates by request id. A command withdrawn because the
  *   deadline passed while it waited in its lane or before it was forwarded ends the
  *   wait the same way, whichever noticed the deadline first.
- * - The deadline is the wait's, not its caller's: the runtime's own deadline thread ends the wait when it passes,
- *   whatever the caller's coroutine context. A caller's own timers, such as a WebFlux handler's, run in
+ * - The deadline is the wait's, not its caller's: the runtime's own deadline thread ([deadlines]) ends the wait when
+ *   it passes, whatever the caller's coroutine context. A caller's own timers, such as a WebFlux handler's, run in
  *   `Dispatchers.Unconfined` on kotlinx's one `DefaultExecutor` thread, which also runs inline whatever such a
  *   timer resumes, so one held-up continuation there would hold every such deadline up. The wait itself runs in
  *   this coordinator's execution context, so neither the signals nor the deadline run its caller's code.
@@ -227,6 +223,8 @@ class WaitCoordinator(
     private val topicRouter: TopicRouter? = null,
     /** Sees the commands refused before the kernel and the waits that time out. */
     private val observer: Observer = Observer.NONE,
+    /** Ends the waits at their deadlines: the runtime's deadline threads, unless a test holds them. */
+    private val deadlines: WaitDeadlines = WaitDeadlines.SHARDED,
 ) {
     /** Where the commands of [stream] execute, apart from their waits. */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
@@ -383,7 +381,7 @@ class WaitCoordinator(
             )
             return
         }
-        var expiry: ScheduledFuture<*>? = null
+        var expiry: Future<*>? = null
         try {
             if (relay != null) {
                 // A command topic: ACCEPTED once durable; the owner signals the rest.
@@ -429,15 +427,11 @@ class WaitCoordinator(
     }
 
     /**
-     * Ends [waiting] with a timeout at [deadline], from one of [DEADLINES], apart from the waiter, at the last hop it
+     * Ends [waiting] with a timeout at [deadline], through [deadlines], apart from the waiter, at the last hop it
      * reached ([timedOut]). Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
      */
-    private fun expireAt(deadline: Long, waiting: Waiting): ScheduledFuture<*> =
-        DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
-            { waiting.expire(clock.millis(), ::timedOut) },
-            (deadline - clock.millis()).coerceAtLeast(0),
-            TimeUnit.MILLISECONDS,
-        )
+    private fun expireAt(deadline: Long, waiting: Waiting): Future<*> =
+        deadlines.schedule((deadline - clock.millis()).coerceAtLeast(0)) { waiting.expire(clock.millis(), ::timedOut) }
 
     /**
      * The message of a wait that timed out at [hop]: the command's outcome is known once it reached COMMITTED, however
@@ -757,11 +751,7 @@ class WaitCoordinator(
     suspend fun call(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): CommandResult {
         val timeout = minOf(command.wait.timeout, options.maxTimeout)
         val deadline = CompletableDeferred<Unit>()
-        val expiry = DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
-            { deadline.complete(Unit) },
-            timeout.inWholeMilliseconds,
-            TimeUnit.MILLISECONDS,
-        )
+        val expiry = deadlines.schedule(timeout.inWholeMilliseconds) { deadline.complete(Unit) }
         val taken = AtomicBoolean()
         val execution: Deferred<Settlement> = executions.async(currentCoroutineContext().traceContext) {
             forwardReporting(model, command, wait, taken)
@@ -882,21 +872,6 @@ class WaitCoordinator(
 
     private companion object {
         val logger = KotlinLogging.logger {}
-
-        /**
-         * Ends the waits of every coordinator of the process at their deadlines: daemon threads that only end them and
-         * never run their waiters, which resume in their coordinator's execution context. Sharded: each
-         * wait schedules its deadline on one picked at random and cancels it there, so the commands of a busy node
-         * do not all take one delay queue's lock twice each.
-         */
-        val DEADLINES: List<ScheduledExecutorService> =
-            List(Runtime.getRuntime().availableProcessors().coerceIn(1, MAX_DEADLINE_SHARDS)) { shard ->
-                ScheduledThreadPoolExecutor(1) { task ->
-                    Thread(task, "wow-wait-deadlines-$shard").apply { isDaemon = true }
-                }.apply { removeOnCancelPolicy = true }
-            }
-
-        const val MAX_DEADLINE_SHARDS = 4
     }
 }
 

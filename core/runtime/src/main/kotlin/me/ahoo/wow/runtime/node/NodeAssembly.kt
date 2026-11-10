@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.WaitDeadlines
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
@@ -117,6 +118,7 @@ internal class NodeAssembly(
     val queries: ContextQueries = ContextQueries.NONE,
     /** How the rebuilds of the subscriptions' states replay the log: the [ServiceNode]'s gate. */
     replayGate: ReplayGate,
+    deadlines: WaitDeadlines,
 ) {
     /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
     private val declaredJobs: Map<String, Map<String, ScheduleJob>> =
@@ -313,6 +315,7 @@ internal class NodeAssembly(
         committedHandlers,
         fatals,
         replayGate,
+        deadlines,
     )
 
     private val contextAssembly = ContextAssembly(wiring)

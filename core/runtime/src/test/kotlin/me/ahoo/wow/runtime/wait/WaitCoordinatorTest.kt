@@ -195,6 +195,8 @@ class WaitCoordinatorTest {
     )
     private val executor = Executor(Kernel(log))
     private val coordinator = coordinator(WaitOptions())
+    private val held = HeldDeadlines()
+    private val holding = WaitCoordinator(executor, registry, runtime, signals, origin, WaitOptions(), deadlines = held)
 
     private fun coordinator(
         options: WaitOptions,
@@ -442,11 +444,8 @@ class WaitCoordinatorTest {
     fun `a timeout while derived commands settle ends the stream at the saga hop`(): Unit = runBlocking {
         started()
         sagaGate = CompletableDeferred()
-        val command = place(
-            items = 2,
-            wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()).within(500.milliseconds),
-        )
-        val emitted = withTimeout(5.seconds) { coordinator.stream(order, command).toList() }
+        val command = place(items = 2, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()))
+        val emitted = held.timedOut(holding.stream(order, command)) { it.commandId == "${command.id}-reserve-1" }
         emitted.map { it.commandId }.assert().containsExactly(
             command.id,
             "${command.id}-reserve-1",
@@ -505,7 +504,8 @@ class WaitCoordinatorTest {
     fun `a timeout reports the last hop reached`(): Unit = runBlocking {
         started()
         snapshotGate = CompletableDeferred()
-        val result = coordinator.execute(order, place(wait = WaitPlan.SNAPSHOT.within(200.milliseconds)))
+        val results = holding.stream(order, place(wait = WaitPlan.of(Hop.committed(), Hop.snapshot())))
+        val result = held.timedOut(results) { it.hop.stage == Stage.COMMITTED }.last()
         result.status.assert().isEqualTo(CommandResult.Status.FAILED)
         result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
         result.hop.assert().isEqualTo(Hop.committed("shop"))
