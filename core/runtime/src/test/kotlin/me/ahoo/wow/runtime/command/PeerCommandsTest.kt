@@ -436,7 +436,7 @@ class PeerCommandsTest {
         val long = "i".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
         mapOf(
             ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).requestId(long).build() to
-                "A request id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
+                "The request id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
             ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1,"note":"\u0000"}"""))
                 .caller(clerk).aggregateId("i").build() to
                 "The body writes \\u0000 in a string, which no store keeps.",

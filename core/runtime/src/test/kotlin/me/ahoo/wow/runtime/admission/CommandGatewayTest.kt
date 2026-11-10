@@ -483,12 +483,18 @@ class CommandGatewayTest {
         // Finding A3-10: PostgreSQL's index refused it, and the append was answered as unknown, retried for ever.
         val gateway = gateway()
         val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
-        gateway.execute(request(requestId = long)).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
-        gateway.execute(request(aggregateId = long)).error!!.message.assert().contains("aggregate id")
+        val requestId = gateway.execute(request(requestId = long))
+        requestId.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        // Each message names its id, the sentence reading alike whatever the name.
+        requestId.error!!.message.assert().isEqualTo("The request id is at most 256 characters; this one has 257.")
+        gateway.execute(request(aggregateId = long)).error!!.message.assert()
+            .isEqualTo("The aggregate id is at most 256 characters; this one has 257.")
         val tenant = Caller(long, Scope("eve"), subject = "eve")
-        gateway.execute(request(caller = tenant)).error!!.message.assert().contains("tenant id")
+        gateway.execute(request(caller = tenant)).error!!.message.assert()
+            .isEqualTo("The tenant id is at most 256 characters; this one has 257.")
         val space = Caller(TENANT, Scope("eve", long), subject = "eve")
-        gateway.execute(request(caller = space)).error!!.message.assert().contains("space id")
+        gateway.execute(request(caller = space)).error!!.message.assert()
+            .isEqualTo("The space id is at most 256 characters; this one has 257.")
         decided.assert().isEmpty()
         val longest = "y".repeat(AdmissionLimits.MAX_ID_LENGTH)
         gateway.execute(request(requestId = longest, aggregateId = longest, wait = WaitPlan.COMMITTED)).status
