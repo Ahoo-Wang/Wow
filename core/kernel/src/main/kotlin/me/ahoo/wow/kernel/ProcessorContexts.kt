@@ -126,15 +126,16 @@ class ExecutionSagaContext @InternalWowApi constructor(
     companion object {
         /**
          * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
-         * [execution]: a name-based UUID of the execution, the target (its id, or `unassigned` for a creation that
-         * leaves it to admission), the command type and the occurrence, stable across every execution of the same
-         * commit by the same subscription, whatever order the handler derives its commands in.
+         * [execution]: a name-based UUID of the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation
+         * that leaves it to admission), the command type and the occurrence ([DerivedRequests.encoded]), stable across
+         * every execution of the same commit by the same subscription, whatever order the handler derives its commands
+         * in.
          */
         @JvmStatic
         @JvmOverloads
         fun derivedId(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, occurrence: Int = 0): String {
             require(occurrence >= 0) { "An occurrence is never negative." }
-            return derivedIdOf(execution, ref, commandType, occurrence.toString())
+            return derivedIdOf(execution, ref, commandType, DerivedRequests.occurrence(occurrence))
         }
 
         /**
@@ -147,7 +148,17 @@ class ExecutionSagaContext @InternalWowApi constructor(
             derivedIdOf(execution, ref, commandType, DerivedRequests.keyed(requestId))
 
         private fun derivedIdOf(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, key: String): String =
-            DerivedRequests.idOf("$execution#${DerivedRequests.keyOf(ref, commandType)}#$key")
+            DerivedRequests.idOf(
+                DerivedRequests.encoded(
+                    DERIVED,
+                    DerivedRequests.executionOf(execution),
+                    DerivedRequests.keyOf(ref, commandType),
+                    key,
+                ),
+            )
+
+        /** What tells a saga's derived identity from a compensation's ([ExecutionReceiptContext.compensationId]). */
+        private const val DERIVED = "derived"
     }
 }
 

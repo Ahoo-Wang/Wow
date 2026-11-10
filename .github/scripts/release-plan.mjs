@@ -22,10 +22,14 @@ import { distTag } from './publish-npm.mjs';
 // - A pre-release (`-alpha.n`, `-beta.n`, `-rc.n`) keeps its own npm
 //   dist-tag, pushes its images under the version alone and is a GitHub
 //   pre-release, never the latest release.
-// - A stable release also pushes the images under `<major>.<minor>`. When it
-//   is the latest line (the highest stable v* tag, publish-npm.mjs distTag),
-//   npm publishes it under `latest`, the images get `latest` and its GitHub
-//   release is marked latest; a patch to an older line moves none of them.
+// - A floating image tag only ever moves to the highest stable version of its
+//   line among all v* tags, whichever tag the workflow runs on, so a re-run of
+//   an older patch moves none. A stable release also pushes the images under
+//   `<major>.<minor>` when it is the highest stable version of that minor
+//   line. When it is the latest line (the highest stable v* tag, publish-npm.mjs
+//   distTag), npm publishes it under `latest`, the images get `latest` and its
+//   GitHub release is marked latest; a patch to an older line moves none of
+//   them.
 
 /** The GitHub release notes template of each kind of release. */
 export const NOTES = {
@@ -62,6 +66,7 @@ export function releasePlan(ref, tags) {
   const npmDistTag = distTag(version, tags);
   const latest = !prerelease && npmDistTag === 'latest';
   const line = `${release.major}.${release.minor}`;
+  const lineTag = !prerelease && newestOfLine(release, tags);
   return {
     tag,
     version,
@@ -69,14 +74,30 @@ export function releasePlan(ref, tags) {
     line,
     prerelease,
     latest,
+    lineTag,
     npmDistTag,
     imageTags: [
       version,
-      ...(prerelease ? [] : [line]),
+      ...(lineTag ? [line] : []),
       ...(latest ? ['latest'] : []),
     ],
     notes: prerelease ? NOTES.prerelease : NOTES.stable,
   };
+}
+
+/** Whether no stable v* tag of [release]'s minor line is higher than it. */
+function newestOfLine(release, tags) {
+  return tags
+    .filter(tag => tag.startsWith('v'))
+    .map(parseVersion)
+    .filter(
+      other =>
+        other &&
+        other.prerelease === undefined &&
+        other.major === release.major &&
+        other.minor === release.minor,
+    )
+    .every(other => compareVersions(release, other) >= 0);
 }
 
 /** The plan as the `key=value` lines of a step's outputs. */
@@ -88,6 +109,7 @@ export function outputLines(plan) {
     `line=${plan.line}`,
     `prerelease=${plan.prerelease}`,
     `latest=${plan.latest}`,
+    `line-tag=${plan.lineTag}`,
     `npm-dist-tag=${plan.npmDistTag}`,
     `image-tags=${plan.imageTags.join(',')}`,
     `notes=${plan.notes}`,

@@ -95,7 +95,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 - **触发。** `tenantId` 是实例的租户，`job` 是任务的名字。`slot` 是到期的时间槽，从实例上次启用或改期时起从 1 开始计数，`due` 是到期的时间，单位是纪元毫秒。`skipped` 统计在它之前、因没有节点运行这个任务而错过的时间槽。`partition` 是实例的日志分区，只有 `SHARDED` 任务才有。
 - **命令。** 任务的命令发往它的实例的租户，就像 Saga 的命令发往它的提交的租户：`CommandRequest.of(body, id)` 指的是这个租户中、决定这个命令体的类型的聚合 `id`，如样例所示；`targetTenant` 把命令发往另一个租户。它们的 ID 来自这次触发的执行，所以再处理一次这次触发会发出相同的请求。
-- **实例。** 每个任务由上下文内置的聚合 `<context>.schedule` 保存：`SYSTEM` 或 `TENANT` 实例的 ID 就是任务的名字，`SHARDED` 任务每个分区一个实例。规则每次到期时它提交一次触发，任务的订阅 `<processor>.<function>`（或函数的 `@Name`）把触发交给处理函数，像任何订阅一样重试和停放。
+- **实例。** 每个任务由上下文内置的聚合 `<context>.schedule` 保存：`SYSTEM` 或 `TENANT` 实例的 ID 就是任务的名字，`SHARDED` 任务每个分区一个实例。规则每次到期时它提交一次触发，任务的订阅 `<processor>.<function>`（或函数的 `@Name`）把触发交给处理函数，像任何订阅一样重试和停放。新版本移除了处理函数的任务（包括上下文的最后一个任务），会在它的实例下一次触发时被禁用，其定时随之取消。
 
 `@OnSchedule` 设置任务：
 
@@ -105,7 +105,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `cron` | 六个字段，按 Spring 的 `CronExpression` 读取：`0 0 6 * * *` 是每天 06:00。也接受 `@daily` 这样的宏 |
 | `zone` | 读取 `cron` 所用的时区，默认 UTC |
 | `scope` | `SYSTEM`（默认）：一个实例，在默认租户中，宿主在启动时启用。`TENANT`：每个租户一个实例，由该租户中的系统命令 `wow.schedule.Enable` 创建；宿主从不启动它，每个租户都可以覆盖规则、时区和 misfire。`SHARDED`：每个日志分区一个实例，在默认租户中，宿主在启动时启用，由分区的属主为它自己分区的聚合运行，每个时间槽各触发一次，并设置 `tick.partition` |
-| `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。`CATCH_UP`：每个错过的时间槽都运行 |
+| `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。它的 `due` 是该时间槽自己的时间，是表达式指定的时间，`wow.timers.expires-after` 也从这个时间判断它是否迟到；错过超过 100,000 个时间槽时，`skipped` 是估算值。`CATCH_UP`：每个错过的时间槽都运行 |
 
 宿主在 `wow.schedules.<name>` 下配置任务，而且只在这里配置，不需要重新构建：
 

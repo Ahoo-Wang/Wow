@@ -54,7 +54,7 @@ The packages follow the support policy of the rest of Wow, stated in the [securi
 | Requirement | Version | Notes |
 | --- | --- | --- |
 | Node.js | `>=22.12.0` | Declared in `engines` of every package; the generator's CLI needs it too |
-| Browsers | Current evergreen browsers | The packages use `fetch`, `ReadableStream` and `TextDecoderStream` |
+| Browsers | Current evergreen browsers | The packages use `fetch`, `ReadableStream`, `TextDecoderStream` and `AbortSignal.any` (Chrome 116, Firefox 124, Safari 17.4) |
 | React and React DOM (`wow-react`, the view engine's UI) | `^19.0.0` | React 18 is not supported: the build imports `react/compiler-runtime` |
 | React Router (`wow-view-engine/react-router` only) | `^7.0.0 \|\| ^8.0.0` | An optional peer: only that entry imports it |
 | TypeScript | `>=6.0` | CI type-checks the packed packages as a consumer on TypeScript 6.0 and the latest 7.x; `moduleResolution` `Bundler`, `NodeNext` or `Node16` |

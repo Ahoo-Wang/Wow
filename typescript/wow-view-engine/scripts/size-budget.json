@@ -6,8 +6,8 @@
       "reason": "Raised 2026-09-28 with declared actions (host-integration.md 5, H3), about 17% over the 140,002 B measured then: the root now carries actions() and the rules the engine and /testing's actionHarness read declarations by; the kernel had also grown close to the old ceiling with N1–N5."
     },
     "./react": {
-      "gzip": 171000,
-      "reason": "Raised 2026-09-25 with the time between two moments (N3), about 17% over the 146,099 B measured then: the editor controllers carry the kernel's rules for calendar parts (N2), opening and closing values (N1) and durations (N3) since the ceiling was set."
+      "gzip": 200000,
+      "reason": "Raised 2026-11-10 when the async-answer fixes (#5592: #5490, #5502, #5508, #5513) took ./react to 171,512 B, 512 B over the old ceiling; about 17% over that measurement. The growth is intended: the controllers ask the engine's one rule for whether an answer still applies (runtime/generations.ts), and the workbench's switching moved into a module of its own."
     },
     "./ui": {
       "gzip": 721000,

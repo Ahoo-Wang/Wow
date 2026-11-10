@@ -47,7 +47,7 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
 
     override fun nameOf(target: AggregateType, command: Class<*>): String? {
         models[target]?.let { model -> return model.commandTypes.firstOrNull { it.type == command }?.name }
-        return contracts.commandTypeOf(Manifest.schemaRef(command.name))?.takeIf { it.startsWith("$target.") }
+        return contracts.commands.commandTypeOf(target.toString(), command)
     }
 
     /**

@@ -9,12 +9,12 @@
     "analytics-catalog/dataset/queryClient.ts": "67c0cd91be5c0c5417e7f86e2de3f8c66d041cf5f7aa55e2d6b4df9c6069a2f9",
     "analytics-catalog/index.ts": "e315fabae9a569ae104f492a911ef02b48dbd643841343ae37063061723145ad",
     "analytics-catalog/manifest.ts": "a5a4b4fbf43c23b597089c4256c4c52720f479667d3c1e2e3f1c1b7d0e4b09d0",
-    "analytics-catalog/routes.ts": "a9f0aefd15ce7baa226e0bc39fc4986e261605e79ad300b51ec6fbc566123eeb",
+    "analytics-catalog/routes.ts": "69726658037359d079f8ae9ec8a96b981e7c930c1f0224fa83b2e92df48cb7c9",
     "analytics-catalog/source/aggregate.ts": "1a4f7fcf132efcfac09e6c16dcff69c6c8ca0b8771fb60f562f3a7ea24e4326b",
     "analytics-catalog/source/commandClient.ts": "c1c07e47d6b1ebd52f4cbf0de04a93a606dd44bcbb8f8eb942d32e793ad7c0e1",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/source/queryClient.ts": "572c9ef845f40a5bc7ebaa5b0aea7dbb52557d614829efeac935cccc0192dfd7",
-    "analytics-catalog/types.ts": "174a06fdbe154d178d5d3e5dc19a6ecb2288455cd9000402c7d1cea677e059d4",
+    "analytics-catalog/types.ts": "2d66f2f265b608158b0bc99487a76c5d8d4ff050851d191f53719e5390550c59",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }
 }

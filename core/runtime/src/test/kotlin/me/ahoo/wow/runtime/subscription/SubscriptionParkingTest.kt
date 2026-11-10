@@ -13,24 +13,31 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 class SubscriptionParkingTest {
     private val log = InMemoryEventLog(partitions = 2)
@@ -54,7 +61,7 @@ class SubscriptionParkingTest {
         handled.record(entry)
     }
 
-    private fun runtime() = SubscriptionRuntime(
+    private fun runtime(ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
@@ -74,9 +81,9 @@ class SubscriptionParkingTest {
         eventually { checkpointsReachEnd() }
     }
 
-    private suspend fun checkpointsReachEnd(): Boolean = all.all { partition ->
+    private suspend fun checkpointsReachEnd(subscription: String = "parking"): Boolean = all.all { partition ->
         val end = appender.ends[partition] ?: 0L
-        end == 0L || checkpoints.load("group", "parking", partition) == end
+        end == 0L || checkpoints.load("group", subscription, partition) == end
     }
 
     @Test
@@ -198,6 +205,217 @@ class SubscriptionParkingTest {
         ledger.isParked("parking", cart("x")).assert().isFalse()
         appender.append("x")
         eventually { handled.versionsOf("x") == listOf(1, 5) }
+        runtime.stop()
+    }
+
+    @Test
+    fun `a retry while a skip resolves the aggregate starts nothing, so the skipped entries are never handled`(): Unit =
+        runBlocking {
+            // #5466: the skip holds the aggregate across its ledger write; a retry meanwhile finds it being skipped.
+            val resolving = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val gate = AtomicBoolean(true)
+            val gated = object : FailureLedger by ledger {
+                override suspend fun resolve(
+                    subscription: String,
+                    ref: AggregateRef,
+                    partition: Int
+                ): ParkedAggregate? {
+                    if (gate.compareAndSet(true, false)) {
+                        resolving.complete(Unit)
+                        release.await()
+                    }
+                    return ledger.resolve(subscription, ref, partition)
+                }
+            }
+            val runtime = runtime(gated)
+            parkX(runtime)
+            failing.set(false)
+            withTimeout(10.seconds) {
+                val skipped = async { runtime.skip("parking", cart("x")) }
+                resolving.await()
+                runtime.retry("parking", cart("x")).assert().isFalse()
+                runtime.skip("parking", cart("x")).assert().isFalse()
+                release.complete(Unit)
+                skipped.await().assert().isTrue()
+            }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1))
+            ledger.isParked("parking", cart("x")).assert().isFalse()
+            appender.append("x")
+            eventually { handled.versionsOf("x") == listOf(1, 5) }
+            runtime.stop()
+        }
+
+    @Test
+    fun `a skip and the first failure of an aggregate held nowhere leave the ledger and the worker agreeing`(): Unit =
+        runBlocking {
+            // Review of #5577: the failure has written its parking, not yet held the aggregate, when a skip comes.
+            val written = CompletableDeferred<Unit>()
+            val hold = CompletableDeferred<Unit>()
+            val gated = object : FailureLedger by ledger {
+                override suspend fun park(entry: ParkedAggregate): Boolean = ledger.park(entry).also {
+                    written.complete(Unit)
+                    hold.await()
+                }
+            }
+            val first = Subscription("first", SubscriptionFilter("shop")) { entry ->
+                check(entry.version != 2) { "x-2 is broken" }
+                handled.record(entry)
+            }
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                checkpoints,
+                gated,
+                listOf(first),
+                testOptions(maxAttempts = 1),
+                clock,
+            )
+            appender.append("x")
+            runtime.start(all)
+            eventually { handled.versionsOf("x") == listOf(1) }
+            appender.append("x")
+            withTimeout(10.seconds) {
+                written.await()
+                // Run as far as it goes at once: it either resolves now, or waits for the failure in its lane.
+                val skipped = async(start = CoroutineStart.UNDISPATCHED) { runtime.skip("first", cart("x")) }
+                hold.complete(Unit)
+                // The skip resolved the parking the failure wrote, after it.
+                skipped.await().assert().isTrue()
+            }
+            appender.append("x")
+            eventually { checkpointsReachEnd("first") }
+            // Agreeing: neither parked in the ledger nor held by the worker.
+            ledger.isParked("first", cart("x")).assert().isFalse()
+            handled.versionsOf("x").assert().isEqualTo(listOf(1, 3))
+            runtime.stop()
+        }
+
+    @Test
+    fun `a skip of an entry re-homed to another partition resolves nothing, and keeps the aggregate held`(): Unit =
+        runBlocking {
+            // #5481: the worker skips in its own partition; the re-homed entry is the other partition's owner's.
+            val runtime = runtime()
+            parkX(runtime)
+            val parked = ledger.parked("parking", cart("x"))!!
+            val rehomed = parked.copyWith(
+                partition = (parked.partition + 1) % all.size,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            runtime.skip("parking", cart("x")).assert().isFalse()
+            ledger.parked("parking", cart("x"))!!.copyWith(revision = 0).assert()
+                .isEqualTo(rehomed.copyWith(revision = 0))
+            appender.append("x")
+            eventually { checkpointsReachEnd() }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1))
+            runtime.stop()
+        }
+
+    @Test
+    fun `a retry that handled everything after its entry was re-homed resolves nothing`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = true)
+    }
+
+    @Test
+    fun `a retry that failed again after its entry was re-homed writes nothing over it`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = false)
+    }
+
+    @Test
+    fun `a retry that handled everything after another node resolved its entry is resolved`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = true) { parked ->
+            // As another node's skip does when it does not run the aggregate's partition.
+            ledger.resolveAnywhere(parked.subscription, parked.ref)
+            null
+        }
+    }
+
+    /**
+     * #5481: x's retry runs in the partition it parked in when the owner of the partition its key maps to now
+     * re-homes the entry; the retry then ends, having handled x's parked version or failed on it again.
+     */
+    private suspend fun rehomedDuringRetry(
+        succeeds: Boolean,
+        /** What happens to the entry while the retry runs; returns the entry it leaves, null for none. */
+        meanwhile: suspend (ParkedAggregate) -> ParkedAggregate? = { parked ->
+            val elsewhere = (parked.partition + 1) % all.size
+            val rehomed = parked.copyWith(
+                partition = elsewhere,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            rehomed
+        },
+    ) {
+        val retrying = CompletableDeferred<Unit>()
+        val end = CompletableDeferred<Unit>()
+        val broken = AtomicBoolean(true)
+        val held = Subscription("held", SubscriptionFilter("shop")) { entry ->
+            if (entry.version == 2 && broken.get()) {
+                error("x-2 is broken")
+            }
+            if (entry.version == 2) {
+                retrying.complete(Unit)
+                end.await()
+                check(succeeds) { "x-2 is broken again" }
+            }
+            handled.record(entry)
+        }
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(held),
+            testOptions(maxAttempts = 1),
+            clock
+        )
+        appender.append("x")
+        appender.append("x")
+        runtime.start(all)
+        eventually { ledger.isParked("held", cart("x")) }
+        val parked = ledger.parked("held", cart("x"))!!
+        broken.set(false)
+        withTimeout(10.seconds) {
+            val retried = async { runtime.retry("held", cart("x")) }
+            retrying.await()
+            val left = meanwhile(parked)
+            end.complete(Unit)
+            retried.await().assert().isEqualTo(left == null)
+            // The entry stays as the other owner left it; this one still holds x back, unless it is resolved.
+            ledger.parked("held", cart("x"))?.copyWith(revision = 0).assert().isEqualTo(left?.copyWith(revision = 0))
+        }
+        val resolved = ledger.parked("held", cart("x")) == null
+        appender.append("x")
+        eventually { checkpointsReachEnd("held") }
+        val expected = listOf(1) + (if (succeeds) listOf(2) else emptyList()) + (if (resolved) listOf(3) else emptyList())
+        handled.versionsOf("x").assert().isEqualTo(expected)
+        runtime.stop()
+    }
+
+    @Test
+    fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
+        val broken = AtomicBoolean(true)
+        val flaky = object : FailureLedger by ledger {
+            override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? {
+                check(!broken.get()) { "the ledger is unavailable" }
+                return ledger.resolve(subscription, ref, partition)
+            }
+        }
+        val runtime = runtime(flaky)
+        parkX(runtime)
+        assertThrows<IllegalStateException> { runBlocking { runtime.skip("parking", cart("x")) } }
+        // Still parked: its new entry is skipped, and a retry handles it with the others.
+        appender.append("x")
+        eventually { checkpointsReachEnd() }
+        handled.versionsOf("x").assert().isEqualTo(listOf(1))
+        failing.set(false)
+        broken.set(false)
+        runtime.retry("parking", cart("x")).assert().isTrue()
+        handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4, 5))
         runtime.stop()
     }
 

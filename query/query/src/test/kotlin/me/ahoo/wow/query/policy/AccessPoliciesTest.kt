@@ -19,6 +19,8 @@ import me.ahoo.wow.api.access.AccessAttributes
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetAccess
@@ -72,6 +74,15 @@ class AccessPoliciesTest {
         access.governs(LEDGER).assert().isFalse()
         access.of(LEDGER).assert().isNull()
         AccessPolicies.NONE.governed.assert().isEmpty()
+    }
+
+    @Test
+    fun `a read holds its caller to no owner or space where a policy governs, else to what the ownership keeps`() {
+        val access = policies(documents)
+        val acting = Scope("alice", "s1")
+        access.scopeOf(DOCUMENT, Ownership.OWNER, acting).assert().isEqualTo(Scope.NONE)
+        access.scopeOf(NOTE, Ownership.OWNER, acting).assert().isEqualTo(acting)
+        access.scopeOf(LEDGER, Ownership.TENANT, acting).assert().isEqualTo(Scope(spaceId = "s1"))
     }
 
     @Test

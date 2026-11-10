@@ -25,6 +25,7 @@ import type { ViewStore, WriteOptions } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
 import { requireSystemPanels, type ReferenceOf } from './publish.js';
+import { applyWriteEffect } from './writeEffects.js';
 import {
   ViewCommandError,
   ViewWriteError,
@@ -39,7 +40,7 @@ export type WriteTarget = ViewRuntime | WriteHandle;
 export type ConflictChoice = 'reload' | 'overwrite';
 
 /** Everything a write can hand back, by action. */
-type WriteResult = ViewInstance | ViewPreferences | void;
+export type WriteResult = ViewInstance | ViewPreferences | void;
 
 /**
  * What the ledger cannot reach on its own.
@@ -93,6 +94,11 @@ export class WriteLedger {
   /** Write targets with a request in flight; see `dispatch`. */
   private readonly inFlight = new Set<string>();
   private readonly owners = new Map<string, ManagedViewRuntime>();
+  /**
+   * The runtime a write's effect acts on besides its owner (`dispatch`), by
+   * `requestId`, so a retry and an overwrite complete the same operation.
+   */
+  private readonly targets = new Map<string, ManagedViewRuntime>();
   private readonly newId: () => string;
 
   constructor(host: WriteLedgerHost) {
@@ -105,10 +111,16 @@ export class WriteLedger {
     return this.writes;
   }
 
-  /** A new logical write: a fresh `requestId`, then the one path out. */
+  /**
+   * A new logical write: a fresh `requestId`, then the one path out.
+   * `target` is a runtime the write's effect acts on that is not the one it
+   * goes out through — the board a panel's view is saved from, whose own
+   * writes this one must not wait behind (`applyWriteEffect`).
+   */
   async dispatch(
     payload: WritePayload,
     runtime: ManagedViewRuntime | undefined,
+    target?: ManagedViewRuntime,
   ): Promise<WriteResult> {
     // Every write of a config into the system scope — a first save, a
     // 另存为, a publish, a save in place of a system board — passes here, so
@@ -121,13 +133,18 @@ export class WriteLedger {
           : null;
     if (into?.scope)
       await requireSystemPanels(into.config, this.host.referenceOf, into.scope);
-    return this.replay(payload, this.newId(), runtime);
+    return this.replay(payload, this.newId(), runtime, target);
   }
 
   /** Replays the original intent under its original `requestId`. */
   async retryWrite(target: WriteTarget): Promise<WriteResult> {
     const { requestId, state } = this.requireWrite(target);
-    return this.replay(state.payload, requestId, this.owners.get(requestId));
+    return this.replay(
+      state.payload,
+      requestId,
+      this.owners.get(requestId),
+      this.targets.get(requestId),
+    );
   }
 
   /**
@@ -169,12 +186,14 @@ export class WriteLedger {
       );
 
     const runtime = this.owners.get(requestId);
-    if (choice === 'reload') {
-      this.settle(requestId);
-      return this.reload(state, runtime);
-    }
+    const acted = this.targets.get(requestId);
     this.settle(requestId);
-    return this.dispatch(withRevision(state.payload, state.remote), runtime);
+    if (choice === 'reload') return this.reload(state, runtime);
+    return this.dispatch(
+      withRevision(state.payload, state.remote),
+      runtime,
+      acted,
+    );
   }
 
   /**
@@ -189,6 +208,7 @@ export class WriteLedger {
     payload: WritePayload,
     requestId: string,
     runtime: ManagedViewRuntime | undefined,
+    target: ManagedViewRuntime | undefined,
   ): Promise<WriteResult> {
     // One write at a time per target. Two saves of one view would carry the
     // same expected revision, so the second reports a conflict the user caused
@@ -206,9 +226,10 @@ export class WriteLedger {
 
     const context: WriteOptions = { requestId };
     if (runtime) this.owners.set(requestId, runtime);
+    if (target) this.targets.set(requestId, target);
     try {
       const result = await this.send(payload, context);
-      this.applyEffect(payload, result, runtime);
+      applyWriteEffect(this.host, payload, result, runtime, target);
       this.settle(requestId);
       return result;
     } catch (error) {
@@ -242,73 +263,6 @@ export class WriteLedger {
       shown.requestId === requestId ||
       !this.writes.has(shown.requestId)
     );
-  }
-
-  /**
-   * What a confirmed write changes. It hangs off the payload rather than the
-   * command, so replaying an intent as a retry or an overwrite advances the
-   * same baseline the first attempt would have.
-   */
-  private applyEffect(
-    payload: WritePayload,
-    result: WriteResult,
-    runtime: ManagedViewRuntime | undefined,
-  ): void {
-    switch (payload.action) {
-      case 'create': {
-        const instance = result as ViewInstance;
-        this.host.noteInstance(instance);
-        if (payload.intent === 'first-save') runtime?.markSaved(instance);
-        this.announce('create', instance);
-        return;
-      }
-      case 'save':
-      case 'rename':
-      case 'changeAudience': {
-        const instance = result as ViewInstance;
-        this.host.noteInstance(instance);
-        // Every open view of this instance moves to the new baseline, not
-        // only the one the command came through: the same view open twice
-        // would otherwise keep a revision nobody can write against. Only a
-        // save is the view's own write, and only it is marked saved — which
-        // settles the view's outcome and, on a board, starts its history
-        // again. A rename or a change of audience carries no config: it
-        // moves the baseline and leaves the draft, the board's undo and any
-        // write of the view's own still waiting exactly as they were.
-        if (payload.action === 'save') runtime?.markSaved(instance);
-        for (const holder of this.host.holders(instance.id))
-          if (payload.action !== 'save' || holder !== runtime)
-            holder.moveBaseline(instance);
-        this.announce(payload.action, instance);
-        return;
-      }
-      case 'delete':
-        // Preferences keep the id; a later reorder or default cleans it up.
-        this.host.dropInstance(payload.id, runtime);
-        this.host.noteChange({
-          definitionId: payload.definitionId,
-          kind: 'delete',
-          id: payload.id,
-        });
-        return;
-      case 'preferences':
-        this.host.notePreferences(
-          payload.definitionId,
-          result as ViewPreferences,
-        );
-    }
-  }
-
-  /** The actions that hand back an instance say so the same way. */
-  private announce(
-    kind: 'create' | 'save' | 'rename' | 'changeAudience',
-    instance: ViewInstance,
-  ): void {
-    this.host.noteChange({
-      definitionId: instance.definitionId,
-      kind,
-      id: instance.id,
-    });
   }
 
   /** Each action against its own method on the port. */
@@ -508,6 +462,7 @@ export class WriteLedger {
     if (owner?.getSnapshot().write?.requestId === requestId)
       owner.setWrite(null);
     this.owners.delete(requestId);
+    this.targets.delete(requestId);
   }
 }
 

@@ -53,7 +53,10 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     private val committedResults = HashMap<String, Map<String, Any>>()
     private var hopCompleted = false
 
-    /** The last hop reached: the last completed hop, or before one, the root command's furthest stage. */
+    /**
+     * The last hop reached: the last completed hop, or before one, the root command's furthest stage, which never goes
+     * back to an earlier one whatever order its results arrive in.
+     */
     var lastReached: CommandResult? = null
         private set
 
@@ -141,14 +144,19 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             }
 
             else -> {
-                // Progress the plan does not wait for, such as COMMITTED before the snapshot: kept for a timeout.
-                if (!hopCompleted && result.hop.stage <= target.stage) {
+                // Progress the plan does not wait for, such as COMMITTED before the snapshot: kept for a timeout. A
+                // stage never goes back: a COMMITTED that came first stays when the ACCEPTED of a command topic,
+                // offered once the broker acknowledged it, arrives after it.
+                if (!hopCompleted && result.hop.stage <= target.stage && !behind(result.hop.stage)) {
                     lastReached = result
                 }
                 false
             }
         }
     }
+
+    /** Whether [stage] is before the stage the wait already reached. */
+    private fun behind(stage: Stage): Boolean = lastReached?.let { stage < it.hop.stage } == true
 
     private fun laterInGeneration(hop: Hop): Boolean {
         for (next in index + 1 until hops.size) {

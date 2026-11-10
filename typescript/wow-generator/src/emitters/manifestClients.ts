@@ -23,8 +23,12 @@ import type {
   Route,
   ServiceRouteModel,
   TypeModel,
-  TextNumbersModel,
 } from '../manifest/analyze';
+import {
+  emitTextNumbers,
+  routeNumbersOption,
+  textNumbersMember,
+} from './textNumbers';
 import {
   camelCase,
   quoteStringLiteral,
@@ -116,6 +120,7 @@ export function emitManifestGeneration(
       emitQueryClient(aggregate, modules, files, outputDir);
     }
     emitRouting(context, modules);
+    emitTextNumbers(context, modules, outputDir, WOW_CLIENT);
     emitServiceRoutes(context, modules, files, outputDir);
     emitContextClient(context, modules, outputDir);
   }
@@ -330,7 +335,7 @@ function emitServiceRoutes(
     module,
     `${doc([
       `The service routes of \`${context.name}\`: routes whose handler is the service's own code, each called by its Manifest's name.`,
-    ])}export class ${name} {\n  /** Calls any route of the service by its name. */\n  readonly routes: ServiceRoutes;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.routes = new ServiceRoutes(options, { manifest: ${context.typeName}Manifest });\n  }\n\n${methods.join('\n\n')}\n}`,
+    ])}export class ${name} {\n  /** Calls any route of the service by its name. */\n  readonly routes: ServiceRoutes;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.routes = new ServiceRoutes(options, { manifest: ${context.typeName}Manifest${routeNumbersOption(context, { module, outputDir, client: WOW_CLIENT })} });\n  }\n\n${methods.join('\n\n')}\n}`,
   );
 }
 
@@ -338,7 +343,7 @@ function emitServiceRoutes(
 function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
   const variables = route.parameters.filter(p => p.location === 'path');
   const queries = route.parameters.filter(p => p.location === 'query');
-  const parameters = variables.map(p => `${p.name}: ${p.type}`);
+  const parameters = variables.map(p => `${p.identifier}: ${p.type}`);
   if (route.requestType !== undefined)
     parameters.push(`body: ${route.requestType}`);
   if (queries.length > 0) {
@@ -357,7 +362,7 @@ function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
     ...(variables.length === 0
       ? []
       : [
-          `path: { ${variables.map(p => resolvePropertyName(p.name)).join(', ')} }`,
+          `path: { ${variables.map(p => (p.identifier === p.name ? p.name : `${resolvePropertyName(p.name)}: ${p.identifier}`)).join(', ')} }`,
         ]),
     ...(route.requestType === undefined ? [] : ['body']),
     ...(queries.length === 0 ? [] : ['query']),
@@ -438,41 +443,6 @@ function emitContextClient(
   );
 }
 
-/** A TypeScript literal of exact-number marks: `{ price: true, lines: { '*': { amount: true } } }`. */
-function textNumbersLiteral(marks: TextNumbersModel): string {
-  if (marks === true) return 'true';
-  return `{ ${Object.entries(marks)
-    .map(
-      ([member, mark]) =>
-        `${resolvePropertyName(member)}: ${textNumbersLiteral(mark)}`,
-    )
-    .join(', ')} }`;
-}
-
-/** The `textNumbers` member of an aggregate constant, or nothing when it has none. */
-function textNumbersMember(aggregate: AggregateModel): string {
-  const numbers = aggregate.textNumbers;
-  if (numbers === undefined) return '';
-  const groups = (['state', 'events', 'commands', 'access'] as const).flatMap(
-    group => {
-      const value = numbers[group];
-      if (value === undefined) return [];
-      if (group === 'state' || group === 'access')
-        return [
-          `    ${group}: ${textNumbersLiteral(value as TextNumbersModel)},`,
-        ];
-      const entries = Object.entries(
-        value as Readonly<Record<string, TextNumbersModel>>,
-      ).map(
-        ([name, mark]) =>
-          `      ${resolvePropertyName(name)}: ${textNumbersLiteral(mark)},`,
-      );
-      return [`    ${group}: {\n${entries.join('\n')}\n    },`];
-    },
-  );
-  return `  textNumbers: {\n${groups.join('\n')}\n  },\n`;
-}
-
 function emitAggregate(
   aggregate: AggregateModel,
   context: ContextModel,
@@ -487,7 +457,7 @@ function emitAggregate(
     `${doc([
       `The aggregate \`${aggregate.context}.${aggregate.name}\`.`,
       aggregate.description,
-    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n${aggregate.idSource === 'assigned' ? '' : `  idSource: ${quoteStringLiteral(aggregate.idSource)},\n`}  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate)}${errorsMember(errorsOf(context, aggregate), '  ')}} as const;`,
+    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n${aggregate.idSource === 'assigned' ? '' : `  idSource: ${quoteStringLiteral(aggregate.idSource)},\n`}  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate, { module, outputDir, client: WOW_CLIENT })}${errorsMember(errorsOf(context, aggregate), '  ')}} as const;`,
   );
   addStatement(
     module,

@@ -95,7 +95,9 @@ const result = await commands.wait({
 sent by its route as the service's Manifest lists it: the Manifest the client
 is given (`new CommandClient(options, { manifest })`, a whole Manifest or a
 generated client's `manifest.ts`, its routes alone), else the service's,
-fetched once (`GET /wow/manifest`). A command that
+fetched once (`GET /wow/manifest`) for every command waiting on it; a
+command's `signal` ends its own wait, and a failed fetch rejects each command
+with an error of its own, carrying its request id. A command that
 may create its aggregate leaves `id` out and goes by the route without one. As with Kotlin's `CommandClient`,
 `send` answers once the command is accepted, `wait` with the result its plan
 ends with (the server's default plan when there is none), and `stream` one

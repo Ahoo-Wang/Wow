@@ -61,6 +61,47 @@ class WaitStateTest {
     }
 
     @Test
+    fun `the stage a wait reached never goes back, whatever order its results arrive in`() {
+        val state = WaitState(listOf(snapshot), "root")
+        val atCommitted = result("root", committed).copyWith(version = 1)
+        state.offer(atCommitted)!!.assert().isEmpty()
+        // A command topic's ACCEPTED, offered once the broker acknowledged the command, after its commit was signalled.
+        state.offer(result("root", Hop.accepted("shop")))!!.assert().isEmpty()
+        state.lastReached.assert().isSameAs(atCommitted)
+        // In order, the stage moves on.
+        val inOrder = WaitState(listOf(snapshot), "root")
+        inOrder.offer(result("root", Hop.accepted("shop")))
+        inOrder.offer(atCommitted)
+        inOrder.lastReached.assert().isSameAs(atCommitted)
+    }
+
+    @Test
+    fun `a result past the hop a wait waits for, of a function its plan does not name, is not its progress`() {
+        val state = WaitState(listOf(committed), "root")
+        state.offer(
+            result(
+                "root",
+                Hop.handled("order.view", "shop"),
+                FunctionInfo(FunctionKind.PROJECT, "shop", "order", "view")
+            )
+        )
+        state.lastReached.assert().isNull()
+        val done = result("root", committed)
+        state.offer(done)!!.assert().containsExactly(done)
+    }
+
+    @Test
+    fun `once a hop completed, a derived command's progress does not replace it`() {
+        val state = WaitState(listOf(saga, snapshot), "root")
+        state.offer(result("root", committed))
+        state.offer(result("root", saga, sagaFunction, derived = listOf("e-1")))
+        state.lastReached!!.hop.assert().isEqualTo(saga)
+        // The derived command commits before its snapshot: the wait still stands at the saga hop it completed.
+        state.offer(result("e-1", committed))!!.assert().isEmpty()
+        state.lastReached!!.hop.assert().isEqualTo(saga)
+    }
+
+    @Test
     fun `a later hop carries the results its command answered at COMMITTED, even when it came first`() {
         val state = WaitState(listOf(snapshot), "root")
         val done = result("root", snapshot, snapshotFunction)

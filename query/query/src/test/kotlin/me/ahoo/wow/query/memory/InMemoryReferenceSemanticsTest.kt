@@ -446,6 +446,31 @@ class InMemoryReferenceSemanticsTest {
     }
 
     @Test
+    fun `a histogram over an expression without a value puts the record in the null bucket, as over the field`() {
+        val histogram = aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Histogram(PRICE, alias = "band", interval = 20.0)),
+                metrics = listOf(AggregationMetric.Count("n")),
+                sort = listOf(Sort(QueryField("band"), Sort.Direction.ASC)),
+            ),
+        )
+        val valuelessExpression = aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Histogram(
+                        alias = "band",
+                        interval = 20.0,
+                        expression = AggregationExpression.Field(PRICE),
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("n")),
+                sort = listOf(Sort(QueryField("band"), Sort.Direction.ASC)),
+            ),
+        )
+        valuelessExpression.toString().assert().isEqualTo(histogram.toString())
+    }
+
+    @Test
     fun `terms over an array join a group per value, combined with the other groups`() {
         // r1 [a, b], r2 [b], r3 [c]; r4's list is empty and r5 has none, so both are in the null group.
         val byTagAndTenant = aggregate(

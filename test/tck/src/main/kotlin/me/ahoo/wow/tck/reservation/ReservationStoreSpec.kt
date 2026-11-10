@@ -354,6 +354,19 @@ abstract class ReservationStoreSpec {
     }
 
     @Test
+    fun `a key re-reserved while held confirmed and confirmed again outlives the release of an older fact`(): Unit =
+        runBlocking {
+            store.confirm(scope, "alice", user1, 1)
+            // The owner's fact 3 reserves the key it still holds, as its fact 2's release was not applied yet.
+            store.reserve(scope, "alice", user1, H1, TTL)
+                .assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
+            store.confirm(scope, "alice", user1, 3).assert().isEqualTo(ConfirmOutcome.Confirmed)
+            store.release(scope, "alice", user1, 2).assert().isFalse()
+            store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 3))
+            store.reserve(scope, "alice", user2, H2, TTL).assert().isNull()
+        }
+
+    @Test
     fun `confirming keeps the version of the latest fact`(): Unit = runBlocking {
         store.confirm(scope, "alice", user1, 3)
         store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)

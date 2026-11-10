@@ -15,6 +15,7 @@ import type { Operation, RequestBody, Tag } from '@ahoo-wang/fetcher-openapi';
 import type { GeneratorConfiguration } from '../api/configuration';
 import { GeneratorError } from '../api/errors';
 import type { ModelInfo } from '../naming/modelInfo';
+import { uniqueParameterName } from '../naming/naming';
 import { combinePaths } from '../naming/paths';
 import { extractRequestBody, extractSchema } from '../openapi/components';
 import type { OpenApiDocument } from '../openapi/document';
@@ -36,7 +37,7 @@ import {
   isTextContentType,
 } from '../openapi/responses';
 import { isArray, resolveOptionalFields } from '../openapi/schemas';
-import { resolveMethodName, uniqueParameterName } from './clientNames';
+import { resolveMethodName } from './clientNames';
 import type {
   ApiClientModel,
   ApiMethodModel,

@@ -162,7 +162,7 @@ internal class NodeAssembly(
 
     /**
      * The jobs of each context's `@OnSchedule` handlers, their defaults under the host's
-     * [ServiceNodeOptions.schedules]: each context with jobs gets the built-in job aggregate `<context>.schedule`.
+     * [ServiceNodeOptions.schedules], of each context that has any: those whose instances its startup enables.
      */
     val jobs: Map<String, List<ScheduleJob>> = ScheduleJobRuntime.configured(
         declaredJobs.mapValues { (_, jobs) -> jobs.values.toList() },
@@ -213,11 +213,13 @@ internal class NodeAssembly(
     val inFlight = InFlightLimit(options.executor.maxInFlight)
 
     /**
-     * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and
-     * the built-in rebuild aggregate of each context that keeps snapshots.
+     * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context, and the
+     * built-in rebuild aggregate of each context that keeps snapshots. A context without [jobs] gets its job aggregate
+     * too, deciding for none: the instances of the jobs it ran before outlive their handlers, and the next tick of each
+     * disables it and cancels its schedule, as for any job the node no longer declares.
      */
     private val served: List<AggregateModel<*>> =
-        models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) } +
+        models.toList() + opened.keys.map { context -> ScheduleJobModel.model(context, jobs[context].orEmpty()) } +
             nodeSnapshots.rebuildModels(opened, models)
 
     /** The aggregate models this node serves, the built-in job aggregates among them. */

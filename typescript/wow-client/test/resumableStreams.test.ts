@@ -466,4 +466,74 @@ describe('resumable query streams (decision D253)', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(requests).toHaveLength(1);
   });
+
+  it('sends nothing more once cancelled while waiting to resume', async () => {
+    const waiting: Array<() => void> = [];
+    vi.mocked(globalThis.setTimeout).mockImplementation(((
+      handler: () => void,
+    ) => {
+      waiting.push(handler);
+      return 0;
+    }) as typeof setTimeout);
+    const { requests } = answers(
+      () => sseResponse(row('p1') + end('permit-reclaimed')),
+      () => sseResponse(row('p2') + end('complete')),
+    );
+    const reader = (
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
+        resume: { initialDelayMs: 750 },
+      })
+    ).getReader();
+    await reader.read();
+    void reader.read().catch(() => undefined);
+    await vi.waitFor(() => expect(waiting).toHaveLength(1));
+    await reader.cancel('left the page');
+    // The wait would have ended now: nothing is asked for again.
+    waiting.forEach(handler => handler());
+    // Asking again takes only promise steps: they have all run by the next turn.
+    await new Promise(resolve => setImmediate(resolve));
+    expect(requests).toHaveLength(1);
+  });
+
+  it('aborts the request asking again once cancelled while it is in flight', async () => {
+    const { requests } = answers(
+      () => sseResponse(row('p1') + end('hold-expired')),
+      hangUntilAborted,
+    );
+    const reader = (
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query)
+    ).getReader();
+    await reader.read();
+    void reader.read().catch(() => undefined);
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    await reader.cancel('left the page');
+    expect(requests[1].signal?.aborted).toBe(true);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('cancels a response that answers the request asking again after the stream was cancelled', async () => {
+    let answer!: (response: Response) => void;
+    let cancelled: unknown;
+    const { requests } = answers(
+      () => sseResponse(row('p1') + end('hold-expired')),
+      () => new Promise<Response>(resolve => (answer = resolve)),
+    );
+    const reader = (
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query)
+    ).getReader();
+    await reader.read();
+    void reader.read().catch(() => undefined);
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    await reader.cancel('left the page');
+    answer(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          cancel: reason => void (cancelled = reason),
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+    );
+    await vi.waitFor(() => expect(cancelled).toBe('left the page'));
+    expect(requests).toHaveLength(2);
+  });
 });

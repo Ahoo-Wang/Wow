@@ -540,7 +540,7 @@ export class DatasetClient {
     constructor(client?: WowClientOptions);
     // (undocumented)
     readonly client: WowClientOptions;
-    dataset<R = Record<string, unknown>, FIELDS extends string = string>(context: string, dataset: string): QueryModelClient<R, FIELDS>;
+    dataset<R = Record<string, unknown>, FIELDS extends string = string>(context: string, dataset: string, numbers?: TextNumbers): QueryModelClient<R, FIELDS>;
     list(options?: RequestOptions): Promise<DatasetEntry[]>;
 }
 
@@ -1388,6 +1388,9 @@ export interface Operator {
 }
 
 // @public
+const OR: unique symbol;
+
+// @public
 export type Ownership = 'owner' | 'tenant';
 
 // @public
@@ -2131,21 +2134,29 @@ type TermsAggregationGroup<FIELDS extends string = string> = {
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export type TextNumbers = true | TextNumbersByName | {
+export function textNumberOr(marks: TextNumbers): TextNumbersOr;
+
+// @public
+export type TextNumbers = true | (() => TextNumbers) | TextNumbersOr | TextNumbersByName | {
     readonly [member: string]: TextNumbers;
 };
 
 // @public
-export function textNumbersBy(discriminant: string, member: string, cases: Readonly<Record<string, TextNumbers>>): TextNumbersByName;
+export function textNumbersBy(discriminant: string, cases: Readonly<Record<string, TextNumbers>>): TextNumbersByName;
 
 // @public
 export interface TextNumbersByName {
     // (undocumented)
     readonly [BY]: {
         readonly discriminant: string;
-        readonly member: string;
         readonly cases: Readonly<Record<string, TextNumbers>>;
     };
+}
+
+// @public
+export interface TextNumbersOr {
+    // (undocumented)
+    readonly [OR]: TextNumbers;
 }
 
 // @public

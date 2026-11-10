@@ -14,7 +14,6 @@
 import {
   camelCase,
   pascalCase,
-  quoteStringLiteral,
   resolvePropertyName,
   toIdentifier,
   toTypeIdentifier,
@@ -27,21 +26,24 @@ import {
   type ManifestCommand,
   type ManifestContext,
   type ManifestDocument,
+  isObject,
   schemaKey,
+  typesOf,
 } from './document';
-
-/**
- * The formats of numbers a Wow Manifest marks for reading from their text,
- * typed `string` (review R4-Q, Q-9; decision D254): an integer past
- * JavaScript's safe range (`int64`, `bigint`) and an exact decimal
- * (`decimal`). The wire keeps JSON numbers; `@ahoo-wang/wow-client` reads these
- * from the response's source text. A plain OpenAPI document keeps `number`.
- */
-const TEXT_NUMBER_FORMATS: ReadonlySet<string> = new Set([
-  'int64',
-  'bigint',
-  'decimal',
-]);
+import {
+  aggregateTypeName,
+  contextTypeName,
+  generatedNames,
+  routeMethodParameters,
+  routeParameterIdentifier,
+} from './names';
+import {
+  TEXT_NUMBER_FORMATS,
+  TextNumbers,
+  type TextNumbersDeclaration,
+  type TextNumbersModel,
+} from './textNumbers';
+import { compound, join, literal } from './typeText';
 
 /** A property of a generated interface. */
 export interface PropertyModel {
@@ -67,14 +69,6 @@ export interface TypeModel {
   /** The type names it refers to. */
   readonly references: readonly string[];
 }
-
-/**
- * The numbers of a value read and written as their exact text, as
- * `@ahoo-wang/wow-client`'s `TextNumbers` holds them: `true` at such a number,
- * else its members' marks by name, `'*'` for every item or map value.
- */
-export type TextNumbersModel =
-  true | { readonly [member: string]: TextNumbersModel };
 
 /** A command of an aggregate client. */
 export interface CommandModel {
@@ -240,11 +234,16 @@ export interface ContextModel {
   readonly aggregates: readonly AggregateModel[];
   /** Its service routes, in the Manifest's order. */
   readonly routes: readonly ServiceRouteModel[];
+  /** The marks of the recursive types declared in it, its `textNumbers.ts`. */
+  readonly textNumbers: readonly TextNumbersDeclaration[];
 }
 
 /** A parameter of a service route: a path variable or a query parameter, and its TypeScript type. */
 export interface RouteParameterModel {
+  /** As the route names it: its path variable or its query parameter. */
   readonly name: string;
+  /** Its name in the method ({@link routeParameterIdentifier}). */
+  readonly identifier: string;
   readonly location: 'path' | 'query';
   readonly type: string;
   readonly required: boolean;
@@ -262,6 +261,11 @@ export interface ServiceRouteModel {
   readonly requestType?: string;
   /** The answer's type; absent when the route answers `204 No Content`. */
   readonly responseType?: string;
+  /** The exact numbers of its body and of its answer. */
+  readonly textNumbers?: {
+    readonly request?: TextNumbersModel;
+    readonly response?: TextNumbersModel;
+  };
 }
 
 /** What a Manifest generates, decided before anything is written. */
@@ -287,34 +291,6 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
 /** The deepest `state.*` path listed as a query field. */
 const MAX_FIELD_DEPTH = 4;
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function typesOf(schema: JsonSchema): string[] {
-  const type = schema.type;
-  if (typeof type === 'string') return [type];
-  if (Array.isArray(type)) return type.filter(t => typeof t === 'string');
-  return [];
-}
-
-/** A union or an intersection, its members set apart when they are compound. */
-function join(members: string[], separator: ' | ' | ' & '): string {
-  const unique = [...new Set(members)];
-  if (unique.length === 1) return unique[0];
-  return unique
-    .map(member =>
-      / [|&] /.test(member) && !member.startsWith('{') ? `(${member})` : member,
-    )
-    .join(separator);
-}
-
-function literal(value: unknown): string {
-  return typeof value === 'string'
-    ? quoteStringLiteral(value)
-    : JSON.stringify(value);
-}
-
 /**
  * Turns the schemas of a Manifest into types: names for `$defs` keys and
  * type text for any schema.
@@ -335,8 +311,8 @@ class SchemaTypes {
     return key.includes('(');
   }
 
-  /** Names each key after its simple class name, qualified as far as needed to be unique. */
-  name(keys: readonly string[]): void {
+  /** Names each key after its simple class name, qualified as far as needed to be unique and not `reserved`. */
+  name(keys: readonly string[], reserved: ReadonlySet<string>): void {
     const pending = new Set(keys);
     for (let depth = 0; pending.size > 0; depth++) {
       const byName = new Map<string, string[]>();
@@ -354,7 +330,7 @@ class SchemaTypes {
         );
         byName.set(name, [...(byName.get(name) ?? []), key]);
       }
-      const taken = new Set(this.names.values());
+      const taken = new Set([...reserved, ...this.names.values()]);
       for (const [name, owners] of byName) {
         // A key whose packages are used up takes the name, numbered when it
         // is taken; the others take it alone, or qualify one package more.
@@ -510,7 +486,7 @@ class SchemaTypes {
           schema.items === undefined
             ? 'unknown'
             : this.type(schema.items, where);
-        return / [|&] /.test(item) ? `(${item})[]` : `${item}[]`;
+        return compound(item) ? `(${item})[]` : `${item}[]`;
       }
       case 'object':
         return this.objectType(schema, where);
@@ -572,53 +548,6 @@ class SchemaTypes {
     );
   }
 
-  /**
-   * The exact numbers of a schema: each `integer` or `number` of a
-   * {@link TEXT_NUMBER_FORMATS} format, through objects, arrays, maps and
-   * alternatives; undefined when it has none. A recursive reference is not
-   * followed: its numbers read as numbers.
-   */
-  textNumbers(
-    schema: unknown,
-    seen: ReadonlySet<string> = new Set(),
-  ): TextNumbersModel | undefined {
-    if (!isObject(schema)) return undefined;
-    const ref =
-      typeof schema.$ref === 'string' ? schemaKey(schema.$ref) : undefined;
-    if (ref !== undefined) {
-      const target = this.schemaOf(ref);
-      if (seen.has(ref) || target === undefined) return undefined;
-      return this.textNumbers(target, new Set([...seen, ref]));
-    }
-    const alternatives = ['oneOf', 'anyOf', 'allOf'].flatMap(member =>
-      Array.isArray(schema[member]) ? (schema[member] as unknown[]) : [],
-    );
-    const marks = alternatives
-      .map(alternative => this.textNumbers(alternative, seen))
-      .filter((mark): mark is TextNumbersModel => mark !== undefined);
-    const types = typesOf(schema);
-    if (
-      (types.includes('integer') || types.includes('number')) &&
-      typeof schema.format === 'string' &&
-      TEXT_NUMBER_FORMATS.has(schema.format)
-    ) {
-      marks.push(true);
-    }
-    const members: Record<string, TextNumbersModel> = {};
-    if (isObject(schema.properties)) {
-      for (const [name, property] of Object.entries(schema.properties)) {
-        const mark = this.textNumbers(property, seen);
-        if (mark !== undefined) members[name] = mark;
-      }
-    }
-    const each =
-      this.textNumbers(schema.items, seen) ??
-      this.textNumbers(schema.additionalProperties, seen);
-    if (each !== undefined) members['*'] = each;
-    if (Object.keys(members).length > 0) marks.push(members);
-    return mergeTextNumbers(marks);
-  }
-
   /** The `state.*` paths of a state schema a query can filter and sort on. */
   fields(
     schema: JsonSchema,
@@ -645,34 +574,6 @@ class SchemaTypes {
     }
     return paths;
   }
-}
-
-/**
- * The marks of a value any of `marks` describes: `true` when each is, else
- * the members of the objects among them merged (a value is a number or an
- * object, so its object marks are the ones that apply to members).
- */
-function mergeTextNumbers(
-  marks: readonly TextNumbersModel[],
-): TextNumbersModel | undefined {
-  if (marks.length === 0) return undefined;
-  const objects = marks.filter(
-    (mark): mark is { readonly [member: string]: TextNumbersModel } =>
-      mark !== true,
-  );
-  if (objects.length === 0) return true;
-  const merged: Record<string, TextNumbersModel[]> = {};
-  for (const object of objects) {
-    for (const [member, mark] of Object.entries(object)) {
-      (merged[member] ??= []).push(mark);
-    }
-  }
-  return Object.fromEntries(
-    Object.entries(merged).map(([member, all]) => [
-      member,
-      mergeTextNumbers(all)!,
-    ]),
-  );
 }
 
 /** Whether `schema` requires nothing but `omitted`, a property the method does not take. */
@@ -787,7 +688,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
   const keys = [...reach.keys()].filter(
     key => types.schemaOf(key) && !types.inlined(key),
   );
-  types.name([...keys].sort(compareNames));
+  types.name([...keys].sort(compareNames), generatedNames(manifest));
 
   const typeModels: TypeModel[] = keys
     .map(key => typeModel(types, key, `${reach.get(key)}/types.ts`))
@@ -797,7 +698,21 @@ export function analyzeManifest(manifest: ManifestDocument): {
         compareNames(left.name, right.name),
     );
 
-  const contextModels = contexts.map(context => contextModel(types, context));
+  const numbers = new TextNumbers(manifest.$defs ?? {}, key => ({
+    name: `${camelCase(types.names.get(key) ?? key)}Numbers`,
+    file: `${reach.get(key)}/textNumbers.ts`,
+  }));
+  const contextModels = contexts
+    .map(context => contextModel(types, numbers, context))
+    // Declared once every mark that refers to one is known.
+    .map(context => ({
+      ...context,
+      textNumbers: numbers
+        .declarations()
+        .filter(
+          declared => declared.file === `${context.directory}/textNumbers.ts`,
+        ),
+    }));
   return {
     model: {
       ...(manifest.service?.name ? { service: manifest.service.name } : {}),
@@ -837,12 +752,13 @@ function typeModel(types: SchemaTypes, key: string, file: string): TypeModel {
 
 function contextModel(
   types: SchemaTypes,
+  numbers: TextNumbers,
   context: ManifestContext,
-): ContextModel {
+): Omit<ContextModel, 'textNumbers'> {
   return {
     name: context.name,
     ...(context.description ? { description: context.description } : {}),
-    typeName: toTypeIdentifier(pascalCase(context.name)),
+    typeName: contextTypeName(context),
     constantName: upperSnakeCase(context.name),
     directory: context.name,
     errors: (context.errors ?? []).map(error => ({
@@ -854,10 +770,11 @@ function contextModel(
       ...new Set((context.subscriptions ?? []).map(s => s.name)),
     ].sort(compareNames),
     aggregates: (context.aggregates ?? []).map(aggregate =>
-      aggregateModel(types, context, aggregate),
+      aggregateModel(types, numbers, context, aggregate),
     ),
     routes: (context.routes ?? []).map(route => {
       const where = `${context.name} route ${route.name}`;
+      const used = routeMethodParameters();
       return {
         name: route.name,
         method: route.route.method,
@@ -866,6 +783,7 @@ function contextModel(
         deprecated: route.deprecated === true,
         parameters: (route.parameters ?? []).map(parameter => ({
           name: parameter.name,
+          identifier: routeParameterIdentifier(parameter, used),
           location: parameter.in === 'path' ? 'path' : 'query',
           type: types.type(parameter.schema, `${where} ${parameter.name}`),
           required: parameter.required,
@@ -876,8 +794,26 @@ function contextModel(
         ...(route.response === undefined
           ? {}
           : { responseType: types.type(route.response, `${where} answer`) }),
+        ...routeNumbers(
+          numbers.marks(route.request, `${where} body`),
+          numbers.marks(route.response, `${where} answer`),
+        ),
       };
     }),
+  };
+}
+
+/** The `textNumbers` member of a route's model, when its body or its answer has exact numbers. */
+function routeNumbers(
+  request: TextNumbersModel | undefined,
+  response: TextNumbersModel | undefined,
+): Pick<ServiceRouteModel, 'textNumbers'> {
+  if (request === undefined && response === undefined) return {};
+  return {
+    textNumbers: {
+      ...(request === undefined ? {} : { request }),
+      ...(response === undefined ? {} : { response }),
+    },
   };
 }
 
@@ -896,11 +832,12 @@ function typeOfRef(types: SchemaTypes, ref: string, where: string): string {
 
 function aggregateModel(
   types: SchemaTypes,
+  numbers: TextNumbers,
   context: ManifestContext,
   aggregate: ManifestAggregate,
 ): AggregateModel {
   const where = `${context.name}.${aggregate.name}`;
-  const typeName = toTypeIdentifier(pascalCase(aggregate.name));
+  const typeName = aggregateTypeName(aggregate);
   const idSource = aggregate.idSource ?? 'assigned';
   const owned = idSource === 'owner';
   const generated = new Set(lifecycleBodies(types, aggregate));
@@ -972,15 +909,18 @@ function aggregateModel(
       mounted: command.mounted ?? false,
       produces: command.produces ?? [],
       ...(command.description ? { description: command.description } : {}),
-      ...(types.textNumbers({ $ref: command.schema }) === undefined
+      ...(numbers.marks({ $ref: command.schema }, command.schema) === undefined
         ? {}
         : { bodyNumbers: true }),
     };
   });
-  const stateNumbers = types.textNumbers({ $ref: aggregate.state.schema });
+  const stateNumbers = numbers.marks(
+    { $ref: aggregate.state.schema },
+    aggregate.state.schema,
+  );
   const eventNumbers = Object.fromEntries(
     (aggregate.events ?? []).flatMap(event => {
-      const mark = types.textNumbers({ $ref: event.schema });
+      const mark = numbers.marks({ $ref: event.schema }, event.schema);
       return mark === undefined
         ? []
         : [[wireNameOf(context, aggregate, event.name), mark]];
@@ -988,7 +928,7 @@ function aggregateModel(
   );
   const commandNumbers = Object.fromEntries(
     domainCommands(aggregate).flatMap(command => {
-      const mark = types.textNumbers({ $ref: command.schema });
+      const mark = numbers.marks({ $ref: command.schema }, command.schema);
       return mark === undefined ? [] : [[command.name, mark]];
     }),
   );
@@ -998,7 +938,7 @@ function aggregateModel(
       .filter(attribute => attribute.integer)
       .map(attribute => [
         attribute.name,
-        attribute.multiple ? { '*': true } : true,
+        attribute.multiple ? { members: { '*': true } } : true,
       ]),
   );
   const textNumbers = {
@@ -1009,7 +949,7 @@ function aggregateModel(
       : { commands: commandNumbers }),
     ...(Object.keys(accessNumbers).length === 0
       ? {}
-      : { access: accessNumbers }),
+      : { access: { members: accessNumbers } }),
   };
   const stateKey = schemaKey(aggregate.state.schema);
   const stateSchema =

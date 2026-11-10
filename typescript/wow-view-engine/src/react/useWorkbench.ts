@@ -60,6 +60,7 @@ import {
   type ViewManagerController,
 } from './useViewManager.js';
 import { useInstanceSync } from './workbench/instanceSync.js';
+import { useSwitching } from './workbench/switching.js';
 import { useLeaveGuard, type LeaveGuard } from './workbench/leaveGuard.js';
 import { blankView, type NewViewOptions } from './workbench/newView.js';
 import { useReleaseDeleted } from './workbench/releaseDeleted.js';
@@ -565,28 +566,19 @@ export function useWorkbench(
   );
   useReleaseDeleted({ openId, chosen, opened: byId, setChosen });
 
-  // Read off the guard rather than the guard itself: `request` is the one
-  // stable part of it, and the object is new on every render.
-  const request = leave.request;
-  const choose = useCallback(
-    // Opening another view releases this one's runtime and the draft goes
-    // with it, so the switch is asked about before it happens.
-    (id: string | null) =>
-      request(() => {
-        hold(null);
-        setHanded(null);
-        setChosen(id);
-      }),
-    [request, hold],
-  );
-  const openHanded = useCallback(
-    (target: SavedViewTarget) => {
-      hold(null);
-      setHanded(target);
-      setChosen(target.instanceId);
-    },
-    [hold],
-  );
+  // Read off the guard rather than the guard itself: `request` and `cancel`
+  // are its stable parts, and the object is new on every render.
+  const { request, cancel: withdraw } = leave;
+  const { choose, openHanded } = useSwitching({
+    chosen,
+    setChosen,
+    held,
+    hold,
+    handed,
+    setHanded,
+    request,
+    withdraw,
+  });
   useHandOver(options.handOver, {
     engine,
     definitionId,

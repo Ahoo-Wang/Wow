@@ -64,7 +64,8 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   claim; the store keeps a node of a lower revision from overwriting the higher one and marks those snapshots stale.
  * - **In-place rebuild**: a node whose revision a table is claimed at, and which holds the table's rebuild lease (the
  *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its pending snapshots ([SnapshotRebuildStore.pending])
- *   from the log, page by page, at their latest version, and marks the table rebuilt once none is left. A node of
+ *   from the log, page by page, at their latest version, each run going on from where the last one stopped, and marks
+ *   the table rebuilt once a scan from its first snapshot finds none left. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
  *   of the log, by its store's subscription when that one has no checkpoint yet or is `snapshot` (the default store's,
@@ -112,6 +113,9 @@ class SnapshotMaintenance(
     private val tables = ConcurrentHashMap<Pair<String, AggregateType>, SnapshotTable>()
     private val tracked = ConcurrentHashMap<Pair<String, AggregateType>, String>()
     private val caughtUp: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
+
+    /** Where each table's rebuild stopped, by store and aggregate type. */
+    private val cursors = ConcurrentHashMap<Pair<String, AggregateType>, RebuildCursor>()
 
     @Volatile
     private var previousHeads: Map<Pair<String, Int>, Long>? = null
@@ -316,22 +320,43 @@ class SnapshotMaintenance(
         return claimed
     }
 
-    /** Rewrites a run's pages of the pending snapshots of [type] in [store], under the table's rebuild lease. */
+    /**
+     * Rewrites a run's pages of the pending snapshots of [type] in [store], under the table's rebuild lease, from where
+     * the last run stopped while this node has held the lease since: the snapshots before it are rewritten, so each run
+     * reads on instead of scanning them again. The lease's epoch alone makes going on safe: [revision] is the node's own
+     * for its life, and a lease taken again may follow another node's rewrites, so the scan then starts from the first.
+     * At the end of the table the scan starts over, for the snapshots marked stale behind it meanwhile; the table is
+     * rebuilt once a scan from the first finds none, unless it was claimed at another revision meanwhile.
+     */
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
+        val key = store to type
         val lease = rebuildGroup(store, type)
-        leases.acquire(lease, 0, node, options.leaseTtl) ?: return
+        val held = leases.acquire(lease, 0, node, options.leaseTtl)
+        if (held == null) {
+            cursors.remove(key)
+            return
+        }
         val snapshots = rebuildsOf(store)
         val model = models.getValue(type)
-        var after: AggregateRef? = null
+        var after = cursors[key]?.takeIf { it.epoch == held.epoch }?.after
         repeat(options.pages) {
             val pending = snapshots.pending(type, revision, after, options.batch)
             if (pending.isEmpty()) {
                 if (after == null) {
-                    snapshots.mark(type, revision, rebuilding = false)?.let { tables[store to type] = it }
+                    cursors.remove(key)
+                    val marked = snapshots.mark(type, revision, rebuilding = false)
                     leases.release(lease, 0, node)
-                    logger.info { "The snapshots of $type in $store are rebuilt at state revision $revision." }
+                    if (marked == null) {
+                        // Claimed at another revision meanwhile: the next run acts on that claim.
+                        logger.info { "The table of $type in $store was claimed at another revision than $revision." }
+                    } else {
+                        tables[key] = marked
+                        logger.info { "The snapshots of $type in $store are rebuilt at state revision $revision." }
+                    }
+                    return
                 }
-                return
+                after = null
+                return@repeat
             }
             pending.forEach { ref ->
                 val record = recordOf(model, ref)
@@ -344,6 +369,7 @@ class SnapshotMaintenance(
             after = pending.last()
             leases.renew(lease, listOf(0), node, options.leaseTtl)
         }
+        cursors[key] = RebuildCursor(held.epoch, after)
     }
 
     /**
@@ -447,6 +473,12 @@ class SnapshotMaintenance(
     private fun memberGroup(type: AggregateType, revision: Int): String = "$group#snapshot/${type.name}@$revision"
 
     private fun rebuildGroup(store: String, type: AggregateType): String = "$group#snapshot-rebuild/$store/${type.name}"
+
+    /**
+     * Where a rebuild of a table stopped: under the rebuild lease of [epoch], after the snapshot [after] (null to start
+     * from the first). The epoch alone keys it: a node rebuilds at its own revision for its life.
+     */
+    private class RebuildCursor(val epoch: Long, val after: AggregateRef?)
 
     @InternalWowApi
     companion object {

@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   online splits of 10.x;
  * - `wow_log__<context>__<aggregate>`: the streams of one aggregate type ([AggregateLogTable]);
  * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all,
- *   and the access walk of each one's type (`access_walk`, a nullable `jsonb` column added within format 1:
+ *   and the access walk of each one's type (`access_walk`, a nullable `jsonb` column:
  *   `{schema, heads: {partition: head}, cursor, walked, completed}`, null before the first claim).
  */
 internal class PostgresEventLogTables(val context: String) {
@@ -43,21 +43,14 @@ internal class PostgresEventLogTables(val context: String) {
         """.trimIndent(),
         """
         CREATE TABLE IF NOT EXISTS $REGISTRY (
-            context text NOT NULL,
-            aggregate text NOT NULL,
-            log_table text NOT NULL UNIQUE,
+            context text COLLATE "C" NOT NULL,
+            aggregate text COLLATE "C" NOT NULL,
+            log_table text COLLATE "C" NOT NULL UNIQUE,
             access_walk jsonb,
             PRIMARY KEY (context, aggregate)
         )
         """.trimIndent(),
     )
-
-    /**
-     * The lineage columns of the counter table, added within format 1 to a table created without them:
-     * its rows read as partitions the log was created with.
-     */
-    val partitionAdditions = "ALTER TABLE $partitions ADD COLUMN IF NOT EXISTS parent integer, " +
-        "ADD COLUMN IF NOT EXISTS epoch integer NOT NULL DEFAULT 0"
 
     /**
      * Creates the partition counters of an empty counter table, each with no parent at epoch 0; a table that has
@@ -68,12 +61,8 @@ internal class PostgresEventLogTables(val context: String) {
             "SELECT p, 0, NULL, 0 FROM generate_series(0, ${partitionCount - 1}) AS p " +
             "WHERE NOT EXISTS (SELECT 1 FROM $partitions) ON CONFLICT (partition) DO NOTHING"
 
-    /**
-     * A partition's counter row, its lineage columns included when it has them: partition. `*` rather than the
-     * columns, so that a log only validating a schema created before them (ddl validate) reads its partitions as the
-     * log was created with them.
-     */
-    val partitionRow = "SELECT * FROM $partitions WHERE partition = ?"
+    /** A partition's lineage, from its counter row: partition. */
+    val partitionRow = "SELECT parent, epoch FROM $partitions WHERE partition = ?"
 
     /** The table of [aggregate]; refuses a name that takes the counter table's. */
     fun aggregate(aggregate: String): AggregateLogTable {
@@ -83,9 +72,6 @@ internal class PostgresEventLogTables(val context: String) {
         }
         return table
     }
-
-    /** The access walk column of the registry, added within format 1 to a registry created without it. */
-    val registryAdditions = "ALTER TABLE $REGISTRY ADD COLUMN IF NOT EXISTS access_walk jsonb"
 
     /** The access walk of an aggregate type: context, aggregate. */
     val walk = "SELECT access_walk FROM $REGISTRY WHERE context = ? AND aggregate = ?"
@@ -269,8 +255,11 @@ internal class PostgresEventLogTables(val context: String) {
     }
 
     companion object {
-        /** The version of this layout. */
-        const val FORMAT = 1
+        /**
+         * The version of this layout: 2 since the keys compare by code point (`COLLATE "C"`) and the version key leads
+         * with the tenant; a store of format 1 is refused.
+         */
+        const val FORMAT = 2
 
         /** The parameters of a stream in [appendGroupAcross]: its partition, then its own. */
         const val ACROSS_STREAM_PARAMETERS = AggregateLogTable.STREAM_PARAMETERS + 1
@@ -279,12 +268,6 @@ internal class PostgresEventLogTables(val context: String) {
         const val REGISTRY = "wow_log_aggregate"
 
         const val PREFIX = "wow_log"
-
-        /** The columns [partitionAdditions] adds. */
-        val PARTITION_ADDED = listOf("parent", "epoch")
-
-        /** The columns [registryAdditions] adds. */
-        val REGISTRY_ADDED = listOf("access_walk")
         const val PARTITION = "partition"
     }
 }
@@ -295,15 +278,12 @@ internal class PostgresEventLogTables(val context: String) {
  * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_cross_scope`, all null for an anonymous
  * caller. The schedules are among the events. The aggregate's access attributes are a nullable `jsonb` column,
  * `{name: value | [values]}` in their stored form ([me.ahoo.wow.spi.access.AccessValues]): null for a stream not
- * stamped (appended before format 1 learned them, or imported without them); `access_version` the version they are
- * of, the stream's own when appended with them, a later one's once a stamp wrote them ([stamp]). The operator and the
- * access attributes are columns added within format 1, so a table created before them gets them on its next ensure
- * ([additions]); a table of a version that recorded tags keeps its `tags` column, nullable, which nothing writes or
- * reads. The transport is its own nullable `bytea`
- * column: the bytes the runtime encoded, stored and given back unchanged; only the
- * tail and the recovery read return it. The table has no aggregate name column: the table is
- * the aggregate type. Its keys are the position `(partition, sequence)`, the version `(aggregate_id, tenant_id,
- * version)` and the request `(tenant_id, request_id)`, all within the type.
+ * stamped (imported without them); `access_version` the version they are of, the stream's own when appended with
+ * them, a later one's once a stamp wrote them ([stamp]). The transport is its own nullable `bytea` column: the bytes
+ * the runtime encoded, stored and given back unchanged; only the tail and the recovery read return it. The table has
+ * no aggregate name column: the table is the aggregate type. Its keys are the position `(partition, sequence)`, the
+ * version `(tenant_id, aggregate_id, version)` and the request `(tenant_id, request_id)`, all within the type, the
+ * text ones compared by code point (`COLLATE "C"`, as the snapshots' are), whatever the database's default.
  */
 internal class AggregateLogTable(val aggregate: String, val base: String, private val partitions: String) {
     val log = "\"$base\""
@@ -314,11 +294,11 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         CREATE TABLE IF NOT EXISTS $log (
             partition integer NOT NULL,
             sequence bigint NOT NULL,
-            tenant_id text NOT NULL,
-            aggregate_id text NOT NULL,
+            tenant_id text COLLATE "C" NOT NULL,
+            aggregate_id text COLLATE "C" NOT NULL,
             version integer NOT NULL,
             command_id text NOT NULL,
-            request_id text NOT NULL,
+            request_id text COLLATE "C" NOT NULL,
             command_type text NOT NULL,
             commit_time bigint NOT NULL,
             events jsonb NOT NULL,
@@ -334,16 +314,10 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             access jsonb,
             access_version integer,
             PRIMARY KEY (partition, sequence),
-            CONSTRAINT "$versionKey" UNIQUE (aggregate_id, tenant_id, version),
+            CONSTRAINT "$versionKey" UNIQUE (tenant_id, aggregate_id, version),
             CONSTRAINT "$requestKey" UNIQUE (tenant_id, request_id)
         )
     """.trimIndent()
-
-    /** Adds format 1's added columns (the operator and the access attributes) to a table created before them. */
-    val additions = "ALTER TABLE $log ADD COLUMN IF NOT EXISTS operator_id text, " +
-        "ADD COLUMN IF NOT EXISTS operator_tenant_id text, " +
-        "ADD COLUMN IF NOT EXISTS operator_cross_scope boolean, " +
-        "ADD COLUMN IF NOT EXISTS access jsonb, ADD COLUMN IF NOT EXISTS access_version integer"
 
     /**
      * The whole append as one autocommitted statement, so it costs one round trip and holds the partition row's lock
@@ -444,21 +418,18 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     /**
      * The first page of the table's aggregates, by the version key: each one's first stream, in the key's order
-     * (aggregate id, then tenant). Parameter: limit.
+     * (tenant, then aggregate id). Parameter: limit.
      */
     val firstAggregates = "SELECT aggregate_id, tenant_id FROM $log WHERE version = 1 " +
-        "ORDER BY aggregate_id, tenant_id LIMIT ?"
+        "ORDER BY tenant_id, aggregate_id LIMIT ?"
 
-    /** The page of the table's aggregates after one, as [firstAggregates]: aggregate id, tenant, limit. */
-    val aggregatesAfter = "SELECT aggregate_id, tenant_id FROM $log WHERE (aggregate_id, tenant_id) > (?, ?) " +
-        "AND version = 1 ORDER BY aggregate_id, tenant_id LIMIT ?"
+    /** The page of the table's aggregates after one, as [firstAggregates]: tenant, aggregate id, limit. */
+    val aggregatesAfter = "SELECT aggregate_id, tenant_id FROM $log WHERE (tenant_id, aggregate_id) > (?, ?) " +
+        "AND version = 1 ORDER BY tenant_id, aggregate_id LIMIT ?"
 
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
     companion object {
-        /** The columns [additions] adds. */
-        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope", "access", "access_version")
-
         /** The columns a stream is written to besides its position, in the order of its parameters. */
         const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +

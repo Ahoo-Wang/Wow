@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.schedule
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -22,14 +23,17 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
+import me.ahoo.wow.api.schedule.TickJob
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
@@ -51,6 +55,7 @@ import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.timer.orderModel
 import me.ahoo.wow.runtime.timer.shopManifest
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -255,15 +260,67 @@ class ScheduleJobsNodeTest {
     }
 
     @Test
-    fun `a node without jobs has no job aggregate, and the startup of a TENANT job sends nothing`() {
-        val node = node("node-1", TimedBackends(), emptyList())
-        node.registry.find(ScheduleJobs.typeOf(SHOP)).assert().isNull()
+    fun `a node without jobs serves its job aggregate deciding for none, and the startup of a TENANT job sends nothing`():
+        Unit = runBlocking {
+        val node = node("node-1", TimedBackends(), emptyList()).also { it.start() }
+        node.registry.find(ScheduleJobs.typeOf(SHOP)).assert().isNotNull()
+        // An Enable of a job the node does not declare is refused as an unknown job.
+        val refused = node.send(ScheduleJobModel.refOf(SHOP, "nightly"), EnableJob("nightly"))
+        refused.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        refused.error?.code.assert().isEqualTo(FrameworkCodes.SCHEDULE_JOB_INVALID)
         ScheduleJobRuntime.startup(SHOP, listOf(EVERY_SECOND_TENANT), emptyMap(), 4).assert().isEmpty()
         ScheduleJobRuntime.startup(SHOP, listOf(SHARDED), emptyMap(), 2).map { it.second }.assert()
             .containsExactly(EnableJob("shard", partition = 0), EnableJob("shard", partition = 1))
         SubscriptionFactory.NONE.jobs(SHOP).assert().isEmpty()
         (SubscriptionFactory.NONE + SubscriptionBindings(mapOf(SHOP to listOf(handler(NIGHTLY))))).jobs(SHOP)
             .assert().isEqualTo(mapOf("Jobs.onnightly" to NIGHTLY))
+    }
+
+    @Test
+    fun `the instance of a job removed with the last handler is disabled at its next tick, its schedule cancelled`():
+        Unit = runBlocking {
+        val backends = TimedBackends(partitions = 1)
+        val ref = ScheduleJobModel.refOf(SHOP, EVERY_SECOND_SYSTEM.name)
+        val stores = backends.backends(SHOP)
+        val old = node("old", backends, listOf(EVERY_SECOND_SYSTEM)).also { it.start() }
+        eventually { old.tickTimer(ref) != null }
+        old.stop()
+        // The next version declares no job at all.
+        val next = node("next", backends, emptyList()).also { it.start() }
+        eventually { next.tickTimer(ref)?.status == TimerStatus.CANCELLED }
+        stores.log.read(ref).toList().flatMap { it.events }.map { it.name }.assert()
+            .contains(ScheduleJobs.JOB_DISABLED)
+        stores.ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, ref).assert().isNull()
+    }
+
+    @Test
+    fun `a leftover tick forwarded to the node that owns the instance disables it there`(): Unit = runBlocking {
+        val backends = TimedBackends(partitions = 2)
+        val ref = ScheduleJobModel.refOf(SHOP, YEARLY.name)
+        val old = node("old", backends, listOf(YEARLY)).also { it.start() }
+        eventually { old.tickTimer(ref) != null }
+        val timer = checkNotNull(old.tickTimer(ref))
+        old.stop()
+        // Two nodes of the next version, which declares no job, share the partitions.
+        val one = node("one", backends, emptyList()).also { it.start() }
+        val two = node("two", backends, emptyList()).also { it.start() }
+        val partition = Partitioner.partitionOf(ref, 2)
+        eventually {
+            val owned = one.context(SHOP).ownership.owned + two.context(SHOP).ownership.owned
+            owned == setOf(0, 1) && one.context(SHOP).ownership.owned.intersect(two.context(SHOP).ownership.owned).isEmpty()
+        }
+        val sender = if (partition in one.context(SHOP).ownership.owned) two else one
+        // A tick of the instance's timer, for a slot due now, sent from the node that does not own its partition, as
+        // a hand-off may send it.
+        val model = checkNotNull(sender.registry.find(ScheduleJobs.typeOf(SHOP)))
+        val slot = ScheduleContext(timer.id, ScheduleJobs.TICK_KEY, 1, System.currentTimeMillis(), 0)
+        val tick =
+            Command(timer.requestId, timer.requestId, ref, TickJob, headers = slot.headers(), wait = WaitPlan.COMMITTED)
+        sender.context(SHOP).coordinator.execute(model, tick).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { sender.tickTimer(ref)?.status == TimerStatus.CANCELLED }
+        backends.backends(SHOP).log.read(ref).toList().flatMap { it.events }.map { it.name }.assert()
+            .contains(ScheduleJobs.JOB_DISABLED)
     }
 
     /**
@@ -285,5 +342,6 @@ class ScheduleJobsNodeTest {
         val EVERY_SECOND_TENANT = ScheduleJob("report", ScheduleRule.Cron("* * * * * *"), JobScope.TENANT)
         val SHARDED = ScheduleJob("shard", ScheduleRule.Cron("* * * * * *"), JobScope.SHARDED)
         val NIGHTLY = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"))
+        val YEARLY = ScheduleJob("yearly", ScheduleRule.Cron("0 0 0 1 1 *"))
     }
 }

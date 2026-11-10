@@ -16,11 +16,15 @@ package me.ahoo.wow.runtime.subscription
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.timer.TestClock
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
@@ -31,6 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -67,7 +72,7 @@ class ParkedRetriesTest {
 
     private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, claimTtl = 1.seconds)
 
-    private fun runtime(spec: ParkedRetrySpec = this.spec) = SubscriptionRuntime(
+    private fun runtime(spec: ParkedRetrySpec = this.spec, ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
@@ -247,6 +252,151 @@ class ParkedRetriesTest {
         handled.versionsOf("x").assert().isEqualTo(listOf(1, 2))
         second.stop()
         first.stop()
+    }
+
+    /**
+     * A ledger whose next scan that finds entries due, once [armed], lets an operator change each of them right after
+     * the owner read it: the owner then claims, takes or schedules at a revision the entry is no longer at.
+     */
+    private inner class ChangedAfterRead : FailureLedger by ledger {
+        val armed = AtomicBoolean()
+
+        override suspend fun due(
+            subscription: String,
+            partitions: Collection<Int>,
+            now: Long,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<ParkedAggregate> = ledger.due(subscription, partitions, now, after, limit).also { page ->
+            if (page.isNotEmpty() && armed.compareAndSet(true, false)) {
+                val change = ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE)
+                page.forEach { ledger.amend(it.subscription, it.ref, change) }
+            }
+        }
+    }
+
+    @Test
+    fun `an operator's request whose take lost to a later change is run by the next scan`(): Unit = runBlocking {
+        failures.set(1)
+        val changing = ChangedAfterRead()
+        val runtime = runtime(ledger = changing)
+        parkX(runtime)
+        attemptedAfterScans(1)
+        changing.armed.set(true)
+        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
+        eventually { parked() == null }
+        changing.armed.get().assert().isFalse()
+        attempts.get().assert().isEqualTo(2)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an operator's skip whose take lost to a later change is run by the next scan`(): Unit = runBlocking {
+        val changing = ChangedAfterRead()
+        val runtime = runtime(ledger = changing)
+        parkX(runtime)
+        attemptedAfterScans(1)
+        changing.armed.set(true)
+        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
+        eventually { parked() == null }
+        changing.armed.get().assert().isFalse()
+        attempts.get().assert().isEqualTo(1)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an automatic retry whose claim lost to a later change is claimed by the next scan, counted once`(): Unit =
+        runBlocking {
+            failures.set(2)
+            val changing = ChangedAfterRead()
+            val runtime = runtime(ledger = changing)
+            parkX(runtime)
+            attemptedAfterScans(1)
+            changing.armed.set(true)
+            clock.advance(1.seconds)
+            eventually { attempts.get() == 2 && parked()?.retries == 1 }
+            changing.armed.get().assert().isFalse()
+            parked()!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
+            runtime.stop()
+        }
+
+    @Test
+    fun `an operator's retry accepted while the owner computes a schedule is run by the next scan`(): Unit =
+        runBlocking {
+            // #5506: the owner's schedule, read before the request, must not hide it at NEVER.
+            ownerScheduleRace { ops, id, ref ->
+                ops.retry(id, ref).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+            }
+        }
+
+    @Test
+    fun `a retry spec applied while the owner computes a schedule is retried by the next scan`(): Unit =
+        runBlocking {
+            // #5506, as HostParkedOpsTest met it: a spent entry given another retry while the owner scheduled it NEVER.
+            ownerScheduleRace { ops, id, ref ->
+                ops.applyRetrySpec(id, ref, ParkedRetrySpec(1, Duration.ZERO, Duration.ZERO)).assert().isNotNull()
+            }
+        }
+
+    /**
+     * Parks an aggregate of a subscription not retried automatically, holds the owner's first schedule of it (NEVER)
+     * until [change], an operator's action through another node, is stored, then lets it land: it must not, and the
+     * next scan must run the aggregate again.
+     */
+    private suspend fun ownerScheduleRace(change: suspend (ParkedOps, SubscriptionId, AggregateRef) -> Unit) {
+        val name = "Audit.resume"
+        val ref = cart("parked")
+        val log = InMemoryEventLog(partitions = 1)
+        val stored = InMemoryFailureLedger()
+        val scheduling = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val held = AtomicBoolean()
+        val stale = AtomicReference<ParkedAggregate?>()
+        val ledger = object : FailureLedger by stored {
+            override suspend fun amend(
+                subscription: String,
+                ref: AggregateRef,
+                amendment: ParkedAmendment,
+            ): ParkedAggregate? {
+                if (amendment is ParkedAmendment.Schedule && amendment.at == ParkedAggregate.NEVER &&
+                    held.compareAndSet(false, true)
+                ) {
+                    // Only delays the owner's write; the condition is the store's.
+                    scheduling.complete(Unit)
+                    release.await()
+                    return stored.amend(subscription, ref, amendment).also { stale.set(it) }
+                }
+                return stored.amend(subscription, ref, amendment)
+            }
+        }
+        val broken = AtomicBoolean(true)
+        val tried = AtomicInteger()
+        val subscription = Subscription(name, SubscriptionFilter("shop")) {
+            tried.incrementAndGet()
+            check(!broken.get()) { "the downstream is temporarily broken" }
+        }
+        val options = testOptions(maxAttempts = 1).copyWith(
+            parked = ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0), scanInterval = 5.milliseconds),
+        )
+        val owner = SubscriptionRuntime("race", log, InMemoryCheckpointStore(), ledger, listOf(subscription), options)
+        // Another node: the same ledger, without the partition.
+        val other = SubscriptionRuntime("race", log, InMemoryCheckpointStore(), stored, listOf(subscription), options)
+        try {
+            Appender(log).append(ref.id)
+            owner.start(setOf(0))
+            withTimeout(10.seconds) { scheduling.await() }
+            broken.set(false)
+            change(ParkedOps.of(listOf(other)), SubscriptionId("shop", name), ref)
+            release.complete(Unit)
+            // The schedule lost to the change, after which the entry is due: the next scan runs it.
+            eventually { stored.parked(name, ref) == null }
+            stale.get().assert().isNull()
+            tried.get().assert().isEqualTo(2)
+        } finally {
+            release.complete(Unit)
+            owner.stop()
+            other.stop()
+        }
     }
 
     private companion object {

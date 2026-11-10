@@ -14,10 +14,10 @@
 import {
   type JsonServerSentEvent,
   type ServerSentEvent,
-  toJsonServerSentEventStream,
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
-import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
+import { parseJson } from './exactJson.js';
+import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
 import { isProblem, rememberRequestId, WowProblemError } from './problem.js';
@@ -44,22 +44,45 @@ export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
 >;
 
 /**
- * The data of each event of `response`'s server-sent event stream, the
+ * The events of `answer`'s server-sent event stream, each event's data read
+ * as JSON: with the answer's exact numbers for an event `marked` names.
+ */
+function eventsOf(
+  answer: Answer,
+  marked: (event: string | undefined) => boolean,
+): ReadableStreamDefaultReader<JsonServerSentEvent<unknown>> {
+  return toServerSentEventStream(answer.response)
+    .pipeThrough(
+      new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
+        transform(event, controller) {
+          controller.enqueue({
+            ...event,
+            data: parseJson(
+              event.data,
+              marked(event.event) ? answer.numbers : undefined,
+            ),
+          });
+        },
+      }),
+    )
+    .getReader();
+}
+
+/**
+ * The data of each event of `answer`'s server-sent event stream, the
  * results of the command sent with `requestId`. A read that fails, such as a
  * connection lost after the response began, fails with an error that carries
  * `requestId` (`requestIdOf`): the command may have been committed, and
  * a retry with the same id is answered as its duplicate.
  */
 export function commandResults<R>(
-  response: Response,
+  answer: Answer,
   requestId: string,
 ): CommandResultStream<R> {
-  const reader = toJsonServerSentEventStream<CommandResult<R>>(
-    toServerSentEventStream(response),
-  ).getReader();
+  const reader = eventsOf(answer, () => true);
   return new ReadableStream<CommandResult<R>>({
     async pull(controller) {
-      let next: ReadableStreamReadResult<JsonServerSentEvent<CommandResult<R>>>;
+      let next: ReadableStreamReadResult<JsonServerSentEvent<unknown>>;
       try {
         next = await reader.read();
       } catch (error) {
@@ -67,7 +90,7 @@ export function commandResults<R>(
         throw error;
       }
       if (next.done) controller.close();
-      else controller.enqueue(next.value.data);
+      else controller.enqueue(next.value.data as CommandResult<R>);
     },
     cancel(reason) {
       return reader.cancel(reason);
@@ -163,23 +186,23 @@ function problemOf(data: unknown): WowProblemError {
  * with how many records were read so far: `undefined` when no more are
  * wanted. Each record comes with its position. An `error` event that is not
  * retryable, a failure `reopen` cannot get past, and an abort of `signal`
- * error the stream.
+ * error the stream. The signal `reopen` is given aborts once `signal` does or
+ * the stream's reader cancels it: a cancel during a wait to resume, or while
+ * the stream is asked for again, sends nothing more and leaves no response
+ * open.
  *
  * @param response - The first response
  * @param reopen - Asks for the stream again after a position
  * @param options - How the stream resumes, and what cancels it
  */
 export function resumableQueryRows<T>(
-  response: Response,
+  answer: Answer,
   reopen: (
     lastEventId: string | undefined,
     received: number,
-  ) => Promise<Response | undefined>,
-  options: StreamResumeOptions & {
-    readonly signal?: AbortSignal;
-    /** The numbers of each record read as their exact text (review R4-Q, Q-9). */
-    readonly numbers?: TextNumbers;
-  } = {},
+    signal: AbortSignal,
+  ) => Promise<Answer | undefined>,
+  options: StreamResumeOptions & { readonly signal?: AbortSignal } = {},
 ): ReadableStream<Positioned<T>> {
   const {
     maxRetries = DEFAULT_RETRY.attempts - 1,
@@ -187,46 +210,44 @@ export function resumableQueryRows<T>(
     maxDelayMs = DEFAULT_RETRY.maxWaitMs,
     signal,
   } = options;
-  const numbers = options.numbers;
-  const events = (from: Response) =>
-    (marksNothing(numbers)
-      ? toJsonServerSentEventStream<unknown>(toServerSentEventStream(from))
-      : toServerSentEventStream(from).pipeThrough(
-          new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
-            transform(event, controller) {
-              const row =
-                event.event === ROW_EVENT || event.event === UNNAMED_EVENT;
-              controller.enqueue({
-                ...event,
-                data: parseJson(event.data, row ? numbers : undefined),
-              });
-            },
-          }),
-        )
-    ).getReader();
-  let reader = events(response);
+  // A record's exact numbers are its answer's (review R4-Q, Q-9).
+  const events = (from: Answer) =>
+    eventsOf(from, event => event === ROW_EVENT || event === UNNAMED_EVENT);
+  let reader = events(answer);
   let lastEventId = options.lastEventId;
   let received = 0;
   let failures = 0;
-  // Set once the reader cancels: a read in flight then ends, and must not be
-  // taken for a cut-off stream to ask for again.
-  let cancelled = false;
+  // Aborted once the reader cancels: a read in flight then ends, and must not
+  // be taken for a cut-off stream to ask for again. `halted` aborts with it or
+  // with `signal`, and a wait to resume, or a request to, ends with `halted`
+  // (`AbortSignal.any`: Node 20.3, Chrome 116, Firefox 124, Safari 17.4, all
+  // within the runtimes the compatibility page states).
+  const cancelling = new AbortController();
+  const halted =
+    signal === undefined
+      ? cancelling.signal
+      : AbortSignal.any([signal, cancelling.signal]);
 
   /** Asks for the stream again, or throws `cause` once out of retries. */
   async function resume(cause: unknown, delayMs?: number): Promise<boolean> {
     for (;;) {
-      if (signal?.aborted) throw signal.reason;
+      if (halted.aborted) throw halted.reason;
       if (failures++ >= maxRetries) throw cause;
       const wait =
         delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
-      if (wait > 0) await sleep(wait, signal);
+      if (wait > 0) await sleep(wait, halted);
       try {
-        const next = await reopen(lastEventId, received);
+        const next = await reopen(lastEventId, received, halted);
+        if (halted.aborted) {
+          // Answered as it was cancelled: nothing reads this response.
+          await next?.response.body?.cancel(halted.reason);
+          throw halted.reason;
+        }
         if (next) reader = events(next);
         return next !== undefined;
       } catch (error) {
         if (
-          signal?.aborted ||
+          halted.aborted ||
           (error instanceof WowProblemError && error.retry === 'none')
         ) {
           throw error;
@@ -280,7 +301,7 @@ export function resumableQueryRows<T>(
           if (error === stop || error instanceof WowProblemError) throw error;
           stop = error;
         }
-        if (cancelled) return;
+        if (cancelling.signal.aborted) return;
         // Only a stream read from the start, or whose records have positions, can be asked for again.
         if (signal?.aborted) throw signal.reason;
         if (lastEventId === undefined && received > 0) throw stop;
@@ -291,7 +312,7 @@ export function resumableQueryRows<T>(
       }
     },
     cancel(reason) {
-      cancelled = true;
+      cancelling.abort(reason);
       return reader.cancel(reason);
     },
   });

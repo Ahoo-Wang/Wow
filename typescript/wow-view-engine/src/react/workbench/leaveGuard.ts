@@ -164,17 +164,17 @@ export function useLeaveGuard(
     [blocking],
   );
 
+  const cancel = useCallback(() => setHeld(null), []);
+
   return {
     asking: held !== null,
     request,
+    cancel,
     confirm() {
       // Settled before the switch, not after: `next` releases this runtime,
       // and the outcome would have nothing left to be an outcome of.
       onLeave?.();
       held?.next();
-      setHeld(null);
-    },
-    cancel() {
       setHeld(null);
     },
     ...(save && {

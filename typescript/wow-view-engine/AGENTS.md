@@ -354,6 +354,7 @@ src/
     viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `AnalysisViewRuntime` (narrowed to by `isAnalysisRuntime`), `ManagedViewRuntime`, the state and result shapes, `SaveAsInput`; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
+    writeEffects.ts           — `applyWriteEffect`: what a confirmed write changes, on the first attempt and a retry alike — baselines, caches, a panel's view saved as its own pointed at it, a board 放进仪表盘 adopted or the panel carried onto its edited draft
     index.ts                  — Transient state: what is open, what is in flight, what came back; the runtime's public face, named export by export (D29)
     failure/                  — What goes wrong, read and told: a source's failure in its own words, the Issue of a failed query or command, the host's `onError` told once, the development console of `onIssue`, and what a config uses that its source no longer admits
       issues.ts               — `toIssue`: one Issue for whatever a command threw
@@ -448,6 +449,7 @@ src/
       leaveGuard.ts           — Headless leave protection; `/ui` draws `LeaveDialog` from it
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
+      switching.ts            — `useSwitching`: the two ways a workbench changes the open view — `choose`, through the leave guard (the view already open withdraws its question), and `openHanded`
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
   ui/                         — Default look; may import every layer. Three tiers: `kit/` under every feature folder, the feature folders, and at the root only the `/ui` entry, the five shells and the host's own pieces
     DashboardWorkbench.tsx    — Default Dashboard workbench: no 「正在显示」 band (D27), the board's fixed scope handed to the filter bar, a finding about a filter or a panel said by its name
