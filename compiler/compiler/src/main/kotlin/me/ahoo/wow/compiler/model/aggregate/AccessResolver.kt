@@ -25,7 +25,9 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
+import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.manifest.AccessAttributeName
@@ -76,6 +78,7 @@ internal data class AccessBinding(
  */
 internal object AccessResolver {
     private val BLOCKING = Blocking::class.java.name
+    private val ACCESS = Access::class.java.name
     private const val WHERE = "@Access"
 
     /** The value types by qualified name, Kotlin's and Java's, to the Kotlin class and the Manifest type. */
@@ -105,8 +108,15 @@ internal object AccessResolver {
 
     /** The access attributes of [state], properties before functions, each in declaration order; problems to [problems]. */
     fun of(state: KSClassDeclaration, problems: MutableList<String>): List<AccessBinding> {
-        val properties = state.getAllProperties().filter { it.isAccess() }.mapNotNull { property(it, problems) }
-        val functions = state.getAllFunctions().filter { it.isAccess() }.mapNotNull { function(it, problems) }
+        // A property is an attribute by the @Access of the declaration that carries it, an override's own or its
+        // supertype's ([declarations]); its type is the property's, a supertype's `T` substituted.
+        val properties = state.getAllProperties().mapNotNull { property ->
+            property.declarations().firstOrNull { it.isAccess() }?.let { property(property, it, problems) }
+        }
+        // A function too, by the function that carries it, its own or one it overrides ([annotatedIn]).
+        val functions = state.getAllFunctions().mapNotNull { function ->
+            function.annotatedIn(ACCESS)?.let { function(function, it, problems) }
+        }
         val bindings = (properties + functions).toList()
         bindings.groupBy { it.name.lowercase() }.values.filter { it.size > 1 }.forEach { same ->
             problems += "the state ${state.simpleName.asString()} declares the access attributes " +
@@ -115,7 +125,11 @@ internal object AccessResolver {
         return bindings
     }
 
-    private fun property(property: KSPropertyDeclaration, problems: MutableList<String>): AccessBinding? {
+    private fun property(
+        property: KSPropertyDeclaration,
+        annotated: KSPropertyDeclaration,
+        problems: MutableList<String>,
+    ): AccessBinding? {
         val member = property.simpleName.asString()
         val where = "$WHERE property $member"
         val found = listOfNotNull(
@@ -123,10 +137,14 @@ internal object AccessResolver {
             "$where is private: the generated model reads it".takeIf { property.isPrivate() },
         )
         problems += found
-        return binding(property, member, true, where, property.type.resolve(), problems).takeIf { found.isEmpty() }
+        return binding(annotated, member, true, where, property.type.resolve(), problems).takeIf { found.isEmpty() }
     }
 
-    private fun function(function: KSFunctionDeclaration, problems: MutableList<String>): AccessBinding? {
+    private fun function(
+        function: KSFunctionDeclaration,
+        annotated: KSFunctionDeclaration,
+        problems: MutableList<String>,
+    ): AccessBinding? {
         val member = function.simpleName.asString()
         val where = "$WHERE function $member"
         val found = listOfNotNull(
@@ -134,7 +152,7 @@ internal object AccessResolver {
             "$where is an extension: it is a member of the state".takeIf { function.extensionReceiver != null },
             "$where suspends: deriving an access attribute does no I/O".takeIf { Modifier.SUSPEND in function.modifiers },
             "$where is annotated @Blocking: deriving an access attribute does no I/O".takeIf {
-                function.annotations.any { it.isOf(BLOCKING) }
+                function.annotatedIn(BLOCKING) != null
             },
             "$where is private: the generated model calls it".takeIf { function.isPrivate() },
         )
@@ -144,10 +162,13 @@ internal object AccessResolver {
             problems += "$where returns nothing, not $RETURNS"
             return null
         }
-        return binding(function, member, false, where, returned, problems).takeIf { found.isEmpty() }
+        return binding(annotated, member, false, where, returned, problems).takeIf { found.isEmpty() }
     }
 
-    /** The binding of [declaration], named as its `@Access` says, else [member]; null, told, when it has a problem. */
+    /**
+     * The binding of [member], named as the `@Access` of [declaration], the declaration that carries it, says, else
+     * [member]; null, told, when it has a problem.
+     */
     private fun binding(
         declaration: KSDeclaration,
         member: String,
@@ -264,5 +285,5 @@ internal object AccessResolver {
         return if (isMarkedNullable) "$rendered?" else rendered
     }
 
-    private fun KSDeclaration.isAccess(): Boolean = annotations.any { it.isOf(Access::class.java.name) }
+    private fun KSDeclaration.isAccess(): Boolean = annotations.any { it.isOf(ACCESS) }
 }

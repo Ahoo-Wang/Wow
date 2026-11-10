@@ -78,8 +78,15 @@ internal fun KSPropertyDeclaration.jsonIgnored(problems: MutableList<String>): B
 internal fun KSClassDeclaration.jsonIgnoredProperties(problems: MutableList<String>): Set<String> =
     argumentsOf(JsonIgnoreProperties::class, problems)?.strings(AnnotationArguments.VALUE).orEmpty().toSet()
 
-/** Where a Jackson annotation of this property stands: the property, its getter and its primary-constructor parameter. */
-private fun KSPropertyDeclaration.jacksonHolders(): List<KSAnnotated> {
+/**
+ * Where a Jackson annotation of this property stands, nearest first: those of this property and of each declaration
+ * it overrides ([declarations]), as Jackson reads a member with the members it overrides.
+ */
+private fun KSPropertyDeclaration.jacksonHolders(): List<KSAnnotated> =
+    declarations().flatMap { it.ownHolders() }.toList()
+
+/** Where a Jackson annotation of a declaration stands: the property, its getter and its constructor parameter. */
+private fun KSPropertyDeclaration.ownHolders(): List<KSAnnotated> {
     val name = simpleName.asString()
     val parameter = (parentDeclaration as? KSClassDeclaration)?.primaryConstructor?.parameters
         ?.firstOrNull { it.name?.asString() == name }
