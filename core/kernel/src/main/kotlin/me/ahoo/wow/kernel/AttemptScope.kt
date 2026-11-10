@@ -236,3 +236,58 @@ private fun isFatal(failure: Throwable): Boolean = failure is VirtualMachineErro
 
 /** The kernel's logger: an attempt's warnings are the kernel's. */
 private val logger = KotlinLogging.logger(Kernel::class.java.name)
+
+/**
+ * How the [Kernel] opens an attempt's scope ([open]): its ids, from [ids] ([DecideScope.ids]: the node's generators,
+ * fixed ids in the test DSL), its time on [clock], its reservations, and how it stores the commands its decide
+ * functions schedule ([encoder]).
+ */
+internal class AttemptScopes(
+    private val ids: Ids,
+    private val clock: () -> Long,
+    private val reservations: ReservationStore?,
+    private val options: KernelOptions,
+    private val observer: Observer,
+    private val commandTypes: CommandTypes,
+    private val codec: EventCodec,
+) {
+    /** How the attempts of a command of [model] store the commands they schedule: one for all of the command's attempts. */
+    fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, String> =
+        { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
+
+    /** An attempt of [command] on [loaded], at this kernel's time, with [wait] and [encode]. */
+    fun open(
+        command: Command<*>,
+        loaded: CachedState,
+        wait: WaitContext?,
+        encode: (AggregateRef, Any) -> Pair<String, String>,
+    ): AttemptScope =
+        AttemptScope(command, ids, clock(), loaded, reservations, options.reservationTtl, wait, observer, encode)
+
+    /**
+     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
+     * model names its own commands, [commandTypes] those of other aggregate types. A body that holds its aggregate's
+     * id (`@AggregateId`) names [target]'s.
+     */
+    private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
+        val own = target.type == model.type
+        val type = if (own) {
+            model.commandType(body.javaClass).name
+        } else {
+            commandTypes.nameOf(target.type, body.javaClass) ?: throw Misuse.Argument(
+                "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
+                    "its peers names.",
+            )
+        }
+        val inBody = if (own) model.aggregateIdOf(body) else commandTypes.aggregateIdOf(target.type, body)
+        if (inBody != null && inBody != target.id) {
+            throw Misuse.Argument(
+                "${model.type} schedules ${body.javaClass.name} for $target, but its body names the aggregate $inBody.",
+            )
+        }
+        return type to codec.commandText(body)
+    }
+}
+
+/** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
+internal fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
