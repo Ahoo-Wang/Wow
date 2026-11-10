@@ -14,15 +14,11 @@
 package me.ahoo.wow.test
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -37,124 +33,14 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.BlockingDispatcher
-import me.ahoo.wow.kernel.CallRejectedHandlingException
-import me.ahoo.wow.kernel.CommandCalls
-import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ContextQueries
-import me.ahoo.wow.kernel.ExecutionSagaContext
-import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
-import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.RejectionCodes
-import me.ahoo.wow.kernel.committedContextOf
-import me.ahoo.wow.kernel.contextOf
-import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.spi.state.StateEventPayload
-import org.junit.jupiter.api.DynamicNode
-import java.util.stream.Stream
 import kotlin.reflect.KClass
-
-/**
- * Specifies a saga's behaviour: given a commit of a stream, its own context's or one it reads from another context
- * (a [StateEvent], built with [stateEvent]), or the rejection or the commit of a command it derived, the commands it
- * derives and the commands it schedules. [handlers] are the handlers of the saga under test, from the function the compiler
- * generated for it (`<processor>Handlers`, `orderSagaHandlers` for `OrderSaga`), which constructs that saga only,
- * with its own services:
- *
- * ```kotlin
- * sagaSpec(orderSagaHandlers()) {
- *     whenEvent(stateEvent(order, OrderState("order-1"), orderCreated)) {
- *         expectCommands(ReserveStock("order-1", 2))
- *         expectDeterministic()
- *         whenRejected(commands.single(), code = "inventory.stock.insufficient") {
- *             expectCommand(CancelOrder("..."), to = order)
- *         }
- *         whenCommitted(commands.single(), version = 3) {
- *             expectCommand(ConfirmStock("product-1"), to = order)
- *         }
- *     }
- * }
- * ```
- *
- * Each call of a handler gets a fresh [ExecutionSagaContext], as the runtime gives each handling of a commit, so the
- * ids the saga derives are the same on every call for the same commit. Its [ids][me.ahoo.wow.api.subscribe.SagaContext.ids]
- * are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
- *
- * The synchronous calls a saga makes ([me.ahoo.wow.api.subscribe.SagaContext.call]) are answered by
- * [answerCalls], committed at version 1 by default ([committedResult]); [ProcessorExpectations.calls] lists them.
- */
-fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
-    ProcessorSpec(handlers, FunctionKind.SAGA).block()
-}
-
-/**
- * The specification [sagaSpec] runs, as a tree of tests for a JUnit `@TestFactory`: each
- * [ProcessorSpec.whenEvent], [ProcessorSpec.whenRejected] and [ProcessorSpec.whenCommitted] is a test of its own, and
- * each [ProcessorSpec.fork] a container named by it; a failing check fails its own test only, as
- * [aggregateSpecTests] does:
- *
- * ```kotlin
- * @TestFactory
- * fun orderSaga() = sagaSpecTests(orderSagaHandlers()) {
- *     whenEvent(stateEvent(order, OrderState("order-1"), orderCreated)) {
- *         expectCommands(ReserveStock("order-1", 2))
- *         fork("out of stock") {
- *             whenRejected(commands.single(), code = "inventory.stock.insufficient") { expectCommandTypes(CancelOrder::class) }
- *         }
- *         fork("reserved") { whenCommitted(commands.single()) { expectCommandTypes(ConfirmStock::class) } }
- *     }
- * }
- * ```
- */
-fun sagaSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
-    processorSpecTests(handlers, FunctionKind.SAGA, block)
-
-/**
- * Specifies a projection's behaviour: given a commit (a [StateEvent], built with [stateEvent]), what its handlers
- * write. [handlers] are the projection's, from the function the compiler generated for it
- * (`<processor>Handlers`), with a fake of the port it writes to, which the expectations then read:
- *
- * ```kotlin
- * val views = InMemoryOrderViews()
- * projectionSpec(orderViewProjectionHandlers(views)) {
- *     whenEvent(stateEvent(order, state, orderCreated)) {
- *         expectHandledBy("onOrder")
- *         views["order-1"]!!.status.assert().isEqualTo("CREATED")
- *     }
- * }
- * ```
- */
-fun projectionSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
-    ProcessorSpec(handlers, FunctionKind.PROJECT).block()
-}
-
-/** The specification [projectionSpec] runs, as a tree of tests for a JUnit `@TestFactory`, as [sagaSpecTests]. */
-fun projectionSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
-    processorSpecTests(handlers, FunctionKind.PROJECT, block)
-
-/** Specifies a reactor's behaviour as [projectionSpec] does a projection's: given a commit, its side effects. */
-fun reactorSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
-    ProcessorSpec(handlers, FunctionKind.REACT).block()
-}
-
-/** The specification [reactorSpec] runs, as a tree of tests for a JUnit `@TestFactory`, as [sagaSpecTests]. */
-fun reactorSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
-    processorSpecTests(handlers, FunctionKind.REACT, block)
-
-private fun processorSpecTests(
-    handlers: List<ProcessorBinding<*>>,
-    kind: FunctionKind,
-    block: ProcessorSpec.() -> Unit,
-): Stream<DynamicNode> {
-    val tree = TestTree()
-    tree.run { ProcessorSpec(handlers, kind, tree).block() }
-    return tree.nodes.stream()
-}
 
 /**
  * The full type name of [command] as its receipts carry it, `<context>.<aggregate>.<name>`: the name is its class's
@@ -259,14 +145,8 @@ class ProcessorSpec private constructor(
      */
     private val commandTypes: ClassPathCommandTypes = origin?.commandTypes ?: ClassPathCommandTypes.of()
 
-    /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
-    private val derivedBy: MutableMap<String, ExecutionId> = HashMap(origin?.derivedBy.orEmpty())
-
-    /** How the targets answer the saga's synchronous calls. */
-    private var answer: (Command<*>) -> CommandResult = origin?.answer ?: { committedResult(it) }
-
-    /** What the handlers read through their context's queries; none until [givenQueries]. */
-    private var queries: ContextQueries = origin?.queries ?: ContextQueries.NONE
+    /** Calls the handlers as the runtime does, with what they derived and how their calls and reads are answered. */
+    private val handling = ProcessorHandling(kind, commandTypes, origin?.handling)
 
     /** The aggregates [givenAggregate] gave, which [whenEvent] of events commits on: a fork advances copies of its own. */
     private val aggregates: MutableList<GivenAggregate<*>> =
@@ -282,7 +162,7 @@ class ProcessorSpec private constructor(
      * [me.ahoo.wow.api.problem.WowProblemException]; [answer] may also throw one, as a target that is down does.
      */
     fun answerCalls(answer: (Command<*>) -> CommandResult) {
-        this.answer = answer
+        handling.answerWith(answer)
     }
 
     /**
@@ -292,7 +172,7 @@ class ProcessorSpec private constructor(
      * caller of that tenant, the trusted ones [NodeQueryApi.trusted]. Without it, a handler that reads fails.
      */
     fun givenQueries(queries: NodeQueryApi) {
-        this.queries = ContextQueries.of(queries)
+        handling.serve(ContextQueries.of(queries))
     }
 
     init {
@@ -451,9 +331,9 @@ class ProcessorSpec private constructor(
         } else {
             listOf(find(handler))
         }
-        val call = { handle(called, event) }
+        val call = { handling.handle(called, event) }
         val result = call()
-        verify(ProcessorExpectations(called.map { it.name }, result, call, this, failing?.retry), expect)
+        verify(ProcessorExpectations(called.map { it.name }, result, call, this, handling.failingRetry), expect)
     }
 
     /**
@@ -477,7 +357,7 @@ class ProcessorSpec private constructor(
         commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit = {},
     ) = step(tree, "whenRejected(${command.body.javaClass.simpleName}, $code)") {
-        val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
+        val execution = handling.executionOf(command.id) ?: throw IllegalArgumentException(
             "${command.id} is not a command this specification derived: hand over rejectedReceipt(command, " +
                 "executionId, code) instead, with the execution that derived it.",
         )
@@ -531,7 +411,7 @@ class ProcessorSpec private constructor(
         }
         // As the runtime does: a rejection no @OnRejected handler takes parks the aggregate at once.
         val onRejected = saga.rejectionHandlerOf(command.java) ?: return parked(rejected, saga, expect)
-        val call = { reject(onRejected, rejected) }
+        val call = { handling.reject(onRejected, rejected) }
         verify(ProcessorExpectations(listOf(onRejected.name), call(), call, this, saga.retry), expect)
     }
 
@@ -569,7 +449,7 @@ class ProcessorSpec private constructor(
         commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit = {},
     ) = step(tree, "whenCommitted(${command.body.javaClass.simpleName})") {
-        val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
+        val execution = handling.executionOf(command.id) ?: throw IllegalArgumentException(
             "${command.id} is not a command this specification derived: hand over committedReceipt(command, " +
                 "executionId) instead, with the execution that derived it.",
         )
@@ -598,7 +478,7 @@ class ProcessorSpec private constructor(
         val onCommitted = saga.committedHandlerOf(command.java) ?: throw AssertionError(
             "$processor has no @OnCommitted handler of the receipts of ${command.qualifiedName}.",
         )
-        val call = { commit(onCommitted, committed) }
+        val call = { handling.commit(onCommitted, committed) }
         verify(ProcessorExpectations(listOf(onCommitted.name), call(), call, this, saga.retry), expect)
     }
 
@@ -610,13 +490,13 @@ class ProcessorSpec private constructor(
         val called = events.map { event -> event to handlers.filter { reads(it, event) } }
         val call = {
             runCatchingAll {
-                val handled = called.map { (event, readers) -> handle(readers, event).getOrThrow() }
+                val handled = called.map { (event, readers) -> handling.handle(readers, event).getOrThrow() }
                 Handled(handled.flatMap { it.commands }, handled.flatMap { it.calls })
             }
         }
         val names = called.flatMap { (_, readers) -> readers.map { it.name } }.distinct()
         // The budget of the job's handler that threw, its @Retry, as the runtime retries it.
-        verify(ProcessorExpectations(names, call(), call, this, failing?.retry), expect)
+        verify(ProcessorExpectations(names, call(), call, this, handling.failingRetry), expect)
     }
 
     private fun verify(expectations: ProcessorExpectations, expect: ProcessorExpectations.() -> Unit) {
@@ -628,133 +508,6 @@ class ProcessorSpec private constructor(
         handlers.firstOrNull { it.function == handler || it.name == handler } ?: throw IllegalArgumentException(
             "$processor has no handler $handler: its handlers are ${handlers.map { it.function }}.",
         )
-
-    /** The handler whose handling threw last, whose retry budget [ProcessorExpectations.expectParked] reads. */
-    private var failing: ProcessorBinding<*>? = null
-
-    private fun handle(called: List<ProcessorBinding<*>>, event: StateEvent<*>): Result<Handled> = runCatchingAll {
-        val commands = ArrayList<Command<*>>()
-        val calls = ArrayList<Command<*>>()
-        failing = null
-        called.forEach { handler ->
-            failing = handler
-            val rejectedCalls = LinkedHashMap<String, Command<*>>()
-            val answering = CommandCalls { command ->
-                calls += command
-                answer(command).also { result ->
-                    if (result.status == CommandResult.Status.REJECTED) {
-                        rejectedCalls[result.commandId] = command
-                    }
-                }
-            }
-            // As the runtime does: the handler sends only what it declares (@Sends).
-            val context = contextOf(
-                handler.kind,
-                handler.name,
-                event,
-                SequentialIds(),
-                commandTypes,
-                answering,
-                queries,
-                handler.sends,
-            )
-            val derived = try {
-                runBlocking { attempt(handler, event, context) }
-            } catch (rejected: CommandRejectedException) {
-                if (kind != FunctionKind.SAGA) throw rejected
-                callRejected(handler, rejected, rejectedCalls[rejected.result.commandId], context.executionId)
-            }
-            derived.forEach { derivedBy[it.id] = context.executionId }
-            commands += derived
-        }
-        failing = null
-        Handled(commands, calls)
-    }
-
-    /**
-     * One attempt of [handler] with [event], as the runtime's subscription makes it: on a virtual thread when it is
-     * `@Blocking`, and cancelled once it runs longer than its `@Retry(timeout)`, a failed attempt
-     * ([HandlerTimeoutException]) the runtime retries, then parks. The time is real: a timeout on virtual time would
-     * fire while a blocking handler's thread still runs.
-     */
-    private suspend fun attempt(
-        handler: ProcessorBinding<*>,
-        event: StateEvent<*>,
-        context: SubscriptionContext,
-    ): List<Command<*>> {
-        val call: suspend () -> List<Command<*>> = if (handler.blocking) {
-            { withContext(BlockingDispatcher.dispatcher) { handler.invoke(event, context) } }
-        } else {
-            { handler.invoke(event, context) }
-        }
-        val timeout = handler.retry?.timeout ?: return call()
-        return withTimeoutOrNull(timeout) { call() }
-            ?: throw HandlerTimeoutException(handler.name, event.ref, event.version, timeout)
-    }
-
-    /**
-     * As the runtime does: the rejection of the call [command] a saga's [handler] let through goes to the saga's
-     * `@OnRejected` handler of the command, whose commands the aborted handling is left with; without one, or for a
-     * rejection of no call of the handling, the aggregate parks at once ([CallRejectedHandlingException]).
-     */
-    private fun callRejected(
-        handler: ProcessorBinding<*>,
-        rejected: CommandRejectedException,
-        command: Command<*>?,
-        execution: ExecutionId,
-    ): List<Command<*>> {
-        val type = command?.body?.javaClass ?: throw CallRejectedHandlingException(rejected)
-        val onRejected = handler.rejectionHandlerOf(type) ?: throw CallRejectedHandlingException(rejected)
-        val receipt = CommandReceipt.Rejected<Any>(
-            commandId = command.id,
-            commandType = commandTypes.nameOf(command.ref.type, type) ?: type.name,
-            ref = command.ref,
-            error = checkNotNull(rejected.result.error) { "A rejected result carries its error." },
-            causation = checkNotNull(command.causation) { "A called command carries its causation." },
-            executionId = execution,
-            operator = command.operator,
-            scope = command.scope,
-            headers = RequestFacts.propagatedOf(command.headers),
-            version = rejected.result.version,
-        )
-        return reject(onRejected, receipt).getOrThrow().commands
-    }
-
-    private fun reject(handler: RejectionBinding<*>, rejected: CommandReceipt.Rejected<*>): Result<Handled> =
-        runCatchingAll {
-            val calls = ArrayList<Command<*>>()
-            val context =
-                rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries, answering(calls))
-            val derived = receiptHandling { handler.invoke(rejected, context) }
-            derived.forEach { derivedBy[it.id] = context.executionId }
-            Handled(derived, calls)
-        }
-
-    private fun commit(handler: CommittedBinding<*>, committed: CommandReceipt.Committed<*>): Result<Handled> =
-        runCatchingAll {
-            val calls = ArrayList<Command<*>>()
-            val context =
-                committedContextOf(handler, committed, SequentialIds(), commandTypes, queries, answering(calls))
-            val derived = receiptHandling { handler.invoke(committed, context) }
-            derived.forEach { derivedBy[it.id] = context.executionId }
-            Handled(derived, calls)
-        }
-
-    /**
-     * A receipt handler's commands, as the runtime takes them: a call's rejection it lets through goes to no handler (a
-     * compensation does not compensate itself) but parks the aggregate at once ([CallRejectedHandlingException]).
-     */
-    private fun receiptHandling(handle: suspend () -> List<Command<*>>): List<Command<*>> = try {
-        runBlocking { handle() }
-    } catch (rejected: CommandRejectedException) {
-        throw CallRejectedHandlingException(rejected)
-    }
-
-    /** The calls of a receipt's handler: answered by [answer], each recorded into [calls]. */
-    private fun answering(calls: MutableList<Command<*>>): CommandCalls = CommandCalls { command ->
-        calls += command
-        answer(command)
-    }
 
     /** The commands of one handling, the schedules it set or cancelled among them, and the commands it [calls]. */
     internal data class Handled(val commands: List<Command<*>>, val calls: List<Command<*>> = emptyList())
@@ -785,15 +538,6 @@ class ProcessorSpec private constructor(
             val type = handler.stateType ?: return true
             val state = event.state ?: return handler.nullableState
             return type.isInstance(state)
-        }
-
-        inline fun <T> runCatchingAll(block: () -> T): Result<T> = try {
-            Result.success(block())
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever the handler throws, expectError checks it.
-            failure: Exception,
-        ) {
-            Result.failure(failure)
         }
     }
 }
