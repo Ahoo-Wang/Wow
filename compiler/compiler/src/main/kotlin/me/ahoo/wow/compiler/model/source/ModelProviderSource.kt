@@ -26,7 +26,9 @@ import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
  * and names the module's Manifest fragment.
  *
  * The class lives in the deepest package the module's models and subscriptions share, named after the module
- * ([className]): two modules of a service differ in their fragments, so in their names too.
+ * ([className]), readable rather than one per module: `orders/domain` and `orders-domain` are both
+ * `OrdersDomainModelProvider`, and two modules of one package and one such name are refused by the service's merge,
+ * which reads every registered provider.
  */
 internal object ModelProviderSource {
     const val MODEL_PROVIDER = "me.ahoo.wow.kernel.ModelProvider"

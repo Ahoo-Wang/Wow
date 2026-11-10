@@ -65,13 +65,14 @@ class ModuleNamesFunctionalTest {
         )
     }
 
-    private fun context(root: File, path: String, context: String) {
+    /** A domain module at [path] of the bounded [context], its classes in the package [pkg]. */
+    private fun context(root: File, path: String, context: String, pkg: String = context) {
         module(root, path)
         write(
             root,
-            "$path/src/main/kotlin/$context/Ledger.kt",
+            "$path/src/main/kotlin/$pkg/Ledger.kt",
             """
-            package $context
+            package $pkg
 
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.BoundedContext
@@ -143,5 +144,34 @@ class ModuleNamesFunctionalTest {
                 jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/$module.json").assert().isNotNull()
             }
         }
+    }
+
+    @Test
+    fun `two modules whose providers share a name and a package should be refused, naming both`(@TempDir root: File) {
+        write(
+            root,
+            "settings.gradle.kts",
+            """rootProject.name = "shop"; include(":orders:domain", ":orders-domain", ":server")"""
+        )
+        write(root, "gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
+        // Both keep their models in `orders`: both generate `orders.OrdersDomainModelProvider`.
+        context(root, "orders/domain", "orders")
+        context(root, "orders-domain", "refunds", pkg = "orders")
+        module(
+            root,
+            "server",
+            id = WowPlugin.SERVICE_ID,
+            dependencies = """
+                implementation(project(":orders:domain"))
+                implementation(project(":orders-domain"))
+            """,
+        )
+        val result = GradleRunner.create().withProjectDir(root).withPluginClasspath().forwardOutput()
+            .withArguments(":server:${WowPlugin.MERGE_TASK}")
+            .buildAndFail()
+        result.output.assert().contains(
+            "The model provider orders.OrdersDomainModelProvider is registered by project ':orders:domain' and " +
+                "project ':orders-domain'",
+        )
     }
 }

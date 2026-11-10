@@ -178,7 +178,6 @@ internal object WowRoles {
             configuration.description = "The peer contract of the module's contexts, which its api modules carry."
             configuration.isCanBeConsumed = true
             configuration.isCanBeResolved = false
-            configuration.isVisible = false
             documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
         }
         project.artifacts.add(elements.name, generate.flatMap { it.outputFile }) { it.builtBy(generate) }
@@ -313,7 +312,6 @@ internal object WowRoles {
             configuration.extendsFrom(declared)
             configuration.isCanBeConsumed = false
             configuration.isTransitive = false
-            configuration.isVisible = false
             documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
         }
         val main = project.extensions.getByType(SourceSetContainer::class.java)
@@ -574,7 +572,6 @@ internal object WowRoles {
         return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
             configuration.description = "The tools the Wow tasks run in their isolated workers."
             configuration.isCanBeConsumed = false
-            configuration.isVisible = false
             configuration.attributes { attributes ->
                 attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                 attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))

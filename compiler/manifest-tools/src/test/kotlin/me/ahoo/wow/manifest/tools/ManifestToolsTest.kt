@@ -69,7 +69,12 @@ class ManifestToolsTest {
         }
 
     /** The jar [name] holding [manifest] as the fragment of [module] (a path, `orders/domain`). */
-    private fun jar(module: String, manifest: Manifest, name: String = module.replace('/', '-')): File {
+    private fun jar(
+        module: String,
+        manifest: Manifest,
+        name: String = module.replace('/', '-'),
+        provider: String? = null,
+    ): File {
         val fragment = File(directory, "$name-fragment.json").also { ManifestJson.write(manifest, it) }
         return File(directory, "$name.jar").also { jar ->
             ZipOutputStream(jar.outputStream()).use { zip ->
@@ -80,6 +85,11 @@ class ManifestToolsTest {
                 zip.closeEntry()
                 zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/README.txt"))
                 zip.closeEntry()
+                provider?.let {
+                    zip.putNextEntry(ZipEntry("META-INF/services/me.ahoo.wow.kernel.ModelProvider"))
+                    zip.write("$it\n".toByteArray())
+                    zip.closeEntry()
+                }
                 zip.putNextEntry(ZipEntry("sample/Other.class"))
                 zip.closeEntry()
             }
@@ -183,6 +193,46 @@ class ManifestToolsTest {
             ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, output).assert().isEqualTo(2)
             ManifestJson.read(output).contexts.map { it.name }.assert().containsExactly("billing", "shop")
         }
+    }
+
+    @Test
+    fun `merging should refuse a model provider two modules register, naming both`() {
+        val shop =
+            fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+        val billing = fragment(
+            "billing",
+            AccountState::class.java,
+            mapOf(AccountState::class.java.name to mapOf("type" to "object")),
+        )
+        fun registering(entry: File, vararg providers: String) = entry.also {
+            File(it, "META-INF/services/me.ahoo.wow.kernel.ModelProvider").apply { parentFile.mkdirs() }
+                .writeText("# the module's binding index\n" + providers.joinToString("\n") + "\n")
+        }
+        // `:orders:domain` and `:orders-domain`, their models in one package: one provider class, one of them unbound.
+        val nested = registering(
+            classesDirectory("nested", "orders/domain" to shop),
+            "orders.OrdersDomainModelProvider"
+        )
+        val flat = jar("orders-domain", billing, provider = "orders.OrdersDomainModelProvider")
+        val owners = mapOf(nested.path to "project ':orders:domain'", flat.path to "project ':orders-domain'")
+        val output = File(directory, "manifest.json")
+        assertThrows<IllegalStateException> {
+            ManifestTools.merge(listOf(nested, flat), owners, "store", "fallback", null, output)
+        }.message.assert().contains(
+            "The model provider orders.OrdersDomainModelProvider is registered by project ':orders:domain' and " +
+                "project ':orders-domain'",
+        )
+        // Apart in two packages, both bound; a jar that registers none and a file that is no jar register nothing.
+        val apart = jar("orders-domain", billing, provider = "refunds.OrdersDomainModelProvider")
+        val other = File(directory, "notes.txt").apply { writeText("no class path entry") }
+        ManifestTools.merge(
+            listOf(nested, apart, other),
+            owners,
+            "store",
+            "fallback",
+            null,
+            output
+        ).assert().isEqualTo(2)
     }
 
     @Test

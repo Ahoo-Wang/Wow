@@ -61,6 +61,7 @@ object ManifestTools {
         output: File,
     ): Int {
         val fragments = fragmentsOf(classpath, owners)
+        checkModelProviders(classpath, owners)
         val contracts = classpath.mapNotNull { entry ->
             ManifestJson.contract(entry)?.let { ManifestFragment(owners[entry.path] ?: entry.name, it.manifest) }
         }
@@ -110,6 +111,26 @@ object ManifestTools {
             }
         }
         return found.map { it.second }
+    }
+
+    /**
+     * Fails when two owners of the [classpath] entries register one model provider class: a module's provider is named
+     * after its module (`OrdersDomainModelProvider` of both `orders/domain` and `orders-domain`) in the package its
+     * models share, so two modules of one package and one such name give one class, and `ServiceLoader` loads one of
+     * them: the other module's models would not be bound. The build refuses them, naming both owners.
+     */
+    internal fun checkModelProviders(classpath: List<File>, owners: Map<String, String>) {
+        val registered = classpath.flatMap { entry ->
+            val owner = owners[entry.path] ?: entry.name
+            ManifestJson.modelProviders(entry).map { it to owner }
+        }.groupBy({ it.first }, { it.second }).mapValues { it.value.distinct() }.filterValues { it.size > 1 }
+        check(registered.isEmpty()) {
+            registered.entries.joinToString("\n") { (provider, registrants) ->
+                "The model provider $provider is registered by ${registrants.joinToString(" and ")}: each module's " +
+                    "provider is named after its module in the package its models share, so one of them would not " +
+                    "be bound. Move one module's models to another package, or rename one of the projects."
+            }
+        }
     }
 
     /**
