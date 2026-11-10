@@ -83,7 +83,7 @@ internal class MongoNineXReservationSource(private val database: MongoDatabase) 
     private fun keyOf(name: String, document: Document) = NineXPreparedKey(
         name = name,
         key = document.get(ID).toString(),
-        value = MongoNineXEventSource.toNode(document[VALUE]),
+        value = NineXBson.toNode(document[VALUE]),
         ttlAt = document.getDate(TTL_AT)?.time,
     )
 

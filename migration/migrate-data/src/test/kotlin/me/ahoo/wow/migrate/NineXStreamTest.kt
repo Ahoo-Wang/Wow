@@ -183,7 +183,7 @@ class NineXStreamTest {
     @Test
     fun `BSON values read as exact JSON`() {
         val id = ObjectId()
-        val node = MongoNineXEventSource.toNode(
+        val node = NineXBson.toNode(
             Document("text", "a")
                 .append("flag", true)
                 .append("int", 1)

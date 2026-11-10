@@ -19,9 +19,8 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
+import me.ahoo.wow.migrate.NineXBson.bsonOf
 import org.bson.Document
-import org.bson.types.Decimal128
-import tools.jackson.databind.JsonNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -164,21 +163,5 @@ internal class MongoNineXEventTarget(private val database: MongoDatabase) : Nine
         private const val VERSION = "version"
         private const val BODY = "body"
         private const val BODY_TYPE = "bodyType"
-
-        /** [node] as the BSON value 9.x writes for it: a decimal as an exact `Decimal128`, the inverse of [MongoNineXEventSource.toNode]. */
-        fun bsonOf(node: JsonNode): Any? = when {
-            node.isObject -> Document().also { document ->
-                node.properties().forEach { (name, value) -> document.append(name, bsonOf(value)) }
-            }
-
-            node.isArray -> (0 until node.size()).map { bsonOf(node.get(it)) }
-            node.isNull || node.isMissingNode -> null
-            node.isBoolean -> node.booleanValue()
-            node.isInt -> node.intValue()
-            node.isLong -> node.longValue()
-            node.isIntegralNumber -> Decimal128(node.decimalValue())
-            node.isNumber -> Decimal128(node.decimalValue())
-            else -> node.asString()
-        }
     }
 }

@@ -150,7 +150,7 @@ class NineXExportTest {
         target.revisionsOf(order.aggregate, "order_created").assert().containsExactly(NineXStream.DEFAULT_REVISION)
         target.count(order.aggregate, emptySet()).assert().isEqualTo(4)
         target.count(order.aggregate, setOf(order.aggregateId.id, "none")).assert().isEqualTo(0)
-        MongoNineXEventTarget.bsonOf(
+        NineXBson.bsonOf(
             WowJson.mapper.readTree("""{"a":[1,2.5,null,true,"x",12345678901,123456789012345678901234]}""")
         )
             .assert().isEqualTo(
