@@ -186,6 +186,10 @@
           "type": "integer",
           "minimum": 0
         },
+        "subscriptionStopTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
         "marginSeconds": {
           "type": "integer",
           "minimum": 0

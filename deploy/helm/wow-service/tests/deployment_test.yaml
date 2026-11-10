@@ -34,12 +34,12 @@ tests:
             maxSurge: 1
             maxUnavailable: 0
 
-  - it: gives the shutdown the preStop pause, the waits, the hand-off and the margin
+  - it: gives the shutdown the preStop pause, the node's stop bound and the margin
     template: templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
-          value: 90
+          value: 110
       - equal:
           path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
           value: ["sleep", "5"]
@@ -49,12 +49,14 @@ tests:
       shutdown.preStopSeconds: 10
       shutdown.waitMaxTimeoutSeconds: 120
       shutdown.drainTimeoutSeconds: 30
+      shutdown.subscriptionStopTimeoutSeconds: 70
       shutdown.marginSeconds: 20
     asserts:
+      # 10 + max(120, 2 x 70 + 30) + 3 x 30 + 20: the subscriptions' stops outlast the waits.
       - template: templates/deployment.yaml
         equal:
           path: spec.template.spec.terminationGracePeriodSeconds
-          value: 180
+          value: 290
       - template: templates/configmap.yaml
         equal:
           path: data.WOW_WAIT_MAXTIMEOUT
@@ -63,6 +65,20 @@ tests:
         equal:
           path: data.WOW_CLUSTER_DRAINTIMEOUT
           value: 30s
+      - template: templates/configmap.yaml
+        equal:
+          path: data.WOW_SUBSCRIPTION_STOPTIMEOUT
+          value: 70s
+
+  - it: counts the waits when they outlast the subscriptions' stops
+    template: templates/deployment.yaml
+    set:
+      shutdown.waitMaxTimeoutSeconds: 120
+    asserts:
+      # 5 + max(120, 2 x 10 + 10) + 3 x 10 + 15.
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 170
 
   - it: binds the ports the Services name, the node id and address from the pod, and the namespace from the downward API
     template: templates/deployment.yaml
@@ -237,6 +253,14 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "set shutdown.waitMaxTimeoutSeconds instead"
+
+  - it: refuses a subscription stop timeout the grace period would not count
+    template: templates/deployment.yaml
+    set:
+      config.WOW_SUBSCRIPTION_STOPTIMEOUT: 5m
+    asserts:
+      - failedTemplate:
+          errorPattern: "set shutdown.subscriptionStopTimeoutSeconds instead"
 
   - it: refuses metrics on the internal port
     template: templates/deployment.yaml

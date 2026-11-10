@@ -688,6 +688,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getSharedStates ()Lme/ahoo/wow/runtime/state/SharedStateOptions;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
 	public final fun getStateCache ()Lme/ahoo/wow/runtime/StateCacheOptions;
+	public final fun getStopBound-UwyO8pc ()J
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun getTimers ()Lme/ahoo/wow/runtime/timer/TimerOptions;
 	public final fun getTopicRouted ()Ljava/util/Set;

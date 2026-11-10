@@ -300,8 +300,8 @@ Kubernetes 停止一个 Pod 时，节点先完成仍未结束的等待，然后�
 <!-- sample: deploy/helm/wow-service/values.yaml#shutdown -->
 
 ```yaml
-# The node's shutdown: the grace period is their sum, and the chart sets wow.wait.max-timeout and
-# wow.cluster.drain-timeout from them.
+# The node's shutdown: the grace period is the preStop pause, the node's stop bound from these values and the margin;
+# the chart sets wow.wait.max-timeout, wow.cluster.drain-timeout and wow.subscription.stop-timeout from them.
 shutdown:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStopSeconds: 5
@@ -309,11 +309,13 @@ shutdown:
   waitMaxTimeoutSeconds: 60
   # How long a hand-off waits for its partition's commands in flight (wow.cluster.drain-timeout).
   drainTimeoutSeconds: 10
+  # How long a subscription's stop waits for its entries in flight (wow.subscription.stop-timeout).
+  subscriptionStopTimeoutSeconds: 10
   # Room for the checkpoints to be saved and the JVM to exit.
   marginSeconds: 15
 ```
 
-宽限期是它们的和，默认 90 秒，chart 也用它们设置 `wow.wait.max-timeout` 和 `wow.cluster.drain-timeout`；在 `config` 中设置这两个键会被拒绝。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
+宽限期是 `preStop` 停顿、节点的停止上限与余量之和：默认 110 秒。停止上限是 `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`，默认 90 秒，与 `ServiceNodeOptions.stopBound` 及宿主关闭阶段的公式相同（[启动与停止](./topology#starting-and-stopping)）。chart 用这些 value 设置 `wow.wait.max-timeout`、`wow.cluster.drain-timeout` 和 `wow.subscription.stop-timeout`；在 `config` 中设置其中任何一个都会被拒绝。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
 
 ## 伸缩 {#scale}
 

@@ -111,6 +111,28 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val handoff: HandoffOptions = HandoffOptions(),
     val access: AccessStampOptions = AccessStampOptions(),
 ) {
+    /**
+     * The longest [ServiceNode.stop] takes with these options, computed from them; nothing enforces it, it is the time
+     * a host leaves the stop (Spring Boot's shutdown phase, a pod's grace period). Its steps, in order:
+     *
+     * - **Hand-off** (HANDED_OFF), each context and topic at once, each partition at once: the command intake's
+     *   partition stopped ([SubscriptionOptions.stopTimeout]), the commands in flight drained
+     *   ([ClusterOptions.drainTimeout]), then every log group's subscriptions stopped at once (one more stop timeout):
+     *   `2 × stopTimeout + drainTimeout`.
+     * - **Waits** (WAITS_ENDED): until the stop's start plus [WaitOptions.maxTimeout], so nothing when the hand-off ran
+     *   past it. Together with the hand-off: `max(maxTimeout, 2 × stopTimeout + drainTimeout)`.
+     * - **Gateway** (GATEWAY_CLOSED): the admissions under way and the detached commands, at most one drain timeout.
+     * - **Executions** (EXECUTIONS_ENDED): what is left of the stop's start plus the wait maximum, at least one drain
+     *   timeout; past the first two terms, one drain timeout.
+     * - **Executors** (EXECUTORS_CLOSED): at most one drain timeout.
+     *
+     * So `max(maxTimeout, 2 × stopTimeout + drainTimeout) + 3 × drainTimeout`: 90 seconds with the defaults. Not in
+     * it: the store calls of the stop (the membership's leave, each lease's release, the checkpoints' flush, the logs'
+     * close), each bounded by its store's own timeout.
+     */
+    val stopBound: Duration
+        get() = maxOf(wait.maxTimeout, subscription.stopTimeout * 2 + cluster.drainTimeout) + cluster.drainTimeout * 3
+
     /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(

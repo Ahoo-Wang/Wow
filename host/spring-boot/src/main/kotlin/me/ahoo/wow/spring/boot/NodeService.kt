@@ -285,7 +285,7 @@ internal class NodeService {
             if (configured < required) {
                 logger.warn {
                     "${ShutdownTimeoutEnvironmentPostProcessor.TIMEOUT_PER_SHUTDOWN_PHASE} is $configured, less than " +
-                        "wow.wait.max-timeout + wow.cluster.drain-timeout ($required): a stopping node may be cut off."
+                        "the node's stop bound ($required): a stopping node may be cut off."
                 }
             }
         }

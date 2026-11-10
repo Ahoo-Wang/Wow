@@ -56,6 +56,7 @@ import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 class BackendSelectionTest {
     /** The backend [configured] selects when a PostgreSQL ([postgres]) or MongoDB ([mongo]) bean is there. */
@@ -557,10 +558,19 @@ class ShutdownTimeoutEnvironmentPostProcessorTest {
     }
 
     @Test
-    fun `the shutdown phase should allow the longest wait and the drain`() {
-        timeout(environment()).assert().isEqualTo(Duration.ofSeconds(70))
-        timeout(environment("wow.wait.max-timeout" to "20s", "wow.cluster.drain-timeout" to "5s"))
-            .assert().isEqualTo(Duration.ofSeconds(25))
+    fun `the shutdown phase should be the node's stop bound, whichever of its terms is raised`() {
+        mapOf(
+            emptyArray<Pair<String, Any>>() to 90L,
+            arrayOf<Pair<String, Any>>("wow.wait.max-timeout" to "120s") to 150L,
+            arrayOf<Pair<String, Any>>("wow.cluster.drain-timeout" to "20s") to 120L,
+            arrayOf<Pair<String, Any>>("wow.subscription.stop-timeout" to "40s") to 120L,
+        ).forEach { (set, seconds) ->
+            val phase = timeout(environment(*set))
+            phase.assert().isEqualTo(Duration.ofSeconds(seconds))
+            // Never below the bound of the options the host gives the node.
+            val node = WowProperties.of(environment(*set)).serviceNodeOptions(Routing.PARTITIONED, emptySet(), false)
+            phase.assert().isGreaterThanOrEqualTo(node.stopBound.toJavaDuration())
+        }
     }
 
     @Test

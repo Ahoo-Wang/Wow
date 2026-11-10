@@ -45,8 +45,8 @@ import kotlin.time.Duration.Companion.seconds
  *   serves the other nodes' forwards and signals until then → [ROUTES_SCOPE_PHASE], which cancels what the routes
  *   still stream → the backends, closed with their beans.
  *
- * Spring Boot bounds each phase's stop by `spring.lifecycle.timeout-per-shutdown-phase`, which the host raises to
- * `wow.wait.max-timeout + wow.cluster.drain-timeout` ([ShutdownTimeoutEnvironmentPostProcessor]).
+ * Spring Boot bounds each phase's stop by `spring.lifecycle.timeout-per-shutdown-phase`, which the host raises to the
+ * node's stop bound ([me.ahoo.wow.runtime.node.ServiceNodeOptions.stopBound], [ShutdownTimeoutEnvironmentPostProcessor]).
  */
 internal object WowLifecycles {
     /** The phase of Spring Boot's web server start and stop (`WebServerStartStopLifecycle`). */

@@ -46,13 +46,16 @@ app.kubernetes.io/part-of: {{ . }}
 {{- end -}}
 
 {{/*
-The node's shutdown, in seconds: the preStop pause, then the public server finishes its requests, the waits among them
-(wow.wait.max-timeout), then the node hands its partitions off after their commands in flight (wow.cluster.drain-timeout)
-and saves its checkpoints, with a margin.
+The node's shutdown, in seconds: the preStop pause, then the node's stop bound, then a margin. The stop bound is the
+formula of ServiceNodeOptions.stopBound (core/runtime), which the host's shutdown phase is set from too:
+max(wait.max-timeout, 2 x subscription.stop-timeout + cluster.drain-timeout) + 3 x cluster.drain-timeout. Change it
+there first.
 */}}
 {{- define "wow-service.terminationGracePeriodSeconds" -}}
 {{- $s := .Values.shutdown -}}
-{{- add $s.preStopSeconds $s.waitMaxTimeoutSeconds $s.drainTimeoutSeconds $s.marginSeconds -}}
+{{- $handOff := add (mul 2 $s.subscriptionStopTimeoutSeconds) $s.drainTimeoutSeconds -}}
+{{- $stopBound := add (max $s.waitMaxTimeoutSeconds $handOff) (mul 3 $s.drainTimeoutSeconds) -}}
+{{- add $s.preStopSeconds $stopBound $s.marginSeconds -}}
 {{- end -}}
 
 {{/* The name of the port the metrics are scraped on: the HTTP port's when they share it (Actuator), else its own. */}}
@@ -97,6 +100,9 @@ namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
 {{- end -}}
 {{- if hasKey .Values.config "WOW_CLUSTER_DRAINTIMEOUT" -}}
 {{- fail "config.WOW_CLUSTER_DRAINTIMEOUT: set shutdown.drainTimeoutSeconds instead, which the grace period counts" -}}
+{{- end -}}
+{{- if hasKey .Values.config "WOW_SUBSCRIPTION_STOPTIMEOUT" -}}
+{{- fail "config.WOW_SUBSCRIPTION_STOPTIMEOUT: set shutdown.subscriptionStopTimeoutSeconds instead, which the grace period counts" -}}
 {{- end -}}
 {{- if hasKey .Values.config "SPRING_APPLICATION_JSON" -}}
 {{- fail "config.SPRING_APPLICATION_JSON: put those keys under settings, which the chart renders as SPRING_APPLICATION_JSON" -}}
