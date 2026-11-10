@@ -79,7 +79,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `CartesianSeries` | interface | — | — |
 | `CartesianSpec` | interface | — | — |
 | `ChartData` | type | What a renderer receives. | — |
-| `ChartFamily` | type | The families a chart type belongs to, each the name of the sub-object of`ChartSpec` its types share: four cartesian types draw one kind of spec, every other type is a family of its own. | — |
+| `ChartFamily` | type | The families a chart type belongs to, each the name of the sub-object of `ChartSpec` its types share: four cartesian types draw one kind of spec, every other type is a family of its own. | — |
 | `ChartFit` | interface | — | — |
 | `ChartProfile` | interface | A group's profile: its value on each of several metrics, in the order the spec lists them — one shape of a radar, one line of parallel axes. | — |
 | `ChartSpec` | interface | Charts are stored per family: the sub-object of the current `type` is required and the others are kept, so switching families loses nothing. | — |
@@ -105,7 +105,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DashboardEditing` | interface | Building the board (batch B1). | — |
 | `DashboardField` | interface | A board's filter: one chip on the filter bar, wired to a field of each panel it narrows. | — |
 | `DashboardFilterEditing` | interface | Setting up the board's filters, through the draft like every other edit of the board: each goes into the draft and onto the screen at once, and is saved with the board. | — |
-| `DashboardFilterType` | type | The six kinds of board filter, each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a`search` field, whose `searchFields` say where it looks. | — |
+| `DashboardFilterType` | type | The six kinds of board filter, each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a `search` field, whose `searchFields` say where it looks. | — |
 | `DashboardFilters` | interface | What a board's filters hold right now: the reader's, never the config's (「筛选值写进地址，不写进配置」). | — |
 | `DashboardLink` | interface | — | — |
 | `DashboardPanel` | type | — | — |
@@ -114,8 +114,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DashboardRuntime` | interface | The public face of a dashboard runtime: a view runtime whose snapshot also carries the panels. | — |
 | `DashboardRuntimeState` | interface | — | — |
 | `DashboardTab` | interface | One tab of a board: panels are grouped under it, and the global filter sits above them all. | — |
-| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `initialFilters` (or`OpenOptions.filters`), never into the board's config. | — |
-| `DashboardTimeGrouping` | interface | The board's time grouping (整板 按日／周／月): one choice among`units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
+| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `initialFilters` (or `OpenOptions.filters`), never into the board's config. | — |
+| `DashboardTimeGrouping` | interface | The board's time grouping (整板 按日／周／月): one choice among `units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
 | `DashboardViewConfig` | interface | — | — |
 | `DashboardViewPanel` | type | Data panel: shows a record or analysis view and is filtered by the board. | — |
 | `DashboardViewPanelBase` | interface | What a data panel holds whichever view it shows; see `DashboardViewPanel`. | — |
@@ -130,7 +130,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DatasetRefresh` | interface | What one `DatasetResources.refresh` found. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
-| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each`refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |
+| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each `refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |
 | `DatasetResourcesInit` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
@@ -154,9 +154,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DestinationBoard` | type | Another board as a click reads it: the instance, its config a board's. | — |
 | `DetailSection` | interface | One titled part of a record's detail: the fields a group gathers. | — |
 | `Dropped` | interface | What a step of the chain took out of the question. | — |
-| `DurationFilterValue` | interface | A time since another moment (N3): the leaf's field is the later moment,`from` the earlier one, and the condition compares the time between them — 「发货时间 距 付款时间 &gt; 48 小时」 — in `unit`, a day being 24 hours. | — |
+| `DurationFilterValue` | interface | A time since another moment (N3): the leaf's field is the later moment, `from` the earlier one, and the condition compares the time between them — 「发货时间 距 付款时间 &gt; 48 小时」 — in `unit`, a day being 24 hours. | — |
 | `EDITOR_INPUTS` | const | Every input shape the engine can draw, as values and not as a type alone. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
-| `EditCommand` | type | The edits building a board is made of, by the command that makes each —`DashboardEditing` and `DashboardFilterEditing` less the undoing itself. | — |
+| `EditCommand` | type | The edits building a board is made of, by the command that makes each — `DashboardEditing` and `DashboardFilterEditing` less the undoing itself. | — |
 | `EditHistoryState` | interface | What the history offers now: the step an undo would take back, and a redo. | — |
 | `EditStep` | interface | One step of the board's history: the command, and what it was about — a panel's id, a tab's id or a filter's name; `null` for the time grouping, the fixed scope and the board's width. | — |
 | `EditorDescriptor` | interface | Shape of the input an editor should render; never a component name. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
@@ -184,7 +184,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `FieldKindRegistry` | type | Kinds available to the kernels, keyed by id. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `FieldKindValidateContext` | interface | — | — |
 | `FieldMetricType` | type | The metric types that measure one field: a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
-| `FieldNumeric` | type | What a number field's value is, beyond a number — Wow's numeric`QuerySemanticType` (#3552), named as the engine names things: how many digits it is kept to, and for an amount of money, whose money it is. | — |
+| `FieldNumeric` | type | What a number field's value is, beyond a number — Wow's numeric `QuerySemanticType` (#3552), named as the engine names things: how many digits it is kept to, and for an amount of money, whose money it is. | — |
 | `FieldOption` | interface | A selectable value: static for `enum`, resolved for `reference`. | — |
 | `FieldSpec` | interface | One field: what the host says of it, over what its path is. | [Definitions and Field Kinds](./definitions#api-FieldSpec) |
 | `FieldTemporal` | type | How a time field keeps its time, which is how a condition on it has to write one — Wow's own `QuerySemanticType` for time, named as Wow names it. | — |
@@ -195,7 +195,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `FilterLeaf` | interface | — | — |
 | `FilterMode` | type | `simple` mode only admits a single AND group whose children are all leaves. | — |
 | `FilterNode` | type | — | — |
-| `FilterOperatorName` | type | Operator name as stored in a configuration: the same values as Wow's`FilterOperator`, as string literals, so a config stays plain JSON. | — |
+| `FilterOperatorName` | type | Operator name as stored in a configuration: the same values as Wow's `FilterOperator`, as string literals, so a config stays plain JSON. | — |
 | `FilterPath` | type | Where a node sits: child indexes from the root outwards, so `[1, 0]` is the first child of the second child. | — |
 | `FilterReach` | type | What one filter does to one data panel: wired, through which field, and whether auto-connect made the wire; or not wired, and why — its view has no field of the filter's type (「没有可接的字段」), or it has one nobody chose (`unwired`). | — |
 | `FilterSummaryItem` | interface | One applied condition, for the summary bar above a result. | — |
@@ -320,7 +320,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ReferenceLabel` | type | What a reference id reads as right now. | — |
 | `ReferenceLabelReader` | interface | How a view reads reference ids as names: what one id reads as now, and a subscription that says when that may have changed. | — |
 | `ReferenceLabelTimeoutError` | class | A lookup that took longer than `RuntimeLimits.referenceTimeout`. | — |
-| `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
+| `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a `statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
 | `ReferenceStatistic` | type | Where a statistic reference line stands: the mean, or the middle value. | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |
 | `RefusalGroup` | interface | The refused, by reason, the commonest first; ties keep their order. | — |
@@ -331,14 +331,14 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `RoutedTarget` | type | A way off a board or a view that leads to one of the host's resources. | — |
 | `RowMoneyNumeric` | interface | — | — |
 | `RuntimeEnvironment` | interface | The only interface between a runtime and its host. | [Engine and Resources](./engine#api-RuntimeEnvironment) |
-| `RuntimeFor` | type | Keeps the narrow type through `create`, which knows its config statically — and, for a config whose kind only the value knows (a union), is what`open` hands back (`AnyViewRuntime`), so no caller has to say it again. | — |
+| `RuntimeFor` | type | Keeps the narrow type through `create`, which knows its config statically — and, for a config whose kind only the value knows (a union), is what `open` hands back (`AnyViewRuntime`), so no caller has to say it again. | — |
 | `RuntimeLimits` | interface | Admission and scheduling budgets. | — |
 | `SankeyData` | interface | — | — |
 | `SankeyLink` | interface | One band of a sankey, between two nodes of neighbouring levels. | — |
 | `SankeyNode` | interface | One node of a sankey: a value of one level's dimension. | — |
 | `SankeySpec` | interface | A sankey: how an amount flows from one dimension's values to the next's — 渠道 → 支付方式 — each band as wide as the metric over the rows of that pair. | — |
-| `SaveAsInput` | interface | Where a copy of a view is saved: its title and the scope it is saved into (`ViewEngine.saveAs`, and a board panel's view saved as its own).`'system'` makes a stored system view, which needs `editSystem`. | — |
-| `SavedViewTarget` | interface | A saved record or analysis view, opened on its own conditions with`filter` added to them — so it opens 「已修改」 and 「还原」 takes them back off — under `scopeFilter` as its scope. | — |
+| `SaveAsInput` | interface | Where a copy of a view is saved: its title and the scope it is saved into (`ViewEngine.saveAs`, and a board panel's view saved as its own). | — |
+| `SavedViewTarget` | interface | A saved record or analysis view, opened on its own conditions with `filter` added to them — so it opens 「已修改」 and 「还原」 takes them back off — under `scopeFilter` as its scope. | — |
 | `ScatterData` | interface | — | — |
 | `ScatterSpec` | interface | — | — |
 | `SearchModeName` | type | Wow's `SearchMode`, as the literal a definition writes. | — |
@@ -389,7 +389,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ViewEngineOptions` | interface | — | [Engine and Resources](./engine#api-ViewEngineOptions) |
 | `ViewErrorContext` | type | Where a failure of any kind happened. | — |
 | `ViewErrorContexts` | interface | What each kind of failure says of where it happened. | — |
-| `ViewErrorEvent` | type | One failure, as `RuntimeEnvironment.onError` is told of it: a union on`kind`, each kind with its own context. | — |
+| `ViewErrorEvent` | type | One failure, as `RuntimeEnvironment.onError` is told of it: a union on `kind`, each kind with its own context. | — |
 | `ViewErrorKind` | type | What failed, by the part of the engine it failed in. | — |
 | `ViewErrorPlace` | interface | Where a failure happened, each member only where the failing part knows it. | — |
 | `ViewHandOver` | type | The two a workbench opens (`DataWorkbench`'s `handOver`). | — |
@@ -407,13 +407,13 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ViewResource` | interface | One thing a host registers (host-integration.md 4): a definition, and where its data comes from. | [Engine and Resources](./engine#api-ViewResource) |
 | `ViewResult` | interface | — | — |
 | `ViewRoute` | interface | A way off a board or a view, resolved through its definition's `route`: the host's path, and what the page there is handed. | — |
-| `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address.`target` is the way off it was asked for; it is absent where the engine asks for a link rather than a way off — a resource's or a system view's place in the host's navigation (`useViewNavigation`). | — |
+| `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address. | — |
 | `ViewRouteState` | interface | What the page a route opens is handed with it, as history state. | — |
 | `ViewRouter` | interface | The router port (host-integration.md 4.2): the host's router as the engine reads and moves it — the one bridge to it, whichever library it is. | [Host Wiring](./host#api-ViewRouter) |
 | `ViewRuntime` | interface | One open view. | — |
 | `ViewRuntimeState` | interface | — | — |
 | `ViewScope` | type | Who configured a view, who sees it and who may change it. | — |
-| `ViewSource` | interface | Where a definition's data comes from: the reads of one Wow query route, in wow-client's own shapes, so any `QueryModelClient` — a generated`…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)` — is a source as it is, with no adapter (`test/architecture.test.ts` holds both to it). | [Engine and Resources](./engine#api-ViewSource) |
+| `ViewSource` | interface | Where a definition's data comes from: the reads of one Wow query route, in wow-client's own shapes, so any `QueryModelClient` — a generated `…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)` — is a source as it is, with no adapter (`test/architecture.test.ts` holds both to it). | [Engine and Resources](./engine#api-ViewSource) |
 | `ViewStore` | interface | The only port a backend must satisfy. | [Persistence Port](./store#api-ViewStore) |
 | `ViewStoreError` | class | The single failure type of the persistence port. | [Persistence Port](./store#api-ViewStoreError) |
 | `ViewStoreErrorCode` | type | — | [Persistence Port](./store#api-ViewStoreError) |
@@ -440,19 +440,19 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `defaultRuntimeEnvironment` | function | The default host: the ambient clock and timers, the ambient zone, and a page that is always visible. | — |
 | `defineDataset` | function | A dataset's definition, derived from its descriptor (host-integration.md 3.2): a dataset is published at run time, so its definition is not code. | — |
 | `defineView` | function | A data definition built from its source's descriptor (host-integration.md 3): the descriptor gives the facts — which paths there are, what each is, what it sorts and feeds — as an upper bound, and `spec` picks, names and narrows within it. | [Definitions and Field Kinds](./definitions#api-defineView) |
-| `emptyDashboardConfig` | function | A complete starting config, the dashboard counterpart of the two`default*Config` functions. | — |
+| `emptyDashboardConfig` | function | A complete starting config, the dashboard counterpart of the two `default*Config` functions. | — |
 | `emptyPreferences` | function | An empty preference record, which is what an untouched definition has. | — |
 | `fitChartSlots` | function | The chart, with the family its `type` asks for filled in from the groups and metrics the analysis actually has. | — |
 | `hasAsked` | function | Whether this view has put a question to its source: a result came back, one is on its way, or the last one failed. | — |
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
 | `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
-| `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where`isRecordRuntime` narrows it to a record view. | — |
+| `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where `isRecordRuntime` narrows it to a record view. | — |
 | `isDateTimeFilterValue` | function | — | — |
 | `isExportCancelledError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
 | `isRecordRuntime` | function | Whether a data view's runtime is a Record view's, with its rows' commands: a dashboard panel's runtime (`DashboardPanelState.runtime`) is either kind. | — |
 | `isSystemInstanceId` | function | True for any id in the namespace a `ViewStore` must not issue. | — |
 | `isViewCommandError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
-| `isViewStoreError` | function | Structural, so an error raised by a second copy of this package, or by a store that builds the shape itself, is still recognised: an `Error` named`ViewStoreError` with one of the port's codes. | [Persistence Port](./store#api-ViewStoreError) |
+| `isViewStoreError` | function | Structural, so an error raised by a second copy of this package, or by a store that builds the shape itself, is still recognised: an `Error` named `ViewStoreError` with one of the port's codes. | [Persistence Port](./store#api-ViewStoreError) |
 | `isViewWriteError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
 | `issue` | function | — | — |
 | `localStorageSnapshot` | function | A `MemoryViewStore` snapshot kept in `localStorage` under `key`: the whole store as one JSON document, `{ instances, preferences }`. | [Persistence Port](./store#api-localStorageSnapshot) |

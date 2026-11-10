@@ -17,12 +17,12 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 |---|---|---|---|
 | `AGGREGATION_LIMITS` | const | The sizes Wow's own `AggregationQuery` enforces by throwing. | — |
 | `AggregationDatePart` | enum | The calendar part a `DATE_PART` group takes of each instant, read in the group's `timeZone`. | — |
-| `AggregationDateUnit` | enum | The calendar unit of a `DATE_HISTOGRAM` bucket, cut in the group's`timeZone`. | — |
+| `AggregationDateUnit` | enum | The calendar unit of a `DATE_HISTOGRAM` bucket, cut in the group's `timeZone`. | — |
 | `AggregationElement` | interface | An array field whose elements the query aggregates over instead of the root documents; build it with `aggregation.element`. | — |
-| `AggregationExpression` | type | Per-row arithmetic over fields, time differences and numbers, which a metric aggregates, a TERMS or HISTOGRAM group groups by, and an`EXPRESSION` filter compares. | — |
-| `AggregationExpressionOperator` | enum | The arithmetic of a `BINARY` node, in an `AggregationExpression` or a`DerivedExpression`. | — |
+| `AggregationExpression` | type | Per-row arithmetic over fields, time differences and numbers, which a metric aggregates, a TERMS or HISTOGRAM group groups by, and an `EXPRESSION` filter compares. | — |
+| `AggregationExpressionOperator` | enum | The arithmetic of a `BINARY` node, in an `AggregationExpression` or a `DerivedExpression`. | — |
 | `AggregationExpressionType` | enum | The kind of an `AggregationExpression` node, sent as its `type`. | — |
-| `AggregationFunction` | enum | What a `NUMERIC` metric computes over its expression; each has a builder,`aggregation.sum` through `aggregation.variance`. | — |
+| `AggregationFunction` | enum | What a `NUMERIC` metric computes over its expression; each has a builder, `aggregation.sum` through `aggregation.variance`. | — |
 | `AggregationGroup` | type | One dimension of an `AggregationQuery`'s `groupBy`: each result row is one combination of the groups' keys. | — |
 | `AggregationGroupInput` | type | What a TERMS or HISTOGRAM group groups by: a field, or a computed expression in its place (Wow 9.2 and later), never both. | — |
 | `AggregationGroupScope` | enum | What an `AggregationGroup`'s field is relative to when the query expands elements, sent as its `scope`. | — |
@@ -35,10 +35,10 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `AggregationQuery` | interface | An aggregation request: which documents, grouped how, computing which metrics. | — |
 | `AnalysisDescriptor` | interface | The aggregation features the model offers. | — |
 | `AnalysisSortDescriptor` | interface | What an aggregation's result rows may be sorted by. | — |
-| `AnyAggregationMetric` | interface | Any one value of a field within each group, of any type;`aggregation.any`. | — |
+| `AnyAggregationMetric` | interface | Any one value of a field within each group, of any type; `aggregation.any`. | — |
 | `BeforeTodayFilter` | type | Matches times earlier than today at the local time `time`. | — |
 | `BetweenFilter` | type | Inclusive range on a field: `lowerBound <= field <= upperBound`. | — |
-| `BinaryAggregationExpression` | interface | `left operator right`; `aggregation.add`, `aggregation.subtract`,`aggregation.multiply`, `aggregation.divide`. | — |
+| `BinaryAggregationExpression` | interface | `left operator right`; `aggregation.add`, `aggregation.subtract`, `aggregation.multiply`, `aggregation.divide`. | — |
 | `CalendarFilter` | type | Matches times in a calendar window relative to now: `[start, end)` in the configured time zone. | — |
 | `CollectionFilter` | type | `IN`, `NOT_IN` or `CONTAINS_ALL` on a field against a non-empty list of non-null scalars. | — |
 | `ComparableFilterLiteral` | type | Non-null JSON scalar accepted by comparison, range and collection filters. | — |
@@ -53,31 +53,31 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `DEFAULT_PAGINATION` | const | Default pagination configuration. | — |
 | `DateDiffAggregationExpression` | interface | The time from the instant in `from` to the instant in `to`, `to − from`, in `unit`, as a signed decimal: negative when `to` is earlier, and no value when either is absent. | — |
 | `DateDiffUnit` | enum | The unit a `DATE_DIFF` measures elapsed time in. | — |
-| `DateHistogramAggregationGroup` | interface | Calendar buckets over a time field in epoch milliseconds;`aggregation.dateHistogram`. | — |
+| `DateHistogramAggregationGroup` | interface | Calendar buckets over a time field in epoch milliseconds; `aggregation.dateHistogram`. | — |
 | `DateHistogramAggregationOptions` | interface | The options of `aggregation.dateHistogram`. | — |
 | `DatePartAggregationGroup` | interface | One calendar part of a time field in epoch milliseconds, such as the weekday or the hour; `aggregation.datePart`. | — |
 | `DatePartAggregationOptions` | interface | The options of `aggregation.datePart`. | — |
-| `DaysFilter` | type | `RECENT_DAYS` matches today and the `days - 1` previous calendar days;`EARLIER_DAYS` matches times before that window. | — |
+| `DaysFilter` | type | `RECENT_DAYS` matches today and the `days - 1` previous calendar days; `EARLIER_DAYS` matches times before that window. | — |
 | `DeletionFilter` | type | Root-only filter on the deletion state of snapshots. | — |
 | `DeletionState` | enum | Deletion state enumeration | — |
 | `DerivedAggregationMetric` | interface | A metric computed from metrics declared before it in the same query, after aggregation; `aggregation.derived`. | — |
 | `DerivedExpression` | type | Post-aggregation arithmetic; references must name earlier metrics that are not `ANY`, `FIRST` or `LAST`. | — |
-| `DerivedExpressionDsl` | interface | The builders of a derived metric's arithmetic, handed to the callback of`aggregation.derived(d => …, alias)`: references to other metrics of the same row, numbers, and the four operators. | — |
+| `DerivedExpressionDsl` | interface | The builders of a derived metric's arithmetic, handed to the callback of `aggregation.derived(d => …, alias)`: references to other metrics of the same row, numbers, and the four operators. | — |
 | `DerivedExpressionType` | enum | The kind of a `DerivedExpression` node, sent as its `type`. | — |
 | `DerivedWindow` | type | A window over the groups of the aggregation. | — |
-| `DescriptorResult` | type | A query model's capability descriptor and its version, the `ETag` of`GET …/query`; `notModified` when the version given is still current. | — |
-| `DistinctCountAggregationMetric` | interface | The number of distinct values of an expression;`aggregation.distinctCount`. | — |
+| `DescriptorResult` | type | A query model's capability descriptor and its version, the `ETag` of `GET …/query`; `notModified` when the version given is still current. | — |
+| `DistinctCountAggregationMetric` | interface | The number of distinct values of an expression; `aggregation.distinctCount`. | — |
 | `DurationSemantic` | interface | A number field that is a length of time counted in `timeUnit`, such as a timeout in seconds: format it as a duration. | — |
 | `DynamicDocument` | type | A JSON object whose shape the types do not know; Wow's `DynamicDocument`. | — |
 | `DynamicDocumentArray` | type | A list of `DynamicDocument` rows. | — |
 | `DynamicFieldDescriptor` | interface | The fields under a map's dynamic keys, written with `{key}` in place of the key: any key matches, except those in `excludedKeys`. | — |
-| `EdgeAggregationMetric` | interface | A field's value on the earliest (`FIRST`) or latest (`LAST`) record of each group, ordered by `orderBy`; `aggregation.first` and`aggregation.last`. | — |
+| `EdgeAggregationMetric` | interface | A field's value on the earliest (`FIRST`) or latest (`LAST`) record of each group, ordered by `orderBy`; `aggregation.first` and `aggregation.last`. | — |
 | `EdgeAggregationOptions` | interface | The options of `aggregation.first` and `aggregation.last`. | — |
 | `ElementDescriptor` | interface | An array field whose elements can be filtered or aggregated one by one. | — |
 | `ElementFilterExpression` | type | Filter expression allowed inside an `ELEMENT_MATCH` predicate. | — |
-| `ElementLogicalFilter` | type | `AND`, `OR` or `NOR` whose operands are all valid inside an`ELEMENT_MATCH` predicate. | — |
+| `ElementLogicalFilter` | type | `AND`, `OR` or `NOR` whose operands are all valid inside an `ELEMENT_MATCH` predicate. | — |
 | `ElementMatchFilter` | type | Matches when a single element of the array `field` satisfies `predicate`. | — |
-| `ElementSearchFilter` | type | A `SEARCH` that names at least one field: the only search an`ELEMENT_MATCH` predicate takes, with fields relative to the element.`filter.search(query, { fields: ['name'] })` builds one. | — |
+| `ElementSearchFilter` | type | A `SEARCH` that names at least one field: the only search an `ELEMENT_MATCH` predicate takes, with fields relative to the element. | — |
 | `EnumValueDescriptor` | interface | One declared value of an enum field, with its description when it has one. | — |
 | `EqualityFilter` | type | `EQ` or `NE` on a field. | — |
 | `EqualityFilterValue` | type | Value accepted by `EQ` and `NE`, including `null`. | — |
@@ -99,23 +99,23 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `FilterSingleQuery` | interface | The body of a `single` query: the first match of the filter, or nothing. | — |
 | `HavingDescriptor` | interface | The metrics a `having` clause may test. | — |
 | `HavingDsl` | interface | The builders of a `having` expression, `aggregation.having.*`: conditions on the metric columns of the grouped rows, and their `and`/`or`. | — |
-| `HavingExpression` | type | Filters grouped results by metric aliases, before sorting/limit; never an`ANY`, `FIRST` or `LAST` metric. | — |
+| `HavingExpression` | type | Filters grouped results by metric aliases, before sorting/limit; never an `ANY`, `FIRST` or `LAST` metric. | — |
 | `HavingExpressionType` | enum | The kind of a `HavingExpression` node, sent as its `type`. | — |
-| `HistogramAggregationGroup` | type | Buckets of equal width over a number field, or over an expression;`aggregation.histogram`. | — |
+| `HistogramAggregationGroup` | type | Buckets of equal width over a number field, or over an expression; `aggregation.histogram`. | — |
 | `HistogramAggregationOptions` | interface | The options of `aggregation.histogram`. | — |
 | `KnownQueryErrorCode` | type | One of the codes this package knows; see `QueryErrorCodes`. | — |
 | `LimitsDescriptor` | interface | The effective limits of the entry the descriptor was read from: the protocol's and the entry's budget, whichever is smaller. | — |
 | `LogicalFilter` | type | `AND`, `OR` or `NOR` over a non-empty list of filter expressions. | — |
 | `MAX_CURSOR_SIZE` | const | The largest page size the cursor model admits (`CursorQuery` in Wow). | — |
 | `MAX_CURSOR_SORT_FIELDS` | const | The most sort fields a cursor query may name. | — |
-| `MatchFilter` | type | Constant filter: `MATCH_ALL` matches everything in the query scope,`MATCH_NONE` matches nothing. | — |
+| `MatchFilter` | type | Constant filter: `MATCH_ALL` matches everything in the query scope, `MATCH_NONE` matches nothing. | — |
 | `MetadataFilter` | type | Any root-only system identifier filter. | — |
 | `MetadataValueFilter` | type | Root-only filter on one system identifier: record ID, aggregate ID, tenant, owner or space. | — |
 | `MetadataValuesFilter` | type | Root-only filter on a non-empty set of record IDs or aggregate IDs. | — |
-| `NowFilter` | type | `BEFORE_NOW` matches times strictly before the server's `now + offset`;`AFTER_NOW` matches times strictly after it. | — |
-| `NumericAggregationMetric` | interface | An `AggregationFunction` of an expression; `aggregation.sum`,`avg`, `min`, `max`, `stddev`, `variance`. | — |
+| `NowFilter` | type | `BEFORE_NOW` matches times strictly before the server's `now + offset`; `AFTER_NOW` matches times strictly after it. | — |
+| `NumericAggregationMetric` | interface | An `AggregationFunction` of an expression; `aggregation.sum`, `avg`, `min`, `max`, `stddev`, `variance`. | — |
 | `NumericDecimal` | interface | A number field meant as a fixed-point decimal with `scale` fraction digits: format and total it at that precision. | — |
-| `NumericMoney` | type | A number field meant as an amount of money, in exactly one of a fixed ISO 4217 `currency` or the currency held by the sibling string field`currencyField` (a property of the same object or element). | — |
+| `NumericMoney` | type | A number field meant as an amount of money, in exactly one of a fixed ISO 4217 `currency` or the currency held by the sibling string field `currencyField` (a property of the same object or element). | — |
 | `PagedList` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for total `none`. | — |
 | `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
 | `Pagination` | interface | Interface for pagination information. | — |
@@ -123,7 +123,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |
 | `PercentileAggregationOptions` | interface | The options of `aggregation.percentile`. | — |
 | `PickPaths` | type | `T` with only the dotted paths `P` (and the objects that lead to them): an included path keeps its descendants, an array its items' paths, and a nullable or optional value stays so. | — |
-| `Projected` | type | The records of type `R` a query whose projection includes the paths`INCLUDE` returns: `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
+| `Projected` | type | The records of type `R` a query whose projection includes the paths `INCLUDE` returns: `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
 | `Projection` | interface | Interface for field projection. | — |
 | `ProjectionCapable` | interface | Interface for objects that support field projection. | — |
 | `QueryConstraintType` | type | A constraint's type: one of `QueryConstraintTypes`, or one a server added. | — |
@@ -135,25 +135,25 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `QueryFieldRole` | type | A system field's role: one of `QueryFieldRoles`, or one a server added. | — |
 | `QueryFieldRoles` | const | The system roles Wow names in a field's `role`: the system fields a root operator targets, and the model's times. | — |
 | `QueryModel` | type | A query model's name: one of `QueryModels`, or one a server added. | — |
-| `QueryModelDescriptor` | interface | How a query model can be queried over HTTP: the answer`GET {aggregate}/snapshot/schema` and `GET {aggregate}/event/schema` give. | — |
+| `QueryModelDescriptor` | interface | How a query model can be queried over HTTP: the answer `GET {aggregate}/snapshot/schema` and `GET {aggregate}/event/schema` give. | — |
 | `QueryModels` | const | The query models Wow names in a descriptor's `model`. | — |
-| `QuerySemanticType` | type | What a field's value means beyond its type, sent as its `semantic`: one of the three temporal kinds, which the relative time filters (`TODAY`,`RECENT_DAYS`, …) and date histograms need; one of the two numeric formats, which say how a number is read and displayed; a duration; or a reference to an aggregate. | — |
-| `QuerySemanticTypes` | const | The semantics Wow names in a field's `semantic.type`, one per member of`QuerySemanticType`: read a descriptor's semantic by these rather than by its spelling. | — |
+| `QuerySemanticType` | type | What a field's value means beyond its type, sent as its `semantic`: one of the three temporal kinds, which the relative time filters (`TODAY`, `RECENT_DAYS`, …) and date histograms need; one of the two numeric formats, which say how a number is read and displayed; a duration; or a reference to an aggregate. | — |
+| `QuerySemanticTypes` | const | The semantics Wow names in a field's `semantic.type`, one per member of `QuerySemanticType`: read a descriptor's semantic by these rather than by its spelling. | — |
 | `QueryValueKind` | enum | The structural shape of a field's value, sent as its `kind`. | — |
 | `QueryValueType` | type | A field's value type: one of `QueryValueTypes`, or one a server added. | — |
 | `QueryValueTypes` | const | The value types Wow names in a field's `types`. | — |
 | `QueryViolation` | interface | Why the server rejected a query: one violation of its `wow.query.invalid` problem, which rule failed, where, and the server's words. | — |
 | `RecordDescriptor` | interface | What holds for the model's records as a whole. | — |
-| `ReferenceSemantic` | type | A field whose value is the id of an aggregate, to look it up and link to it: either a fixed aggregate, `contextName` and `aggregateName`, or per record the aggregate the sibling string fields `contextNameField` and`aggregateNameField` name (as in an `AggregateId`). | — |
+| `ReferenceSemantic` | type | A field whose value is the id of an aggregate, to look it up and link to it: either a fixed aggregate, `contextName` and `aggregateName`, or per record the aggregate the sibling string fields `contextNameField` and `aggregateNameField` name (as in an `AggregateId`). | — |
 | `RelativeTimeFilterOptions` | interface | Options shared by relative time filters. | — |
 | `RunningFunction` | enum | What a `RUNNING` window computes over its frame. | — |
-| `SearchBuilder` | interface | The overloads of `filter.search`: naming at least one field, as an array literal, types the result as an `ElementSearchFilter`, which`ELEMENT_MATCH` takes; otherwise it is a `SearchFilter`, root-only when its `fields` are empty. | — |
+| `SearchBuilder` | interface | The overloads of `filter.search`: naming at least one field, as an array literal, types the result as an `ElementSearchFilter`, which `ELEMENT_MATCH` takes; otherwise it is a `SearchFilter`, root-only when its `fields` are empty. | — |
 | `SearchDescriptor` | interface | Full-text search in one scope: the record's (`record.search`) or an element's (`elements[].search`). | — |
 | `SearchFilter` | type | Full-text search. | — |
 | `SearchFilterOptions` | interface | Options for `filter.search`. | — |
 | `SearchMode` | enum | Matching mode of a full-text `SEARCH` filter. | — |
 | `SensitivityDescriptor` | interface | How a sensitive field is protected. | — |
-| `SensitivityLevel` | enum | How much Wow protects a sensitive field's raw value, sent as its`sensitivity.level`. | — |
+| `SensitivityLevel` | enum | How much Wow protects a sensitive field's raw value, sent as its `sensitivity.level`. | — |
 | `SortCapable` | interface | Interface for objects that support sorting. | — |
 | `SortDirection` | enum | Enumeration of sort directions. | — |
 | `StringComparison` | enum | Case handling for `CONTAINS`, `STARTS_WITH` and `ENDS_WITH`. | — |
@@ -161,13 +161,13 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `TemporalDate` | interface | A field that holds a calendar date. | — |
 | `TemporalEpoch` | interface | A field that holds a number of time units since the epoch. | — |
 | `TemporalFormatted` | interface | A field that holds a time written as text in a `java.time` pattern. | — |
-| `TermsAggregationGroup` | type | One group per distinct value of a field, or of an expression;`aggregation.terms`. | — |
+| `TermsAggregationGroup` | type | One group per distinct value of a field, or of an expression; `aggregation.terms`. | — |
 | `TermsAggregationOptions` | interface | The options of `aggregation.terms`. | — |
 | `TimeUnit` | enum | Unit of a numeric epoch time field targeted by a relative time filter. | — |
 | `TotalMode` | type | How a paged query counts its total (`TotalMode`). | — |
 | `VariantDescriptor` | interface | One variant of an element: the value of its discriminator and the fields that variant has. | — |
-| `VariantsDescriptor` | interface | An element of every record whose fields differ by variant: an event stream record's `body` holds events whose payload fields depend on`bodyType`. | — |
-| `WindowFunction` | enum | The window functions of derived expressions, as a storage declares them in`analysis.windows` of its descriptor. | — |
+| `VariantsDescriptor` | interface | An element of every record whose fields differ by variant: an event stream record's `body` holds events whose payload fields depend on `bodyType`. | — |
+| `WindowFunction` | enum | The window functions of derived expressions, as a storage declares them in `analysis.windows` of its descriptor. | — |
 | `aggregation` | const | Builders of an `AggregationQuery`: its elements, groups, metrics and the arithmetic expressions metrics compute over. | — |
 | `asc` | function | Creates a sort object with ascending direction for the specified field. | — |
 | `cursorQuery` | function | Builds the body of a cursor query, with the defaults filled in: all fields, no sort, a page of `DEFAULT_CURSOR_SIZE`, from the start. | — |

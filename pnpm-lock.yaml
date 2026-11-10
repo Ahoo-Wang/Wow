@@ -2241,6 +2241,9 @@ packages:
   '@microsoft/tsdoc@0.17.0':
     resolution: {integrity: sha512-p68VexhnH7ojf3U27RdryUDqnKJgKaWUbCL96vJR7N0mqDuhKG5OIECk3sCPPdynxjk+yoVhRkScqtv5KQjzsw==}
 
+  '@microsoft/tsdoc@0.17.1':
+    resolution: {integrity: sha512-VHyYyyoH63jFoO3shpw9Zfijk5v/9p/VrClW35z0/q6ooK7sSmxpzOkS4iZPxs3vO4XtBW4H38HRAKkAMIK7DA==}
+
   '@modelcontextprotocol/core@2.4.0':
     resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
     engines: {node: '>=20'}
@@ -7378,7 +7381,7 @@ snapshots:
 
   '@microsoft/api-extractor-model@7.33.16(@types/node@26.6.6)':
     dependencies:
-      '@microsoft/tsdoc': 0.17.0
+      '@microsoft/tsdoc': 0.17.1
       '@microsoft/tsdoc-config': 0.18.2
       '@rushstack/node-core-library': 5.25.2(@types/node@26.6.6)
     transitivePeerDependencies:
@@ -7387,7 +7390,7 @@ snapshots:
   '@microsoft/api-extractor@7.60.1(@types/node@26.6.6)':
     dependencies:
       '@microsoft/api-extractor-model': 7.33.16(@types/node@26.6.6)
-      '@microsoft/tsdoc': 0.17.0
+      '@microsoft/tsdoc': 0.17.1
       '@microsoft/tsdoc-config': 0.18.2
       '@rushstack/node-core-library': 5.25.2(@types/node@26.6.6)
       '@rushstack/rig-package': 0.7.4
@@ -7410,6 +7413,8 @@ snapshots:
       resolve: 1.22.12
 
   '@microsoft/tsdoc@0.17.0': {}
+
+  '@microsoft/tsdoc@0.17.1': {}
 
   '@modelcontextprotocol/core@2.4.0':
     dependencies:
