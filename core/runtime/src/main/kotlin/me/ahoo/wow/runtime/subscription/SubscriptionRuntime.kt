@@ -394,14 +394,8 @@ class SubscriptionRuntime internal constructor(
         return worker.skip(ref)
     }
 
-    /** The names of the subscriptions registered, read from any thread. */
-    val subscriptionNames: Set<String> get() = directory.keys.toSet()
-
     /** The subscriptions registered, by their contexts and names, read from any thread. */
     val subscriptionIds: Set<SubscriptionId> get() = directory.values.mapTo(HashSet()) { it.id }
-
-    /** The bounded context [subscription] belongs to ([Subscription.context]), null when it is not registered. */
-    fun contextOf(subscription: String): String? = directory[subscription]?.context
 
     /**
      * Whether the runtime runs [subscription] in [ref]'s partition here now: [retry] and [skip] act on the aggregate
