@@ -222,6 +222,33 @@ class BackendWindowsTest {
     }
 
     @Test
+    fun `a moving average over a frame without a value is null`() {
+        runTest {
+            val backend = RecordingBackend { cities.map { it.deepCopy() }.asFlow() }
+            val query = AggregationQuery(
+                groupBy = listOf(province, city),
+                metrics = listOf(
+                    gmv,
+                    derived(
+                        "moving",
+                        DerivedExpression.Running(
+                            "gmv",
+                            Sort(QueryField("city"), Sort.Direction.ASC),
+                            listOf("province"),
+                            frame = 1,
+                            function = RunningFunction.AVG,
+                        ),
+                    ),
+                ),
+            )
+            val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
+            // xz has no gmv: its one-group frame holds no value.
+            rows.single { it["city"].stringValue() == "xz" }["moving"].isNull.assert().isTrue()
+            rows.single { it["city"].stringValue() == "hz" }["moving"].doubleValue().assert().isEqualTo(60.0)
+        }
+    }
+
+    @Test
     fun `a total or a running sum past the double range fails the query, as a storage's would`() {
         listOf(
             DerivedExpression.Total("gmv"),
