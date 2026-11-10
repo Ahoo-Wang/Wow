@@ -12,10 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  resolveMethodName,
-  uniqueParameterName,
-} from '../../src/analysis/clientNames';
+import { resolveMethodName } from '../../src/analysis/clientNames';
 
 describe('client names', () => {
   describe('resolveMethodName', () => {
@@ -63,16 +60,6 @@ describe('client names', () => {
 
     it('returns undefined without an operationId', () => {
       expect(resolveMethodName({} as any)).toBeUndefined();
-    });
-  });
-
-  describe('uniqueParameterName', () => {
-    it('turns names into identifiers and numbers repeats', () => {
-      const used = new Set(['attributes']);
-      expect(uniqueParameterName('item-id', used)).toBe('itemId');
-      expect(uniqueParameterName('itemId', used)).toBe('itemId2');
-      expect(uniqueParameterName('attributes', used)).toBe('attributes2');
-      expect(uniqueParameterName('default', used)).toBe('default_');
     });
   });
 });

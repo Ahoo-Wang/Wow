@@ -20,6 +20,7 @@ import type {
   AnalysisViewConfig,
   DashboardDefinition,
   DashboardFilters,
+  DashboardPanel,
   DashboardViewConfig,
   DataViewDefinition,
   FieldDefinition,
@@ -296,6 +297,26 @@ export interface ManagedViewRuntime<
    */
   stored?(config: C): C;
   setWrite(write: WriteState | null): void;
+}
+
+/**
+ * What a confirmed write's effect asks of an open board
+ * (`applyWriteEffect`): carry a panel the write added onto the draft, and
+ * point a panel at a view saved from it. Declared here, beside the runtime
+ * the ledger holds, so the ledger's effects ask a board for these and depend
+ * on no board's class.
+ */
+export interface ManagedBoardRuntime extends ManagedViewRuntime<DashboardViewConfig> {
+  readonly kind: 'dashboard';
+  carryPanel(panel: DashboardPanel): void;
+  referToSaved(panelId: string, instance: ViewInstance): void;
+}
+
+/** Whether an open view is a board, by its own kind. */
+export function isManagedBoard(
+  runtime: ManagedViewRuntime | undefined,
+): runtime is ManagedBoardRuntime {
+  return runtime?.kind === 'dashboard';
 }
 
 /**

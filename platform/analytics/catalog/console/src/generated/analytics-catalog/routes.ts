@@ -3,7 +3,7 @@
 import type { RequestOptions, WowClientOptions } from '@ahoo-wang/wow-client';
 import { ServiceRoutes } from '@ahoo-wang/wow-client/routes';
 import { AnalyticsCatalogManifest } from './manifest.js';
-import type { CatalogSettings, CommandResult, ReferenceActions } from './types.js';
+import type { CatalogSettings, ReferenceActions, ResultCommandResult } from './types.js';
 
 /** The service routes of `analytics-catalog`: routes whose handler is the service's own code, each called by its Manifest's name. */
 export class AnalyticsCatalogRoutes {
@@ -27,8 +27,8 @@ export class AnalyticsCatalogRoutes {
    * One of the commands the row's field offers, sent with body to the aggregate id it refers to, as the caller: the owning service's result, or its refusal as it answered it.
    * `POST /analytics-catalog/datasets/{dataset}/rows/{field}/{id}/{command}`
    */
-  sendReferenceAction(dataset: string, field: string, id: string, command: string, body: Record<string, unknown>, options?: RequestOptions): Promise<CommandResult> {
-    return this.routes.call('analytics-catalog', 'sendReferenceAction', { path: { dataset, field, id, command }, body }, options) as Promise<CommandResult>;
+  sendReferenceAction(dataset: string, field: string, id: string, command: string, body: Record<string, unknown>, options?: RequestOptions): Promise<ResultCommandResult> {
+    return this.routes.call('analytics-catalog', 'sendReferenceAction', { path: { dataset, field, id, command }, body }, options) as Promise<ResultCommandResult>;
   }
 
   /**

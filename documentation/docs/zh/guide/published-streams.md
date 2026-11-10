@@ -57,7 +57,7 @@ fun onOrderStockConfirmed(
 - **投影**从主题的开头开始，用之前发布的内容填满它的读模型。
 - **Saga 或反应器的处理函数**从它的服务加入这条流的地方开始。服务里还没有别的订阅读过这个主题时，就是开头，所以之后才加入的服务仍能拿到之前发布的内容。已经有订阅读过时，就是末尾，所以给已在读这条流的服务后来新增的处理函数，不会再对它的历史采取行动：新的 Saga 处理函数不会为服务很久以前读过的事件发送命令。Manifest 把这种起点写作 `JOIN`。
 
-`@OnEvent(start = OnEvent.Start.BEGINNING)` 或 `END` 固定它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 覆盖两者，取值为 `beginning`、`end` 或一个时刻。有了第一个检查点之后，它就从那里继续。
+`@OnEvent(start = OnEvent.Start.BEGINNING)` 或 `END` 固定它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 覆盖两者，取值为 `beginning`、`end` 或一个时刻。时刻让订阅从每个分区中按偏移量顺序第一个提交时间不早于它的记录开始，此后的每条记录都会处理，无论其提交时间；没有这样的记录时从末尾开始。它在分区上的首次启动会从保留的第一条记录起读取来找到这条记录，跳过无法解码的记录。有了第一个检查点之后，它就从那里继续。
 
 服务读取主题时不使用 Kafka 消费组：偏移量保存在它自己的检查点存储里，与它其他订阅的位置放在一起。
 

@@ -81,7 +81,7 @@ export function PaidOrders({
 
 ## Read page by page
 
-`useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, and a failed `fetchNext()` keeps the rows, so calling it again retries that page:
+`useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, `fetchNext()` reads on from wherever the pages stand when it is called (a handler may `await fetchNext()` twice to read two pages), and a failed `fetchNext()` keeps the rows, so calling it again retries that page:
 
 ```tsx
 import type { Snapshot } from '@ahoo-wang/wow-client';

@@ -46,7 +46,7 @@ val asService = WowClient.builder()
 
 `client.commands` 与 Wow 服务里的 `CommandClient` 是同一个，`client.queries` 与 `QueryApi` 是同一个。service 模式下，名字放在每个请求的 `Wow-Service` 请求头里，被调用的服务可以列出这个名字能调用什么（`wow.callers.<service>`）。
 
-在 Spring Cloud 注册中心上，客户端可以把服务写作 `lb://<服务>`，经 Spring Cloud LoadBalancer 找到它的实例（[解析 `lb://`](../operate/spring-cloud#load-balancer)）。Java 代码把客户端包进 `JavaCommandClient`（[在 Java 中](./calling-services#from-java)）。
+在 Spring Cloud 注册中心上，客户端可以把服务写作 `lb://<服务>`，经 Spring Cloud LoadBalancer 找到它的实例（[解析 `lb://`](../operate/spring-cloud#load-balancer)）。自己编写的 `EndpointResolver` 如果去查找实例（在注册中心、DNS 或 sidecar 里），还要重写 `reaches`，说明它服务哪些上下文：这样查找其中某个上下文时一个实例都没找到，调用会以 `wow.peer.unavailable` 失败，客户端会重试；而不是被当作没有 URL 的上下文，那是代码的错误，不会重试。Java 代码把客户端包进 `JavaCommandClient`（[在 Java 中](./calling-services#from-java)）。
 
 ## 在其他语言中 {#from-other-languages}
 

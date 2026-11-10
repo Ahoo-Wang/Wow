@@ -150,6 +150,14 @@ export const EDIT_HISTORY_DEPTH = 100;
 export class EditHistory {
   private done: Entry[] = [];
   private undone: Entry[] = [];
+  /**
+   * The step the last edit recorded, while the next may join it. A burst is
+   * edits that follow one another: an undo, a redo or a burst that came
+   * back to nothing ends it, though the step left on top may again be the
+   * same command on the same thing — a rename after an undo joined the
+   * rename before it, and the next undo took both back (#5556).
+   */
+  private burst: Entry | null = null;
 
   get state(): EditHistoryState {
     const undo = this.done[this.done.length - 1]?.step ?? null;
@@ -170,7 +178,7 @@ export class EditHistory {
     const change = { draft: diff(...draft), applied: diff(...applied) };
     if (isEmpty(change.draft) && isEmpty(change.applied)) return;
     this.undone = [];
-    const last = this.done[this.done.length - 1];
+    const last = this.burst;
     if (
       last &&
       BURSTS.has(step.command) &&
@@ -179,10 +187,15 @@ export class EditHistory {
     ) {
       last.draft = merged(last.draft, change.draft);
       last.applied = merged(last.applied, change.applied);
-      if (isEmpty(last.draft) && isEmpty(last.applied)) this.done.pop();
+      if (isEmpty(last.draft) && isEmpty(last.applied)) {
+        this.done.pop();
+        this.burst = null;
+      }
       return;
     }
-    this.done.push({ step, ...change });
+    const entry = { step, ...change };
+    this.done.push(entry);
+    this.burst = entry;
     if (this.done.length > EDIT_HISTORY_DEPTH) this.done.shift();
   }
 
@@ -193,6 +206,7 @@ export class EditHistory {
   undo(): Rewind | null {
     const entry = this.done.pop();
     if (!entry) return null;
+    this.burst = null;
     this.undone.push(entry);
     return {
       step: entry.step,
@@ -205,6 +219,7 @@ export class EditHistory {
   redo(): Rewind | null {
     const entry = this.undone.pop();
     if (!entry) return null;
+    this.burst = null;
     this.done.push(entry);
     return {
       step: entry.step,
@@ -217,6 +232,7 @@ export class EditHistory {
   clear(): void {
     this.done = [];
     this.undone = [];
+    this.burst = null;
   }
 }
 

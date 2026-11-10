@@ -15,7 +15,22 @@ package me.ahoo.wow.spring.cloud
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.spi.call.OutgoingCall
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.cloud.client.DefaultServiceInstance
@@ -27,6 +42,7 @@ import org.springframework.cloud.client.loadbalancer.Response
 import org.springframework.cloud.client.loadbalancer.reactive.ReactiveLoadBalancer
 import reactor.core.publisher.Mono
 import java.net.URI
+import kotlin.time.Duration.Companion.seconds
 
 /** A WowClient's endpoints through Spring Cloud LoadBalancer (decision D396): `lb://<service>`, an instance per call. */
 class LoadBalancedEndpointsTest {
@@ -78,6 +94,61 @@ class LoadBalancedEndpointsTest {
         endpoints.reaches("bank", Port.PUBLIC).assert().isTrue()
         endpoints.reaches("teller", Port.INTERNAL).assert().isFalse()
         asked.assert().isEmpty()
+    }
+
+    /** What fails a call of `bank.account.Open` through [endpoints], as a saga makes it. */
+    private fun failureOf(endpoints: LoadBalancedEndpoints = this.endpoints): Throwable? = runCatching {
+        val account = AggregateType("bank", "account")
+        val contract = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "bank",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "account",
+                            state = StateManifest(Manifest.schemaRef("bank.AccountState")),
+                            commands = listOf(
+                                CommandManifest(
+                                    "Open",
+                                    schema = Manifest.schemaRef("bank.Open"),
+                                    creation = Creation.ALLOWED,
+                                    routes = CommandRoutes.of("bank", "account", "Open", Creation.ALLOWED),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val caller = HttpCommandCaller(
+            endpoints,
+            "teller-app",
+            HttpCommandCaller.client(),
+            1.seconds,
+            contracts = listOf(contract),
+        )
+        val command = Command(
+            "c-1",
+            "r-1",
+            account.ref("t", "a-1"),
+            emptyMap<String, Any>(),
+            causation = Causation("root", "root"),
+        )
+        runBlocking { caller.call(OutgoingCall("bank.account.Open", command)) }
+    }.exceptionOrNull()
+
+    @Test
+    fun `a listed service with no instance to call should be an outage, a context not listed the code's mistake`() {
+        // No instance to choose.
+        val none = failureOf() as WowProblemException
+        none.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        none.message.assert().contains("The lookup of bank lists no node on its internal port now.")
+        // An instance registered without its internal port: an outage too, until the peer's nodes register one.
+        chosen += DefaultServiceInstance("bank-3", "bank-service", "10.0.1.3", 8080, false)
+        (failureOf() as WowProblemException).code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        // A context the endpoints do not list has no URL at all: the code's mistake, the cause of its failure.
+        val unlisted = LoadBalancedEndpoints.of(loadBalancers, emptyMap())
+        failureOf(unlisted)!!.cause.assert().isInstanceOf(Misuse.State::class.java)
     }
 
     @Test

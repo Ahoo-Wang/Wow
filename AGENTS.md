@@ -196,6 +196,7 @@ On `main`, `package-deploy.yml` releases the 10.x line, stable (`v10.x.y`) and p
 - A pre-release: npm publishes under `alpha`, `beta` or `next` and `publish-npm.mjs` refuses `latest` for any pre-release; the images get the version alone; the GitHub release is a pre-release, never latest, with `.github/release-notes/prerelease.md` (no compatibility promise; 9.x data migration is a rehearsed pre-release tool, not for production data; not for production). A pre-release carries no compatibility promise.
 - A stable release on the latest line (the highest stable `v*` tag): npm publishes under `latest`; the images get the version, `X.Y` and `latest`; the GitHub release is not a pre-release and is marked latest, with `.github/release-notes/stable.md` when none exists. An `x.Y.0` with breaking changes needs its GitHub release, naming each of them, before admission.
 - A stable patch to an older line: npm publishes under `release-X.Y`; the images get the version and `X.Y`; the GitHub release is not marked latest.
+- A floating image tag (`X.Y`, `latest`) only ever moves to the highest stable version of its line among all `v*` tags, whichever tag the workflow runs on: a re-run of an older patch, after a later patch of its line was tagged, pushes its version alone.
 
 Steps:
 

@@ -19,6 +19,7 @@
 
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -42,12 +43,20 @@ import { useViewRuntime } from '../src/react/useViewRuntime.js';
 import {
   deferred,
   mine,
+  nextTask,
   ordersDefinition,
   recordConfig,
   requireRecordConfig,
   testSource,
+  testEnvironment,
   resourcesOf,
 } from './fixtures.js';
+import { DESCRIPTOR_MAX_AGE_MS } from '../src/capabilities/index.js';
+import {
+  describedField,
+  ordersDescriptor,
+  read,
+} from './fixtures/descriptor.js';
 import { engineWith } from './fixtures/hooks.js';
 
 afterEach(cleanup);
@@ -85,6 +94,78 @@ describe('useCreateViewEngine', () => {
         config: recordConfig(),
       }),
     ).not.toThrow();
+  });
+
+  /**
+   * #5562: StrictMode runs an effect's clean-up and set-up again over the
+   * same engine. Coming back to the page checks a stale descriptor again
+   * for as long as a view watches it — the views opened after the second
+   * set-up included — and nothing listens once none is open.
+   */
+  describe('coming back to the page over an engine StrictMode set up twice', () => {
+    const unsortable = () => ({
+      ...ordersDescriptor(),
+      version: 'sha256:orders-2',
+      fields: ordersDescriptor().fields.map(field =>
+        field.path === 'amount'
+          ? describedField('amount', { sort: { paged: false, cursor: false } })
+          : field,
+      ),
+    });
+
+    function strictEngine() {
+      const clock = testEnvironment();
+      const subscribe = vi.spyOn(clock.environment.visibility, 'subscribe');
+      const describe = vi.fn(() => Promise.resolve(read(ordersDescriptor())));
+      const source = testSource({ describe });
+      const view = renderHook(
+        () =>
+          useCreateViewEngine({
+            store: new MemoryViewStore(),
+            resources: resourcesOf([ordersDefinition()], () => source),
+            environment: clock.environment,
+          }),
+        { wrapper: StrictMode },
+      );
+      return { clock, subscribe, describe, view };
+    }
+
+    const sortable = (runtime: {
+      fields: readonly { name: string; sortable?: boolean }[];
+    }) => runtime.fields.find(field => field.name === 'amount')?.sortable;
+
+    it('checks a stale descriptor again and narrows the open view', async () => {
+      const { clock, describe, view } = strictEngine();
+      const runtime = await view.result.current.open('system:orders:all');
+      await act(nextTask);
+      expect(describe).toHaveBeenCalledTimes(1);
+      expect(sortable(runtime)).toBe(true);
+
+      describe.mockResolvedValue(read(unsortable()));
+      clock.advance(DESCRIPTOR_MAX_AGE_MS);
+      clock.setVisible(false);
+      clock.setVisible(true);
+      await act(nextTask);
+
+      expect(describe).toHaveBeenCalledTimes(2);
+      expect(sortable(runtime)).toBe(false);
+      view.unmount();
+    });
+
+    it('stops listening once the engine is let go', async () => {
+      const { subscribe, view } = strictEngine();
+      await view.result.current.open('system:orders:all');
+      await act(nextTask);
+      const stops = subscribe.mock.results.map(
+        result => result.value as () => boolean,
+      );
+      expect(stops.length).toBeGreaterThan(0);
+
+      view.unmount();
+
+      // Each subscription is let go; a second call finds nothing left.
+      expect(stops.map(stop => stop())).toEqual(stops.map(() => false));
+    });
   });
 
   it('keeps page-visibility awareness when options carry an explicit undefined', () => {

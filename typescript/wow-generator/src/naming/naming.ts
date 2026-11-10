@@ -299,3 +299,21 @@ export function quoteStringLiteral(value: string): string {
     .replace(/'/g, "\\'");
   return `'${escaped}'`;
 }
+
+/**
+ * Turns a parameter name from the document into a unique parameter
+ * identifier: `item-id` → `itemId`, and `id` twice → `id`, `id2`.
+ *
+ * @param name - The name the document uses
+ * @param used - The identifiers the method already uses; updated
+ * @returns The identifier
+ */
+export function uniqueParameterName(name: string, used: Set<string>): string {
+  const identifier = toIdentifier(name);
+  let unique = identifier;
+  for (let suffix = 2; used.has(unique); suffix++) {
+    unique = `${identifier}${suffix}`;
+  }
+  used.add(unique);
+  return unique;
+}

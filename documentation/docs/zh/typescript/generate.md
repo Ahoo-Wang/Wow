@@ -82,7 +82,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | `manifest.ts` | `<Context>Manifest`：上下文各命令的路由与它的服务路由，以及命令体指明了聚合的命令里承载 ID 的属性（`idProperty`），与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
 | `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
 | `routes.ts` | `<Context>Routes`：上下文每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
-| `types.ts` | Manifest 的 schema 中的命令、事件和状态 |
+| `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名。两个类共用的名字，或生成的模块已经占用的名字（它们用到的 TypeScript 全局类型，如 `Promise`、`Record`；它们从 `@ahoo-wang/wow-client` 导入的名字，如 `CommandClient`；生成器自己声明的名字，如 `<Aggregate>Event`），会以类的包名限定：`shop.Record` 生成为 `ShopRecord` |
 | `<aggregate>/aggregate.ts` | 聚合的描述符、查询能指明的 `state.*` 字段，以及它的事件的联合类型 |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个 `…Stream` 孪生方法，以及聚合列出的生命周期命令。内部命令（`"internal": true`，[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）没有方法，`manifest.ts` 里也没有它的条目，只有它用到的类型也不生成：公开端口不提供它 |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
@@ -158,7 +158,7 @@ CI 正是用这个 `tsconfig.json` 编译本页的代码。
 
 Kotlin 的 `Long`、`BigInteger` 或 `BigDecimal` 字段（schema 格式为 `int64`、`bigint` 或 `decimal`），在生成的类型中是 `string`，按服务写出的样子精确地保存数字；JavaScript 的 `number` 会对它们取整。线上仍然传输 JSON 数字：聚合的描述符列出这些字段，客户端从响应的文本中读取它们，并在命令体中不加引号地写回去。
 
-这在任何深度、客户端读写的每条路径上都成立：状态、事件、命令体、查询的记录，以及服务路由的请求体和响应。递归类型（`children` 仍是树的树）只在上下文的 `textNumbers.ts` 中标记一次，值到达哪里就在哪里读取。联合类型的各个分支保留各自的数字：一个值是 `decimal` 或由它们组成的对象时，按它实际是哪一种读取；由某个取常量值的成员区分的对象（Jackson 的 `@JsonTypeInfo` 写出子类型的方式）各自按自己的标记读取。如果分支对同一个数字的读法不同（一个精确、一个按数字），又没有这样的成员可以区分，生成就会失败（退出码 4），并指明 schema、路径和两种格式：给这些分支加上判别字段，或者使用同一种数字格式。
+这在任何深度、Manifest 描述了其值的每条路径上都成立：状态、事件、命令体、查询的记录，以及服务路由的请求体和响应（它没有描述的两类值见下文）。递归类型（`children` 仍是树的树）只在上下文的 `textNumbers.ts` 中标记一次，值到达哪里就在哪里读取。联合类型的各个分支保留各自的数字：一个值是 `decimal` 或由它们组成的对象时，按它实际是哪一种读取；由某个取常量值的成员区分的对象（Jackson 的 `@JsonTypeInfo` 写出子类型的方式）各自按自己的标记读取。如果分支对同一个数字的读法不同（一个精确、一个按数字），又没有这样的成员可以区分，生成就会失败（退出码 4），并指明 schema、路径和两种格式：给这些分支加上判别字段，或者使用同一种数字格式。
 
 <!-- typecheck: skip — generated code, compiled with the rest of the eShop web UI -->
 
@@ -218,6 +218,11 @@ export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValid
 | `() => marks` | 只在值到达那里时才读取的标记：递归类型的标记 | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
 | `textNumberOr(marks)` | 精确数字，或以 `marks` 标记的对象或数组，取决于值是哪一种 | `decimal \| { amount: decimal }` 用 `textNumberOr({ amount: true })` |
 | `textNumbersBy(member, cases)` | 按对象成员 `member` 的字符串值选择该对象的标记 | `textNumbersBy('kind', { decimal: { amount: true } })` |
+
+有两类值读取时不带标记，其中的大数字仍会被取整：
+
+- 命令结果的 `results` 是服务自己的值，Manifest 没有给出它们的 schema：命令在其中返回的 `Long` 或 `BigDecimal` 会以 JavaScript `number` 到达。请把这样的值以字符串返回，或者从聚合的状态中读取。
+- 聚合查询的指标值：对精确字段求和或取最大值，结果超出 `number` 能表示的范围时会被取整。
 
 ## 让客户端保持同步 {#keep-the-clients-in-step}
 

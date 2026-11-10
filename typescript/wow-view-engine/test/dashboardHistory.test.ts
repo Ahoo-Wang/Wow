@@ -215,6 +215,55 @@ describe('the history of building a board', () => {
     expect(runtime.getSnapshot().draft.panels[0].title).toBe('One');
   });
 
+  // #5556: a burst is edits that follow one another. An undo, a redo, or a
+  // burst that came back to nothing in between ends it, though the step
+  // on top is again the same command on the same thing.
+  it('starts a step of its own for the same naming after an undo in between', async () => {
+    const runtime = await harness().open(
+      dashboardConfig({ panels: [note('a')] }),
+    );
+    runtime.renamePanel('a', 'One');
+    const added = runtime.addPanel({ kind: 'markdown', content: 'Temporary' })!;
+    expect(runtime.undo()).toEqual({ command: 'addPanel', subject: added });
+
+    runtime.renamePanel('a', 'Two');
+
+    expect(runtime.getSnapshot().history.redo).toBeNull();
+    expect(runtime.undo()).toEqual({ command: 'renamePanel', subject: 'a' });
+    expect(runtime.getSnapshot().draft.panels[0].title).toBe('One');
+    expect(runtime.getSnapshot().applied.panels[0].title).toBe('One');
+    expect(runtime.undo()).toEqual({ command: 'renamePanel', subject: 'a' });
+    expect(runtime.getSnapshot().draft.panels[0].title).toBeUndefined();
+  });
+
+  it('starts a step of its own for the same naming after a redo', async () => {
+    const runtime = await harness().open(
+      dashboardConfig({ panels: [note('a')] }),
+    );
+    runtime.renamePanel('a', 'One');
+    runtime.undo();
+    runtime.redo();
+
+    runtime.renamePanel('a', 'Two');
+
+    expect(runtime.undo()).toEqual({ command: 'renamePanel', subject: 'a' });
+    expect(runtime.getSnapshot().draft.panels[0].title).toBe('One');
+  });
+
+  it('starts a step of its own for the same naming after a look tried and put back', async () => {
+    const runtime = await harness().open(
+      dashboardConfig({ panels: [saved('a')] }),
+    );
+    runtime.renamePanel('a', 'One');
+    runtime.setPresentation('a', { layout: 'card' });
+    runtime.setPresentation('a', null);
+
+    runtime.renamePanel('a', 'Two');
+
+    expect(runtime.undo()).toEqual({ command: 'renamePanel', subject: 'a' });
+    expect(runtime.getSnapshot().draft.panels[0].title).toBe('One');
+  });
+
   it('notes no step for an edit that changed nothing', async () => {
     const runtime = await harness().open(
       dashboardConfig({ panels: [note('n')] }),

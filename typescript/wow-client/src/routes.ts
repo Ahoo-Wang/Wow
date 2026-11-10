@@ -28,11 +28,7 @@ import {
   WowHeaders,
   type WowClientOptions,
 } from './http.js';
-import {
-  checkManifest,
-  fetchManifest,
-  type RoutingManifest,
-} from './manifest.js';
+import { ManifestSource, type RoutingManifest } from './manifest.js';
 
 /** What a call of a service route sends, besides its route. */
 export interface ServiceRouteCall {
@@ -80,7 +76,7 @@ const VARIABLE = /\{([A-Za-z][A-Za-z0-9]*)}/g;
  * that does not read with `wow.route.malformed`.
  */
 export class ServiceRoutes {
-  private manifest: Promise<RoutingManifest> | undefined;
+  private readonly manifest: ManifestSource;
   private readonly numbers: Readonly<Record<string, ServiceRouteNumbers>>;
 
   /**
@@ -91,10 +87,7 @@ export class ServiceRoutes {
     readonly client: WowClientOptions = {},
     options: ServiceRoutesOptions = {},
   ) {
-    this.manifest =
-      options.manifest === undefined
-        ? undefined
-        : Promise.resolve(checkManifest(options.manifest));
+    this.manifest = new ManifestSource(client, options.manifest);
     this.numbers = options.textNumbers ?? {};
   }
 
@@ -114,7 +107,7 @@ export class ServiceRoutes {
     call: ServiceRouteCall = {},
     options: RequestOptions = {},
   ): Promise<T | undefined> {
-    const route = (await this.manifestOf()).contexts
+    const route = (await this.manifest.read(options.signal)).contexts
       .find(item => item.name === context)
       ?.routes?.find(item => item.name === name)?.route;
     if (route === undefined) {
@@ -152,14 +145,5 @@ export class ServiceRoutes {
       options,
     });
     return answer.response.status === 204 ? undefined : answer.json<T>();
-  }
-
-  /** The Manifest given, or the service's, fetched once (again after a failure). */
-  private manifestOf(): Promise<RoutingManifest> {
-    this.manifest ??= fetchManifest(this.client).catch((error: unknown) => {
-      this.manifest = undefined;
-      throw error;
-    });
-    return this.manifest;
   }
 }

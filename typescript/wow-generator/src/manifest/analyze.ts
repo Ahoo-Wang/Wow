@@ -14,7 +14,6 @@
 import {
   camelCase,
   pascalCase,
-  quoteStringLiteral,
   resolvePropertyName,
   toIdentifier,
   toTypeIdentifier,
@@ -32,19 +31,19 @@ import {
   typesOf,
 } from './document';
 import {
+  aggregateTypeName,
+  contextTypeName,
+  generatedNames,
+  routeMethodParameters,
+  routeParameterIdentifier,
+} from './names';
+import {
   TEXT_NUMBER_FORMATS,
   TextNumbers,
   type TextNumbersDeclaration,
   type TextNumbersModel,
 } from './textNumbers';
-
-/**
- * The formats of numbers a Wow Manifest marks for reading from their text,
- * typed `string` (review R4-Q, Q-9; decision D254): an integer past
- * JavaScript's safe range (`int64`, `bigint`) and an exact decimal
- * (`decimal`). The wire keeps JSON numbers; `@ahoo-wang/wow-client` reads these
- * from the response's source text. A plain OpenAPI document keeps `number`.
- */
+import { compound, join, literal } from './typeText';
 
 /** A property of a generated interface. */
 export interface PropertyModel {
@@ -241,7 +240,10 @@ export interface ContextModel {
 
 /** A parameter of a service route: a path variable or a query parameter, and its TypeScript type. */
 export interface RouteParameterModel {
+  /** As the route names it: its path variable or its query parameter. */
   readonly name: string;
+  /** Its name in the method ({@link routeParameterIdentifier}). */
+  readonly identifier: string;
   readonly location: 'path' | 'query';
   readonly type: string;
   readonly required: boolean;
@@ -289,23 +291,6 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
 /** The deepest `state.*` path listed as a query field. */
 const MAX_FIELD_DEPTH = 4;
 
-/** A union or an intersection, its members set apart when they are compound. */
-function join(members: string[], separator: ' | ' | ' & '): string {
-  const unique = [...new Set(members)];
-  if (unique.length === 1) return unique[0];
-  return unique
-    .map(member =>
-      / [|&] /.test(member) && !member.startsWith('{') ? `(${member})` : member,
-    )
-    .join(separator);
-}
-
-function literal(value: unknown): string {
-  return typeof value === 'string'
-    ? quoteStringLiteral(value)
-    : JSON.stringify(value);
-}
-
 /**
  * Turns the schemas of a Manifest into types: names for `$defs` keys and
  * type text for any schema.
@@ -326,8 +311,8 @@ class SchemaTypes {
     return key.includes('(');
   }
 
-  /** Names each key after its simple class name, qualified as far as needed to be unique. */
-  name(keys: readonly string[]): void {
+  /** Names each key after its simple class name, qualified as far as needed to be unique and not `reserved`. */
+  name(keys: readonly string[], reserved: ReadonlySet<string>): void {
     const pending = new Set(keys);
     for (let depth = 0; pending.size > 0; depth++) {
       const byName = new Map<string, string[]>();
@@ -345,7 +330,7 @@ class SchemaTypes {
         );
         byName.set(name, [...(byName.get(name) ?? []), key]);
       }
-      const taken = new Set(this.names.values());
+      const taken = new Set([...reserved, ...this.names.values()]);
       for (const [name, owners] of byName) {
         // A key whose packages are used up takes the name, numbered when it
         // is taken; the others take it alone, or qualify one package more.
@@ -501,7 +486,7 @@ class SchemaTypes {
           schema.items === undefined
             ? 'unknown'
             : this.type(schema.items, where);
-        return / [|&] /.test(item) ? `(${item})[]` : `${item}[]`;
+        return compound(item) ? `(${item})[]` : `${item}[]`;
       }
       case 'object':
         return this.objectType(schema, where);
@@ -703,7 +688,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
   const keys = [...reach.keys()].filter(
     key => types.schemaOf(key) && !types.inlined(key),
   );
-  types.name([...keys].sort(compareNames));
+  types.name([...keys].sort(compareNames), generatedNames(manifest));
 
   const typeModels: TypeModel[] = keys
     .map(key => typeModel(types, key, `${reach.get(key)}/types.ts`))
@@ -771,7 +756,7 @@ function contextModel(
   return {
     name: context.name,
     ...(context.description ? { description: context.description } : {}),
-    typeName: toTypeIdentifier(pascalCase(context.name)),
+    typeName: contextTypeName(context),
     constantName: upperSnakeCase(context.name),
     directory: context.name,
     errors: (context.errors ?? []).map(error => ({
@@ -787,6 +772,7 @@ function contextModel(
     ),
     routes: (context.routes ?? []).map(route => {
       const where = `${context.name} route ${route.name}`;
+      const used = routeMethodParameters();
       return {
         name: route.name,
         method: route.route.method,
@@ -795,6 +781,7 @@ function contextModel(
         deprecated: route.deprecated === true,
         parameters: (route.parameters ?? []).map(parameter => ({
           name: parameter.name,
+          identifier: routeParameterIdentifier(parameter, used),
           location: parameter.in === 'path' ? 'path' : 'query',
           type: types.type(parameter.schema, `${where} ${parameter.name}`),
           required: parameter.required,
@@ -848,7 +835,7 @@ function aggregateModel(
   aggregate: ManifestAggregate,
 ): AggregateModel {
   const where = `${context.name}.${aggregate.name}`;
-  const typeName = toTypeIdentifier(pascalCase(aggregate.name));
+  const typeName = aggregateTypeName(aggregate);
   const idSource = aggregate.idSource ?? 'assigned';
   const owned = idSource === 'owner';
   const generated = new Set(lifecycleBodies(types, aggregate));

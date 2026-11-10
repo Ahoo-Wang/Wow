@@ -128,24 +128,38 @@ export class DescriptorCache {
     return this.options.now() - entry.checkedAt >= maxAge;
   }
 
+  /**
+   * One check in flight per source. The check is registered before it can
+   * settle and let go only once it has: `finally` runs a turn after the
+   * read settles, never before `inflight` is set. A source whose `describe`
+   * throws before it hands back a promise settles the read at once, and
+   * with the clean-up inside the read that ran first and left the settled
+   * check registered for good, so no later check ever asked again (#5563).
+   */
   private check(key: string, entry: Entry): Promise<void> {
     if (entry.inflight) return entry.inflight;
-    const read = async () => {
-      try {
-        const answer = await entry.describe(entry.descriptor?.version);
-        if (answer.notModified) return;
-        const before = entry.descriptor?.version;
-        entry.descriptor = answer.descriptor;
-        if (answer.descriptor.version !== before)
-          this.options.changed?.(key, answer.descriptor);
-      } catch (error) {
-        this.options.failed?.(key, error);
-      } finally {
-        entry.checkedAt = this.options.now();
-        entry.inflight = null;
-      }
-    };
-    entry.inflight = read();
-    return entry.inflight;
+    const checking = this.read(key, entry).finally(() => {
+      entry.checkedAt = this.options.now();
+      entry.inflight = null;
+    });
+    entry.inflight = checking;
+    return checking;
+  }
+
+  /**
+   * Asks the source once, and takes what it answers. A failure — a
+   * rejection, or a throw before any promise — keeps what is held.
+   */
+  private async read(key: string, entry: Entry): Promise<void> {
+    try {
+      const answer = await entry.describe(entry.descriptor?.version);
+      if (answer.notModified) return;
+      const before = entry.descriptor?.version;
+      entry.descriptor = answer.descriptor;
+      if (answer.descriptor.version !== before)
+        this.options.changed?.(key, answer.descriptor);
+    } catch (error) {
+      this.options.failed?.(key, error);
+    }
   }
 }

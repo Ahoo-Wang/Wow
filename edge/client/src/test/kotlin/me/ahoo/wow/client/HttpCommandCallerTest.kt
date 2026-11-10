@@ -29,9 +29,12 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
+import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -221,6 +224,23 @@ class HttpCommandCallerTest {
         }
         val unknown = HttpCommandCaller(emptyMap())
         assertThrownBy<WowProblemException> { runBlocking { unknown.call(call()) } }
+    }
+
+    @Test
+    fun `a peer found by discovery with no node up for the moment should be an outage the saga retries`() {
+        val discovered = object : EndpointResolver {
+            override suspend fun resolve(context: String, port: Port): URI? = null
+
+            override suspend fun reaches(context: String, port: Port): Boolean = context == "mail"
+        }
+        val caller = HttpCommandCaller(discovered, SERVICE, HttpCommandCaller.client(), 5.seconds, contracts = MAIL)
+        caller.reaches("mail").assert().isTrue()
+        val outage = caught<WowProblemException> { runBlocking { caller.call(call()) } }
+        outage.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        outage.message.assert().contains("The lookup of mail lists no node on its internal port now.")
+        // Systemic: the subscription waits for the peer to come back rather than parking the aggregate.
+        FailureClassification.DEFAULT.classify(outage, null).assert().isEqualTo(FailureClass.SYSTEMIC)
+        taken.assert().isEmpty()
     }
 
     @Test

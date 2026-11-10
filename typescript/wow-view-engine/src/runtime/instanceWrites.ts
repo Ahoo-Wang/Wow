@@ -125,14 +125,19 @@ export class InstanceWrites {
       throw new ViewCommandError(
         issue('view.addToDashboard.full', [], { max }),
       );
-    const saved = (await ledger.dispatch(
-      { action: 'save', id: boardId, revision, config: added.config },
+    // What an open board takes from the board saved is the ledger's to do
+    // (`applyWriteEffect`), so a retry does it too: as it now is, or the
+    // panel carried onto edits its reader made while this was out.
+    return (await ledger.dispatch(
+      {
+        action: 'save',
+        id: boardId,
+        revision,
+        config: added.config,
+        addedPanel: added.id,
+      },
       undefined,
     )) as ViewInstance;
-    // An open board had nothing of its own to keep: it takes the board as
-    // it now is, the new panel with it.
-    for (const holder of holders) holder.adoptSaved(saved);
-    return saved;
   }
 
   /**

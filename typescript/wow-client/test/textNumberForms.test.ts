@@ -93,6 +93,15 @@ describe('exact numbers', () => {
     });
   });
 
+  it('take no case for a value a discriminant cannot choose by, which is no object', () => {
+    const marks: TextNumbers = {
+      price: textNumbersBy('kind', { decimal: { amount: true } }),
+    };
+    expect(stringifyJson({ price: 3 }, marks)).toBe('{"price":3}');
+    expect(stringifyJson({ price: '3' }, marks)).toBe('{"price":"3"}');
+    expect(parseJson('{"price":3}', marks)).toStrictEqual({ price: 3 });
+  });
+
   it('keep a number or an object of numbers, whichever a value is', () => {
     const marks: TextNumbers = { price: textNumberOr({ amount: true }) };
     expect(roundTrip(`{"price":${DECIMAL}}`, marks)).toStrictEqual({
