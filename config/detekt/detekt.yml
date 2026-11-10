@@ -65,8 +65,11 @@ style:
 naming:
   FunctionNaming:
     # The contract specs name their tests as sentences, as tests do; :query-tck's are main code outside `test/`.
+    # The integration tests and the test fixtures are test code too.
     excludes:
       - '**/test/**'
+      - '**/integrationTest/**'
+      - '**/testFixtures/**'
       - '**/androidTest/**'
       - '**/commonTest/**'
       - '**/jvmTest/**'
