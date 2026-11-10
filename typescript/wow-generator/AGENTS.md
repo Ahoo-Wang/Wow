@@ -116,6 +116,9 @@ src/
     clientNames.ts            — Method and parameter names
   types/
     typeResolver.ts           — Schema → type text and the imports it needs, as pure functions (no module writes)
+    typeContext.ts            — Where a type is written: the document's context, the scope, the imports a type needs
+    indexSignature.ts         — When properties beside additionalProperties need the intersection form
+    literalTypes.ts           — A JSON value as a literal type
   emit/                       — The writing kit: ModuleBuilder, ImportRegistry, import specifiers, JSDoc text
   emitters/                   — GenerationModel → module statements: models, API clients, index files; manifestClients.ts writes a ManifestModel's clients on @ahoo-wang/wow-client
   finalize/

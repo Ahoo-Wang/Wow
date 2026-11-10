@@ -10,18 +10,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import { CodeBlockWriter } from 'ts-morph';
 import { jsDoc, schemaJSDoc } from '../emit/jsdoc';
-import type { ModelInfo } from '../naming/modelInfo';
 import { quoteStringLiteral, resolvePropertyName } from '../naming/naming';
 import { extractComponentKey, extractSchema } from '../openapi/components';
 import { isReference } from '../openapi/references';
 import type { MapSchema, ObjectSchema } from '../openapi/schemas';
 import {
   getMapKeySchema,
-  isAllOf,
   isComposition,
   isEnum,
   isMap,
@@ -30,6 +26,10 @@ import {
   resolvePrimitiveType,
   toArrayType,
 } from '../openapi/schemas';
+import { requiresAdditionalPropertiesIntersection } from './indexSignature';
+import { matchesLiteralType, resolveLiteral } from './literalTypes';
+import type { ImportRequest, ResolvedType, TypeScope } from './typeContext';
+import { GLOBAL_TYPE_NAMES } from './typeContext';
 
 /**
  * Schema → TypeScript type expression, as pure functions.
@@ -40,111 +40,6 @@ import {
  * imports to its module (`ImportRegistry.apply`) before it resolves the next
  * type, so a later reference sees the names and aliases an earlier one took.
  */
-
-/** An import a resolved type needs: a name, and the alias it goes by. */
-export interface ImportRequest {
-  readonly moduleSpecifier: string;
-  readonly name: string;
-  readonly alias?: string;
-}
-
-/** A type expression, and the imports it needs. */
-export interface ResolvedType {
-  readonly text: string;
-  readonly imports: readonly ImportRequest[];
-}
-
-/** The imports a module already holds, as the resolver reads them. */
-export interface ImportLookup {
-  entries(): readonly ImportRequest[];
-}
-
-/**
- * What stays the same for every type of one document: its components, how a
- * component names its model, and the model names declared at each path.
- */
-export interface TypeContext {
-  readonly components?: Components;
-  /** The model a reference names. */
-  modelOf(reference: Reference): ModelInfo;
-  /** The models declared at a path, with their `EnumText` companions. */
-  namesAt(path: string): readonly string[];
-}
-
-/**
- * How a document's component keys name models: `resolveModelInfo` and
- * `resolveReferenceModelInfo` of `analysis/modelInfo.ts`.
- */
-export interface ModelNaming {
-  ofKey(key: string): ModelInfo;
-  ofReference(reference: Reference, components?: Components): ModelInfo;
-}
-
-/**
- * Builds the context of a document. The model names of each path are read
- * once, on first use, rather than from every component for every reference.
- */
-export function createTypeContext(
-  components: Components | undefined,
-  naming: ModelNaming,
-): TypeContext {
-  let namesByPath: Map<string, string[]> | undefined;
-  return {
-    components,
-    modelOf: reference => naming.ofReference(reference, components),
-    namesAt(path) {
-      if (!namesByPath) {
-        namesByPath = new Map();
-        for (const key of Object.keys(components?.schemas ?? {})) {
-          const model = naming.ofKey(key);
-          let names = namesByPath.get(model.path);
-          if (!names) {
-            names = [];
-            namesByPath.set(model.path, names);
-          }
-          names.push(model.name, `${model.name}EnumText`);
-        }
-      }
-      return namesByPath.get(path) ?? [];
-    },
-  };
-}
-
-/** Where a type is written. */
-export interface TypeScope {
-  readonly context: TypeContext;
-  /**
-   * The declaration the type belongs to. An import never takes its name.
-   * With a `path`, it is a model: the models of that path are declared beside
-   * it, so a reference to one needs no import, and an import takes none of
-   * their names. Without, every referenced model is imported.
-   */
-  readonly owner: { readonly name: string; readonly path?: string };
-  /** The specifier the module imports a model by. */
-  specifierOf(model: ModelInfo): string;
-  /** The imports the module holds. */
-  readonly imports: ImportLookup;
-}
-
-/**
- * Global names generated code relies on. A model imported under one of these
- * names would shadow the global, so the import is aliased instead: a model
- * named `Response` must not turn `Promise<Response>` into a promise of the
- * model.
- */
-export const GLOBAL_TYPE_NAMES: readonly string[] = [
-  'Array',
-  'Blob',
-  'Exclude',
-  'FormData',
-  'Partial',
-  'Promise',
-  'ReadonlyArray',
-  'Record',
-  'Response',
-  'Symbol',
-  'URLSearchParams',
-];
 
 /** The TypeScript types a primitive schema type resolves to. */
 const PRIMITIVE_TYPE_NAMES = new Set(['string', 'number', 'boolean']);
@@ -168,144 +63,6 @@ const ANNOTATION_KEYWORDS = new Set([
 ]);
 
 /**
- * What a schema generates, as far as assignability to an index signature goes.
- *
- * A primitive carries its resolved TypeScript type; `object` and `array` need
- * no further detail, since neither is ever assignable to a primitive.
- */
-type SchemaKind = 'object' | 'array' | { primitive: string };
-
-/** Tells whether two classifications describe the same generated shape. */
-function sameKind(left: SchemaKind | undefined, right: SchemaKind): boolean {
-  if (left === undefined) return false;
-  if (typeof left === 'string' || typeof right === 'string') {
-    return left === right;
-  }
-  return left.primitive === right.primitive;
-}
-
-/**
- * Classifies a schema, following references through the components.
- *
- * Returns undefined - undecided - for anything whose assignability cannot be
- * read off the schema: a composition, a const, a nullable schema, a type
- * union, a missing `type`, a reference that cannot be resolved and a
- * reference cycle. An enum is decided by the type it sits beside, since it
- * generates literals of exactly that type.
- *
- * @param schema - The schema to classify
- * @param components - The components a reference resolves against
- * @param seen - The references already followed, guarding against a cycle
- * @returns The schema's kind, or undefined when it cannot be decided
- */
-function schemaKind(
-  schema: Schema | Reference,
-  components?: Components,
-  seen: Set<string> = new Set(),
-): SchemaKind | undefined {
-  if (isReference(schema)) {
-    if (!components || seen.has(schema.$ref)) return undefined;
-    seen.add(schema.$ref);
-    const resolved = extractSchema(schema, components);
-    return resolved ? schemaKind(resolved, components, seen) : undefined;
-  }
-  if (schema.nullable || Array.isArray(schema.type)) {
-    return undefined;
-  }
-  // An `allOf` narrows to whatever its branches agree on, so it is decided
-  // when every one of them decides and they all say the same thing. `anyOf`
-  // and `oneOf` widen instead, and stay undecided.
-  if (isAllOf(schema) && schema.type === undefined) {
-    const kinds = schema.allOf.map(member =>
-      schemaKind(member, components, seen),
-    );
-    const [first] = kinds;
-    return first !== undefined && kinds.every(kind => sameKind(kind, first))
-      ? first
-      : undefined;
-  }
-  if (
-    isComposition(schema) ||
-    schema.const !== undefined ||
-    schema.type === undefined
-  ) {
-    return undefined;
-  }
-  // An enum beside a sibling type generates literals of that type, which a
-  // matching primitive index accepts - `'a' | 'b'` sits beside `string`.
-  if (schema.type === 'object') return 'object';
-  if (schema.type === 'array') return 'array';
-  return { primitive: resolvePrimitiveType(schema.type) };
-}
-
-/**
- * Tells whether a named property provably cannot sit beside the index signature.
- *
- * The index type has to resolve to a primitive. That is not about proving the
- * clash - it is what keeps the alias sound: `Record<string, T>` in a type alias
- * may not lead back to the alias itself (TS2456), and only a primitive `T` is
- * certain never to. A property may reference anything, including the model
- * itself, because an object member defers.
- *
- * Against a primitive index, an object and an array are as incompatible as a
- * different primitive is, and so is a property whose kind cannot be read off
- * the schema: a nullable property generates `T | null`, a type array and a
- * typeless enum generate a union, and none of those is assignable to a
- * primitive index (TS2411). Undecided therefore takes the intersection, which
- * has no index-assignability rule to break. It cannot be circular either
- * (TS2456), because the index resolved to a primitive before we got here, so
- * the `Record` this generates can never lead back to the alias.
- *
- * @param propSchema - The named property's schema
- * @param additionalProperties - The additional-property schema
- * @param components - The components a reference resolves against
- * @returns True when the property may not be assignable to the index type
- */
-function clashesWithIndexSignature(
-  propSchema: Schema | Reference,
-  additionalProperties: Schema | Reference,
-  components?: Components,
-): boolean {
-  const indexKind = schemaKind(additionalProperties, components);
-  if (typeof indexKind !== 'object') return false;
-  const propertyKind = schemaKind(propSchema, components);
-  if (propertyKind === undefined) return true;
-  return (
-    typeof propertyKind === 'string' ||
-    propertyKind.primitive !== indexKind.primitive
-  );
-}
-
-/**
- * Chooses the intersection representation over an interface with an index
- * signature.
- *
- * An interface may only carry a named property whose type is assignable to
- * its index signature (TS2411). Every generated property is required, so
- * only a clash that can be PROVEN off the schemas moves one - see
- * {@link clashesWithIndexSignature}. Anything undecided keeps the interface,
- * which is the only form that can reference itself through an index
- * signature: an alias reaching itself through `Record` is circular (TS2456),
- * which is what a dictionary of its own type would generate.
- *
- * @param schema - The object schema to represent
- * @param components - The components a reference resolves against
- * @returns True when the schema needs the intersection form
- */
-export function requiresAdditionalPropertiesIntersection(
-  schema: Schema,
-  components?: Components,
-): boolean {
-  const additionalProperties = schema.additionalProperties;
-  if (typeof additionalProperties !== 'object') {
-    return false;
-  }
-  return Object.values(schema.properties ?? {}).some(propSchema =>
-    clashesWithIndexSignature(propSchema, additionalProperties, components),
-  );
-}
-
-/**
  * Tells whether a schema is the OpenAPI 3.0 idiom for a nullable reference:
  * `nullable: true` beside a composition of references alone, such as
  * `{nullable: true, allOf: [{$ref: X}]}`.
@@ -322,51 +79,6 @@ function isNullableReference(schema: Schema): boolean {
   return [schema.allOf, schema.oneOf, schema.anyOf].every(
     members => members === undefined || members.every(isReference),
   );
-}
-
-function matchesLiteralType(value: unknown, schema: Schema): boolean {
-  if (schema.type === undefined) return true;
-  if (value === null && schema.nullable) return true;
-  return [schema.type].flat().some(type => {
-    if (type === 'null') return value === null;
-    if (type === 'array') return Array.isArray(value);
-    if (type === 'object') {
-      return (
-        value !== null && typeof value === 'object' && !Array.isArray(value)
-      );
-    }
-    if (type === 'integer')
-      return typeof value === 'number' && Number.isInteger(value);
-    return typeof value === type;
-  });
-}
-
-/**
- * Renders a JSON value as a TypeScript literal type: a string in single
- * quotes, escaped as ts-morph's printer escapes it, an array as a tuple, an
- * object as an object type that no array matches.
- *
- * @param value - The value from the document
- * @returns The literal type
- */
-export function resolveLiteral(value: unknown): string {
-  if (typeof value === 'string') {
-    return new CodeBlockWriter({ useSingleQuote: true })
-      .quote(value)
-      .toString();
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(item => resolveLiteral(item)).join(', ')}]`;
-  }
-  if (value !== null && typeof value === 'object') {
-    const properties = Object.entries(value).map(
-      ([name, item]) => `${resolvePropertyName(name)}: ${resolveLiteral(item)}`,
-    );
-    return properties.length
-      ? `{ ${properties.join('; ')}; readonly [globalThis.Symbol.iterator]?: never }`
-      : 'globalThis.Record<string, never>';
-  }
-  return JSON.stringify(value) ?? 'never';
 }
 
 /** An import as one resolution sees it: the module's, or one it added. */

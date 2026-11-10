@@ -50,17 +50,17 @@ import {
   isReadOnly,
   toArrayType,
 } from '../openapi/schemas';
+import { requiresAdditionalPropertiesIntersection } from '../types/indexSignature';
+import { resolveLiteral } from '../types/literalTypes';
 import type {
   ResolvedType,
   TypeContext,
   TypeScope,
-} from '../types/typeResolver';
+} from '../types/typeContext';
+import { createTypeContext } from '../types/typeContext';
 import {
-  createTypeContext,
-  requiresAdditionalPropertiesIntersection,
   resolveAdditionalProperties,
   resolveAdditionalPropertyType,
-  resolveLiteral,
   resolveMapValueType,
   resolveRequiredAdditionalPropertyType,
   resolveType,

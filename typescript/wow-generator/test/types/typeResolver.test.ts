@@ -32,17 +32,17 @@ import {
   resolveReferenceModelInfo,
 } from '../../src/analysis/modelInfo';
 import { documentTypeContext } from '../../src/emitters/models';
+import { requiresAdditionalPropertiesIntersection } from '../../src/types/indexSignature';
+import { resolveLiteral } from '../../src/types/literalTypes';
 import type {
   ResolvedType,
   TypeContext,
   TypeScope,
-} from '../../src/types/typeResolver';
+} from '../../src/types/typeContext';
+import { createTypeContext } from '../../src/types/typeContext';
 import {
-  createTypeContext,
-  requiresAdditionalPropertiesIntersection,
   resolveAdditionalProperties,
   resolveAdditionalPropertyType,
-  resolveLiteral,
   resolveMapValueType,
   resolveRequiredAdditionalPropertyType,
   resolveType,
