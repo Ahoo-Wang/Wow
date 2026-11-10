@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -27,6 +28,10 @@ import org.junit.jupiter.api.assertThrows
 class TypeArgumentsTest {
     data class Box<T>(val value: T)
     data class Pair<A, B>(val first: A, val second: B)
+    enum class Status { OPEN, CLOSED }
+
+    /** A JSON property named `$ref`, which only a schema's reference key looks like. */
+    data class Link(@JsonProperty("\$ref") val target: Box<String?>)
     data class Submit(
         val nullable: Box<String?>,
         val strict: Box<String>,
@@ -34,6 +39,10 @@ class TypeArgumentsTest {
         val listed: Box<List<String?>>,
         val boxes: List<Box<Long?>?>,
         val mixed: Pair<String?, String>,
+        val status: Box<Status?>,
+        val tags: Box<List<String>?>,
+        val link: Link,
+        val free: Map<String, Any>,
     )
 
     class State {
@@ -85,7 +94,18 @@ class TypeArgumentsTest {
     fun `a nullable argument should be a definition of its own whose members accept null`() {
         // A legal command Wow's JSON writes and reads back with its nulls.
         val command =
-            Submit(Box(null), Box("s"), Box(Box(null)), Box(listOf(null)), listOf(null, Box(null)), Pair(null, "x"))
+            Submit(
+                Box(null),
+                Box("s"),
+                Box(Box(null)),
+                Box(listOf(null)),
+                listOf(null, Box(null)),
+                Pair(null, "x"),
+                Box(null),
+                Box(null),
+                Link(Box(null)),
+                mapOf("any" to 1),
+            )
         StateJson.mapper.readValue(
             StateJson.mapper.writeValueAsString(command),
             Submit::class.java
@@ -129,6 +149,26 @@ class TypeArgumentsTest {
         mixed["x-wow-class"].assert().isEqualTo(pair)
         mixed.property("first").assert().isEqualTo(mapOf("type" to listOf("string", "null")))
         mixed.property("second").assert().isEqualTo(mapOf("type" to "string"))
+        // A nullable enumeration and a nullable container, written as a nullable property is.
+        resolved(property(Submit::class.java.name, "status")).property("value").assert().isEqualTo(
+            mapOf(
+                "anyOf" to listOf(
+                    mapOf("type" to "null"),
+                    mapOf(
+                        "type" to "string",
+                        "enum" to listOf("OPEN", "CLOSED"),
+                        "x-wow-class" to Status::class.java.name,
+                    ),
+                ),
+            ),
+        )
+        resolved(property(Submit::class.java.name, "tags")).property("value").assert()
+            .isEqualTo(mapOf("type" to listOf("array", "null"), "items" to mapOf("type" to "string")))
+        // A property named `$ref` is a property, its schema's own references restored.
+        resolved(resolved(property(Submit::class.java.name, "link")).property("\$ref")).property("value").assert()
+            .isEqualTo(mapOf("type" to listOf("string", "null")))
+        // A free map: any value, left unsaid.
+        property(Submit::class.java.name, "free").assert().isEqualTo(mapOf("type" to "object"))
         completed.defs.toString().contains("Nullable").assert().isFalse()
     }
 

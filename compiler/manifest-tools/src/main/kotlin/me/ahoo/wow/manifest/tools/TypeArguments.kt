@@ -124,9 +124,11 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
         }
     }
 
-    /** A value of the platform written as a JSON scalar: a number, a string, a boolean, an enumeration, a time. */
-    private fun isScalar(type: Class<*>): Boolean =
-        type.isPrimitive || type.isEnum || PLATFORM_PACKAGES.any { type.name.startsWith(it) }
+    /**
+     * A value of the platform written as a JSON scalar: a number, a string, a boolean, an enumeration, a time. A
+     * nullable value is never a primitive: a type argument, or an object array's element, is a boxed class.
+     */
+    private fun isScalar(type: Class<*>): Boolean = type.isEnum || PLATFORM_PACKAGES.any { type.name.startsWith(it) }
 
     /**
      * A property's list, set, object array or map, written where it is used, never as a definition of its erased type
@@ -152,15 +154,16 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
                 erased.isArray && !erased.componentType.isPrimitive -> ITEMS to type.arrayElementType
                 Collection::class.java.isAssignableFrom(erased) ->
                     ITEMS to context.typeContext.getContainerItemType(type)
+                // A map has its two parameters, resolved (to `Object` when raw).
                 Map::class.java.isAssignableFrom(erased) ->
-                    ADDITIONAL_PROPERTIES to type.typeParametersFor(Map::class.java)?.getOrNull(1)
+                    ADDITIONAL_PROPERTIES to type.typeParametersFor(Map::class.java)[1]
                 else -> return null
             }
             val elementKotlinType = kotlinType?.arguments?.getOrNull(if (keyword == ITEMS) 0 else 1)?.type
             return context.generatorConfig.createObjectNode().apply {
                 put(TYPE, if (keyword == ITEMS) ARRAY else OBJECT)
                 // Any value at all, null included, is left unsaid, as the generator leaves it out of a free map.
-                element?.takeIf { it.erasedType != Any::class.java }?.let {
+                element.takeIf { it.erasedType != Any::class.java }?.let {
                     set(keyword, element(it, elementKotlinType, context))
                 }
                 if (Set::class.java.isAssignableFrom(erased)) put(WireTypes.UNIQUE_ITEMS, true)
