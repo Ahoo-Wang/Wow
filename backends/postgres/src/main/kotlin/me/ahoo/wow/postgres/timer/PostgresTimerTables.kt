@@ -38,9 +38,9 @@ internal class PostgresTimerTables(private val context: String) {
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $REGISTRY (
-            context text NOT NULL,
-            aggregate text NOT NULL,
-            timer_table text NOT NULL UNIQUE,
+            context text COLLATE "C" NOT NULL,
+            aggregate text COLLATE "C" NOT NULL,
+            timer_table text COLLATE "C" NOT NULL UNIQUE,
             PRIMARY KEY (context, aggregate)
         )
         """.trimIndent(),
@@ -96,8 +96,9 @@ internal class PostgresTimerTables(private val context: String) {
 
     companion object {
         /**
-         * The version of this layout: 6 since the key and the due index's tie-breaker compare by code point
-         * (`COLLATE "C"`) whatever the database's default; 5 is refused.
+         * The version of this layout: 6 since every text column of a key or an index (the key, the due index's
+         * tie-breaker, the parked index's target, the registry) compares by code point (`COLLATE "C"`) whatever the
+         * database's default; 5 is refused.
          */
         const val FORMAT = 6
         const val PREFIX = "wow_timer"
@@ -134,10 +135,10 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
             slot bigint NOT NULL,
             due_at bigint NOT NULL,
             slot_due_at bigint NOT NULL,
-            target_context text NOT NULL,
-            target_aggregate text NOT NULL,
-            target_tenant_id text NOT NULL,
-            target_id text NOT NULL,
+            target_context text COLLATE "C" NOT NULL,
+            target_aggregate text COLLATE "C" NOT NULL,
+            target_tenant_id text COLLATE "C" NOT NULL,
+            target_id text COLLATE "C" NOT NULL,
             command_type text NOT NULL,
             body text NOT NULL,
             correlation_id text,

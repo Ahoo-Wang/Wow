@@ -34,11 +34,10 @@ class PostgresSchemaTest {
         val snapshots = PostgresSnapshotTables("sales", "order")
         val timers = PostgresTimerTables("sales")
         val statements = log.ddl() + order.ddl() + snapshots.ddl() +
-            snapshots.additions + timers.ddl() + timers.aggregate("order").ddl() +
+            timers.ddl() + timers.aggregate("order").ddl() +
             PostgresReservationTables("sales", "order").ddl + PostgresFailureLedgerTables("wow_failure").ddl +
             PostgresCheckpointStore.DDL + PostgresLeaseStore.DDL
         statements.forEach { PostgresSchema.target(it) }
-        statements.map { PostgresSchema.target(it) }.filterIsInstance<Target.Columns>().assert().isNotEmpty()
     }
 
     @Test

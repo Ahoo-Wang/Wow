@@ -20,13 +20,18 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.reservation.PostgresReservationTables
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
+import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.postgres.timer.PostgresTimerTables
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterEach
@@ -34,7 +39,7 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The keys of the log, the reservations and the timers compare by code point (`COLLATE "C"`), whatever the database's
+ * Every text column the store keys or indexes on compares by code point (`COLLATE "C"`), whatever the database's
  * default: here an ICU `en-US` database, which orders `a` before `B` where code points order `B` first.
  */
 class PostgresCollationTest {
@@ -107,51 +112,73 @@ class PostgresCollationTest {
         }
 
     @Test
-    fun `the key columns of the log, the reservations and the timers should declare the C collation`(): Unit =
-        runBlocking {
-            val context = PostgresFixture.newContext("icu")
-            val type = AggregateType(context, "order")
-            PostgresEventLog(icu, context, 1).also { it.createSchema() }.append(stream(type, "t", "o-1"))
-            val owner = type.ref("t", "o-1")
-            PostgresReservationStore(icu).reserve(ReservationScope.of(type, "t", "name"), "k", owner, "h", 1.minutes)
-            PostgresTimerStore(icu, context).also { it.createSchema() }.put(
-                Timer(
-                    id = "$owner#k@1",
-                    owner = owner,
-                    key = "k",
-                    version = 1,
-                    partition = 0,
-                    rule = ScheduleRule.At(5),
-                    dueAt = 5,
-                    target = owner,
-                    commandType = "$context.order.Cancel",
-                    body = "{}",
-                ),
-            )
-            val keys = mapOf(
-                PostgresEventLogTables(context).aggregate("order").base to
-                    listOf("tenant_id", "aggregate_id", "request_id"),
-                PostgresReservationTables(context, "order").name to listOf("tenant_id", "namespace", "key"),
-                PostgresTimerTables(context).aggregate("order").base to
-                    listOf("owner_tenant_id", "owner_id", "key", "timer_id"),
-            )
-            keys.forEach { (table, columns) -> collations(table, columns).assert().containsOnly("C") }
+    fun `no indexed text column of the store should compare by another collation than C`(): Unit = runBlocking {
+        // Every structure of the store, created on a database whose default collation is not C.
+        val context = PostgresFixture.newContext("icu")
+        val type = AggregateType(context, "order")
+        val owner = type.ref("t", "o-1")
+        PostgresEventLog(icu, context, 1).also { it.createSchema() }.append(stream(type, "t", "o-1"))
+        PostgresSnapshotStore(icu, context).save(
+            SnapshotRecord(owner, 1, "fingerprint", "{}", firstEventTime = 1L, lastEventTime = 1L),
+        )
+        PostgresReservationStore(icu).reserve(ReservationScope.of(type, "t", "name"), "k", owner, "h", 1.minutes)
+        PostgresTimerStore(icu, context).also { it.createSchema() }.put(
+            Timer(
+                id = "$owner#k@1",
+                owner = owner,
+                key = "k",
+                version = 1,
+                partition = 0,
+                rule = ScheduleRule.At(5),
+                dueAt = 5,
+                target = owner,
+                commandType = "$context.order.Cancel",
+                body = "{}",
+            ),
+        )
+        PostgresCheckpointStore(icu).createSchema()
+        PostgresLeaseStore(icu).createSchema()
+        PostgresFailureLedger(icu).createSchema()
+        // Each text column of every index of a wow_* table, with its collation: none but C. The rule rather than a
+        // list, so a table added later cannot forget it.
+        val indexed = icu.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery(INDEXED_TEXT).use { rows ->
+                    generateSequence {
+                        if (rows.next()) Triple(rows.getString(1), rows.getString(2), rows.getString(3)) else null
+                    }.toList()
+                }
+            }
         }
-
-    /** The collation each of [columns] of [table] declares. */
-    private fun collations(table: String, columns: List<String>): List<String> = icu.connection.use { connection ->
-        connection.prepareStatement(
-            "SELECT c.collname FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid " +
-                "JOIN pg_collation c ON c.oid = a.attcollation WHERE t.relname = ? AND a.attname = ANY (?)",
-        ).use { query ->
-            query.setString(1, table)
-            query.setArray(2, connection.createArrayOf("text", columns.toTypedArray()))
-            query.executeQuery().use { rows -> generateSequence { if (rows.next()) rows.getString(1) else null }.toList() }
-        }.also { it.size.assert().isEqualTo(columns.size) }
+        indexed.map { it.first }.toSet().assert().contains(
+            "wow_format",
+            "wow_log_aggregate",
+            "wow_timer_aggregate",
+            "wow_snapshot_table",
+            "wow_checkpoint",
+            "wow_lease",
+            "wow_lease_member",
+            PostgresEventLogTables(context).aggregate("order").base,
+            PostgresReservationTables(context, "order").name,
+            PostgresTimerTables(context).aggregate("order").base,
+        )
+        indexed.filter { it.third != "C" }.assert().isEmpty()
     }
 
     private companion object {
         const val DATABASE = "wow_icu"
+
+        /** Each collatable column of each index of a wow_* table: the table, the index, the collation. */
+        val INDEXED_TEXT = """
+            SELECT t.relname, i.relname, c.collname
+            FROM pg_index x
+            JOIN pg_class i ON i.oid = x.indexrelid
+            JOIN pg_class t ON t.oid = x.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace AND n.nspname = current_schema()
+            CROSS JOIN LATERAL unnest(x.indcollation::oid[]) AS k(coll)
+            JOIN pg_collation c ON c.oid = k.coll
+            WHERE t.relname LIKE 'wow\_%'
+        """.trimIndent()
         const val POSTGRES_PORT = 5432
     }
 }

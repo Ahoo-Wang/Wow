@@ -43,9 +43,9 @@ internal class PostgresEventLogTables(val context: String) {
         """.trimIndent(),
         """
         CREATE TABLE IF NOT EXISTS $REGISTRY (
-            context text NOT NULL,
-            aggregate text NOT NULL,
-            log_table text NOT NULL UNIQUE,
+            context text COLLATE "C" NOT NULL,
+            aggregate text COLLATE "C" NOT NULL,
+            log_table text COLLATE "C" NOT NULL UNIQUE,
             access_walk jsonb,
             PRIMARY KEY (context, aggregate)
         )
