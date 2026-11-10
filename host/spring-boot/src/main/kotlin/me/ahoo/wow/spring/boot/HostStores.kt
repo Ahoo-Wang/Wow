@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -24,7 +26,10 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.BackendSelection
+import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
@@ -127,6 +132,8 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
 
 /** Opens the node's store instances through the store providers ([StoreProviders]). */
 internal object StoreInstances {
+    private val logger = KotlinLogging.logger {}
+
     /**
      * The stores of `wow.stores`, by name, each opened by the provider of its `type`; when it names none, the one store
      * `wow.backend` selects ([BackendSelection]), named [ContextBackends.DEFAULT_STORE]. Each store is given the options
@@ -181,22 +188,50 @@ internal object StoreInstances {
             properties.backend,
             "Give each store of wow.stores its type, and leave wow.backend unset.",
         ) { "wow.backend is ${properties.backend}, but wow.stores names the stores." }
-        return properties.stores.mapValues { (name, store) ->
-            val key = "wow.stores.$name"
-            val type = StoreTypes.of(
-                configNotNull(
-                    store.type?.takeIf { it.isNotBlank() },
-                    "$key.type",
-                    "Set it to one of ${providers.types}."
-                ) {
-                    "$key.type is not set."
-                },
-            )
-            configCheck(type != StoreTypes.AUTO, "$key.type", type, "Name the type: one of ${providers.types}.") {
-                "$key.type is auto, which only wow.backend may be."
+        // Each store recorded as it is opened: one failing to open closes those opened before it ([Closing]).
+        val opened = LinkedHashMap<String, Store>()
+        Closing.onFailure(opened.values) {
+            properties.stores.forEach { (name, store) ->
+                val key = "wow.stores.$name"
+                val type = StoreTypes.of(
+                    configNotNull(
+                        store.type?.takeIf { it.isNotBlank() },
+                        "$key.type",
+                        "Set it to one of ${providers.types}."
+                    ) {
+                        "$key.type is not set."
+                    },
+                )
+                configCheck(type != StoreTypes.AUTO, "$key.type", type, "Name the type: one of ${providers.types}.") {
+                    "$key.type is auto, which only wow.backend may be."
+                }
+                opened[name] = open(name, type, store, "$key.type")
             }
-            open(name, type, store, "$key.type")
         }
+        return opened
+    }
+
+    /**
+     * The node's backends over [stores], opened in this order: each aggregate type of [types] placed as [placements]
+     * say ([StoreLayout]), its logs of [partitions] partitions. They own the stores from then on ([HostBackends.close]);
+     * a layout that fails closes them ([Closing]). A log or snapshots in memory is logged as a warning.
+     */
+    fun backends(
+        stores: Map<String, Store>,
+        placements: StorePlacements,
+        types: List<AggregateType>,
+        partitions: Int,
+    ): HostBackends = Closing.onFailure(stores.values) {
+        val layout = StoreLayout.of(placements, stores, types)
+        val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
+        if (memory.isNotEmpty()) {
+            logger.warn {
+                "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
+                    "DataSource or MongoClient backs it in a development profile or on a loopback internal port): " +
+                    "it does not outlive the node, and serves one node only."
+            }
+        }
+        HostBackends.of(stores, layout, partitions)
     }
 
     /**

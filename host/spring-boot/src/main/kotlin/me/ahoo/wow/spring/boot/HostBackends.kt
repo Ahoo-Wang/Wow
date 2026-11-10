@@ -20,6 +20,7 @@ import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.ConcurrentHashMap
@@ -33,8 +34,14 @@ import java.util.concurrent.CopyOnWriteArrayList
  * [type] is the store type the host selected (`memory` when any log is in memory, else the default log store's), or
  * null for the application's own [BackendFactory] bean, whose schemas are the application's; [local] whether a log is
  * on a store no other node shares ([Store.durable] false), so the node serves alone. [shared] creates the schemas of the stores the contexts share; [open] opens a
- * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, and [layout]
- * where each aggregate's log and snapshots are, when the host opened them.
+ * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, in the order
+ * they were opened, and [layout] where each aggregate's log and snapshots are, when the host opened them.
+ *
+ * It owns [stores], whatever each was opened for: the host opens them ([StoreInstances]), and closing it closes each of
+ * them once, in reverse order of opening ([Closing]). Spring closes it with its bean, after every bean that uses it,
+ * the node and the queries among them, was destroyed, so after the node and the internal port stopped. The
+ * resources the host gave the stores are their owners'. The application's own [BackendFactory] gives it none: what
+ * that factory opened is the application's.
  */
 class HostBackends @InternalWowApi constructor(
     val type: String?,
@@ -46,7 +53,7 @@ class HostBackends @InternalWowApi constructor(
     /** Whether a log is on a store no other node shares, so that the node serves alone. */
     val local: Boolean = type == StoreTypes.MEMORY,
     private val open: (context: String, schemas: MutableList<() -> Unit>) -> ContextBackends,
-) {
+) : AutoCloseable {
     private val opened = ConcurrentHashMap<String, ContextBackends>()
     private val schemas = CopyOnWriteArrayList(shared)
 
@@ -61,6 +68,11 @@ class HostBackends @InternalWowApi constructor(
     /** Creates the schemas of the stores opened so far, where they are missing. */
     fun createSchemas() {
         schemas.forEach { it() }
+    }
+
+    /** Closes [stores], each once, in reverse order of opening ([Closing.inReverse]). */
+    override fun close() {
+        Closing.inReverse(stores.values)
     }
 
     /** The store instance [type]'s snapshots are on, when the host opened its stores. */

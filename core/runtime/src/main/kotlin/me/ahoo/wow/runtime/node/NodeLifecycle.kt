@@ -391,7 +391,6 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             steps.run(ServiceNode.Step.HANDED_OFF) { handOff() }
         }
         close(steps, waitsEnd)
-        closeStores()
         state = ServiceNode.State.STOPPED
         logger.info { "Node $node of $service stopped." }
         steps.failure?.let { throw it }
@@ -476,18 +475,6 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
         /** The node's own log category, as before its lifecycle had a type of its own. */
         val logger = KotlinLogging.logger(ServiceNode::class.java.name)
-    }
-
-    /** Closes every placed store once the logs are: one that fails to close is logged, the others closed all the same. */
-    @Suppress("TooGenericExceptionCaught") // Whatever one store throws, the others are closed.
-    private fun closeStores() {
-        placedStores.forEach { store ->
-            try {
-                store.close()
-            } catch (failure: Exception) {
-                logger.warn(failure) { "Node $node of $service failed to close the store $store." }
-            }
-        }
     }
 }
 

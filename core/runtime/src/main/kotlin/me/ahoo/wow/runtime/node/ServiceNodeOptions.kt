@@ -90,8 +90,9 @@ class ContextBackends @InternalWowApi constructor(
     /** The context's other log groups, each on a store of its own. */
     val groups: List<LogGroupBackends> = emptyList(),
     /**
-     * The store instances these ports were opened on, which the node creates the schemas of when it starts, probes for
-     * its health and closes once it stopped; none for backends an application opened itself.
+     * The store instances these ports were opened on, which the node creates the schemas of when it starts and probes
+     * for its health; none for backends an application opened itself. Whoever opened them closes them: the host, once
+     * the node and everything else that reads them stopped.
      */
     val stores: PlacedStores = PlacedStores.NONE,
     /**

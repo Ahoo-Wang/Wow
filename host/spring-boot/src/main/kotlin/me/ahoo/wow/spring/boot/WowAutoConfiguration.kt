@@ -320,16 +320,8 @@ class WowAutoConfiguration {
             development.reason,
             clock,
         ) { prefix -> PortProviders.settingsOf(environment, prefix) }
-        val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
-        val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
-        if (memory.isNotEmpty()) {
-            logger.warn {
-                "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
-                    "DataSource or MongoClient backs it in a development profile or on a loopback internal port): " +
-                    "it does not outlive the node, and serves one node only."
-            }
-        }
-        return HostBackends.of(stores, layout, properties.log.partitions)
+        val types = models.models.map { it.type }
+        return StoreInstances.backends(stores, properties.storePlacements(), types, properties.log.partitions)
     }
 
     /** The node's global ids: command, request and wait ids, and the ids domain code takes. */

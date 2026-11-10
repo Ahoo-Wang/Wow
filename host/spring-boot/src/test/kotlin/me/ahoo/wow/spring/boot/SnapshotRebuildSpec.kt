@@ -50,6 +50,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -81,13 +82,17 @@ abstract class SnapshotRebuildSpec {
 
     private val context = "rebuild-" + UUID.randomUUID().toString().take(ID_LENGTH)
     private val type = AggregateType(context, COUNTER)
-    private val stores: Map<String, Store> by lazy { listOf(A, B).associateWith(::store) }
+
+    /** The stores the nodes share, which the spec opened, so closes: after its nodes stopped. */
+    private val opened = lazy { listOf(A, B).associateWith(::store) }
+    private val stores: Map<String, Store> by opened
     private val channel = LoopbackClusterChannel()
     private val nodes = ConcurrentHashMap<String, ServiceNode>()
 
     @AfterEach
     fun stopNodes(): Unit = runBlocking {
         nodes.values.forEach { it.stop() }
+        if (opened.isInitialized()) Closing.inReverse(stores.values)
     }
 
     @Test

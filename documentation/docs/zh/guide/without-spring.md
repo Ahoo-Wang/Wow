@@ -29,4 +29,4 @@ client.commands.of(caller).wait(CommandRequest.to(OrderingContract.Order.ref(ten
 
 提供服务，即它的路由、带订阅、定时器和集群的节点，以及它的读取侧，是许多部分的组合；在 10.0 中，组合它们的类是内部 API（`@InternalWowApi`）：服务节点、查询引擎，以及提供状态读取和查询的读取门面。应用不选择使用内部 API 就无法用它们构建节点，而任何版本都不承诺保留内部 API（[API 级别](../reference/api-levels)）。HTTP 路由 `wow-http` 构建在 Spring WebFlux 之上。
 
-所以服务运行在 Spring Boot 宿主上（[在 Spring Boot 上运行](./spring-boot)），由它把配置映射到这些部分，并负责它们的生命周期。供其他宿主使用的公开组合 API 可能会在之后的某个 10.x 版本中提供；在此之前，无法使用 Spring Boot 的应用把它的领域和客户端留在 Wow 上，并通过旁边一个它自己的 Spring Boot 服务来提供服务。
+所以服务运行在 Spring Boot 宿主上（[在 Spring Boot 上运行](./spring-boot)），由它把配置映射到这些部分，并负责它们的生命周期。存储也在其中：谁打开存储，谁关闭它，那就是宿主，而不是节点。停止节点（`ServiceNode.stop`）会关闭它的网关、执行器和日志，但不关闭任何存储；宿主在节点和读取存储的查询都停止之后，按打开的逆序关闭它打开的每个存储，在打开了部分存储之后启动失败时也是如此。其他框架的宿主要承担同样的职责。供其他宿主使用的公开组合 API 可能会在之后的某个 10.x 版本中提供；在此之前，无法使用 Spring Boot 的应用把它的领域和客户端留在 Wow 上，并通过旁边一个它自己的 Spring Boot 服务来提供服务。

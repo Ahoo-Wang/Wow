@@ -50,7 +50,7 @@ class SearchStores {
 }
 
 /** A `search` store: its queries are `events` only ([SearchQueries]), over a pool of its queries' own. */
-class SearchStore(config: StoreConfig) : AcmeStore(config) {
+open class SearchStore(config: StoreConfig) : AcmeStore(config) {
     override val storeQueries: StoreQueries = SearchQueries()
 
     private val pool = object : StorePool {

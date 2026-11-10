@@ -15,6 +15,7 @@ package me.ahoo.wow.tck
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -34,6 +35,7 @@ import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import me.ahoo.wow.tck.subscription.LeaseStoreSpec
 import me.ahoo.wow.tck.timer.TimerStoreSpec
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.util.ServiceLoader
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * A whole store's contract: the backend gives the [config] of a store, and the kit opens it through its
@@ -91,7 +94,15 @@ abstract class StoreTck {
      */
     protected open val facets: List<Class<*>> = emptyList()
 
-    /** A new store from [config], its time from [clock], as the host opens one. */
+    /** The stores the test opened, which it closes once it ran, as the host closes the stores it opened. */
+    private val opened = CopyOnWriteArrayList<Store>()
+
+    @AfterEach
+    fun closeStores() {
+        Closing.inReverse(opened)
+    }
+
+    /** A new store from [config], its time from [clock], as the host opens one; the test closes it once it ran. */
     protected fun openStore(clock: Clock = Clock.systemUTC()): Store {
         val config = config()
         val timed = StoreConfig.of(
@@ -105,7 +116,7 @@ abstract class StoreTck {
             config.development,
             clock,
         )
-        return provider(config.type).open(timed)
+        return provider(config.type).open(timed).also { opened += it }
     }
 
     /** The store of the test, opened once. */

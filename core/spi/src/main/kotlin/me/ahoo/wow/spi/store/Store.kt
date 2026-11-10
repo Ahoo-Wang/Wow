@@ -132,9 +132,9 @@ abstract class Store(val config: StoreConfig) : AutoCloseable {
     open suspend fun probe() = Unit
 
     /**
-     * Closes the store once the node that placed it stopped: what it holds of its own (a client it built, say), not
-     * the resources the host gave it ([StoreConfig.resources]), which their owner closes. Closing it again does
-     * nothing.
+     * Closes the store once nothing reads it any more, which the host that opened it calls once the node and its
+     * queries stopped: what it holds of its own (a client it built, say), not the resources the host gave it
+     * ([StoreConfig.resources]), which their owner closes. Closing it again does nothing.
      */
     final override fun close() {
         if (closed.compareAndSet(false, true)) {
