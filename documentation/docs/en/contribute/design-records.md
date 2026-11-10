@@ -13,14 +13,13 @@ Wow 10 was redesigned as a whole, and its records live together in [`documentati
 
 | Record | Holds |
 | --- | --- |
-| `README.md` | The index, the conventions, and a log of every whole review |
+| `README.md` | The index and the conventions |
 | `00-architecture.md` | The stance, the value, the principles and the overall architecture: read it first |
 | `01`–`08` | One topic each: the programming model, the write path, the log and snapshots, subscriptions and waits, the read side and the contract, modules, migration, the wire formats |
 | `09-capability-parity.md` | Where every 9.x capability went |
 | `decisions.md` | The decision ledger |
 | `reviews.md` | The review ledger |
 | `roadmap.md`, `progress.md` | The milestones and work packages, and where the work stands |
-| `docs-plan.md` | The plan of the user documentation and the Skills |
 | `YYYY-MM-DD-<topic>-design.md` | A dated record of one decision's design, implementation or review, such as the subscription side's |
 
 `00` keeps to conclusions and reasons; detail lives in the topic records, and where they disagree the topic record wins and `00` is fixed in the same change. Each record states its date, baseline and status: draft, adopted, in progress, implemented or superseded.
@@ -31,7 +30,7 @@ Every Wow 10 decision is recorded once, in `decisions.md`, under a number, `D6` 
 
 ## The review ledger
 
-`reviews.md` is the one record of what reviews found. Each finding has a number, a severity (P0 to P2), its place in the code, what happens and when, where it went (a fix, a pull request, a decision) and a status: open, in progress, fixed with its pull request, moved to 10.x, dropped, or to be re-reviewed. A finding is recorded before it is assigned, and a fix's pull request names its number.
+`reviews.md` is the one record of what reviews found and is still open. Each finding has a number, a severity (P0 to P3), its place in the code, what happens and when, what is left to do and a status: recorded, in progress, on hold, to be measured, or partly done with what remains. A finding is recorded before it is assigned, and a fix's pull request names its number. A finding that is dealt with (fixed, decided against, or moved to the roadmap's 10.x list) leaves the ledger; git keeps what it said.
 
 ## When a change needs a record
 
