@@ -58,10 +58,11 @@ import me.ahoo.wow.manifest.Manifest
  * cannot coincide, a discriminator (`kind: {"const": "wallet"}` beside `"card"`), so a discriminated `oneOf` may grow.
  * `anyOf` takes a value any alternative accepts.
  *
- * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored. So are
- * `x-wow-class`, the class a value is written from (a class renamed with its shape kept is no change), and
- * `uniqueItems`, which says the class is a set: a reader takes the array either way, and the writer never repeats an
- * item.
+ * Annotations (`description`, `title`, `default`, …), `x-wow-index` and `x-wow-text` are not contract and are
+ * ignored: what a field can be searched by is the capability descriptor's, which a store's mapping decides as much as
+ * the marker. So are `x-wow-class`, the class a value is written from (a class renamed with its shape kept is no
+ * change), and `uniqueItems`, which says the class is a set: a reader takes the array either way, and the writer never
+ * repeats an item.
  */
 /**
  * Which way a schema's values flow: an [INPUT] is what old clients send, such as a command or a
@@ -531,7 +532,8 @@ internal class SchemaCompatibility(
 
         val IGNORED = setOf(
             "\$schema", "\$id", "\$comment", "\$defs", "title", "description", "default", "examples", "deprecated",
-            "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD, WireTypes.CLASS_KEYWORD, WireTypes.UNIQUE_ITEMS,
+            "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD, QueryKeywords.TEXT_KEYWORD, WireTypes.CLASS_KEYWORD,
+            WireTypes.UNIQUE_ITEMS,
         )
 
         /** The bounds a larger value of narrows: a raised one accepts fewer values. */

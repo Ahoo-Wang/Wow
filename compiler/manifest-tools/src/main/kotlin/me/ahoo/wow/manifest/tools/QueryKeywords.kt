@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.annotation.QueryIndex
 import me.ahoo.wow.api.query.annotation.QueryMoney
 import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.QueryText
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.wire.WireNames
@@ -57,6 +58,7 @@ import kotlin.reflect.KType
  * | `x-wow-money` | `{"currency": "CNY", "scale"?: n}` or `{"currencyField": "currency", "scale"?: n}` | `@QueryMoney` |
  * | `x-wow-duration` | `{"unit": "<TimeUnit>"}` | `@QueryDuration` |
  * | `x-wow-reference` | `{"aggregateName": "member", "contextName"?: "shop"}` | `@QueryReference` |
+ * | `x-wow-text` | `{}` | `@QueryText`: prose searched by words; not a semantic type |
  *
  * They map 1:1 onto 9.x `wow-query`'s query schema: the sensitivity and mask onto its `MaskRule`, the alias paths
  * onto the field's aliases, and the semantic types onto `Temporal.Epoch(timeUnit)`, `Temporal.Formatted(pattern)`,
@@ -70,7 +72,9 @@ import kotlin.reflect.KType
  *   property or one of a sensitive value type, never loosens its value type's level, and a class carrying it is a
  *   Kotlin value class or has a `@JsonValue` member;
  * - a mask keeps no negative count, a custom strategy keeps none and is a Kotlin `object` or a public class with a
- *   public no-argument constructor.
+ *   public no-argument constructor;
+ * - `@QueryText` marks a `String` property or a list or array of them, never a map, a field of a semantic type or a
+ *   sensitive one.
  *
  * The state schema's root carries the declared query indexes, see [QueryIndexes].
  */
@@ -83,6 +87,7 @@ internal object QueryKeywords {
     const val MONEY_KEYWORD = "x-wow-money"
     const val DURATION_KEYWORD = "x-wow-duration"
     const val REFERENCE_KEYWORD = "x-wow-reference"
+    const val TEXT_KEYWORD = "x-wow-text"
     const val INDEX_KEYWORD = "x-wow-index"
 }
 
@@ -125,6 +130,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
             attributes.putArray(QueryKeywords.ALIAS_KEYWORD).apply { aliases.forEach(::add) }
         }
         writeSemanticType(attributes, annotations, field)
+        writeText(attributes, scope, annotations, field)
         // A repeated @QueryIndex is held by its Kotlin-generated container, which getAnnotationsByType unwraps.
         collectIndexes(scope, members.flatMap { it.getAnnotationsByType(QueryIndex::class.java).asList() }, field)
     }
@@ -161,6 +167,34 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
                 annotation.contextName.takeIf { it.isNotEmpty() }?.let { put("contextName", it) }
             }
         }
+    }
+
+    /**
+     * `x-wow-text` for a `@QueryText` property: a `String`, or a list or array of them, which no semantic type and no
+     * sensitivity also describe. A map's values are matched by their key, a semantic type's values exactly, and a
+     * sensitive value's words are what a search would reveal.
+     */
+    private fun writeText(
+        attributes: ObjectNode,
+        scope: MemberScope<*, *>,
+        annotations: List<Annotation>,
+        field: String,
+    ) {
+        if (annotations.none { it is QueryText }) return
+        check(!scope.holdsMap()) { "@QueryText on $field: a map's values are matched by key, not searched by words." }
+        check(scope.valueType() == String::class.java) {
+            "@QueryText on $field: a text field must have the String JVM type, or be a list or array of String."
+        }
+        annotations.firstOrNull { annotation -> SEMANTIC_TYPES.any { it.isInstance(annotation) } }?.let { semantic ->
+            error(
+                "@QueryText on $field: a field of a semantic type (@${semantic.annotationClass.java.simpleName}) is " +
+                    "matched exactly, not searched by words."
+            )
+        }
+        check(!attributes.has(QueryKeywords.SENSITIVE_KEYWORD)) {
+            "@QueryText on $field: a sensitive field is not searched by words."
+        }
+        attributes.putObject(QueryKeywords.TEXT_KEYWORD)
     }
 
     private fun writeSensitive(
@@ -268,6 +302,20 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
          */
         fun MemberScope<*, *>.valueType(): Class<*> =
             KotlinMembers.typeOf(this)?.valueClass() ?: (TypeArguments.nullableValue(type) ?: type).erasedType
+
+        /**
+         * Whether the property's values are a map's, at any depth of its collections; of a Java field, which Kotlin
+         * reflection does not type, whether it is a map itself (any other container of a map is no `String` either).
+         */
+        fun MemberScope<*, *>.holdsMap(): Boolean {
+            var current: KType = KotlinMembers.typeOf(this) ?: return Map::class.java.isAssignableFrom(type.erasedType)
+            while (true) {
+                val declared = (current.classifier as? KClass<*>)?.java ?: return false
+                if (Map::class.java.isAssignableFrom(declared)) return true
+                if (!Iterable::class.java.isAssignableFrom(declared) && !declared.isArray) return false
+                current = current.arguments.singleOrNull()?.type ?: return false
+            }
+        }
 
         fun KType.valueClass(): Class<*>? {
             var current: KType = this

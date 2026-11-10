@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryMoney
 import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.QueryText
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -294,6 +295,79 @@ class QueryKeywordsTest {
             .isEqualTo(
                 "@Sensitive on ${SensitiveNumber::class.java.name}.value: a sensitive field must have the String JVM type."
             )
+    }
+
+    enum class Colour { RED }
+
+    class TextState(
+        @field:QueryText val name: String,
+        @get:QueryText val note: String?,
+        @field:QueryText val tags: List<String>,
+        @field:QueryText val lines: Array<String>,
+        val code: String,
+        val colour: Colour,
+    )
+
+    @Test
+    fun `a text field should carry its keyword on the property, a list's or an array's included`() {
+        val properties = state(TextState::class.java)["properties"] as Map<*, *>
+        listOf("name", "note", "tags", "lines").forEach { name ->
+            (properties[name] as Map<*, *>)["x-wow-text"].assert().isEqualTo(emptyMap<String, Any?>())
+        }
+        ((properties["tags"] as Map<*, *>)["items"] as Map<*, *>).containsKey("x-wow-text").assert().isFalse()
+        listOf("code", "colour").forEach { name ->
+            (properties[name] as Map<*, *>).containsKey("x-wow-text").assert().isFalse()
+        }
+    }
+
+    data class TextNumber(@field:QueryText val value: Int)
+
+    data class TextEnum(@field:QueryText val value: Colour)
+
+    data class TextWrapped(@field:QueryText val value: PhoneNumber)
+
+    data class TextMap(@field:QueryText val value: Map<String, String>)
+
+    data class TextMaps(@field:QueryText val value: List<Map<String, String>>)
+
+    data class TextStar(@field:QueryText val value: List<*>)
+
+    data class TextGeneric<T>(@field:QueryText val value: List<T>)
+
+    data class TextReference(@field:QueryText @field:QueryReference("member") val value: String)
+
+    data class TextSensitive(@field:QueryText @field:Sensitive(SensitivityLevel.DISPLAY) val value: String)
+
+    @Test
+    fun `a text field should be a string, never a map, a semantic type or a sensitive one`() {
+        listOf(
+            TextNumber::class.java,
+            TextEnum::class.java,
+            TextWrapped::class.java,
+            TextStar::class.java,
+            TextGeneric::class.java,
+        ).forEach { state ->
+            failure(state).assert().isEqualTo(
+                "@QueryText on ${state.name}.value: a text field must have the String JVM type, or be a list or " +
+                    "array of String."
+            )
+        }
+        listOf(TextMap::class.java, TextMaps::class.java).forEach { state ->
+            failure(state).assert()
+                .isEqualTo(
+                    "@QueryText on ${state.name}.value: a map's values are matched by key, not searched by words."
+                )
+        }
+        failure(JavaTextMap::class.java).assert().isEqualTo(
+            "@QueryText on ${JavaTextMap::class.java.name}.labels: a map's values are matched by key, not searched by words."
+        )
+        failure(TextReference::class.java).assert().isEqualTo(
+            "@QueryText on ${TextReference::class.java.name}.value: a field of a semantic type (@QueryReference) is " +
+                "matched exactly, not searched by words."
+        )
+        failure(TextSensitive::class.java).assert().isEqualTo(
+            "@QueryText on ${TextSensitive::class.java.name}.value: a sensitive field is not searched by words."
+        )
     }
 
     @JvmInline
