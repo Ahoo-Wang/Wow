@@ -18,11 +18,16 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.manifest.tools.CompatibilityFixtures.BASELINE
+import me.ahoo.wow.manifest.tools.CompatibilityFixtures.COMMITTED
+import me.ahoo.wow.manifest.tools.CompatibilityFixtures.CONTEXT
+import me.ahoo.wow.manifest.tools.CompatibilityFixtures.context
+import me.ahoo.wow.manifest.tools.CompatibilityFixtures.subscription
 import org.junit.jupiter.api.Test
 
 /** A subscription removed ([removedSubscription]): the handler added beside it that is likely its rename. */
 class SubscriptionCompatibilityTest {
-    private val baseline = ManifestCompatibilityTest.BASELINE
+    private val baseline = BASELINE
     private val removed = baseline.contexts.single().subscriptions.single()
 
     /** The baseline with [removed] replaced by [added], a handler of another name. */
@@ -58,5 +63,34 @@ class SubscriptionCompatibilityTest {
                 "BREAKING contexts[shop].subscriptions[CartProjector.onItemAdded]: subscription removed",
             )
         }
+    }
+
+    @Test
+    fun `a committed handler's receipts should be classified`() {
+        val saga = "$CONTEXT.subscriptions[CheckoutSaga.onCommitted]"
+        val baseline = BASELINE.context { it.copyWith(subscriptions = it.subscriptions + COMMITTED) }
+        fun changes(committed: List<String>?) = ManifestCompatibility.compare(
+            baseline,
+            baseline.subscription { if (it.name == COMMITTED.name) it.copyWith(committed = committed) else it },
+        ).changes.map { it.toString() }
+
+        ManifestCompatibility.compare(baseline, BASELINE).changes.map { it.toString() }
+            .assert().containsExactly("BREAKING $saga: subscription removed")
+        changes(COMMITTED.committed).assert().isEmpty()
+        changes(listOf("shop.cart.Checkout", "shop.cart.Pay")).assert().containsExactlyInAnyOrder(
+            "BREAKING $saga.committed: command with handled commits shop.cart.Clear removed",
+            "ADDITIVE $saga.committed: command with handled commits shop.cart.Pay added",
+        )
+        changes(
+            emptyList()
+        ).assert().containsExactly("ADDITIVE $saga.committed: handles the commits of any derived command")
+        changes(null).assert().containsExactly("BREAKING $saga.committed: no longer handles commits")
+        ManifestCompatibility.compare(
+            baseline.subscription { if (it.name == COMMITTED.name) it.copyWith(committed = emptyList()) else it },
+            baseline,
+        ).changes.map { it.toString() }.assert().containsExactly(
+            "BREAKING $saga.committed: handles the commits of [shop.cart.Checkout, shop.cart.Clear] only, not of " +
+                "any derived command",
+        )
     }
 }

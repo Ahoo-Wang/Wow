@@ -14,8 +14,6 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.tools.ChangeKind.ADDITIVE
-import me.ahoo.wow.manifest.tools.ChangeKind.BREAKING
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -554,12 +552,6 @@ class SchemaCompatibilityTest {
             oldDefs = mapOf("card" to subtype("card")),
             newDefs = mapOf("card" to subtype("card"), "wallet" to subtype("wallet")),
         ).assert().containsExactly("ADDITIVE s.oneOf[1]: alternative added")
-    }
-
-    @Test
-    fun `a change should name its kind`() {
-        ManifestChange(ADDITIVE, "p", "d").toString().assert().isEqualTo("ADDITIVE p: d")
-        ManifestChange(BREAKING, "p", "d").kind.assert().isEqualTo(BREAKING)
     }
 
     @Test
