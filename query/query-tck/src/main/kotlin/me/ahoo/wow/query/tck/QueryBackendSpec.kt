@@ -442,6 +442,32 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `a numeric expression over integer fields divides without truncating`() = blocking {
+        // (lastEventTime - firstEventTime) / version: 5 / 2 is 2.5 on every storage, not an integer division's 2.
+        val fixture = given(
+            listOf(
+                snapshot("d1", "{}", version = 2, lastEventTime = T0 - DAY + 5),
+                snapshot("d2", "{}", version = 4, lastEventTime = T0 - DAY + 4),
+            ),
+        )
+        val rate = AggregationExpression.Binary(
+            me.ahoo.wow.api.query.AggregationExpressionOperator.DIVIDE,
+            AggregationExpression.Binary(
+                me.ahoo.wow.api.query.AggregationExpressionOperator.SUBTRACT,
+                AggregationExpression.Field(QueryField("lastEventTime")),
+                AggregationExpression.Field(QueryField("firstEventTime")),
+            ),
+            AggregationExpression.Field(QueryField("version")),
+        )
+        fixture.ids(ExpressionFilter(rate, ComparisonOperator.GT, 2.25)).assert().containsExactly("d1")
+        val average = fixture.aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Numeric(AggregationFunction.AVG, rate, "rate"))),
+        ).single()
+        average.path("rate").doubleValue().assert().isEqualTo(1.75)
+        Unit
+    }
+
     // Sort, list, single and projection
 
     @Test
