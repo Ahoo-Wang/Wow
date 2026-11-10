@@ -66,11 +66,6 @@ const MAX_FUNCTION_LINES = 200;
  */
 const functionLengthWaivers = [
   {
-    file: 'src/ui/workbench/WorkbenchShell.tsx',
-    lines: 371,
-    reason: '外壳只排布各块，留下的是各块共享的状态与它们的次序',
-  },
-  {
     file: 'src/ui/analysis/AnalysisTable.tsx',
     lines: 369,
     reason:
