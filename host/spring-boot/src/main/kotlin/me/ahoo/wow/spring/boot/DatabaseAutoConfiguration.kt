@@ -87,7 +87,8 @@ class MongoClientAutoConfiguration {
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(MongoClient::class)
     fun wowMongoClient(environment: Environment, gauges: ObjectProvider<MongoPoolGauge>): MongoClient {
-        val uri = ConnectionString(environment.getRequiredProperty(URI))
+        // The driver's refusal names no key: the analysis names it, never the value, which may hold a password.
+        val uri = PortProviders.configured(URI) { ConnectionString(environment.getRequiredProperty(URI)) }
         logger.info { "The host's MongoClient connects to ${uri.hosts} ($URI)." }
         val settings = MongoClientSettings.builder().applyConnectionString(uri)
         gauges.ifAvailable?.let { gauge -> settings.applyToConnectionPoolSettings(gauge::applyTo) }

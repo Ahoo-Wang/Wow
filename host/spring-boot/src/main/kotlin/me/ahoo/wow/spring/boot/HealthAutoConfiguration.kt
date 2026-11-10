@@ -28,6 +28,8 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.bind.BindException
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.health.contributor.CompositeHealthContributor
 import org.springframework.boot.health.contributor.Health
 import org.springframework.boot.health.contributor.HealthContributor
@@ -185,9 +187,9 @@ internal class HealthGroupsEnvironmentPostProcessor : EnvironmentPostProcessor {
         if (!ClassUtils.isPresent(HEALTH_INDICATOR, classLoader) || !ClassUtils.isPresent(ENDPOINT, classLoader)) {
             return
         }
-        if (!WowProperties.of(environment).health.enabled ||
-            environment.getProperty(PROBES, Boolean::class.java, true) == false
-        ) {
+        // A setting that does not convert adds nothing: the properties' bean refuses a `wow.*` one, and Actuator turns
+        // its probes off for a probes value other than `true`, so the groups would name indicators it never makes.
+        if (WowProperties.ofOrNull(environment)?.health?.enabled != true || probes(environment) != true) {
             return
         }
         val defaults = DEFAULTS.filterKeys { !environment.containsProperty(it) }
@@ -208,6 +210,16 @@ internal class HealthGroupsEnvironmentPostProcessor : EnvironmentPostProcessor {
             "$GROUP.readiness.include" to "readinessState,wowReadiness",
             "$GROUP.liveness.include" to "livenessState,wowLiveness",
         )
+
+        /**
+         * Whether the availability probes are on (by default); null when the setting does not convert to a boolean,
+         * which Actuator reads as off (its probes are on only for `true`).
+         */
+        private fun probes(environment: ConfigurableEnvironment): Boolean? = try {
+            Binder.get(environment).bind(PROBES, Boolean::class.javaObjectType).orElse(true)
+        } catch (@Suppress("SwallowedException") refused: BindException) {
+            null
+        }
     }
 }
 

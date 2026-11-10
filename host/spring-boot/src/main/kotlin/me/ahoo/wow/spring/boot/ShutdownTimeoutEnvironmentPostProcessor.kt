@@ -39,8 +39,10 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
         if (environment.containsProperty(TIMEOUT_PER_SHUTDOWN_PHASE)) {
             return
         }
+        // A `wow.*` setting that does not bind is the properties' bean's to refuse.
+        val properties = WowProperties.ofOrNull(environment) ?: return
         val bound = try {
-            required(environment)
+            stopBound(properties)
         } catch (@Suppress("SwallowedException") refused: WowConfigurationException) {
             // Left unset: the node's assembly refuses the setting where it always did, once Spring Boot's logging is
             // configured, so the failure analysis reaches the application's own log, not only the console.
@@ -56,14 +58,13 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
         const val SOURCE: String = "wowShutdownTimeout"
 
         /** The node's [ServiceNodeOptions.stopBound], from the options [environment] sets or by default. */
-        fun required(environment: Environment): Duration {
-            val properties = WowProperties.of(environment)
-            return ServiceNodeOptions(
-                cluster = configured("wow.cluster") { properties.cluster.options(properties.wait.defaultTimeout) },
-                wait = configured("wow.wait") { properties.wait.options() },
-                subscription = configured("wow.subscription") { properties.subscription.options() },
-            ).stopBound.toJavaDuration()
-        }
+        fun required(environment: Environment): Duration = stopBound(WowProperties.of(environment))
+
+        private fun stopBound(properties: WowProperties): Duration = ServiceNodeOptions(
+            cluster = configured("wow.cluster") { properties.cluster.options(properties.wait.defaultTimeout) },
+            wait = configured("wow.wait") { properties.wait.options() },
+            subscription = configured("wow.subscription") { properties.subscription.options() },
+        ).stopBound.toJavaDuration()
 
         /** The timeout per shutdown phase [environment] sets; null when it sets none. */
         fun configured(environment: Environment): Duration? =

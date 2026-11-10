@@ -31,8 +31,9 @@ import org.springframework.core.env.MapPropertySource
  */
 internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
-        // The key's one reader is its properties bean, bound here before the beans are.
-        val settings = when (WowProperties.of(environment).cosec.mode ?: return) {
+        // The key's one reader is its properties bean, bound here before the beans are; a mode that does not bind is
+        // the bean's to refuse.
+        val settings = when (WowProperties.ofOrNull(environment)?.cosec?.mode ?: return) {
             CoSecProperties.CoSecMode.GATEWAY -> GATEWAY
             CoSecProperties.CoSecMode.DISABLED -> DISABLED
         }
