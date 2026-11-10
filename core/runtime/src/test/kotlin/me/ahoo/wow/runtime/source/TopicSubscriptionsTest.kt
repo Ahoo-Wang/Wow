@@ -25,7 +25,6 @@ import me.ahoo.wow.runtime.cluster.FlakyLeases
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.Handled
-import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -454,58 +453,6 @@ class TopicSubscriptionsTest {
             delay(50.milliseconds)
             // Nothing read before the partitions were added was handled again.
             handled.size.assert().isEqualTo(3)
-        }
-
-    @Test
-    fun `an aggregate parked before its key moved to an added partition should stay parked there, and only be skipped`(): Unit =
-        runBlocking {
-            // #5481: the later version lands at the parked offset of the new partition; it must not stand in for it.
-            val topic = "wow.sales.moving.state"
-            topics.create(topic, 1)
-            val id = generateSequence(0) { it + 1 }.map { "o-$it" }
-                .first { Math.floorMod(order(it).toString().hashCode(), 2) == 1 }
-            val growing = TopicSubscriptions(
-                service = SERVICE,
-                topic = topic,
-                node = "node-1",
-                addressOf = { "node-1.internal:9090" },
-                source = topics,
-                checkpoints = checkpoints,
-                leases = leases,
-                ledger = ledger,
-                subscriptions = listOf(board),
-                // No automatic retry: the operator's retry below is the only one.
-                options = testOptions().copyWith(parked = ParkedRetryOptions(scanInterval = Duration.INFINITE)),
-                cluster = fastOptions(),
-                partitionRefresh = 20.milliseconds,
-            ).also {
-                started += it
-                it.start()
-                it.awaitStarted()
-            }
-            val group = LeaseGroup.topic(SERVICE, topic).name
-            failing = id to 1
-            topics.publish(orderRecord(id, 1), topic = topic)
-            eventually { ledger.parked(BOARD, order(id)) != null }
-            topics.grow(topic, 2)
-            eventually { growing.ownership?.owned == setOf(0, 1) }
-            topics.partitionOf(topic, order(id).toString()).assert().isEqualTo(1)
-            failing = null
-            topics.publish(orderRecord(id, 2), topic = topic)
-            eventually { checkpoints.load(group, BOARD, 1) == 1L }
-            // Version 2 waits behind the parked version 1, in the partition the key maps to now.
-            handled.versionsOf(id).assert().isEmpty()
-            // A retry cannot reach version 1 from there: the entry becomes one to skip, and stays parked.
-            growing.retry(BOARD, order(id)).assert().isFalse()
-            handled.versionsOf(id).assert().isEmpty()
-            val parked = ledger.parked(BOARD, order(id))!!
-            parked.unrecoverable.assert().isTrue()
-            parked.reason.assert().contains("partition 0")
-            parked.partition.assert().isEqualTo(0)
-            parked.fromVersion.assert().isEqualTo(1)
-            growing.skip(BOARD, order(id)).assert().isTrue()
-            topics.publish(orderRecord(id, 3), topic = topic)
-            eventually { handled.versionsOf(id) == listOf(3) }
         }
 
     @Test

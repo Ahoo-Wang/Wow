@@ -602,10 +602,8 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * [subscription]'s parked aggregates in [partitions], by partition, with the ordinal each is parked from: the
-     * ledger's entries of those partitions ([FailureLedger.due] at [ParkedAggregate.NEVER]). Of a source whose
-     * partitions grow ([EntrySource.partitionsGrow]), also every entry whose aggregate maps to one of them now, though it
-     * parked in another, parked there from its first entry ([parkedFromIn]): its later entries wait there too.
+     * [subscription]'s parked aggregates in [partitions], by partition, with the version each is parked from: the
+     * ledger's entries of those partitions alone ([FailureLedger.due] at [ParkedAggregate.NEVER]).
      */
     private suspend fun parkedIn(
         subscription: Subscription,
@@ -614,18 +612,8 @@ class SubscriptionRuntime internal constructor(
         val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
         var after: AggregateRef? = null
         do {
-            // Of a source whose partitions grow, an entry parked in any partition may be of an aggregate here now.
-            val page = if (source.partitionsGrow) {
-                ledger.list(subscription.name, after)
-            } else {
-                ledger.due(subscription.name, partitions, ParkedAggregate.NEVER, after)
-            }
-            page.forEach { entry ->
-                val now = if (source.partitionsGrow) source.partitionOf(entry.ref) else entry.partition
-                listOf(entry.partition, now).distinct().filter { it in partitions }.forEach { partition ->
-                    parked.getOrPut(partition) { HashMap() }[entry.ref] = source.parkedFromIn(entry, partition)
-                }
-            }
+            val page = ledger.due(subscription.name, partitions, ParkedAggregate.NEVER, after)
+            page.forEach { parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it) }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
         return parked

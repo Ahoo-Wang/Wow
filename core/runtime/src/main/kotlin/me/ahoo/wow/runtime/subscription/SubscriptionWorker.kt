@@ -652,7 +652,7 @@ internal class SubscriptionWorker(
                 parked = it
             }
             val entries = try {
-                source.retryEntries(parked).toList()
+                source.retryEntries(ref, parked.fromVersion, parked.fromPosition).toList()
             } catch (gone: UnrecoverableException) {
                 writes.unrecoverable(parked, gone)
                 restoreParked(ref, item, parked)

@@ -76,24 +76,17 @@ internal interface EntrySource {
     fun sourcePosition(entry: SourcedEntry): Long?
 
     /**
-     * The entries of [parked]'s aggregate from where it is parked on, as they stand now, for a retry: read by version
-     * from the log, or by re-scanning the topic's partition from its position. It completes. Throws an
-     * [UnrecoverableException] when the source no longer holds them, or holds them in another partition than the one
-     * it parked in ([partitionsGrow]).
+     * [ref]'s entries from [fromVersion] on, as they stand now, for a retry: read by version from the
+     * log, or by re-scanning the topic's partition from [fromPosition]. It completes. Throws an
+     * [UnrecoverableException] when the source no longer holds them.
      */
-    suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry>
+    suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry>
 
     /** The log position of [ref]'s stream at [version], for a duplicate request; null for a topic. */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
     /** Whether the source may deliver an entry twice, so a subscription drops the copies it can recognize. */
     val repeats: Boolean get() = false
-
-    /**
-     * Whether the source's partitions may grow while it is read, a broker's topic whose keys map to its partitions:
-     * an aggregate's later entries may then be in another partition than the one it parked in ([partitionOf]).
-     */
-    val partitionsGrow: Boolean get() = false
 
     /**
      * Where [entry] stands among the entries of its aggregate, the order a subscription runs them in: its version,
@@ -111,34 +104,15 @@ internal interface EntrySource {
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
 
 /**
- * The ordinal [parked]'s aggregate is parked from in [partition]: that of its parked entry in the partition it parked
- * in, and the first one in another, which the aggregate's key maps to since the source's partitions grew
- * ([EntrySource.partitionsGrow]): every entry of the aggregate there came after the parked one.
- */
-internal fun EntrySource.parkedFromIn(parked: ParkedAggregate, partition: Int): Long =
-    if (parked.partition == partition) ordinalOf(parked) else 0L
-
-/**
- * Fails with an [UnrecoverableException] when [parked]'s aggregate is in [partition] of [topic] now, not in the
- * partition it parked in ([ParkedAggregate.partition]): the topic gained partitions since, and maps its key elsewhere.
- * A re-scan from the parked offset there would read other messages, the aggregate's later ones among them, and
- * resolve the entry without the parked one; the entry stays parked instead, marked for an operator to skip once they
- * have dealt with what it skipped.
- */
-internal fun requireUnmoved(topic: String, parked: ParkedAggregate, partition: Int) {
-    if (parked.partition != partition) {
-        throw UnrecoverableException(
-            "${parked.ref} parked at offset ${parked.fromPosition} of partition ${parked.partition} of $topic, and " +
-                "maps to partition $partition now: the topic's partitions grew since it was parked.",
-        )
-    }
-}
-
-/**
  * The messages of [partition] of [topic] from [fromPosition], where the message an aggregate keyed [key] was parked at
- * lies, checked to be there: a partition that holds no message at that offset, or another key's, is not the one the
- * entry parked in (the topic was recreated). A re-scan there would resolve the entry, losing what was skipped; it
- * fails with an [UnrecoverableException] instead. A message no longer retained cannot be checked: the re-scan goes on.
+ * lies, checked to be there: a topic that gained partitions since maps the key to
+ * another partition, which holds the parked message at no offset, or another message at that offset. A re-scan there
+ * would find nothing of the aggregate and resolve the entry, losing what was skipped; it fails with an
+ * [UnrecoverableException] instead, so the entry stays parked, marked for an operator to skip once they have dealt
+ * with what it skipped. A message no longer retained cannot be checked: the re-scan goes on.
+ *
+ * The ledger records the parked message's offset only, not its partition ([ParkedAggregate.fromPosition]); recording
+ * the partition would let the retry follow the message, at the cost of a field in every backend's ledger.
  */
 internal fun Flow<SourceMessage>.parkedAt(
     topic: String,
@@ -158,8 +132,8 @@ internal fun Flow<SourceMessage>.parkedAt(
 }
 
 private fun moved(topic: String, partition: Int, key: String, offset: Long): String =
-    "Partition $partition of $topic holds no message keyed $key at offset $offset: the topic changed since it was " +
-        "parked, and the message is not there."
+    "Partition $partition of $topic holds no message keyed $key at offset $offset: the topic's partitions changed " +
+        "since it was parked, and the message is in another partition."
 
 /** The context's [log]. */
 internal class LogSource(private val log: EventLog) : EntrySource {
@@ -179,8 +153,8 @@ internal class LogSource(private val log: EventLog) : EntrySource {
 
     override fun sourcePosition(entry: SourcedEntry): Long? = null
 
-    override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> =
-        log.readEntries(parked.ref, parked.fromVersion).map(::SourcedEntry)
+    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> =
+        log.readEntries(ref, fromVersion).map(::SourcedEntry)
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = log.positionOf(ref, version)
 }

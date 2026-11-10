@@ -26,8 +26,6 @@ import me.ahoo.wow.runtime.subscription.TimedEntry
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.runtime.subscription.parkedAt
-import me.ahoo.wow.runtime.subscription.requireUnmoved
-import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
@@ -99,15 +97,11 @@ internal class TopicEntries(
     override fun ordinalOf(entry: SourcedEntry): Long =
         if (UndecodableMessage.isUndecodable(entry)) Long.MAX_VALUE else entry.stream.version.toLong()
 
-    override val partitionsGrow: Boolean get() = true
-
-    override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
-        val ref = parked.ref
-        val fromVersion = parked.fromVersion
-        val fromPosition = parked.fromPosition
-            ?: throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
+    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
+        if (fromPosition == null) {
+            throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
+        }
         val partition = partitionOf(ref)
-        requireUnmoved(topic, parked, partition)
         val offsets = source.offsets(topic, partition)
         if (offsets.start > fromPosition) {
             throw UnrecoverableException(
