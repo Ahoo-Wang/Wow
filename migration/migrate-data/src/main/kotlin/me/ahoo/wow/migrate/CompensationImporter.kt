@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -299,7 +297,7 @@ internal class CompensationImporter(
             checkpoint = checkpoint.copy(resolved = converge())
         }
         while (!checkpoint.completed) {
-            val page = withContext(Dispatchers.IO) { source.unresolved(checkpoint.after, options.pageSize) }
+            val page = blocking { source.unresolved(checkpoint.after, options.pageSize) }
             checkpoint = if (page.isEmpty()) {
                 checkpoint.copy(completed = true)
             } else {
@@ -413,7 +411,7 @@ internal class CompensationComparison(
         var result = CompensationComparisonResult(0, 0, 0)
         var after: String? = null
         do {
-            val page = withContext(Dispatchers.IO) { source.unresolved(after, pageSize) }
+            val page = blocking { source.unresolved(after, pageSize) }
             page.filter { plan.compensation.covers(it.function) }.forEach { result = compare(it, result) }
             after = page.lastOrNull()?.id
         } while (page.isNotEmpty())
@@ -469,7 +467,7 @@ private suspend fun CompensationPlan.importedEntries(
             val page = ledger.list(subscription, after, pageSize)
             page.forEach { entry ->
                 CompensationPlan.originOf(entry.reason)?.let { origin ->
-                    val execution = withContext(Dispatchers.IO) { source.execution(origin) }
+                    val execution = blocking { source.execution(origin) }
                     if (!stillParks(entry, execution)) {
                         stale(entry, execution)
                     }

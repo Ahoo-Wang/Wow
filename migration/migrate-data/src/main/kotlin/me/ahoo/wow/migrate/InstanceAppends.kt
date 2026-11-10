@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.first
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -105,12 +105,13 @@ internal class InstanceAppends(
     }
 
     /**
-     * Imports [instance] as its page read it: the streams read, then the rest from 9.x when the page read it in part,
-     * or when the log made the import go on from another version.
+     * Imports [instance] as its page read it in a dry run, which appends nothing, so its batch always ends after the
+     * streams read: those, then the rest from 9.x when the page read it in part. An import that appends goes by groups
+     * ([importGroup]).
      */
     suspend fun importInstance(plan: AggregatePlan, instance: NineXInstance, stats: ImportStats) {
         val next = importBatch(plan, instance.id, 1, instance.streams, stats)
-        if (!instance.complete || next != instance.streams.size + 1) {
+        if (!instance.complete) {
             importInstance(plan, instance.id, next, stats)
         }
     }
@@ -234,10 +235,10 @@ internal class InstanceAppends(
         current: Int,
         stats: ImportStats,
     ): Int {
-        val inLog = log.read(record.ref, current, current).firstOrNull()
+        val inLog = log.read(record.ref, current, current).first()
         val inNineX = blocking { source.streams(plan.source, stream.aggregateId, current, 1) }
             .firstOrNull { it.version == current }
-        if (inNineX == null || inLog?.commandId != inNineX.commandId) {
+        if (inNineX == null || inLog.commandId != inNineX.commandId) {
             throw MigrationException(
                 "${record.ref} v$current in the V10 log is not the 9.x stream there (${inNineX?.id ?: "none"}): V10 " +
                     "has been written to since the import began, so the import stops.",

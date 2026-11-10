@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
@@ -150,7 +148,7 @@ internal class ReservationImporter(
         }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
-            val page = withContext(Dispatchers.IO) { reservations.keys(name, checkpoint.after, options.pageSize) }
+            val page = blocking { reservations.keys(name, checkpoint.after, options.pageSize) }
             checkpoint = if (page.isEmpty()) {
                 checkpoint.copy(completed = true)
             } else {
@@ -204,7 +202,7 @@ internal class ReservationImporter(
         if (!key.confirmed) {
             return KeyStep.Done(KeyOutcome.PENDING)
         }
-        val owner = withContext(Dispatchers.IO) { reservationPlan.ownerOf(key, source) }
+        val owner = blocking { reservationPlan.ownerOf(key, source) }
         if (owner is KeyOwner.Unresolved) {
             report("UNRESOLVED PrepareKey $key: ${owner.reason}; the key is not imported")
             return KeyStep.Done(KeyOutcome.UNRESOLVED)
@@ -279,11 +277,11 @@ internal suspend fun ReservationPlan.standing(
     if (held == null || !held.confirmed || held.owner != record.owner()) {
         return Standing.GONE
     }
-    val current = withContext(Dispatchers.IO) { keys.key(record.name, record.key) }
+    val current = blocking { keys.key(record.name, record.key) }
     if (current == null || !current.confirmed) {
         return Standing.STALE
     }
-    val owner = withContext(Dispatchers.IO) { ownerOf(current, source) }
+    val owner = blocking { ownerOf(current, source) }
     return if (owner == KeyOwner.Found(record.owner(), record.scope())) Standing.CURRENT else Standing.STALE
 }
 
@@ -324,7 +322,7 @@ internal class ReservationComparison(
         var result = ReservationComparisonResult(name, 0, 0, 0)
         var after: String? = null
         do {
-            val page = withContext(Dispatchers.IO) { reservations.keys(name, after, pageSize) }
+            val page = blocking { reservations.keys(name, after, pageSize) }
             page.filter { it.confirmed }.forEach { key -> result = compare(reservationPlan, key, result) }
             after = page.lastOrNull()?.key
         } while (page.isNotEmpty())
@@ -346,7 +344,7 @@ internal class ReservationComparison(
         key: NineXPreparedKey,
         result: ReservationComparisonResult,
     ): ReservationComparisonResult {
-        val owner = withContext(Dispatchers.IO) { reservationPlan.ownerOf(key, source) }
+        val owner = blocking { reservationPlan.ownerOf(key, source) }
         if (owner is KeyOwner.Unresolved) {
             return result.copy(unresolved = result.unresolved + 1)
         }
