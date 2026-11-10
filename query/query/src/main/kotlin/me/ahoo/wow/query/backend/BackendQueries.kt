@@ -220,10 +220,12 @@ fun QueryBackend.aggregate(
     }
     plan.windows?.let { windows ->
         val grouped = rows
+        val metrics = plan.query.metricAliases
         rows = flow {
             val current = grouped.toList()
             val earlier = earlierGroups(query, plan, windows.previousSteps, current, budget)
-            windows.apply(current, earlier).forEach { emit(it) }
+            // The core's windows are checked as a storage's rows are: a sum past the double range fails the query.
+            windows.apply(current, earlier).forEach { emit(it.requireStandardAggregation(metrics)) }
         }
     }
     if (plan.having) rows = rows.filter(plan::applyHaving)
@@ -263,7 +265,7 @@ private fun QueryBackend.groups(
     plan: AggregationPlan,
     budget: QueryBudget?,
 ): Flow<ObjectNode> {
-    val metrics = plan.query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+    val metrics = plan.query.metricAliases
     var rows = flow { emitAll(aggregate(sent, plan.window)) }
         .catch { error -> if (error is CancellationException) throw error else throw storageFault(error) }
         .map { row -> row.requireStandardAggregation(metrics) }
@@ -308,6 +310,9 @@ private fun emptySummary(metrics: List<AggregationMetric>): ObjectNode =
     WowJson.mapper.valueToTree(EmptyAggregationValues.values(metrics))
 
 internal fun ObjectNode.requireStandardRecord(): ObjectNode = requireStandardJson { path -> "Query result [$path]" }
+
+private val AggregationQuery.metricAliases: Set<String>
+    get() = metrics.mapTo(hashSetOf(), AggregationMetric::alias)
 
 private fun ObjectNode.requireStandardAggregation(metrics: Set<String>): ObjectNode = requireStandardJson { path ->
     val alias = path.substringBefore('.')
