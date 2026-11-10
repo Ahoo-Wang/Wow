@@ -48,5 +48,6 @@ internal class InMemoryNineXEventTarget(private val source: InMemoryNineXEventSo
     override fun revisionsOf(aggregate: NineXAggregate, name: String): List<String> =
         held(aggregate).flatMap { it.events }.filter { it.name == name }.map { it.revision }.distinct()
 
-    override fun count(aggregate: NineXAggregate): Long = held(aggregate).size.toLong()
+    override fun count(aggregate: NineXAggregate, excluded: Set<String>): Long =
+        held(aggregate).count { it.aggregateId.id !in excluded }.toLong()
 }

@@ -88,7 +88,7 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 | `REFUSED` | `export` 发现一条 9.x 读不了的类型的流：没有任何 9.x 聚合映射到的聚合，或者超出映射文件修订号的事件。不导出任何东西。 |
 | `CONFLICT` | `export` 发现一条 9.x 在同一版本上持有、但命令或租户不同的流。不导出任何东西。 |
 | `VERDICT` | `export` 对一个上下文的结论，每次运行都会打印（包括 `--dry-run`）：切回、导出 N 条流、自某个时间起无法通过导出回滚，或者因为 9.x 在切换之后被写入而无法通过导出回滚。 |
-| `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多。 |
+| `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多，映射排除的实例不计在内。 |
 | `UNMATCHED`、`AMBIGUOUS`、`UNSOURCED`、`RENAMED`、`REVIEW` | `draft-map` 的例外，也写进草稿：见[起草映射文件](#draft-the-map)。 |
 | `CUTOVER` | 在向某个上下文的日志追加过的一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史现在在哪里结束：切换点，记在每个分区日志的头部。 |
 

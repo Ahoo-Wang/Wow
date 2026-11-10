@@ -65,6 +65,10 @@ internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
     fun exclusionOf(aggregate: NineXAggregate, id: String): Exclusion? =
         excludedStreams[aggregate to RefusedIds.nameOf(id)]
 
+    /** The ids of [aggregate]'s instances whose streams the map excludes ([excludes]), as 9.x stores them. */
+    fun excludedIds(aggregate: NineXAggregate): Set<String> =
+        excludedStreams.keys.filter { it.first == aggregate }.mapTo(sortedSetOf()) { RefusedIds.idOf(it.second) }
+
     /** The V10 contexts the plan writes to. */
     val contexts: Set<String>
         get() = aggregates.values.map { it.target.context }.toSortedSet()

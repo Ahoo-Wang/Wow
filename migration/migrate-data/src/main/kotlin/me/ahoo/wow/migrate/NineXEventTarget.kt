@@ -36,6 +36,6 @@ internal interface NineXEventTarget {
     /** The revisions of the 9.x event [name] the store holds in [aggregate]'s streams. */
     fun revisionsOf(aggregate: NineXAggregate, name: String): List<String>
 
-    /** The number of streams of [aggregate] the store holds. */
-    fun count(aggregate: NineXAggregate): Long
+    /** The number of streams of [aggregate] the store holds, those of the instances whose ids are [excluded] left out. */
+    fun count(aggregate: NineXAggregate, excluded: Set<String>): Long
 }

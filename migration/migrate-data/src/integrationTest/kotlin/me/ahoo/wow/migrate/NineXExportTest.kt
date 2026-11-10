@@ -127,7 +127,7 @@ class NineXExportTest {
         )
         run("export", "--config", config).assert().isEqualTo(MigrateData.FAILED)
         printed.assert().contains("REFUSED the V10 event example.order.OrderCreated@2 of example.order")
-        MongoNineXEventTarget(nineX).count(order.aggregate).assert().isEqualTo(6)
+        MongoNineXEventTarget(nineX).count(order.aggregate, emptySet()).assert().isEqualTo(6)
     }
 
     @Test
@@ -148,7 +148,8 @@ class NineXExportTest {
         target.stored(order.aggregate, emptyList()).assert().isEmpty()
         target.insert(order.aggregate, emptyList()).assert().isEmpty()
         target.revisionsOf(order.aggregate, "order_created").assert().containsExactly(NineXStream.DEFAULT_REVISION)
-        target.count(order.aggregate).assert().isEqualTo(4)
+        target.count(order.aggregate, emptySet()).assert().isEqualTo(4)
+        target.count(order.aggregate, setOf(order.aggregateId.id, "none")).assert().isEqualTo(0)
         MongoNineXEventTarget.bsonOf(
             WowJson.mapper.readTree("""{"a":[1,2.5,null,true,"x",12345678901,123456789012345678901234]}""")
         )

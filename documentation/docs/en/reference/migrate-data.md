@@ -88,7 +88,7 @@ Lines that need attention start with a marker:
 | `REFUSED` | `export` found a stream with a type 9.x cannot read: an aggregate no 9.x aggregate maps to, or an event beyond the map's revision. Nothing is exported. |
 | `CONFLICT` | `export` found a stream 9.x holds at the same version with another command or tenant. Nothing is exported. |
 | `VERDICT` | `export`'s conclusion for a context, printed by every run, `--dry-run` included: switch back, export N streams, no rollback by export since a given time, or none because 9.x was written after the cut-over. |
-| `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10. |
+| `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10, the instances the map excludes left out. |
 | `UNMATCHED`, `AMBIGUOUS`, `UNSOURCED`, `RENAMED`, `REVIEW` | `draft-map`'s exceptions, also written into the draft: see [Draft the map](#draft-the-map). |
 | `CUTOVER` | After a pass that appended to a context's log (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history now ends: the cut-over, recorded at the log's head in each partition. |
 
