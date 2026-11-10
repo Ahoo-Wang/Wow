@@ -608,6 +608,11 @@ export type ExpressionFilter<FIELDS extends string = string> = {
 };
 
 // @public
+const expressionFilters: {
+    expression<FIELDS extends string>(expression: AggregationExpression<FIELDS>, comparison: ComparisonOperator, value: number): ExpressionFilter<FIELDS>;
+};
+
+// @public
 export interface FieldAggregateDescriptor {
     any: boolean;
     distinctCount: boolean;
@@ -653,6 +658,30 @@ export interface FieldFilterDescriptor {
 }
 
 // @public
+const fieldFilters: {
+    eq<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
+    ne<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
+    gt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
+    gte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
+    lt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
+    lte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
+    contains<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
+    startsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
+    endsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
+    isIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
+    notIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
+    containsAll<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
+    between<FIELDS extends string>(field: FIELDS, lowerBound: ComparableFilterLiteral, upperBound: ComparableFilterLiteral): BetweenFilter<FIELDS>;
+    isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    isEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    isNotEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+    notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
+};
+
+// @public
 export type FieldPresenceFilter<FIELDS extends string = string> = {
     op: FilterOperator.IS_EMPTY | FilterOperator.IS_EMPTY_STRING | FilterOperator.IS_NOT_EMPTY_STRING | FilterOperator.IS_NULL | FilterOperator.IS_NOT_NULL | FilterOperator.EXISTS | FilterOperator.NOT_EXISTS;
     field: QueryField<FIELDS>;
@@ -674,61 +703,7 @@ export interface FieldSortDescriptor {
 }
 
 // @public
-export const filter: {
-    matchAll(): MatchFilter;
-    matchNone(): MatchFilter;
-    id(value: string): MetadataValueFilter;
-    ids(values: readonly string[]): MetadataValuesFilter;
-    aggregateId(value: string): MetadataValueFilter;
-    aggregateIds(values: readonly string[]): MetadataValuesFilter;
-    tenantId(value: string): MetadataValueFilter;
-    ownerId(value: string): MetadataValueFilter;
-    spaceId(value: string): MetadataValueFilter;
-    and: typeof andFilter;
-    or: typeof orFilter;
-    nor: typeof norFilter;
-    eq<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
-    ne<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
-    gt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    gte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    lt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    lte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    contains<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    startsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    endsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    isIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    notIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    containsAll<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    between<FIELDS extends string>(field: FIELDS, lowerBound: ComparableFilterLiteral, upperBound: ComparableFilterLiteral): BetweenFilter<FIELDS>;
-    isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNotEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    deletion(state: DeletionState): DeletionFilter;
-    elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(field: FIELDS, predicate: ElementFilterExpression<ELEMENT_FIELDS>): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
-    search: SearchBuilder;
-    today<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    beforeToday<FIELDS extends string>(field: FIELDS, time: string, options?: RelativeTimeFilterOptions): BeforeTodayFilter<FIELDS>;
-    tomorrow<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    yesterday<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    recentDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
-    earlierDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
-    beforeNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
-    afterNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
-    expression<FIELDS extends string>(expression: AggregationExpression<FIELDS>, comparison: ComparisonOperator, value: number): ExpressionFilter<FIELDS>;
-};
+export const filter: typeof metadataFilters & typeof logicalFilters & typeof fieldFilters & typeof searchFilters & typeof timeFilters & typeof expressionFilters;
 
 // @public
 export interface FilterCapable<FIELDS extends string = string> {
@@ -966,6 +941,14 @@ export type LogicalFilter<FIELDS extends string = string> = {
 };
 
 // @public
+const logicalFilters: {
+    and: typeof andFilter;
+    or: typeof orFilter;
+    nor: typeof norFilter;
+    elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(field: FIELDS, predicate: ElementFilterExpression<ELEMENT_FIELDS>): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
+};
+
+// @public
 export type MatchFilter = {
     op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
 };
@@ -978,6 +961,20 @@ export const MAX_CURSOR_SORT_FIELDS = 32;
 
 // @public
 export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
+
+// @public
+const metadataFilters: {
+    matchAll(): MatchFilter;
+    matchNone(): MatchFilter;
+    id(value: string): MetadataValueFilter;
+    ids(values: readonly string[]): MetadataValuesFilter;
+    aggregateId(value: string): MetadataValueFilter;
+    aggregateIds(values: readonly string[]): MetadataValuesFilter;
+    tenantId(value: string): MetadataValueFilter;
+    ownerId(value: string): MetadataValueFilter;
+    spaceId(value: string): MetadataValueFilter;
+    deletion(state: DeletionState): DeletionFilter;
+};
 
 // @public
 export type MetadataValueFilter = {
@@ -1354,6 +1351,11 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 }
 
 // @public
+const searchFilters: {
+    search: SearchBuilder;
+};
+
+// @public
 export enum SearchMode {
     PHRASE = "phrase",
     TERMS = "terms"
@@ -1434,6 +1436,27 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
 export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
     missingKey?: string;
 }
+
+// @public
+const timeFilters: {
+    today<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    beforeToday<FIELDS extends string>(field: FIELDS, time: string, options?: RelativeTimeFilterOptions): BeforeTodayFilter<FIELDS>;
+    tomorrow<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    thisWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    nextWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    lastWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    thisMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    lastMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    yesterday<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    nextMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    lastYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    thisYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    nextYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
+    recentDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
+    earlierDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
+    beforeNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
+    afterNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
+};
 
 // @public
 export enum TimeUnit {

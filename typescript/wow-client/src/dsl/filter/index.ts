@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-// validate.ts, datePattern.ts and scope.ts are internal and stay unlisted.
+// validate.ts, datePattern.ts and scope.ts are internal and stay unlisted,
+// and so are the groups `filter` is composed of (metadataFilters.ts,
+// logicalFilters.ts, fieldFilters.ts, searchFilter.ts, timeFilters.ts,
+// expressionFilter.ts): `filter` is their one public face.
 export * from './operator.js';
 export * from './types.js';
-export { filter, type SearchBuilder } from './builders.js';
+export { filter } from './builders.js';
+export type { SearchBuilder } from './searchFilter.js';
