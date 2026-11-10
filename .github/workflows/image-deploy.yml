@@ -18,8 +18,9 @@
 # (wow-migrate-data). package-deploy.yml calls it once its
 # gates passed; it can also be dispatched on a release tag to push the images
 # again. release-plan.mjs gives the tags: a pre-release gets exactly its
-# version, never `latest` and no `X.Y`; a stable release gets its version and
-# `X.Y`, and `latest` when it is the latest line.
+# version, never `latest` and no `X.Y`; a stable release gets its version,
+# `X.Y` when it is the highest stable version of that line, and `latest` when
+# it is the latest line, so a re-run of an older patch moves no floating tag.
 name: Docker Images Deploy
 on:
   workflow_call:
@@ -41,6 +42,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       major: ${{ steps.plan.outputs.major }}
       line: ${{ steps.plan.outputs.line }}
+      line-tag: ${{ steps.plan.outputs.line-tag }}
       prerelease: ${{ steps.plan.outputs.prerelease }}
       latest: ${{ steps.plan.outputs.latest }}
     steps:
@@ -60,7 +62,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # All v* tags decide whether this release is the latest line.
+          # All v* tags decide which floating tags this release moves.
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -212,7 +214,7 @@ jobs:
             latest=false
           tags: |
             type=raw,value=${{ needs.plan.outputs.version }}
-            type=raw,value=${{ needs.plan.outputs.line }},enable=${{ needs.plan.outputs.prerelease == 'false' }}
+            type=raw,value=${{ needs.plan.outputs.line }},enable=${{ needs.plan.outputs.line-tag == 'true' }}
             type=raw,value=latest,enable=${{ needs.plan.outputs.latest == 'true' }}
           labels: |
             org.opencontainers.image.description=${{ steps.describe.outputs.description }}
