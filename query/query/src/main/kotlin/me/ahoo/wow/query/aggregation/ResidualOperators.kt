@@ -112,7 +112,11 @@ internal class DateHistogramFill(private val group: AggregationGroup.DateHistogr
     private fun gap(from: Long, to: Long): Sequence<Long> {
         val step: (Instant) -> Instant = if (from < to) buckets::next else buckets::previous
         val inside: (Long) -> Boolean = if (from < to) { key -> key < to } else { key -> key > to }
-        return generateSequence(step(Instant.ofEpochMilli(from))) { step(it) }
+        // A step that does not move would fill forever: it is a defect of the buckets, not an empty gap.
+        val moved: (Instant) -> Instant = { at ->
+            step(at).also { check(if (from < to) it > at else it < at) { "$buckets does not move past $at." } }
+        }
+        return generateSequence(moved(Instant.ofEpochMilli(from)), moved)
             .map { it.toEpochMilli() }
             .takeWhile(inside)
     }

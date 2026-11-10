@@ -27,6 +27,7 @@ import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.LORD_HOWE_DENSE_HOUR
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
@@ -70,5 +71,7 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
         "array.exists",
         "array.not-exists",
         "array.eq-array",
+        // toStartOfHour rounds a Lord Howe hour after its half-hour fall-back by the day's offset (#5675).
+        LORD_HOWE_DENSE_HOUR,
     )
 }

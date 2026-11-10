@@ -1348,6 +1348,46 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long`() = blocking {
+        fun at(instant: String) = java.time.Instant.parse(instant).toEpochMilli()
+        val fixture = given(
+            listOf(
+                // Lord Howe, 2026-04-05: 02:00 +11:00 becomes 01:30 +10:30. 00:30 +11:00 and 02:30 +10:30, with the
+                // 01:00 hour between them, from 01:00 +11:00 to 02:00 +10:30, empty.
+                snapshot("h1", """{"createdAt":${at("2026-04-04T13:30:00Z")}}"""),
+                snapshot("h2", """{"createdAt":${at("2026-04-04T16:00:00Z")}}"""),
+            ),
+        )
+        val createdAt = fixture.schema.field(QueryField("state.createdAt"))
+        assumeBound(
+            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
+        val hour = AggregationGroup.DateHistogram(
+            QueryField("state.createdAt"),
+            "hour",
+            AggregationDateUnit.HOUR,
+            "Australia/Lord_Howe",
+            dense = true,
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(hour),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("hour").longValue() to it.path("count").longValue() }.assert().containsExactly(
+            at("2026-04-04T13:00:00Z") to 1L,
+            at("2026-04-04T14:00:00Z") to 0L,
+            at("2026-04-04T15:30:00Z") to 1L,
+        )
+        Unit
+    }
+
     // Timeouts
 
     @Test

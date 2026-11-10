@@ -117,6 +117,51 @@ class DateBucketsTest {
         days.previous(local(apia, 2011, 12, 31)).assert().isEqualTo(local(apia, 2011, 12, 29))
     }
 
+    /** The bucket starts from [from]'s down to and including [to]'s, walked backward. */
+    private fun DateBuckets.walkBack(from: Instant, to: Instant): List<Instant> =
+        generateSequence(start(from)) { previous(it) }.takeWhile { it >= start(to) }.toList()
+
+    @Test
+    fun `an hour a half-hour transition lengthens or shortens is one bucket, walked both ways`() {
+        val hours = DateBuckets(AggregationDateUnit.HOUR, ZoneId.of("Australia/Lord_Howe"))
+        // Fall-back, 2026-04-05: 02:00 +11:00 becomes 01:30 +10:30, so the local 01:00 hour lasts 90 minutes.
+        val fallBack = listOf(
+            "2026-04-04T13:00:00Z", // 00:00 +11:00
+            "2026-04-04T14:00:00Z", // 01:00 +11:00, to 02:00 +10:30
+            "2026-04-04T15:30:00Z", // 02:00 +10:30
+            "2026-04-04T16:30:00Z", // 03:00 +10:30
+        ).map(::instant)
+        hours.next(fallBack[1]).assert().isEqualTo(fallBack[2])
+        hours.walk(fallBack.first(), fallBack.last()).assert().containsExactlyElementsOf(fallBack)
+        hours.walkBack(fallBack.last(), fallBack.first()).assert().containsExactlyElementsOf(fallBack.reversed())
+        hours.start(instant("2026-04-04T15:15:00Z")).assert().isEqualTo(fallBack[1]) // 01:45 +10:30
+        // Spring-forward, 2025-10-05: 02:00 +10:30 becomes 02:30 +11:00, so the local 02:00 hour lasts 30 minutes.
+        val springForward = listOf(
+            "2025-10-04T14:30:00Z", // 01:00 +10:30
+            "2025-10-04T15:30:00Z", // 02:30 +11:00, the transition: 02:00 never happens
+            "2025-10-04T16:00:00Z", // 03:00 +11:00
+            "2025-10-04T17:00:00Z", // 04:00 +11:00
+        ).map(::instant)
+        hours.walk(springForward.first(), springForward.last()).assert().containsExactlyElementsOf(springForward)
+        hours.walkBack(springForward.last(), springForward.first()).assert()
+            .containsExactlyElementsOf(springForward.reversed())
+        // Asia/Pyongyang, 2015-08-15: 00:00 +09:00 became 23:30 +08:30, so the local 23:00 hour lasted 90 minutes.
+        val pyongyang = DateBuckets(AggregationDateUnit.HOUR, ZoneId.of("Asia/Pyongyang"))
+        val august = listOf(
+            "2015-08-14T13:00:00Z", // 22:00 +09:00
+            "2015-08-14T14:00:00Z", // 23:00 +09:00, to 00:00 +08:30
+            "2015-08-14T15:30:00Z", // 00:00 +08:30
+            "2015-08-14T16:30:00Z", // 01:00 +08:30
+        ).map(::instant)
+        pyongyang.walk(august.first(), august.last()).assert().containsExactlyElementsOf(august)
+        pyongyang.walkBack(august.last(), august.first()).assert().containsExactlyElementsOf(august.reversed())
+        DateBuckets(AggregationDateUnit.DAY, ZoneId.of("Asia/Pyongyang")).next(instant("2015-08-13T15:00:00Z"))
+            .assert().isEqualTo(august[2])
+        // A minute bucket never stays put either.
+        val minutes = DateBuckets(AggregationDateUnit.MINUTE, ZoneId.of("Australia/Lord_Howe"))
+        minutes.next(instant("2026-04-04T14:59:00Z")).assert().isEqualTo(instant("2026-04-04T15:00:00Z"))
+    }
+
     @Test
     fun `a half-hour offset keeps the buckets on its local hours`() {
         // Australia/Lord_Howe sits at +10:30 in July: its hours start at local :00, which is :30 in UTC.

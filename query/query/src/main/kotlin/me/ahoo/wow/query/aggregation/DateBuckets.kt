@@ -31,7 +31,8 @@ import java.time.temporal.TemporalAdjusters
  * repeats is two buckets, and the one a spring-forward skips is none. A bucket's key is never after its records.
  *
  * The buckets are a sequence: [next] and [previous] walk it, which a dense fill and a PREVIOUS window do, so both see
- * the buckets the histogram makes.
+ * the buckets the histogram makes. A local period can last longer or shorter than its unit: Australia/Lord_Howe's
+ * fall-back makes its local 01:00 hour last 90 minutes, and its spring-forward its 02:00 hour 30 minutes.
  */
 internal class DateBuckets(private val unit: AggregationDateUnit, private val zone: ZoneId) {
     /** The start of the bucket that contains [instant]. */
@@ -54,21 +55,35 @@ internal class DateBuckets(private val unit: AggregationDateUnit, private val zo
     /** The key of the bucket that contains [epochMillis]: its start in epoch milliseconds. */
     fun keyOf(epochMillis: Long): Long = start(Instant.ofEpochMilli(epochMillis)).toEpochMilli()
 
-    /** The start of the bucket after the one that starts at [start]. */
+    /** The start of the first bucket after the one that starts at [start], however long that one lasts: always later. */
     fun next(start: Instant): Instant = when (unit) {
         AggregationDateUnit.YEAR -> startOf(start.atZone(zone).toLocalDate().plusYears(1))
         AggregationDateUnit.QUARTER -> startOf(start.atZone(zone).toLocalDate().plusMonths(MONTHS_PER_QUARTER))
         AggregationDateUnit.MONTH -> startOf(start.atZone(zone).toLocalDate().plusMonths(1))
         AggregationDateUnit.WEEK -> startOf(start.atZone(zone).toLocalDate().plusWeeks(1))
         AggregationDateUnit.DAY -> startOf(start.atZone(zone).toLocalDate().plusDays(1))
-        // The local period after this one begins one unit later, unless a transition moves its start.
-        AggregationDateUnit.HOUR -> start(start.plus(Duration.ofHours(1)))
-        AggregationDateUnit.MINUTE -> start(start.plus(Duration.ofMinutes(1)))
+        AggregationDateUnit.HOUR -> after(start, Duration.ofHours(1))
+        AggregationDateUnit.MINUTE -> after(start, Duration.ofMinutes(1))
         AggregationDateUnit.SECOND -> start.plusSeconds(1)
     }
 
     /** The start of the bucket before the one that starts at [start]: the one holding the instant just before it. */
     fun previous(start: Instant): Instant = start(start.minusMillis(1))
+
+    /**
+     * The bucket after [start]'s for a unit of fixed [length] that a transition can lengthen or shorten: steps of
+     * [length] until one lands past [start]'s bucket, then back over any shorter bucket the last step went past.
+     */
+    private fun after(start: Instant, length: Duration): Instant {
+        var probe = start.plus(length)
+        while (start(probe) <= start) probe = probe.plus(length)
+        var next = start(probe)
+        while (true) {
+            val before = previous(next)
+            if (before <= start) return next
+            next = before
+        }
+    }
 
     /** The first instant of [date] in the zone. */
     private fun startOf(date: LocalDate): Instant = date.atStartOfDay(zone).toInstant()

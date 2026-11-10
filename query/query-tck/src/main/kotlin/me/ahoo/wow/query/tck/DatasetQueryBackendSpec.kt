@@ -166,8 +166,9 @@ abstract class DatasetQueryBackendSpec {
     protected abstract suspend fun createTable(table: DatasetTable): ObjectNode
 
     /**
-     * Semantic cases ([FilterSemantics]) this backend is known to diverge on, such as a table that cannot tell a
-     * missing value from a null; each one is skipped and reported, never silently passed.
+     * Semantic cases ([FilterSemantics], or a case a test names, such as [LORD_HOWE_DENSE_HOUR]) this backend is known
+     * to diverge on, such as a table that cannot tell a missing value from a null; each one is skipped and reported,
+     * never silently passed.
      */
     protected open val semanticDivergences: Set<String> = emptySet()
 
@@ -488,6 +489,37 @@ abstract class DatasetQueryBackendSpec {
                 .containsExactly("2025-12-31T23:30:00Z" to 1L, "2026-01-01T00:30:00Z" to 1L)
             Unit
         }
+
+    @Test
+    fun `a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long`() = blocking {
+        Assumptions.assumeFalse(LORD_HOWE_DENSE_HOUR in semanticDivergences) {
+            "Known divergence from the bucket rule: $LORD_HOWE_DENSE_HOUR."
+        }
+        // Lord Howe, 2026-04-05: 02:00 +11:00 becomes 01:30 +10:30; l1 at 00:30 +11:00, l2 at 02:30 +10:30.
+        val rows = target(ZONED).aggregate(
+            AggregationQuery(
+                filter = InFilter(QueryField(ID), listOf("l1", "l2")),
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(
+                        CREATED_AT,
+                        "hour",
+                        AggregationDateUnit.HOUR,
+                        "Australia/Lord_Howe",
+                        dense = true,
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("hour"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { Instant.ofEpochMilli(it.path("hour").longValue()).toString() to it.path("count").longValue() }
+            .assert().containsExactly(
+                "2026-04-04T13:00:00Z" to 1L,
+                "2026-04-04T14:00:00Z" to 0L,
+                "2026-04-04T15:30:00Z" to 1L,
+            )
+        Unit
+    }
 
     @Test
     fun `a date histogram buckets instants before 1970 at their own start`() = blocking {
@@ -837,7 +869,10 @@ abstract class DatasetQueryBackendSpec {
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
-        /** Instants around New York's 2025 transitions and in a half-hour zone's hours. */
+        /** The case id of an hourly bucket after Lord Howe's half-hour fall-back, for [semanticDivergences]. */
+        const val LORD_HOWE_DENSE_HOUR = "date-histogram.lord-howe-fall-back-hour"
+
+        /** Instants around New York's 2025 transitions, in a half-hour zone's hours and around Lord Howe's fall-back. */
         val ZONED = DatasetTable(
             name = "zoned",
             columns = listOf(
@@ -852,6 +887,8 @@ abstract class DatasetQueryBackendSpec {
                 "f2" to "2025-11-02T06:30:00Z",
                 "k1" to "2026-01-01T00:20:00Z",
                 "k2" to "2026-01-01T00:40:00Z",
+                "l1" to "2026-04-04T13:30:00Z",
+                "l2" to "2026-04-04T16:00:00Z",
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
