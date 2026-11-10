@@ -228,6 +228,35 @@ describe('放进仪表盘 while the open board is edited', () => {
 
   // The carry goes by the panel's id: one the draft holds already — the
   // effect run again for the same write — is not added a second time.
+  // The store is a host's: what it answers for the board saved need not hold
+  // the panel the write added. The write is still confirmed: the baseline
+  // moves to the revision answered and nothing is carried.
+  it('carries nothing, and moves the baseline, when the board answered lacks the panel added', async () => {
+    const { engine, store, reading, release } = held();
+    const open = await openBoard(engine);
+    const save = store.save.bind(store);
+    vi.spyOn(store, 'save').mockImplementation(async (...args) => {
+      const saved = await save(...args);
+      const config = saved.config as DashboardViewConfig;
+      return {
+        ...saved,
+        config: { ...config, panels: config.panels.slice(0, -1) },
+      };
+    });
+
+    const adding = engine.addToDashboard('board-1', mine.id);
+    await reading.promise;
+    edit(open);
+    const draft = open.getSnapshot().draft;
+    release.resolve();
+    const saved = await adding;
+
+    const snapshot = open.getSnapshot();
+    expect(snapshot.saved?.revision).toBe(saved.revision);
+    expect(snapshot.draft).toBe(draft);
+    expect(snapshot.dirty).toBe(true);
+  });
+
   it('carries a panel the draft already holds no second time', async () => {
     const { open, saved } = await addedWhileEdited();
     const added = panelsOf(saved)[panelsOf(saved).length - 1]!;

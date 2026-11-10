@@ -128,9 +128,14 @@ function addedToBoard(
     return;
   }
   holder.moveBaseline(saved);
-  // The board saved is this board, holding the panel the write added.
+  // The board saved is this board. What the store answered need not hold
+  // the panel the write added — a host's store may answer it normalised, or
+  // as another writer left it a moment later: then there is nothing of this
+  // write to carry, and the draft differs from the board saved by the
+  // reader's own edits alone.
   const board = saved.config as DashboardViewConfig;
-  holder.carryPanel(panelsOf(board).find(entry => entry.id === panelId)!);
+  const added = panelsOf(board).find(entry => entry.id === panelId);
+  if (added) holder.carryPanel(added);
 }
 
 /**
