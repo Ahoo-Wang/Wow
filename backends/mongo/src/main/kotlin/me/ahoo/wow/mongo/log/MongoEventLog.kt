@@ -21,7 +21,6 @@ import com.mongodb.WriteConcern
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Aggregates
-import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
@@ -51,7 +50,6 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
-import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -59,12 +57,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPacer
-import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.log.requireChains
-import org.bson.BsonArray
-import org.bson.BsonDocument
-import org.bson.BsonInt32
-import org.bson.BsonString
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
@@ -204,6 +197,10 @@ class MongoEventLog(
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
 
+    /** The reads of one aggregate's streams. */
+    private val aggregateReads =
+        MongoAggregateReads(dispatcher, collections, documents, lookups, lastSequences, partitions)
+
     /** The access attributes of the streams, and the walks of the aggregate types. */
     private val logAccess = MongoLogAccess(dispatcher, collections, lookups, walks, partitions)
 
@@ -300,25 +297,8 @@ class MongoEventLog(
         }
     }
 
-    /** Every partition of the log: a lookup of the request key without the aggregate seeks it in each. */
-    private val everyPartition: Bson = Filters.`in`(PARTITION, (0 until partitions).toList())
-
-    /** A page of [VersionPages.SIZE] streams a `find`, each emitted before the next is read. */
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
-        VersionPages.byVersion(fromVersion, toVersion, EventStreamRecord::version) { from ->
-            dispatcher.mongo {
-                val collection = collections.of(ref.type)
-                collection.committed.find(
-                    Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, from), Filters.lte(VERSION, toVersion)),
-                )
-                    .projection(FACTS)
-                    .sort(Sorts.ascending(VERSION))
-                    .limit(VersionPages.SIZE)
-                    .batchSize(VersionPages.SIZE)
-                    .map { documents.streamOf(collection.aggregate, it) }
-                    .toList()
-            }
-        }
+        aggregateReads.read(ref, fromVersion, toVersion)
 
     @InternalWowApi
     override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
@@ -345,81 +325,20 @@ class MongoEventLog(
         completed: Boolean,
     ): Boolean = logAccess.advance(type, schema, cursor, walked, completed)
 
-    /**
-     * One aggregation: the tail by the version key, then, through `$unionWith` on the same
-     * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
-     * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command. Its stages are BSON
-     * already ([tailStages]): the driver renders builders on every call, and the last stage once more.
-     */
-    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
-        require(fromVersion >= 1) { "A stream has a version from 1." }
-        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        return dispatcher.mongo {
-            val collection = collections.of(ref.type)
-            val pipeline = tailStages(ref, fromVersion, earlier, collection.name)
-            val streams = ArrayList<EventStreamRecord>()
-            val requests = ArrayList<CommittedRequest>()
-            var last: LastSequence? = null
-            collection.committed.aggregate(pipeline).batchSize(earlier + READ_TAIL_BATCH).forEach { document ->
-                val version = document.getInteger(VERSION)
-                if (last.let { it == null || version > it.version }) {
-                    last = LastSequence(version, document.getLong(SEQUENCE))
-                }
-                if (document.getInteger(BRANCH) == 0) {
-                    streams += documents.streamOf(collection.aggregate, document)
-                } else {
-                    requests += CommittedRequest(
-                        document.getInteger(VERSION),
-                        document.getString(REQUEST_ID),
-                        document.getString(COMMAND_TYPE),
-                    )
-                }
-            }
-            streams.sortBy { it.version }
-            requests.sortByDescending { it.version }
-            last?.let { lastSequences[ref] = it }
-            AggregateTail(streams, requests)
-        }
-    }
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
+        aggregateReads.readTail(ref, fromVersion, earlier)
 
-    /** A page of [VersionPages.SIZE] entries a `find`, as [read]. */
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
-        VersionPages.byVersion(fromVersion, toVersion, { it.stream.version }) { from ->
-            dispatcher.mongo {
-                val collection = collections.of(ref.type)
-                collection.committed.find(
-                    Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, from), Filters.lte(VERSION, toVersion)),
-                )
-                    .sort(Sorts.ascending(VERSION))
-                    .limit(VersionPages.SIZE)
-                    .batchSize(VersionPages.SIZE)
-                    .map { documents.entryOf(collection.aggregate, it) }
-                    .toList()
-            }
-        }
+        aggregateReads.readEntries(ref, fromVersion, toVersion)
 
-    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
-        collections.of(ref.type).committed.find(Filters.and(lookups.refFilter(ref), Filters.eq(VERSION, version)))
-            .projection(Projections.include(PARTITION, SEQUENCE))
-            .firstOrNull()
-            ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
-    }
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
+        aggregateReads.positionOf(ref, version)
 
-    /**
-     * The stream committed for [requestId] in [ref]'s partition of its collection: one indexed find. The request key
-     * is unique within a partition, which is what an append of [ref] meets.
-     */
     override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
-        dispatcher.mongo {
-            lookups.requestIn(collections.of(ref.type), ref, requestId)
-        }
+        aggregateReads.findByRequestId(ref, requestId)
 
-    /**
-     * The stream committed for [requestId] within [tenantId] in [type]'s collection, in any partition: one find, an
-     * index seek per partition.
-     */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.mongo { lookups.findByRequestIdIn(collections.of(type), everyPartition, tenantId, requestId) }
+        aggregateReads.findByRequestId(type, tenantId, requestId)
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
@@ -563,23 +482,6 @@ class MongoEventLog(
         ) + known.map { Aggregates.unionWith(it.name, highest) }
     }
 
-    /** [readTail]'s stages, as BSON: the dynamic matches and limit built here, the rest rendered once. */
-    private fun tailStages(ref: AggregateRef, fromVersion: Int, earlier: Int, collection: String): List<Bson> {
-        fun versions(operator: String) = BsonDocument(
-            "\$match",
-            BsonDocument(PARTITION, BsonInt32(lookups.partitionOf(ref)))
-                .append(AGGREGATE_ID, BsonString(ref.id))
-                .append(TENANT_ID, BsonString(ref.tenantId))
-                .append(VERSION, BsonDocument(operator, BsonInt32(fromVersion))),
-        )
-        val tail = listOf(versions("\$gte"), TAIL_FACTS, TAIL_BRANCH)
-        if (earlier == 0) return tail
-        val keys = BsonArray(
-            listOf(versions("\$lt"), KEYS_ORDER, BsonDocument("\$limit", BsonInt32(earlier)), KEYS_FIELDS, KEYS_BRANCH),
-        )
-        return tail + BsonDocument("\$unionWith", BsonDocument("coll", BsonString(collection)).append("pipeline", keys))
-    }
-
     internal companion object {
         private val logger = KotlinLogging.logger {}
 
@@ -678,9 +580,6 @@ class MongoEventLog(
         /** A sequence of a block another node sealed. */
         const val GAP_SEALED = "sealed"
 
-        /** The streams of tail [readTail]'s first batch holds beyond the earlier request keys. */
-        const val READ_TAIL_BATCH = 1000
-
         const val ID = "_id"
         const val PARTITION = "partition"
         const val SEQUENCE = "sequence"
@@ -734,14 +633,5 @@ class MongoEventLog(
 
         /** A stream's facts: every field but the transport. */
         val FACTS: Bson = Projections.exclude(TRANSPORT)
-
-        /** The fixed stages of [readTail], rendered once. */
-        private val TAIL_FACTS = Aggregates.project(FACTS).toBsonDocument()
-        private val TAIL_BRANCH = Aggregates.addFields(Field(BRANCH, 0)).toBsonDocument()
-        private val KEYS_ORDER = Aggregates.sort(Sorts.descending(VERSION)).toBsonDocument()
-        private val KEYS_FIELDS = Aggregates.project(
-            Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE, SEQUENCE)),
-        ).toBsonDocument()
-        private val KEYS_BRANCH = Aggregates.addFields(Field(BRANCH, 1)).toBsonDocument()
     }
 }
