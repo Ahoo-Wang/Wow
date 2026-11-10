@@ -64,6 +64,7 @@ class WowPlugin : Plugin<Project> {
 
         /** The id of the service module's plugin ([WowServicePlugin]). */
         const val SERVICE_ID = "me.ahoo.wow.service"
+        internal const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
 
         /** The test suite of the container-backed tests the service plugin registers ([WowServicePlugin]). */
         const val INTEGRATION_TEST: String = "integrationTest"
@@ -214,7 +215,7 @@ class WowApiPlugin : Plugin<Project> {
 }
 
 /**
- * `me.ahoo.wow.service`: builds a service module ([WowRoles.service]): the domain role of `me.ahoo.wow` on its own
+ * `me.ahoo.wow.service`: builds a service module ([ServiceRole.service]): the domain role of `me.ahoo.wow` on its own
  * sources (the processors, routes and models it declares; nothing when it declares none), and the service's
  * Manifest:
  *
@@ -247,6 +248,6 @@ class WowServicePlugin : Plugin<Project> {
         WowPlugin.requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(WowPlugin.EXTENSION, WowServiceExtension::class.java)
         WowRoles.domain(project, extension, WowPlugin.SERVICE_ID)
-        WowRoles.service(project, extension)
+        ServiceRole.service(project, extension)
     }
 }
