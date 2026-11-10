@@ -33,6 +33,8 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
@@ -43,6 +45,10 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
         val store = PostgresFixture.snapshotStore(type.context)
         snapshots.forEach { store.save(it) }
     }
+
+    // PostgreSQL's date_trunc reads a local time Africa/Monrovia's 1972 change skipped at the offset after it (UTC), so
+    // the hour and the minute of that gap start before the transition.
+    override val semanticDivergences: Set<String> = setOf(GAP_START, GAP_MID_UNIT)
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!

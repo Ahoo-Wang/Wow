@@ -234,15 +234,13 @@ public final class me/ahoo/wow/query/tck/FilterSemantics {
 	public final fun getUNCOVERED ()Ljava/util/Map;
 }
 
-public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
+public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query/tck/SnapshotDateBucketCases {
 	public static final field Companion Lme/ahoo/wow/query/tck/QueryBackendSpec$Companion;
 	public static final field DAY J
 	public static final field OTHER_TENANT Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
-	public final fun a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long ()V
-	public final fun a dense hourly histogram fills the buckets between, a repeated hour twice ()V
 	public final fun a histogram and an expression group put the records without a value in the null group ()V
 	public final fun a numeric expression over integer fields divides without truncating ()V
 	public final fun a query within its timeout runs as without one ()V
@@ -266,10 +264,9 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun aggregation without a sort refuses more groups than its limit, and returns every group within it ()V
 	public final fun an array holding a null sorts first ascending, or the sort is refused where storage cannot ()V
 	public final fun an expired timeout fails every primitive with the timeout error ()V
-	public final fun an hourly bucket in a half-hour zone starts at its local hour ()V
-	public final fun an hourly bucket in a region starts where its local hour does, a repeated hour twice ()V
 	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
 	public final fun count is exact below its limit and bounded above it ()V
+	protected final fun createdAtBuckets (Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun cursor breaks ties by tenant before aggregate id ()V
 	public final fun cursor over decimals walks each record once, a value no double holds included ()V
 	public final fun cursor returns an empty terminal page ()V
@@ -367,5 +364,23 @@ public final class me/ahoo/wow/query/tck/SemanticShape : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/tck/SemanticShape;
 	public static fun values ()[Lme/ahoo/wow/query/tck/SemanticShape;
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotDateBucketCases {
+	public static final field Companion Lme/ahoo/wow/query/tck/SnapshotDateBucketCases$Companion;
+	public static final field GAP_MID_UNIT Ljava/lang/String;
+	public static final field GAP_START Ljava/lang/String;
+	public final fun a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long ()V
+	public final fun a dense hourly histogram fills the buckets between, a repeated hour twice ()V
+	public final fun a minute whose local start a change skipped begins at the transition, not after its records ()V
+	public final fun an hour whose local start a change skipped begins at the transition ()V
+	public final fun an hourly bucket in a half-hour zone starts at its local hour ()V
+	public final fun an hourly bucket in a region starts where its local hour does, a repeated hour twice ()V
+	protected abstract fun createdAtBuckets (Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun createdAtBuckets$default (Lme/ahoo/wow/query/tck/SnapshotDateBucketCases;Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	protected abstract fun getSemanticDivergences ()Ljava/util/Set;
+}
+
+public final class me/ahoo/wow/query/tck/SnapshotDateBucketCases$Companion {
 }
 
