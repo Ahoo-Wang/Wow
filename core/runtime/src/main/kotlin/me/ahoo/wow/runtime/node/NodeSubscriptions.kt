@@ -84,8 +84,8 @@ private fun logViews(
     val watermarks = runtime.positions().associate { (it.subscription to it.partition) to it.watermark }
     val paused = runtime.paused().associateBy { it.subscription to it.partition }
     val throttled = runtime.throttled().associateBy { it.subscription to it.partition }
-    return runtime.subscriptionNames.mapNotNull { name ->
-        val context = runtime.contextOf(name) ?: return@mapNotNull null
+    return runtime.subscriptionIds.map { id ->
+        val name = id.name
         val partitions = (checkpoints.keys + watermarks.keys).filter { it.first == name }.map { it.second }.sorted()
         val views = partitions.map { partition ->
             val key = name to partition
@@ -102,7 +102,7 @@ private fun logViews(
             }
         }
         SubscriptionView(
-            SubscriptionId(context, name),
+            id,
             runtime.group,
             SubscriptionView.Source.LOG,
             sample.parked[ParkedSubscription(runtime.group, name)],
@@ -113,14 +113,13 @@ private fun logViews(
 
 /** The subscriptions of a topic's [runtime], each in the partitions this node runs that are held back. */
 private fun topicViews(runtime: SubscriptionRuntime, sample: NodeSample): List<SubscriptionView> =
-    runtime.subscriptionNames.mapNotNull { name ->
-        val context = runtime.contextOf(name) ?: return@mapNotNull null
+    runtime.subscriptionIds.map { id ->
         SubscriptionView(
-            SubscriptionId(context, name),
+            id,
             runtime.group,
             SubscriptionView.Source.TOPIC,
-            sample.parked[ParkedSubscription(runtime.group, name)],
-            topicPartitions(runtime, name),
+            sample.parked[ParkedSubscription(runtime.group, id.name)],
+            topicPartitions(runtime, id.name),
         )
     }
 

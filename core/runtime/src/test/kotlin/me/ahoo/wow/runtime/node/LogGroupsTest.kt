@@ -140,7 +140,7 @@ class LogGroupsTest {
             setOf(INVOICE),
         )
         groups.last().subscriptions.group.assert().isEqualTo("$SERVICE/$CONTEXT#$INVOICE_STORE")
-        groups.forEach { it.subscriptions.subscriptionNames.assert().contains(PROJECTOR) }
+        groups.forEach { it.subscriptions.subscriptionIds.assert().contains(SubscriptionId.of(CONTEXT, PROJECTOR)) }
         eventually { invoices.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition) == 1L }
         default.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition).assert().isNull()
     }

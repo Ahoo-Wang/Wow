@@ -451,7 +451,7 @@ class NodeHealth(
                 val paused = pausedOf(runtime).groupBy { it.subscription }
                 ComponentHealth.of(
                     runtime.group,
-                    runtime.subscriptionNames.sorted().map { subscription ->
+                    runtime.subscriptionIds.map { it.name }.sorted().map { subscription ->
                         subscriptionHealth(runtime, subscription, sample, paused[subscription].orEmpty())
                     },
                 )

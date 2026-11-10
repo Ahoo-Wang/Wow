@@ -57,6 +57,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -180,7 +181,9 @@ abstract class SnapshotRebuildSpec {
         started.stop()
         table(B).backfilled.assert().isFalse()
         val both = start("node-3", revision = 1, targets = listOf(A, B))
-        both.context(context).subscriptions.subscriptionNames.assert().contains("wow.snapshot:$B#$COUNTER")
+        both.context(
+            context
+        ).subscriptions.subscriptionIds.assert().contains(SubscriptionId.of(context, "wow.snapshot:$B#$COUNTER"))
         eventually {
             maintain(both)
             table(A).backfilled && table(B).backfilled
