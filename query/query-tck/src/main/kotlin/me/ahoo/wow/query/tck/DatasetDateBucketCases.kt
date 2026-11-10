@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.tck
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
@@ -33,16 +34,13 @@ import java.time.Instant
  * test extends) on date buckets across a zone's offset changes. They hold the bucket rule (`DateBuckets`) at daylight
  * saving's transitions, in a half-hour zone, at a half-hour change (Australia/Lord_Howe), at a change by seconds
  * (Africa/Monrovia) and on the day of a change before 1970 (Asia/Shanghai's switch from local mean time). They read
- * their table, [ZONED], through the spec.
+ * their table, [ZONED], through [aggregateZoned], over [DatasetQueryFixtures]' fixtures and hooks; see there for the
+ * chain of families this class is part of.
  */
-abstract class DatasetDateBucketCases internal constructor() {
-    /** The case ids this backend is known to diverge on: [DatasetQueryBackendSpec.semanticDivergences]. */
-    protected abstract val semanticDivergences: Set<String>
-
+abstract class DatasetDateBucketCases internal constructor() : DatasetAggregationCases() {
     /** [query] over the dataset of [ZONED], as the spec's backend answers it. */
-    protected abstract suspend fun aggregateZoned(query: AggregationQuery): List<ObjectNode>
-
-    private fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
+    private suspend fun aggregateZoned(query: AggregationQuery): List<ObjectNode> =
+        target(DatasetDateBucketCases.ZONED).aggregate(query)
 
     @Test
     fun `an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own`() =
