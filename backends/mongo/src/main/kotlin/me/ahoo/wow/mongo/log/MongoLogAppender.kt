@@ -296,7 +296,7 @@ internal class MongoLogAppender(
             Filters.eq(PARTITION, partition),
             Filters.eq(ID, positionId(partition, member.sequence))
         )
-        return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).firstOrNull()
+        return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).first()
             ?.getString(REQUEST_ID) == member.stream.requestId
     }
 
@@ -388,7 +388,7 @@ internal class MongoLogAppender(
             .sort(Sorts.descending(VERSION))
             .projection(Projections.include(VERSION, SEQUENCE))
             .limit(1)
-            .firstOrNull()
+            .first()
             ?: return null
         lastSequences[stream.ref] = LastSequence(latest.getInteger(VERSION), latest.getLong(SEQUENCE))
         return latest.getLong(SEQUENCE).takeIf { latest.getInteger(VERSION) == stream.version - 1 }

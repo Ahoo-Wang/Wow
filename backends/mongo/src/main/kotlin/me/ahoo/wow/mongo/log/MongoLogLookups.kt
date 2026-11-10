@@ -42,11 +42,11 @@ internal class MongoLogLookups(private val partitions: Int, private val document
             Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
         )
             .projection(FACTS)
-            .firstOrNull()
+            .first()
             ?.let { documents.streamOf(collection.aggregate, it) }
 
     fun currentVersion(collection: AggregateCollection, ref: AggregateRef): Int =
-        collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).firstOrNull()
+        collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).first()
             ?.getInteger(VERSION) ?: 0
 
     /**

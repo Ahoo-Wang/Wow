@@ -172,7 +172,7 @@ class MongoFailureLedger(
     }
 
     override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
-        ledger.find(keyFilter(subscription, ref)).firstOrNull()?.let { entryOf(it) }
+        ledger.find(keyFilter(subscription, ref)).first()?.let { entryOf(it) }
     }
 
     override suspend fun list(

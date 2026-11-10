@@ -135,7 +135,7 @@ internal class MongoAggregateReads(
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
         collections.of(ref.type).committed.find(Filters.and(lookups.refFilter(ref), Filters.eq(VERSION, version)))
             .projection(Projections.include(PARTITION, SEQUENCE))
-            .firstOrNull()
+            .first()
             ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
     }
 

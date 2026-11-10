@@ -72,7 +72,7 @@ class MongoCheckpointStore(
     }
 
     override suspend fun load(group: String, subscription: String, partition: Int): Long? = dispatcher.mongo {
-        checkpoints.find(keyFilter(group, subscription, partition)).firstOrNull()?.getLong(POSITION)
+        checkpoints.find(keyFilter(group, subscription, partition)).first()?.getLong(POSITION)
     }
 
     override suspend fun list(group: String): List<Checkpoint> = dispatcher.mongo {

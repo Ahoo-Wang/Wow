@@ -372,7 +372,7 @@ class MongoSnapshotStore(
 
     override suspend fun table(type: AggregateType): SnapshotTable? = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
-        tables.find(Filters.eq(ID, collectionName(context, type.name))).firstOrNull()?.let(::tableOf)
+        tables.find(Filters.eq(ID, collectionName(context, type.name))).first()?.let(::tableOf)
     }
 
     override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable = dispatcher.mongo {
@@ -410,7 +410,7 @@ class MongoSnapshotStore(
             backfilled?.let { Updates.set(BACKFILLED, it) },
         )
         val marked = if (changes.isEmpty()) {
-            tables.find(filter).firstOrNull()
+            tables.find(filter).first()
         } else {
             tables.findOneAndUpdate(
                 filter,
@@ -431,7 +431,7 @@ class MongoSnapshotStore(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        collectionOf(ref.type.name).find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(ref.type, it) }
+        collectionOf(ref.type.name).find(keyFilter(ref)).first()?.let { snapshotOf(ref.type, it) }
     }
 
     private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
