@@ -153,4 +153,32 @@ curl -X DELETE "http://<node>/actuator/cocache/wow.eshop-ordering.order/<tenantI
 - 属主与读方共用一个 Redis。缓存的名字、键和值（视图的 JSON）是服务之间的契约。视图的兼容性就是契约的兼容性：属主新增字段不会破坏任何读方，其余由兼容性闸门检查（[Manifest 与兼容性](../manifest)）。
 - 每个共享的状态，属主每次提交多一次 Redis 写入。
 - 缓存由 CoCache 自己的指标与健康检查报告（[可观测性](../../operate/observability)）。
-- 从基于 CoCache 6 的预发布版迁到 CoCache 8 时，属主与所有读方要在同一个发布窗口内切换（[升级部署](../../operate/upgrades#wow-cocache-on-cocache-8)）。
+- 从 CoCache 6 迁到 CoCache 8 时，属主与所有读方要在同一个发布窗口内切换（[从 CoCache 6 迁移](#from-cocache-6)）。
+
+## 从 CoCache 6 迁移 {#from-cocache-6}
+
+CoCache 8 既不读取也不写入 CoCache 6 存储的内容。经 CoCache 6 共享状态的服务（9.x 的服务就是这样）要一次性修改配置与部署。
+
+**配置。** `cocache.caches.[<name>]`、`cocache.defaults` 与 `cocache.overrides` 下 CoCache 8 没有定义的键会导致启动失败，错误信息会说明这个键应写在哪里：例如 CoCache 6 的 `ttl-forever` 或 `load-async-timeout`，CoCache 6 的 `cocache.defaults.ttl`（现为 `cocache.defaults.cache.ttl`）或 `cocache.defaults.key-prefix`（现为 `cocache.key-prefix`），或者含点的缓存名没有写方括号（`cocache.caches.wow.eshop-ordering.order.ttl`）。`cocache` 下其它位置的这类键，例如 `cocache.redis.*` 下的，Spring Boot 会忽略且不给出警告。请检查每个 `cocache.*` 键：
+
+| CoCache 6 | CoCache 8 |
+| --- | --- |
+| `cocache.defaults.<field>` | `cocache.defaults.cache.<field>`，只填补声明没有写出的字段；要强制更严格的值用 `cocache.overrides.cache.<field>` |
+| 不带单位的时长（`ttl: 600`、`cocache.redis.command-timeout: 2000`） | 带单位（`ttl: 10m`、`command-timeout: 2s`）：裸数字会导致启动失败 |
+| `ttl-forever: true` | `ttl: forever` |
+| `load-async-timeout` | `load-timeout` |
+| `load-max-concurrent: 0` | `load-max-concurrent: unlimited` |
+| `cocache.defaults.key-prefix` | `cocache.key-prefix` |
+| `cocache.async-executor`、`cocache.blocking-executor` | `cocache.executor` |
+| `fill-in-transaction`、`invalidate-fills-on-rollback` | 移到 `cocache.defaults.cache.*` 或 `cocache.caches.[<name>].*` 下 |
+| 状态视图缓存上的 `refresh-window`：启动时拒绝 | 由 Wow 的声明关闭，`cocache.defaults.cache.refresh-window` 不作用于它；`cocache.caches.[wow.<context>.<aggregate>].refresh-window` 为单个缓存开启 |
+
+`cocache.caches` 下没有对应缓存的条目，或缓存类型没有的键，同样会导致启动失败；`cocache.caches-validation: warn` 改为只记录警告。其余变化（包括 Redis ACL）见 [CoCache 的升级指南](https://cocache.ahoo.me/guide/upgrade)。
+
+**切换。** 属主与读取其状态的每个服务要在同一个发布窗口内切换：CoCache 6 的节点与 CoCache 8 的节点不能共用一个缓存，CoCache 6 缓存中的内容也不会带过来。状态视图是派生数据，因此不会丢失任何东西：
+
+1. 停止运行 CoCache 6 的每个节点，包括属主与每个读方。
+2. 在 Redis 集群的每个主节点上删除状态视图的键：`redis-cli --scan --pattern 'cocache:wow.*' | xargs redis-cli unlink`（用了自己的键前缀时换成那个前缀）。键中仍是 CoCache 6 的值时，属主对它的写入会失败，直到键到期或被读方的读取替换，在此期间它的 sink 订阅会重试并搁置。
+3. 以新版本启动属主与读方。缓存从空开始：属主的提交重新写入状态，读方未命中时向属主读取。
+
+回滚按相反方向执行同样的步骤。
