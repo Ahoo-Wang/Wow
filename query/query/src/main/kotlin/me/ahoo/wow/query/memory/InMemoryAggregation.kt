@@ -106,8 +106,13 @@ internal class InMemoryAggregation(
             is AggregationGroup.Terms ->
                 filters.expression(checkNotNull(group.expression), at)?.let(nodes::numberNode) ?: nodes.nullNode()
             is AggregationGroup.Histogram -> {
-                val value = group.expression?.let { filters.expression(it, at) }
-                    ?: at.values(admitted.field(checkNotNull(group.field))).singleOrNull()?.numberOrNull()
+                // The group reads its expression or its field, whichever it names; either may hold no value.
+                val expression = group.expression
+                val value = if (expression != null) {
+                    filters.expression(expression, at)
+                } else {
+                    at.values(admitted.field(checkNotNull(group.field))).singleOrNull()?.numberOrNull()
+                }
                 value?.let { nodes.numberNode(floor(it / group.interval) * group.interval) } ?: nodes.nullNode()
             }
             is AggregationGroup.DateHistogram -> filters.instant(group.field, at)

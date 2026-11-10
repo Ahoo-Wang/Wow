@@ -255,6 +255,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun paged bounded total stops at its limit and says it is not exact ()V
 	public final fun paged returns its window with the exact total ()V
 	public final fun paged without a total counts nothing ()V
+	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
 	public final fun projection preserves scalar and object subtree semantics ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
 	public final fun single exposes the snapshot record shape ()V

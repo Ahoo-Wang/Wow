@@ -36,6 +36,8 @@ import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import java.util.concurrent.CyclicBarrier
+import kotlin.concurrent.thread
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 
@@ -65,6 +67,24 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
         storage.rewrite(snapshot("o1", """{"name":"rebuilt"}""", version = 2)).assert().isTrue()
         storage.rewrite(snapshot("o1", """{"name":"older"}""", version = 1)).assert().isFalse()
         storage.records(type).single().path("state").path("name").stringValue().assert().isEqualTo("rebuilt")
+    }
+
+    @Test
+    fun `concurrent rebuilds of a new aggregate register it once`() {
+        val rebuilt = snapshot("o1", """{"name":"rebuilt"}""")
+        // Each round races the first registration of one ref on a fresh storage; the race is lost in a few rounds.
+        repeat(RACE_ROUNDS) {
+            val fresh = InMemoryQueryStorage()
+            val start = CyclicBarrier(RACE_WRITERS)
+            val writers = List(RACE_WRITERS) {
+                thread {
+                    start.await()
+                    fresh.rewrite(rebuilt)
+                }
+            }
+            writers.forEach(Thread::join)
+            fresh.records(type).size.assert().isEqualTo(1)
+        }
     }
 
     @Test
@@ -136,5 +156,10 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
             val list = runCatching { gateway.list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList() }
             (list.exceptionOrNull() is QueryTimeoutException).assert().isTrue()
         }
+    }
+
+    private companion object {
+        const val RACE_ROUNDS = 2_000
+        const val RACE_WRITERS = 8
     }
 }

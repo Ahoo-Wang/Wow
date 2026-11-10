@@ -21,7 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
@@ -34,6 +34,7 @@ import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
+import me.ahoo.wow.query.backend.RecordProjection
 import me.ahoo.wow.query.backend.toQueryRecord
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -103,10 +104,8 @@ class InMemoryQueryStorage(
                 current
             }
         }
-        if (written) {
-            val refs = order.computeIfAbsent(type) { CopyOnWriteArrayList() }
-            if (snapshot.ref !in refs) refs += snapshot.ref
-        }
+        // Concurrent writes of one new ref each reach here: only one of them may register it.
+        if (written) order.computeIfAbsent(type) { CopyOnWriteArrayList() }.addIfAbsent(snapshot.ref)
         return written
     }
 }
@@ -222,46 +221,9 @@ class InMemoryQueryBackend internal constructor(
     }
 
     private fun project(query: AdmittedQuery<Queryable<*>>, record: ObjectNode): ObjectNode {
-        val projection: Projection = query.query.projection
-        if (projection.include.isEmpty() && projection.exclude.isEmpty()) return record
-        val projected = if (projection.include.isEmpty()) {
-            record
-        } else {
-            nodes.objectNode().also { target ->
-                projection.include.forEach { include(record, target, query.field(it).physicalField.path.split('.')) }
-            }
-        }
-        projection.exclude.forEach { exclude(projected, query.field(it).physicalField.path.split('.')) }
-        return projected
-    }
-
-    private fun include(source: JsonNode, target: ObjectNode, path: List<String>) {
-        val name = path.first()
-        val value = source.get(name) ?: return
-        if (path.size == 1) {
-            target.set(name, value.deepCopy())
-            return
-        }
-        when {
-            value.isObject -> include(value, target.withObjectProperty(name), path.drop(1))
-            value.isArray -> {
-                val items = target.get(name)?.takeIf { it.isArray } as? tools.jackson.databind.node.ArrayNode
-                    ?: target.putArray(name)
-                value.forEachIndexed { index, item ->
-                    if (!item.isObject) return@forEachIndexed
-                    while (items.size() <= index) items.addObject()
-                    include(item, items.get(index) as ObjectNode, path.drop(1))
-                }
-            }
-        }
-    }
-
-    private fun exclude(node: JsonNode, path: List<String>) {
-        when {
-            node is ObjectNode && path.size == 1 -> node.remove(path.first())
-            node is ObjectNode -> node.get(path.first())?.let { exclude(it, path.drop(1)) }
-            node.isArray -> node.forEach { exclude(it, path) }
-        }
+        val projection = query.query.projection
+        fun paths(fields: List<QueryField<*>>) = fields.map { query.field(it).physicalField.path.split('.') }
+        return RecordProjection.project(record, paths(projection.include), paths(projection.exclude))
     }
 }
 
@@ -332,6 +294,3 @@ internal class InMemoryStorageAdapter(private val support: StorageSupport) : Que
         )
     }
 }
-
-private fun ObjectNode.withObjectProperty(name: String): ObjectNode =
-    (get(name) as? ObjectNode) ?: putObject(name)
