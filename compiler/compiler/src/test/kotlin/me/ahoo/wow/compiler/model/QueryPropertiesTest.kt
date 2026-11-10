@@ -246,6 +246,117 @@ class QueryPropertiesTest {
         )
     }
 
+    /** States named by `@JsonNaming`, and what Wow's JSON writes each as. */
+    private val named = SourceFile.kotlin(
+        "Contact.kt",
+        """
+        @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
+        package sample.naming
+
+        import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+        import com.fasterxml.jackson.annotation.JsonProperty
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.spi.json.StateJson
+        import tools.jackson.databind.PropertyNamingStrategies
+        import tools.jackson.databind.annotation.JsonNaming
+
+        data class Rename(val name: String)
+        data class Renamed(val name: String)
+
+        @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy::class)
+        data class Address(val postalCode: String = "1")
+
+        @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+        abstract class Named { var displayName: String = "Alice" }
+
+        @AggregateRoot class Contact(private val state: ContactState) {
+            fun onCommand(command: Rename): Renamed = Renamed(command.name)
+        }
+        @JsonIgnoreProperties("ignored_by_wire")
+        class ContactState : Named() {
+            var homeAddress: Address = Address()
+            @JsonProperty("nickName") var nickname: String = "Al"
+            @get:JsonProperty("") var blankName: String = "B"
+            @get:JsonProperty("dotted.name") var dotted: String = "D"
+            var ignoredByWire: String = "I"
+            fun onSourcing(event: Renamed) { displayName = event.name }
+        }
+
+        // `@JsonNaming`'s default names no strategy: it lifts the superclass's.
+        @AggregateRoot class Plain(private val state: PlainState) {
+            fun onCommand(command: Rename): Renamed = Renamed(command.name)
+        }
+        @JsonNaming
+        class PlainState : Named() {
+            fun onSourcing(event: Renamed) { displayName = event.name }
+        }
+
+        fun serialized(): List<String> = listOf(ContactState(), PlainState()).map(StateJson.mapper::writeValueAsString)
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `paths should follow the JSON naming strategy Jackson writes the state with`() {
+        val (_, result) = compileModel("generate", named)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        // A name that is no query path segment (`dotted.name`), and one the class ignores by its JSON name, are none.
+        result.properties("sample.naming.ContactStateProperties").values.assert().containsExactlyInAnyOrder(
+            "state.home_address",
+            "state.home_address.PostalCode",
+            "state.nickName",
+            "state.blank_name",
+            "state.display_name",
+        )
+        result.properties("sample.naming.PlainStateProperties").values.assert()
+            .containsExactly("state.displayName")
+        // The paths are the snapshot's own: what Wow's JSON writes the state as.
+        @Suppress("UNCHECKED_CAST")
+        val json = result.classLoader.loadClass("sample.naming.ContactKt").getMethod("serialized")
+            .invoke(null) as List<String>
+        json.assert().containsExactly(
+            "{\"blank_name\":\"B\",\"display_name\":\"Alice\",\"dotted.name\":\"D\"," +
+                "\"home_address\":{\"PostalCode\":\"1\"},\"nickName\":\"Al\"}",
+            "{\"displayName\":\"Alice\"}",
+        )
+    }
+
+    @Test
+    fun `a naming strategy the processor cannot run should be a problem`() {
+        val source = SourceFile.kotlin(
+            "Contact.kt",
+            """
+            package sample.naming
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import tools.jackson.databind.PropertyNamingStrategies
+            import tools.jackson.databind.annotation.JsonNaming
+
+            data class Rename(val name: String)
+            data class Renamed(val name: String)
+
+            class Shouting : PropertyNamingStrategies.NamingBase() {
+                override fun translate(propertyName: String): String = propertyName.uppercase()
+            }
+
+            @AggregateRoot class Contact(private val state: ContactState) {
+                fun onCommand(command: Rename): Renamed = Renamed(command.name)
+            }
+            @JsonNaming(Shouting::class)
+            class ContactState {
+                var displayName: String = "Alice"
+                fun onSourcing(event: Renamed) { displayName = event.name }
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", source)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "@JsonNaming of sample.naming.ContactState names sample.naming.Shouting: the model names its properties " +
+                "as Jackson writes them only with one of Jackson's PropertyNamingStrategies",
+        )
+    }
+
     @Test
     fun `an internal state's query fields should be internal, so a legal internal domain compiles`() {
         val domain = SourceFile.kotlin(
