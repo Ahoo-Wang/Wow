@@ -46,6 +46,7 @@ import me.ahoo.wow.query.policy.ReadAction
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.policy.admitted
 import me.ahoo.wow.query.policy.authorizeOrThrow
+import me.ahoo.wow.query.resolve.AggregationResolution
 import me.ahoo.wow.query.resolve.QueryResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
@@ -313,7 +314,7 @@ class QueryAdmission(
             schema: QueryModelSchema,
             entry: QueryEntry = QueryEntry.IN_PROCESS,
             now: Instant = Instant.now(),
-        ) = resolve(schema, entry, emptyList(), now) { aggregate(query) }
+        ) = resolve(schema, entry, emptyList(), now) { AggregationResolution(this).aggregate(query) }
 
         internal fun single(
             query: SingleQuery,
@@ -358,7 +359,9 @@ class QueryAdmission(
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<AggregationQuery> = resolve(schema, entry, trusted, Instant.now()) { aggregate(query) }
+        ): AdmittedQuery<AggregationQuery> = resolve(schema, entry, trusted, Instant.now()) {
+            AggregationResolution(this).aggregate(query)
+        }
 
         private inline fun <Q : Any> resolve(
             schema: QueryModelSchema,
