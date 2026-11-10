@@ -522,6 +522,23 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `projection of a leaf under an array of arrays keeps the nesting`() = blocking {
+        val fixture = given(
+            listOf(snapshot("g1", """{"name":"G","grid":[[{"city":"x","zip":"1"},{"city":"y"}],[{"city":"z"}]]}""")),
+        )
+        val projected = fixture.list(
+            ListQuery(
+                AggregateIdFilter("g1"),
+                projection = Projection(include = listOf(QueryField("state.grid.city"))),
+                limit = 1,
+            ),
+        ).single()
+        projected.path("state").path("grid").toString()
+            .assert().isEqualTo("""[[{"city":"x"},{"city":"y"}],[{"city":"z"}]]""")
+        Unit
+    }
+
     // Pages and counts
 
     @Test
@@ -1170,6 +1187,14 @@ abstract class QueryBackendSpec {
                     property("sku") { types(QueryValueType.STRING) }
                     property("price") { types(QueryValueType.DECIMAL) }
                     property("quantity") { types(QueryValueType.INTEGER) }
+                }
+            }
+            field("state.grid") {
+                items {
+                    items {
+                        kind(QueryValueKind.OBJECT)
+                        property("city") { types(QueryValueType.STRING) }
+                    }
                 }
             }
             field("state.probeText") { types(QueryValueType.STRING) }

@@ -37,9 +37,7 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
-import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.sql.Array
@@ -162,27 +160,6 @@ class PostgresQueryPartsTest {
                 admitted,
                 PageWindow.Keyset(CursorPosition(listOf(null, null)), 2)
             ).sql.assert().contains("WHERE TRUE AND FALSE ORDER BY")
-    }
-
-    @Test
-    fun `a projection walks into arrays of objects only`() {
-        val record = WowJson.mapper.readTree("""{"lines":[{"sku":"A","n":1},2,{"n":3}],"name":"x"}""") as ObjectNode
-        nodes.objectNode().also { PostgresQueryBackend.include(record, it, listOf("lines", "sku")) }.toString()
-            .assert().isEqualTo("""{"lines":[{"sku":"A"},{},{}]}""")
-        nodes.objectNode().also {
-            PostgresQueryBackend.include(
-                record,
-                it,
-                listOf("missing", "sku")
-            )
-        }.toString()
-            .assert().isEqualTo("{}")
-        nodes.objectNode().also { PostgresQueryBackend.include(record, it, listOf("name", "sku")) }.toString()
-            .assert().isEqualTo("{}")
-        record.deepCopy().also { PostgresQueryBackend.exclude(it, listOf("lines", "n")) }.toString()
-            .assert().isEqualTo("""{"lines":[{"sku":"A"},2,{}],"name":"x"}""")
-        record.deepCopy().also { PostgresQueryBackend.exclude(it, listOf("missing", "n")) }.toString()
-            .assert().isEqualTo(record.toString())
     }
 
     @Test
