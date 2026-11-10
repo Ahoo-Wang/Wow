@@ -16,6 +16,7 @@
  * every send waiting on it, each send's wait its own (#5485, #5538).
  */
 
+import { Fetcher } from '@ahoo-wang/fetcher';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandClient, requestIdOf, WowProblemError } from '../src/index.js';
 import { commandResultOf, problemOf, problemResponse } from '../src/testing.js';
@@ -30,6 +31,9 @@ import { TEST_MANIFEST } from './fixtures/manifest';
 const REF = { type: { context: 'c', name: 'a' }, tenantId: 't', id: '2' };
 
 const client = () => ({ fetcher: testFetcher() });
+
+/** What a send rejected with, and what it explains. */
+type Failure = Error & { readonly cause?: unknown };
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -78,14 +82,57 @@ describe("the service's Manifest a CommandClient reads", () => {
           .wait({ command: 'c.a.X', id: '1', requestId })
           .catch((error: unknown) => error),
       ),
-    )) as (Error & { cause: { cause: unknown } })[];
+    )) as Failure[];
     expect(failures[0]).not.toBe(failures[1]);
     expect(failures.map(requestIdOf)).toEqual(['write-a', 'write-b']);
     for (const failure of failures) {
       expect(failure.message).toBe(
         "The service's Manifest (GET /wow/manifest) could not be read: Failed to fetch",
       );
-      expect(failure.cause.cause).toBe(down);
+      // As the fetcher rejects a request no server answered: its name, the network's error as its cause.
+      expect(failure.name).toBe('ExchangeError');
+      expect(failure.cause).toBe(down);
+    }
+  });
+
+  it("rejects each send of a Manifest read that timed out under the timeout's name", async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch(() => new Promise<Response>(() => undefined));
+      const commands = new CommandClient({
+        fetcher: new Fetcher({ baseURL: BASE_URL, timeout: 1000 }),
+      });
+      const failures = ['write-a', 'write-b'].map(requestId =>
+        commands
+          .wait({ command: 'c.a.X', id: '1', requestId })
+          .catch((error: unknown) => error as Failure),
+      );
+      await vi.advanceTimersByTimeAsync(1000);
+      const [first, second] = (await Promise.all(failures)) as Failure[];
+      expect(first).not.toBe(second);
+      expect([first, second].map(requestIdOf)).toEqual(['write-a', 'write-b']);
+      for (const failure of [first!, second!]) {
+        // As a command whose own request timed out: an exchange that failed, the timeout its cause.
+        expect(failure.name).toBe('ExchangeError');
+        expect((failure.cause as Error).name).toBe('FetchTimeoutError');
+        expect(failure.message).toBe(
+          "The service's Manifest (GET /wow/manifest) could not be read: Request timeout of 1000ms exceeded for GET http://localhost:8080/wow/manifest",
+        );
+      }
+      const own = new CommandClient(
+        { fetcher: new Fetcher({ baseURL: BASE_URL, timeout: 1000 }) },
+        { manifest: TEST_MANIFEST },
+      )
+        .wait({ command: 'c.a.X', id: '1' })
+        .catch((error: unknown) => error as Failure);
+      await vi.advanceTimersByTimeAsync(1000);
+      const timedOut = (await own) as Failure;
+      expect([timedOut.name, (timedOut.cause as Error).name]).toEqual([
+        first!.name,
+        (first!.cause as Error).name,
+      ]);
+    } finally {
+      vi.useRealTimers();
     }
   });
 

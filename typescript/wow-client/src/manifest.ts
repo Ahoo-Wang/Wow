@@ -161,7 +161,7 @@ export class ManifestSource {
 /**
  * A caller's own error for a shared Manifest read that failed with `error`:
  * the same problem when the service answered one, else an error that names
- * the read and keeps what it failed with as its cause.
+ * the read, under the name and with the cause of what it failed with.
  */
 function ownFailure(error: unknown): Error {
   if (error instanceof WowProblemError) {
@@ -172,13 +172,20 @@ function ownFailure(error: unknown): Error {
         : { retryAfterMs: error.retryAfterMs }),
     });
   }
-  // `{ cause }` of an `Error` is ES2022; this package targets ES2020.
+  // It reads as the read's own error: its name, and its cause where it has
+  // one (a fetcher's timeout or abort), so a caller's check written for a
+  // request that failed alike (`error.cause?.name === 'FetchTimeoutError'`)
+  // holds. `{ cause }` of an `Error` is ES2022; this package targets ES2020.
+  const failed = error instanceof Error ? error : undefined;
   return Object.assign(
     new Error(
       `The service's Manifest (GET /wow/manifest) could not be read: ${
-        error instanceof Error ? error.message : String(error)
+        failed?.message ?? String(error)
       }`,
     ),
-    { cause: error },
+    {
+      name: failed?.name ?? 'Error',
+      cause: (failed as { cause?: unknown } | undefined)?.cause ?? error,
+    },
   );
 }
