@@ -238,19 +238,29 @@ internal class RequestHeaders(
     }
 }
 
-/** The media types a public route answers in. */
+/**
+ * The media types a public route answers in, as the request's `Accept` weighs them (RFC 9110 §12.5.1): a type's
+ * quality is that of the most specific range that includes it, `q=0` refusing it, and 0 when no range includes it.
+ */
 internal object Negotiation {
     private val ANSWERED = listOf(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
 
-    /** Whether the client asked for server-sent events. */
-    fun wantsEventStream(request: ServerRequest): Boolean =
-        accept(request).any { it.equalsTypeAndSubtype(MediaType.TEXT_EVENT_STREAM) }
+    /**
+     * Whether the client asked for server-sent events: it names `text/event-stream` itself, not through a wildcard,
+     * and weighs it above zero and no lower than JSON.
+     */
+    fun wantsEventStream(request: ServerRequest): Boolean {
+        val accept = accept(request)
+        if (accept.none { it.equalsTypeAndSubtype(MediaType.TEXT_EVENT_STREAM) }) return false
+        val stream = quality(accept, MediaType.TEXT_EVENT_STREAM)
+        return stream > 0 && stream >= quality(accept, MediaType.APPLICATION_JSON)
+    }
 
     /** Fails with 406 when the client accepts none of the JSON types [alsoEventStream] or event stream. */
     fun checkAcceptable(request: ServerRequest, alsoEventStream: Boolean) {
         val accept = accept(request)
         val answered = if (alsoEventStream) ANSWERED + MediaType.TEXT_EVENT_STREAM else ANSWERED
-        if (accept.isNotEmpty() && accept.none { type -> answered.any { type.isCompatibleWith(it) } }) {
+        if (answered.none { quality(accept, it) > 0 }) {
             throw ProblemException(
                 Problem.ofStatus(HttpStatus.NOT_ACCEPTABLE, "The route answers in ${answered.joinToString()}."),
             )
@@ -270,6 +280,18 @@ internal object Negotiation {
             )
         }
     }
+
+    /** The quality [accept] gives [type]: 1 without `Accept`, else that of the most specific range including it. */
+    private fun quality(accept: List<MediaType>, type: MediaType): Double {
+        if (accept.isEmpty()) return 1.0
+        return accept.filter { it.includes(type) }.maxWithOrNull(SPECIFICITY)?.qualityValue ?: 0.0
+    }
+
+    /** A range's specificity: a concrete type above a subtype wildcard, above the full wildcard; then its parameters. */
+    private val SPECIFICITY: Comparator<MediaType> = compareBy<MediaType>(
+        { if (it.isWildcardType) 0 else if (it.isWildcardSubtype) 1 else 2 },
+        { range -> range.parameters.keys.count { it != "q" } },
+    )
 
     private fun accept(request: ServerRequest): List<MediaType> = try {
         request.headers().accept()

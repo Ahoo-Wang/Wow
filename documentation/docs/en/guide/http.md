@@ -75,7 +75,7 @@ A creating command sent without an id gets one; a retry with the same request id
 
 ## Stream the outcome
 
-With `Accept: text/event-stream`, a command answers one server-sent event per hop it reaches, named after the hop's stage, its data the result at that hop, until the wait ends. A client shows progress without polling: accepted, committed, then each service the chain crosses.
+With `Accept: text/event-stream`, a command answers one server-sent event per hop it reaches, named after the hop's stage, its data the result at that hop, until the wait ends. A client shows progress without polling: accepted, committed, then each service the chain crosses. `Accept` is weighed by its quality values: the stream is answered when `text/event-stream` is named with a quality above zero and no lower than `application/json`'s, a wildcard alone answers JSON, `q=0` refuses a type, and an `Accept` that refuses every type the route answers in is answered 406.
 
 A snapshot `list` streams its rows the same way, resumable with `Last-Event-ID` ([Query Snapshots](./queries#over-http)).
 
