@@ -29,21 +29,16 @@ import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.TransformedFrom
-import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
@@ -52,21 +47,26 @@ import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.kernel.RejectionCodes
 import me.ahoo.wow.kernel.RejectionLog
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.BodyId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.OwnId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.actingCaller
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.bodyId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.callProblem
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.headersOf
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.identityConflict
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.ownId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.tenantConflict
 import me.ahoo.wow.runtime.cluster.ClusterCodec
-import me.ahoo.wow.runtime.wait.CommandRelay
 import me.ahoo.wow.runtime.wait.WaitCoordinator
-import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.BodyAggregateIds
 import me.ahoo.wow.spi.observation.ObservedEvent
-import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
-import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -186,6 +186,9 @@ class CommandGateway @InternalWowApi constructor(
     private val authorizer: CommandAuthorizer = authorizer ?: CommandAuthorizer.ALLOW_ALL
 
     private val creations = CreationIds(ids, committed)
+
+    /** How a body is read as its command type. */
+    private val bodies = CommandBodies(mapper)
 
     private val coordinators: Map<String, WaitCoordinator> = coordinators.toMap()
     private val detached = CoroutineScope(SupervisorJob() + detachedContext)
@@ -400,7 +403,12 @@ class CommandGateway @InternalWowApi constructor(
      */
     private suspend fun admitting(request: ServerCommandRequest): Admission {
         // A service's call keeps the id its saga derived; any other command gets a new one.
-        val facts = Facts(request, request.call?.takeIf { request.caller.service }?.commandId ?: ids.global.next())
+        val facts = Facts(
+            request,
+            request.call?.takeIf { request.caller.service }?.commandId ?: ids.global.next(),
+            tenants,
+            clock,
+        )
         return try {
             admit(request, facts)
         } catch (unavailable: StorageUnavailableException) {
@@ -455,8 +463,8 @@ class CommandGateway @InternalWowApi constructor(
         val scope = origin.scope
         // A command whose body names its aggregate is read now, so that its authorization names that aggregate.
         val early = if (fromBody) {
-            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            decode(request.body, commandType.type)
+            bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
         } else {
             null
@@ -494,8 +502,8 @@ class CommandGateway @InternalWowApi constructor(
         authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
         // 4. The body, unless it was read for its aggregate.
         val decoded = early ?: run {
-            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            decode(request.body, commandType.type)
+            bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
         }
         // 5. The transformation.
@@ -647,8 +655,8 @@ class CommandGateway @InternalWowApi constructor(
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
         // A command whose body names its aggregate is read now, by the property its contract names.
         val early = if (idProperty != null) {
-            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            val decoded = decode(request.body, commandType.type)
+            bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            val decoded = bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
             val named = bodyId(peer.name, request.aggregateId, peer.creation) {
                 BodyAggregateIds.of(mapper.valueToTree(decoded.value), idProperty)
@@ -668,8 +676,8 @@ class CommandGateway @InternalWowApi constructor(
         authorize(request, CommandAction(commandType, facts.ref, scope, peer.creation))?.let { return facts.refuse(it) }
         // 4. The body, unless it was read for its aggregate.
         val decoded = early ?: run {
-            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            decode(request.body, commandType.type)
+            bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
         }
         // 6. Validation.
@@ -718,37 +726,6 @@ class CommandGateway @InternalWowApi constructor(
             "the peer's state afterwards."
     }
 
-    /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
-    private fun tenantConflict(request: ServerCommandRequest, tenantId: String): String? =
-        request.tenantId?.takeIf { it != tenantId }?.let {
-            "The command's ref names tenant $it, but it is sent in tenant $tenantId: a ref's tenant is the caller's, " +
-                "a cross-scope target's or the one fixed for its type."
-        }
-
-    /**
-     * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
-     * propagate ([CallContext.facts]) in place of the ones the edge recorded for the calling service.
-     */
-    private fun headersOf(request: ServerCommandRequest): Map<String, String> {
-        val call = request.call ?: return request.headers
-        return request.headers.filterKeys { it !in RequestFacts.PROPAGATED } + call.facts
-    }
-
-    /**
-     * Why [request]'s synchronous call is refused, with its code, or null when it has none or may
-     * make it: only a service identity asserts the root command a call acts for, and it names the call's scope in
-     * the call alone.
-     */
-    private fun callProblem(request: ServerCommandRequest): Pair<String, String>? = when {
-        request.call == null -> null
-        !request.caller.service ->
-            FrameworkCodes.AUTH_FORBIDDEN to
-                "Only a service identity calls on behalf of a root command."
-
-        request.target != null -> FrameworkCodes.COMMAND_MALFORMED to "A call names its scope in the call, not in Wow-Scope."
-        else -> null
-    }
-
     /** The authorizer's denial of [action], or null when it allows it. */
     private suspend fun authorize(request: ServerCommandRequest, action: CommandAction): Authorization.Denied? =
         authorizer.authorize(request.caller, action) as? Authorization.Denied
@@ -759,126 +736,6 @@ class CommandGateway @InternalWowApi constructor(
             ?: return null
         return model.decider(type.type)?.let { model to it }
     }
-
-    /**
-     * The id of an aggregate whose id is its owner's, for a request of [caller] naming [requested] (null for none) in
-     * [scope]: the one it names, else an owner-level caller's own; a caller with no owner names it, having no aggregate
-     * of its own: unauthenticated, it is answered as such. Whether the caller may act on the aggregate it names is the
-     * kernel's to answer, as for any aggregate: one of another owner is out of its reach.
-     */
-    private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
-        val owner = scope.ownerId
-        return when {
-            requested != null -> OwnId.Of(requested)
-            owner != null -> OwnId.Of(owner)
-            caller.subject == null -> OwnId.Refused(
-                FrameworkCodes.AUTH_UNAUTHENTICATED,
-                "An unauthenticated caller has no aggregate of its own.",
-            )
-
-            else -> OwnId.Refused(
-                FrameworkCodes.COMMAND_MALFORMED,
-                "This caller has no owner; address the aggregate by its id.",
-            )
-        }
-    }
-
-    /**
-     * [caller] as its command's caller ([Command.caller]): acting in the tenant of [ref] and in [scope], the target's
-     * when `Wow-Scope` names one, as a read of it acts. The access policy of the aggregate compares its claims.
-     */
-    private fun actingCaller(caller: Caller, ref: AggregateRef, scope: Scope): Caller =
-        caller.copyWith(tenantId = ref.tenantId, scope = scope)
-
-    /** The id [ownId] resolves, or why it refuses the request. */
-    private sealed interface OwnId {
-        class Of(val id: String) : OwnId
-
-        class Refused(val code: String, val message: String) : OwnId
-    }
-
-    /**
-     * The aggregate a request of [command] names in its body, [read] from it (`@AggregateId`), beside the one it
-     * names elsewhere, [requested] (a ref beside the body; null for none): the body's, which [requested] may repeat but
-     * not contradict, an identity fact given twice; [requested] when the body leaves it out; null when neither names one
-     * and the command is a [creation], which is given an id. A blank one, or one that cannot be read, is refused.
-     */
-    // A computed @AggregateId property may throw whatever its code does on the fields it was given.
-    @Suppress("TooGenericExceptionCaught")
-    private fun bodyId(command: String, requested: String?, creation: Creation, read: () -> String?): BodyId {
-        val inBody = try {
-            read()
-        } catch (failure: RuntimeException) {
-            return BodyId.Refused("The aggregate the body of $command names cannot be read: ${failure.message}")
-        }
-        return when {
-            inBody != null && inBody.isBlank() -> BodyId.Refused("The body of $command names a blank aggregate id.")
-            inBody != null && requested != null && inBody != requested ->
-                BodyId.Refused("The request names the aggregate $requested, but the body of $command names $inBody.")
-
-            inBody == null && requested == null && creation == Creation.NONE ->
-                BodyId.Refused("The body of $command names no aggregate.")
-
-            else -> BodyId.Of(inBody ?: requested)
-        }
-    }
-
-    /** The aggregate [bodyId] finds, or why it refuses the request. */
-    private sealed interface BodyId {
-        class Of(val id: String?) : BodyId
-
-        class Refused(val message: String) : BodyId
-    }
-
-    /** Why [request]'s identity facts cannot be decided, or null when they can. */
-    private fun identityConflict(request: ServerCommandRequest, creation: Creation, transformed: Boolean): String? {
-        val reserved = request.headers.keys.firstOrNull(::isReservedHeader)
-        return when {
-            reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
-            request.requestId?.isBlank() == true -> "A request id, when given, is not blank."
-            request.aggregateId?.isBlank() == true -> "An aggregate id, when given, is not blank."
-            request.aggregateId == AggregateRef.UNASSIGNED ->
-                "An aggregate id is never ${AggregateRef.UNASSIGNED}: leave it out for admission to choose one."
-            request.aggregateId == null && creation == Creation.NONE && !transformed ->
-                "${request.command} needs an aggregate id."
-
-            (request.expectedVersion ?: 0) < 0 -> "An expected version is never negative."
-            else -> null
-        }
-    }
-
-    /**
-     * Why [body] cannot be taken, or null when it can: it writes `\u0000` in a string or a key ([AdmissionLimits]); a
-     * command object ([CommandBody.Value]) is checked as the JSON it is written as, which it must be.
-     */
-    private fun bodyProblem(body: CommandBody): String? {
-        val nul = when (body) {
-            is CommandBody.Bytes -> AdmissionLimits.writesNul(body.bytes)
-            is CommandBody.Tree -> AdmissionLimits.holdsNul(body.node)
-            is CommandBody.Value -> try {
-                AdmissionLimits.holdsNul(mapper.valueToTree(body.command))
-            } catch (failure: JacksonException) {
-                return "The command ${body.command.javaClass.name} is not written as JSON: ${failure.originalMessage}"
-            }
-        }
-        return if (nul) "The body writes \\u0000 in a string, which no store keeps." else null
-    }
-
-    /**
-     * [body] read as [type], or null when it does not decode to one; a command object ([CommandBody.Value]) is taken as
-     * it is when it is one.
-     */
-    private fun decode(body: CommandBody, type: Class<*>): Decoded? = try {
-        when (body) {
-            is CommandBody.Bytes -> mapper.readValue(body.bytes, type)
-            is CommandBody.Tree -> mapper.treeToValue(body.node, type)
-            is CommandBody.Value -> body.command.takeIf { type.isInstance(it) }
-        }?.let(::Decoded)
-    } catch (_: JacksonException) {
-        null
-    }
-
-    private class Decoded(val value: Any)
 
     /**
      * The refusal of a command whose transformer rejected it, answered as the kernel answers a decide function's
@@ -895,82 +752,6 @@ class CommandGateway @InternalWowApi constructor(
         }
         val rejection = RejectionCodes.qualified(rejected.rejection, facts.type, input.name)
         return facts.refuse(rejection.code, rejection.message, extensions = rejection.extensions)
-    }
-
-    /** The command admission builds: a [body] of [type], decided by [model], with [headers]. */
-    private class Resolved(
-        val model: AggregateModel<*>,
-        val type: CommandType,
-        val body: Any,
-        val headers: Map<String, String>,
-    )
-
-    /** The facts decided so far about a request, to refuse it with. */
-    private inner class Facts(private val request: ServerCommandRequest, val commandId: String) {
-        val type = AggregateType(request.context, request.aggregate)
-        val requestId: String = request.requestId?.takeIf { it.isNotBlank() } ?: commandId
-        var ref: AggregateRef = type.ref(
-            tenants.fixedTenant(type) ?: request.caller.tenantId,
-            request.aggregateId?.takeIf { it.isNotBlank() } ?: UNADDRESSED,
-        )
-        private var resolved: FunctionInfo? = null
-
-        /** The command's function: as the request names it until admission resolves it, built only when needed. */
-        var function: FunctionInfo
-            get() = resolved ?: FunctionInfo(
-                FunctionKind.COMMAND,
-                type.context,
-                type.name,
-                request.command.substringAfterLast('.').ifBlank { request.command },
-            ).also { resolved = it }
-            set(value) {
-                resolved = value
-            }
-        var transformedFrom: TransformedFrom? = null
-
-        fun refuse(denied: Authorization.Denied): Admission.Refused = refuse(denied.code, denied.message)
-
-        fun refuse(
-            code: String,
-            message: String,
-            status: CommandResult.Status = CommandResult.Status.REJECTED,
-            violations: List<Violation> = emptyList(),
-            extensions: Map<String, Any?> = emptyMap(),
-        ): Admission.Refused {
-            val rejected = admissionRejected(
-                commandId = commandId,
-                requestId = requestId,
-                correlationId = commandId,
-                ref = ref,
-                function = function,
-                error = ErrorInfo(code, message, violations, extensions),
-                now = clock.millis(),
-            )
-            return Admission.Refused(rejected.copyWith(status = status, transformedFrom = transformedFrom))
-        }
-    }
-
-    private sealed interface Admission {
-        class Admitted(
-            val model: AggregateModel<*>,
-            val command: Command<*>,
-            val transformedFrom: TransformedFrom?,
-            /** The synchronous call the command came with, from a service identity. */
-            val call: CallContext? = null,
-        ) : Admission
-
-        class Refused(val result: CommandResult) : Admission
-
-        /** A peer context's command, sent to its command topic through [relay]. */
-        data class Relayed(
-            val command: Command<*>,
-            val function: FunctionInfo,
-            val relay: CommandRelay,
-        ) : Admission
-
-        /** How the admission ended, as its observation names it. */
-        val observedName: ObservedOutcome
-            get() = if (this is Refused) ObservedOutcome.REFUSED else ObservedOutcome.ADMITTED
     }
 
     @InternalWowApi
