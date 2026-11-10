@@ -60,6 +60,10 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
  * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
  * hop when what holds the later one is written (the snapshot subscription's merged writes).
  *
+ * A projection's subscription made [batching] has a [runHandler] besides its handler: its lane hands it the run of an
+ * aggregate's live entries waiting together, at most [maxRun], in version order, and each entry it answers done
+ * completes and is signalled on its own. The entry a run failed at is handled alone, by the handler, as a retry is.
+ *
  * A stream that only changes schedules, its events all the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`,
  * is the application's to see only as a position: its subscriptions pass it over like an entry
  * outside their filter. The built-in subscriptions ([builtIn], and the snapshot's [coalescing] one) take it, so the
@@ -76,6 +80,10 @@ class Subscription private constructor(
     val kind: FunctionKind,
     private val handler: EntryHandler,
     internal val coalesces: Boolean = false,
+    /** The most entries a run of a subscription made [batching] holds. */
+    internal val maxRun: Int = 1,
+    /** What runs a run of an aggregate's entries, for a subscription made [batching]; null for any other. */
+    internal val runHandler: RunHandler? = null,
     /** Whether every entry is the subscription's, whatever its filter: one of a topic of commands or receipts. */
     private val takesAll: Boolean = false,
     /** Whether a stream that only changes schedules is the subscription's: a built-in one's. */
@@ -138,6 +146,9 @@ class Subscription private constructor(
 
     /** The name a wait's hop gives this subscription for an aggregate of [type], null when no hop names it. */
     internal fun hopOf(type: AggregateType): String? = if (answers == null) name else answers.invoke(type)
+
+    /** Whether a lane runs its live entries together: a subscription that [coalesces] or is made [batching]. */
+    internal val runsTogether: Boolean get() = coalesces || runHandler != null
 
     /** Handles [entry]; returns what it did: a saga's derived commands and the rejection that ended its hop. */
     internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
@@ -211,6 +222,48 @@ class Subscription private constructor(
             takesEventless = true,
             answers = answers,
         )
+
+        /**
+         * A projection's subscription whose lane hands [runHandler] the run of an aggregate's live entries waiting
+         * together, at most [maxRun], in version order; [handler] handles an entry alone: an operator's retry, a
+         * parked retry, and the entry a run failed at. A run answers how many of its entries are done, never a
+         * rejection or derived commands, so only a projection batches.
+         */
+        internal fun batching(
+            name: String,
+            filter: SubscriptionFilter,
+            maxRun: Int,
+            startFrom: StartFrom = StartFrom.BEGINNING,
+            decoder: EntryDecoder = EntryDecoder.RECORDS,
+            models: Collection<AggregateModel<*>> = emptyList(),
+            kind: FunctionKind = FunctionKind.PROJECT,
+            context: String = filter.context,
+            retry: HandlerRetry? = null,
+            runHandler: RunHandler,
+            handler: suspend (SubscribedEntry) -> Unit,
+        ): Subscription {
+            require(kind == FunctionKind.PROJECT) {
+                "A run answers how many of its entries are done, never a rejection or derived commands: " +
+                    "a $kind subscription cannot batch."
+            }
+            require(maxRun >= 1) { "A run holds at least one entry, not $maxRun." }
+            return Subscription(
+                name,
+                filter,
+                startFrom,
+                decoder,
+                models,
+                kind,
+                EntryHandler { entry ->
+                    handler(entry)
+                    HandledEntry.NOTHING
+                },
+                maxRun = maxRun,
+                runHandler = runHandler,
+                context = context,
+                retry = retry,
+            )
+        }
 
         /**
          * A built-in subscription of the log (the `reservation` and `timers` ones): it takes the streams that change

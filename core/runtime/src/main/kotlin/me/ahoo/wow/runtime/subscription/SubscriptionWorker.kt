@@ -161,7 +161,7 @@ internal class SubscriptionWorker(
     )
 
     /** How a lane runs its live entries together, null for a subscription that runs each alone. */
-    private val runs = if (subscription.coalesces) LaneRuns(handling, hops, Ops()) else null
+    private val runs = if (subscription.runsTogether) LaneRuns(subscription, source, handling, hops, Ops()) else null
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
@@ -332,12 +332,12 @@ internal class SubscriptionWorker(
         hops.signal(entry, handled, skipped && parked)
     }
 
-    /** The worker's side of [runs]: its monitor sections and its parking. */
+    /** The worker's side of [runs]: its monitor sections, its path of an entry alone, and its parking. */
     private inner class Ops : LaneOps<Item.Live, Lane> {
-        override fun take(first: Item.Live, lane: Lane): List<Taken<Item.Live>> {
+        override fun take(first: Item.Live, lane: Lane, max: Int): List<Taken<Item.Live>> {
             synchronized(this@SubscriptionWorker) {
                 val items = arrayListOf(first)
-                while (lane.items.firstOrNull() is Item.Live) {
+                while (items.size < max && lane.items.firstOrNull() is Item.Live) {
                     items += lane.items.removeFirst() as Item.Live
                 }
                 // In version order, as skippedInLane expects.
@@ -345,14 +345,19 @@ internal class SubscriptionWorker(
             }
         }
 
-        override fun settle(done: List<Taken<Item.Live>>, handled: Boolean) {
+        override fun settle(done: List<Taken<Item.Live>>, handled: Boolean, lane: Lane, rest: List<Taken<Item.Live>>) {
             synchronized(this@SubscriptionWorker) {
                 if (handled) {
                     done.filterNot { it.skipped }.forEach { remember(it.entry) }
                 }
                 done.forEach { complete(it.item.slot) }
+                // Actions go first in a lane and live entries last, so the first live entry ends the actions.
+                val behindActions = lane.items.indexOfFirst { it is Item.Live }.takeIf { it >= 0 } ?: lane.items.size
+                lane.items.addAll(behindActions, rest.map { it.item })
             }
         }
+
+        override suspend fun handleAlone(item: Item.Live) = runLive(item)
 
         override suspend fun park(entry: SourcedEntry, failure: Throwable) {
             this@SubscriptionWorker.park(entry, failure)

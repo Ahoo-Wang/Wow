@@ -26,6 +26,7 @@ import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
@@ -61,12 +62,52 @@ internal class EntryHandling(
      * [HandlerTimeoutException]. A [HandlingRejectedException] is not retried: a business outcome does not change.
      */
     suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
-        val stream = sourced.stream
-        val trace = sourced.transport?.trace.orEmpty()
-        val observed = observer.handling(group, subscription.name, subscription.context, stream, trace, source.topic)
+        val observed = observation(sourced)
         return observed.observe {
             retried(sourced).also { handled -> handled.exceptionOrNull()?.let { observed.failed(it) } }
         }
+    }
+
+    /** The observation of a handling of [sourced], in the trace the entry carries; its caller ends it. */
+    fun observation(sourced: SourcedEntry): Observation {
+        val trace = sourced.transport?.trace.orEmpty()
+        return observer.handling(group, subscription.name, subscription.context, sourced.stream, trace, source.topic)
+    }
+
+    /** Whether the partition is paused on a systemic failure: each attempt then waits for its turn to probe. */
+    val paused: Boolean get() = pause.isPaused
+
+    /**
+     * One attempt of a run of [first]'s aggregate's entries ([block]), as an attempt of one entry is made: behind the
+     * partition's pause and throttle, within the budget's timeout, a run with entries done reported to both as a
+     * success. A fatal error or the lane's own cancellation is thrown; anything else [block] throws, a cancellation not
+     * the lane's or a stack overflow among them, is the run's failure, at its first entry. The failure is neither
+     * classified nor charged: the entry it ended at is handled alone next, which is.
+     */
+    @Suppress("TooGenericExceptionCaught") // A failure of the run is its result, whatever it is.
+    suspend fun attemptRun(first: SourcedEntry, block: suspend () -> RunHandled): RunHandled {
+        val probing = pause.admit()
+        throttle.acquire()
+        val handled = try {
+            if (retry.timeout.isInfinite()) {
+                block()
+            } else {
+                withTimeoutOrNull(retry.timeout) { block() } ?: RunHandled(0, timeoutOf(first))
+            }
+        } catch (failure: Throwable) {
+            if (NodeFatals.isFatal(failure)) {
+                throw failure
+            }
+            currentCoroutineContext().ensureActive()
+            RunHandled(0, failure)
+        } finally {
+            throttle.release()
+            pause.release(probing)
+        }
+        if (handled.done > 0) {
+            succeeded(first.stream.ref)
+        }
+        return handled
     }
 
     /**
@@ -161,20 +202,24 @@ internal class EntryHandling(
         if (retry.timeout.isInfinite()) {
             return decodeAndHandle(sourced)
         }
-        return withTimeoutOrNull(retry.timeout) { decodeAndHandle(sourced) }
-            ?: throw HandlerTimeoutException(subscription.name, sourced.stream.ref, sourced.stream.version, retry.timeout)
+        return withTimeoutOrNull(retry.timeout) { decodeAndHandle(sourced) } ?: throw timeoutOf(sourced)
     }
 
-    private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry {
+    private fun timeoutOf(sourced: SourcedEntry) =
+        HandlerTimeoutException(subscription.name, sourced.stream.ref, sourced.stream.version, retry.timeout)
+
+    private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry = subscription.handle(decode(sourced))
+
+    /** [sourced] as its subscription's handler gets it: decoded, with its message, publication and import marked. */
+    suspend fun decode(sourced: SourcedEntry): SubscribedEntry {
         (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.reason) }
         val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
         val imported = sourced.published?.imported ?: (sourced.position.sequence <= importedThrough)
-        val entry = if (sourced.published == null && sourced.message == null && !imported) {
+        return if (sourced.published == null && sourced.message == null && !imported) {
             decoded
         } else {
             decoded.copy(published = sourced.published, message = sourced.message, imported = imported)
         }
-        return subscription.handle(entry)
     }
 }
 
