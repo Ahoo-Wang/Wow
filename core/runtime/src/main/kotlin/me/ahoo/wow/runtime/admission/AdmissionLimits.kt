@@ -37,7 +37,7 @@ internal object AdmissionLimits {
 
     /** Checked one by one, without a list of pairs per command. */
     private fun oversized(name: String, id: String?): String? = id?.takeIf { it.length > MAX_ID_LENGTH }
-        ?.let { "A $name is at most $MAX_ID_LENGTH characters; this one has ${it.length}." }
+        ?.let { "The $name is at most $MAX_ID_LENGTH characters; this one has ${it.length}." }
 
     /**
      * Whether the JSON text [json] writes `\u0000` in a string or a key. It reads the escapes alone: in JSON a
