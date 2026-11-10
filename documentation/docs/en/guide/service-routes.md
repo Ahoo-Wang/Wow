@@ -44,6 +44,8 @@ fun storefront(): Storefront = Storefront()
 
 The node binds every route of its Manifest to its handler when it starts, and does not start when a route has no handler or a handler no route.
 
+Every host that serves the context needs that instance, not only the service's own server: a second application or a test host with the domain module on its class path does not start without it, and fails with a `MissingDependencyException` that names the class ("No dependency of … Storefront to build the service routes of … Storefront"). So a module's first route is a change to each of its hosts, which declare the bean as the server does. A node that leaves the context out (`wow.contexts.include`, `wow.contexts.exclude`) builds none of its routes and needs none.
+
 ## Parameters
 
 Each parameter binds by its kind:

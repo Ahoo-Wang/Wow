@@ -44,6 +44,8 @@ fun storefront(): Storefront = Storefront()
 
 节点启动时把 Manifest 中的每条路由绑定到它的处理函数；有路由没有处理函数，或有处理函数不对应路由，节点都不会启动。
 
+每个提供该上下文的宿主都需要这个实例，不只是服务自己的服务器：类路径上有该领域模块的第二个应用或测试宿主，缺了它就无法启动，并以指明该类的 `MissingDependencyException` 失败（"No dependency of … Storefront to build the service routes of … Storefront"）。所以模块的第一条路由会改变它的每个宿主，它们要像服务器一样声明这个 bean。不提供该上下文的节点（`wow.contexts.include`、`wow.contexts.exclude`）不构建它的任何路由，也就不需要。
+
 ## 参数 {#parameters}
 
 每个参数按种类绑定：

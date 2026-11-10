@@ -80,6 +80,8 @@ class ConsulDiscoveryTest {
                 // Consul's default instance id is the application's name and port, the same for two nodes on port 0.
                 "spring.cloud.consul.discovery.instance-id" to "catalog-$node",
             ),
+            // The catalog's service routes are built from an instance the host gives.
+            sources = listOf(CatalogStorefront::class.java),
         )
     }
 
