@@ -28,6 +28,10 @@ import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.runtime.admission.AdmissionLimits
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -45,12 +49,14 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 /**
  * Commands of a peer context from code that is not a saga (decision D259, review M-1), between a sales service and a
@@ -90,7 +96,11 @@ class PeerCommandsTest {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private fun salesNode(transport: Boolean = true): ServiceNode = ServiceNode(
+    private fun salesNode(
+        transport: Boolean = true,
+        tenants: TenantPolicy = TenantPolicy.CALLERS,
+        stockContract: Manifest = stockManifest(),
+    ): ServiceNode = ServiceNode(
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
@@ -116,8 +126,9 @@ class PeerCommandsTest {
                     }
                 },
             ),
+            tenants = tenants,
         ),
-        contracts = ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+        contracts = ContractDirectory(salesManifest(), listOf(peer(stockContract))),
         topics = if (transport) SourceTopics(topics, PREFIX, topics) else null,
     ).also {
         nodes += it
@@ -329,6 +340,145 @@ class PeerCommandsTest {
         }
         topics.failure = null
     }
+
+    @Test
+    fun `a peer's command whose class is not on the class path should be refused, naming the api module to depend on`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val sales = salesNode(stockContract = withItemCommand(stockManifest(), "Recount", ManifestCreation.NONE))
+                .also { it.start() }
+            val result = sales.gateway.execute(
+                ServerCommandRequest.builder(STOCK, "item", "Recount", CommandBody.of("{}"))
+                    .caller(clerk).aggregateId("i").build(),
+            )
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+            result.error!!.message.assert().isEqualTo(
+                "The class of stock.item.Recount is not on the class path: depend on the api module of stock, whose " +
+                    "jar carries its contract and its commands.",
+            )
+            topics.messages(COMMANDS).assert().isEmpty()
+        }
+
+    @Test
+    fun `a peer's command whose identity facts conflict should be refused as malformed`(): Unit = runBlocking {
+        val sales = started()
+        mapOf(
+            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).expectedVersion(-1).build() to
+                "An expected version is never negative.",
+            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk)
+                .headers(mapOf("Wow-Tenant" to "other")).build() to
+                "Header Wow-Tenant is reserved: identity, ids and the wait have fields of their own.",
+        ).forEach { (request, message) ->
+            val refused = sales.gateway.execute(request)
+            refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            refused.error!!.message.assert().isEqualTo(message)
+        }
+        topics.messages(COMMANDS).assert().isEmpty()
+    }
+
+    @Test
+    fun `a cross-scope caller should send a peer's command in the scope it names`(): Unit = runBlocking {
+        val sales = started()
+        val crossScope = clerk.copyWith(crossScope = true)
+        val accepted = sales.gateway.execute(
+            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-5")).caller(crossScope)
+                .target(TargetScope(TENANT, Scope("x"))).wait(WaitPlan.ACCEPTED).build(),
+        )
+        accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
+        wire.scope.assert().isEqualTo(Scope("x"))
+        wire.ref.assert().isEqualTo(ITEM.ref(TENANT, "i-5"))
+    }
+
+    @Test
+    fun `a target naming another tenant than the one fixed for a peer's aggregate type should be refused`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val sales = salesNode(tenants = TenantPolicy { if (it == ITEM) TENANT else null }).also { it.start() }
+            val refused = sales.gateway.execute(
+                ServerCommandRequest.builder(
+                    Reserve(1),
+                    ITEM.ref(TENANT, "i")
+                ).caller(clerk.copyWith(crossScope = true))
+                    .target(TargetScope("other", Scope.NONE)).build(),
+            )
+            refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            refused.error!!.message.assert().isEqualTo(
+                "The tenant of stock.item is fixed to $TENANT; the request names other."
+            )
+            topics.messages(COMMANDS).assert().isEmpty()
+        }
+
+    @Test
+    fun `a creation whose body may name its aggregate but names none should leave the id to the peer's intake`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val contract = stockManifest().copyWith(
+                contexts = stockManifest().contexts.map { context ->
+                    context.copyWith(aggregates = context.aggregates.map { it.withIdProperty("Reserve", "item") })
+                },
+            )
+            val sales = salesNode(stockContract = contract).also { it.start() }
+            val accepted = sales.gateway.execute(
+                ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""))
+                    .caller(clerk).wait(WaitPlan.ACCEPTED).build(),
+            )
+            accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            accepted.ref.isAssigned.assert().isFalse()
+            CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value)).ref.isAssigned
+                .assert().isFalse()
+        }
+
+    @Test
+    fun `a peer's command whose ids or body no store keeps should be refused before it is sent`(): Unit = runBlocking {
+        val sales = started()
+        val long = "i".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+        mapOf(
+            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).requestId(long).build() to
+                "A request id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
+            ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1,"note":"\u0000"}"""))
+                .caller(clerk).aggregateId("i").build() to
+                "The body writes \\u0000 in a string, which no store keeps.",
+        ).forEach { (request, message) ->
+            val refused = sales.gateway.execute(request)
+            refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            refused.error!!.message.assert().isEqualTo(message)
+        }
+        topics.messages(COMMANDS).assert().isEmpty()
+    }
+
+    @Test
+    fun `a default plan with a timeout, or one that waits for the peer's own COMMITTED, should end at that COMMITTED`(): Unit =
+        runBlocking {
+            val sales = started()
+            listOf(WaitPlan.DEFAULT.within(10.seconds), WaitPlan.of(Hop.committed(STOCK)).within(10.seconds))
+                .forEachIndexed { at, plan ->
+                    val committed = sales.gateway.execute(reserve(1, item = "i-${10 + at}", wait = plan))
+                    committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+                    committed.hop.assert().isEqualTo(Hop.committed(STOCK))
+                }
+            val waits = topics.messages(COMMANDS).map { EnvelopeCodec.decode(it.value).transport!!.wait!!.remaining }
+            waits.assert().containsExactly(listOf(Hop.committed(STOCK)), listOf(Hop.committed(STOCK)))
+        }
+
+    /** [manifest] with one more command of the stock item, [name], whose class is on no class path. */
+    private fun withItemCommand(manifest: Manifest, name: String, creation: ManifestCreation): Manifest =
+        manifest.copyWith(
+            contexts = manifest.contexts.map { context ->
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copyWith(
+                            commands = aggregate.commands + CommandManifest(
+                                name,
+                                schema = Manifest.schemaRef("me.ahoo.wow.runtime.command.$name"),
+                                creation = creation,
+                            ),
+                        )
+                    },
+                )
+            },
+        )
 
     private companion object {
         const val PARTITIONS = 4
