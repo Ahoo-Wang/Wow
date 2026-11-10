@@ -230,7 +230,13 @@ class ExecutionReceiptContext(
             occurrence: Int = 0,
         ): String {
             require(occurrence >= 0) { "An occurrence is never negative." }
-            return compensationIdOf(execution, receiptCommandId, ref, commandType, occurrence.toString())
+            return compensationIdOf(
+                execution,
+                receiptCommandId,
+                ref,
+                commandType,
+                DerivedRequests.occurrence(occurrence)
+            )
         }
 
         /**
@@ -252,6 +258,17 @@ class ExecutionReceiptContext(
             ref: AggregateRef,
             commandType: Class<*>,
             key: String,
-        ): String = DerivedRequests.idOf("$execution!$receiptCommandId#${DerivedRequests.keyOf(ref, commandType)}#$key")
+        ): String = DerivedRequests.idOf(
+            DerivedRequests.encoded(
+                COMPENSATION,
+                DerivedRequests.executionOf(execution),
+                receiptCommandId,
+                DerivedRequests.keyOf(ref, commandType),
+                key,
+            ),
+        )
+
+        /** What tells a compensation's derived identity from a saga's ([ExecutionSagaContext.derivedId]). */
+        private const val COMPENSATION = "compensation"
     }
 }
