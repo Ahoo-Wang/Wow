@@ -59,12 +59,12 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
         orders.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
         billing.parked("projection", ref).assert().isNull()
         billing.list("projection").assert().isEmpty()
-        billing.resolve("projection", ref).assert().isNull()
+        billing.resolveAnywhere("projection", ref).assert().isNull()
         billing.park(ParkedAggregate("projection", ref, 0, 5, "other", 8)).assert().isTrue()
         orders.parked("projection", ref)!!.fromVersion.assert().isEqualTo(3)
         orders.list("projection").map { it.reason }.assert().containsExactly("boom")
         orders.list("projection", after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
-        orders.resolve("projection", ref)!!.reason.assert().isEqualTo("boom")
+        orders.resolveAnywhere("projection", ref)!!.reason.assert().isEqualTo("boom")
         billing.parked("projection", ref)!!.reason.assert().isEqualTo("other")
     }
 

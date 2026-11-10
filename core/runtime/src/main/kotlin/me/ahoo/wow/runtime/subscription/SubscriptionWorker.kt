@@ -736,8 +736,9 @@ internal class SubscriptionWorker(
     private suspend fun runSkip(ref: AggregateRef, item: Item.Skip) {
         var resolved = false
         try {
-            val removed = ledger.resolve(subscription.name, ref)
-            resolved = true
+            val removed = ledger.resolve(subscription.name, ref, partition)
+            // In this partition: an entry re-homed to another stays parked, its skip that partition's owner's.
+            resolved = removed != null || ledger.parked(subscription.name, ref) == null
             item.result.complete(removed != null)
         } catch (cancelled: CancellationException) {
             item.result.cancel(cancelled)

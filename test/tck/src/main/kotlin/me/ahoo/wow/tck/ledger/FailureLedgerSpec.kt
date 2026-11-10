@@ -88,7 +88,7 @@ abstract class FailureLedgerSpec {
             val withoutPosition = earlier.copyWith(fromPosition = null)
             ledger.repark(withoutPosition).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
-            ledger.resolve(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
+            ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
         }
 
     @Test
@@ -153,7 +153,7 @@ abstract class FailureLedgerSpec {
         ledger.resolve(subscription, ref("a"), 1)!!.partition.assert().isEqualTo(1)
         ledger.park(entry(ref("b"), 1, partition = 4))
         ledger.resolve(subscription, ref("b"), 5).assert().isNull()
-        ledger.resolve(subscription, ref("b"))!!.partition.assert().isEqualTo(4)
+        ledger.resolveAnywhere(subscription, ref("b"))!!.partition.assert().isEqualTo(4)
         ledger.resolve(subscription, ref("c"), 0).assert().isNull()
     }
 
@@ -162,7 +162,7 @@ abstract class FailureLedgerSpec {
         ledger.repark(entry(ref("a"), 4)).assert().isFalse()
         ledger.isParked(subscription, ref("a")).assert().isFalse()
         ledger.park(entry(ref("a"), 2))
-        ledger.resolve(subscription, ref("a"))
+        ledger.resolveAnywhere(subscription, ref("a"))
         ledger.repark(entry(ref("a"), 4)).assert().isFalse()
         ledger.parked(subscription, ref("a")).assert().isNull()
     }
@@ -262,7 +262,7 @@ abstract class FailureLedgerSpec {
         runBlocking {
             // Each of these writes changes what the owner read, a retry state or where and why it is parked.
             unconditionalWrites(ref("w")).forEach { (name, write) ->
-                ledger.resolve(subscription, ref("w"))
+                ledger.resolveAnywhere(subscription, ref("w"))
                 ledger.park(entry(ref("w"), 5))
                 val read = ledger.amend(subscription, ref("w"), ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
                 write()
@@ -315,9 +315,9 @@ abstract class FailureLedgerSpec {
         val parked = entry(ref("a"), 4)
         ledger.park(parked)
         ledger.park(entry(ref("a"), 4, subscription = another))
-        ledger.resolve(subscription, ref("a")).assert().isEqualTo(parked)
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(parked)
         ledger.isParked(subscription, ref("a")).assert().isFalse()
-        ledger.resolve(subscription, ref("a")).assert().isNull()
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isNull()
         ledger.isParked(another, ref("a")).assert().isTrue()
         val later = entry(ref("a"), 9)
         ledger.park(later).assert().isTrue()
@@ -337,7 +337,7 @@ abstract class FailureLedgerSpec {
         ledger.park(parked).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
         ledger.list(subscription).assert().containsExactly(parked)
-        ledger.resolve(subscription, ref("a")).assert().isEqualTo(parked)
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(parked)
     }
 
     @Test

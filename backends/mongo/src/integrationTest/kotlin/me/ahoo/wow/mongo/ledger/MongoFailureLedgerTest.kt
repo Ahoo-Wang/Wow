@@ -58,11 +58,11 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         orders.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
         billing.parked(subscription, ref).assert().isNull()
         billing.list(subscription).assert().isEmpty()
-        billing.resolve(subscription, ref).assert().isNull()
+        billing.resolveAnywhere(subscription, ref).assert().isNull()
         billing.park(ParkedAggregate(subscription, ref, 0, 5, "other", 8)).assert().isTrue()
         orders.parked(subscription, ref)!!.fromVersion.assert().isEqualTo(3)
         orders.list(subscription, after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
-        orders.resolve(subscription, ref)!!.reason.assert().isEqualTo("boom")
+        orders.resolveAnywhere(subscription, ref)!!.reason.assert().isEqualTo("boom")
         billing.parked(subscription, ref)!!.reason.assert().isEqualTo("other")
     }
 

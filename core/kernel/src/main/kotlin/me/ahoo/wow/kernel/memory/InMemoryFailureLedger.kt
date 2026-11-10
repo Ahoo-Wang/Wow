@@ -97,7 +97,7 @@ class InMemoryFailureLedger : FailureLedger {
         }
     }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? =
+    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.remove(ref) }
 
     override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =

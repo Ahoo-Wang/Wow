@@ -179,8 +179,8 @@ class CompensationImporterTest {
                 "longer unresolved in 9.x",
         )
 
-        ledger.resolve(CART_SAGA, ref)
-        ledger.resolve(ORDER_CREATED, ref)
+        ledger.resolveAnywhere(CART_SAGA, ref)
+        ledger.resolveAnywhere(ORDER_CREATED, ref)
         ledger.park(ParkedAggregate.of(ORDER_CREATED, ref, 0, 2, "later", FAILED_AT))
         val result = comparison().compare()
         result.assert().isEqualTo(CompensationComparisonResult(3, 2, 1))

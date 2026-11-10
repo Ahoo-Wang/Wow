@@ -199,7 +199,7 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
+    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
         connection.prepareStatement(tables.resolve).use { delete ->
             delete.setKey(subscription, ref)
             delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }

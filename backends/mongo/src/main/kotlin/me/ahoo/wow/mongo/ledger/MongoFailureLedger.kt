@@ -213,7 +213,7 @@ class MongoFailureLedger(
         }
     }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
+    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
         ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) }
     }
 

@@ -128,17 +128,19 @@ interface FailureLedger {
      * successfully or the operator chose to skip it: either way the subscription handles the aggregate's entries
      * again. Which of the two happened is the caller's to publish; the ledger only holds what is still parked.
      *
-     * This resolve is an operator's: it removes the entry wherever it is parked. The worker that retried the aggregate
-     * resolves it in its own partition only ([resolve] with a partition).
+     * It removes the entry wherever it is parked, for the callers that act on the ledger without a worker of the
+     * aggregate's partition: an operator's skip on a node where no worker holds the aggregate, the timers' parked
+     * entries, and the import of 9.x compensations. A worker resolves in its own partition ([resolve]).
      *
      * @return the removed entry, or null when the aggregate was not parked.
      */
-    suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate?
+    suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate?
 
     /**
-     * Resolves the entry parking [ref] for [subscription] as [resolve] does, while the aggregate is parked in
-     * [partition]: the worker of that partition handled every parked stream it read there. An entry re-homed to another
-     * partition meanwhile ([repark]) stays: its streams there were never handled by this worker.
+     * Resolves the entry parking [ref] for [subscription], as [resolveAnywhere] does, while the aggregate is parked in
+     * [partition]: the worker of that partition resolves it after its retry handled every parked stream it read
+     * there, or as an operator's skip. An entry re-homed to another partition meanwhile ([repark]) stays: its streams
+     * there are that partition's worker's.
      *
      * @return the removed entry, or null when the aggregate is not parked in [partition].
      */

@@ -216,12 +216,16 @@ class SubscriptionParkingTest {
             val release = CompletableDeferred<Unit>()
             val gate = AtomicBoolean(true)
             val gated = object : FailureLedger by ledger {
-                override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+                override suspend fun resolve(
+                    subscription: String,
+                    ref: AggregateRef,
+                    partition: Int
+                ): ParkedAggregate? {
                     if (gate.compareAndSet(true, false)) {
                         resolving.complete(Unit)
                         release.await()
                     }
-                    return ledger.resolve(subscription, ref)
+                    return ledger.resolve(subscription, ref, partition)
                 }
             }
             val runtime = runtime(gated)
@@ -288,6 +292,28 @@ class SubscriptionParkingTest {
         }
 
     @Test
+    fun `a skip of an entry re-homed to another partition resolves nothing, and keeps the aggregate held`(): Unit =
+        runBlocking {
+            // #5481: the worker skips in its own partition; the re-homed entry is the other partition's owner's.
+            val runtime = runtime()
+            parkX(runtime)
+            val parked = ledger.parked("parking", cart("x"))!!
+            val rehomed = parked.copyWith(
+                partition = (parked.partition + 1) % all.size,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            runtime.skip("parking", cart("x")).assert().isFalse()
+            ledger.parked("parking", cart("x"))!!.copyWith(revision = 0).assert()
+                .isEqualTo(rehomed.copyWith(revision = 0))
+            appender.append("x")
+            eventually { checkpointsReachEnd() }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1))
+            runtime.stop()
+        }
+
+    @Test
     fun `a retry that handled everything after its entry was re-homed resolves nothing`(): Unit = runBlocking {
         rehomedDuringRetry(succeeds = true)
     }
@@ -301,7 +327,7 @@ class SubscriptionParkingTest {
     fun `a retry that handled everything after another node resolved its entry is resolved`(): Unit = runBlocking {
         rehomedDuringRetry(succeeds = true) { parked ->
             // As another node's skip does when it does not run the aggregate's partition.
-            ledger.resolve(parked.subscription, parked.ref)
+            ledger.resolveAnywhere(parked.subscription, parked.ref)
             null
         }
     }
@@ -374,9 +400,9 @@ class SubscriptionParkingTest {
     fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
         val broken = AtomicBoolean(true)
         val flaky = object : FailureLedger by ledger {
-            override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+            override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? {
                 check(!broken.get()) { "the ledger is unavailable" }
-                return ledger.resolve(subscription, ref)
+                return ledger.resolve(subscription, ref, partition)
             }
         }
         val runtime = runtime(flaky)

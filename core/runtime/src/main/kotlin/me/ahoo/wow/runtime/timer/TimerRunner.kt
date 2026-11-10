@@ -131,7 +131,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         )
-        ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
         return retried
     }
 
@@ -147,7 +147,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
         )
-        ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
         return skipped
     }
 
