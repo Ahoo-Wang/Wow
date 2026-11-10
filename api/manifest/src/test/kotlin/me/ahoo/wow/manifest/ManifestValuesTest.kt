@@ -32,6 +32,10 @@ class ManifestValuesTest {
         valueSemantics({ ServiceInfo("shop") }, ServiceInfo("shop", "1.0.0"))
         valueSemantics({ ContextManifest("shop") }, ContextManifest("shop", "A shop"))
         valueSemantics({ Manifests.cart() }, Manifests.cart(aggregate = "basket"))
+        valueSemantics(
+            { AccessAttributeManifest("department", AccessAttributeManifest.Type.STRING) },
+            AccessAttributeManifest("department", AccessAttributeManifest.Type.STRING, multiple = true)
+        )
         valueSemantics({ StateManifest("#/\$defs/S") }, StateManifest("#/\$defs/S", "f"))
         valueSemantics({ SnapshotManifest() }, SnapshotManifest(stateRevision = 2))
         valueSemantics({ QueryManifest("snapshot") }, QueryManifest("events"))
