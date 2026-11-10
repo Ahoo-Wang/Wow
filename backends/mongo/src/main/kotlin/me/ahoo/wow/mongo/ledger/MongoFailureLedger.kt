@@ -244,6 +244,15 @@ class MongoFailureLedger(
             is ParkedAmendment.Request -> key to Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
             is ParkedAmendment.Schedule -> at(key, amendment.revision) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
             is ParkedAmendment.TakeRequest -> at(key, amendment.revision) to Updates.set(REQUEST, null)
+            is ParkedAmendment.Restate -> at(key, amendment.revision) to Updates.combine(
+                Updates.set(REASON, amendment.reason),
+                Updates.set(FAILED_AT, amendment.failedAt),
+                Updates.set(RETRIES, amendment.retries),
+                Updates.set(RETRY_AT, amendment.retryAt),
+                Updates.set(RETRY_SPEC, specOf(amendment.retrySpec)),
+                Updates.set(RECOVERABLE, amendment.recoverable.name),
+                UNSCHEDULED,
+            )
         }
         return dispatcher.mongo {
             ledger.findOneAndUpdate(

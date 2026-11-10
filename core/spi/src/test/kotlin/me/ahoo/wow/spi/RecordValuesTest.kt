@@ -247,6 +247,10 @@ class RecordValuesTest {
             { ParkedAmendment.TakeRequest.of(1) },
             ParkedAmendment.TakeRequest.of(2),
         )
+        valueSemantics(
+            { ParkedAmendment.Restate.of(1, "r", 2L, 3, null, null, Recoverable.UNKNOWN) },
+            ParkedAmendment.Restate.of(1, "r", 2L, 3, 4L, null, Recoverable.UNKNOWN),
+        )
         valueSemantics({ Lease.of("g", 0, "node-1", 1L, 9L) }, Lease.of("g", 0, "node-1", 2L, 9L))
         Lease.of("g", 0, "node-1", 1L, 9L).copyWith(epoch = 2L).assert().isEqualTo(Lease.of("g", 0, "node-1", 2L, 9L))
         valueSemantics({ Member.of("g", "node-1", "10.0.0.1:8081", 9L) }, Member.of("g", "node-2", "10.0.0.1:8081", 9L))

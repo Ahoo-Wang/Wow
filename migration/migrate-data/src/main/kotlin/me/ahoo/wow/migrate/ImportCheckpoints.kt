@@ -137,7 +137,7 @@ internal data class ReservationCheckpoint(
  * Where the import of the 9.x compensation service's unresolved executions stands ([CompensationImporter]): [after]
  * is the last execution imported or reported, in id order, [completed] is set once every one is, and the counts are
  * those of every run since it started; [resolved] counts the imported entries resolved before the walk started,
- * their executions no longer unresolved in 9.x.
+ * their executions no longer unresolved in 9.x, and [restated] those brought up to their executions' state in 9.x.
  */
 internal data class CompensationCheckpoint(
     val after: String? = null,
@@ -147,6 +147,7 @@ internal data class CompensationCheckpoint(
     val unresolved: Long = 0,
     val others: Long = 0,
     val resolved: Long = 0,
+    val restated: Long = 0,
 )
 
 /**

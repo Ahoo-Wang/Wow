@@ -53,6 +53,12 @@ class ParkedRetryTest {
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.ClaimRetry(-1, 0) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.Schedule(-1, 0) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.TakeRequest(-1) }
+        assertThrownBy<IllegalArgumentException> {
+            ParkedAmendment.Restate(-1, "r", 0, 0, null, null, Recoverable.UNKNOWN)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ParkedAmendment.Restate(0, "r", 0, -1, null, null, Recoverable.UNKNOWN)
+        }
         assertThrownBy<IllegalArgumentException> { entry.copyWith(revision = -1) }
     }
 
@@ -99,6 +105,33 @@ class ParkedRetryTest {
         requested.amended(ParkedAmendment.Schedule(1, ParkedAggregate.NEVER)).assert().isNull()
         requested.amended(ParkedAmendment.TakeRequest(1)).assert().isNull()
         requested.amended(ParkedAmendment.TakeRequest(2)).assert().isEqualTo(entry.copyWith(revision = 3))
+    }
+
+    @Test
+    fun `a restate replaces why and the retry state at the revision read, keeping a request, unscheduled`() {
+        val requested = entry.copyWith(request = LedgerRequest.RETRY, nextAttemptAt = 9, revision = 4)
+        val restate = ParkedAmendment.Restate.of(
+            4,
+            "again",
+            FAILED_AT + 1,
+            2,
+            FAILED_AT + 2,
+            spec,
+            Recoverable.UNRECOVERABLE
+        )
+        requested.amended(restate).assert().isEqualTo(
+            requested.copyWith(
+                reason = "again",
+                failedAt = FAILED_AT + 1,
+                retries = 2,
+                retryAt = FAILED_AT + 2,
+                retrySpec = spec,
+                recoverable = Recoverable.UNRECOVERABLE,
+                nextAttemptAt = null,
+                revision = 5,
+            ),
+        )
+        entry.amended(restate).assert().isNull()
     }
 
     @Test

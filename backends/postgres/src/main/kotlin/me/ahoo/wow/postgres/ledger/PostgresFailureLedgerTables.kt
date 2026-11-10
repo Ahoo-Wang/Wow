@@ -120,6 +120,16 @@ internal class PostgresFailureLedgerTables(val name: String) {
     /** Schedules the next attempt: the time, then the key, then the revision read. */
     val schedule = "UPDATE $table SET next_attempt_at = ?, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
 
+    /**
+     * Restates why the entry is parked and its retry state: the reason, the failure time, the retries, the last retry's
+     * start, the spec's three columns and the mark, then the key, then the revision read.
+     */
+    val restate = """
+        UPDATE $table SET reason = ?, failed_at = ?, retries = ?, retry_at = ?, retry_max_retries = ?,
+            retry_initial_backoff_millis = ?, retry_claim_ttl_millis = ?, recoverable = ?, $UNSCHEDULED, $NEXT_REVISION
+        WHERE $MATCH AND revision = ? RETURNING *
+    """.trimIndent()
+
     /** Takes a request: the key, then the revision read. */
     val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
 

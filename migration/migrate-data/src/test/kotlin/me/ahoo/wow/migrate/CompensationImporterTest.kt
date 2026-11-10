@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.manifest.ContextManifest
@@ -31,7 +32,9 @@ import me.ahoo.wow.migrate.example.NineXCompensationExample.ORDER_ID
 import me.ahoo.wow.migrate.example.NineXCompensationExample.ORDER_STATE
 import me.ahoo.wow.migrate.example.NineXCompensationExample.TENANT
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
@@ -280,6 +283,89 @@ class CompensationImporterTest {
         ledger.list(CART_SAGA).assert().isEmpty()
         reports.assert().anyMatch { it.endsWith("the 9.x execution b it was imported for is gone from 9.x") }
     }
+
+    /** Execution 1 as 9.x holds it after retrying it until it stopped: spent, marked unrecoverable, a new message. */
+    private fun retriedInNineX(execution: NineXExecutionFailed = NineXCompensationExample.execution(1)) =
+        execution.copy(
+            retries = 3,
+            retryAt = execution.retryAt + 900_000,
+            executeAt = execution.executeAt + 910_000,
+            maxRetries = 3,
+            minBackoff = 60,
+            executionTimeout = 30,
+            recoverable = "UNRECOVERABLE",
+            errorMessage = "still failing",
+        )
+
+    @Test
+    fun `the final restart restates an entry the import parked to what 9x holds of its execution now, once`(): Unit =
+        runTest {
+            importStreams()
+            importer().importAll()
+            val imported = ledger.parked(CART_SAGA, ref)!!
+            imported.retryable(imported.retrySpec!!).assert().isTrue()
+            val current = retriedInNineX()
+            source.update(current)
+
+            // Before the final restart, compare finds the imported entry behind 9.x.
+            comparison().compare().also {
+                it.differ.assert().isEqualTo(1)
+                it.passed.assert().isFalse()
+            }
+            reports.assert().anyMatch {
+                it.startsWith("DIFFERS 9.x execution $current: 9.x 3 retries") && it.contains(", V10 0 retries")
+            }
+
+            val restarted = importer(ImportOptions(pageSize = 2, restart = true)).importAll()
+            restarted.restated.assert().isEqualTo(1)
+            restarted.already.assert().isEqualTo(3)
+            restarted.render().assert().endsWith(
+                "; 1 imported entries restated to their executions' retry state in 9.x"
+            )
+            val restated = ledger.parked(CART_SAGA, ref)!!
+            val expected = (plan.compensation.parkedOf(current) { restated.partition } as ParkedTarget.Parked).entry
+            restated.assert().isEqualTo(expected.copyWith(revision = imported.revision + 1))
+            restated.retryable(restated.retrySpec!!).assert().isFalse()
+            comparison().compare().passed.assert().isTrue()
+
+            // The same 9.x state again writes nothing.
+            importer(ImportOptions(pageSize = 2, restart = true)).importAll().restated.assert().isEqualTo(0)
+            ledger.parked(CART_SAGA, ref).assert().isEqualTo(restated)
+        }
+
+    @Test
+    fun `an entry V10 re-parked, another execution's, or one written since it was read is not restated`(): Unit =
+        runTest {
+            importStreams()
+            val first = NineXCompensationExample.execution(1)
+            // b fails later on the aggregate a parks: the entry stays a's.
+            val later = first.copy(id = "b", version = 3)
+            val executions = InMemoryNineXCompensationSource(
+                listOf(first, later, NineXCompensationExample.execution(2))
+            )
+            importer(from = executions).importAll()
+            ledger.repark(ledger.parked(ORDER_CREATED, ref)!!.copyWith(reason = "Conflict: again"))
+            val entries = ledger.list(CART_SAGA) + ledger.list(ORDER_CREATED)
+            executions.update(retriedInNineX(later))
+            executions.update(retriedInNineX(NineXCompensationExample.execution(2)))
+            importer(ImportOptions(restart = true), executions).importAll().restated.assert().isEqualTo(0)
+            (ledger.list(CART_SAGA) + ledger.list(ORDER_CREATED)).assert().isEqualTo(entries)
+
+            // An operator marks the entry between the import's read and its restate: the restate writes nothing.
+            executions.update(retriedInNineX(first))
+            val marking = object : FailureLedger by ledger {
+                override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
+                    ledger.parked(subscription, ref).also {
+                        ledger.amend(subscription, ref, ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
+                    }
+            }
+            CompensationImporter(executions, plan, { log }, { marking }, checkpoints, ImportOptions(restart = true))
+                .importAll().restated.assert().isEqualTo(0)
+            ledger.parked(CART_SAGA, ref)!!.also {
+                it.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
+                it.retries.assert().isEqualTo(first.retries)
+            }
+        }
 
     @Test
     fun `entries V10 parked itself, or re-parked, are never touched`(): Unit = runTest {

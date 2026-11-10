@@ -16,7 +16,10 @@ package me.ahoo.wow.spi.ledger
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
-/** A change of a parked entry's retry state ([FailureLedger.amend]). */
+/**
+ * A change of a parked entry's retry state ([FailureLedger.amend]), or, for [Restate] alone, of why it is parked and its
+ * retry state at once.
+ */
 @WowSpi
 sealed interface ParkedAmendment {
     /**
@@ -165,6 +168,60 @@ sealed interface ParkedAmendment {
             /** A TakeRequest of the given fields; parameters added later come last, with a default. */
             @JvmStatic
             fun of(revision: Long): TakeRequest = TakeRequest(revision)
+        }
+    }
+
+    /**
+     * Restates the entry as another record of the same failure holds it now: when the entry is still at [revision], the
+     * one read, it is parked for [reason] since [failedAt], with [retries] retries made, the last one started at
+     * [retryAt], under [retrySpec], marked [recoverable]. An operator's request stays, for the partition's owner.
+     *
+     * It is the import of 9.x compensations' amendment, not an operator's: the import parked the entry for a 9.x
+     * execution that 9.x went on retrying until the cut-over, and brings the entry up to what 9.x holds of it now.
+     * Applying only at the revision read, it never covers a write since: a retry V10 made of the entry, an operator's
+     * change, a repark or a re-home.
+     *
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+     */
+    class Restate @InternalWowApi constructor(
+        val revision: Long,
+        val reason: String,
+        val failedAt: Long,
+        val retries: Int,
+        val retryAt: Long?,
+        val retrySpec: ParkedRetrySpec?,
+        val recoverable: Recoverable,
+    ) : ParkedAmendment {
+        init {
+            require(revision >= 0) { "A ledger revision is never negative." }
+            require(retries >= 0) { "The retries of a parked aggregate are never negative." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Restate && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String =
+            "Restate(revision=$revision, reason=$reason, failedAt=$failedAt, retries=$retries, retryAt=$retryAt, " +
+                "retrySpec=$retrySpec, recoverable=$recoverable)"
+
+        private fun valueFields(): List<Any?> =
+            listOf(revision, reason, failedAt, retries, retryAt, retrySpec, recoverable)
+
+        companion object {
+            /** A Restate of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            @Suppress("LongParameterList")
+            fun of(
+                revision: Long,
+                reason: String,
+                failedAt: Long,
+                retries: Int,
+                retryAt: Long?,
+                retrySpec: ParkedRetrySpec?,
+                recoverable: Recoverable,
+            ): Restate = Restate(revision, reason, failedAt, retries, retryAt, retrySpec, recoverable)
         }
     }
 }

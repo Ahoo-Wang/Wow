@@ -328,6 +328,25 @@ public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Request$Companion {
 	public final fun of (Lme/ahoo/wow/spi/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
 }
 
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Restate : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$Restate$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()J
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRecoverable ()Lme/ahoo/wow/spi/ledger/Recoverable;
+	public final fun getRetries ()I
+	public final fun getRetryAt ()Ljava/lang/Long;
+	public final fun getRetrySpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun getRevision ()J
+	public fun hashCode ()I
+	public static final fun of (JLjava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Restate;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Restate$Companion {
+	public final fun of (JLjava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Restate;
+}
+
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Schedule : me/ahoo/wow/spi/ledger/ParkedAmendment {
 	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$Schedule$Companion;
 	public fun equals (Ljava/lang/Object;)Z

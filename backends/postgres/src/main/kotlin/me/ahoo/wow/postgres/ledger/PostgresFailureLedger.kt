@@ -234,6 +234,7 @@ class PostgresFailureLedger(
         is ParkedAmendment.Request -> tables.request
         is ParkedAmendment.Schedule -> tables.schedule
         is ParkedAmendment.TakeRequest -> tables.takeRequest
+        is ParkedAmendment.Restate -> tables.restate
     }
 
     /** Binds [amendment] of [subscription]'s entry of [ref] to its statement ([sqlOf]). */
@@ -270,6 +271,17 @@ class PostgresFailureLedger(
                 setKey(subscription, ref)
                 setLong(KEY_COLUMNS + 1, amendment.revision)
             }
+
+            is ParkedAmendment.Restate -> {
+                setString(1, amendment.reason)
+                setLong(2, amendment.failedAt)
+                setInt(3, amendment.retries)
+                setNullableLong(4, amendment.retryAt)
+                setSpec(RESTATE_SPEC, amendment.retrySpec)
+                setString(RESTATE_SPEC + SPEC_COLUMNS, amendment.recoverable.name)
+                setKey(subscription, ref, first = RESTATE_SPEC + SPEC_COLUMNS + 1)
+                setLong(RESTATE_SPEC + SPEC_COLUMNS + KEY_COLUMNS + 1, amendment.revision)
+            }
         }
     }
 
@@ -291,6 +303,9 @@ class PostgresFailureLedger(
         const val KEY_COLUMNS = 6
         const val REPARK_VALUES = 5
         const val SPEC_COLUMNS = 3
+
+        /** The first parameter of a restate's spec: after its reason, failure time, retries and last retry's start. */
+        const val RESTATE_SPEC = 5
 
         /** Binds [service]'s key of [subscription] and [ref] to the [KEY_COLUMNS] parameters from [first]. */
         fun PreparedStatement.bindKey(service: String, subscription: String, ref: AggregateRef, first: Int) {
