@@ -49,6 +49,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `required`
 - `request`
 - `response`
+- `responseOptional`: left out when absent or at its default
 - `errors`: left out when absent or at its default
 - `description`
 - `deprecated`: left out when absent or at its default

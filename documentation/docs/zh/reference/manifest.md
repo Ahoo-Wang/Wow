@@ -49,6 +49,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `required`
 - `request`
 - `response`
+- `responseOptional`: 缺省或取默认值时省略
 - `errors`: 缺省或取默认值时省略
 - `description`
 - `deprecated`: 缺省或取默认值时省略

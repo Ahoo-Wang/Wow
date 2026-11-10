@@ -153,6 +153,7 @@ internal object ManifestFragmentBuilder {
         },
         request = route.request,
         response = route.response,
+        responseOptional = route.responseOptional,
         errors = route.errors.sorted(),
         description = route.description,
         deprecated = route.deprecated,

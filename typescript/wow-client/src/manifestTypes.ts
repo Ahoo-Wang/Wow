@@ -48,6 +48,8 @@ export interface ServiceRouteManifest {
   readonly request?: unknown;
   /** An inline JSON Schema: a $ref into $defs, or an array of one. */
   readonly response?: unknown;
+  /** Whether the route may answer 204 No Content instead of its response. */
+  readonly responseOptional?: boolean;
   /** The codes the route refuses with, entries of the context's errors. */
   readonly errors?: readonly string[];
   readonly description?: string;

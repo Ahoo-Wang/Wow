@@ -256,9 +256,12 @@ class ServiceRouteTest {
         )
         // A non-null item keeps its non-null contract.
         routes.getValue("tags").response.assert().isEqualTo(Manifest.arraySchema(item, unique = true))
-        // A body of JSON null reads as null; a null answer is 204, no body.
+        // A body of JSON null reads as null; a null answer is 204, no body: the response is optional.
         routes.getValue("find").request.assert().isEqualTo(nullableItem)
         routes.getValue("find").response.assert().isEqualTo(item)
+        routes.getValue("find").responseOptional.assert().isTrue()
+        routes.getValue("echo").responseOptional.assert().isFalse()
+        routes.getValue("tags").responseOptional.assert().isFalse()
     }
 
     @Test

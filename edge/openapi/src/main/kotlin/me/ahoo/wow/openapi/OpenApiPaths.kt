@@ -194,9 +194,11 @@ internal class OpenApiPaths(
                     "schema" to parameter.schema,
                 )
             }
+            val noBody = obj("204" to obj("description" to "The route answers no body."))
             val answer = route.response?.let { response ->
-                obj("200" to obj("description" to "The route's answer.", "content" to json(schemas.inline(response))))
-            } ?: obj("204" to obj("description" to "The route answers no body."))
+                obj("200" to obj("description" to "The route's answer.", "content" to json(schemas.inline(response)))) +
+                    if (route.responseOptional) noBody else emptyMap()
+            } ?: noBody
             add(
                 route.route.method,
                 route.route.path,

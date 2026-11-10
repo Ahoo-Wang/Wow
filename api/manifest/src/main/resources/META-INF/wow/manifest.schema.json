@@ -133,6 +133,10 @@
           "type" : "object",
           "description" : "An inline JSON Schema: a $ref into $defs, or an array of one."
         },
+        "responseOptional" : {
+          "type" : "boolean",
+          "description" : "Whether the route may answer 204 No Content instead of its response."
+        },
         "errors" : {
           "type" : "array",
           "items" : {

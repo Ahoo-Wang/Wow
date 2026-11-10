@@ -76,6 +76,7 @@ object ManifestSchema {
                 "parameters" to array(ref(ROUTE_PARAMETER)),
                 "request" to inlineSchema(),
                 "response" to inlineSchema(),
+                "responseOptional" to boolean("Whether the route may answer 204 No Content instead of its response."),
                 "errors" to strings("The codes the route refuses with, entries of the context's errors."),
                 "description" to string(),
                 "deprecated" to boolean(),
