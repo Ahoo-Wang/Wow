@@ -32,4 +32,15 @@ class DatasetTableTest {
         table.equals(Any()).assert().isFalse()
         table.toString().assert().startsWith("DatasetTable(name=orders, columns=[")
     }
+
+    @Test
+    fun `a column and a table should equal themselves and nothing of another type`() {
+        val column = DatasetColumn.of("city", DatasetColumn.Type.STRING)
+        column.equals(column).assert().isTrue()
+        column.equals("city").assert().isFalse()
+
+        val table = DatasetTable.of("orders", listOf(column), emptyList())
+        table.equals(table).assert().isTrue()
+        table.equals(column).assert().isFalse()
+    }
 }
