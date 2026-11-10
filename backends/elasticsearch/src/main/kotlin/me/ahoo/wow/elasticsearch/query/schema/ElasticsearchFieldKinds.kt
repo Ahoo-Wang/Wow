@@ -36,12 +36,12 @@ internal fun ElasticsearchMappedField.supports(
         // `_ignored` names no value a flattened field drops, so presence could not see it (see ElasticsearchFilterCompiler).
         // An object is present when any of its fields is: `exists` reads an object path so (a snapshot's operator).
         QueryCapability.PRESENCE ->
-            (queryable && (kind != Property.Kind.Flattened || ignoreAbove == null)) || (enabled && kind == Property.Kind.Object)
+            (queryable && (kind != Property.Kind.Flattened || ignoreAbove == null)) || kind == Property.Kind.Object
         QueryCapability.EXACT_MATCH -> queryable && kind in EXACT_KINDS
         QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
         QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
         QueryCapability.FULL_TEXT_TERMS -> indexed && kind in SEARCH_KINDS
-        QueryCapability.FULL_TEXT_PHRASE -> indexed && ignoreAbove == null && nullValue == null && kind in PHRASE_SEARCH_KINDS
+        QueryCapability.FULL_TEXT_PHRASE -> indexed && ignoreAbove == null && kind in PHRASE_SEARCH_KINDS
         QueryCapability.SORT -> sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
         QueryCapability.CURSOR_SORT -> {
             sortable && (kind in CURSOR_SORT_KINDS || (indexed && kind == Property.Kind.Text))
