@@ -116,6 +116,16 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         EventStreamFields.ACCESS to PostgresQueryType.JSONB,
         EventStreamFields.EVENTS to PostgresQueryType.JSONB,
     ),
+    notNullFields = setOf(
+        EventStreamFields.TENANT_ID,
+        EventStreamFields.AGGREGATE_ID,
+        EventStreamFields.VERSION,
+        EventStreamFields.COMMIT_TIME,
+        EventStreamFields.COMMAND_ID,
+        EventStreamFields.REQUEST_ID,
+        EventStreamFields.COMMAND_TYPE,
+        EventStreamFields.EVENTS,
+    ),
 )
 
 /** How a log table is read as the `events` model's records. */

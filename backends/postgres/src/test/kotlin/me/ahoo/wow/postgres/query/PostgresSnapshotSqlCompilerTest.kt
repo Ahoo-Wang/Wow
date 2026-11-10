@@ -230,14 +230,16 @@ class PostgresSnapshotSqlCompilerTest {
             // The snapshot's unique key ends the sort: the tenant, then the aggregate id.
             PageWindow.Keyset(CursorPosition(listOf("n", BigDecimal.TEN, "t", "id")), 3)
         ).let { statement ->
+            // The leading key's bound, which an index can seek to, then the exact condition.
             statement.sql.assert().contains(
-                "AND (($name > ?) OR ($name = ? AND ($amount < ? OR $amount IS NULL)) OR " +
+                "AND $name >= ? AND (($name > ?) OR ($name = ? AND ($amount < ? OR $amount IS NULL)) OR " +
                     "($name = ? AND $amount = ? AND tenant_id > ?) OR " +
                     "($name = ? AND $amount = ? AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
             )
             statement.sql.assert().contains("$name AS k0, $amount AS k1, tenant_id AS k2, aggregate_id AS k3")
-                .endsWith("tenant_id ASC NULLS FIRST, aggregate_id ASC NULLS FIRST LIMIT ?")
+                .endsWith("tenant_id ASC, aggregate_id ASC LIMIT ?")
             statement.parameters.assert().containsExactly(
+                SqlParameter.Text("n"),
                 SqlParameter.Text("n"),
                 SqlParameter.Text("n"),
                 SqlParameter.Numeric(BigDecimal.TEN),
@@ -258,6 +260,26 @@ class PostgresSnapshotSqlCompilerTest {
                     "($name IS NULL AND $amount IS NULL AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
             )
         compiler.keyset(admitted, PageWindow.Keyset(null, 3)).sql.assert().doesNotContain(" OR ")
+    }
+
+    @Test
+    fun `a keyset page seeks to the leading keys of one direction that hold a value`() {
+        fun after(sort: List<Sort>, vararg values: Any?): String {
+            val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), schema)
+            val sql = compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(values.toList()), 3)).sql
+            return sql.substringAfter("WHERE TRUE AND ").substringBefore(" ORDER BY")
+        }
+        val name = PostgresSnapshotQueryExpressions.value(NAME, PostgresQueryType.TEXT)
+        // The default order, the table's key: one row comparison, the whole condition, which the primary key seeks to.
+        after(emptyList(), "t", "id").assert().isEqualTo("(tenant_id, aggregate_id) > (?, ?)")
+        after(listOf(Sort(NAME, Sort.Direction.ASC)), "n", "t", "id")
+            .assert().isEqualTo("($name, tenant_id, aggregate_id) > (?, ?, ?)")
+        // Descending, a column that holds no NULL bounds the rest; a state field may hold one, which sorts last.
+        after(listOf(Sort(QueryField("version"), Sort.Direction.DESC)), BigDecimal.ONE, "t", "id")
+            .assert().startsWith("version <= ? AND (((version < ? OR version IS NULL))")
+        after(listOf(Sort(NAME, Sort.Direction.DESC)), "n", "t", "id").assert().startsWith("((")
+        // A NULL position ascending: what follows is a value or another NULL, no bound.
+        after(listOf(Sort(NAME, Sort.Direction.ASC)), null, "t", "id").assert().startsWith("((")
     }
 
     @Test

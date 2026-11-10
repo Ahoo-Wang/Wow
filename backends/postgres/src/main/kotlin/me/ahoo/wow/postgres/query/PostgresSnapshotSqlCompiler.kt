@@ -80,7 +80,7 @@ internal class PostgresSnapshotSqlCompiler(
         keys.forEachIndexed { index, (value, _) -> sql.append(", ").append(value).append(" AS ").append(key(index)) }
         sql.append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
-        window.after?.let { after -> sql.append(" AND ").append(after(parameters, query.query.sort, keys, after)) }
+        window.after?.let { after -> sql.append(" AND ").append(after(parameters, query, keys, after)) }
         sql.append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = false))
             .append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(window.limit.toLong())))
         return parameters.statement(sql.toString())
@@ -100,9 +100,10 @@ internal class PostgresSnapshotSqlCompiler(
     }
 
     private fun order(query: AdmittedQuery<*>, compiler: PostgresFilterCompiler, sort: List<Sort>, total: Boolean): String {
-        val terms = sort.mapTo(
-            ArrayList()
-        ) { order -> direction(compiler.typed(query.field(order.field)).first, order.direction) }
+        val terms = sort.mapTo(ArrayList()) { order ->
+            val field = query.field(order.field)
+            direction(compiler.typed(field).first, order.direction, layout.expressions.notNull(field.physicalField))
+        }
         if (total) {
             layout.tieBreakers.forEach { (field, column) ->
                 if (sort.none { query.physicalPath(it.field) == field }) terms += "$column ASC"
@@ -111,7 +112,41 @@ internal class PostgresSnapshotSqlCompiler(
         return terms.joinToString(", ")
     }
 
+    /**
+     * The rows after the position [after] in [query]'s sort, in a form a B-tree index can seek to. The leading keys of
+     * the first key's direction whose position values are not `NULL` (descending, only columns that hold no `NULL`,
+     * since a `NULL` sorts last there, after every value) compare as one row, `(k0, …, kn) > (v0, …, vn)` (`<`
+     * descending), which an index on those columns seeks to. When they are every key, that comparison is the whole
+     * condition; otherwise it bounds the expanded `OR` ([expanded]) with `>=` (`<=`), redundantly, since the `OR` alone
+     * is no index condition and a page would scan every row before its position.
+     */
     private fun after(
+        parameters: SqlParameters,
+        query: AdmittedQuery<Queryable<*>>,
+        keys: List<Pair<String, PostgresQueryType>>,
+        after: CursorPosition,
+    ): String {
+        val sort = query.query.sort
+        val direction = sort.first().direction
+        val leading = sort.indices.takeWhile { index ->
+            sort[index].direction == direction && after.values.getOrNull(index) != null &&
+                (direction == Sort.Direction.ASC || layout.expressions.notNull(query.field(sort[index].field).physicalField))
+        }
+        if (leading.isEmpty()) return expanded(parameters, sort, keys, after)
+        val whole = leading.size == sort.size
+        val operator = when (direction) {
+            Sort.Direction.ASC -> if (whole) ">" else ">="
+            Sort.Direction.DESC -> if (whole) "<" else "<="
+        }
+        val columns = leading.map { keys[it].first }
+        val values = leading.map { parameters.bind(position(keys[it].second, checkNotNull(after.values[it]))) }
+        val bound = columns.singleOrNull()?.let { "$it $operator ${values.single()}" }
+            ?: (columns.joinToString(", ", "(", ")") + " $operator " + values.joinToString(", ", "(", ")"))
+        return if (whole) bound else "$bound AND " + expanded(parameters, sort, keys, after)
+    }
+
+    /** The rows after [after] in [sort], the expanded row comparison that honors each key's direction and nulls. */
+    private fun expanded(
         parameters: SqlParameters,
         sort: List<Sort>,
         keys: List<Pair<String, PostgresQueryType>>,
@@ -163,8 +198,16 @@ internal class PostgresSnapshotSqlCompiler(
             include.any { it.path == SnapshotFields.STATE || it.path.startsWith(SnapshotFields.STATE + ".") }
         }
 
-        fun direction(value: String, direction: Sort.Direction): String =
-            if (direction == Sort.Direction.ASC) "$value ASC NULLS FIRST" else "$value DESC NULLS LAST"
+        /**
+         * [value] ordered in [direction], a `NULL` first ascending and last descending. A column that holds no `NULL`
+         * ([notNull]) is ordered plainly, the same order, as a B-tree index on it reads by default
+         * (`ASC NULLS LAST`), so the index gives the order: the table's key gives the default one.
+         */
+        fun direction(value: String, direction: Sort.Direction, notNull: Boolean = false): String = when {
+            notNull -> "$value ${direction.name}"
+            direction == Sort.Direction.ASC -> "$value ASC NULLS FIRST"
+            else -> "$value DESC NULLS LAST"
+        }
 
         /** A decoded position value bound as [type]; a value of another type is not a position this backend wrote. */
         fun position(type: PostgresQueryType, value: Any): SqlParameter = when {
