@@ -126,6 +126,13 @@ fun interface CommandAuthorizer {
     }
 }
 
+/** The authorizer's denial of [action], or null when it allows it. */
+internal suspend fun CommandAuthorizer.authorize(
+    request: ServerCommandRequest,
+    action: CommandAction
+): Authorization.Denied? =
+    authorize(request.caller, action) as? Authorization.Denied
+
 /**
  * Validates a decoded and transformed command body of [type][CommandType]: the violations it finds, none
  * when it is valid. Any violation refuses the command with [FrameworkCodes.COMMAND_INVALID], listing them all.
