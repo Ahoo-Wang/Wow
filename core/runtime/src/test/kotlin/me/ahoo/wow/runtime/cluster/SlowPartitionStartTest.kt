@@ -39,6 +39,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -136,11 +137,33 @@ class SlowPartitionStartTest {
         }
     }
 
+    @Test
+    fun `a partition whose change fails to be reported should be released, then acquired again`(): Unit =
+        runTest(timeout = 1.minutes) {
+            // #5842: the report failed before the gate was made, and the lease it had just taken was neither tracked nor
+            // released, so nobody ran the partition until it expired.
+            val store = InMemoryLeaseStore(virtualClock())
+            val reports = AtomicInteger()
+            val ownership =
+                ownership(store, CopyOnWriteArrayList()) { check(reports.incrementAndGet() > 1) { "Gone." } }
+            try {
+                ownership.start()
+                ownership.owned.assert().isEmpty()
+                ownership.pending(0).assert().isTrue()
+                store.owners(GROUP.name).assert().isEmpty()
+                delay(1.minutes / 2)
+                ownership.owned.assert().containsExactly(0)
+            } finally {
+                ownership.stop()
+            }
+        }
+
     private fun TestScope.ownership(
         store: LeaseStore,
         rounds: MutableList<RenewalRound>,
         start: Duration = START,
         failures: Int = 0,
+        partitionChanged: (Int) -> Unit = {},
     ): PartitionOwnership {
         val runtime = SubscriptionRuntime(
             GROUP.name,
@@ -160,6 +183,7 @@ class SlowPartitionStartTest {
             context = StandardTestDispatcher(testScheduler),
             timeSource = testScheduler.timeSource,
             renewalRounds = { rounds += it },
+            partitionChanged = partitionChanged,
         )
     }
 
