@@ -24,7 +24,6 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
-import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
@@ -86,7 +85,6 @@ import kotlin.time.Duration.Companion.seconds
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
 @InternalWowApi
-@Suppress("LargeClass") // The log's port and its group commits, of one partition and of several, on one table layout.
 class PostgresEventLog(
     private val dataSource: DataSource,
     private val context: String,
@@ -122,6 +120,9 @@ class PostgresEventLog(
     /** The reads of a partition: its entries in sequence order, its head and its lineage. */
     private val tailReads =
         PostgresTailReads(dataSource, dispatcher, context, partitions, tailBatch, catalog, tables, logRows)
+
+    /** The access attributes: the stamps of the streams, the pages of aggregates, and the access walks. */
+    private val logAccess = PostgresLogAccess(dataSource, dispatcher, context, catalog, tables)
 
     /**
      * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
@@ -166,51 +167,12 @@ class PostgresEventLog(
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         aggregateReads.read(ref, fromVersion, toVersion)
 
-    /** One statement by the version key, autocommitted: a stamp of a range writes it whole or not at all. */
     @InternalWowApi
-    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
-        if (from >= until) return 0
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                catalog.withTable(connection, ref.type) { table ->
-                    connection.prepareStatement(table.stamp).use { update ->
-                        update.setString(1, AccessValues.text(access))
-                        update.setInt(2, asOf)
-                        update.setString(3, ref.id)
-                        update.setString(4, ref.tenantId)
-                        update.setInt(5, from)
-                        update.setInt(6, until)
-                        update.setInt(7, asOf)
-                        update.executeUpdate()
-                    }
-                }
-            }
-        }
-    }
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
+        logAccess.stamp(ref, access, asOf, from, until)
 
-    /**
-     * A statement a page: each aggregate's first stream, by the version key, its cursor [AggregatePage.cursorOf]; none
-     * of a type whose table does not exist, which it does not create.
-     */
-    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
-        require(limit > 0) { "A page holds at least one aggregate." }
-        val key = after?.let(AggregatePage::keyOf)
-        val refs = dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                val table = catalog.existing(connection, type) ?: return@autoCommitted emptyList()
-                connection.prepareStatement(if (key == null) table.firstAggregates else table.aggregatesAfter).use {
-                    var index = 1
-                    key?.let { (id, tenant) ->
-                        it.setString(index++, tenant)
-                        it.setString(index++, id)
-                    }
-                    it.setInt(index, limit)
-                    it.executeQuery().use { rows -> rows.map { type.ref(it.getString(2), it.getString(1)) } }
-                }
-            }
-        }
-        return AggregatePage.of(refs, limit)
-    }
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage =
+        logAccess.aggregates(type, after, limit)
 
     /**
      * One statement of the stamps of distinct streams ([PostgresEventLogTables] `stampRows`), autocommitted, per
@@ -222,63 +184,15 @@ class PostgresEventLog(
         if (!AccessStamps.disjoint(ranges)) {
             return super.stampAll(ranges)
         }
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                ranges.groupBy { it.ref.type }.entries.sumOf { (type, group) ->
-                    catalog.withTable(connection, type) { table ->
-                        connection.prepareStatement(table.stampRows).use { update ->
-                            fun array(kind: String, values: List<Any>) =
-                                connection.createArrayOf(kind, values.toTypedArray())
-                            update.setArray(1, array("text", group.map { AccessValues.text(it.access) }))
-                            update.setArray(2, array("int4", group.map { it.asOf }))
-                            update.setArray(3, array("text", group.map { it.ref.id }))
-                            update.setArray(4, array("text", group.map { it.ref.tenantId }))
-                            update.setArray(5, array("int4", group.map { it.from }))
-                            update.setArray(6, array("int4", group.map { it.until }))
-                            update.executeUpdate()
-                        }
-                    }
-                }
-            }
-        }
+        return logAccess.stampAll(ranges)
     }
 
-    /** Whether [type]'s table exists: this log made sure of it, or the registry lists it. */
-    override suspend fun holds(type: AggregateType): Boolean = dispatcher.jdbc {
-        dataSource.autoCommitted { catalog.existing(it, type) != null }
-    }
+    override suspend fun holds(type: AggregateType): Boolean = logAccess.holds(type)
 
-    /**
-     * The registry's `access_walk` of [type] ([PostgresAccessWalks]); none before the type's table is created, which
-     * the read does not do: a type has a registry row from its table's creation on.
-     */
-    override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.jdbc {
-        dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tables.walk).use { query ->
-                query.setString(1, context)
-                query.setString(2, type.name)
-                query.executeQuery().use { rows ->
-                    if (rows.next()) rows.getString(1)?.let(PostgresAccessWalks::walkOf) else null
-                }
-            }
-        }
-    }
+    override suspend fun walk(type: AggregateType): AccessWalk? = logAccess.walk(type)
 
-    /**
-     * One conditional update of the registry row: concurrent claims serialize on it. A type whose table does not exist
-     * has no row, and the update matches none.
-     */
-    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.jdbc {
-        dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tables.claimWalk).use { update ->
-                update.setString(1, PostgresAccessWalks.textOf(walk))
-                update.setString(2, context)
-                update.setString(3, type.name)
-                update.setNullableString(4, expected)
-                update.executeUpdate() == 1
-            }
-        }
-    }
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean =
+        logAccess.claim(type, walk, expected)
 
     override suspend fun advance(
         type: AggregateType,
@@ -286,17 +200,7 @@ class PostgresEventLog(
         cursor: String?,
         walked: Long,
         completed: Boolean,
-    ): Boolean = dispatcher.jdbc {
-        dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tables.advanceWalk).use { update ->
-                update.setString(1, PostgresAccessWalks.progressOf(cursor, walked, completed))
-                update.setString(2, context)
-                update.setString(3, type.name)
-                update.setString(4, schema)
-                update.executeUpdate() == 1
-            }
-        }
-    }
+    ): Boolean = logAccess.advance(type, schema, cursor, walked, completed)
 
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         aggregateReads.readTail(ref, fromVersion, earlier)
