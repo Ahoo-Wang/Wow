@@ -103,6 +103,15 @@ export interface RequestOptions {
   readonly signal?: AbortSignal;
 }
 
+/**
+ * The exact numbers ({@link TextNumbers}) of one call: of the body it writes
+ * and of the JSON it reads back.
+ */
+export interface CallNumbers {
+  readonly body?: TextNumbers;
+  readonly answer?: TextNumbers;
+}
+
 /** One request of a client. */
 export interface Call {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -110,8 +119,11 @@ export interface Call {
   readonly query?: Readonly<Record<string, string | number | undefined>>;
   readonly headers?: Readonly<Record<string, string | undefined>>;
   readonly body?: unknown;
-  /** The body's numbers written as their exact text ({@link TextNumbers}). */
-  readonly bodyNumbers?: TextNumbers;
+  /**
+   * Its exact numbers, required of every call: a call with none says so
+   * (`{}`), so no way of reading or writing JSON leaves them out.
+   */
+  readonly numbers: CallNumbers;
   readonly options?: RequestOptions;
   /** Answers a 304 rather than rejecting with it. */
   readonly notModified?: boolean;
@@ -130,6 +142,30 @@ function queryString(
 }
 
 /**
+ * A call's response: its JSON is read only with the exact numbers the call
+ * declared ({@link Call.numbers}), here or by a stream reader given it.
+ */
+export class Answer {
+  /**
+   * @param response - The response
+   * @param numbers - The exact numbers of its JSON, or of each event's
+   */
+  constructor(
+    readonly response: Response,
+    readonly numbers: TextNumbers | undefined,
+  ) {}
+
+  /** The JSON body, its exact numbers as their text. */
+  async json<T>(): Promise<T> {
+    return (
+      marksNothing(this.numbers)
+        ? await this.response.json()
+        : parseJson(await this.response.text(), this.numbers)
+    ) as T;
+  }
+}
+
+/**
  * Sends one request through the client's fetcher and answers its response;
  * a response that is not 2xx rejects with a {@link WowProblemError}.
  *
@@ -139,7 +175,7 @@ function queryString(
 export async function send(
   client: WowClientOptions,
   call: Call,
-): Promise<Response> {
+): Promise<Answer> {
   const options = call.options ?? {};
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries({
@@ -155,41 +191,31 @@ export async function send(
     if (value !== undefined) headers[name] = value;
   }
   // A body with exact numbers goes as its own JSON text, those numbers unquoted.
-  const exact = call.body !== undefined && !marksNothing(call.bodyNumbers);
+  const exact = call.body !== undefined && !marksNothing(call.numbers.body);
   if (exact) headers['Content-Type'] = 'application/json';
   const url = `${client.basePath ?? ''}${call.path}${queryString(call.query)}`;
   try {
-    return await (client.fetcher ?? defaultFetcher).fetch(url, {
+    const response = await (client.fetcher ?? defaultFetcher).fetch(url, {
       method: call.method,
       headers,
       ...(call.body === undefined
         ? {}
         : {
             body: exact
-              ? stringifyJson(call.body, call.bodyNumbers)
+              ? stringifyJson(call.body, call.numbers.body)
               : (call.body as object),
           }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
+    return new Answer(response, call.numbers.answer);
   } catch (error) {
     const response = (error as { exchange?: { response?: Response } })?.exchange
       ?.response;
-    if (call.notModified && response?.status === 304) return response;
+    if (call.notModified && response?.status === 304) {
+      return new Answer(response, undefined);
+    }
     throw (await toWowProblemError(error)) ?? error;
   }
-}
-
-/**
- * The JSON body of a 2xx response; the numbers `numbers` marks come back as
- * their exact text, and without marks it is
- * `response.json()` itself.
- */
-export async function json<T>(
-  response: Response,
-  numbers?: TextNumbers,
-): Promise<T> {
-  if (marksNothing(numbers)) return (await response.json()) as T;
-  return parseJson(await response.text(), numbers) as T;
 }
 
 /** The entity tag of a response without its quotes or weak marker. */

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 132 names, from src/index.ts.
+# @ahoo-wang/wow-client — 134 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AccessAttributeManifest
@@ -103,6 +103,7 @@ type  SystemEvent
 type  TargetScope
 type  TextNumbers
 type  TextNumbersByName
+type  TextNumbersOr
 type  TransferOwner
 type  TransferSpace
 type  TransformedFrom
@@ -130,6 +131,7 @@ value readProblem
 value requestIdOf
 value retryOf
 value stringifyJson
+value textNumberOr
 value textNumbersBy
 value toWowProblemError
 value wait

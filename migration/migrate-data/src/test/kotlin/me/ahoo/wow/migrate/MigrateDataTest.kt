@@ -656,7 +656,7 @@ class MigrateDataTest {
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
             .contains("and every unresolved 9.x execution imported is parked; nothing imported was released")
-        ledger.resolve(NineXCompensationExample.CART_SAGA, ref)
+        ledger.resolveAnywhere(NineXCompensationExample.CART_SAGA, ref)
         run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
         printed.assert().contains("DIFFERS 9.x execution 0VYC0mp1nA0001")
             .contains("Comparison done: 1 unresolved 9.x executions are not parked in V10, and 0 imported entries")

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
 
@@ -58,14 +59,31 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
         orders.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
         billing.parked("projection", ref).assert().isNull()
         billing.list("projection").assert().isEmpty()
-        billing.resolve("projection", ref).assert().isNull()
+        billing.resolveAnywhere("projection", ref).assert().isNull()
         billing.park(ParkedAggregate("projection", ref, 0, 5, "other", 8)).assert().isTrue()
         orders.parked("projection", ref)!!.fromVersion.assert().isEqualTo(3)
         orders.list("projection").map { it.reason }.assert().containsExactly("boom")
         orders.list("projection", after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
-        orders.resolve("projection", ref)!!.reason.assert().isEqualTo("boom")
+        orders.resolveAnywhere("projection", ref)!!.reason.assert().isEqualTo("boom")
         billing.parked("projection", ref)!!.reason.assert().isEqualTo("other")
     }
+
+    @Test
+    fun `a format 3 table created before the revision gets it in place, its entries at revision 0`(): Unit =
+        runBlocking {
+            // D404: a beta ledger keeps its parked entries; the column is added, with every entry at 0.
+            val ledger = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision")
+            ledger.createSchema()
+            val ref = AggregateType("upgrade", "order").ref("t", "a")
+            ledger.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
+            PostgresFixture.dataSource.connection.use { connection ->
+                connection.createStatement().use { it.execute("ALTER TABLE ledger_before_revision DROP COLUMN revision") }
+            }
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision").createSchema()
+            ledger.parked("projection", ref)!!.revision.assert().isEqualTo(0L)
+            ledger.amend("projection", ref, ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
+                .revision.assert().isEqualTo(1L)
+        }
 
     @Test
     fun `a table name that is not a plain identifier is refused`() {

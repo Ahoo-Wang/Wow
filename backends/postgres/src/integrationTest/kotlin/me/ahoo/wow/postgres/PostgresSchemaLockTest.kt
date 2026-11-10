@@ -41,6 +41,10 @@ import kotlin.time.toJavaDuration
 class PostgresSchemaLockTest {
     private val dataSource = PostgresFixture.dataSource
 
+    /** A step's statement that adds a column a table lacks, as a step within a format does. */
+    private fun addStaleVersion(tables: PostgresSnapshotTables) =
+        "ALTER TABLE ${tables.snapshot} ADD COLUMN IF NOT EXISTS stale_version integer"
+
     @Test
     fun `a current schema should take no table lock, however long another transaction holds the table`() {
         val context = PostgresFixture.newContext("lock")
@@ -66,7 +70,7 @@ class PostgresSchemaLockTest {
             val failure = assertThrows<IllegalStateException> {
                 dataSource.connection.use { connection ->
                     PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT), wait) {
-                        PostgresSchema.execute(connection, tables.ddl())
+                        PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
                     }
                 }
             }
@@ -76,7 +80,7 @@ class PostgresSchemaLockTest {
         // Once the holder is gone, the step adds the column.
         dataSource.connection.use { connection ->
             PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
+                PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
             }
             PostgresSchema.hasColumns(connection, tables.snapshot, listOf("stale_version")).assert().isTrue()
         }
@@ -87,14 +91,6 @@ class PostgresSchemaLockTest {
         // Finding F16: one node's schema step and another's CREATE INDEX CONCURRENTLY on the same table deadlocked.
         val context = PostgresFixture.newContext("together")
         val aggregates = (1..6).map { "a$it" }
-        // Half the tables are new; the others were made by an earlier version, without a column the schema adds.
-        aggregates.filterIndexed { index, _ -> index % 2 == 1 }.forEach { aggregate ->
-            PostgresSnapshotStore(dataSource, context).createTable(aggregate)
-            val tables = PostgresSnapshotTables(context, aggregate)
-            dataSource.connection.use {
-                it.createStatement().execute("ALTER TABLE ${tables.snapshot} DROP COLUMN stale_version")
-            }
-        }
         val nodes = 2
         val ready = CyclicBarrier(nodes)
         val pool = Executors.newFixedThreadPool(nodes)
@@ -141,7 +137,7 @@ class PostgresSchemaLockTest {
         val started = TimeSource.Monotonic.markNow()
         dataSource.connection.use { connection ->
             PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
+                PostgresSchema.execute(connection, tables.ddl() + addStaleVersion(tables))
             }
             started.elapsedNow().inWholeMilliseconds.assert().isGreaterThanOrEqualTo(HELD_MILLIS / 2)
             PostgresSchema.hasColumns(connection, tables.snapshot, listOf("stale_version")).assert().isTrue()

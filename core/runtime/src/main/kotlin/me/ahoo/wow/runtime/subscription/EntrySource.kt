@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
@@ -25,7 +24,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.transport.SourceMessage
 
 /**
  * One entry a [SubscriptionRuntime] hands its subscriptions: a committed [stream] at its [position] in the source's
@@ -76,17 +74,24 @@ internal interface EntrySource {
     fun sourcePosition(entry: SourcedEntry): Long?
 
     /**
-     * [ref]'s entries from [fromVersion] on, as they stand now, for a retry: read by version from the
-     * log, or by re-scanning the topic's partition from [fromPosition]. It completes. Throws an
-     * [UnrecoverableException] when the source no longer holds them.
+     * The entries of [parked]'s aggregate from where it is parked on, as they stand now, for a retry: read by version
+     * from the log, or by re-scanning the topic's partition from its position. It completes. Throws an
+     * [UnrecoverableException] when the source no longer holds them, or holds them in another partition than the one
+     * the entry is parked in ([partitionsGrow]).
      */
-    suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry>
+    suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry>
 
     /** The log position of [ref]'s stream at [version], for a duplicate request; null for a topic. */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
     /** Whether the source may deliver an entry twice, so a subscription drops the copies it can recognize. */
     val repeats: Boolean get() = false
+
+    /**
+     * Whether the source's partitions may grow while it is read, a broker's topic whose keys map to its partitions:
+     * an aggregate's later entries may then be in another partition than the one it parked in ([partitionOf]).
+     */
+    val partitionsGrow: Boolean get() = false
 
     /**
      * Where [entry] stands among the entries of its aggregate, the order a subscription runs them in: its version,
@@ -104,36 +109,33 @@ internal interface EntrySource {
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
 
 /**
- * The messages of [partition] of [topic] from [fromPosition], where the message an aggregate keyed [key] was parked at
- * lies, checked to be there: a topic that gained partitions since maps the key to
- * another partition, which holds the parked message at no offset, or another message at that offset. A re-scan there
- * would find nothing of the aggregate and resolve the entry, losing what was skipped; it fails with an
- * [UnrecoverableException] instead, so the entry stays parked, marked for an operator to skip once they have dealt
- * with what it skipped. A message no longer retained cannot be checked: the re-scan goes on.
- *
- * The ledger records the parked message's offset only, not its partition ([ParkedAggregate.fromPosition]); recording
- * the partition would let the retry follow the message, at the cost of a field in every backend's ledger.
+ * Fails with an [UnrecoverableException] when [parked]'s aggregate maps to [partition] of [topic] now, not to the
+ * partition its entry is parked in ([ParkedAggregate.partition]): the topic gained partitions since it was parked. The
+ * records it parked at are in the partition it left, its later ones in this one, so no re-scan of either partition
+ * holds them all: the entry is skipped once its earlier records are dealt with.
  */
-internal fun Flow<SourceMessage>.parkedAt(
-    topic: String,
-    partition: Int,
-    key: String,
-    fromPosition: Long,
-    end: Long,
-): Flow<SourceMessage> {
-    if (fromPosition >= end) {
-        throw UnrecoverableException(moved(topic, partition, key, fromPosition))
-    }
-    return onEach {
-        if (it.offset == fromPosition && it.key != key) {
-            throw UnrecoverableException(moved(topic, partition, key, fromPosition))
-        }
+internal fun requireUnmoved(topic: String, parked: ParkedAggregate, partition: Int) {
+    if (parked.partition != partition) {
+        throw UnrecoverableException(movedReason(topic, parked, partition))
     }
 }
 
-private fun moved(topic: String, partition: Int, key: String, offset: Long): String =
-    "Partition $partition of $topic holds no message keyed $key at offset $offset: the topic's partitions changed " +
-        "since it was parked, and the message is in another partition."
+/**
+ * [parked], whose aggregate's key maps to partition [now] of [topic] since the topic gained partitions, as the owner
+ * of [now] re-homes it ([me.ahoo.wow.spi.ledger.FailureLedger.repark]): parked there, with no position to re-scan
+ * from, and unrecoverable, so it is only skipped. Its from version stays: its aggregate's later entries in [now] are
+ * held back from it on.
+ */
+internal fun rehomed(topic: String, parked: ParkedAggregate, now: Int): ParkedAggregate = parked.copyWith(
+    partition = now,
+    fromPosition = null,
+    reason = "${ParkedAggregate.UNRECOVERABLE}: ${movedReason(topic, parked, now)}",
+)
+
+private fun movedReason(topic: String, parked: ParkedAggregate, now: Int): String =
+    "$topic gained partitions while ${parked.ref} was parked: its earlier records are in partition " +
+        "${parked.partition} from offset ${parked.fromPosition}, its later ones in partition $now, where they wait. " +
+        "It cannot be retried: skip it once its earlier records are dealt with, or rebuild the projection."
 
 /** The context's [log]. */
 internal class LogSource(private val log: EventLog) : EntrySource {
@@ -153,8 +155,8 @@ internal class LogSource(private val log: EventLog) : EntrySource {
 
     override fun sourcePosition(entry: SourcedEntry): Long? = null
 
-    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> =
-        log.readEntries(ref, fromVersion).map(::SourcedEntry)
+    override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> =
+        log.readEntries(parked.ref, parked.fromVersion).map(::SourcedEntry)
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = log.positionOf(ref, version)
 }

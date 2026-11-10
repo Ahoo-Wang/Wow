@@ -158,6 +158,8 @@ CI 正是用这个 `tsconfig.json` 编译本页的代码。
 
 Kotlin 的 `Long`、`BigInteger` 或 `BigDecimal` 字段（schema 格式为 `int64`、`bigint` 或 `decimal`），在生成的类型中是 `string`，按服务写出的样子精确地保存数字；JavaScript 的 `number` 会对它们取整。线上仍然传输 JSON 数字：聚合的描述符列出这些字段，客户端从响应的文本中读取它们，并在命令体中不加引号地写回去。
 
+这在任何深度、Manifest 描述了其值的每条路径上都成立：状态、事件、命令体、查询的记录，以及服务路由的请求体和响应（它没有描述的两类值见下文）。递归类型（`children` 仍是树的树）只在上下文的 `textNumbers.ts` 中标记一次，值到达哪里就在哪里读取。联合类型的各个分支保留各自的数字：一个值是 `decimal` 或由它们组成的对象时，按它实际是哪一种读取；由某个取常量值的成员区分的对象（Jackson 的 `@JsonTypeInfo` 写出子类型的方式）各自按自己的标记读取。如果分支对同一个数字的读法不同（一个精确、一个按数字），又没有这样的成员可以区分，生成就会失败（退出码 4），并指明 schema、路径和两种格式：给这些分支加上判别字段，或者使用同一种数字格式。
+
 <!-- typecheck: skip — generated code, compiled with the rest of the eShop web UI -->
 
 <!-- sample: examples/eshop/web/src/generated/ordering/eshop-ordering/order/aggregate.ts -->
@@ -207,7 +209,20 @@ export type OrderAccess = NoAccess;
 export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | CommittedEvent<'eshop-ordering.order.OrderCancelled', OrderCancelled> | CommittedEvent<'eshop-ordering.order.OrderPaid', OrderPaid> | CommittedEvent<'eshop-ordering.order.OrderShipped', OrderShipped> | CommittedEvent<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | CommittedEvent<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | CommittedEvent<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;
 ```
 
-`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事。
+`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事；手写的客户端接收同样的标记（`TextNumbers`）：`ServiceRoutes` 通过 `textNumbers: { 'context.route': { request, response } }`，数据集的行通过 `DatasetClient.dataset(context, dataset, numbers)`。标记有这些形式：
+
+| 形式 | 标记的是 | 示例 |
+| --- | --- | --- |
+| `true` | 这个值是精确数字 | `{ price: true }` |
+| 成员、`'*'` | 对象按名字的成员；`'*'` 是数组的每一项和映射的每个值 | `{ lines: { '*': { amount: true } } }` |
+| `() => marks` | 只在值到达那里时才读取的标记：递归类型的标记 | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
+| `textNumberOr(marks)` | 精确数字，或以 `marks` 标记的对象或数组，取决于值是哪一种 | `decimal \| { amount: decimal }` 用 `textNumberOr({ amount: true })` |
+| `textNumbersBy(member, cases)` | 按对象成员 `member` 的字符串值选择该对象的标记 | `textNumbersBy('kind', { decimal: { amount: true } })` |
+
+有两类值读取时不带标记，其中的大数字仍会被取整：
+
+- 命令结果的 `results` 是服务自己的值，Manifest 没有给出它们的 schema：命令在其中返回的 `Long` 或 `BigDecimal` 会以 JavaScript `number` 到达。请把这样的值以字符串返回，或者从聚合的状态中读取。
+- 聚合查询的指标值：对精确字段求和或取最大值，结果超出 `number` 能表示的范围时会被取整。
 
 ## 让客户端保持同步 {#keep-the-clients-in-step}
 

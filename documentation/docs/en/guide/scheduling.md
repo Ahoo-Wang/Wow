@@ -95,7 +95,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 - **The tick.** `tenantId` is the instance's tenant and `job` the job's name. `slot` is the time that was due, counted from 1 since the instance was last enabled or rescheduled, and `due` when, in epoch milliseconds. `skipped` counts the slots before it that were missed while no node ran the job. `partition` is the instance's log partition, for a `SHARDED` job only.
 - **The commands.** A job's commands go to its instance's tenant, as a saga's go to the tenant of its commit: `CommandRequest.of(body, id)` names the aggregate `id` of the type that decides the body, in that tenant, as in the sample, and `targetTenant` sends one to another tenant. Their ids come from the tick's execution, so handling the tick again sends the same requests.
-- **The instance.** Each job is kept by the context's built-in aggregate `<context>.schedule`: a `SYSTEM` or `TENANT` instance's id is the job's name, and a `SHARDED` job has one instance per partition. Each time the rule is due it commits a tick, and the job's subscription, `<processor>.<function>` (or the function's `@Name`), hands it to the handler, retried and parked as any subscription is.
+- **The instance.** Each job is kept by the context's built-in aggregate `<context>.schedule`: a `SYSTEM` or `TENANT` instance's id is the job's name, and a `SHARDED` job has one instance per partition. Each time the rule is due it commits a tick, and the job's subscription, `<processor>.<function>` (or the function's `@Name`), hands it to the handler, retried and parked as any subscription is. A job whose handler a new version removes, the last of its context's included, is disabled at its instances' next tick, and their schedule cancelled.
 
 `@OnSchedule` sets the job:
 
@@ -105,7 +105,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `cron` | Six fields, as Spring's `CronExpression` reads them: `0 0 6 * * *` is 06:00 every day. A macro such as `@daily` is read too |
 | `zone` | The zone `cron` is read in, UTC by default |
 | `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.Enable` in that tenant; the host never starts one, and each tenant may override the rule, its zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
-| `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. `CATCH_UP`: each missed slot runs |
+| `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. Its `due` is that slot's own time, a time the expression names, and `wow.timers.expires-after` judges it late from that time; beyond 100,000 missed slots `skipped` is an estimate. `CATCH_UP`: each missed slot runs |
 
 The host configures a job under `wow.schedules.<name>`, and only there, without a new build:
 

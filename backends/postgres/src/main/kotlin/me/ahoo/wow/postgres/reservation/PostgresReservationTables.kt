@@ -18,27 +18,26 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
 /**
  * The reservations' table of one aggregate type, `wow_reservation__<context>__<aggregate>` (the type is
  * the unit of placement, so its reservations follow its log's store), and its statements. The column layout is part of
- * the format, version [FORMAT]: a reservation is keyed by `(tenant_id, namespace, key)`
- * (the system tenant is the empty string), names its owner by two columns (the owner's type is the table's) and records
+ * the format, version [FORMAT]: a reservation is keyed by `(tenant_id, namespace, key)`, compared by code point
+ * (`COLLATE "C"`) whatever the database's default (the system tenant is the empty string), names its owner by two columns (the owner's type is the table's) and records
  * the holds of a pending reservation.
  */
 internal class PostgresReservationTables(context: String, aggregate: String) {
     val name: String = PostgresIdentifiers.of(PREFIX, context, aggregate)
 
     val table = "\"$name\""
-    private val ownerIndex = PostgresIdentifiers.limited("${name}_owner")
 
     /**
      * A null `expires_at` marks a confirmed reservation, its `holds` empty and `version` the owner's fact that last
      * confirmed it; a pending one expires at that epoch millisecond, is held by the attempts in `holds` and has version
-     * 0. The owner index lists an aggregate's keys.
+     * 0. Every statement finds a reservation by its key, so the table has no other index.
      */
     val ddl = listOf(
         """
         CREATE TABLE IF NOT EXISTS $table (
-            tenant_id text NOT NULL,
-            namespace text NOT NULL,
-            key text NOT NULL,
+            tenant_id text COLLATE "C" NOT NULL,
+            namespace text COLLATE "C" NOT NULL,
+            key text COLLATE "C" NOT NULL,
             owner_tenant_id text NOT NULL,
             owner_id text NOT NULL,
             expires_at bigint,
@@ -47,7 +46,6 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
             PRIMARY KEY (tenant_id, namespace, key)
         )
         """.trimIndent(),
-        "CREATE INDEX IF NOT EXISTS \"$ownerIndex\" ON $table (owner_tenant_id, owner_id)",
     )
 
     /**
@@ -112,8 +110,8 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
     val find = "SELECT $OWNER_COLUMNS FROM $table WHERE $KEY AND (expires_at IS NULL OR expires_at > ?)"
 
     companion object {
-        /** The version of this layout. */
-        const val FORMAT = 2
+        /** The version of this layout: 3 since the key compares by code point and has no owner index; 2 is refused. */
+        const val FORMAT = 3
 
         /** The prefix of the tables' names, `wow_reservation__<context>__<aggregate>`. */
         const val PREFIX = "wow_reservation"

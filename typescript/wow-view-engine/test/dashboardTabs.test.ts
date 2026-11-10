@@ -32,6 +32,7 @@ import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   analysisConfig,
   dashboardConfig,
+  deferred,
   nextTask,
   ordersDefinition,
   overviewDefinition,
@@ -282,6 +283,83 @@ describe('where a board opens', () => {
     const count = writes.mock.calls.length;
     await board.engine.rememberTab('overview', board.id, 'detail');
     expect(writes).toHaveBeenCalledTimes(count);
+  });
+
+  /**
+   * #5508: the preferences are read before a burst's first write; a switch
+   * made while that read is out is the one the burst is to remember, even
+   * where the switch before it is already the tab remembered.
+   */
+  describe('a burst of switches made while the preferences are read', () => {
+    const board: ViewInstance = {
+      id: 'board-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      scope: 'personal',
+      revision: 'r1',
+      config: dashboardConfig({
+        tabs: [
+          { id: 'a', title: 'A' },
+          { id: 'b', title: 'B' },
+          { id: 'c', title: 'C' },
+        ],
+        panels: [],
+      }),
+    };
+
+    function held() {
+      const store = new MemoryViewStore({
+        instances: [board],
+        preferences: {
+          overview: {
+            revision: 'r1',
+            order: [],
+            defaultInstanceId: null,
+            lastTabs: { [board.id]: 'a' },
+          },
+        },
+      });
+      const engine = new ViewEngine({
+        resources: resourcesOf([overviewDefinition()], () => testSource()),
+        store,
+        environment: testEnvironment().environment,
+      });
+      const read = store.getPreferences.bind(store);
+      const reading = deferred<void>();
+      const release = deferred<void>();
+      vi.spyOn(store, 'getPreferences').mockImplementationOnce(
+        async (...args) => {
+          const answer = await read(...args);
+          reading.resolve();
+          await release.promise;
+          return answer;
+        },
+      );
+      const writes = vi.spyOn(store, 'setPreferences');
+      return { store, engine, read, reading, release, writes };
+    }
+
+    it.each([
+      ['the one remembered', 'a', 'b', 'b', 1],
+      ['one to write', 'b', 'c', 'c', 1],
+      ['one, then back to the one remembered', 'b', 'a', 'a', 0],
+    ])(
+      'remembers the last after a first switch to %s',
+      async (_, first, last, remembered, written) => {
+        const { engine, read, reading, release, writes } = held();
+        const remembering = engine.rememberTab('overview', board.id, first);
+        await reading.promise;
+        const then = engine.rememberTab('overview', board.id, last);
+        release.resolve();
+        await Promise.all([remembering, then]);
+
+        expect((await read('overview')).lastTabs?.[board.id]).toBe(remembered);
+        expect(writes).toHaveBeenCalledTimes(written);
+        const reopened = await engine.open(board.id);
+        expect(reopened.getSnapshot()).toMatchObject({ tab: remembered });
+        engine.dispose();
+      },
+    );
   });
 
   it('lets a failed write go, leaving nothing to hold the list’s own writes back', async () => {

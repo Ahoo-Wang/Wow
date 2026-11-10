@@ -56,7 +56,7 @@ class CronExpression private constructor(
      * [MAX_YEARS] years (such as `0 0 0 30 2 *`).
      */
     fun next(after: Instant, zone: ZoneId): Instant? {
-        var local = LocalDateTime.ofInstant(after, zone).withNano(0).plusSeconds(1)
+        var local = searchStart(after, zone)
         while (true) {
             val candidate = nextLocal(local, after.atZone(zone).year + MAX_YEARS) ?: return null
             val instant = ZonedDateTime.ofLocal(candidate, zone, null).toInstant()
@@ -66,6 +66,20 @@ class CronExpression private constructor(
             // In an overlap, the earlier offset of this local time ran already, or a gap shifted it before [after].
             local = candidate.plusSeconds(1)
         }
+    }
+
+    /**
+     * The local time the search for the first time after [after] starts at: the second after it, or, less than a
+     * daylight saving gap's length after that gap began, the gap's start. A local time the gap skipped runs later by
+     * the gap, so it may still fall after [after] though it reads earlier; local times only map to instants in order,
+     * and those not after [after] are passed over.
+     */
+    private fun searchStart(after: Instant, zone: ZoneId): LocalDateTime {
+        val transition = zone.rules.previousTransition(after.plusNanos(1))
+        if (transition != null && transition.isGap && after < transition.instant.plus(transition.duration)) {
+            return transition.dateTimeBefore
+        }
+        return LocalDateTime.ofInstant(after, zone).withNano(0).plusSeconds(1)
     }
 
     /** The first local time at or after [from] that this expression names, before the year [limitYear]. */

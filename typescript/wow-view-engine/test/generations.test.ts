@@ -154,6 +154,40 @@ describe('Generations: local intent (latest)', () => {
   });
 });
 
+describe('Generations: a ticket’s life (run, release)', () => {
+  it('answers a released ticket as no operation’s latest', () => {
+    const generations = new Generations<string>();
+    const only = generations.issue('tab');
+    expect(generations.latest(only)).toBe(true);
+    generations.release(only);
+    expect(generations.latest(only)).toBe(false);
+  });
+
+  it('runs an operation with a ticket, released when it answers', async () => {
+    const generations = new Generations<string>();
+    const answer = deferred<string>();
+    const seen: boolean[] = [];
+    const running = generations.run('a', ticket => {
+      seen.push(generations.latest(ticket));
+      return answer.promise;
+    });
+    expect(generations.size).toBe(1);
+    answer.resolve('done');
+    expect(await running).toBe('done');
+    expect(seen).toEqual([true]);
+    expect(generations.size).toBe(0);
+  });
+
+  it('releases the ticket of an operation that fails, and passes the failure on', async () => {
+    const generations = new Generations<string>();
+    const answer = deferred<string>();
+    const running = generations.run('a', () => answer.promise);
+    answer.reject(new Error('down'));
+    await expect(running).rejects.toThrow('down');
+    expect(generations.size).toBe(0);
+  });
+});
+
 describe('Generations: bounded', () => {
   it('holds nothing once nothing is in flight', async () => {
     const cache = cacheOf();

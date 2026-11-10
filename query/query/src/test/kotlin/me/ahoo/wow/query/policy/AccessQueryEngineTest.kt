@@ -58,6 +58,8 @@ import me.ahoo.wow.query.policy.AccessFixtures.documents
 import me.ahoo.wow.query.policy.AccessFixtures.record
 import me.ahoo.wow.query.policy.AccessFixtures.state
 import me.ahoo.wow.query.policy.AccessFixtures.stream
+import me.ahoo.wow.query.read.InProcessQueryApi
+import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.state.StateVisibility
 import me.ahoo.wow.spi.json.WowJson
@@ -135,6 +137,26 @@ class AccessQueryEngineTest {
             engine.ids(DOCUMENT, caller(null)).assert().isEmpty()
             engine.ids(DOCUMENT, caller("alice", "departments" to listOf("sales"), tenantId = "other"))
                 .assert().containsExactly("d-other")
+        }
+
+    @Test
+    fun `an in-process state read should be what the snapshot queries read, a governed one by its policy alone`(): Unit =
+        runBlocking {
+            val engine = engine(documents)
+            val committed = listOf(
+                record(DOCUMENT, "d-sales", mapOf("department" to "sales")),
+                record(DOCUMENT, "d-hr", mapOf("department" to "hr")),
+                record(NOTE, "n-zed"),
+                record(NOTE, "n-alice", owner = "alice"),
+            ).associate { it.ref to state(it) }
+            val api = InProcessQueryApi(engine, ReadModels.NONE, latest = { committed[it] })
+            val reads = api.of(checkNotNull(alice.caller))
+            // zed's document, which alice's department reads: the policy decides, not the owner.
+            reads.snapshots(DOCUMENT).state("d-sales").assert().isNotNull()
+            reads.snapshots(DOCUMENT).state("d-hr").assert().isNull()
+            // A note has no policy: the default rule holds alice to her own.
+            reads.snapshots(NOTE).state("n-alice").assert().isNotNull()
+            reads.snapshots(NOTE).state("n-zed").assert().isNull()
         }
 
     @Test

@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
@@ -25,14 +26,20 @@ import me.ahoo.wow.runtime.cluster.FlakyLeases
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.Handled
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionId
+import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -43,6 +50,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -453,6 +462,124 @@ class TopicSubscriptionsTest {
             delay(50.milliseconds)
             // Nothing read before the partitions were added was handled again.
             handled.size.assert().isEqualTo(3)
+        }
+
+    /** Reads [topic] on [node] with [subscription], looking for new partitions every 20 ms. */
+    private suspend fun growing(
+        node: String,
+        topic: String,
+        subscription: Subscription = board,
+        ledger: FailureLedger = this.ledger,
+        options: SubscriptionOptions = testOptions(),
+    ): TopicSubscriptions = TopicSubscriptions(
+        service = SERVICE,
+        topic = topic,
+        node = node,
+        addressOf = { "$node.internal:9090" },
+        source = topics,
+        checkpoints = checkpoints,
+        leases = leases,
+        ledger = ledger,
+        subscriptions = listOf(subscription),
+        options = options.copyWith(parked = ParkedRetryOptions(scanInterval = 10.milliseconds)),
+        cluster = fastOptions(),
+        partitionRefresh = 20.milliseconds,
+    ).also {
+        started += it
+        it.start()
+        it.awaitStarted()
+    }
+
+    @Test
+    fun `an aggregate parked before its key moved to an added partition is re-homed, held and only skipped`(): Unit =
+        runBlocking {
+            // #5481: version 2 lands at the parked offset of the new partition; it must not stand in for version 1.
+            val topic = "wow.sales.moving.state"
+            topics.create(topic, 1)
+            val id = generateSequence(0) { it + 1 }.map { "o-$it" }
+                .first { Math.floorMod(order(it).toString().hashCode(), 2) == 1 }
+            val listings = AtomicInteger()
+            val counting = object : FailureLedger by ledger {
+                override suspend fun list(
+                    subscription: String,
+                    after: AggregateRef?,
+                    limit: Int,
+                    tenantId: String?,
+                ): List<ParkedAggregate> = ledger.list(subscription, after, limit, tenantId).also {
+                    listings.incrementAndGet()
+                }
+            }
+            val growing = growing("node-1", topic, ledger = counting)
+            failing = id to 1
+            topics.publish(orderRecord(id, 1), topic = topic)
+            eventually { ledger.parked(BOARD, order(id)) != null }
+            val parked = ledger.parked(BOARD, order(id))!!
+            topics.grow(topic, 2)
+            eventually { growing.ownership?.owned == setOf(0, 1) && ledger.parked(BOARD, order(id))?.partition == 1 }
+            val rehomed = ledger.parked(BOARD, order(id))!!
+            rehomed.unrecoverable.assert().isTrue()
+            rehomed.reason.assert().contains(
+                "$topic gained partitions",
+                "partition 0 from offset ${parked.fromPosition}"
+            )
+            rehomed.fromPosition.assert().isNull()
+            rehomed.fromVersion.assert().isEqualTo(1)
+            failing = null
+            topics.publish(orderRecord(id, 2), topic = topic)
+            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, topic).name, BOARD, 1) == 1L }
+            handled.versionsOf(id).assert().isEmpty()
+            growing.retry(BOARD, order(id)).assert().isFalse()
+            growing.skip(BOARD, order(id)).assert().isTrue()
+            topics.publish(orderRecord(id, 3), topic = topic)
+            eventually { handled.versionsOf(id) == listOf(3) }
+            // One listing of the ledger a run: the first join's, and the join again over two partitions.
+            listings.get().assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a moved aggregate is held, skipped and answered by the owner of the partition its key maps to now`(): Unit =
+        runBlocking {
+            // #5481, two owners: the entry parked on partition 0's owner; its key maps to a partition the other owns.
+            val topic = "wow.sales.split.state"
+            topics.create(topic, 1)
+            val broken = AtomicBoolean(true)
+            val split = Subscription(BOARD, SubscriptionFilter(ORDER.context, setOf(ORDER.name))) { entry ->
+                check(!(broken.get() && entry.version == 1)) { "${entry.ref}@1 fails" }
+                handled.record(entry)
+            }
+            // Many aggregates fail at once here, which is no systemic failure.
+            val options = testOptions().copyWith(systemic = SystemicFailureOptions(failingAggregates = Int.MAX_VALUE))
+            val nodes = listOf("node-1", "node-2").map { growing(it, topic, split, options = options) }
+            val ids = (0 until 16).map { "s-$it" }
+            topics.publish(*ids.map { orderRecord(it, 1) }.toTypedArray(), topic = topic)
+            eventually { ids.all { ledger.parked(BOARD, order(it)) != null } }
+            topics.grow(topic, PARTITIONS)
+            eventually {
+                val owned = nodes.map { it.ownership?.owned.orEmpty() }
+                owned.all { it.isNotEmpty() } && owned.flatten().sorted() == (0 until PARTITIONS).toList()
+            }
+            val (old, new) = nodes.partition { 0 in it.ownership!!.owned }.let { it.first.single() to it.second.single() }
+            val id = ids.first { topics.partitionOf(topic, order(it).toString()) in new.ownership!!.owned }
+            val now = topics.partitionOf(topic, order(id).toString())
+            eventually { ledger.parked(BOARD, order(id))?.partition == now }
+            ledger.parked(BOARD, order(id))!!.unrecoverable.assert().isTrue()
+            broken.set(false)
+            // Its later version waits on the new owner.
+            topics.publish(orderRecord(id, 2), topic = topic)
+            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, topic).name, BOARD, now) == 1L }
+            handled.versionsOf(id).assert().isEmpty()
+            // An operator's retry, left as a request by a node that does not run the partition, is taken by the new
+            // owner and answered: the entry cannot be retried, and stays parked.
+            ledger.amend(BOARD, order(id), ParkedAmendment.Request(LedgerRequest.RETRY))
+            eventually { ledger.parked(BOARD, order(id))?.request == null }
+            ledger.parked(BOARD, order(id))!!.partition.assert().isEqualTo(now)
+            handled.versionsOf(id).assert().isEmpty()
+            // The old owner runs no worker of it; the new owner's skip resolves it.
+            old.ownership!!.owned.assert().doesNotContain(now)
+            new.skip(BOARD, order(id)).assert().isTrue()
+            ledger.parked(BOARD, order(id)).assert().isNull()
+            topics.publish(orderRecord(id, 3), topic = topic)
+            eventually { handled.versionsOf(id) == listOf(3) }
         }
 
     @Test

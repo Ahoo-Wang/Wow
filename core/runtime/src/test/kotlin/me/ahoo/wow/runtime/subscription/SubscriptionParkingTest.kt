@@ -216,12 +216,16 @@ class SubscriptionParkingTest {
             val release = CompletableDeferred<Unit>()
             val gate = AtomicBoolean(true)
             val gated = object : FailureLedger by ledger {
-                override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+                override suspend fun resolve(
+                    subscription: String,
+                    ref: AggregateRef,
+                    partition: Int
+                ): ParkedAggregate? {
                     if (gate.compareAndSet(true, false)) {
                         resolving.complete(Unit)
                         release.await()
                     }
-                    return ledger.resolve(subscription, ref)
+                    return ledger.resolve(subscription, ref, partition)
                 }
             }
             val runtime = runtime(gated)
@@ -288,12 +292,117 @@ class SubscriptionParkingTest {
         }
 
     @Test
+    fun `a skip of an entry re-homed to another partition resolves nothing, and keeps the aggregate held`(): Unit =
+        runBlocking {
+            // #5481: the worker skips in its own partition; the re-homed entry is the other partition's owner's.
+            val runtime = runtime()
+            parkX(runtime)
+            val parked = ledger.parked("parking", cart("x"))!!
+            val rehomed = parked.copyWith(
+                partition = (parked.partition + 1) % all.size,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            runtime.skip("parking", cart("x")).assert().isFalse()
+            ledger.parked("parking", cart("x"))!!.copyWith(revision = 0).assert()
+                .isEqualTo(rehomed.copyWith(revision = 0))
+            appender.append("x")
+            eventually { checkpointsReachEnd() }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1))
+            runtime.stop()
+        }
+
+    @Test
+    fun `a retry that handled everything after its entry was re-homed resolves nothing`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = true)
+    }
+
+    @Test
+    fun `a retry that failed again after its entry was re-homed writes nothing over it`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = false)
+    }
+
+    @Test
+    fun `a retry that handled everything after another node resolved its entry is resolved`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = true) { parked ->
+            // As another node's skip does when it does not run the aggregate's partition.
+            ledger.resolveAnywhere(parked.subscription, parked.ref)
+            null
+        }
+    }
+
+    /**
+     * #5481: x's retry runs in the partition it parked in when the owner of the partition its key maps to now
+     * re-homes the entry; the retry then ends, having handled x's parked version or failed on it again.
+     */
+    private suspend fun rehomedDuringRetry(
+        succeeds: Boolean,
+        /** What happens to the entry while the retry runs; returns the entry it leaves, null for none. */
+        meanwhile: suspend (ParkedAggregate) -> ParkedAggregate? = { parked ->
+            val elsewhere = (parked.partition + 1) % all.size
+            val rehomed = parked.copyWith(
+                partition = elsewhere,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            rehomed
+        },
+    ) {
+        val retrying = CompletableDeferred<Unit>()
+        val end = CompletableDeferred<Unit>()
+        val broken = AtomicBoolean(true)
+        val held = Subscription("held", SubscriptionFilter("shop")) { entry ->
+            if (entry.version == 2 && broken.get()) {
+                error("x-2 is broken")
+            }
+            if (entry.version == 2) {
+                retrying.complete(Unit)
+                end.await()
+                check(succeeds) { "x-2 is broken again" }
+            }
+            handled.record(entry)
+        }
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(held),
+            testOptions(maxAttempts = 1),
+            clock
+        )
+        appender.append("x")
+        appender.append("x")
+        runtime.start(all)
+        eventually { ledger.isParked("held", cart("x")) }
+        val parked = ledger.parked("held", cart("x"))!!
+        broken.set(false)
+        withTimeout(10.seconds) {
+            val retried = async { runtime.retry("held", cart("x")) }
+            retrying.await()
+            val left = meanwhile(parked)
+            end.complete(Unit)
+            retried.await().assert().isEqualTo(left == null)
+            // The entry stays as the other owner left it; this one still holds x back, unless it is resolved.
+            ledger.parked("held", cart("x"))?.copyWith(revision = 0).assert().isEqualTo(left?.copyWith(revision = 0))
+        }
+        val resolved = ledger.parked("held", cart("x")) == null
+        appender.append("x")
+        eventually { checkpointsReachEnd("held") }
+        val expected = listOf(1) + (if (succeeds) listOf(2) else emptyList()) + (if (resolved) listOf(3) else emptyList())
+        handled.versionsOf("x").assert().isEqualTo(expected)
+        runtime.stop()
+    }
+
+    @Test
     fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
         val broken = AtomicBoolean(true)
         val flaky = object : FailureLedger by ledger {
-            override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+            override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? {
                 check(!broken.get()) { "the ledger is unavailable" }
-                return ledger.resolve(subscription, ref)
+                return ledger.resolve(subscription, ref, partition)
             }
         }
         val runtime = runtime(flaky)

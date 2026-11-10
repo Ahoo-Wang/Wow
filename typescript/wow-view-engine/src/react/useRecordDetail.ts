@@ -83,7 +83,13 @@ export interface RecordDetailController {
   reload(): void;
 }
 
+/**
+ * A record is a key in one view: the same key in another view — another
+ * dataset kept under the same detail control — is another record, so what
+ * was read or seeded holds the runtime it came from too (#5513).
+ */
 interface Read {
+  runtime: RecordViewRuntime;
   key: RecordKey;
   whole: RecordData | null;
   error: Issue | null;
@@ -98,6 +104,7 @@ interface Read {
 
 /** The page's row a record opened with, kept while that record stays open. */
 interface Seed {
+  runtime: RecordViewRuntime | null;
   key: RecordKey;
   row: RecordData;
 }
@@ -143,7 +150,14 @@ export function useRecordDetail(
     runtime.fetchRecord(key, controller.signal).then(
       whole => {
         if (controller.signal.aborted) return;
-        setRead({ key, whole, error: null, missing: whole === null, answered });
+        setRead({
+          runtime,
+          key,
+          whole,
+          error: null,
+          missing: whole === null,
+          answered,
+        });
       },
       async (failure: unknown) => {
         if (controller.signal.aborted) return;
@@ -151,8 +165,9 @@ export function useRecordDetail(
         if (controller.signal.aborted) return;
         // A failed read keeps what an earlier one of the same record had.
         setRead(was => ({
+          runtime,
           key,
-          whole: was?.key === key ? was.whole : null,
+          whole: was && sameRecord(was, runtime, key) ? was.whole : null,
           error,
           missing: false,
           answered,
@@ -164,11 +179,11 @@ export function useRecordDetail(
 
   const open = useCallback(
     (row: RecordRow) => {
-      setSeed({ key: row.key, row: row.data });
+      setSeed({ runtime, key: row.key, row: row.data });
       if (!controlled) setOwn(row.key);
       onOpenChange?.(row.key);
     },
-    [controlled, onOpenChange],
+    [controlled, onOpenChange, runtime],
   );
   const close = useCallback(() => {
     if (!controlled) setOwn(null);
@@ -176,7 +191,8 @@ export function useRecordDetail(
   }, [controlled, onOpenChange]);
   const reload = useCallback(() => setAttempt(n => n + 1), []);
 
-  const current = key !== null && read?.key === key ? read : null;
+  const current =
+    key !== null && read && sameRecord(read, runtime, key) ? read : null;
   const onPage =
     key === null
       ? undefined
@@ -186,7 +202,7 @@ export function useRecordDetail(
       ? null
       : (current?.whole ??
         onPage ??
-        (seed?.key === key ? seed.row : null) ??
+        (seed && sameRecord(seed, runtime, key) ? seed.row : null) ??
         null);
   const reading =
     current === null ||
@@ -211,4 +227,13 @@ export function useRecordDetail(
     close,
     reload,
   };
+}
+
+/** Whether what was read or seeded is this view's record of this key. */
+function sameRecord(
+  held: { runtime: RecordViewRuntime | null; key: RecordKey },
+  runtime: RecordViewRuntime | null,
+  key: RecordKey,
+): boolean {
+  return held.runtime === runtime && held.key === key;
 }

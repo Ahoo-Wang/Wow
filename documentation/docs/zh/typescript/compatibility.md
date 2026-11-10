@@ -54,7 +54,7 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 | 要求 | 版本 | 说明 |
 | --- | --- | --- |
 | Node.js | `>=22.12.0` | 在每个包的 `engines` 中声明；生成器的 CLI 也需要它 |
-| 浏览器 | 当前的常青浏览器 | 这些包使用 `fetch`、`ReadableStream` 和 `TextDecoderStream` |
+| 浏览器 | 当前的常青浏览器 | 这些包使用 `fetch`、`ReadableStream`、`TextDecoderStream` 和 `AbortSignal.any`（Chrome 116、Firefox 124、Safari 17.4） |
 | React 和 React DOM（`wow-react`、视图引擎的界面） | `^19.0.0` | 不支持 React 18：构建会导入 `react/compiler-runtime` |
 | React Router（只有 `wow-view-engine/react-router`） | `^7.0.0 \|\| ^8.0.0` | 可选的 peer 依赖：只有那个入口导入它 |
 | TypeScript | `>=6.0` | CI 以使用者的身份，在 TypeScript 6.0 和最新的 7.x 上对打包后的包做类型检查；`moduleResolution` 为 `Bundler`、`NodeNext` 或 `Node16` |

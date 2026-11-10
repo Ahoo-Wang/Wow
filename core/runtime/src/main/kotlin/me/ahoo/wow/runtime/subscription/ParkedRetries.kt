@@ -43,9 +43,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   ([ParkedAmendment.Schedule]): its next retry, or [ParkedAggregate.NEVER], so the next scans pass it over until
  *   then, or until it is claimed or an operator changes it.
  *
- * Claims and takes are conditional on what was read, so when an owner hands a partition off while it retries, the
- * next owner neither claims the same retry again nor runs a request twice; it starts the next retry once its backoff
- * and the last one's claim TTL have passed. A retry the stop cancelled was claimed but did not resolve the
+ * Claims, takes and schedules apply only at the entry's revision read ([ParkedAggregate.revision]), so when an owner
+ * hands a partition off while it retries, the next owner neither claims the same retry again nor runs a request twice,
+ * and a schedule never covers an operator's change or a repark made since the read: those clear the entry's schedule,
+ * so the next scan reads it again. The next owner starts the next retry once its backoff and the last one's claim TTL
+ * have passed. A retry the stop cancelled was claimed but did not resolve the
  * entry, which stays parked: a cancelled retry counts. One entry is run at most once at a time on a node.
  */
 internal class ParkedRetries(
@@ -109,7 +111,7 @@ internal class ParkedRetries(
             ledger.amend(
                 entry.subscription,
                 entry.ref,
-                ParkedAmendment.Schedule(entry.retries, entry.nextAttemptAt, at)
+                ParkedAmendment.Schedule(entry.revision, at)
             )
         }
     }
@@ -148,26 +150,27 @@ internal class ParkedRetries(
     }
 
     private suspend fun skip(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        if (take(entry, LedgerRequest.SKIP) && !worker.skip(entry.ref)) {
+        if (take(entry) && !worker.skip(entry.ref)) {
             // A retry of it runs: the skip waits for the next scan.
             ledger.amend(entry.subscription, entry.ref, ParkedAmendment.Request(LedgerRequest.SKIP))
         }
     }
 
     private suspend fun retryOnRequest(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        if (take(entry, LedgerRequest.RETRY)) {
+        if (take(entry)) {
             logger.info { "Subscription ${entry.subscription} retries ${entry.ref} as an operator asked." }
             worker.retry(entry.ref)
         }
     }
 
-    private suspend fun take(entry: ParkedAggregate, request: LedgerRequest): Boolean =
-        ledger.amend(entry.subscription, entry.ref, ParkedAmendment.TakeRequest(request)) != null
+    /** Takes the request of [entry], as read: false when the entry changed since. */
+    private suspend fun take(entry: ParkedAggregate): Boolean =
+        ledger.amend(entry.subscription, entry.ref, ParkedAmendment.TakeRequest(entry.revision)) != null
 
     private suspend fun retry(worker: SubscriptionWorker, entry: ParkedAggregate) {
         val spec = specOf(entry)
         val now = clock.millis()
-        val claimed = ledger.amend(entry.subscription, entry.ref, ParkedAmendment.ClaimRetry(entry.retries, now))
+        val claimed = ledger.amend(entry.subscription, entry.ref, ParkedAmendment.ClaimRetry(entry.revision, now))
             ?: return
         logger.info {
             "Subscription ${entry.subscription} retries ${entry.ref}: retry ${claimed.retries} of ${spec.maxRetries}."

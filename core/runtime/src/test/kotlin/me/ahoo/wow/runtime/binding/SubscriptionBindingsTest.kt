@@ -26,6 +26,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.ExecutionSagaContext
@@ -317,7 +318,9 @@ class SubscriptionBindingsTest {
         val subscriptions = bindings.subscriptions(node.context(SHOP)).associateBy { it.name }
         subscriptions.keys.assert().containsExactly("OrderView.onEvent", "Audit.onEvent", "CartSaga.onOrderPlaced")
         subscriptions.getValue("OrderView.onEvent").filter.aggregates.assert().containsExactly("order")
-        subscriptions.getValue("Audit.onEvent").filter.aggregates.assert().containsExactlyInAnyOrder("order", "cart")
+        // Every aggregate of the context, its built-in job aggregate among them.
+        subscriptions.getValue("Audit.onEvent").filter.aggregates.assert()
+            .containsExactlyInAnyOrder("order", "cart", ScheduleJobs.AGGREGATE)
         subscriptions.getValue("Audit.onEvent").kind.assert().isEqualTo(FunctionKind.REACT)
         subscriptions.getValue("CartSaga.onOrderPlaced").kind.assert().isEqualTo(FunctionKind.SAGA)
         subscriptions.getValue("OrderView.onEvent").startFrom.assert()

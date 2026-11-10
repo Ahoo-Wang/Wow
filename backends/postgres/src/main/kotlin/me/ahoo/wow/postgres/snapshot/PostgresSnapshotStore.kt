@@ -23,7 +23,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
-import me.ahoo.wow.postgres.PostgresTimeouts
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -104,29 +103,7 @@ class PostgresSnapshotStore(
                 PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
                     PostgresSchema.execute(connection, tables.ddl())
                 }
-                dropFormerColumn(connection, tables)
             }
-        }
-    }
-
-    /**
-     * Drops the tags a table of an earlier version holds ([PostgresSnapshotTables.dropFormerColumn]) under `auto`;
-     * under `validate` refuses the table while it holds them, naming the statement to run: its saves would fail.
-     * Only a table an earlier version created holds them, so a current one costs one catalog read.
-     */
-    private fun dropFormerColumn(connection: Connection, tables: PostgresSnapshotTables) {
-        if (!ddl.checks ||
-            !PostgresSchema.hasColumns(connection, tables.snapshot, listOf(PostgresSnapshotTables.FORMER_COLUMN))
-        ) {
-            return
-        }
-        check(ddl.creates) {
-            "${tables.snapshot} holds the column ${PostgresSnapshotTables.FORMER_COLUMN} of an earlier version, " +
-                "NOT NULL, which the saves of this one would violate, and the store only validates its schema " +
-                "(ddl validate): run ${tables.dropFormerColumn}, or start once with ddl auto."
-        }
-        PostgresTimeouts.ddl(connection) {
-            connection.createStatement().use { it.execute(tables.dropFormerColumn) }
         }
     }
 

@@ -158,6 +158,8 @@ CI compiles this page's code with exactly this `tsconfig.json`.
 
 A field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (schema format `int64`, `bigint` or `decimal`) is a `string` in the generated types, holding the digits exactly as the service wrote them; a JavaScript `number` would round them. The wire still carries JSON numbers: the aggregate's descriptor lists those fields, the clients read them from the response's text and write them back into a command body unquoted.
 
+This holds at every depth and on every path whose values the Manifest describes: a state, an event, a command body, a query's records, and a service route's body and answer (the two values it does not describe are below). A recursive type (a tree whose `children` are trees) is marked once, in the context's `textNumbers.ts`, and read wherever a value reaches it. The alternatives of a union keep their own numbers: a value that is a `decimal` or an object of them is read as whichever it is, and objects told apart by a member with a constant value, as Jackson's `@JsonTypeInfo` writes its subtypes, each by their own. Alternatives that read one number differently, one exactly and one as a number, with no such member, fail the generation (exit code 4) with the schema, the path and both formats: give them a discriminator, or the same number format.
+
 <!-- typecheck: skip — generated code, compiled with the rest of the eShop web UI -->
 
 <!-- sample: examples/eshop/web/src/generated/ordering/eshop-ordering/order/aggregate.ts -->
@@ -207,7 +209,20 @@ export type OrderAccess = NoAccess;
 export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | CommittedEvent<'eshop-ordering.order.OrderCancelled', OrderCancelled> | CommittedEvent<'eshop-ordering.order.OrderPaid', OrderPaid> | CommittedEvent<'eshop-ordering.order.OrderShipped', OrderShipped> | CommittedEvent<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | CommittedEvent<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | CommittedEvent<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;
 ```
 
-`parseJson` and `stringifyJson` of `@ahoo-wang/wow-client` do the same for a request of your own.
+`parseJson` and `stringifyJson` of `@ahoo-wang/wow-client` do the same for a request of your own, and a hand-written client takes the same marks (`TextNumbers`): `ServiceRoutes` by `textNumbers: { 'context.route': { request, response } }`, `DatasetClient.dataset(context, dataset, numbers)` for a dataset's rows. The marks take these forms:
+
+| Form | Marks | Example |
+| --- | --- | --- |
+| `true` | this value is an exact number | `{ price: true }` |
+| members, `'*'` | an object's members by name; `'*'` every item of an array and every value of a map | `{ lines: { '*': { amount: true } } }` |
+| `() => marks` | marks read only where a value reaches them: a recursive type's | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
+| `textNumberOr(marks)` | an exact number, or an object or array marked `marks`, whichever the value is | `textNumberOr({ amount: true })` for `decimal \| { amount: decimal }` |
+| `textNumbersBy(member, cases)` | an object's marks chosen by the string value of its `member` | `textNumbersBy('kind', { decimal: { amount: true } })` |
+
+Two kinds of value are read without marks, so their large numbers are still rounded:
+
+- A command result's `results` are the service's own values, which the Manifest gives no schema: a `Long` or `BigDecimal` a command returns there arrives as a JavaScript `number`. Return such a value as a string, or read it from the aggregate's state.
+- An aggregation's metric values: a sum or a maximum over an exact field that exceeds what a `number` holds is rounded.
 
 ## Keep the clients in step
 

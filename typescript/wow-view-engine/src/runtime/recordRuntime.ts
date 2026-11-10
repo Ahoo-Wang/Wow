@@ -150,12 +150,9 @@ export class RecordDataViewRuntime
         return exported;
       })
       .catch((error: unknown) => {
-        // A cancel is the user's answer, not a failure (`isExportCancelledError`).
-        if (
-          !isExportCancelledError(error) &&
-          !isCalledOff(error, options.signal)
-        )
-          this.exportFailed('fetch', error);
+        // A cancel is the user's answer, not a failure: every read the
+        // export makes says one as `ExportCancelledError`.
+        if (!isExportCancelledError(error)) this.exportFailed('fetch', error);
         throw error;
       });
   }

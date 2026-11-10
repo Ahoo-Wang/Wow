@@ -62,6 +62,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -364,7 +365,11 @@ class SourcedNodeTest {
         SubscriptionBindings.publishedStateEventOf(entry, any, node.context(BANK)).state.assert().isNull()
         // A ledger entry with no offset to re-scan from cannot be retried.
         assertThrows<IllegalStateException> {
-            runBlocking { TopicEntries(TOPIC, topics, 2).retryEntries(order("o-1"), 1, null) }
+            runBlocking {
+                val partition = topics.partitionOf(TOPIC, order("o-1").toString())
+                val unpositioned = ParkedAggregate("Board.onOrder", order("o-1"), partition, 1, "r", 0)
+                TopicEntries(TOPIC, topics, 2).retryEntries(unpositioned)
+            }
         }.message.assert().contains("no offset")
     }
 

@@ -154,6 +154,19 @@ class RecurringTimerRunnerTest {
     }
 
     @Test
+    fun `slots coalesced after an outage are judged expired by the latest slot's own time, and it is sent`(): Unit =
+        runBlocking {
+            store.put(timer(DAILY))
+            // January 16th to 20th pass with no node running: the slot of the 20th, an hour late, has not expired.
+            moveTo("2026-01-20T01:00:00Z")
+            runner(expiresAfter = 2.hours).startPartition(0)
+            eventually { held().slot == 6L }
+            sent.single().assert().isEqualTo(ScheduleContext(held().id, "invoice", 5, at("2026-01-20T00:00:00Z"), 4))
+            held().outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
+            held().slotDueAt.assert().isEqualTo(at("2026-01-21T00:00:00Z"))
+        }
+
+    @Test
     fun `a timer written on this node and due soon is fired without another read of the store`(): Unit = runBlocking {
         val runner = runner(pollInterval = 1.minutes)
         runner.startPartition(0)

@@ -96,6 +96,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun date histograms key buckets by the local start of the unit ()V
 	public final fun filter semantics matrix ()Ljava/util/List;
+	public final fun first and last pick among the records that hold a value ()V
 	protected fun getSemanticDivergences ()Ljava/util/Set;
 	public final fun groups count, sum, average, bound, distinct-count and pick the first and last records ()V
 	public final fun groups without a sort refuse more than their limit, and come back whole within it ()V
@@ -217,6 +218,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
 	public final fun a stream sees a record written after its position, between two chunks ()V
 	public final fun a string array sorts by its least value ascending, or refuses the sort where storage cannot ()V
+	public final fun aggregation FIRST and LAST pick among the records that hold a value ()V
 	public final fun aggregation HAVING keeps the matching groups ()V
 	public final fun aggregation HAVING that matches no group returns no row ()V
 	public final fun aggregation counts distinct values ()V
@@ -253,6 +255,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun paged bounded total stops at its limit and says it is not exact ()V
 	public final fun paged returns its window with the exact total ()V
 	public final fun paged without a total counts nothing ()V
+	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
 	public final fun projection preserves scalar and object subtree semantics ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
 	public final fun single exposes the snapshot record shape ()V

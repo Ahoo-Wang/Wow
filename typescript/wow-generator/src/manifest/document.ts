@@ -80,7 +80,8 @@ export function isManifestDocument(document: unknown): boolean {
   );
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+/** Whether a value of the document is a JSON object. */
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -162,4 +163,12 @@ export function validateManifest(
     );
   }
   return manifest;
+}
+
+/** The JSON types a schema names: its `type`, a string or an array of them. */
+export function typesOf(schema: JsonSchema): string[] {
+  const type = schema.type;
+  if (typeof type === 'string') return [type];
+  if (Array.isArray(type)) return type.filter(t => typeof t === 'string');
+  return [];
 }

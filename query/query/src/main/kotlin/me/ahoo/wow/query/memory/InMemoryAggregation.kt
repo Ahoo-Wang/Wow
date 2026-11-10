@@ -106,8 +106,13 @@ internal class InMemoryAggregation(
             is AggregationGroup.Terms ->
                 filters.expression(checkNotNull(group.expression), at)?.let(nodes::numberNode) ?: nodes.nullNode()
             is AggregationGroup.Histogram -> {
-                val value = group.expression?.let { filters.expression(it, at) }
-                    ?: at.values(admitted.field(checkNotNull(group.field))).singleOrNull()?.numberOrNull()
+                // The group reads its expression or its field, whichever it names; either may hold no value.
+                val expression = group.expression
+                val value = if (expression != null) {
+                    filters.expression(expression, at)
+                } else {
+                    at.values(admitted.field(checkNotNull(group.field))).singleOrNull()?.numberOrNull()
+                }
                 value?.let { nodes.numberNode(floor(it / group.interval) * group.interval) } ?: nodes.nullNode()
             }
             is AggregationGroup.DateHistogram -> filters.instant(group.field, at)
@@ -234,15 +239,25 @@ internal class InMemoryAggregation(
         is DerivedExpression.Window -> throw QueryExecutionException("Windows are computed by the core.")
     }
 
-    /** FIRST / LAST: the value on the member with the least / greatest order value; members without one are skipped. */
+    /**
+     * FIRST / LAST: the value on the member with the least / greatest order value, among the members that hold both a
+     * value and an order value.
+     */
     private fun edge(metric: AggregationMetric.Edge, members: List<RecordScope>): JsonNode {
+        val field = admitted.field(metric.field)
         val orderBy = admitted.field(checkNotNull(metric.orderBy) { "Admission names every FIRST / LAST orderBy." })
-        val ordered = members.mapNotNull { scope ->
-            scope.values(orderBy).singleOrNull()?.takeUnless(JsonNode::isNull)?.let { it to scope }
-        }.sortedWith { left, right -> orderOf(left.first, right.first) }
-        val chosen = (if (metric is AggregationMetric.First) ordered.firstOrNull() else ordered.lastOrNull())?.second
-            ?: return nodes.nullNode()
-        return chosen.values(admitted.field(metric.field)).singleOrNull() ?: nodes.nullNode()
+        val candidates = members.mapNotNull { scope ->
+            val position = scope.values(orderBy).singleOrNull()?.takeUnless(JsonNode::isNull)
+            val value = scope.values(field).singleOrNull()?.takeUnless(JsonNode::isNull)
+            if (position == null || value == null) null else position to value
+        }
+        val byPosition = Comparator<Pair<JsonNode, JsonNode>> { left, right -> orderOf(left.first, right.first) }
+        val chosen = if (metric is AggregationMetric.First) {
+            candidates.minWithOrNull(byPosition)
+        } else {
+            candidates.maxWithOrNull(byPosition)
+        }
+        return chosen?.second ?: nodes.nullNode()
     }
 
     private fun comparator(sort: List<Sort>): Comparator<ObjectNode> = Comparator { left, right ->

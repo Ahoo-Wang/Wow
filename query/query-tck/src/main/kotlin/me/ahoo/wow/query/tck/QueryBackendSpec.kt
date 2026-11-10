@@ -522,6 +522,23 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `projection of a leaf under an array of arrays keeps the nesting`() = blocking {
+        val fixture = given(
+            listOf(snapshot("g1", """{"name":"G","grid":[[{"city":"x","zip":"1"},{"city":"y"}],[{"city":"z"}]]}""")),
+        )
+        val projected = fixture.list(
+            ListQuery(
+                AggregateIdFilter("g1"),
+                projection = Projection(include = listOf(QueryField("state.grid.city"))),
+                limit = 1,
+            ),
+        ).single()
+        projected.path("state").path("grid").toString()
+            .assert().isEqualTo("""[[{"city":"x"},{"city":"y"}],[{"city":"z"}]]""")
+        Unit
+    }
+
     // Pages and counts
 
     @Test
@@ -1011,6 +1028,36 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `aggregation FIRST and LAST pick among the records that hold a value`() = blocking {
+        val fixture = given(
+            listOf(
+                snapshot("e1", """{"name":null,"status":"PAID","createdAt":$T0}"""),
+                snapshot("e2", """{"name":"Beta","status":"PAID","createdAt":${T0 + DAY}}"""),
+                snapshot("e3", """{"status":"PAID","createdAt":${T0 + 2 * DAY}}"""),
+                snapshot("e4", """{"name":null,"status":"NEW","createdAt":$T0}"""),
+                snapshot("e5", """{"status":"NEW","createdAt":${T0 + DAY}}"""),
+            ),
+        )
+        assumeSupported(fixture.schema.storage.aggregation.firstLast, "storage.aggregation.firstLast", "FIRST / LAST")
+        val createdAt = QueryField("state.createdAt")
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
+                metrics = listOf(
+                    AggregationMetric.First(QueryField("state.name"), "first", createdAt),
+                    AggregationMetric.Last(QueryField("state.name"), "last", createdAt),
+                ),
+                sort = listOf(Sort(QueryField("status"), Sort.Direction.ASC)),
+            ),
+        ).associateBy { it.path("status").stringValue() }
+        rows.getValue("PAID").path("first").stringValue().assert().isEqualTo("Beta")
+        rows.getValue("PAID").path("last").stringValue().assert().isEqualTo("Beta")
+        rows.getValue("NEW").path("first").isNull.assert().isTrue()
+        rows.getValue("NEW").path("last").isNull.assert().isTrue()
+        Unit
+    }
+
+    @Test
     fun `aggregation groups an epoch field by day`() = blocking {
         val fixture = given(orders())
         val createdAt = fixture.schema.field(QueryField("state.createdAt"))
@@ -1170,6 +1217,14 @@ abstract class QueryBackendSpec {
                     property("sku") { types(QueryValueType.STRING) }
                     property("price") { types(QueryValueType.DECIMAL) }
                     property("quantity") { types(QueryValueType.INTEGER) }
+                }
+            }
+            field("state.grid") {
+                items {
+                    items {
+                        kind(QueryValueKind.OBJECT)
+                        property("city") { types(QueryValueType.STRING) }
+                    }
                 }
             }
             field("state.probeText") { types(QueryValueType.STRING) }

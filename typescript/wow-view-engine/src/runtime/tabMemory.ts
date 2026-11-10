@@ -17,6 +17,7 @@ import type {
   ViewPreferences,
 } from '../model/index.js';
 import { tabsOf } from '../dashboard/index.js';
+import { Generations, type Ticket } from './generations.js';
 import { isViewWriteError, type WriteHandle } from './write.js';
 
 /** What the memory borrows of the engine: the preferences and their writes. */
@@ -42,38 +43,57 @@ interface TabMemoryHost {
  * which tab a board opens on.
  */
 export class TabMemory {
-  /** The tab each board is to be remembered on, by definition and instance. */
-  private readonly wanted = new Map<string, string>();
-  /** The boards whose write is out. */
-  private readonly writing = new Set<string>();
+  /** Which switch of each board is the last one made (`Generations.latest`). */
+  private readonly switches = new Generations<string>();
+  /** Each board's last switch in hand, so the next waits for it: one write at a time. */
+  private readonly turns = new Map<string, Promise<void>>();
 
   constructor(private readonly host: TabMemoryHost) {}
 
-  async remember(
+  remember(
     definitionId: string,
     instanceId: string,
     tabId: string,
   ): Promise<void> {
     const key = `${definitionId}\u0000${instanceId}`;
-    this.wanted.set(key, tabId);
-    if (this.writing.has(key)) return;
-    this.writing.add(key);
+    const before = this.turns.get(key) ?? Promise.resolve();
+    // The ticket is issued now, at the switch, so a later switch made while
+    // this one waits its turn is the later one.
+    const turn = this.switches.run(key, async ticket => {
+      await before;
+      await this.write(ticket, definitionId, instanceId, tabId);
+      if (this.turns.get(key) === turn) this.turns.delete(key);
+    });
+    this.turns.set(key, turn);
+    return turn;
+  }
+
+  /**
+   * Writes one switch, if it is still the last one made once its turn has
+   * come and the preferences are read: a switch made meanwhile is the one to
+   * remember. Judged before the read only, a first switch to the tab already
+   * remembered ended the burst and took the later switch with it (#5508).
+   */
+  private async write(
+    ticket: Ticket<string>,
+    definitionId: string,
+    instanceId: string,
+    tabId: string,
+  ): Promise<void> {
     try {
-      for (;;) {
-        const wanted = this.wanted.get(key);
-        const current = await this.host.current(definitionId);
-        if (wanted === undefined || current.lastTabs?.[instanceId] === wanted)
-          return;
-        await this.host.write(definitionId, {
-          ...current,
-          lastTabs: { ...current.lastTabs, [instanceId]: wanted },
-        });
-      }
+      if (!this.switches.latest(ticket)) return;
+      const current = await this.host.current(definitionId);
+      if (
+        !this.switches.latest(ticket) ||
+        current.lastTabs?.[instanceId] === tabId
+      )
+        return;
+      await this.host.write(definitionId, {
+        ...current,
+        lastTabs: { ...current.lastTabs, [instanceId]: tabId },
+      });
     } catch (error) {
       if (isViewWriteError(error)) this.host.abandon(error.handle);
-    } finally {
-      this.writing.delete(key);
-      this.wanted.delete(key);
     }
   }
 

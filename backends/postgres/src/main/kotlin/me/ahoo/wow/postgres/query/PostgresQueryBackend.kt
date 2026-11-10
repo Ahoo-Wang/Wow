@@ -23,6 +23,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.autoCommitted
@@ -34,13 +35,13 @@ import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.RecordProjection
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.postgresql.util.PGobject
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
@@ -281,54 +282,8 @@ class PostgresQueryBackend internal constructor(
         /** [record] with only what [query]'s projection keeps: its includes (all when none), less its excludes. */
         fun project(query: AdmittedQuery<Queryable<*>>, record: ObjectNode): ObjectNode {
             val projection = query.query.projection
-            if (projection.include.isEmpty() && projection.exclude.isEmpty()) return record
-            val projected = if (projection.include.isEmpty()) {
-                record
-            } else {
-                nodes.objectNode().also { target ->
-                    projection.include.forEach {
-                        include(
-                            record,
-                            target,
-                            query.physicalPath(it).split('.')
-                        )
-                    }
-                }
-            }
-            projection.exclude.forEach { exclude(projected, query.physicalPath(it).split('.')) }
-            return projected
-        }
-
-        fun include(source: JsonNode, target: ObjectNode, path: List<String>) {
-            val name = path.first()
-            val value = source.get(name) ?: return
-            if (path.size == 1) {
-                target.set(name, value.deepCopy())
-                return
-            }
-            when {
-                value.isObject -> include(
-                    value,
-                    (target.get(name) as? ObjectNode) ?: target.putObject(name),
-                    path.drop(1)
-                )
-                value.isArray -> {
-                    val items = target.get(name) as? ArrayNode ?: target.putArray(name)
-                    value.forEachIndexed { index, item ->
-                        if (!item.isObject) return@forEachIndexed
-                        while (items.size() <= index) items.addObject()
-                        include(item, items.get(index) as ObjectNode, path.drop(1))
-                    }
-                }
-            }
-        }
-
-        fun exclude(node: JsonNode, path: List<String>) {
-            when {
-                node is ObjectNode && path.size == 1 -> node.remove(path.first())
-                node is ObjectNode -> node.get(path.first())?.let { exclude(it, path.drop(1)) }
-                node.isArray -> node.forEach { exclude(it, path) }
-            }
+            fun paths(fields: List<QueryField<*>>) = fields.map { query.physicalPath(it).split('.') }
+            return RecordProjection.project(record, paths(projection.include), paths(projection.exclude))
         }
     }
 }

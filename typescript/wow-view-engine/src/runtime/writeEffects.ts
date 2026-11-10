@@ -12,7 +12,11 @@
  */
 
 import { isOwnedPanel, isViewPanel, panelsOf } from '../dashboard/index.js';
-import type { ViewInstance, ViewPreferences } from '../model/index.js';
+import type {
+  DashboardViewConfig,
+  ViewInstance,
+  ViewPreferences,
+} from '../model/index.js';
 import { isManagedBoard, type ManagedViewRuntime } from './viewRuntimeTypes.js';
 import type { WritePayload } from './write.js';
 import type { WriteLedgerHost, WriteResult } from './writeLedger.js';
@@ -124,11 +128,14 @@ function addedToBoard(
     return;
   }
   holder.moveBaseline(saved);
-  const board = saved.config.kind === 'dashboard' ? saved.config : null;
-  const panel = panelsOf(board ?? { panels: [] }).find(
-    entry => entry.id === panelId,
-  );
-  if (panel) holder.carryPanel(panel);
+  // The board saved is this board. What the store answered need not hold
+  // the panel the write added — a host's store may answer it normalised, or
+  // as another writer left it a moment later: then there is nothing of this
+  // write to carry, and the draft differs from the board saved by the
+  // reader's own edits alone.
+  const board = saved.config as DashboardViewConfig;
+  const added = panelsOf(board).find(entry => entry.id === panelId);
+  if (added) holder.carryPanel(added);
 }
 
 /**
