@@ -23,10 +23,6 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.ReservationTenancy
-import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.ScheduleCancelled
-import me.ahoo.wow.api.schedule.ScheduleSet
-import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CallerAdmission
@@ -36,8 +32,6 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.kernel.schedule.ScheduleSlots
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -46,120 +40,8 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.timer.Timer
-import me.ahoo.wow.spi.timer.TimerChange
-import me.ahoo.wow.spi.timer.TimerStatus
-import me.ahoo.wow.spi.timer.Timers
-import org.junit.jupiter.api.DynamicNode
 import java.time.Instant
-import java.util.stream.Stream
 import kotlin.time.Duration
-
-/**
- * Specifies an aggregate's behaviour as given events, a command and the expected outcome, against the real kernel
- * and an in-memory log:
- *
- * ```kotlin
- * aggregateSpec(cartModel) {
- *     given(CartCreated("ahoo"))
- *     whenCommand(AddItem("apple", 1)) {
- *         expectEvents(ItemAdded("apple", 1))
- *         expectState { items.assert().containsEntry("apple", 1) }
- *     }
- * }
- * ```
- *
- * The kernel checks that deciding never changes the state: a decide function or after hook that assigns state
- * fails the specification.
- *
- * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the time a decision reads
- * ([me.ahoo.wow.api.decide.DecideScope.now]), which its commit is recorded at, and the due times of
- * the commands the aggregate schedules, are read from it. Advancing the time sends the aggregate the
- * commands it scheduled for itself that are then due, as the runtime would, each with its timer's request id
- * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]). A cron rule steps through its slots as the
- * runtime's firing loop does: advancing past several of them sends only the latest, the others counted as skipped,
- * unless the rule catches up ([me.ahoo.wow.api.schedule.Misfire.CATCH_UP]), which sends each in turn:
- *
- * ```kotlin
- * aggregateSpec(orderModel) {
- *     whenCommand(PlaceOrder(...)) {
- *         expectScheduled("pay-timeout", CancelOrder("unpaid"), ScheduleRule.after(30.minutes))
- *     }
- *     advanceTime(30.minutes) { expectEvents(OrderCancelled("unpaid")) }
- * }
- * ```
- *
- * The ids a decide function takes ([me.ahoo.wow.api.decide.DecideScope.ids]) are [SequentialIds]:
- * `id-1`, `id-2`… and `<aggregate>-1`… for aggregate ids, counted across the specification.
- *
- * Scenarios that share a prefix [AggregateSpec.fork] from it, at the current point, at one marked with
- * [AggregateSpec.ref], or after a command from inside its checks ([Expectations.fork]): each fork runs on its own
- * copy of the aggregate, its log, timers, reservations, ids and time, so its commands do not reach
- * the others, and nothing before the fork runs again: a domain service the decide functions call is not called
- * again for the prefix.
- *
- * The commands are sent by [caller], as the command gateway admits a caller's command: in its scope, by its
- * operator, with its application as the request fact `app_id` ([CallerAdmission]); none (an anonymous caller in no
- * scope) by default. The aggregate is in [tenantId], the caller's tenant by default.
- *
- * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
- */
-fun <S : Any> aggregateSpec(
-    model: AggregateModel<S>,
-    id: String = "aggregate-1",
-    caller: Caller? = null,
-    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
-    start: Instant = DEFAULT_START,
-    block: AggregateSpec<S>.() -> Unit,
-) {
-    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.caller = caller }.block()
-}
-
-/**
- * The specification [aggregateSpec] runs, as a tree of tests for a JUnit `@TestFactory`: each
- * [AggregateSpec.whenCommand], [AggregateSpec.advanceTime] and [AggregateSpec.expectNothingDue] is a test of its own,
- * and each [AggregateSpec.fork] a container of the tests it runs, named by the fork. A failing check fails its own
- * test only: the specification goes on, so the other steps and forks still run and report on their own.
- *
- * ```kotlin
- * @TestFactory
- * fun order() = aggregateSpecTests(orderModel) {
- *     whenCommand(PlaceOrder(...)) {
- *         expectEventTypes(OrderPlaced::class)
- *         fork("paid") { whenCommand(PayOrder(...)) { expectEventTypes(OrderPaid::class) } }
- *         fork("cancelled") { whenCommand(CancelOrder(...)) { expectEventTypes(OrderCancelled::class) } }
- *     }
- * }
- * ```
- *
- * The specification runs as the tree is built, as 9.x's did; the tests report what each step found. An exception
- * outside a step (a [AggregateSpec.given] that cannot commit, say) ends its fork, or the specification, and is
- * reported as a failing test `Error`.
- */
-fun <S : Any> aggregateSpecTests(
-    model: AggregateModel<S>,
-    id: String = "aggregate-1",
-    caller: Caller? = null,
-    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
-    start: Instant = DEFAULT_START,
-    block: AggregateSpec<S>.() -> Unit,
-): Stream<DynamicNode> {
-    val tree = TestTree()
-    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.caller = caller }
-    tree.run { spec.block() }
-    return tree.nodes.stream()
-}
-
-/**
- * The tenant a specification's aggregates are in by default, the default tenant of a caller ([Caller.DEFAULT_TENANT]):
- * that of [aggregateSpec], [ScheduleSpec]'s instances and [ProcessorSpec.givenAggregate].
- */
-const val DEFAULT_TENANT: String = Caller.DEFAULT_TENANT
-
-/** Where the time of an [aggregateSpec] starts by default. */
-val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
-
-/** The id of the aggregate [AggregateSpec.givenReservation] gives a key to by default. */
-const val ANOTHER_AGGREGATE: String = "another-aggregate"
 
 @WowTestDsl
 @Suppress("TooManyFunctions") // The DSL's verbs.
@@ -193,7 +75,7 @@ class AggregateSpec<S : Any> private constructor(
         ids = ids,
         options = KernelOptions(verifyDecidePurity = true),
     )
-    private val timers = ForkableTimerStore(origin?.timers.orEmpty())
+    private val timers = AggregateTimers(model, ref, codec, origin?.timers.orEmpty())
     private var sequence = origin?.sequence ?: 0
     private var forks = 0
 
@@ -218,7 +100,7 @@ class AggregateSpec<S : Any> private constructor(
     val now: Instant get() = Instant.ofEpochMilli(millis)
 
     /** The timers the aggregate keeps, in whatever status, by key. */
-    fun timer(key: String): Timer? = runBlocking { timers.find(Timers.ownerOf(ref), key) }
+    fun timer(key: String): Timer? = timers.find(key)
 
     /**
      * Whether the aggregate holds [key] in [namespace], reserved with [tenancy]: reserved by a command
@@ -273,7 +155,7 @@ class AggregateSpec<S : Any> private constructor(
      */
     fun expectNothingDue(within: Duration) = step("expectNothingDue($within)") {
         require(!within.isNegative()) { "Time only moves on." }
-        val due = runBlocking { dueTimers(millis + within.inWholeMilliseconds) }
+        val due = runBlocking { timers.dueTimers(millis + within.inWholeMilliseconds) }
         if (due.isNotEmpty()) {
             throw AssertionError(
                 "Expected nothing due by ${Instant.ofEpochMilli(millis + within.inWholeMilliseconds)} but " +
@@ -288,60 +170,17 @@ class AggregateSpec<S : Any> private constructor(
     private fun tick(duration: Duration): List<Result<CommandOutcome>> {
         require(!duration.isNegative()) { "Time only moves on." }
         millis += duration.inWholeMilliseconds
-        val fired = ArrayList<Result<CommandOutcome>>()
-        runBlocking {
-            while (true) {
-                val loaded = dueTimers(millis).firstOrNull() ?: break
-                // A recurring slot past due by more than one time of its rule is caught up as its misfire policy says.
-                val timer = ScheduleSlots.caughtUp(loaded, millis)
-                val type = requireNotNull(model.findCommandType(timer.commandType)) {
-                    "${model.type} has no command ${timer.commandType}, which the timer ${timer.id} sends."
-                }
-                val body = codec.decodeTree(WowJson.mapper.readTree(timer.body), type.type)
-                val command = Command(
-                    timer.requestId,
-                    timer.requestId,
-                    ref,
-                    body,
-                    causation = timer.causation,
-                    headers = timer.headers + timer.context.headers(),
-                )
-                val outcome = execute(command)
-                // A recurring timer moves on to its next slot; one due once is done.
-                val next = ScheduleSlots.afterFired(timer, millis) ?: timer.copyWith(status = TimerStatus.FIRED, attempts = 1)
-                timers.settle(listOf(TimerChange(loaded, next)))
-                fired += outcome
-            }
-        }
-        return fired
+        return runBlocking { timers.fire(millis) { execute(it) } }
     }
-
-    private suspend fun dueTimers(by: Long): List<Timer> =
-        timers.due(setOf(PARTITION), by, Int.MAX_VALUE).filter { it.target == ref }
 
     /** Executes [command], recording the schedules it commits; a decide function's exception is the failure. */
     private suspend fun execute(command: Command<*>): Result<CommandOutcome> = try {
-        Result.success(kernel.execute(model, command).also { record(it) })
+        Result.success(kernel.execute(model, command).also { timers.record(it) })
     } catch (
         @Suppress("TooGenericExceptionCaught") // Whatever the decide function throws, expectError checks it.
         failure: Exception,
     ) {
         Result.failure(failure)
-    }
-
-    /** Applies the schedules [outcome] committed to the aggregate's timers, as the `timers` subscription would. */
-    private suspend fun record(outcome: CommandOutcome) {
-        val stream = (outcome as? CommandOutcome.Committed)?.stream ?: return
-        val owner = Timers.ownerOf(stream.ref)
-        if (stream.events.any { it.name == Lifecycle.AGGREGATE_DELETED }) {
-            timers.cancelAll(owner, stream.version.toLong())
-        }
-        stream.events.filter { it.name in Schedules.EVENTS }.forEach { record ->
-            when (val event = codec.decode(model, record)) {
-                is ScheduleSet -> timers.put(ScheduleSlots.timerOf(stream, event, PARTITIONS))
-                is ScheduleCancelled -> timers.cancel(owner, event.key, stream.version.toLong())
-            }
-        }
     }
 
     /**
@@ -712,7 +551,3 @@ class AggregateSpec<S : Any> private constructor(
  * command: `In fork "paid", whenCommand(ShipOrder) (command-4): Expected …`.
  */
 class ForkAssertionError(message: String, cause: Throwable) : AssertionError(message, cause)
-
-/** The timers of a specification live in one partition. */
-private const val PARTITIONS = 1
-private const val PARTITION = 0

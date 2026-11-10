@@ -19,6 +19,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.aggregate
@@ -253,4 +254,26 @@ class AggregateForkTest {
             fork("dormant") { advanceTime(30.minutes) { expectEvents(Closed("dormant")) } }
         }
     }
+
+    @TestFactory
+    fun `a tree of tests should be in its caller's tenant`() =
+        aggregateSpecTests(model({ 0 }), caller = Caller.ofService("bank", tenantId = "acme")) {
+            ref.tenantId.assert().isEqualTo("acme")
+            whenCommand(Open("ahoo")) { expectEventTypes(Opened::class) }
+        }
+
+    @Test
+    fun `a timer whose command a fork's model does not decide should fail when it falls due`() =
+        aggregateSpec(model({ 0 })) {
+            whenCommand(Open("ahoo")) { }
+            // The same aggregate built without Close: the dormant schedule names a command its model cannot send.
+            val closeless = aggregate<Account>("bank", "account") {
+                initial { Account(it.id) }
+                evolve<Opened> { }
+            }
+            fork("closeless", model = closeless) {
+                assertThrownBy<IllegalArgumentException> { advanceTime(30.minutes) }
+                    .hasMessageContaining("has no command").hasMessageContaining("which the timer")
+            }
+        }
 }
