@@ -12,13 +12,10 @@
  */
 
 import type { ReferenceLabelReader } from './referenceLabels.js';
-import { dequal } from 'dequal';
 import {
   overlaid,
   type DashboardDefinition,
-  type DashboardFilters,
   type DashboardViewConfig,
-  type DashboardViewPanel,
   type FieldDefinition,
   type FilterTree,
   type Issue,
@@ -41,8 +38,7 @@ import {
   panelTime,
   type BoardReading,
 } from './dashboard/canonical.js';
-import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
-import type { PanelAnchor } from './dashboard/anchor.js';
+import { boardHandOver } from './dashboard/panelRun.js';
 import { isForbiddenQuery } from './failure/queryFailure.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
@@ -51,23 +47,18 @@ import { BoardCommands, BoardRules } from './dashboard/commands.js';
 import { outsideHistory, type EditHistoryState } from './dashboard/history.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { hasError, RuntimeStore } from './runtimeStore.js';
+import { RuntimeStore } from './runtimeStore.js';
 import type { OptionSource } from './source.js';
 import {
   PanelChildren,
   panelView,
   type PanelView,
 } from './dashboard/children.js';
-import {
-  blocksBoard,
-  panelFailure,
-  reissued,
-  samePanels,
-  shownTab,
-} from './dashboard/panels.js';
+import { blocksBoard, reissued, shownTab } from './dashboard/panels.js';
 import { PanelReferenceLoads } from './dashboard/references.js';
 import { openingState } from './dashboard/opening.js';
 import { admitBoard } from './dashboard/owned.js';
+import { PanelSync } from './dashboard/panelSync.js';
 import type { WriteState } from './write.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
@@ -139,14 +130,8 @@ export class DashboardViewRuntime
   /** The rules that span the parts above; see `BoardRules`. */
   protected readonly rules: BoardRules;
 
-  /** The tab the reader asked for; see `DashboardRuntimeState.tab`. */
-  private requestedTab: string | null = null;
-  /** Whether the panels were brought in line once: until then a tab is only noted. */
-  private synced = false;
-  /** The filters the last sync sent the panels; see `filtersRun`. */
-  private filtersOut: DashboardFilters | null = null;
-  /** The window each anchored trend card ran under at the last sync (D39). */
-  private readonly anchors = new Map<string, PanelAnchor>();
+  /** Bringing the panels in line with what is applied; see `PanelSync`. */
+  private readonly panelSync: PanelSync;
   /** The board under the paths its panels rename aliases to. */
   private readonly canonical: BoardReading;
   /** What each panel's view says of time (`panelTime`). */
@@ -198,7 +183,7 @@ export class DashboardViewRuntime
       applied: () => this.state.applied,
       current: () => this.state.filters,
       commit: filters => this.store.setState({ filters }),
-      started: () => this.synced,
+      started: () => this.panelSync.started,
       run: () => this.sync({ filtersRun: this.state.filtersRun + 1 }),
       viewOf: panel => this.viewOf(panel),
     });
@@ -226,11 +211,25 @@ export class DashboardViewRuntime
       patch: state => this.store.setState(state),
       retime: () => this.store.retime(),
       reread: () => {
-        if (this.synced) this.sync();
+        if (this.panelSync.started) this.sync();
       },
       edit: patch => this.edit(patch),
       apply: () => this.apply(),
       showTab: tab => this.showTab(tab),
+    });
+
+    this.panelSync = new PanelSync({
+      kinds: options.kinds,
+      limits: options.limits,
+      environment: options.environment,
+      disposed: () => this.disposed,
+      state: () => this.state,
+      setState: patch => this.store.setState(patch),
+      admit: (config, scope) => this.admit(config, scope),
+      viewOf: panel => this.viewOf(panel),
+      values: () => this.values,
+      children: () => this.children,
+      references: () => this.references,
     });
 
     // A board is read under the paths its panels' definitions rename
@@ -408,7 +407,7 @@ export class DashboardViewRuntime
     // (D39): 「昨日」 read again after midnight is another day, so the board
     // is brought in line first, as every other panel reads its relative
     // dates again when it runs.
-    if (this.anchors.size > 0) this.sync();
+    if (this.panelSync.anchored) this.sync();
     this.children.refresh(this.onTab(), skip);
   }
 
@@ -420,11 +419,11 @@ export class DashboardViewRuntime
 
   showTab(tabId: string | null): void {
     if (this.disposed) return;
-    this.requestedTab = tabId;
+    this.panelSync.request(tabId);
     // Before the first sync this only says where the board opens: nothing
     // has run yet, and the first sync starts on this tab rather than on the
     // first and then here.
-    if (!this.synced) {
+    if (!this.panelSync.started) {
       this.store.setState({ tab: shownTab(this.state.applied, tabId) });
       return;
     }
@@ -509,7 +508,7 @@ export class DashboardViewRuntime
       definitionId: this.definition.id,
       held: name => this.values.holds(name),
       kinds: this.kinds,
-      anchor: panelId => this.anchors.get(panelId) ?? null,
+      anchor: panelId => this.panelSync.anchorOf(panelId),
     });
   }
 
@@ -628,105 +627,9 @@ export class DashboardViewRuntime
     });
   }
 
-  /**
-   * Brings the child runtimes in line with the applied panels: one per data
-   * panel that can run, none for the rest, and the current scope in each.
-   */
+  /** Brings the panels in line with what is applied; see `PanelSync.sync`. */
   private sync(patch: Partial<DashboardRuntimeState> = {}): void {
-    if (this.disposed) return;
-    this.synced = true;
-    const applied = patch.applied ?? this.state.applied;
-    const issues = this.admit(applied, this.state.scope);
-    // Only the tab on screen runs (D22 E). A panel elsewhere keeps the child
-    // it has, rows and all, exactly as it stands — neither re-scoped nor
-    // re-run — until its tab is shown; one never shown has none yet.
-    const tab = shownTab(applied, this.requestedTab);
-    // What the filters hold, read against the board as it now is: a filter
-    // taken off holds nothing, a required one never less than its default.
-    const filters = this.values.on(applied);
-    this.values.askLabels(applied, filters);
-    const panels = boardPanels({
-      applied,
-      issues,
-      tab,
-      filters,
-      held: name => this.values.holds(name),
-      viewOf: panel => this.viewOf(panel),
-      run: (panel, index, own) =>
-        this.syncPanel(panel, index, applied, filters, own),
-      hold: (panel, index, own) => this.children.hold(panel.id, index, own),
-    });
-    this.children.keepOnly(
-      new Set(panels.flatMap(panel => (panel.runtime ? [panel.id] : []))),
-    );
-
-    // A re-sync that changes nothing keeps the previous array, so a grid
-    // bound with `useSyncExternalStore` does not re-render on every apply.
-    // After the panels: what a filter change started is running by the
-    // time the step is seen. A change's own run is a step whatever it sent.
-    const filtersRun =
-      patch.filtersRun ??
-      this.state.filtersRun + (dequal(filters, this.filtersOut) ? 0 : 1);
-    this.filtersOut = filters;
-    this.store.setState({
-      ...patch,
-      tab,
-      filters,
-      filtersRun,
-      panels: samePanels(this.state.panels, panels)
-        ? this.state.panels
-        : panels,
-    });
-  }
-
-  /**
-   * One panel's child, and what the panel reports. A reference that could
-   * not be put to work, or a panel with an error of its own, runs nothing;
-   * otherwise the child is brought in line with the panel and the scope
-   * (`PanelChildren.sync`), and a refusal lands in the panel's issues where
-   * the dashboard's own would.
-   */
-  private syncPanel(
-    panel: DashboardViewPanel,
-    index: number,
-    applied: DashboardViewConfig,
-    filters: DashboardFilters,
-    own: Issue[],
-  ): { runtime: DataViewRuntime | null; issues: Issue[] } {
-    const instanceId = referencedInstance(panel) ?? '';
-    const failure = this.references.failure(instanceId);
-    if (failure !== undefined)
-      return {
-        runtime: null,
-        // Said once: a read that failed is the panel's own finding already.
-        issues: own.some(found => found.code === 'dashboard.panel.failed')
-          ? own
-          : [...own, panelFailure(index, instanceId, failure)],
-      };
-
-    const view = this.viewOf(panel);
-    // A panel with a problem of its own does not query; the others still do.
-    if (!view || hasError(own)) return { runtime: null, issues: own };
-
-    const run = panelRun(panel, index, view, {
-      applied,
-      filters,
-      kinds: this.kinds,
-      limits: this.limits,
-      clock: {
-        now: this.environment.now(),
-        timeZone: this.environment.timeZone,
-      },
-    });
-    if (run.anchor) this.anchors.set(panel.id, run.anchor);
-    else this.anchors.delete(panel.id);
-    return this.children.sync(
-      panel.id,
-      index,
-      [...own, ...run.issues],
-      run.view,
-      run.scope,
-    );
+    this.panelSync.sync(patch);
   }
 
   /** The view a data panel shows, once there is one; see `panelView`. */
