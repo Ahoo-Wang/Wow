@@ -388,9 +388,9 @@ class WowContractSourcesFunctionalTest {
         File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/ShopContract.kt").readText()
             .assert().contains(
                 "object ShopContract",
-                "const val NAME: String = \"shop\"",
+                "const val NAME: kotlin.String = \"shop\"",
                 "object Cart : SnapshotProperties()",
-                "QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
+                "QUERY_MODELS: kotlin.collections.List<kotlin.String> = kotlin.collections.listOf(\"snapshot\", \"events\")",
             )
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/ShopContract\$Cart.class", "shopapi/CreateCart.class")
@@ -405,19 +405,19 @@ class WowContractSourcesFunctionalTest {
         view.assert().contains(
             "@StateView(\"shop.cart\")",
             "public data class CartStateView(",
-            "val id: String,",
-            "val name: String? = null,",
+            "val id: kotlin.String,",
+            "val name: kotlin.String? = null,",
             "val status: CartStateView.CartStatus,",
-            "val lines: List<CartStateView.CartLine>,",
+            "val lines: kotlin.collections.List<CartStateView.CartLine>,",
             "val address: CartStateView.CartAddress? = null,",
-            "val attributes: Map<String, String>,",
+            "val attributes: kotlin.collections.Map<kotlin.String, kotlin.String>,",
             "val extras: tools.jackson.databind.node.ObjectNode,",
-            "val totalURLCount: Int,",
+            "val totalURLCount: kotlin.Int,",
             "public enum class CartStatus {",
             "val parent: CartStateView.CartLine? = null,",
-            "val zip: String,",
+            "val zip: kotlin.String,",
             // A computed property Jackson writes into the published state: the view holds it too.
-            "val computed: Int,",
+            "val computed: kotlin.Int,",
         ).doesNotContain("secret")
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             jar.getEntry("shopapi/CartStateView.class").assert().isNotNull()

@@ -112,21 +112,21 @@ class StateViewSourcesTest {
                 /** Where the cart goes. */
                 val address: CartStateView.Address? = null,
                 val amount: java.math.BigDecimal,
-                val codes: Set<String>,
-                val counts: Map<String, Long>,
-                val id: String,
-                val items: List<me.ahoo.wow.manifest.tools.StateViewSourcesTest.Item>,
+                val codes: kotlin.collections.Set<kotlin.String>,
+                val counts: kotlin.collections.Map<kotlin.String, kotlin.Long>,
+                val id: kotlin.String,
+                val items: kotlin.collections.List<me.ahoo.wow.manifest.tools.StateViewSourcesTest.Item>,
                 val offsetAt: java.time.OffsetDateTime? = null,
                 val parent: CartStateView? = null,
                 val placedAt: java.time.Instant? = null,
-                val small: Short,
+                val small: kotlin.Short,
                 val status: CartStateView.Status,
                 val tree: CartStateView.Node? = null,
             ) {
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Address`, as the view copies it. */
                 public data class Address(
-                    val city: String,
-                    val zip: String? = null,
+                    val city: kotlin.String,
+                    val zip: kotlin.String? = null,
                 )
 
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Status`, as the view copies it. */
@@ -137,8 +137,8 @@ class StateViewSourcesTest {
 
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Node`, as the view copies it. */
                 public data class Node(
-                    val children: List<CartStateView.Node>? = null,
-                    val name: String,
+                    val children: kotlin.collections.List<CartStateView.Node>? = null,
+                    val name: kotlin.String,
                 )
             }
 
@@ -195,14 +195,14 @@ class StateViewSourcesTest {
     @Test
     fun `each format should read as its type`() {
         mapOf(
-            mapOf("type" to "integer", "format" to "int32") to "Int",
-            mapOf("type" to "integer", "format" to "int64") to "Long",
+            mapOf("type" to "integer", "format" to "int32") to "kotlin.Int",
+            mapOf("type" to "integer", "format" to "int64") to "kotlin.Long",
             mapOf("type" to "integer", "format" to "bigint") to "java.math.BigInteger",
-            mapOf("type" to "number") to "Double",
-            mapOf("type" to "number", "format" to "float") to "Float",
+            mapOf("type" to "number") to "kotlin.Double",
+            mapOf("type" to "number", "format" to "float") to "kotlin.Float",
             mapOf("type" to "number", "format" to "decimal") to "java.math.BigDecimal",
-            mapOf("type" to "string") to "String",
-            mapOf("type" to "string", "format" to "email") to "String",
+            mapOf("type" to "string") to "kotlin.String",
+            mapOf("type" to "string", "format" to "email") to "kotlin.String",
             mapOf("type" to "string", "format" to "date-time") to "java.time.Instant",
             mapOf("type" to "string", "format" to "date") to "java.time.LocalDate",
             mapOf("type" to "string", "format" to "time") to "java.time.OffsetTime",
@@ -211,20 +211,20 @@ class StateViewSourcesTest {
             mapOf("type" to "string", "format" to "uri") to "java.net.URI",
             mapOf("type" to "string", "format" to "date-time", "x-wow-class" to "java.time.ZonedDateTime") to
                 "java.time.ZonedDateTime",
-            mapOf("type" to "string", "x-wow-class" to "java.lang.Character") to "Char",
-            mapOf("type" to "boolean") to "Boolean",
-            mapOf("type" to "array", "items" to mapOf("type" to "string")) to "List<String>",
-            mapOf("type" to "array", "items" to mapOf("type" to "string"), "uniqueItems" to true) to "Set<String>",
-            mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null"))) to "List<String?>",
-            mapOf("type" to "object", "additionalProperties" to mapOf("type" to "boolean")) to "Map<String, Boolean>",
+            mapOf("type" to "string", "x-wow-class" to "java.lang.Character") to "kotlin.Char",
+            mapOf("type" to "boolean") to "kotlin.Boolean",
+            mapOf("type" to "array", "items" to mapOf("type" to "string")) to "kotlin.collections.List<kotlin.String>",
+            mapOf("type" to "array", "items" to mapOf("type" to "string"), "uniqueItems" to true) to "kotlin.collections.Set<kotlin.String>",
+            mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null"))) to "kotlin.collections.List<kotlin.String?>",
+            mapOf("type" to "object", "additionalProperties" to mapOf("type" to "boolean")) to "kotlin.collections.Map<kotlin.String, kotlin.Boolean>",
             emptyMap<String, Any?>() to "tools.jackson.databind.JsonNode",
             mapOf("type" to "object") to "tools.jackson.databind.node.ObjectNode",
             mapOf("type" to "object", "additionalProperties" to true) to "tools.jackson.databind.node.ObjectNode",
             mapOf("type" to "object", "additionalProperties" to emptyMap<String, Any?>()) to
                 "tools.jackson.databind.node.ObjectNode",
             mapOf("type" to "object", "additionalProperties" to mapOf("type" to "integer", "format" to "int32")) to
-                "Map<String, Int>",
-            mapOf("type" to "array", "items" to emptyMap<String, Any?>()) to "List<tools.jackson.databind.JsonNode>",
+                "kotlin.collections.Map<kotlin.String, kotlin.Int>",
+            mapOf("type" to "array", "items" to emptyMap<String, Any?>()) to "kotlin.collections.List<tools.jackson.databind.JsonNode>",
         ).forEach { (schema, type) ->
             fieldOf(schema).assert().describedAs(schema.toString()).isEqualTo("val field: $type,")
         }
@@ -242,23 +242,23 @@ class StateViewSourcesTest {
     fun `an element or a value should be nullable in the view where its Kotlin type argument is`() {
         val text = views(contract(ReadingsState::class.java, "readings")).single().text
         text.assert().contains(
-            "val addresses: List<Map<String, ReadingsStateView.Address?>>,",
-            "val itemsOrNull: List<Long>? = null,",
-            "val nullableItems: List<Long?>,",
-            "val nullableValues: Map<String, String?>,",
-            "val values: Map<String, Long>,",
+            "val addresses: kotlin.collections.List<kotlin.collections.Map<kotlin.String, ReadingsStateView.Address?>>,",
+            "val itemsOrNull: kotlin.collections.List<kotlin.Long>? = null,",
+            "val nullableItems: kotlin.collections.List<kotlin.Long?>,",
+            "val nullableValues: kotlin.collections.Map<kotlin.String, kotlin.String?>,",
+            "val values: kotlin.collections.Map<kotlin.String, kotlin.Long>,",
         )
     }
 
     @Test
     fun `a nullable or optional field should be nullable, null by default`() {
         fieldOf(emptyMap(), required = false).assert().isEqualTo("val field: tools.jackson.databind.JsonNode? = null,")
-        fieldOf(mapOf("type" to listOf("string", "null"))).assert().isEqualTo("val field: String? = null,")
-        fieldOf(mapOf("type" to "string"), required = false).assert().isEqualTo("val field: String? = null,")
+        fieldOf(mapOf("type" to listOf("string", "null"))).assert().isEqualTo("val field: kotlin.String? = null,")
+        fieldOf(mapOf("type" to "string"), required = false).assert().isEqualTo("val field: kotlin.String? = null,")
         fieldOf(
             mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/T"))),
             defs = mapOf("T" to mapOf("type" to "integer", "format" to "int64")),
-        ).assert().isEqualTo("val field: Long? = null,")
+        ).assert().isEqualTo("val field: kotlin.Long? = null,")
     }
 
     @Test
@@ -271,7 +271,7 @@ class StateViewSourcesTest {
         val contract = contract(CartState::class.java, "cart").let {
             it.copyWith(defs = it.defs + (CartState::class.java.name to state))
         }
-        views(contract).single().text.assert().contains("val `first-name`: String,", "val `in`: String,")
+        views(contract).single().text.assert().contains("val `first-name`: kotlin.String,", "val `in`: kotlin.String,")
     }
 
     @Test
@@ -332,9 +332,9 @@ class StateViewSourcesTest {
         views(contract, onClassPath).single().text.assert()
             .contains("    val main: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape,")
             .contains("    val spare: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape? = null,")
-            .contains("    val shapes: List<me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape>,")
+            .contains("    val shapes: kotlin.collections.List<me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape>,")
             // The published state holds what Jackson writes: a computed property too.
-            .contains("    val sides: Int,")
+            .contains("    val sides: kotlin.Int,")
         // A view cannot copy a class hierarchy.
         assertThrows<IllegalStateException> { views(contract) }.message.assert().contains(
             "${PlanState::class.java.name}.main",

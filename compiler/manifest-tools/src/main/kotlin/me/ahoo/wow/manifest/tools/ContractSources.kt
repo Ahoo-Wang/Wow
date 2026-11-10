@@ -90,7 +90,7 @@ internal object ContractSources {
             appendLine(" */")
             appendLine("public object $name {")
             appendLine("    /** The context's name. */")
-            appendLine("    public const val NAME: String = ${literal(context.name)}")
+            appendLine("    public const val NAME: kotlin.String = ${literal(context.name)}")
             val byAggregate = context.aggregates.associateWith { aggregate ->
                 context.errors.filter { aggregateCodeOf(context.name, aggregate.name, it.code) != null }
             }
@@ -142,33 +142,37 @@ internal object ContractSources {
         val supertype = if (queryFields) " : SnapshotProperties()" else ""
         appendLine("    public object ${pascal(aggregate.name)}$supertype {")
         appendLine("        /** The name of the aggregate's context. */")
-        appendLine("        public const val CONTEXT: String = $owner.NAME")
+        appendLine("        public const val CONTEXT: kotlin.String = $owner.NAME")
         appendLine()
         appendLine("        /** The aggregate's name within its context. */")
-        appendLine("        public const val NAME: String = ${literal(aggregate.name)}")
+        appendLine("        public const val NAME: kotlin.String = ${literal(aggregate.name)}")
         appendLine()
         appendLine("        /** `context.aggregate`, as `@OnEvent(aggregates)` names the aggregate. */")
-        appendLine("        public const val QUALIFIED_NAME: String = ${literal("${context.name}.${aggregate.name}")}")
+        appendLine(
+            "        public const val QUALIFIED_NAME: kotlin.String = ${literal("${context.name}.${aggregate.name}")}"
+        )
         appendLine()
         appendLine("        /** The aggregate's type. */")
-        appendLine("        @JvmField")
+        appendLine("        @kotlin.jvm.JvmField")
         appendLine("        public val TYPE: AggregateType = AggregateType(CONTEXT, NAME)")
         appendLine()
         appendLine("        /** Who the aggregate belongs to besides its tenant. */")
-        appendLine("        @JvmField")
+        appendLine("        @kotlin.jvm.JvmField")
         appendLine("        public val OWNERSHIP: Ownership = Ownership.${aggregate.ownership.name}")
         appendLine()
         appendLine("        /** Where the aggregate's id comes from; an `OWNER` aggregate's is its owner's. */")
-        appendLine("        @JvmField")
+        appendLine("        @kotlin.jvm.JvmField")
         appendLine("        public val ID_SOURCE: AggregateIdSource = AggregateIdSource.${aggregate.idSource.name}")
         appendLine()
         appendLine("        /** Whether the aggregate keeps snapshots. */")
-        appendLine("        public const val SNAPSHOT: Boolean = ${aggregate.snapshot.enabled}")
+        appendLine("        public const val SNAPSHOT: kotlin.Boolean = ${aggregate.snapshot.enabled}")
         appendLine()
         appendLine("        /** The query models of the aggregate a peer reads (`snapshot`, `events`). */")
-        appendLine("        @JvmField")
+        appendLine("        @kotlin.jvm.JvmField")
         val models = aggregate.queries.joinToString(", ") { literal(it.model) }
-        appendLine("        public val QUERY_MODELS: List<String> = listOf($models)")
+        appendLine(
+            "        public val QUERY_MODELS: kotlin.collections.List<kotlin.String> = kotlin.collections.listOf($models)"
+        )
         appendLine()
         append(REFS)
         append(commands(context.name, aggregate))
@@ -198,7 +202,7 @@ internal object ContractSources {
         }.forEach { (path, type) ->
             appendLine()
             appendLine("        /** `$path` */")
-            appendLine("        @JvmField")
+            appendLine("        @kotlin.jvm.JvmField")
             appendLine(
                 "        public val ${QueryFieldNames.constantOf(path)}: QueryField<$type> = " +
                     "QueryField.of(${literal(path)})",
@@ -218,14 +222,16 @@ internal object ContractSources {
     /** The functions of an aggregate object that refer to one of its instances. */
     private val REFS: String = buildString {
         appendLine("        /** Refers to the instance [id] of the aggregate under [tenantId]. */")
-        appendLine("        @JvmStatic")
-        appendLine("        public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)")
+        appendLine("        @kotlin.jvm.JvmStatic")
+        appendLine(
+            "        public fun ref(tenantId: kotlin.String, id: kotlin.String): AggregateRef = TYPE.ref(tenantId, id)"
+        )
         appendLine()
         appendLine(
             "        /** Refers to an aggregate under [tenantId] whose id is not assigned yet: one a command creates. */"
         )
-        appendLine("        @JvmStatic")
-        appendLine("        public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)")
+        appendLine("        @kotlin.jvm.JvmStatic")
+        appendLine("        public fun unassigned(tenantId: kotlin.String): AggregateRef = TYPE.unassigned(tenantId)")
     }
 
     /** The object `Commands` of [aggregate], a `const val` per command it decides; nothing when it decides none. */
@@ -241,7 +247,7 @@ internal object ContractSources {
                 }
                 appendLine("            /** `${comment(command.name)}` */")
                 appendLine(
-                    "            public const val ${commandName(command.name)}: String = " +
+                    "            public const val ${commandName(command.name)}: kotlin.String = " +
                         literal("$context.${aggregate.name}.${command.name}"),
                 )
             }
@@ -267,7 +273,9 @@ internal object ContractSources {
                 }
                 appendLine("$indent    /** ${comment(error.description ?: error.code)} (HTTP ${error.status}) */")
                 appendLine(
-                    "$indent    public const val ${errorName(nameOf(error.code))}: String = ${literal(error.code)}"
+                    "$indent    public const val ${errorName(
+                        nameOf(error.code)
+                    )}: kotlin.String = ${literal(error.code)}"
                 )
             }
             appendLine("$indent}")
@@ -323,7 +331,7 @@ internal object StateFields {
     private const val PROPERTIES = "properties"
     private const val ITEMS = "items"
     private const val REQUIRED = "required"
-    private const val ANY = "Any?"
+    private const val ANY = "kotlin.Any?"
 
     /** A path of the state and the Kotlin [type] of its values. */
     data class Field(val path: String, val type: String)

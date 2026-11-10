@@ -313,7 +313,7 @@ class TypedEventHandlersTest {
         sources.getValue("Ledger.onDeclined").nullableState.assert().isTrue()
         compilation.workingDir.walkTopDown().first { it.isFile && it.name == "LedgerSubscriptions.kt" }.readText()
             .assert().contains("eventType = billing.Paid::class.java")
-            .contains("aggregates = listOf(\"billing.payment\")")
+            .contains("aggregates = kotlin.collections.listOf(\"billing.payment\")")
 
         val loose = SourceFile.kotlin(
             "Loose.kt",

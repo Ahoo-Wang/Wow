@@ -29,25 +29,25 @@ internal object ServiceRouteSource {
         val handlers = routes.map { it.handlerType }.distinct().sorted()
         appendLine("    override fun routes(")
         appendLine("        dependencies: me.ahoo.wow.kernel.Dependencies,")
-        appendLine("    ): List<$HANDLER> {")
+        appendLine("    ): kotlin.collections.List<$HANDLER> {")
         handlers.forEachIndexed { index, type ->
             appendLine(
                 "        val handler$index = dependencies.get($type::class.java, null, " +
                     "\"the service routes of ${escape(type)}\")",
             )
         }
-        appendLine("        return listOf(")
+        appendLine("        return kotlin.collections.listOf(")
         routes.sortedBy { it.name }.forEach { route ->
             val handler = "handler${handlers.indexOf(route.handlerType)}"
             appendLine("            object : $HANDLER {")
-            appendLine("                override val context: String = \"${escape(context)}\"")
+            appendLine("                override val context: kotlin.String = \"${escape(context)}\"")
             appendLine()
-            appendLine("                override val name: String = \"${escape(route.name)}\"")
+            appendLine("                override val name: kotlin.String = \"${escape(route.name)}\"")
             appendLine()
             appendLine("                override suspend fun handle(")
             appendLine("                    call: me.ahoo.wow.api.route.RouteCall,")
             appendLine("                    request: me.ahoo.wow.kernel.route.RouteRequest,")
-            appendLine("                ): Any? = $handler.${route.function}(")
+            appendLine("                ): kotlin.Any? = $handler.${route.function}(")
             route.arguments.forEach { appendLine("                    ${argument(it)},") }
             appendLine("                )")
             appendLine("            },")

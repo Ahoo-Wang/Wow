@@ -27,18 +27,22 @@ import me.ahoo.wow.manifest.tools.shadowing.EntryState
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
-/** A view spells each type as its own scope sees it, so the generated source compiles whatever the domain names. */
+/**
+ * The contract and its state views name Kotlin's types by their qualified names (#5527, #5666), so the generated
+ * sources compile whatever the domain names its classes and aggregates: a copied `List` or `String`, an aggregate
+ * `string`, whose object in the contract is `String`.
+ */
 @OptIn(ExperimentalCompilerApi::class)
-class StateViewNamesTest {
-    /** The view of [state], generated as the plugin does, with no domain class on the api's class path. */
-    private fun view(state: Class<*>): ContractSources.Source {
+class GeneratedContractNamesTest {
+    /** The contract of the aggregate [aggregate] of [state], completed as the plugin does. */
+    private fun contract(state: Class<*>, aggregate: String): Manifest {
         val fragment = Manifest(
             contexts = listOf(
                 ContextManifest(
                     "audit",
                     aggregates = listOf(
                         AggregateManifest(
-                            "catalog",
+                            aggregate,
                             state = StateManifest(Manifest.schemaRef(state.name)),
                             commands = listOf(
                                 CommandManifest("Create", schema = Manifest.schemaRef("audit.api.Create"))
@@ -48,42 +52,46 @@ class StateViewNamesTest {
                 ),
             ),
         ).copyWith(defs = mapOf("audit.api.Create" to mapOf("type" to "object")))
-        val contract = SchemaIntrospector(javaClass.classLoader).complete(fragment)
-        return StateViewSources(contract.defs) { false }.of(contract.contexts.single()).single()
+        return SchemaIntrospector(javaClass.classLoader).complete(fragment)
     }
 
-    /** Compiles [source] against the test's class path, as an api module compiles its generated views. */
-    private fun compile(source: ContractSources.Source) {
+    /** The contract's sources, its query fields included, with no domain class on the api's class path. */
+    private fun sources(state: Class<*>, aggregate: String): List<ContractSources.Source> =
+        ContractSources.of(contract(state, aggregate), queryFields = true) { false }
+
+    /** Compiles [sources] against the test's class path, as an api module compiles its generated contract. */
+    private fun compile(sources: List<ContractSources.Source>) {
         val result = KotlinCompilation().apply {
             inheritClassPath = true
-            sources = listOf(SourceFile.kotlin(source.path.substringAfterLast('/'), source.text))
+            this.sources = sources.map { SourceFile.kotlin(it.path.substringAfterLast('/'), it.text) }
             jvmTarget = "21"
         }.compile()
-        result.exitCode.assert().withFailMessage { result.messages + "\n" + source.text }
+        result.exitCode.assert().withFailMessage { result.messages + "\n" + sources.joinToString("\n") { it.text } }
             .isEqualTo(KotlinCompilation.ExitCode.OK)
     }
 
     @Test
-    fun `a copied class named as a Kotlin type should leave that type spelled by its qualified name`() {
-        val view = view(CatalogState::class.java)
-        view.text.assert()
+    fun `classes and aggregates named as Kotlin's types should leave those types spelled by their qualified names`() {
+        val sources = sources(CatalogState::class.java, "string")
+        sources.single { it.path.endsWith("CatalogStateView.kt") }.text.assert()
             .contains("val grouping: CatalogStateView.List? = null,")
             .contains("val tag: CatalogStateView.String? = null,")
             .contains("val values: kotlin.collections.List<kotlin.String>,")
-            // A Kotlin type no copy hides keeps its simple name.
-            .contains("val codes: Set<Int>,")
-            .contains("val counts: Map<kotlin.String, Long>,")
+            .contains("val codes: kotlin.collections.Set<kotlin.Int>,")
+            .contains("val counts: kotlin.collections.Map<kotlin.String, kotlin.Long>,")
             .contains("public data class List(\n        val title: kotlin.String,")
-        compile(view)
+        sources.single { it.path.endsWith("AuditContract.kt") }.text.assert()
+            .contains("public object String : SnapshotProperties()")
+            .contains("public const val NAME: kotlin.String = \"string\"")
+        compile(sources)
     }
 
     @Test
-    fun `a view whose copies hide no Kotlin type should spell Kotlin's types by their simple names`() {
-        val view = view(EntryState::class.java)
-        view.text.assert()
+    fun `a view should spell Kotlin's types by their qualified names whatever it copies`() {
+        val sources = sources(EntryState::class.java, "catalog")
+        sources.single { it.path.endsWith("EntryStateView.kt") }.text.assert()
             .contains("val grouping: EntryStateView.Entry? = null,")
-            .contains("val values: List<String>,")
-            .doesNotContain("kotlin.")
-        compile(view)
+            .contains("val values: kotlin.collections.List<kotlin.String>,")
+        compile(sources)
     }
 }

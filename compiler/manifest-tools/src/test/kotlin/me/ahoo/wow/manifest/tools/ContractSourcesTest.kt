@@ -137,10 +137,10 @@ class ContractSourcesTest {
     fun `each constant should be typed as the state's view types its property`() {
         val text = contractOf(contract(aggregate()), queryFields = true).text
         text.assert().contains(
-            "public val STATE__ID: QueryField<String> = QueryField.of(\"state.id\")",
-            "public val STATE__CUSTOMER_ID: QueryField<String?> = QueryField.of(\"state.customerId\")",
-            "public val STATE__LINES__QUANTITY: QueryField<Int> = QueryField.of(\"state.lines.quantity\")",
-            "public val STATE__ATTRIBUTES: QueryField<Map<String, String>> = QueryField.of(\"state.attributes\")",
+            "public val STATE__ID: QueryField<kotlin.String> = QueryField.of(\"state.id\")",
+            "public val STATE__CUSTOMER_ID: QueryField<kotlin.String?> = QueryField.of(\"state.customerId\")",
+            "public val STATE__LINES__QUANTITY: QueryField<kotlin.Int> = QueryField.of(\"state.lines.quantity\")",
+            "public val STATE__ATTRIBUTES: QueryField<kotlin.collections.Map<kotlin.String, kotlin.String>> = QueryField.of(\"state.attributes\")",
         )
         // The view copies the enumeration, and the constant names the copy, as a reader of the view compares it.
         val view = Regex("public val STATE__STATUS: QueryField<([^>]+)>").find(text)!!.groupValues[1]
@@ -186,22 +186,22 @@ class ContractSourcesTest {
             "import me.ahoo.wow.api.query.SnapshotProperties",
             " * Takes orders\n",
             "public object ShopOrderingContract {",
-            "public const val NAME: String = \"shop-ordering\"",
+            "public const val NAME: kotlin.String = \"shop-ordering\"",
             " * An order *&#47; of the shop\n",
             "public object Order : SnapshotProperties() {",
-            "public const val CONTEXT: String = ShopOrderingContract.NAME",
-            "public const val NAME: String = \"order\"",
+            "public const val CONTEXT: kotlin.String = ShopOrderingContract.NAME",
+            "public const val NAME: kotlin.String = \"order\"",
             "public val TYPE: AggregateType = AggregateType(CONTEXT, NAME)",
             "public val OWNERSHIP: Ownership = Ownership.TENANT",
             "public val ID_SOURCE: AggregateIdSource = AggregateIdSource.ASSIGNED",
-            "public const val SNAPSHOT: Boolean = true",
-            "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
-            "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
-            "public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)",
-            "public const val QUALIFIED_NAME: String = \"shop-ordering.order\"",
+            "public const val SNAPSHOT: kotlin.Boolean = true",
+            "public val QUERY_MODELS: kotlin.collections.List<kotlin.String> = kotlin.collections.listOf(\"snapshot\", \"events\")",
+            "public fun ref(tenantId: kotlin.String, id: kotlin.String): AggregateRef = TYPE.ref(tenantId, id)",
+            "public fun unassigned(tenantId: kotlin.String): AggregateRef = TYPE.unassigned(tenantId)",
+            "public const val QUALIFIED_NAME: kotlin.String = \"shop-ordering.order\"",
             "public object Commands {",
-            "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
-            "public val STATE__ADDRESS__ZIP: QueryField<String> = QueryField.of(\"state.address.zip\")",
+            "public const val PLACE_ORDER: kotlin.String = \"shop-ordering.order.PlaceOrder\"",
+            "public val STATE__ADDRESS__ZIP: QueryField<kotlin.String> = QueryField.of(\"state.address.zip\")",
         )
     }
 
@@ -235,13 +235,13 @@ class ContractSourcesTest {
         val text = contractOf(Manifest(contexts = listOf(context)), queryFields = false).text
         text.assert().contains(
             "    /** The rejection codes the context shares. */\n    public object Errors {",
-            "        /** The shop is closed. (HTTP 503) */\n        public const val CLOSED: String = \"shop-ordering.closed\"",
-            "public const val ORDER__NESTED__CODE: String = \"shop-ordering.order.nested.code\"",
-            "public const val _404: String = \"shop-ordering.404\"",
+            "        /** The shop is closed. (HTTP 503) */\n        public const val CLOSED: kotlin.String = \"shop-ordering.closed\"",
+            "public const val ORDER__NESTED__CODE: kotlin.String = \"shop-ordering.order.nested.code\"",
+            "public const val _404: kotlin.String = \"shop-ordering.404\"",
             "        /** The aggregate's rejection codes, each the full code. */\n        public object Errors {",
             "            /** An order has items. (HTTP 422) */\n" +
-                "            public const val INVALID_ITEMS: String = \"shop-ordering.order.invalid-items\"",
-            "public const val WRONG_STATUS: String = \"shop-ordering.order.wrong-status\"",
+                "            public const val INVALID_ITEMS: kotlin.String = \"shop-ordering.order.invalid-items\"",
+            "public const val WRONG_STATUS: kotlin.String = \"shop-ordering.order.wrong-status\"",
         )
         // A context without codes has no Errors object.
         contractOf(contract(aggregate()), queryFields = false).text.assert().doesNotContain("Errors")
@@ -282,9 +282,9 @@ class ContractSourcesTest {
             CommandManifest("Release", schema = Manifest.schemaRef("Release")),
             CommandManifest("Import", schema = Manifest.schemaRef("Import"), mounted = true),
         ).assert().contains(
-            "public const val RELEASE: String = \"inventory.stock.Release\"\n\n" +
+            "public const val RELEASE: kotlin.String = \"inventory.stock.Release\"\n\n" +
                 "            /** `Reserve` */\n" +
-                "            public const val RESERVE: String = \"inventory.stock.Reserve\"",
+                "            public const val RESERVE: kotlin.String = \"inventory.stock.Reserve\"",
         ).doesNotContain("IMPORT")
         source().assert().doesNotContain("object Commands")
     }
@@ -302,7 +302,9 @@ class ContractSourcesTest {
             queryFields = false,
         )
         source.path.assert().isEqualTo("InventoryContract.kt")
-        source.text.assert().doesNotContain("package ").contains("public object StockItem {", "listOf()")
+        source.text.assert().doesNotContain(
+            "package "
+        ).contains("public object StockItem {", "kotlin.collections.listOf()")
     }
 
     @Test

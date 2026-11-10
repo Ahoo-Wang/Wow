@@ -193,12 +193,12 @@ class CommittedManifestTest {
         runBlocking {
             val (compilation, result) = compile(model, saga)
             generated(compilation, "OrderSagaSubscriptions.kt")!!.readText().assert().contains(
-                "val commits = listOf<me.ahoo.wow.kernel.CommittedBinding<*>>(",
+                "val commits = kotlin.collections.listOf<me.ahoo.wow.kernel.CommittedBinding<*>>(",
                 "me.ahoo.wow.kernel.CommittedBinding.of<sample.ReserveStock>(\"OrderSaga\", \"onReserved\", " +
-                    "sample.ReserveStock::class.java, false, derives = listOf(sample.ConfirmStock::class.java))",
-                "me.ahoo.wow.kernel.CommittedBinding.of<Any>(\"OrderSaga\", \"onAnyCommitted\", null, true, " +
-                    "derives = listOf(sample.ConfirmStock::class.java))",
-                "rejections = rejections, commits = commits, derives = listOf(sample.ReserveStock::class.java)) {",
+                    "sample.ReserveStock::class.java, false, derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
+                "me.ahoo.wow.kernel.CommittedBinding.of<kotlin.Any>(\"OrderSaga\", \"onAnyCommitted\", null, true, " +
+                    "derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
+                "rejections = rejections, commits = commits, derives = kotlin.collections.listOf(sample.ReserveStock::class.java)) {",
             )
             val saga = provider(compilation, result).processors(Dependencies.NONE).single()
             val reserve = result.classLoader.loadClass("sample.ReserveStock")
@@ -240,9 +240,9 @@ class CommittedManifestTest {
         val (compilation, result) = compile(model, saga)
         generated(compilation, "OrderSagaSubscriptions.kt")!!.readText().assert().contains(
             "me.ahoo.wow.kernel.RejectionBinding.of<sample.ReleaseStock>(\"OrderSaga\", \"onReleased\", " +
-                "sample.ReleaseStock::class.java, false, derives = listOf(sample.ConfirmStock::class.java))",
+                "sample.ReleaseStock::class.java, false, derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
             "me.ahoo.wow.kernel.CommittedBinding.of<sample.ReleaseStock>(\"OrderSaga\", \"onReleased\", " +
-                "sample.ReleaseStock::class.java, false, derives = listOf(sample.ConfirmStock::class.java))",
+                "sample.ReleaseStock::class.java, false, derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
         )
         val saga = provider(compilation, result).processors(Dependencies.NONE).single()
         val release = result.classLoader.loadClass("sample.ReleaseStock")

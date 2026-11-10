@@ -75,7 +75,7 @@ internal object AccessSource {
             }
             val (kind, factory) = if (attribute.multiple) "Multiple" to "multiple" else "Single" to "single"
             appendLine("    /** `${attribute.name}` */")
-            appendLine("    @JvmField")
+            appendLine("    @kotlin.jvm.JvmField")
             appendLine(
                 "    $visibility val ${attribute.constant}: $ATTRIBUTE.$kind<$stateType, ${attribute.valueType}> = " +
                     "$ATTRIBUTE.$factory(\"${attribute.name}\", ${attribute.valueType}::class.javaObjectType)",
