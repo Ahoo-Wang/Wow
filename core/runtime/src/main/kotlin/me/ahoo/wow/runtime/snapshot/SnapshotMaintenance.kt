@@ -322,10 +322,11 @@ class SnapshotMaintenance(
 
     /**
      * Rewrites a run's pages of the pending snapshots of [type] in [store], under the table's rebuild lease, from where
-     * the last run stopped while this node has held the lease since (at [revision], the node's own for its life): the
-     * snapshots before it are rewritten, so each run reads on instead of scanning them again. At the end of the table
-     * the scan starts over, for the snapshots marked stale behind it meanwhile; the table is rebuilt once a scan from
-     * the first finds none.
+     * the last run stopped while this node has held the lease since: the snapshots before it are rewritten, so each run
+     * reads on instead of scanning them again. The lease's epoch alone makes going on safe: [revision] is the node's own
+     * for its life, and a lease taken again may follow another node's rewrites, so the scan then starts from the first.
+     * At the end of the table the scan starts over, for the snapshots marked stale behind it meanwhile; the table is
+     * rebuilt once a scan from the first finds none, unless it was claimed at another revision meanwhile.
      */
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
         val key = store to type
@@ -343,9 +344,15 @@ class SnapshotMaintenance(
             if (pending.isEmpty()) {
                 if (after == null) {
                     cursors.remove(key)
-                    snapshots.mark(type, revision, rebuilding = false)?.let { tables[store to type] = it }
+                    val marked = snapshots.mark(type, revision, rebuilding = false)
                     leases.release(lease, 0, node)
-                    logger.info { "The snapshots of $type in $store are rebuilt at state revision $revision." }
+                    if (marked == null) {
+                        // Claimed at another revision meanwhile: the next run acts on that claim.
+                        logger.info { "The table of $type in $store was claimed at another revision than $revision." }
+                    } else {
+                        tables[key] = marked
+                        logger.info { "The snapshots of $type in $store are rebuilt at state revision $revision." }
+                    }
                     return
                 }
                 after = null
@@ -469,7 +476,7 @@ class SnapshotMaintenance(
 
     /**
      * Where a rebuild of a table stopped: under the rebuild lease of [epoch], after the snapshot [after] (null to start
-     * from the first). It is at this node's revision, which a node keeps for its life.
+     * from the first). The epoch alone keys it: a node rebuilds at its own revision for its life.
      */
     private class RebuildCursor(val epoch: Long, val after: AggregateRef?)
 

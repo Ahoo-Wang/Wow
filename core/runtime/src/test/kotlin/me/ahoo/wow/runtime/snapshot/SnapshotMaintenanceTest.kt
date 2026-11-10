@@ -316,6 +316,42 @@ class SnapshotMaintenanceTest {
         }
 
     @Test
+    fun `a table claimed at a higher revision during the last page should not be taken for rebuilt`(): Unit =
+        runBlocking {
+            val store = RecordingStore()
+            listOf("a", "b").forEach { id ->
+                commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
+            }
+            val options = SnapshotOptions(
+                interval = 1.hours,
+                batch = 1,
+                pages = 10,
+                leaseTtl = 2.hours,
+                memberTtl = 2.hours
+            )
+            val maintenance = maintenance(2, store, options = options)
+            maintenance.prepare()
+            // A node of revision 3, alive, claims the table just before the scan from the first that would end it.
+            leases.heartbeat("$GROUP#snapshot/counter@3", "three", "three:8080", 1.hours)
+            store.beforeScan = { after -> if (after == null && store.scans.isNotEmpty()) store.memory.claim(type, 3) }
+            maintenance.maintain()
+            store.scans.assert().containsExactly(null, "a", "b", null)
+            val key = SnapshotTargets.DEFAULT_STORE to type
+            maintenance.tables().getValue(key).rebuilding.assert().isTrue()
+            store.memory.table(type)!!.revision.assert().isEqualTo(3)
+            // The lease is released: the node of the claimed revision may rebuild the table.
+            val lease = "$GROUP#snapshot-rebuild/${SnapshotTargets.DEFAULT_STORE}/counter"
+            leases.acquire(lease, 0, "other", 1.hours).assert().isNotNull()
+            leases.release(lease, 0, "other")
+            // The next run acts on the new claim: a node of revision 2 no longer rebuilds the table.
+            store.scans.clear()
+            maintenance.maintain()
+            store.scans.assert().isEmpty()
+            maintenance.tables().getValue(key).revision.assert().isEqualTo(3)
+            store.memory.table(type)!!.rebuilding.assert().isTrue()
+        }
+
+    @Test
     fun `a pending snapshot the log holds nothing of is left as it is`(): Unit = runBlocking {
         val store = InMemorySnapshotStore()
         val ghost = SnapshotRecord(type.ref("tenant", "ghost"), 1, "f", "{}", firstEventTime = 0, lastEventTime = 0)
