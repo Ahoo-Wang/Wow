@@ -91,7 +91,9 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
         val arguments = parameters.mapIndexed { index, parameter ->
             val argument = kotlinType.arguments[index].type ?: return@mapIndexed parameter
             val inner = marked(parameter, argument, context) ?: parameter
-            if (argument.isMarkedNullable) context.resolve(Nullable::class.java, inner) else inner
+            // `Any?` is any value already, null included: nothing to mark.
+            val nullable = argument.isMarkedNullable && inner.erasedType != Any::class.java
+            if (nullable) context.resolve(Nullable::class.java, inner) else inner
         }
         return if (arguments == parameters) null else context.resolve(type.erasedType, *arguments.toTypedArray())
     }

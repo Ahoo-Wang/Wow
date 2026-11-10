@@ -43,6 +43,7 @@ class TypeArgumentsTest {
         val tags: Box<List<String>?>,
         val link: Link,
         val free: Map<String, Any>,
+        val loose: Map<String, Any?>,
     )
 
     class State {
@@ -105,6 +106,7 @@ class TypeArgumentsTest {
                 Box(null),
                 Link(Box(null)),
                 mapOf("any" to 1),
+                mapOf("none" to null),
             )
         StateJson.mapper.readValue(
             StateJson.mapper.writeValueAsString(command),
@@ -167,8 +169,9 @@ class TypeArgumentsTest {
         // A property named `$ref` is a property, its schema's own references restored.
         resolved(resolved(property(Submit::class.java.name, "link")).property("\$ref")).property("value").assert()
             .isEqualTo(mapOf("type" to listOf("string", "null")))
-        // A free map: any value, left unsaid.
+        // A free map: any value, null included, left unsaid.
         property(Submit::class.java.name, "free").assert().isEqualTo(mapOf("type" to "object"))
+        property(Submit::class.java.name, "loose").assert().isEqualTo(mapOf("type" to "object"))
         completed.defs.toString().contains("Nullable").assert().isFalse()
     }
 
