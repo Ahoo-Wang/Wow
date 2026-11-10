@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -26,33 +27,58 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The requests one execution of a saga's handler derives, keyed by what each asks: its target (type, tenant, and id,
- * or `unassigned` for a creation that leaves it to admission) and its command type, then the request's business key
- * ([CommandRequest.requestId]) when it gives one, else its occurrence among the requests of that execution with the
- * same target and type. The key does not depend on the order the handler builds
- * its commands in: a retry whose reads answer in another order derives the same id for each request it derives again,
- * so the kernel answers each as its own duplicate, never one target's request as another's. A creation without an id
- * takes the same request id again, so admission gives it the aggregate its first attempt created.
+ * [AggregateRef.UNASSIGNED] for a creation that leaves it to admission) and its command type, then the request's
+ * business key ([CommandRequest.requestId]) when it gives one, else its occurrence among the requests of that execution
+ * with the same target and type. The key does not depend on the order the handler builds its commands in: a retry
+ * whose reads answer in another order derives the same id for each request it derives again, so the kernel answers
+ * each as its own duplicate, never one target's request as another's. A creation without an id takes the same request
+ * id again, so admission gives it the aggregate its first attempt created.
+ *
+ * Every derived identity is written by one encoder ([encoded]): each field as its length, `:`, and itself. Two
+ * different lists of fields never give one text, whatever characters the fields hold (a `/` or `#` in a tenant, an id
+ * or a business key, the id `unassigned`), so two different requests never share an id. An unassigned id needs no
+ * marker of its own: no assigned id is [AggregateRef.UNASSIGNED], which the gateway refuses as one.
  */
 internal class DerivedRequests {
     private val occurrences = ConcurrentHashMap<String, AtomicInteger>()
 
     /**
      * What tells the next request to [ref] of [commandType] in this execution from the others with both: its business
-     * [requestId] when it gives one, else its occurrence, from 0.
+     * [requestId] when it gives one ([keyed]), else its occurrence, from 0 ([occurrence]).
      */
     fun next(ref: AggregateRef, commandType: Class<*>, requestId: String? = null): String =
-        requestId?.let(::keyed) ?: occurrences.computeIfAbsent(keyOf(ref, commandType)) { AtomicInteger() }
-            .getAndIncrement().toString()
+        requestId?.let(::keyed) ?: occurrence(
+            occurrences.computeIfAbsent(keyOf(ref, commandType)) { AtomicInteger() }.getAndIncrement(),
+        )
 
     companion object {
-        private const val UNASSIGNED = "unassigned"
+        private const val KEY = "key"
+        private const val OCCURRENCE = "occurrence"
+
+        /** The one text of [fields], in order: each as its length, `:`, and itself, so they join one way only. */
+        fun encoded(vararg fields: String): String = buildString {
+            fields.forEach { append(it.length).append(':').append(it) }
+        }
 
         /** What a request asks: its target and its command type. */
         fun keyOf(ref: AggregateRef, commandType: Class<*>): String =
-            "${ref.type}/${ref.tenantId}/${if (ref.isAssigned) ref.id else UNASSIGNED}#${commandType.name}"
+            encoded(ref.type.context, ref.type.name, ref.tenantId, ref.id, commandType.name)
 
         /** The discriminator of a request with the business key [requestId], never an occurrence's. */
-        fun keyed(requestId: String): String = "key:$requestId"
+        fun keyed(requestId: String): String = encoded(KEY, requestId)
+
+        /** The discriminator of the [occurrence]-th request (from 0) of a target and type without a business key. */
+        fun occurrence(occurrence: Int): String = encoded(OCCURRENCE, occurrence.toString())
+
+        /** The fields of [execution]: its subscription, the commit's aggregate, and its version. */
+        fun executionOf(execution: ExecutionId): String = encoded(
+            execution.subscription,
+            execution.ref.type.context,
+            execution.ref.type.name,
+            execution.ref.tenantId,
+            execution.ref.id,
+            execution.version.toString(),
+        )
 
         /** A name-based UUID of [name]. */
         fun idOf(name: String): String = UUID.nameUUIDFromBytes(name.toByteArray(Charsets.UTF_8)).toString()
