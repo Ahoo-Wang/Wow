@@ -44,6 +44,7 @@ import {
   toWowProblemError,
   wait,
   WaitPlan,
+  WowHeaders,
   WowProblemError,
 } from '../src/index.js';
 import { rememberRequestId } from '../src/problem.js';
@@ -530,6 +531,58 @@ describe('CommandClient', () => {
     expect(
       requests.filter(r => !r.url.endsWith('/wow/manifest')).map(r => r.url),
     ).toEqual([`${BASE_URL}/c/a/3/x`, `${BASE_URL}/c/a/4/x`]);
+  });
+
+  it('fails a command stream whose body breaks with an error that carries the request id it was sent with', async () => {
+    let body!: ReadableStreamDefaultController<Uint8Array>;
+    const { requests } = stubFetch(
+      () =>
+        new Response(
+          new ReadableStream<Uint8Array>({ start: c => void (body = c) }),
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    );
+    const reader = (
+      await new CommandClient(client(), { manifest: TEST_MANIFEST }).stream({
+        command: 'c.a.X',
+        id: '1',
+      })
+    ).getReader();
+    body.enqueue(
+      new TextEncoder().encode(
+        `event:committed\ndata:${JSON.stringify(result())}\n\n`,
+      ),
+    );
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { hop: { stage: 'committed' } },
+    });
+    const lost = new TypeError('Connection lost after the response began');
+    body.error(lost);
+    const failure = await reader.read().catch((error: unknown) => error);
+    expect(failure).toBe(lost);
+    const sent = requests[0].headers.get(WowHeaders.REQUEST_ID);
+    expect(sent).toBeTypeOf('string');
+    expect(requestIdOf(failure)).toBe(sent);
+  });
+
+  it('cancels the response of a command stream its reader cancels', async () => {
+    let cancelled: unknown;
+    stubFetch(
+      () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            cancel: reason => void (cancelled = reason),
+          }),
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    );
+    const stream = await new CommandClient(client(), {
+      manifest: TEST_MANIFEST,
+    }).stream({ command: 'c.a.X', id: '1', requestId: 's1' });
+    await stream.cancel('left the page');
+    // The cancel reaches the body through the event stream's pipes.
+    await vi.waitFor(() => expect(cancelled).toBe('left the page'));
   });
 
   it('builds a rejection of a rejected result only, its words from what the result says', () => {

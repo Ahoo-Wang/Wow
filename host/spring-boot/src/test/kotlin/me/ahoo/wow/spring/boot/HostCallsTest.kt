@@ -26,6 +26,8 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallPermits
+import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
@@ -33,6 +35,8 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.peer.PeerTargets
+import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -44,6 +48,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
@@ -99,6 +104,50 @@ class HostCallsTest {
         val again = caller.call(OutgoingCall("bank.account.OpenAccount", command))
         again.ref.assert().isEqualTo(result.ref)
         again.duplicate.assert().isTrue()
+    }
+
+    @Test
+    fun `a peer its discovery lists no node of for the moment should be an outage, then called once one is listed`():
+        Unit = runBlocking {
+        // The discovery lists no node of the bank's service at first, then the target's internal port.
+        val listings = ArrayDeque(listOf(emptyList(), listOf(URI.create("http://127.0.0.1:${target.internalPort}"))))
+        val heard = mutableListOf<String>()
+        val targets = object : PeerTargets {
+            override suspend fun targetsOf(service: String, context: String): List<URI> =
+                listings.removeFirstOrNull() ?: emptyList()
+
+            override fun unreachable(service: String, context: String) {
+                heard += service
+            }
+        }
+        val endpoints = PeerEndpoints(emptyMap(), emptyMap(), { "bank-service" }, targets, discovers = true)
+        val caller = HttpCommandCaller(
+            endpoints,
+            SERVICE,
+            HttpCommandCaller.client(),
+            5.seconds,
+            contracts = listOf(target.context.getBean(Manifest::class.java)),
+        )
+        caller.reaches(BANK).assert().isTrue()
+        val command = Command(
+            "call-4",
+            "request-4",
+            AggregateType(BANK, "account").unassigned(Caller.DEFAULT_TENANT),
+            OpenAccount("erin"),
+            scope = Scope("erin"),
+            causation = root,
+            operator = Operator("erin", Caller.DEFAULT_TENANT),
+        )
+        val outage = assertThrows<WowProblemException> {
+            runBlocking { caller.call(OutgoingCall("bank.account.OpenAccount", command)) }
+        }
+        outage.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        // An outage the saga's subscription waits out, not a mistake that parks its aggregate.
+        FailureClassification.DEFAULT.classify(outage, null).assert().isEqualTo(FailureClass.SYSTEMIC)
+        heard.assert().containsExactly("bank-service")
+        // Its retry looks the service up again and reaches the node now listed.
+        caller.call(OutgoingCall("bank.account.OpenAccount", command)).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
     @Test

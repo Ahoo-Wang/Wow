@@ -118,7 +118,7 @@ function compileSort(config: RecordViewConfig, rowKey: string): FieldSort[] {
 export function recordProjection(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-): Projection {
+): Projection & { include: string[] } {
   const capability = definition.record;
   if (!capability)
     throw new Error(

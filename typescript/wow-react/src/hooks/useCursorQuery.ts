@@ -54,7 +54,8 @@ export interface UseCursorQueryOptions<
  *   `execute()` start again from the first page with no rows; `reset()`
  *   empties them; `abort()` and an error keep them.
  * - `hasMore` — whether a page follows the last one read.
- * - `fetchNext()` — reads the next page and appends its rows; it does
+ * - `fetchNext()` — reads the next page and appends its rows, from where the
+ *   pages stand when it is called, whichever render it came from; it does
  *   nothing while a page is loading or when no page follows. A failed
  *   `fetchNext()` keeps the rows, so calling it again retries that page.
  */
@@ -156,6 +157,13 @@ export function useCursorQuery<
   // starts the run; any other run (a new query, execute(), setQuery()) finds
   // none and reads the first page.
   const next = useRef<string | null>(null);
+  // Where the pages stand as of now, not as of a render: fetchNext() reads
+  // them when it is called, so a handler that awaits one fetchNext() and
+  // calls the same one again reads on from the page the first one read.
+  const progress = useRef<{
+    nextCursor: string | null | undefined;
+    runs: number;
+  }>({ nextCursor: undefined, runs: 0 });
   const readPage = options.execute;
   const {
     status,
@@ -173,34 +181,47 @@ export function useCursorQuery<
       execute: async (query, options) => {
         const cursor = next.current;
         next.current = null;
-        if (cursor === null) setPages(noPages());
-        const page = await readPage({ ...query, cursor }, options);
-        // A run that no longer counts was aborted by the runner: its page
-        // belongs to a query the rows have moved on from.
-        if (!options.signal.aborted) {
-          setPages(pages => ({
-            items:
-              cursor === null ? [...page.list] : [...pages.items, ...page.list],
-            nextCursor: page.nextCursor,
-          }));
+        if (cursor === null) {
+          progress.current.nextCursor = undefined;
+          setPages(noPages());
         }
-        return page;
+        progress.current.runs++;
+        try {
+          const page = await readPage({ ...query, cursor }, options);
+          // A run that no longer counts was aborted by the runner: its page
+          // belongs to a query the rows have moved on from.
+          if (!options.signal.aborted) {
+            progress.current.nextCursor = page.nextCursor;
+            setPages(pages => ({
+              items:
+                cursor === null
+                  ? [...page.list]
+                  : [...pages.items, ...page.list],
+              nextCursor: page.nextCursor,
+            }));
+          }
+          return page;
+        } finally {
+          progress.current.runs--;
+        }
       },
     },
     false,
   );
   const hasMore = typeof pages.nextCursor === 'string';
   const fetchNext = useCallback(async () => {
-    if (loading || typeof pages.nextCursor !== 'string') return;
-    next.current = pages.nextCursor;
+    const { nextCursor, runs } = progress.current;
+    if (runs > 0 || typeof nextCursor !== 'string') return;
+    next.current = nextCursor;
     // The runner hands the cursor to the executor before it first awaits;
     // clear it in case the run did not start (no query, unmounted).
     const run = execute();
     next.current = null;
     await run;
-  }, [loading, pages.nextCursor, execute]);
+  }, [execute]);
   const resetPages = useCallback(() => {
     reset();
+    progress.current.nextCursor = undefined;
     setPages(noPages());
   }, [reset]);
   return {

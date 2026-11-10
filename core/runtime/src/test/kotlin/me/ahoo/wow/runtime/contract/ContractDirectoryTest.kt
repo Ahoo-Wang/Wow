@@ -46,8 +46,8 @@ import org.junit.jupiter.api.assertThrows
 class ContractDirectoryTest {
     private val directory = ContractDirectory(shop(), ContractFixtures.peers)
 
-    private fun problems(manifest: Manifest, nullable: Set<String> = emptySet()): List<String> =
-        assertThrows<ContractException> { ContractDirectory(manifest, ContractFixtures.peers, nullable) }.problems
+    private fun problems(manifest: Manifest): List<String> =
+        assertThrows<ContractException> { ContractDirectory(manifest, ContractFixtures.peers) }.problems
 
     @Test
     fun `the contract of a context the service serves should name this service when it names one`() {
@@ -346,8 +346,14 @@ class ContractDirectoryTest {
             "subscription shop.All.onInventory reads inventory.bin, published without its state (inventory-bins), " +
                 "so its handler takes a nullable state: StateEvent<S?>",
         )
-        ContractDirectory(manifest, ContractFixtures.peers, setOf("Bins.onBin", "All.onInventory"))
-            .nullableStates.assert().containsExactlyInAnyOrder("Bins.onBin", "All.onInventory")
+        // Marked by their Manifest as taking a nullable state, both read it.
+        val nullable = shop(
+            subscriptions = manifest.contexts.single { it.name == "shop" }.subscriptions.map {
+                it.copyWith(source = it.source.copyWith(nullableState = true))
+            },
+        )
+        ContractDirectory(nullable, ContractFixtures.peers).subscriptionOf("shop", "Bins.onBin")!!
+            .source.nullableState.assert().isTrue()
     }
 
     @Test
@@ -363,8 +369,27 @@ class ContractDirectoryTest {
             "subscription shop.Strict.onBin reads inventory.bin, published without its state (inventory-bins), so " +
                 "its handler takes a nullable state: StateEvent<S?>",
         )
-        ContractDirectory(manifest, ContractFixtures.peers, setOf("Strict.onBin"))
-            .nullableStates.assert().containsExactlyInAnyOrder("Bins.onBin", "Strict.onBin")
+    }
+
+    @Test
+    fun `a subscription's nullable state should be its own, not that of another context's subscription of its name`() {
+        // #5526: billing's subscription of the same name takes a nullable state; shop's still does not.
+        val strict = SubscriptionSource("inventory", listOf("bin"))
+        val nullable = strict.copyWith(nullableState = true)
+        val billing = ContextManifest(
+            "billing",
+            subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, nullable)),
+        )
+        val strictOnly = "subscription shop.Bins.onBin reads inventory.bin, published without its state " +
+            "(inventory-bins), so its handler takes a nullable state: StateEvent<S?>"
+        problems(shop(subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, strict))))
+            .assert().containsExactly(strictOnly)
+        problems(
+            shop(
+                subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, strict)),
+                contexts = listOf(billing),
+            ),
+        ).assert().containsExactly(strictOnly)
     }
 
     @Test

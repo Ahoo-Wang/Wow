@@ -112,6 +112,51 @@ describe('useCursorQuery', () => {
     expect(result.current.items).toEqual([o1, o2, o3]);
   });
 
+  it('reads on from the page before when one handler awaits fetchNext() and calls the same one again', async () => {
+    const o4: Row = { id: 'o4' };
+    const server = fakeServer(request => {
+      const cursor = (request.body as { cursor: string | null }).cursor;
+      return cursor === null
+        ? json({ list: [o1, o2], nextCursor: 'c1' })
+        : cursor === 'c1'
+          ? json({ list: [o3], nextCursor: 'c2' })
+          : json({ list: [o4], nextCursor: null });
+    });
+    const { result } = render(server);
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+    // The callback of one render, as a click handler holds it across awaits.
+    const { fetchNext } = result.current;
+    await act(async () => {
+      await fetchNext();
+      await fetchNext();
+      // Past the last page: nothing more to read.
+      await fetchNext();
+    });
+    expect(cursors(server)).toEqual([null, 'c1', 'c2']);
+    expect(result.current.items).toEqual([o1, o2, o3, o4]);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('does nothing on a held fetchNext() while the first page of a new run is loading', async () => {
+    const first = deferred<Response>();
+    let runs = 0;
+    const server = fakeServer(() =>
+      runs++ === 0 ? json({ list: [o1, o2], nextCursor: 'c1' }) : first.promise,
+    );
+    const { result } = render(server);
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+    const { fetchNext } = result.current;
+    let running!: Promise<void>;
+    act(() => {
+      running = result.current.execute();
+    });
+    await act(() => fetchNext());
+    expect(cursors(server)).toEqual([null, null]);
+    first.resolve(json({ list: [o3], nextCursor: null }));
+    await act(() => running);
+    expect(result.current.items).toEqual([o3]);
+  });
+
   it('starts again from the first page when the query changes, and on execute()', async () => {
     const server = fakeServer(twoPages);
     const { result, rerender } = render(server);

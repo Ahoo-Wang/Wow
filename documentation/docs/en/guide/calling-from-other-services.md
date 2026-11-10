@@ -46,7 +46,7 @@ val asService = WowClient.builder()
 
 `client.commands` is the same `CommandClient` a Wow service has, and `client.queries` the same `QueryApi`. In service mode the name goes in the `Wow-Service` header of each request, and the called service may list what that name may call (`wow.callers.<service>`).
 
-On a Spring Cloud registry the client finds the service's instances as `lb://<service>`, through Spring Cloud LoadBalancer ([Resolve `lb://`](../operate/spring-cloud#load-balancer)). Java code wraps the client in `JavaCommandClient` ([From Java](./calling-services#from-java)).
+On a Spring Cloud registry the client finds the service's instances as `lb://<service>`, through Spring Cloud LoadBalancer ([Resolve `lb://`](../operate/spring-cloud#load-balancer)). An `EndpointResolver` of your own that looks instances up (in a registry, DNS or a sidecar) also overrides `reaches` to say which contexts it serves: a lookup of one of them that finds no instance then fails as `wow.peer.unavailable`, which the client retries, and not as a context with no URL, which is the code's mistake and is not retried. Java code wraps the client in `JavaCommandClient` ([From Java](./calling-services#from-java)).
 
 ## From other languages
 
