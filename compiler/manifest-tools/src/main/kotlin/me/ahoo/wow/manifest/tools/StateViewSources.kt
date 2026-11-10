@@ -87,13 +87,11 @@ internal class StateViewSources(
                 appendLine("package $pkg")
                 appendLine()
             }
-            appendLine("import me.ahoo.wow.api.read.StateView")
-            appendLine()
             appendLine("/**")
             appendLine(" * The state of `$aggregate` as another context reads it, from its contract.")
             description(schemaOf(state))?.let { appendLine(" * ${comment(it)}") }
             appendLine(" */")
-            appendLine("@StateView(${literal(aggregate)})")
+            appendLine("@me.ahoo.wow.api.read.StateView(${literal(aggregate)})")
             append(body)
         }
         val directory = if (pkg.isEmpty()) "" else pkg.replace('.', '/') + "/"

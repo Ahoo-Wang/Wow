@@ -389,7 +389,7 @@ class WowContractSourcesFunctionalTest {
             .assert().contains(
                 "object ShopContract",
                 "const val NAME: kotlin.String = \"shop\"",
-                "object Cart : SnapshotProperties()",
+                "object Cart : me.ahoo.wow.api.query.SnapshotProperties()",
                 "QUERY_MODELS: kotlin.collections.List<kotlin.String> = kotlin.collections.listOf(\"snapshot\", \"events\")",
             )
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
@@ -403,7 +403,7 @@ class WowContractSourcesFunctionalTest {
     fun `the api should carry a view of the cart's state, copying the domain's own types`() {
         val view = File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/CartStateView.kt").readText()
         view.assert().contains(
-            "@StateView(\"shop.cart\")",
+            "@me.ahoo.wow.api.read.StateView(\"shop.cart\")",
             "public data class CartStateView(",
             "val id: kotlin.String,",
             "val name: kotlin.String? = null,",

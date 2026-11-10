@@ -143,7 +143,7 @@ class WowApiPluginTest {
             "object Cart",
             "public const val NAME: kotlin.String = \"cart\"",
             "AggregateType(CONTEXT, NAME)",
-            "fun ref(tenantId: kotlin.String, id: kotlin.String): AggregateRef = TYPE.ref(tenantId, id)",
+            "fun ref(tenantId: kotlin.String, id: kotlin.String): me.ahoo.wow.api.aggregate.AggregateRef = TYPE.ref(tenantId, id)",
         )
     }
 
