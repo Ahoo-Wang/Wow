@@ -12,6 +12,7 @@ import {
   configurationGroups,
   firstSentence,
   frameworkErrors,
+  javaType,
   plain,
   queryErrorCodes,
   referencePages,
@@ -366,4 +367,14 @@ test('the Manifest outline follows the writer: nested objects, arrays of written
       ],
     },
   ]);
+});
+
+test('a configuration type reads as the operator writes it: a host properties class as the group it binds', () => {
+  assert.equal(javaType('java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.StoreProperties>'), 'Map<String,Store>');
+  assert.equal(javaType('me.ahoo.wow.spring.boot.WowProperties$Switch'), 'Switch');
+  assert.equal(javaType('me.ahoo.wow.spring.boot.PeerTargetProperties$Contract'), 'Contract');
+  // A nested class of a properties class, and a type outside the host, keep their own names.
+  assert.equal(javaType('me.ahoo.wow.spring.boot.QueryProperties$Budget'), 'Budget');
+  assert.equal(javaType('me.ahoo.wow.runtime.wait.UnknownContexts'), 'UnknownContexts');
+  assert.equal(javaType('java.time.Duration'), 'Duration');
 });

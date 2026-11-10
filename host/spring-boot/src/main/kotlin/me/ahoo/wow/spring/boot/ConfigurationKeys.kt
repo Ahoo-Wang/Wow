@@ -158,7 +158,7 @@ class ConfigurationKeys(
     }
 
     private fun isPropertyOf(type: Class<*>, elements: List<String>): Boolean {
-        if (type == WowProperties.Store::class.java && isStoreOption(elements)) {
+        if (type == StoreProperties::class.java && isStoreOption(elements)) {
             return true
         }
         val property = elements.firstOrNull()?.let { propertiesOf(type)[it] } ?: return false
@@ -257,8 +257,8 @@ class ConfigurationKeys(
         val MAPS: List<CheckedMap> = listOf(
             CheckedMap("wow.callers", "<service>", WowProperties.CallerPermits::class.java),
             CheckedMap("wow.peers", "<context>", WowProperties.PeerTarget::class.java),
-            CheckedMap("wow.aggregates", "[<context>.<aggregate>]", WowProperties.Aggregate::class.java),
-            CheckedMap("wow.stores", "<name>", WowProperties.Store::class.java),
+            CheckedMap("wow.aggregates", "[<context>.<aggregate>]", AggregateProperties::class.java),
+            CheckedMap("wow.stores", "<name>", StoreProperties::class.java),
             CheckedMap("wow.subscriptions", "[<context>.<name>]", WowProperties.SubscriptionSettings::class.java),
             CheckedMap("wow.schedules", "<name>", WowProperties.Schedule::class.java),
             CheckedMap("wow.http.errors", "[<code>]", WowProperties.Http.Error::class.java),

@@ -39,99 +39,99 @@
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Switch",
     "description" : "Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateHistory",
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateHistoryProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.ttl",
     "type" : "java.time.Duration",
     "description" : "How long the type's history is kept; forever when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateHistory"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateHistoryProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].id-generator",
     "type" : "java.lang.String",
     "description" : "The id generator that gives the type's new ids, by name.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Aggregate"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].log.store",
     "type" : "java.lang.String",
     "description" : "The store of `wow.stores` the type's log is on, over `wow.log.store`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateStore"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateStoreProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.events.store",
     "type" : "java.lang.String",
     "description" : "The store of `wow.stores` the type's `events` queries read; its log store when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateQueryEvents"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQueryEventsProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
     "description" : "Whether an `events` query of the type that names no aggregate runs, over its store's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateQueryEvents"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQueryEventsProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.snapshot.store",
     "type" : "java.lang.String",
     "description" : "The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateQuerySnapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQuerySnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].routing",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CommandRouting",
     "description" : "How the commands of the type are routed, over `wow.routing` (CommandRouting): `topic` writes them to its context's command topic, accepted once the broker acknowledged them, which needs a topic transport; `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Aggregate",
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.primary",
     "type" : "java.lang.String",
     "description" : "The one of them the type's write side and state reads read; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateSnapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.stores",
     "type" : "java.util.List<java.lang.String>",
     "description" : "The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AggregateSnapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].tenant",
     "type" : "java.lang.String",
     "description" : "The tenant every aggregate of the type is in, whoever the caller is.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Aggregate"
+    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties"
   }, {
     "name" : "wow.stores.<name>.ddl",
     "type" : "me.ahoo.wow.spi.Ddl",
     "description" : "How this store manages the framework's schema, over `wow.ddl`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Store"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreProperties"
   }, {
     "name" : "wow.stores.<name>.query.adaptive.ceiling",
     "type" : "java.lang.Integer",
     "description" : "The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StoreAdaptive"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.adaptive.floor",
     "type" : "java.lang.Integer",
     "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StoreAdaptive"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
     "description" : "Whether an `events` query that names no aggregate runs, over `wow.query.events.unpinned`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$QueryEvents"
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryEventsProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-concurrent",
     "type" : "java.lang.Integer",
     "description" : "How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StoreQuery"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-queued",
     "type" : "java.lang.Integer",
     "description" : "How many queries beyond the bound wait for a permit, over `wow.query.max-queued`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StoreQuery"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-wait",
     "type" : "java.time.Duration",
     "description" : "How long a query beyond the bound waits for a permit, over `wow.query.max-wait`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StoreQuery"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.type",
     "type" : "java.lang.String",
     "description" : "The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Store"
+    "sourceType" : "me.ahoo.wow.spring.boot.StoreProperties"
   }, {
     "name" : "wow.stores.<name>.client",
     "type" : "java.lang.String",

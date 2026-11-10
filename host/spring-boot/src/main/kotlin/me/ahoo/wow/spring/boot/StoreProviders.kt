@@ -57,12 +57,12 @@ class StoreProviders internal constructor(
             return StoreProviders(stores)
         }
 
-        /** Fails when [provider] declares an option of a key the host reads itself ([WowProperties.Store.RESERVED]). */
+        /** Fails when [provider] declares an option of a key the host reads itself ([StoreProperties.RESERVED]). */
         private fun requireUnreserved(provider: StoreProvider) {
-            val reserved = provider.options.map { it.key }.filter { it.substringBefore('.') in WowProperties.Store.RESERVED }
+            val reserved = provider.options.map { it.key }.filter { it.substringBefore('.') in StoreProperties.RESERVED }
             check(reserved.isEmpty()) {
                 "The ${provider.type} store provider ${provider.javaClass.name} declares the options $reserved, but " +
-                    "wow.stores.<name>.${WowProperties.Store.RESERVED.joinToString("|")} are the host's: rename them."
+                    "wow.stores.<name>.${StoreProperties.RESERVED.joinToString("|")} are the host's: rename them."
             }
         }
 

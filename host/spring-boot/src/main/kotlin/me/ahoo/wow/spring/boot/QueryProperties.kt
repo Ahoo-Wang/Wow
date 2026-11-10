@@ -384,7 +384,7 @@ class QueryProperties {
 }
 
 /** The settings of `wow-query`'s query bounds: these properties, and each store's of [stores]. */
-internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Store>): QueryStoreSettings =
+internal fun QueryProperties.storeSettings(stores: Map<String, StoreProperties>): QueryStoreSettings =
     QueryStoreSettings(
         maxConcurrent = maxConcurrent,
         maxWait = maxWait.toKotlinDuration(),

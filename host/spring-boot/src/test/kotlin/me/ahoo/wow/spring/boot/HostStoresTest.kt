@@ -101,11 +101,11 @@ class HostStoresTest {
             properties {
                 log.store = "a"
                 snapshot.stores = mutableListOf("b")
-                aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
+                aggregates["$BANK.account"] = AggregateProperties().apply {
                     log.store = "c"
                     snapshot.stores = mutableListOf("a")
                 }
-                aggregates["$BANK.other"] = WowProperties.Aggregate().apply { tenant = "fixed" }
+                aggregates["$BANK.other"] = AggregateProperties().apply { tenant = "fixed" }
             },
             memory("a", "b", "c"),
             models,
@@ -124,7 +124,7 @@ class HostStoresTest {
                 log.store = "a"
                 snapshot.stores = mutableListOf("a", "b")
                 snapshot.primary = "b"
-                aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
+                aggregates["$BANK.account"] = AggregateProperties().apply {
                     snapshot.stores = mutableListOf("c", "a")
                 }
             },
@@ -145,7 +145,7 @@ class HostStoresTest {
             properties {
                 log.store = "a"
                 snapshot.stores = mutableListOf("a", "b")
-                aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.primary = "b" }
+                aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.primary = "b" }
             },
             memory("a", "b"),
             models,
@@ -167,7 +167,7 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
+                    aggregates["$BANK.account"] = AggregateProperties().apply {
                         snapshot.stores = mutableListOf("a")
                         snapshot.primary = "b"
                     }
@@ -188,7 +188,7 @@ class HostStoresTest {
         layoutOf(
             properties {
                 log.store = "a"
-                aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("a", "search") }
+                aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("a", "search") }
             },
             stores,
             models,
@@ -197,7 +197,7 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("search") }
+                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("search") }
                 },
                 stores,
                 models,
@@ -222,7 +222,7 @@ class HostStoresTest {
 
     @Test
     fun `the snapshot maintenance options follow the interval`() {
-        val options = WowProperties.Snapshot().apply {
+        val options = SnapshotProperties().apply {
             maintenanceInterval = java.time.Duration.ofMinutes(1)
             rebuild.pageSize = 7
             rebuild.maxPages = 3
@@ -231,7 +231,7 @@ class HostStoresTest {
         options.batch.assert().isEqualTo(7)
         options.pages.assert().isEqualTo(3)
         options.leaseTtl.inWholeMinutes.assert().isEqualTo(3)
-        WowProperties.Snapshot().options().leaseTtl.assert().isEqualTo(SnapshotOptions.DEFAULT_TTL)
+        SnapshotProperties().options().leaseTtl.assert().isEqualTo(SnapshotOptions.DEFAULT_TTL)
     }
 
     @Test
@@ -255,7 +255,7 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.ghost"] = WowProperties.Aggregate().apply { log.store = "b" }
+                    aggregates["$BANK.ghost"] = AggregateProperties().apply { log.store = "b" }
                 },
                 two,
                 models,
@@ -265,7 +265,7 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("z") }
+                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("z") }
                 },
                 two,
                 models,
@@ -293,7 +293,7 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { log.store = "b" }
+                    aggregates["$BANK.account"] = AggregateProperties().apply { log.store = "b" }
                 },
                 stores,
                 models,
@@ -381,8 +381,8 @@ class HostStoresTest {
         val beans = DefaultListableBeanFactory()
         val stores = open(
             properties {
-                stores["a"] = WowProperties.Store().apply { type = "memory" }
-                stores["b"] = WowProperties.Store().apply { type = "MEMORY" }
+                stores["a"] = StoreProperties().apply { type = "memory" }
+                stores["b"] = StoreProperties().apply { type = "MEMORY" }
             },
             beans,
         )
@@ -411,7 +411,7 @@ class HostStoresTest {
             properties {
                 log.pollInterval = java.time.Duration.ofMillis(20)
                 log.maxPollInterval = java.time.Duration.ofSeconds(2)
-                stores["a"] = WowProperties.Store().apply { type = "memory" }
+                stores["a"] = StoreProperties().apply { type = "memory" }
             },
             beans,
         )
@@ -422,7 +422,7 @@ class HostStoresTest {
         open(properties(), beans, memoryOptIn = "dev").values.single().config.polling
             .assert().isEqualTo(TailPolling.DEFAULT)
         assertThrows<IllegalArgumentException> {
-            WowProperties.Log().apply { maxPollInterval = java.time.Duration.ofMillis(10) }.tailPolling()
+            LogProperties().apply { maxPollInterval = java.time.Duration.ofMillis(10) }.tailPolling()
         }
         assertThrows<IllegalArgumentException> { TailPolling(kotlin.time.Duration.ZERO, 1.seconds) }
     }
@@ -433,23 +433,23 @@ class HostStoresTest {
         fun open(settings: Map<String, String> = emptyMap(), block: WowProperties.() -> Unit) =
             assertThrows<IllegalStateException> { open(properties(block), beans, settings = mapOf("a" to settings)) }
                 .message!!
-        open { stores["a"] = WowProperties.Store() }.assert().contains("wow.stores.a.type is not set")
-        open { stores["a"] = WowProperties.Store().apply { type = " " } }.assert().contains(
+        open { stores["a"] = StoreProperties() }.assert().contains("wow.stores.a.type is not set")
+        open { stores["a"] = StoreProperties().apply { type = " " } }.assert().contains(
             "wow.stores.a.type is not set"
         )
-        open { stores["a"] = WowProperties.Store().apply { type = "auto" } }.assert().contains("is auto")
+        open { stores["a"] = StoreProperties().apply { type = "auto" } }.assert().contains("is auto")
         open {
             backend = "memory"
-            stores["a"] = WowProperties.Store().apply { type = "memory" }
+            stores["a"] = StoreProperties().apply { type = "memory" }
         }.assert().contains("wow.backend is memory")
-        open { stores["a"] = WowProperties.Store().apply { type = "nope" } }.assert()
+        open { stores["a"] = StoreProperties().apply { type = "nope" } }.assert()
             .contains("No store provider offers the store type nope: memory")
-        open { stores["a"] = WowProperties.Store().apply { type = "postgres" } }.assert()
+        open { stores["a"] = StoreProperties().apply { type = "postgres" } }.assert()
             .contains("no DataSource bean")
-        open { stores["a"] = WowProperties.Store().apply { type = "mongo" } }.assert()
+        open { stores["a"] = StoreProperties().apply { type = "mongo" } }.assert()
             .contains("no MongoClient bean")
         open(mapOf("type" to "postgres", "data-source" to "missing")) {
-            stores["a"] = WowProperties.Store().apply { type = "postgres" }
+            stores["a"] = StoreProperties().apply { type = "postgres" }
         }.assert().contains("names missing, which is no DataSource bean")
     }
 
@@ -457,7 +457,7 @@ class HostStoresTest {
     fun `every store should read the node's clock`() {
         val clock = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC)
         val stores = StoreInstances.open(
-            properties { stores["a"] = WowProperties.Store().apply { type = "memory" } },
+            properties { stores["a"] = StoreProperties().apply { type = "memory" } },
             providers,
             BeanStoreResources(DefaultListableBeanFactory()),
             clock = clock,
@@ -472,7 +472,7 @@ class HostStoresTest {
         beans.registerBeanDefinition("second", RootBeanDefinition(Unpooled::class.java))
         // The store's own settings, as the environment holds them: the host's keys are not its provider's.
         val stores = open(
-            properties { stores["a"] = WowProperties.Store().apply { type = "postgres" } },
+            properties { stores["a"] = StoreProperties().apply { type = "postgres" } },
             beans,
             settings = mapOf(
                 "a" to mapOf("type" to "postgres", "ddl" to "none", "query.max-concurrent" to "2", "data-source" to "second")

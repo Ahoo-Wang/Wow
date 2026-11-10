@@ -139,7 +139,7 @@ internal object StoreInstances {
      * The stores of `wow.stores`, by name, each opened by the provider of its `type`; when it names none, the one store
      * `wow.backend` selects ([BackendSelection]), named [ContextBackends.DEFAULT_STORE]. Each store is given the options
      * its provider declares ([StoreProvider.options]): the `wow.<type>.<key>` settings of its type, then its own
-     * (`wow.stores.<name>.<key>`, every key but the host's [WowProperties.Store.RESERVED]), each read by [settings] of
+     * (`wow.stores.<name>.<key>`, every key but the host's [StoreProperties.RESERVED]), each read by [settings] of
      * its prefix,
      * a setting its provider does not declare failing the start, naming the ones it does. It is given the application's beans as [resources],
      * `wow.ddl` unless it names its own, the tails' polling, the [service] and the node's [clock]. `wow.backend=auto`
@@ -158,11 +158,11 @@ internal object StoreInstances {
         settings: (prefix: String) -> Map<String, String> = { emptyMap() },
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
-        fun open(name: String, type: String, store: WowProperties.Store?, key: String): Store {
+        fun open(name: String, type: String, store: StoreProperties?, key: String): Store {
             val own = if (store == null) {
                 emptyMap()
             } else {
-                settings("wow.stores.$name").filterKeys { it.substringBefore('.') !in WowProperties.Store.RESERVED }
+                settings("wow.stores.$name").filterKeys { it.substringBefore('.') !in StoreProperties.RESERVED }
             }
             val provider = providers.of(type, key)
             val config = StoreConfig(

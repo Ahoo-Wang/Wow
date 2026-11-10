@@ -5,7 +5,7 @@
     "description" : "The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other contexts. The defaults are the runtime's own. The query plane, Kafka, ClickHouse and OpenTelemetry have their own classes (QueryProperties, KafkaProperties, ClickHouseProperties, ObservabilityProperties). Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
   }, {
     "name" : "wow.access",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "type" : "me.ahoo.wow.spring.boot.AccessProperties",
     "description" : "How each context's built-in subscription `wow.access` stamps an aggregate's access attributes over its history when a commit changes them: `wow.access.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
@@ -132,12 +132,12 @@
     "description" : "The settings of the kafka topic transport."
   }, {
     "name" : "wow.log",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Log",
+    "type" : "me.ahoo.wow.spring.boot.LogProperties",
     "description" : "The aggregates' logs: their partitions, their store, and how their appends and tails run.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.memory",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
+    "type" : "me.ahoo.wow.spring.boot.MemoryProperties",
     "description" : "The in-memory provider's settings: the topics it keeps in the JVM.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
@@ -257,14 +257,14 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.snapshot",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
+    "type" : "me.ahoo.wow.spring.boot.SnapshotProperties",
     "description" : "Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.snapshot.rebuild",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$SnapshotRebuild",
+    "type" : "me.ahoo.wow.spring.boot.SnapshotRebuildProperties",
     "description" : "How an in-place rebuild rewrites the snapshots.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotProperties"
   }, {
     "name" : "wow.state-cache",
     "type" : "me.ahoo.wow.spring.boot.StateCacheProperties",
@@ -320,35 +320,35 @@
     "name" : "wow.access.capacity",
     "type" : "java.lang.Integer",
     "description" : "The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "sourceType" : "me.ahoo.wow.spring.boot.AccessProperties",
     "defaultValue" : 100000
   }, {
     "name" : "wow.access.stamp-batch",
     "type" : "java.lang.Integer",
     "description" : "The most streams one stamp writes: a long history is stamped in statements of at most this many.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "sourceType" : "me.ahoo.wow.spring.boot.AccessProperties",
     "defaultValue" : 1000
   }, {
     "name" : "wow.access.walk-batch",
     "type" : "java.lang.Integer",
     "description" : "The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every five seconds at its pace.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "sourceType" : "me.ahoo.wow.spring.boot.AccessProperties",
     "defaultValue" : 100
   }, {
     "name" : "wow.access.walk-rate",
     "type" : "java.lang.Integer",
     "description" : "The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large its share.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "sourceType" : "me.ahoo.wow.spring.boot.AccessProperties",
     "defaultValue" : 500
   }, {
     "name" : "wow.access.walk-share",
     "type" : "java.lang.Double",
     "description" : "The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "sourceType" : "me.ahoo.wow.spring.boot.AccessProperties",
     "defaultValue" : 0.25
   }, {
     "name" : "wow.aggregates",
-    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Aggregate>",
+    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.AggregateProperties>",
     "description" : "Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
@@ -765,30 +765,30 @@
     "name" : "wow.log.max-poll-interval",
     "type" : "java.time.Duration",
     "description" : "The longest a tail waits between polls that find nothing: an idle tail backs off up to it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log",
+    "sourceType" : "me.ahoo.wow.spring.boot.LogProperties",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.log.partitions",
     "type" : "java.lang.Integer",
     "description" : "The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096, refused at start otherwise.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log",
+    "sourceType" : "me.ahoo.wow.spring.boot.LogProperties",
     "defaultValue" : 64
   }, {
     "name" : "wow.log.poll-interval",
     "type" : "java.time.Duration",
     "description" : "How often the tail of a PostgreSQL or MongoDB log polls while it finds entries.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log",
+    "sourceType" : "me.ahoo.wow.spring.boot.LogProperties",
     "defaultValue" : "PT0.05S"
   }, {
     "name" : "wow.log.store",
     "type" : "java.lang.String",
     "description" : "The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
+    "sourceType" : "me.ahoo.wow.spring.boot.LogProperties"
   }, {
     "name" : "wow.memory.topic-retention",
     "type" : "java.lang.Integer",
     "description" : "The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
+    "sourceType" : "me.ahoo.wow.spring.boot.MemoryProperties",
     "defaultValue" : 1000
   }, {
     "name" : "wow.mongo.append-timeout",
@@ -1306,35 +1306,35 @@
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",
     "description" : "How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotProperties",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.snapshot.primary",
     "type" : "java.lang.String",
     "description" : "The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotProperties"
   }, {
     "name" : "wow.snapshot.rebuild.max-pages",
     "type" : "java.lang.Integer",
     "description" : "The most pages a rebuild rewrites in one maintenance run.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SnapshotRebuild",
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotRebuildProperties",
     "defaultValue" : 10
   }, {
     "name" : "wow.snapshot.rebuild.page-size",
     "type" : "java.lang.Integer",
     "description" : "How many snapshots a rebuild rewrites per page.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SnapshotRebuild",
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotRebuildProperties",
     "defaultValue" : 100
   }, {
     "name" : "wow.snapshot.stores",
     "type" : "java.util.List<java.lang.String>",
     "description" : "The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotProperties"
   }, {
     "name" : "wow.snapshot.write-batch",
     "type" : "java.lang.Integer",
     "description" : "How many snapshots of a partition the snapshot subscriptions write together at most.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
+    "sourceType" : "me.ahoo.wow.spring.boot.SnapshotProperties",
     "defaultValue" : 256
   }, {
     "name" : "wow.state-cache.capacity",
@@ -1349,7 +1349,7 @@
     "defaultValue" : 32
   }, {
     "name" : "wow.stores",
-    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Store>",
+    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.StoreProperties>",
     "description" : "The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {

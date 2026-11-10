@@ -148,7 +148,7 @@ class BackendSelectionTest {
         properties.routing = WowProperties.CommandRouting.PARTITIONED
         assertThrows<IllegalStateException> { CommandRoutings.routing(properties, local = true) }
         // An aggregate type's partitioned or local is the node's, so it must be the node's.
-        properties.aggregates["bank.account"] = WowProperties.Aggregate().apply { routing = WowProperties.CommandRouting.LOCAL }
+        properties.aggregates["bank.account"] = AggregateProperties().apply { routing = WowProperties.CommandRouting.LOCAL }
         assertThrows<WowConfigurationException> { CommandRoutings.routing(properties, local = false) }
             .key.assert().isEqualTo("wow.aggregates.[bank.account].routing")
         properties.aggregates["bank.account"]!!.routing = WowProperties.CommandRouting.PARTITIONED
@@ -400,7 +400,7 @@ class WowPropertiesTest {
         val unknown = bind("wow.aggregates.[shop.cart].tenant" to "t0")
         assertThrows<IllegalStateException> { NodeAdmission.tenants(unknown, models) }
             .message.assert().contains("shop.cart")
-        val blank = WowProperties().apply { aggregates["bank.account"] = WowProperties.Aggregate().apply { tenant = " " } }
+        val blank = WowProperties().apply { aggregates["bank.account"] = AggregateProperties().apply { tenant = " " } }
         assertThrows<IllegalStateException> { NodeAdmission.tenants(blank, models) }
             .message.assert().contains("blank")
     }

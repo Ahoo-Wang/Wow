@@ -231,7 +231,7 @@ class HostQueryIsolationTest {
         (null as WowProperties?).storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.AUTO)
         val properties = WowProperties().apply {
             ddl = Ddl.VALIDATE
-            stores["other"] = WowProperties.Store().apply { ddl = Ddl.NONE }
+            stores["other"] = StoreProperties().apply { ddl = Ddl.NONE }
         }
         properties.storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.VALIDATE)
         properties.storeQueryOptions("other").indexDdl.assert().isEqualTo(Ddl.NONE)

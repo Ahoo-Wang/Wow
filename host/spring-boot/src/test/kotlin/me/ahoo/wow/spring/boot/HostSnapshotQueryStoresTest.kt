@@ -72,7 +72,7 @@ class HostSnapshotQueryStoresTest {
     fun `only the types that name a store are routed, each to one of its own`() {
         HostSnapshotQueryStores.configured(null) { listOf("main") }.assert().isEmpty()
         val wow = WowProperties().apply {
-            aggregates["bank.account"] = WowProperties.Aggregate().apply { query.snapshot.store = "search" }
+            aggregates["bank.account"] = AggregateProperties().apply { query.snapshot.store = "search" }
         }
         HostSnapshotQueryStores.configured(
             wow
@@ -80,7 +80,7 @@ class HostSnapshotQueryStoresTest {
         assertThrows<WowConfigurationException> {
             HostSnapshotQueryStores.configured(
                 WowProperties().apply {
-                    aggregates["account"] = WowProperties.Aggregate().apply { query.snapshot.store = "search" }
+                    aggregates["account"] = AggregateProperties().apply { query.snapshot.store = "search" }
                 },
             ) { listOf("search") }
         }.key.assert().isEqualTo("wow.aggregates.[account]")

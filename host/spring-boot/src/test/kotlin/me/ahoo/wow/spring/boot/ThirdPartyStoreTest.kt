@@ -139,7 +139,7 @@ class ThirdPartyStoreTest {
     fun `a store should get its type's settings under its own, and fail on a setting its provider does not declare`() {
         val providers = StoreProviders.load(javaClass.classLoader)
         fun open(vararg options: Pair<String, String>) = StoreInstances.open(
-            WowProperties().apply { stores["acme"] = WowProperties.Store().apply { type = "acme" } },
+            WowProperties().apply { stores["acme"] = StoreProperties().apply { type = "acme" } },
             providers,
             StoreResources.NONE,
             settings = { prefix ->
@@ -168,7 +168,7 @@ class ThirdPartyStoreTest {
         }
         val providers = StoreProviders.load(javaClass.classLoader, beans = listOf(mapped))
         val store = StoreInstances.open(
-            WowProperties().apply { stores["main"] = WowProperties.Store().apply { type = "mapped" } },
+            WowProperties().apply { stores["main"] = StoreProperties().apply { type = "mapped" } },
             providers,
             StoreResources.NONE,
             settings = { prefix ->

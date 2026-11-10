@@ -19,12 +19,7 @@ import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.kernel.HandlerRetry
-import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.runtime.access.AccessStampOptions
-import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
-import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.BackpressureOptions
@@ -37,8 +32,6 @@ import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
@@ -107,7 +100,7 @@ class WowProperties {
     var routing: CommandRouting = CommandRouting.AUTO
 
     /** The aggregates' logs: their partitions, their store, and how their appends and tails run. */
-    var log: Log = Log()
+    var log: LogProperties = LogProperties()
     var cluster: ClusterProperties = ClusterProperties()
     var wait: WaitProperties = WaitProperties()
     var executor: ExecutorProperties = ExecutorProperties()
@@ -154,7 +147,7 @@ class WowProperties {
     var ops: OpsProperties = OpsProperties()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
-    var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
+    var aggregates: MutableMap<String, AggregateProperties> = LinkedHashMap()
 
     /**
      * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
@@ -181,16 +174,16 @@ class WowProperties {
      * The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on
      * one store form a log group, with its own partition sequences, checkpoints, parked entries and timers.
      */
-    var stores: MutableMap<String, Store> = LinkedHashMap()
+    var stores: MutableMap<String, StoreProperties> = LinkedHashMap()
 
     /** Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`. */
-    var snapshot: Snapshot = Snapshot()
+    var snapshot: SnapshotProperties = SnapshotProperties()
 
     /**
      * How each context's built-in subscription `wow.access` stamps an aggregate's access attributes over its history
      * when a commit changes them: `wow.access.*`.
      */
-    var access: Access = Access()
+    var access: AccessProperties = AccessProperties()
 
     /** The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`. */
     var health: HealthProperties = HealthProperties()
@@ -208,268 +201,7 @@ class WowProperties {
     var transport: String = TransportSelection.AUTO
 
     /** The in-memory provider's settings: the topics it keeps in the JVM. */
-    var memory: Memory = Memory()
-
-    /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
-    @InternalWowApi
-    class Memory {
-        /**
-         * The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in
-         * development without a transport), at least one: past it, a partition drops its oldest, as a broker's
-         * retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay
-         * bounded however long the node runs.
-         */
-        var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
-            set(value) {
-                require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
-                field = value
-            }
-    }
-
-    @InternalWowApi
-    class Log {
-        /**
-         * The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096,
-         * refused at start otherwise.
-         */
-        var partitions: Int = DEFAULT_PARTITIONS
-            set(value) {
-                field = Partitioner.requirePartitions(value)
-            }
-
-        /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
-        var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
-
-        /** The longest a tail waits between polls that find nothing: an idle tail backs off up to it. */
-        var maxPollInterval: Duration = TailPolling.DEFAULT.maxInterval.toJavaDuration()
-
-        /** The tails' polling these settings give. */
-        internal fun tailPolling(): TailPolling =
-            TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
-
-        /**
-         * The hand-over of the node's own commits to its tails in memory, always on: a tail waits
-         * [maxPollInterval] without a commit before it reads the store.
-         */
-        internal fun handoffOptions(): HandoffOptions =
-            HandoffOptions(probeInterval = maxPollInterval.toKotlinDuration())
-
-        /**
-         * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name:
-         * one of `wow.stores`, the only one when not set.
-         */
-        var store: String? = null
-    }
-
-    /**
-     * A named store instance (`wow.stores.<name>`): its [type], `memory`, `postgres`, `mongo` or a community backend's
-     * (the type of its store provider), how it manages the framework's schema ([ddl]) and how its queries run
-     * ([query]). Every other key of the store is a setting its provider declares, at the same level
-     * (`wow.stores.<name>.data-source`, `wow.stores.<name>.client`): the host reserves [RESERVED] alone, and a key no
-     * provider of the store's type declares fails the start, naming the ones it does. Two stores of one type may serve
-     * different databases; two log stores may not share one.
-     */
-    @InternalWowApi
-    class Store {
-        /** The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. */
-        var type: String? = null
-
-        /** How this store manages the framework's schema, over `wow.ddl`. */
-        var ddl: Ddl? = null
-
-        /** How the store's snapshot and `events` queries run. */
-        var query: StoreQuery = StoreQuery()
-
-        internal companion object {
-            /** The keys of a store the host reads itself: no provider declares an option of these names. */
-            val RESERVED: Set<String> = setOf("type", "ddl", "query")
-        }
-    }
-
-    /**
-     * How one store's queries run (`wow.stores.<name>.query.*`): [maxConcurrent], how many run at once, over
-     * `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [maxWait] and
-     * [maxQueued], how long and how many queries beyond it wait for a permit, over `wow.query.max-wait` and
-     * `wow.query.max-queued`; [events], its `events` queries; [adaptive], how its bound adapts to its write pressure,
-     * over `wow.query.adaptive.*`.
-     */
-    @InternalWowApi
-    class StoreQuery {
-        /** How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound. */
-        var maxConcurrent: Int? = null
-
-        /** How long a query beyond the bound waits for a permit, over `wow.query.max-wait`. */
-        var maxWait: Duration? = null
-
-        /** How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. */
-        var maxQueued: Int? = null
-        var events: QueryEvents = QueryEvents()
-        var adaptive: StoreAdaptive = StoreAdaptive()
-    }
-
-    /**
-     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`): [floor] and
-     * [ceiling] over `wow.query.adaptive.*`.
-     */
-    @InternalWowApi
-    class StoreAdaptive {
-        /** The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`. */
-        var floor: Int? = null
-
-        /** The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`. */
-        var ceiling: Int? = null
-    }
-
-    /**
-     * The `events` queries of a store or an aggregate type: [unpinned], whether one that names no
-     * aggregate runs, over the store's and `wow.query.events.unpinned`.
-     */
-    @InternalWowApi
-    class QueryEvents {
-        /** Whether an `events` query that names no aggregate runs, over `wow.query.events.unpinned`. */
-        var unpinned: UnpinnedEvents? = null
-    }
-
-    /** An aggregate type's queries (`wow.aggregates.[<context>.<aggregate>].query.*`). */
-    @InternalWowApi
-    class AggregateQuery {
-        var events: AggregateQueryEvents = AggregateQueryEvents()
-        var snapshot: AggregateQuerySnapshot = AggregateQuerySnapshot()
-    }
-
-    /**
-     * An aggregate type's `snapshot` queries: [store], the snapshot store they read, one of the type's
-     * `snapshot.stores`, its primary when not set: an Elasticsearch store that searches the states, say, while the
-     * commands and the state reads stay on the primary.
-     */
-    @InternalWowApi
-    class AggregateQuerySnapshot {
-        /** The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set. */
-        var store: String? = null
-    }
-
-    /**
-     * An aggregate type's `events` queries: [unpinned], whether one that names no aggregate runs,
-     * over its events store's and `wow.query.events.unpinned`; [store], the store they read (one of `wow.stores`), its
-     * log store when not set: an Elasticsearch store whose event search Sink writes the type's streams, say.
-     */
-    @InternalWowApi
-    class AggregateQueryEvents {
-        /** Whether an `events` query of the type that names no aggregate runs, over its store's. */
-        var unpinned: UnpinnedEvents? = null
-
-        /** The store of `wow.stores` the type's `events` queries read; its log store when not set. */
-        var store: String? = null
-    }
-
-    /**
-     * How the access attributes are stamped over the histories: by the built-in subscription `wow.access`, in stamps of a
-     * bounded number of streams, remembering the last attributes of a bounded number of aggregates; and by the access
-     * walk of each aggregate type, a page of aggregates at a time, at a bounded rate and a bounded share of the time.
-     */
-    @InternalWowApi
-    class Access {
-        /** The most streams one stamp writes: a long history is stamped in statements of at most this many. */
-        var stampBatch: Int = AccessStampOptions.DEFAULT_BATCH
-
-        /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
-        var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY
-
-        /**
-         * The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every
-         * five seconds at its pace.
-         */
-        var walkBatch: Int = AccessStampOptions.DEFAULT_WALK_BATCH
-
-        /**
-         * The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large
-         * its share.
-         */
-        var walkRate: Int = AccessStampOptions.DEFAULT_WALK_RATE
-
-        /**
-         * The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at
-         * most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it
-         * gives way, down to an eighth of it. Raise it in a maintenance window to walk faster.
-         */
-        var walkShare: Double = AccessStampOptions.DEFAULT_WALK_SHARE
-
-        /** The node's stamping options. */
-        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity, walkBatch, walkRate, walkShare)
-    }
-
-    /**
-     * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may be written to several stores; a
-     * store added to them is backfilled from the log: switch the primary to it once it caught up, then drop the old
-     * one.
-     */
-    @InternalWowApi
-    class Snapshot {
-        /**
-         * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
-         * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
-         * first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.
-         */
-        var stores: MutableList<String> = ArrayList()
-
-        /**
-         * The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's
-         * `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.
-         */
-        var primary: String? = null
-
-        /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
-        var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
-
-        /** How an in-place rebuild rewrites the snapshots. */
-        var rebuild: SnapshotRebuild = SnapshotRebuild()
-
-        /** How many snapshots of a partition the snapshot subscriptions write together at most. */
-        var writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
-
-        /** The node's snapshot maintenance and write options. */
-        fun options(): SnapshotOptions {
-            val every = maintenanceInterval.toKotlinDuration()
-            val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
-            return SnapshotOptions(every, rebuild.pageSize, rebuild.maxPages, ttl, ttl, writeBatch)
-        }
-
-        private companion object {
-            /** A lease or membership outlives this many runs. */
-            const val TTL_INTERVALS = 3
-        }
-    }
-
-    /** How an in-place rebuild of the snapshots rewrites them (`wow.snapshot.rebuild.*`). */
-    @InternalWowApi
-    class SnapshotRebuild {
-        /** How many snapshots a rebuild rewrites per page. */
-        var pageSize: Int = SnapshotOptions.DEFAULT_BATCH
-
-        /** The most pages a rebuild rewrites in one maintenance run. */
-        var maxPages: Int = SnapshotOptions.DEFAULT_PAGES
-    }
-
-    /**
-     * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
-     * over `wow.snapshot.stores`; [primary] is the one its write side and state reads read, and its snapshot queries
-     * unless its `query.snapshot.store` names another, the first when not set.
-     */
-    @InternalWowApi
-    class AggregateSnapshot {
-        /** The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`. */
-        var stores: MutableList<String> = ArrayList()
-
-        /** The one of them the type's write side and state reads read; the first when not set. */
-        var primary: String? = null
-    }
-
-    /** One aggregate type's store of its log or of its snapshots: one of `wow.stores`. */
-    @InternalWowApi
-    class AggregateStore {
-        /** The store of `wow.stores` the type's log is on, over `wow.log.store`. */
-        var store: String? = null
-    }
+    var memory: MemoryProperties = MemoryProperties()
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
     @InternalWowApi
@@ -1103,64 +835,6 @@ class WowProperties {
 
         /** The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. */
         var maxRetryAfter: Duration = ClientRetryPolicy.DEFAULT.maxRetryAfter.toJavaDuration()
-    }
-
-    /**
-     * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type: its commands and state reads are in that tenant whoever the caller is
-     * ([me.ahoo.wow.spi.tenant.TenantPolicy]). [idGenerator] names the
-     * [me.ahoo.wow.spi.id.AggregateIdGenerator] bean that gives the type's new ids, or a generator an
-     * [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] bean finds by that name (CosId's, with wow-cosid); the type's ids
-     * come from the `wowAggregateIdGenerator` bean otherwise. A type the node does not serve, or a name nothing gives
-     * a generator of, is refused at startup.
-     */
-    @InternalWowApi
-    class Aggregate {
-        /** The tenant every aggregate of the type is in, whoever the caller is. */
-        var tenant: String? = null
-
-        /** The id generator that gives the type's new ids, by name. */
-        var idGenerator: String? = null
-
-        /**
-         * How the commands of the type are routed, over `wow.routing` ([CommandRouting]): `topic` writes them to its
-         * context's command topic, accepted once the broker acknowledged them, which needs a topic transport;
-         * `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it.
-         */
-        var routing: CommandRouting = CommandRouting.AUTO
-
-        /** The store of the type's log, over `wow.log.store`: the type's log group. */
-        var log: AggregateStore = AggregateStore()
-
-        /** The stores of the type's snapshots, over `wow.snapshot.stores`; its queries read the primary one. */
-        var snapshot: AggregateSnapshot = AggregateSnapshot()
-
-        /**
-         * How the ClickHouse Sink keeps the type's commits, in the same style as the other per-aggregate keys; it replaces
-         * the removed `wow.clickhouse.sink.aggregates`.
-         */
-        var clickhouse: AggregateClickHouse = AggregateClickHouse()
-
-        /** The type's queries: whether its `events` queries that name no aggregate run, and the store they read. */
-        var query: AggregateQuery = AggregateQuery()
-    }
-
-    /** An aggregate type's ClickHouse settings: `wow.aggregates.[<context>.<aggregate>].clickhouse.*`. */
-    @InternalWowApi
-    class AggregateClickHouse {
-        var history: AggregateHistory = AggregateHistory()
-    }
-
-    /**
-     * Whether every commit of the type is kept ([enabled]: `auto`, the Sink's default, keeps it; `true` or `false`
-     * decide it), and how long ([ttl], forever by default).
-     */
-    @InternalWowApi
-    class AggregateHistory {
-        /** Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. */
-        var enabled: Switch = Switch.AUTO
-
-        /** How long the type's history is kept; forever when not set. */
-        var ttl: Duration? = null
     }
 
     /** Where commands run (`wow.routing`, and an aggregate type's `wow.aggregates.[<context>.<aggregate>].routing`). */
