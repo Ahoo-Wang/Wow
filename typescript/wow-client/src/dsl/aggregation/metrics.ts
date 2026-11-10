@@ -22,22 +22,22 @@ import type { AggregationExpression } from './types.js';
  * Wow 9.1.
  */
 export enum AggregationMetricType {
-  /** The number of rows; {@link aggregation.count}. */
+  /** The number of rows; {@link metricBuilders.count | `aggregation.count`}. */
   COUNT = 'count',
   /**
-   * An {@link AggregationFunction} of an expression; {@link aggregation.sum}
+   * An {@link AggregationFunction} of an expression; {@link metricBuilders.sum | `aggregation.sum`}
    * and its siblings.
    */
   NUMERIC = 'numeric',
-  /** Any one value of a field; {@link aggregation.any}. Wow 9.0 and later. */
+  /** Any one value of a field; {@link metricBuilders.any | `aggregation.any`}. Wow 9.0 and later. */
   ANY = 'any',
   /**
-   * The number of distinct values; {@link aggregation.distinctCount}. Wow 9.1
+   * The number of distinct values; {@link metricBuilders.distinctCount | `aggregation.distinctCount`}. Wow 9.1
    * and later.
    */
   DISTINCT_COUNT = 'distinct-count',
   /**
-   * A percentile of an expression; {@link aggregation.percentile}. Wow 9.1
+   * A percentile of an expression; {@link metricBuilders.percentile | `aggregation.percentile`}. Wow 9.1
    * and later.
    */
   PERCENTILE = 'percentile',
@@ -47,12 +47,12 @@ export enum AggregationMetricType {
    */
   DERIVED = 'derived',
   /**
-   * A field's value on the group's earliest record; {@link aggregation.first}.
+   * A field's value on the group's earliest record; {@link metricBuilders.first | `aggregation.first`}.
    * Wow 9.2 and later.
    */
   FIRST = 'first',
   /**
-   * A field's value on the group's latest record; {@link aggregation.last}.
+   * A field's value on the group's latest record; {@link metricBuilders.last | `aggregation.last`}.
    * Wow 9.2 and later.
    */
   LAST = 'last',
@@ -60,7 +60,7 @@ export enum AggregationMetricType {
 
 /**
  * What a `NUMERIC` metric computes over its expression; each has a builder,
- * {@link aggregation.sum} through {@link aggregation.variance}.
+ * {@link metricBuilders.sum | `aggregation.sum`} through {@link metricBuilders.variance | `aggregation.variance`}.
  */
 export enum AggregationFunction {
   /** The sum */
@@ -77,7 +77,7 @@ export enum AggregationFunction {
   VARIANCE = 'variance',
 }
 
-/** The number of rows in each group; {@link aggregation.count}. */
+/** The number of rows in each group; {@link metricBuilders.count | `aggregation.count`}. */
 export interface CountAggregationMetric<FIELDS extends string = string> {
   /** Counts only the rows that match. Wow 9.1 and later. */
   filter?: FilterExpression<FIELDS>;
@@ -87,7 +87,7 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 }
 
 /**
- * An {@link AggregationFunction} of an expression; {@link aggregation.sum},
+ * An {@link AggregationFunction} of an expression; {@link metricBuilders.sum | `aggregation.sum`},
  * `avg`, `min`, `max`, `stddev`, `variance`.
  */
 export interface NumericAggregationMetric<FIELDS extends string = string> {
@@ -104,7 +104,7 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 
 /**
  * Any one value of a field within each group, of any type;
- * {@link aggregation.any}. Wow 9.0 and later. Neither a derived metric nor
+ * {@link metricBuilders.any | `aggregation.any`}. Wow 9.0 and later. Neither a derived metric nor
  * `having` may refer to it.
  */
 export interface AnyAggregationMetric<FIELDS extends string = string> {
@@ -119,8 +119,8 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
 
 /**
  * A field's value on the earliest (`FIRST`) or latest (`LAST`) record of
- * each group, ordered by `orderBy`; {@link aggregation.first} and
- * {@link aggregation.last}. Wow 9.2 and later.
+ * each group, ordered by `orderBy`; {@link metricBuilders.first | `aggregation.first`} and
+ * {@link metricBuilders.last | `aggregation.last`}. Wow 9.2 and later.
  *
  * The value comes back in the field's own type, not as a number, and is
  * `null` when no record of the group has both a value and an `orderBy`
@@ -146,7 +146,7 @@ export interface EdgeAggregationMetric<FIELDS extends string = string> {
 
 /**
  * The number of distinct values of an expression;
- * {@link aggregation.distinctCount}. Wow 9.1 and later.
+ * {@link metricBuilders.distinctCount | `aggregation.distinctCount`}. Wow 9.1 and later.
  */
 export interface DistinctCountAggregationMetric<
   FIELDS extends string = string,
@@ -161,7 +161,7 @@ export interface DistinctCountAggregationMetric<
 }
 
 /**
- * A percentile of an expression; {@link aggregation.percentile}. Wow 9.1 and
+ * A percentile of an expression; {@link metricBuilders.percentile | `aggregation.percentile`}. Wow 9.1 and
  * later.
  */
 export interface PercentileAggregationMetric<FIELDS extends string = string> {
@@ -197,7 +197,7 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
   filter?: FilterExpression<FIELDS>;
 }
 
-/** The options of {@link aggregation.first} and {@link aggregation.last}. */
+/** The options of {@link metricBuilders.first | `aggregation.first`} and {@link metricBuilders.last | `aggregation.last`}. */
 export interface EdgeAggregationOptions<
   FIELDS extends string = string,
 > extends AggregationMetricOptions<FIELDS> {
@@ -208,7 +208,7 @@ export interface EdgeAggregationOptions<
   orderBy?: FIELDS;
 }
 
-/** The options of {@link aggregation.percentile}. */
+/** The options of {@link metricBuilders.percentile | `aggregation.percentile`}. */
 export interface PercentileAggregationOptions<
   FIELDS extends string = string,
 > extends AggregationMetricOptions<FIELDS> {
@@ -231,7 +231,7 @@ export function numeric<FIELDS extends string>(
   };
 }
 
-/** Builds a `FIRST` or `LAST` metric; {@link aggregation.first}. */
+/** Builds a `FIRST` or `LAST` metric; {@link metricBuilders.first | `aggregation.first`}. */
 export function edge<FIELDS extends string>(
   type: AggregationMetricType.FIRST | AggregationMetricType.LAST,
   field: FIELDS,

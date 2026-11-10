@@ -114,7 +114,7 @@ export type DerivedExpression =
 
 /**
  * A metric computed from metrics declared before it in the same query, after
- * aggregation; {@link aggregation.derived}. Wow 9.1 and later.
+ * aggregation; {@link derivedBuilders.derived | `aggregation.derived`}. Wow 9.1 and later.
  */
 export interface DerivedAggregationMetric {
   type: AggregationMetricType.DERIVED;
