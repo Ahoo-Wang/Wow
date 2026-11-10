@@ -13,13 +13,18 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
@@ -30,6 +35,8 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -62,7 +69,7 @@ class SubscriptionParkingTest {
         handled.record(entry)
     }
 
-    private fun runtime(ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
+    private fun runtime(ledger: FailureLedger = this.ledger, log: EventLog = this.log) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
@@ -210,6 +217,61 @@ class SubscriptionParkingTest {
         eventually { handled.versionsOf("x") == listOf(1, 5) }
         runtime.stop()
     }
+
+    @Test
+    fun `an entry taken once a skip has answered is handled, however late the skip's lane goes on`(): Unit =
+        runBlocking {
+            // #5743: the skip answered before it settled the aggregate, so an entry taken in between was held back as
+            // a parked one, and nothing parked it: it was never handled.
+            val taken = CompletableDeferred<Unit>()
+            val watched = object : EventLog by log {
+                override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
+                    log.tail(partition, after).transform { entry ->
+                        // The tail hands an entry to the workers inline: once it emitted it, the worker has taken it.
+                        emit(entry)
+                        if (entry.stream.ref == cart("x") && entry.stream.version == 5) {
+                            taken.complete(Unit)
+                        }
+                    }
+            }
+            val runtime = runtime(log = watched)
+            parkX(runtime)
+            val skipped = withContext(Dispatchers.Unconfined) {
+                runtime.skip("parking", cart("x")).also {
+                    // Resumed in the skip's lane as the skip answers: the lane goes on only once version 5 is taken.
+                    appender.append("x")
+                    runBlocking { withTimeout(10.seconds) { taken.await() } }
+                }
+            }
+            skipped.assert().isTrue()
+            ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isFalse()
+            eventually { checkpointsReachEnd() }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1, 5))
+            runtime.stop()
+        }
+
+    @Test
+    fun `a skip the runtime stops while it resolves fails as stopped, and the aggregate stays parked`(): Unit =
+        runBlocking {
+            val resolving = CompletableDeferred<Unit>()
+            val hanging = object : FailureLedger by ledger {
+                override suspend fun resolve(
+                    subscription: SubscriptionId,
+                    ref: AggregateRef,
+                    partition: Int
+                ): ParkedAggregate? {
+                    resolving.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+            val runtime = runtime(hanging)
+            parkX(runtime)
+            val skipped = async { runCatching { runtime.skip("parking", cart("x")) } }
+            resolving.await()
+            runtime.stop()
+            skipped.await().exceptionOrNull().assert().isInstanceOf(CancellationException::class.java)
+            ledger.isParked(SubscriptionId("shop", "parking"), cart("x")).assert().isTrue()
+        }
 
     @Test
     fun `a retry while a skip resolves the aggregate starts nothing, so the skipped entries are never handled`(): Unit =

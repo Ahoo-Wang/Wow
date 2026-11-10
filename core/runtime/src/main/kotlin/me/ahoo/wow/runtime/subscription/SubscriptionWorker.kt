@@ -710,7 +710,7 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Resolves [ref]'s ledger entry without handling what was skipped: from now on its new entries are handled.
+     * Resolves [ref]'s ledger entry without handling what was skipped: its entries taken once it answers are handled.
      *
      * The aggregate is marked skipping in the same step as it is checked: a retry asked for meanwhile starts nothing,
      * so what the skip discards is never handled. The ledger is written in the aggregate's lane, ahead of the entries
@@ -734,19 +734,19 @@ internal class SubscriptionWorker(
     @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of skip; the aggregate stays parked.
     private suspend fun runSkip(ref: AggregateRef, item: Item.Skip) {
         var resolved = false
-        try {
+        val outcome = try {
             val removed = ledger.resolve(subscription.id, ref, partition)
             // In this partition: an entry re-homed to another stays parked, its skip that partition's owner's.
             resolved = removed != null || ledger.parked(subscription.id, ref) == null
-            item.result.complete(removed != null)
-        } catch (cancelled: CancellationException) {
-            item.result.cancel(cancelled)
-            throw cancelled
+            Result.success(removed != null)
         } catch (failure: Exception) {
-            item.result.completeExceptionally(failure)
+            Result.failure(failure)
         } finally {
+            // Settled before the skip answers: an entry taken once it has is handled, never held back as a parked one.
             synchronized(this) { parking.skipped(ref, resolved) }
         }
+        outcome.fold({ item.result.complete(it) }, { item.result.completeExceptionally(it) })
+        (outcome.exceptionOrNull() as? CancellationException)?.let { throw it }
     }
 
     /** Saves the watermark if it moved since the last save. */
