@@ -33,6 +33,9 @@ internal object ElasticsearchQuerySchemaAdapterFixtures {
 
     fun logical(vararg fields: Pair<String, QueryValueSchema>) = LogicalQuerySchema(objectValue(fields.toMap()))
     fun scalar(type: QueryValueType) = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(type))
+
+    /** A string marked as prose a reader searches by words (`@QueryText`). */
+    fun prose() = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), text = true)
     fun array(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
     fun union(vararg values: QueryValueSchema) = QueryValueSchema(
         QueryValueKind.UNION,

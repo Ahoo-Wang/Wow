@@ -176,8 +176,10 @@ internal data class ElasticsearchIndexMapping private constructor(
          * The mapping of a name that resolves to several physical indices (an alias over rollover indices, a data
          * stream): the fields every index maps the same way. A field one index lacks or maps otherwise is left out,
          * so no query sorts, filters or groups on a field some of the indices cannot serve the same way; it becomes
-         * queryable once every index behind the name maps it alike. The indices must agree on `_source`, which
-         * decides what a projection returns; otherwise the name fails closed.
+         * queryable once every index behind the name maps it alike. A field's multi-fields are a field each: one some
+         * indices lack (a `text` field added to some of them first) is left out alone, and the field it belongs to
+         * keeps what every index serves. The indices must agree on `_source`, which decides what a projection
+         * returns; otherwise the name fails closed.
          */
         internal fun common(
             indexName: String,
@@ -196,7 +198,11 @@ internal data class ElasticsearchIndexMapping private constructor(
             val fields = first.fields.filter { (path, field) ->
                 mappings.values.all { it.fields[path]?.mapsAlike(field) == true }
             }
-            return first.copy(fields = fields, singleShard = false)
+            // A multi-field the common mapping keeps is one every index maps alike.
+            val common = fields.mapValues { (_, field) ->
+                field.copy(multiFields = field.multiFields.filterTo(linkedSetOf()) { it in fields })
+            }
+            return first.copy(fields = common, singleShard = false)
         }
 
         @Suppress(
@@ -288,9 +294,13 @@ internal data class ElasticsearchMappedField(
     val normalizer: String? = null,
     val enabled: Boolean = true,
 ) {
-    /** The same mapping in another index; [JsonData] has no value equality, so [nullValue] compares by its text. */
+    /**
+     * The same mapping in another index, whatever multi-fields each has (each is a field of its own, compared on its
+     * own); [JsonData] has no value equality, so [nullValue] compares by its text.
+     */
     fun mapsAlike(other: ElasticsearchMappedField): Boolean =
-        copy(nullValue = null) == other.copy(nullValue = null) && nullValue?.toString() == other.nullValue?.toString()
+        copy(nullValue = null, multiFields = emptySet()) == other.copy(nullValue = null, multiFields = emptySet()) &&
+            nullValue?.toString() == other.nullValue?.toString()
 }
 
 private fun RuntimeFieldType.toMappedField(physicalPath: String): ElasticsearchMappedField? {

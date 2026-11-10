@@ -39,6 +39,7 @@ import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.requiredOperandValue
+import me.ahoo.wow.query.schema.QueryCapability
 
 /**
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
@@ -173,13 +174,22 @@ internal object ElasticsearchFilterCompiler {
         is ExpressionFilter -> script { query ->
             query.script(RuntimeExpressionCompiler(admitted).compileCondition(filter))
         }
+        // A search that names no field searches the record's fields marked as prose, as the descriptor lists them.
         is SearchFilter -> multiMatch {
             it.query(filter.query)
-            if (filter.fields.isEmpty()) {
-                it.lenient(true)
-            } else {
-                it.fields(filter.fields.map(admitted::physicalPath))
-            }
+            it.fields(
+                if (filter.fields.isEmpty()) {
+                    admitted.recordSearchPaths(
+                        if (filter.mode == SearchMode.PHRASE) {
+                            QueryCapability.FULL_TEXT_PHRASE
+                        } else {
+                            QueryCapability.FULL_TEXT_TERMS
+                        },
+                    )
+                } else {
+                    filter.fields.map(admitted::physicalPath)
+                },
+            )
             if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
             it
         }

@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.snapshot
 
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.io.StringReader
 
 /**
@@ -24,9 +23,7 @@ import java.io.StringReader
  *   revision as `integer`, the event times as `long`, the operators as objects of `keyword` and `boolean`.
  * - The access attributes and the schedules are dynamic objects: each attribute's strings a `keyword` (none dropped as
  *   over-long, so an attribute's presence is exact), its integers a `long`, its booleans a `boolean`; each rule's
- *   `epochMillis` and `millis` a `long`, its other parts `keyword`. The access attributes are a field added within
- *   format 1 ([ADDED], [ADDITIONS]); an index of a version that recorded tags keeps their mapping, which nothing
- *   writes or reads.
+ *   `epochMillis` and `millis` a `long`, its other parts `keyword`.
  * - The state is **not** mapped dynamically (`dynamic: false`): a state field is indexed only once the index maps it,
  *   and the query side maps the fields of the aggregate's state schema (`ElasticsearchStateMappings`). An untyped
  *   state (an array mixing numbers and objects, say) is kept in `_source` all the same, so a save never fails on the
@@ -39,12 +36,12 @@ internal object ElasticsearchSnapshotIndex {
 
     /** The kind and the version of this layout, recorded in the mapping's `_meta`. */
     const val KIND = "snapshot"
-    const val FORMAT = 1
+    const val FORMAT = 2
 
     /** The longest keyword Elasticsearch indexes: Lucene's 32766-byte term limit at four UTF-8 bytes a character. */
     const val KEYWORD_LIMIT = 8191
 
-    /** The dynamic templates of the index, the whole list [ADDITIONS] puts, so it reads the same merged or replaced. */
+    /** The dynamic templates of the index. */
     private val DYNAMIC_TEMPLATES: String = """
         [
           { "access_strings": { "path_match": "access.*", "match_mapping_type": "string", "mapping": { "type": "keyword" } } },
@@ -52,19 +49,6 @@ internal object ElasticsearchSnapshotIndex {
           { "schedule_millis": { "path_match": "schedules.*.millis", "mapping": { "type": "long" } } },
           { "schedule_strings": { "path_match": "schedules.*", "match_mapping_type": "string", "mapping": { "type": "keyword", "ignore_above": $KEYWORD_LIMIT } } }
         ]
-    """.trimIndent()
-
-    /** The fields added within format 1, which an index created before them gets from [ADDITIONS]. */
-    val ADDED: List<String> = listOf(SnapshotFields.ACCESS)
-
-    /** The mapping of [ADDED], put on an index created before them, with the templates that map their keys. */
-    val ADDITIONS: String = """
-        {
-          "dynamic_templates": $DYNAMIC_TEMPLATES,
-          "properties": {
-            "${SnapshotFields.ACCESS}": { "type": "object", "dynamic": true }
-          }
-        }
     """.trimIndent()
 
     /** The mappings of the index (without its settings): what a missing index's queries are admitted against. */

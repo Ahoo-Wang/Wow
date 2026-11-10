@@ -40,6 +40,9 @@ internal abstract class ElasticsearchAggregationCompilerFixtures {
         valueTypes = setOf(QueryValueType.INTEGER),
         semanticType = Temporal.Epoch(TimeUnit.MICROSECONDS)
     )
+
+    /** A string marked as prose a reader searches by words (`@QueryText`). */
+    private val prose = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), text = true)
     private val definition = LogicalQuerySchema(
         obj(
             mapOf(
@@ -50,7 +53,7 @@ internal abstract class ElasticsearchAggregationCompilerFixtures {
                 "spaceId" to text,
                 "amount" to scalar,
                 "createdAt" to temporal,
-                "name" to text,
+                "name" to prose,
                 "customerId" to text,
                 "tags" to array(text),
                 "orders" to array(

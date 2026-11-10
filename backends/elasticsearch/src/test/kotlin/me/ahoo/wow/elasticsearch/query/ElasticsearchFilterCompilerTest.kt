@@ -51,11 +51,21 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
-    fun `model level search should be lenient while explicit fields keep strict parsing`() {
-        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+    fun `a search that names no field searches the record's searchable fields, one that names fields those`() {
+        // SCHEMA binds full text on `state.value` only: what the descriptor lists as `record.search.fields`.
+        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().let { search ->
+            search.fields().assert().containsExactly("state.value")
+            search.lenient().assert().isNull()
+            search.type().assert().isNull()
+        }
+        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value", mode = SearchMode.PHRASE)).multiMatch()
+            .let { search ->
+                search.fields().assert().containsExactly("state.value")
+                search.type().assert().isEqualTo(TextQueryType.Phrase)
+            }
         ElasticsearchFilterCompiler.compileAdmitted(
             SearchFilter("value", setOf(QueryField("state.value"))),
-        ).multiMatch().lenient().assert().isNull()
+        ).multiMatch().fields().assert().containsExactly("state.value")
     }
 
     private fun assertQuery(actual: Query, expected: Query) {
@@ -272,7 +282,7 @@ class ElasticsearchFilterCompilerTest {
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
         private val SCHEMA = nativeSchema(
-            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE),
             fields = buildMap {
                 listOf(
                     SnapshotFields.AGGREGATE_ID,

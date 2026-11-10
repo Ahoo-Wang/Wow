@@ -231,7 +231,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
             )
         }
-        val searchFields = searchable[null].orEmpty().map { it.logicalField.path }
+        val searchFields = schema.recordSearchFields.map { it.logicalField.path }
         return RecordDescriptor(
             identity = identity.orEmpty(),
             paging = listOfNotNull(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR.takeIf { cursor }),

@@ -43,16 +43,18 @@ import java.util.concurrent.ConcurrentHashMap
  * `body`), from the payload's logical schema, the Manifest's: Elasticsearch indexes a field only once its index maps
  * it, so these are its query indexes.
  *
- * Each value maps by its logical type: a string to a `keyword` (capped at [ElasticsearchSnapshotIndex.KEYWORD_LIMIT])
- * with a `text` field for full-text search, a date string to a `date`, an integer (an epoch included) to a `long`, a
+ * Each value maps by its logical type: a string to a `keyword` (capped at [ElasticsearchSnapshotIndex.KEYWORD_LIMIT]),
+ * with a `text` field for full-text search when its schema marks it as prose ([QueryValueSchema.text]), a date string
+ * to a `date`, an integer (an epoch included) to a `long`, a
  * decimal to a `double`, a boolean to a `boolean`, an object to its properties, an array of objects to a `nested`
  * field (so a predicate matches one element and an aggregation expands them), a map (an object of any keys) to a
  * `flattened` field, an array to its items' mapping. A value of several types, or of none known, is not mapped: it
  * stays in `_source`, unindexed.
  *
- * [manage] adds the fields an index lacks and reports those it maps otherwise (a field's type cannot change); once it
- * added some, it indexes the documents written before them again ([rewrite]), so they are found by the new fields too.
- * A field the index maps already is left as it is.
+ * [manage] adds the fields an index lacks and reports those it maps otherwise (a field's type cannot change), and adds
+ * the `text` field to a string the index maps as a `keyword` once its schema marks it; once it added some, it indexes
+ * the documents written before them again ([rewrite]), so they are found by the new fields too. A field the index maps
+ * already is otherwise left as it is: a `text` field whose marker was removed stays, and is no longer searched.
  */
 internal class ElasticsearchStateMappings(
     private val client: ElasticsearchAsyncClient,
@@ -176,7 +178,7 @@ internal class ElasticsearchStateMappings(
                     Property.Kind.Date,
                     date()
                 )
-                types == setOf(QueryValueType.STRING) -> leaf(path, Property.Kind.Keyword, keyword())
+                types == setOf(QueryValueType.STRING) -> keywordLeaf(path, value.text)
                 types == setOf(QueryValueType.INTEGER) -> leaf(path, Property.Kind.Long, typed("long"))
                 types == setOf(QueryValueType.DECIMAL) || types == NUMBERS -> leaf(
                     path,
@@ -198,6 +200,28 @@ internal class ElasticsearchStateMappings(
             return null
         }
 
+        /**
+         * A string at [path]: a `keyword`, with its `text` field when [text]. An index that maps it as a `keyword`
+         * without the `text` field gets the field added, its `ignore_above` restated as found; one that maps the `text`
+         * field as anything but `text` reports it.
+         */
+        private fun keywordLeaf(path: String, text: Boolean): ObjectNode? {
+            val mapped = existing.fields[path] ?: return keyword(text, ElasticsearchSnapshotIndex.KEYWORD_LIMIT).also {
+                created += path
+            }
+            if (mapped.kind != Property.Kind.Keyword) {
+                invalid += path
+                return null
+            }
+            if (!text) return null
+            val textPath = "$path.$TEXT_FIELD"
+            val mappedText = existing.fields[textPath] ?: return keyword(true, mapped.ignoreAbove).also {
+                created += textPath
+            }
+            if (mappedText.kind != Property.Kind.Text) invalid += textPath
+            return null
+        }
+
         private fun objectProperties(value: QueryValueSchema): Map<String, QueryValueSchema>? =
             value.mappable(mergesVariants)?.takeIf { it.kind == QueryValueKind.OBJECT }?.properties
     }
@@ -213,10 +237,13 @@ internal class ElasticsearchStateMappings(
 
         private fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
 
-        private fun keyword(): ObjectNode = typed(
-            "keyword"
-        ).put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT).also {
-            it.putObject("fields").set("text", typed("text"))
+        /** The `text` field of a string marked as prose; full-text searches bind it by this name. */
+        const val TEXT_FIELD = "text"
+
+        /** A `keyword` capped at [ignoreAbove] when it is set, with a `text` field when [text]. */
+        private fun keyword(text: Boolean, ignoreAbove: Int?): ObjectNode = typed("keyword").also { keyword ->
+            ignoreAbove?.let { keyword.put("ignore_above", it) }
+            if (text) keyword.putObject("fields").set(TEXT_FIELD, typed("text"))
         }
 
         private fun date(): ObjectNode = typed("date").put("format", "strict_date_optional_time||epoch_millis")
@@ -245,10 +272,11 @@ internal fun QueryValueSchema.mappable(merge: Boolean): QueryValueSchema? {
                     unionOf(branches.mapNotNull { it.properties[name] })
                 },
             )
+        // One field for every variant: prose only when every variant says so.
         branches.all {
             it.kind == QueryValueKind.SCALAR && it.valueTypes == first.valueTypes &&
                 it.semanticType == first.semanticType
-        } -> first
+        } -> branches.firstOrNull { !it.text } ?: first
         branches.all { it.kind == QueryValueKind.ARRAY } ->
             QueryValueSchema(QueryValueKind.ARRAY, items = unionOf(branches.map { checkNotNull(it.items) }))
         else -> null

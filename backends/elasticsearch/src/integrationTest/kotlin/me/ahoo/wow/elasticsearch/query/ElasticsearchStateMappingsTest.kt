@@ -47,6 +47,7 @@ import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
+import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.querySchema
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
@@ -144,6 +145,68 @@ class ElasticsearchStateMappingsTest {
             field("state.extra") { types(QueryValueType.BOOLEAN) }
         }
         validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing.assert().containsExactly("state.extra")
+    }
+
+    @Test
+    fun `a string is a keyword, with a text field only where its schema marks it as prose`(): Unit = runBlocking {
+        store.createIndex(type.name)
+        // Mapped before: a keyword without the text field, one whose text field is a keyword, one with a text field.
+        ElasticsearchFixture.client.indices().putMapping(
+            PutMappingRequest.of {
+                it.index(index).withJson(
+                    StringReader(
+                        """{"properties":{"state":{"properties":{"later":{"type":"keyword","ignore_above":100},""" +
+                            """"odd":{"type":"keyword","fields":{"text":{"type":"keyword"}}},""" +
+                            """"unmarked":{"type":"keyword","fields":{"text":{"type":"text"}}}}}}}""",
+                    ),
+                )
+            },
+        ).get()
+        val prose = querySchema {
+            field("state.title") {
+                types(QueryValueType.STRING)
+                text()
+            }
+            field("state.code") { types(QueryValueType.STRING) }
+            field("state.tags") {
+                items {
+                    types(QueryValueType.STRING)
+                    text()
+                }
+            }
+            field("state.later") {
+                types(QueryValueType.STRING)
+                text()
+            }
+            field("state.odd") {
+                types(QueryValueType.STRING)
+                text()
+            }
+            field("state.unmarked") { types(QueryValueType.STRING) }
+        }
+        val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
+        val planned = schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), prose)
+        val report = queries.manageIndexes(type, QueryIndexPlan.of(planned, emptyList()))
+        report.created.assert().contains("state.title", "state.code", "state.tags", "state.later.text")
+        report.invalid.assert().containsExactly("state.odd.text")
+        val mapping = ElasticsearchIndexMappingResolver(ElasticsearchFixture.client).refresh(index)
+        mapping.fields.getValue("state.title").multiFields.assert().containsExactly("state.title.text")
+        mapping.fields.getValue("state.title.text").kind.assert().isEqualTo(Property.Kind.Text)
+        mapping.fields.getValue("state.tags").multiFields.assert().containsExactly("state.tags.text")
+        mapping.fields.getValue("state.code").multiFields.assert().isEmpty()
+        // The keyword mapped before keeps its cap and gains the text field; a removed marker leaves its field.
+        mapping.fields.getValue("state.later").ignoreAbove.assert().isEqualTo(100)
+        mapping.fields.getValue("state.later.text").kind.assert().isEqualTo(Property.Kind.Text)
+        mapping.fields.getValue("state.unmarked.text").kind.assert().isEqualTo(Property.Kind.Text)
+        // What the schema grants: search on the marked strings the index maps a text field for, and nothing else.
+        val bound = schema(queries, prose)
+        bound.field(QueryField("state.title"))!!.binding(QueryCapability.FULL_TEXT_TERMS)!!.physicalField.path
+            .assert().isEqualTo("state.title.text")
+        bound.field(QueryField("state.later"))!!.binding(QueryCapability.FULL_TEXT_TERMS)!!.physicalField.path
+            .assert().isEqualTo("state.later.text")
+        listOf("state.code", "state.odd", "state.unmarked").forEach { path ->
+            bound.field(QueryField(path))!!.binding(QueryCapability.FULL_TEXT_TERMS).assert().isNull()
+        }
     }
 
     @Test
