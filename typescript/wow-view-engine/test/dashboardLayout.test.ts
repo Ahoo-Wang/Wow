@@ -23,13 +23,12 @@ import {
   placePanel,
   placePanelIn,
   readingOrder,
-  reorderPanel,
-  reorderPanelIn,
   stackedLayout,
   withLayouts,
   type PlacedPanel,
   type SizedPanel,
 } from '../src/dashboard/layout.js';
+import { reorderPanel, reorderPanelIn } from '../src/dashboard/reorder.js';
 import { dashboardConfig } from './fixtures.js';
 
 function box(id: string, x: number, y: number, w: number, h: number) {
