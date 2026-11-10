@@ -189,26 +189,29 @@ export function readInsert(dir) {
 }
 
 /**
- * sink's results from bench.sh's --out [dir]: the commits the load made and the sink wrote, its inserts and their rows,
+ * sink's results from bench.sh's --out [dir]: the commits the load made and the sink wrote, its inserts and the commits
+ * each carried,
  * and the parts and rows of each of its tables; undefined when sink.json is missing.
  */
 export function readSink(dir) {
   const sink = readJsonIfThere(join(dir, 'sink.json'));
   if (!sink) return undefined;
   const inserts = Number(sink.inserts?.inserts ?? 0);
+  const parts = Object.fromEntries(
+    (sink.parts ?? []).map(it => [
+      it.table,
+      { parts: Number(it.parts), rows: Number(it.rows) },
+    ]),
+  );
+  // The query log counts the rows its materialized views wrote too: an insert's commits are the base table's rows.
+  const commits = parts[SINK_TABLES[0]]?.rows ?? 0;
   return {
     accounts: sink.accounts,
     expected: Number(sink.expected),
     written: Number(sink.written),
     inserts,
-    rowsPerInsert:
-      inserts > 0 ? Number(sink.inserts.writtenRows) / inserts : null,
-    parts: Object.fromEntries(
-      (sink.parts ?? []).map(it => [
-        it.table,
-        { parts: Number(it.parts), rows: Number(it.rows) },
-      ]),
-    ),
+    commitsPerInsert: inserts > 0 ? commits / inserts : null,
+    parts,
   };
 }
 
@@ -274,7 +277,7 @@ function skipLines(skip) {
 /** sink's table: per scenario, the commits, the inserts and their rows, and each table's parts and rows a part. */
 export function sinkTables(suite) {
   const lines = [
-    '| Scenario | Accounts | Commits | Written | Inserts | Rows an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) |',
+    '| Scenario | Accounts | Commits | Written | Inserts | Commits an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) |',
     '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
   ];
   for (const run of suite.runs) {
@@ -285,7 +288,7 @@ export function sinkTables(suite) {
     const measured = run.measure;
     const parts = SINK_TABLES.map(table => measured.parts[table]);
     lines.push(
-      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(measured.inserts, 0)} | ${measured.rowsPerInsert === null ? '-' : num(measured.rowsPerInsert, 1)} | ${parts.map(it => num(it?.parts ?? 0, 0)).join(', ')} | ${parts.map(it => (it?.parts ? num(it.rows / it.parts, 1) : '-')).join(', ')} |`,
+      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(measured.inserts, 0)} | ${measured.commitsPerInsert === null ? '-' : num(measured.commitsPerInsert, 1)} | ${parts.map(it => num(it?.parts ?? 0, 0)).join(', ')} | ${parts.map(it => (it?.parts ? num(it.rows / it.parts, 1) : '-')).join(', ')} |`,
     );
   }
   return lines;

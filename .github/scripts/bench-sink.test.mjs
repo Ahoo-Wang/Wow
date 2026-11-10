@@ -166,7 +166,7 @@ test('the sink runs each scenario once, and counts its inserts and each table’
     ],
   );
   const spread = suite.runs[0].measure;
-  assert.equal(spread.rowsPerInsert, 10);
+  assert.equal(spread.commitsPerInsert, 10);
   assert.deepEqual(spread.parts.transfer_account_state, {
     parts: 1300,
     rows: 13000,

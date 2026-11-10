@@ -219,19 +219,22 @@ measure_clickhouse_insert() {
       done
     done
   done
-  # A _state of 1,000,000 aggregates over 100 tenants, half of them with a newer row in a part merges stay off, and a
-  # set index on status: the newer row moves an aggregate to another status, so FINAL must read both rows to answer.
+  # A _state of 1,000,000 aggregates over 100 tenants, half of each tenant's with a newer row in a part merges stay off,
+  # and a set index on status. Ids sort as they were inserted, a status holds runs of 2,000 of them and granules are 128
+  # rows, so the index can pass over granules. A newer row moves its aggregate to the next status: the right count reads
+  # it with every older one, which skipping the newer row's granule would not.
   clickhouse "CREATE TABLE skip_state (tenant_id String, aggregate_id String, version UInt32, status String,
       INDEX status_set status TYPE set(100) GRANULARITY 1)
-    ENGINE = ReplacingMergeTree(version) ORDER BY (tenant_id, aggregate_id)" >/dev/null
+    ENGINE = ReplacingMergeTree(version) ORDER BY (tenant_id, aggregate_id) SETTINGS index_granularity = 128" >/dev/null
   clickhouse "SYSTEM STOP MERGES skip_state" >/dev/null
-  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', toString(number)), 1,
-      concat('s', toString(intDiv(number, 100) % 50)) FROM numbers(1000000)" >/dev/null
-  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', toString(number)), 2,
-      concat('s', toString((intDiv(number, 100) + 1) % 50)) FROM numbers(1000000) WHERE number % 2 = 0" >/dev/null
+  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', leftPad(toString(number), 7, '0')), 1,
+      concat('s', toString(intDiv(number, 2000) % 50)) FROM numbers(1000000)" >/dev/null
+  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', leftPad(toString(number), 7, '0')), 2,
+      concat('s', toString((intDiv(number, 2000) + 1) % 50)) FROM numbers(1000000) WHERE intDiv(number, 100) % 2 = 0" >/dev/null
   local where="tenant_id = 't7' AND status = 's3'" value
   local correct
-  correct=$(clickhouse "SELECT count() FROM (SELECT status FROM skip_state FINAL WHERE tenant_id = 't7') WHERE status = 's3'")
+  correct=$(clickhouse "SELECT count() FROM (SELECT status FROM skip_state FINAL WHERE tenant_id = 't7') WHERE status = 's3'
+    SETTINGS use_skip_indexes = 0")
   printf '{"correct":%s,"settings":[' "$correct" >"$OUT/skip.json"
   for value in 0 1; do
     local explain count read
