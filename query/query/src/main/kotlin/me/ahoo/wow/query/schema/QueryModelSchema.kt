@@ -102,6 +102,7 @@ class LogicalQuerySchema @InternalWowApi constructor(
 
     init {
         root.requireSemanticTypes()
+        root.requireTextValues()
         val paths = root.valuePaths()
         val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
         maskedValues = paths.filter { it.second.maskRule != null }

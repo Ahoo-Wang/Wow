@@ -288,7 +288,7 @@ private fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = QueryV
     enumDescriptions = enumDescriptions, valueTypes = valueTypes,
     properties = properties, items = items, additionalProperties = additionalProperties, alternatives = alternatives,
     nullable = nullable, required = required, semanticType = semanticType, maskRule = rule, variant = variant,
-    aliases = aliases, deprecated = deprecated,
+    aliases = aliases, deprecated = deprecated, text = text,
 )
 
 private fun QueryValueSchema.stringMaskShape(rule: MaskRule): QueryValueSchema? = when (kind) {

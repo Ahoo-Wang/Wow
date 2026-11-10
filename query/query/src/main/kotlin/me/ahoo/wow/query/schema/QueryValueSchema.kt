@@ -21,7 +21,7 @@ import tools.jackson.databind.JsonNode
 /**
  * One immutable logical value shape, shared by backend schema snapshots: its [kind], the scalar [valueTypes], an
  * object's [properties] and [additionalProperties], an array's [items], a union's [alternatives], and what the
- * sources declare about it ([semanticType], [maskRule], [aliases], [deprecated]). The core builds it from the model's
+ * sources declare about it ([semanticType], [maskRule], [aliases], [deprecated], [text]). The core builds it from the model's
  * sources; a storage adapter reads it, through [LogicalQuerySchema], to report what its storage serves.
  * Collection inputs are snapshotted; mutable enum JSON is detached on read.
  */
@@ -46,6 +46,12 @@ class QueryValueSchema @InternalWowApi constructor(
     aliases: Set<QueryField<*>> = emptySet(),
     /** Set when the field is kept only for existing callers. */
     val deprecated: QueryDeprecation? = null,
+    /**
+     * Whether this string value is prose a reader searches by words (`@QueryText`, the Manifest's `x-wow-text`): a
+     * backend that indexes text by word indexes it so, and its model-wide search searches it. Only a single-valued
+     * string leaf carries it, never an enumeration, a semantic type's value, a sensitive value or a map's values.
+     */
+    val text: Boolean = false,
 ) {
     /** Other logical paths that name this value. */
     val aliases: Set<QueryField<*>> = java.util.Collections.unmodifiableSet(LinkedHashSet(aliases))
@@ -109,7 +115,8 @@ class QueryValueSchema @InternalWowApi constructor(
         return kind == other.kind && nullable == other.nullable && required == other.required &&
             title == other.title && description == other.description && valueTypes == other.valueTypes &&
             semanticType == other.semanticType && maskRule == other.maskRule && variant == other.variant &&
-            aliases == other.aliases && deprecated == other.deprecated && enumSnapshot == other.enumSnapshot &&
+            aliases == other.aliases && deprecated == other.deprecated && text == other.text &&
+            enumSnapshot == other.enumSnapshot &&
             enumDescriptions == other.enumDescriptions &&
             sameDefinition(items, other.items) &&
             sameDefinition(additionalProperties, other.additionalProperties) &&

@@ -58,6 +58,7 @@ class QueryFieldDeclarationBuilder {
     private var required: DeclarationValue<Boolean> = DeclarationValue.Unset
     private var aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset
     private var deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset
+    private var text: DeclarationValue<Boolean> = DeclarationValue.Unset
 
     /**
      * `SCALAR`, `OBJECT` or `ARRAY`; implied by [types], [property]/[values] or [items] when not stated. `OBJECT`
@@ -125,6 +126,15 @@ class QueryFieldDeclarationBuilder {
         deprecated = deprecated.set(QueryDeprecation(message), "deprecated")
     }
 
+    /**
+     * The value is prose a reader searches by words, as `@QueryText` marks it: a backend that indexes text by word
+     * indexes it so. Only a string leaf takes it, never an enumeration, a semantic type's value, a sensitive value or a
+     * map's values; for a list of strings, mark its [items].
+     */
+    fun text() {
+        text = text.set(true, "text")
+    }
+
     fun property(name: String, block: QueryFieldDeclarationBuilder.() -> Unit) {
         requireQueryPathSegment(name)
         val declaration = QueryFieldDeclarationBuilder().apply(block).build()
@@ -172,6 +182,7 @@ class QueryFieldDeclarationBuilder {
         additionalProperties = values,
         aliases = aliases,
         deprecated = deprecated,
+        text = text,
     )
 
     private fun <T> DeclarationValue<T>.set(value: T, leaf: String): DeclarationValue<T> {

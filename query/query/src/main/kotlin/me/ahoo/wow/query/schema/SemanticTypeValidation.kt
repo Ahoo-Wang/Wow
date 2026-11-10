@@ -26,6 +26,28 @@ import me.ahoo.wow.api.query.QueryValueKind
  */
 internal fun QueryValueSchema.requireSemanticTypes() = visitSemanticTypes(this, siblings = emptyMap(), path = "")
 
+/**
+ * Holds each value marked as text a reader searches by words ([QueryValueSchema.text]), however it was declared, to
+ * what a search by words can read: a single-valued string leaf (in an array or a union as well), which is not an
+ * enumeration or a semantic type's value (both matched exactly), not sensitive (a search would reveal its words), and
+ * not a map's value (matched by its key).
+ */
+internal fun QueryValueSchema.requireTextValues() = visitTextValues(this, path = "", mapValue = false)
+
+private fun visitTextValues(value: QueryValueSchema, path: String, mapValue: Boolean) {
+    if (value.text) requireTextLeaf(value, path, mapValue)
+    when (value.kind) {
+        QueryValueKind.OBJECT -> {
+            value.properties.forEach { (name, child) ->
+                visitTextValues(child, if (path.isEmpty()) name else "$path.$name", mapValue = false)
+            }
+            value.additionalProperties?.let { visitTextValues(it, "$path.{key}", mapValue = true) }
+        }
+        // An array's items and a union's alternatives share its path; a scalar has neither.
+        else -> (listOfNotNull(value.items) + value.alternatives).forEach { visitTextValues(it, path, mapValue) }
+    }
+}
+
 private fun visitSemanticTypes(value: QueryValueSchema, siblings: Map<String, QueryValueSchema>, path: String) {
     value.semanticType?.let { semantic -> requireSemanticType(value, semantic, siblings, path) }
     when (value.kind) {
@@ -87,4 +109,18 @@ private fun QueryValueSchema.isSingleString(): Boolean {
     val values = operationValues().filter { it.kind != QueryValueKind.NULL }
     return cardinality == QueryCardinality.SINGLE && values.isNotEmpty() &&
         values.all { it.kind == QueryValueKind.SCALAR && it.valueTypes == setOf(QueryValueType.STRING) }
+}
+
+/** Refuses a marked [value] at [path] that a search by words cannot read, naming what it is instead. */
+private fun requireTextLeaf(value: QueryValueSchema, path: String, mapValue: Boolean) {
+    val reason = when {
+        value.kind != QueryValueKind.SCALAR || value.valueTypes != setOf(QueryValueType.STRING) ->
+            "requires a string field."
+        mapValue -> "marks a map's values, which are matched by key."
+        !value.enumValues.isNullOrEmpty() -> "marks an enumeration, which is matched exactly."
+        value.semanticType != null -> "marks a field of a semantic type, which is matched exactly."
+        value.maskRule != null -> "marks a sensitive field, which a search would reveal."
+        else -> return
+    }
+    throw QuerySchemaConflictException("Text of [$path] $reason")
 }
