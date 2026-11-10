@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.gradle
 
+import me.ahoo.wow.gradle.DomainRole.FRAGMENT_DIRECTORY
 import me.ahoo.wow.gradle.WowArtifacts.ownersOf
 import me.ahoo.wow.gradle.WowArtifacts.toolsConfiguration
 import me.ahoo.wow.gradle.WowPlugin.Companion.BASELINE_FILE
@@ -26,7 +27,6 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.UPDATE_BASELINE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.defaultServiceName
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
-import me.ahoo.wow.gradle.WowRoles.FRAGMENT_DIRECTORY
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.plugins.JavaPlugin

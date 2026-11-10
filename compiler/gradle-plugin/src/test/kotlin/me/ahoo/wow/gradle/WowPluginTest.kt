@@ -212,7 +212,7 @@ class WowPluginTest {
     fun `the context argument should be passed only when set`() {
         val project = project()
         val context = project.objects.property(String::class.java)
-        val argument = WowRoles.ContextArgument(context)
+        val argument = DomainRole.ContextArgument(context)
         argument.asArguments().toList().assert().isEmpty()
         context.set("shop")
         argument.asArguments().toList().assert().containsExactly("wow.context=shop")
@@ -488,8 +488,8 @@ class WowPluginTest {
         // Two paths that a `-` would join to one name, and a root project named as a child is.
         listOf(":a-b", ":a:b", ":a", ":").map(WowPlugin::fragmentName).assert()
             .containsExactly("a-b", "a/b", "a", WowPlugin.ROOT_FRAGMENT)
-        WowRoles.coreVariant(":a-b").assert().isNotEqualTo(WowRoles.coreVariant(":a:b"))
-        WowRoles.coreVariant(":eshop:ordering-domain").assert().isEqualTo("wowCore:eshop:ordering-domain")
+        ApiRole.coreVariant(":a-b").assert().isNotEqualTo(ApiRole.coreVariant(":a:b"))
+        ApiRole.coreVariant(":eshop:ordering-domain").assert().isEqualTo("wowCore:eshop:ordering-domain")
     }
 
     @Test
