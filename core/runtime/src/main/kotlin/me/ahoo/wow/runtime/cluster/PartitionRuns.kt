@@ -85,9 +85,14 @@ internal class PartitionRuns(
         }
     }
 
-    /** A start of [partition] that [failure] ended: logged, its subscriptions stopped, lease released, gate removed. */
+    /**
+     * A start of [partition] that [failure] ended: logged, its timers, intake and subscriptions stopped as a hand-off
+     * stops them, whichever had started, its lease released and its gate removed.
+     */
     private suspend fun failedStart(partition: Int, gate: PartitionGate, failure: Exception) {
         logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
+        stopTimers(partition)
+        stopIntake(partition)
         stopSubscriptions(partition)
         quietly("release partition $partition", LEASE_EXPIRES) { leases.release(group.name, partition, node) }
         gates.remove(partition, gate)
@@ -101,10 +106,7 @@ internal class PartitionRuns(
                 gate.accepting = false
                 stopTimers(partition)
                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
-                quietly(
-                    "stop the command intake of partition $partition",
-                    OTHERS_STOPPED
-                ) { intake?.stopPartition(partition) }
+                stopIntake(partition)
                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
@@ -124,10 +126,7 @@ internal class PartitionRuns(
     suspend fun dropLost() {
         gates.filterValues { it.lost }.forEach { (partition, gate) ->
             stopTimers(partition)
-            quietly(
-                "stop the command intake of partition $partition",
-                OTHERS_STOPPED
-            ) { intake?.stopPartition(partition) }
+            stopIntake(partition)
             stopSubscriptions(partition)
             partitionChanged(partition)
             gates.remove(partition, gate)
@@ -137,6 +136,9 @@ internal class PartitionRuns(
     private suspend fun stopTimers(partition: Int) = timers.forEach { runner ->
         quietly("stop the timers of partition $partition", OTHERS_STOPPED) { runner.stopPartition(partition) }
     }
+
+    private suspend fun stopIntake(partition: Int) =
+        quietly("stop the command intake of partition $partition", OTHERS_STOPPED) { intake?.stopPartition(partition) }
 
     private suspend fun stopSubscriptions(partition: Int) = coroutineScope {
         val action = "stop the subscriptions of partition $partition"

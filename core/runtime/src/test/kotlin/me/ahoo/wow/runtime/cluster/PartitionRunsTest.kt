@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.TimerRunner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
@@ -80,6 +81,36 @@ class PartitionRunsTest {
             gates.assert().isEmpty()
             leases.owners(GROUP.name).assert().isEmpty()
             coVerify { runtime.stopPartition(0) }
+        }
+
+    @Test
+    fun `a start failing at a timer runner stops the intake and the runners that had started`(): Unit =
+        runBlocking {
+            val first = mockk<TimerRunner>(relaxed = true)
+            val second = mockk<TimerRunner>(relaxed = true)
+            coEvery { second.startPartition(0) } throws IllegalStateException("The timer store is gone.")
+            val timed = PartitionRuns(
+                GROUP,
+                NODE,
+                leases,
+                options,
+                time,
+                options.leaseTtl - options.renewInterval,
+                gates,
+                listOf(runtime),
+                intake,
+                listOf(first, second),
+            ) { changed += it }
+            timed.acquire(0, null)
+            coVerify { intake.startPartition(0, any()) }
+            coVerify { first.startPartition(0) }
+            // Nothing of the partition runs once its lease is released: not the intake, nor the runner that started.
+            coVerify { first.stopPartition(0) }
+            coVerify { second.stopPartition(0) }
+            coVerify { intake.stopPartition(0) }
+            coVerify { runtime.stopPartition(0) }
+            gates.assert().isEmpty()
+            leases.owners(GROUP.name).assert().isEmpty()
         }
 
     private companion object {
