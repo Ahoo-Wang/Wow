@@ -57,6 +57,21 @@
           "deprecated": true
         },
         {
+          "name": "note",
+          "route": { "method": "GET", "path": "/shop/notes/{text}" },
+          "parameters": [
+            {
+              "name": "text",
+              "in": "path",
+              "schema": { "type": "string" },
+              "required": true
+            }
+          ],
+          "response": { "$ref": "#/$defs/sample.Note" },
+          "responseOptional": true,
+          "description": "The note of a text, absent when there is none."
+        },
+        {
           "name": "ping",
           "route": { "method": "POST", "path": "/shop/ping" }
         }
