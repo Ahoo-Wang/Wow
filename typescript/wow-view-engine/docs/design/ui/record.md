@@ -39,7 +39,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 一张 20 列的表让这份列表一屏装不下、一眼找不着。
 
-- **滚的是列表，不是整个弹层**：`ui/kit/popups.tsx` 的 Popover 带 `max-h-(--available-height)` 与 `overflow-y-auto`（[README.md](README.md#主题弹层与明暗)）；列设置再写 `overflow-y-hidden`、列表 `min-h-0 flex-1 overflow-y-auto`，搜索框不随行滚走；
+- **滚的是列表，不是整个弹层**：`ui/kit/popupLayer.ts` 的 Popover 类带 `max-h-(--available-height)` 与 `overflow-y-auto`（[README.md](README.md#主题弹层与明暗)）；列设置再写 `overflow-y-hidden`、列表 `min-h-0 flex-1 overflow-y-auto`，搜索框不随行滚走；
 - **顶上一个搜索框**，与字段选择器同一控件同一套词（`label.field.search`；无匹配 `label.field.none` 走 `Empty`），按**行上那个词**匹配（操作列用 `label.toolbar.actions`），不分大小写。**它只少显示几行**：区域、顺序、关掉的列都照旧，面板要数的东西仍按整份列表数。弹层一关就清空；
 - **筛选时不能拖，也不能用方向键挪**：移动是相对邻居说的，而搜索拿走了邻居。过滤期间手柄禁用，输入框的 `aria-describedby` 指 `label.columns.filtered`「清空搜索即可调整列的顺序。」；
 - **目录只嵌在中间区**：左右两区按构造就短。定义的 `fieldGroups`（由 `ResultToolbar` 透下来）是中间区的第二层：未分组字段在最前、不带标题，其后各组一个 `h4` 标题，空组不画；

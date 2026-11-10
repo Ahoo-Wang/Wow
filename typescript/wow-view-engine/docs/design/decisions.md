@@ -77,7 +77,7 @@
 - **日期**：2026-09-20
 - **决定**：本包每个弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）都由 `ui/kit/popups.tsx` **照着 registry 的结构自己组装** Portal／positioner／popup，而不是再包一层 vendored 组件；层级以 style 写在 **positioner** 上：`z-index: var(--fve-popup-z-index, 50)`（对话框没有 positioner，写在遮罩与面板这两个 portal 出去的元素上）。宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量，所有弹层一起动。vendored 的 `ui/components/**` 仍原样不动、仍用 `shadcn add --diff` 更新，抄来的那份由 `test/popups.test.tsx` 两边各渲染一次逐字比对守住；层级本身由 `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` 的 `PopupsOverRaisedHostLayer` 在真浏览器里用 `document.elementFromPoint` 逐种弹层验。
 - **依据**：弹层的 positioner 被布局引擎写上 `transform: translate(...)`，它因此自成一个 stacking context——弹层**内容**上的 `z-50` 出不去，层级只能写在 positioner 自己身上。而 positioner 不带 `fve-root`，构建又把样式表每条规则都钉在 `:where(.fve-root, .fve-root *)` 里，registry 给它的那句 `isolate z-50` 于是谁也没匹配上，停在 `z-index: auto`：所有弹层都画在第 0 层，只靠 portal 排在 `<body>` 末尾才浮在上面——宿主随便抬起一点东西（实测 `z-index: 1` 即可）就把它们整片盖住，#1556 就撞上了这个。包一层够不着 positioner，所以照抄结构；写成 style 而不是 class，是因为样式表在不在、弹层被 portal 到哪儿，这一句都成立——这也正是 class 那条路失败的原因。让样式表留几条不进根的规则是另一条路，但 `scripts/verify-package.mjs` 断言"没有任何规则在 `.fve-root` 之外"，那是对宿主的承诺，不为一个 `z-index` 改。
-- **落点**：[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、`src/ui/kit/popups.tsx`
+- **落点**：[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、`src/ui/kit/{popups.tsx,popupLayer.ts}`
 
 ## D12 一屏七块，每块只回答一个问题
 
@@ -837,7 +837,7 @@
   - **打包进来的库往 `<head>` 加的 `<style>` 一律带页面 nonce**（D61 的延伸，同一个 `<meta property="csp-nonce">`，`ui/kit/cspNonce.ts`）：拖放库照旧；Base UI 的下拉列表（出现滚动箭头时藏滚动条的规则）经 `CSPProvider` 交给它（`SelectContent`）；栅格的拖动库 `react-draggable` 在移动、缩放面板时加的那段（拖动时不选中文字）——栅格不转交 nonce，它只认打包器的全局变量——由引擎在进入搭建时按它的 id 先放好一段同样规则、带 nonce 的样式（`draggableStyle`），库找到就不再加。没有 meta 时什么都不加，行为照旧，只是这几条规则被拦、各报一次违规。
   - **搭看板时的格子画在页面里**（修订 D34 的画法）：从前是 `data:` SVG 当 `mask-image`，严格策略的 `img-src 'self' blob:` 会拦，格子在正要它的页面上消失。现在是图层里的一张内联 SVG：一行格子是一个 `<pattern>`，整层一个矩形用它填，颜色仍是样式表里的 token（`fill`），几何照旧是库的算法。
 - **没选**：往策略里加 `img-src data:`、`'unsafe-inline'`（改策略去迁就引擎，宿主就得跟着放宽）；Base UI 用 `disableStyleElements` 再在样式表里写同一条规则（规则得出 `.fve-root` 或用库的类名，`verify-package` 的边界要破例，而 nonce 已经是宿主为拖动发布过的）；在构建好的 Storybook 上用响应头下策略（预览页本身有内联脚本，要么放宽 `script-src`、要么给框架的脚本算 hash，测的就不是 README 那条策略了）。
-- **落点**：`src/ui/kit/cspNonce.ts`、`src/ui/kit/popups.tsx`、`src/ui/dashboard/DashboardGrid.tsx`、`src/ui/dashboard/GridBlocksLayer.tsx`、`src/ui/dashboard/gridBlocks.ts`、`src/styles.css`；README「Content Security Policy」；文档站视图引擎指南「内容安全策略（CSP）」；Storybook `StrictCsp.test.stories.tsx`；单测 `test/cspNonce.test.tsx`、`test/dashboardWidth.test.tsx`。
+- **落点**：`src/ui/kit/cspNonce.ts`、`src/ui/kit/{popups.tsx,popupLayer.ts}`、`src/ui/dashboard/DashboardGrid.tsx`、`src/ui/dashboard/GridBlocksLayer.tsx`、`src/ui/dashboard/gridBlocks.ts`、`src/styles.css`；README「Content Security Policy」；文档站视图引擎指南「内容安全策略（CSP）」；Storybook `StrictCsp.test.stories.tsx`；单测 `test/cspNonce.test.tsx`、`test/dashboardWidth.test.tsx`。
 
 ## D75 首发前做 Wow 存储后端，用真服务端验证 `ViewStore`（2026-09-29）
 
