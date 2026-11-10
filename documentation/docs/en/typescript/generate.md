@@ -158,6 +158,8 @@ CI compiles this page's code with exactly this `tsconfig.json`.
 
 A field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (schema format `int64`, `bigint` or `decimal`) is a `string` in the generated types, holding the digits exactly as the service wrote them; a JavaScript `number` would round them. The wire still carries JSON numbers: the aggregate's descriptor lists those fields, the clients read them from the response's text and write them back into a command body unquoted.
 
+This holds at every depth and on every path whose values the Manifest describes: a state, an event, a command body, a query's records, and a service route's body and answer (the two values it does not describe are below). A recursive type (a tree whose `children` are trees) is marked once, in the context's `textNumbers.ts`, and read wherever a value reaches it. The alternatives of a union keep their own numbers: a value that is a `decimal` or an object of them is read as whichever it is, and objects told apart by a member with a constant value, as Jackson's `@JsonTypeInfo` writes its subtypes, each by their own. Alternatives that read one number differently, one exactly and one as a number, with no such member, fail the generation (exit code 4) with the schema, the path and both formats: give them a discriminator, or the same number format.
+
 <!-- typecheck: skip — generated code, compiled with the rest of the eShop web UI -->
 
 <!-- sample: examples/eshop/web/src/generated/ordering/eshop-ordering/order/aggregate.ts -->
