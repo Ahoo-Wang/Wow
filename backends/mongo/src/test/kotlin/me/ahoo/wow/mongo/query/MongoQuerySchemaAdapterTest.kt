@@ -81,12 +81,12 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `the storage runs every aggregation natively but PREVIOUS`() {
+    fun `the storage runs every aggregation natively but PREVIOUS and dense fill`() {
         val schema = MongoQueryTestSchemas.SCHEMA
         schema.storage.parallelArraySort.assert().isEqualTo(SupportMode.NONE)
         schema.storage.aggregation.window(WindowFunction.PREVIOUS).assert().isEqualTo(SupportMode.RESIDUAL)
         schema.storage.aggregation.window(WindowFunction.RANK).assert().isEqualTo(SupportMode.NATIVE)
-        schema.storage.aggregation.denseFill.assert().isEqualTo(SupportMode.NATIVE)
+        schema.storage.aggregation.denseFill.assert().isEqualTo(SupportMode.RESIDUAL)
         schema.storage.aggregation.having.assert().isEqualTo(SupportMode.NATIVE)
         schema.provisional.assert().isFalse()
         schema.capabilities.assert().isEmpty()

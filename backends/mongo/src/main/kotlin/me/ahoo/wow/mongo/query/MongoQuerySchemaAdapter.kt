@@ -72,11 +72,13 @@ internal class MongoQuerySchemaAdapter internal constructor(
         /**
          * MongoDB cannot sort by two arrays on independent paths ("cannot sort with keys that are parallel arrays").
          * TOTAL, RUNNING and RANK run natively with `$setWindowFields`; PREVIOUS needs the core's shifted second read.
-         * HAVING, top-N, dense fill (`$densify`), percentiles, distinct counts, FIRST / LAST and root groups run in the
-         * pipeline.
+         * HAVING, top-N, percentiles, distinct counts, FIRST / LAST and root groups run in the pipeline. The core
+         * fills a dense date histogram, walking the histogram's own buckets: `$densify` has no time zone, so it could
+         * only count local indexes, which merge the hour a fall-back repeats.
          */
         val SUPPORT: StorageSupport = StorageSupport(
             aggregation = AggregationSupport(
+                denseFill = SupportMode.RESIDUAL,
                 windows = mapOf(
                     WindowFunction.TOTAL to SupportMode.NATIVE,
                     WindowFunction.RUNNING to SupportMode.NATIVE,

@@ -16,7 +16,6 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryBudget
-import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.CursorPosition
@@ -140,7 +139,6 @@ class QueryApiTiersTest {
             CursorPositionCodec::class.java,
             QueryBindings::class.java,
             CachedQueryBindings::class.java,
-            DenseDateGrid::class.java,
             QueryStorageAdapter::class.java,
             QueryStorageFacts::class.java,
             StorageSupport::class.java,

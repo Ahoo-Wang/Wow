@@ -222,6 +222,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
+	public final fun a dense hourly histogram fills the buckets between, a repeated hour twice ()V
 	public final fun a histogram and an expression group put the records without a value in the null group ()V
 	public final fun a numeric expression over integer fields divides without truncating ()V
 	public final fun a query within its timeout runs as without one ()V
