@@ -34,6 +34,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.errors.WakeupException
 import org.apache.kafka.common.utils.Utils
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
@@ -204,8 +205,13 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     private suspend fun <T> metadata(call: (Consumer<String, ByteArray>) -> T): T = lock.withLock {
         check(!closed) { CLOSED }
-        withContext(dispatcher) {
-            call(metadata ?: consumers(named("metadata")).also { metadata = it })
+        try {
+            withContext(dispatcher) {
+                call(metadata ?: consumers(named("metadata")).also { metadata = it })
+            }
+        } catch (woken: WakeupException) {
+            // Only the close wakes this consumer, once the source is closed: the call fails as one after the close.
+            throw IllegalStateException(CLOSED, woken)
         }
     }
 

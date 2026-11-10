@@ -123,7 +123,7 @@ class KafkaTransportCloseTest {
     }
 
     @Test
-    fun `a source's close should close its metadata consumer under the lock its call in flight holds`(): Unit =
+    fun `a close should close the metadata consumer under its lock, failing its call in flight as closed`(): Unit =
         runBlocking {
             val metadata = AskedConsumer()
             val source = KafkaPartitionedSource({ metadata }, dispatcher = Dispatchers.IO)
@@ -131,7 +131,9 @@ class KafkaTransportCloseTest {
             metadata.asking.await()
             source.close()
             metadata.closed().assert().isTrue()
-            asked.await().exceptionOrNull().assert().isInstanceOf(WakeupException::class.java)
+            // As a call after the close fails, not with the client's own exception.
+            asked.await().exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+                .hasMessage("The Kafka source is closed.")
         }
 
     @Test
