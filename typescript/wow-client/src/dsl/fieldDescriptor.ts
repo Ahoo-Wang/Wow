@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  AggregationFunction,
-  AggregationGroupType,
-} from './aggregation/types.js';
+import type { AggregationGroupType } from './aggregation/groups.js';
+import type { AggregationFunction } from './aggregation/metrics.js';
 import type { FilterOperator } from './filter/index.js';
 import type { QuerySemanticType } from './semanticTypes.js';
 

@@ -73,7 +73,7 @@ src/
     queryable.ts, documents.ts, queryErrorCodes.ts
     descriptor.ts, fieldDescriptor.ts, semanticTypes.ts — The query capability descriptor: the model's, a field's, a field's semantics
     filter/       — `filter.*`, FilterExpression and its operators; (internal) validate.ts, datePattern.ts, scope.ts
-    aggregation/  — `aggregation.*`, `aggregation.having.*`, `aggregation.derived(…)`; (internal) admit.ts, sort.ts
+    aggregation/  — `aggregation.*` (builders.ts), `aggregation.having.*`, `aggregation.derived(…)`; by part of the query, each with its types, options and input checks: groups.ts, metrics.ts, derived.ts, having.ts; types.ts: elements, expressions, the query and its limits; (internal) admit.ts, aliases.ts, sort.ts
 scripts/
   verify-package.mjs — Run by the build: entries resolve and export what test/surface/ lists, /dsl loads no fetcher package, the root entry tree-shakes, each entry under its gzip ceiling
   size-budget.json   — The gzip regression ceilings of the root entry and /dsl (typescript/AGENTS.md「Size ceilings」)

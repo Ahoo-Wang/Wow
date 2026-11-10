@@ -11,72 +11,61 @@
  * limitations under the License.
  */
 
-import { constantName } from '../constantName.js';
-import { queryField } from '../field.js';
 import type {
   ElementFilterExpression,
   ExpressionFilter,
 } from '../filter/index.js';
 import { requireElementScopedFilter } from '../filter/scope.js';
 import { admitAggregationQuery } from './admit.js';
-import { requireValidExpressionTrees } from './expressionTrees.js';
-import { derivedExpressionDsl, type DerivedExpressionDsl } from './derived.js';
+import { aggregationAlias, aggregationField } from './aliases.js';
 import { havingDsl } from './having.js';
 import {
-  DateDiffUnit,
+  derivedExpressionDsl,
+  type DerivedAggregationMetric,
+  type DerivedExpression,
+  type DerivedExpressionDsl,
+} from './derived.js';
+import {
   AggregationDatePart,
   AggregationDateUnit,
-  AggregationExpressionOperator,
-  AggregationExpressionType,
-  AggregationFunction,
-  AggregationGroupScope,
   AggregationGroupType,
-  AggregationMetricType,
-  type AggregationElement,
-  type AggregationExpression,
-  type AggregationGroupInput,
-  type DateDiffAggregationExpression,
-  type AggregationMetricOptions,
-  type AggregationQuery,
-  type AnyAggregationMetric,
-  type EdgeAggregationMetric,
-  type EdgeAggregationOptions,
-  type BinaryAggregationExpression,
-  type ConstantAggregationExpression,
-  type CountAggregationMetric,
   type DateHistogramAggregationGroup,
   type DateHistogramAggregationOptions,
   type DatePartAggregationGroup,
   type DatePartAggregationOptions,
-  type DerivedAggregationMetric,
-  type DerivedExpression,
-  type DistinctCountAggregationMetric,
-  type FieldAggregationExpression,
   type HistogramAggregationGroup,
   type HistogramAggregationOptions,
-  type NumericAggregationMetric,
-  type PercentileAggregationMetric,
-  type PercentileAggregationOptions,
   type TermsAggregationGroup,
   type TermsAggregationOptions,
+  groupInput,
+  groupScope,
+} from './groups.js';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+  type AggregationMetricOptions,
+  type AnyAggregationMetric,
+  type EdgeAggregationMetric,
+  type EdgeAggregationOptions,
+  type CountAggregationMetric,
+  type DistinctCountAggregationMetric,
+  type PercentileAggregationMetric,
+  type PercentileAggregationOptions,
+  edge,
+  numeric,
+} from './metrics.js';
+import {
+  DateDiffUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  type AggregationElement,
+  type AggregationExpression,
+  type DateDiffAggregationExpression,
+  type AggregationQuery,
+  type BinaryAggregationExpression,
+  type ConstantAggregationExpression,
+  type FieldAggregationExpression,
 } from './types.js';
-
-function aggregationField<FIELDS extends string>(field: FIELDS): FIELDS {
-  return queryField(field);
-}
-
-function aggregationAlias(alias: string): string {
-  aggregationField(alias);
-  if (alias.includes('.')) {
-    throw new TypeError('aggregation alias must contain one segment.');
-  }
-  if (alias.startsWith('__wow')) {
-    throw new TypeError(
-      'aggregation alias must not use the reserved __wow prefix.',
-    );
-  }
-  return alias;
-}
 
 function binary<FIELDS extends string>(
   operator: AggregationExpressionOperator,
@@ -84,73 +73,6 @@ function binary<FIELDS extends string>(
   right: AggregationExpression<FIELDS>,
 ): BinaryAggregationExpression<FIELDS> {
   return { type: AggregationExpressionType.BINARY, operator, left, right };
-}
-
-function numeric<FIELDS extends string>(
-  fn: AggregationFunction,
-  expression: AggregationExpression<FIELDS>,
-  alias: string,
-  { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
-): NumericAggregationMetric<FIELDS> {
-  return {
-    type: AggregationMetricType.NUMERIC,
-    ...(predicate === undefined ? {} : { filter: predicate }),
-    function: fn,
-    expression,
-    alias: aggregationAlias(alias),
-  };
-}
-
-/** Builds a `FIRST` or `LAST` metric; {@link aggregation.first}. */
-function edge<FIELDS extends string>(
-  type: AggregationMetricType.FIRST | AggregationMetricType.LAST,
-  field: FIELDS,
-  alias: string,
-  { orderBy, filter: predicate }: EdgeAggregationOptions<FIELDS>,
-): EdgeAggregationMetric<FIELDS> {
-  return {
-    type,
-    field: aggregationField(field),
-    alias: aggregationAlias(alias),
-    ...(orderBy === undefined ? {} : { orderBy: aggregationField(orderBy) }),
-    ...(predicate === undefined ? {} : { filter: predicate }),
-  };
-}
-
-/**
- * The input of a TERMS or HISTOGRAM group: a field path, or an expression in
- * its place, never both, as Wow's `requireGroupInput` has it.
- */
-function groupInput<FIELDS extends string>(
-  input: FIELDS | AggregationExpression<FIELDS>,
-  type: string,
-): AggregationGroupInput<FIELDS> {
-  if (typeof input === 'string') return { field: aggregationField(input) };
-  if (input === null || typeof input !== 'object') {
-    throw new TypeError(
-      `${constantName(type)} group requires exactly one of field and expression.`,
-    );
-  }
-  requireValidExpressionTrees([input]);
-  return { expression: input };
-}
-
-/** A group's `scope`, sent only when given; `ROOT` needs a field input. */
-function groupScope(
-  scope: AggregationGroupScope | undefined,
-  type: string,
-  source: { expression?: unknown },
-): { scope?: AggregationGroupScope } {
-  if (scope === undefined) return {};
-  if (!Object.values(AggregationGroupScope).includes(scope)) {
-    throw new TypeError(`${constantName(type)} group scope is invalid.`);
-  }
-  if (scope === AggregationGroupScope.ROOT && source.expression) {
-    throw new TypeError(
-      `${constantName(type)} with a ROOT scope requires a field input.`,
-    );
-  }
-  return { scope };
 }
 
 /**

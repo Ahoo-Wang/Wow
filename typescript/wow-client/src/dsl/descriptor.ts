@@ -22,13 +22,13 @@
 // limits are not annotated and send `null`. A set the OpenAPI document
 // describes as a plain string is open: a known union plus `string & {}`.
 
+import type { WindowFunction } from './aggregation/derived.js';
 import type {
   AggregationDatePart,
   AggregationDateUnit,
-  DateDiffUnit,
-  AggregationMetricType,
-  WindowFunction,
-} from './aggregation/types.js';
+} from './aggregation/groups.js';
+import type { AggregationMetricType } from './aggregation/metrics.js';
+import type { DateDiffUnit } from './aggregation/types.js';
 import type { DeletionState } from './deletionState.js';
 import type {
   DynamicFieldDescriptor,

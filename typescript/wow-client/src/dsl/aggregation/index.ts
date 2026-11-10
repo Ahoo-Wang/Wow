@@ -11,8 +11,54 @@
  * limitations under the License.
  */
 
-// admit.ts and sort.ts are internal and stay unlisted.
+// admit.ts, aliases.ts and sort.ts are internal and stay unlisted; the
+// modules of the query's parts are listed by name, so their input checks
+// (groupInput, groupScope, numeric, edge) and the derived and having
+// builders stay internal.
 export * from './types.js';
+export {
+  AggregationDatePart,
+  AggregationDateUnit,
+  AggregationGroupScope,
+  AggregationGroupType,
+  type AggregationGroup,
+  type AggregationGroupInput,
+  type AggregationGroupScopeOptions,
+  type DateHistogramAggregationGroup,
+  type DateHistogramAggregationOptions,
+  type DatePartAggregationGroup,
+  type DatePartAggregationOptions,
+  type HistogramAggregationGroup,
+  type HistogramAggregationOptions,
+  type TermsAggregationGroup,
+  type TermsAggregationOptions,
+} from './groups.js';
+export {
+  AggregationFunction,
+  AggregationMetricType,
+  type AggregationMetric,
+  type AggregationMetricOptions,
+  type AnyAggregationMetric,
+  type CountAggregationMetric,
+  type DistinctCountAggregationMetric,
+  type EdgeAggregationMetric,
+  type EdgeAggregationOptions,
+  type NumericAggregationMetric,
+  type PercentileAggregationMetric,
+  type PercentileAggregationOptions,
+} from './metrics.js';
+export {
+  DerivedExpressionType,
+  RunningFunction,
+  WindowFunction,
+  type DerivedAggregationMetric,
+  type DerivedExpression,
+  type DerivedExpressionDsl,
+  type DerivedWindow,
+} from './derived.js';
+export {
+  HavingExpressionType,
+  type HavingDsl,
+  type HavingExpression,
+} from './having.js';
 export { aggregation } from './builders.js';
-export type { DerivedExpressionDsl } from './derived.js';
-export type { HavingDsl } from './having.js';
