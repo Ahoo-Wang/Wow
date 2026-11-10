@@ -29,7 +29,7 @@ import java.time.Clock
  * entry re-homed meanwhile to the partition its aggregate's key maps to now is no longer this retry's, and nothing of
  * it is written over nor resolved.
  */
-internal class RetryWrites(
+internal class ParkWrites(
     private val subscription: SubscriptionId,
     private val partition: Int,
     private val source: EntrySource,
@@ -84,7 +84,8 @@ internal class RetryWrites(
     }
 
     private companion object {
-        private val logger = KotlinLogging.logger {}
+        /** Named as before the rename, so that the lines a retry writes keep their log category. */
+        private val logger = KotlinLogging.logger("me.ahoo.wow.runtime.subscription.RetryWrites")
     }
 }
 

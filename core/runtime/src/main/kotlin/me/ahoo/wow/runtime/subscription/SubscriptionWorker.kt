@@ -168,7 +168,7 @@ internal class SubscriptionWorker(
     private val active = HashMap<AggregateRef, Lane>()
 
     /** What a retry writes to the ledger when it ends without handling all of an aggregate. */
-    private val writes = RetryWrites(subscription.id, partition, source, ledger, pause, options.readRetry, clock)
+    private val writes = ParkWrites(subscription.id, partition, source, ledger, pause, options.readRetry, clock)
 
     /** The aggregates parked here, and the retry or skip running on each. Guarded by the monitor. */
     private val parking = ParkStates(parked)
