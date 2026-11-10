@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -235,19 +236,14 @@ class CommandGateway @InternalWowApi constructor(
         val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
         // The command executes in the admission's trace.
         val trace = observed.context
-        // Counted until a detached command is launched, so close() waits for it.
+        // Counted until a detached command is launched, or a peer's command is sent, so close() waits for it.
         val (admission, accepted) = counted {
             val admission = observed.observe { admitting(request).also { observed.outcome(it.observedName) } }
-            admission to (admission as? Admission.Admitted)
-                ?.takeIf { it.call == null && it.command.wait.isAcceptedOnly }
-                ?.let { admitted ->
-                    val coordinator = coordinators.getValue(admitted.command.ref.type.context)
-                    traced(trace) { coordinator.accept(admitted.model, admitted.command, detached) }
-                }
+            admission to traced(trace) { acceptedOnly(admission) }
         }
         when (admission) {
             is Admission.Refused -> emit(observedRefusal(admission.result))
-            is Admission.Relayed -> relay(admission, streaming, trace, emit)
+            is Admission.Relayed -> if (accepted != null) emit(accepted) else relay(admission, streaming, trace, emit)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
@@ -272,6 +268,21 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
+     * [admission]'s result when its plan is ACCEPTED only, run while the admission is counted: a command of this node,
+     * accepted, its detached execution launched; a peer's, sent to its command topic. Null for any other plan, which
+     * its wait keeps until it ends.
+     */
+    private suspend fun acceptedOnly(admission: Admission): CommandResult? = when (admission) {
+        is Admission.Refused -> null
+        is Admission.Admitted -> admission.takeIf { it.call == null && it.command.wait.isAcceptedOnly }?.let {
+            coordinators.getValue(it.command.ref.type.context).accept(it.model, it.command, detached)
+        }
+        is Admission.Relayed -> admission.takeIf { it.command.wait.isAcceptedOnly }?.let { (command, function, relay) ->
+            coordinators.values.first().acceptRelayed(command, function, relay)
+        }
+    }
+
+    /**
      * [request] naming its command type, when it was built from a command object that names it by its class
      * ([ServerCommandRequest.of]): the type of that class the aggregate decides or mounts, on this node, or
      * the one its peer context's contract lists. A class neither has is left as it is, and admission refuses it.
@@ -290,8 +301,9 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * Sends [admission], a peer's command, through its command topic and hands [emit] its
-     * results as [dispatch] does; any coordinator follows its wait, which no execution here is part of.
+     * Sends [admission], a peer's command whose plan waits past ACCEPTED, through its command topic and hands [emit]
+     * its results as [dispatch] does; any coordinator follows its wait, which no execution here is part of. One whose
+     * plan is ACCEPTED only is sent while it is counted ([acceptedOnly]).
      */
     private suspend fun relay(
         admission: Admission.Relayed,
@@ -302,7 +314,6 @@ class CommandGateway @InternalWowApi constructor(
         val coordinator = coordinators.values.first()
         val (command, function, relay) = admission
         when {
-            command.wait.isAcceptedOnly -> emit(traced(trace) { coordinator.acceptRelayed(command, function, relay) })
             streaming -> {
                 val relayed = coordinator.relay(command, function, relay)
                 (if (trace === EmptyCoroutineContext) relayed else relayed.flowOn(trace)).collect { emit(it) }
@@ -354,20 +365,32 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the detached commands accepted
-     * before, those whose admission was still under way included, and closes their scope.
+     * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the admissions under way and the
+     * detached commands accepted before, together at most [timeout] (the node's drain timeout), and closes their scope.
+     *
+     * An admission ends by its own send's deadline once admitted (`min(plan, wait.maxTimeout)`), but the application's
+     * plugins it runs first and a detached command's run (its execution or forward) are bounded by nothing of the
+     * gateway's: what still runs at [timeout] is logged and cancelled with the scope.
      */
     @InternalWowApi
-    suspend fun close() {
+    suspend fun close(timeout: Duration) {
         closed = true
-        // A request counted before it read `closed` launches its detached command, if any, before it is uncounted.
-        admissions.awaitZero()
-        while (true) {
-            val running = detached.coroutineContext.job.children.toList()
-            if (running.isEmpty()) {
-                break
+        val ended = withTimeoutOrNull(timeout) {
+            // A request counted before it read `closed` launches its detached command, if any, before it is uncounted.
+            admissions.awaitZero()
+            while (true) {
+                val running = detached.coroutineContext.job.children.toList()
+                if (running.isEmpty()) {
+                    break
+                }
+                running.joinAll()
             }
-            running.joinAll()
+        }
+        if (ended == null) {
+            logger.warn {
+                "The gateway closes after $timeout with ${admissions.value} admissions under way and " +
+                    "${detached.coroutineContext.job.children.count()} detached commands running: they are cancelled."
+            }
         }
         detached.cancel()
     }

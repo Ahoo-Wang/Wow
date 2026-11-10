@@ -609,7 +609,7 @@ class CommandGatewayTest {
         eventually { decided.contains(accepted.commandId) }
         registry.size.assert().isEqualTo(0)
         // Closing waits for the detached command, then refuses new requests.
-        val closing = async(Dispatchers.Default) { gateway.close() }
+        val closing = async(Dispatchers.Default) { gateway.close(5.seconds) }
         delay(100)
         closing.isCompleted.assert().isFalse()
         gate.complete(Unit)
@@ -637,7 +637,7 @@ class CommandGatewayTest {
         val decide = CompletableDeferred<Unit>().also { hold = it }
         val sending = async(Dispatchers.Default) { gateway.execute(request(wait = WaitPlan.ACCEPTED)) }
         authorizing.await()
-        val closing = async(Dispatchers.Default) { gateway.close() }
+        val closing = async(Dispatchers.Default) { gateway.close(5.seconds) }
         delay(50)
         closing.isCompleted.assert().isFalse()
         authorized.complete(Unit)
@@ -678,8 +678,8 @@ class CommandGatewayTest {
         )
         val throwing = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to failing))
         throwing.execute(request(wait = WaitPlan.ACCEPTED)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        throwing.close()
-        gateway.close()
+        throwing.close(5.seconds)
+        gateway.close(5.seconds)
         decided.assert().isEmpty()
         runCatching { failing.accept(model, Command("c", "r", model.type.ref(TENANT, "x"), Checkout()), this) }
             .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
