@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { FieldOption, RecordKey } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import { rowNameOf } from '../record/path.js';
@@ -24,7 +24,6 @@ import {
   initialInput,
   invalidInput,
   missingInput,
-  nextChange,
   offeredAt,
   refusalsByReason,
   runOne,
@@ -44,6 +43,7 @@ import {
   type BulkSelection,
 } from './actionRunner.js';
 import type { RuntimeEnvironment } from '../runtime/environment.js';
+import { SYSTEM_CLOCK, useAskedAt, useRulesClock } from './rulesClock.js';
 
 /** What of a record table the actions read and act on. */
 export interface RecordActionTable {
@@ -231,42 +231,6 @@ interface Returned {
 
 const NO_ROWS: readonly RecordRow[] = [];
 
-/** The clock when the host gives none. */
-const SYSTEM_CLOCK: Pick<RuntimeEnvironment, 'now'> = { now: () => new Date() };
-
-/**
- * The shortest wait before a rule is asked again on its own. A `changesAt`
- * that answers a moment ahead of every clock it is asked at — a target that
- * moves with `now` — would otherwise wake the surface without pause; a rule
- * that really flips sooner is seen at most this late.
- */
-const RECHECK_FLOOR = 1_000;
-
-/**
- * The moment the rules are asked at, read off the clock it came from, and
- * the way to move it on; a moment the clock still stands at renders
- * nothing. A new clock (the engine's, once the surface has its runtime) is
- * read at once, so no rule is asked at a moment of the old one.
- */
-function useAskedAt(
-  clock: Pick<RuntimeEnvironment, 'now'>,
-): [Date, (at: Date) => void] {
-  const [held, setHeld] = useState(() => ({ clock, at: clock.now() }));
-  let current = held;
-  if (held.clock !== clock) {
-    current = { clock, at: clock.now() };
-    setHeld(current);
-  }
-  const setNow = useCallback(
-    (at: Date) =>
-      setHeld(previous =>
-        previous.at.getTime() === at.getTime() ? previous : { ...previous, at },
-      ),
-    [],
-  );
-  return [current.at, setNow];
-}
-
 /**
  * The form a run hands back: the records whose input the source refused,
  * in the order they were pressed, and why — the first refusal's reason, and
@@ -315,39 +279,6 @@ function valueOf(action: RecordAction, input: ActionInput): string | null {
   return typeof picked === 'string' || typeof picked === 'number'
     ? String(picked)
     : null;
-}
-
-/**
- * The next moment any record on screen changes on its own, and a timer
- * that moves the clock there. A clock left behind while rows came in is
- * only ever early: a rule asked too early refuses, and says when it will
- * change, which is at once.
- */
-function useRulesClock(
-  actions: RecordActions | undefined,
-  rows: readonly RecordRow[],
-  also: readonly RecordRow[],
-  now: Date,
-  clock: Pick<RuntimeEnvironment, 'now'>,
-  setNow: (at: Date) => void,
-): void {
-  const next = useMemo(
-    () => nextChange(actions, [...rows, ...also], now),
-    [actions, rows, also, now],
-  );
-  const nextAt = next?.getTime() ?? null;
-  useEffect(() => {
-    if (nextAt === null) return;
-    const timer = setTimeout(
-      () => setNow(clock.now()),
-      // The longest wait a timer holds; a later change is asked again then.
-      Math.min(
-        Math.max(RECHECK_FLOOR, nextAt - clock.now().getTime()),
-        2_147_483_647,
-      ),
-    );
-    return () => clearTimeout(timer);
-  }, [nextAt, clock, setNow]);
 }
 
 /**
