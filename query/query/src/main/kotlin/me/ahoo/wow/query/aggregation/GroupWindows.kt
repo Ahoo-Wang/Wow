@@ -151,7 +151,7 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
                 val present = frame.filterNotNull()
                 result[index] = when (window.function) {
                     RunningFunction.SUM -> present.sumOrNull()
-                    RunningFunction.AVG -> present.takeIf { it.isNotEmpty() }?.let { it.sum() / it.size }
+                    RunningFunction.AVG -> present.averageOrNull()
                 }
             }
         }
@@ -175,6 +175,16 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
 }
 
 private fun List<Double>.sumOrNull(): Double? = takeIf { it.isNotEmpty() }?.sum()
+
+/**
+ * The mean of these finite values, `null` for none. A mean of finite values is finite, so when their sum leaves the
+ * double range the mean is summed from each value's share instead.
+ */
+private fun List<Double>.averageOrNull(): Double? {
+    if (isEmpty()) return null
+    val sum = sum()
+    return if (sum.isFinite()) sum / size else sumOf { it / size }
+}
 
 private fun ObjectNode.number(metric: String): Double? = get(metric)?.takeIf(JsonNode::isNumber)?.doubleValue()
 

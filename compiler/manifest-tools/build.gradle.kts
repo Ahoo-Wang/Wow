@@ -46,6 +46,18 @@ mapOf("noCompatibility" to JvmDefaultMode.NO_COMPATIBILITY, "enable" to JvmDefau
     }
 }
 
+// SelfComparisonTest compares every Manifest of the repository with itself: its baselines, fragments and contracts.
+tasks.named<Test>("test") {
+    val root = rootDir
+    inputs.files(
+        fileTree(root) {
+            include("**/manifest/baseline.json", "**/META-INF/wow/manifest/*.json", "**/META-INF/wow/contract.json")
+            exclude("**/build/**", "**/node_modules/**", ".claude/**", ".git/**", ".gradle/**")
+        },
+    ).withPropertyName("repositoryManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.repository.root", root.path)
+}
+
 // detekt (and so :check) covers the fixtures, which no other check reads.
 tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
     source(files("src/jvmDefault/kotlin"))

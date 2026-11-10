@@ -186,7 +186,7 @@ internal class StateHandler(
         val queryCaller = answering(type) { targets.of(type, caller, target) }
         val acting = checkNotNull(queryCaller.caller)
         // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
-        val scope = if (queries.access.governs(type)) Scope.NONE else ownerships(type).scopeOf(acting.scope)
+        val scope = queries.access.scopeOf(type, ownerships(type), acting.scope)
         val tenant = acting.tenantId
         // By no id, the caller's own aggregate of a type whose id is its owner's.
         val id = request.pathVariables()[CommandHandler.ID] ?: acting.scope.ownerId ?: throw ProblemException(

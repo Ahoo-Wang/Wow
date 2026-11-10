@@ -91,7 +91,7 @@ internal class ClickHouseFilterCompiler(
         MatchNoneFilter -> "0"
         is AndFilter -> filter.operands.joinToString(" AND ", "(", ")") { compile(it) }
         is OrFilter -> filter.operands.joinToString(" OR ", "(", ")") { compile(it) }
-        is NorFilter -> filter.operands.joinToString(" OR ", "NOT (", ")") { compile(it) }
+        is NorFilter -> nor(filter.operands.map(::compile))
         is IdFilter -> systemEqual(filter, filter.value)
         is IdsFilter -> {
             val column = systemColumn(filter)
@@ -175,12 +175,13 @@ internal class ClickHouseFilterCompiler(
     fun columnOf(field: QueryField<*>): TypedColumn = table.column(admitted.physicalPath(field))
 
     /**
-     * [field] as a `DateTime64`: a native date column itself, an epoch column converted from its unit. Admission
-     * admits a date group or date difference only on a field with one of these encodings.
+     * [field] as a `DateTime64`: a native date column at its own precision, an epoch column converted from its unit.
+     * Admission admits a date group or date difference only on a field with one of these encodings.
      */
     fun instant(field: QueryField<*>): String {
         val column = column(field)
-        if (columnOf(field).temporal) return "toDateTime64($column, 3, 'UTC')"
+        val typed = columnOf(field)
+        if (typed.temporal) return "toDateTime64($column, ${typed.scale}, 'UTC')"
         val epoch = admitted.field(field).temporal as? Temporal.Epoch
             ?: throw QueryExecutionException("Field [${field.path}] stores no instant.")
         val millis = when (epoch.timeUnit) {
@@ -274,13 +275,25 @@ internal class ClickHouseFilterCompiler(
     }
 
     companion object {
-        /** `left op right`; a division by zero is NULL. */
-        fun arithmetic(operator: AggregationExpressionOperator, left: String, right: String): String = when (operator) {
-            AggregationExpressionOperator.ADD -> "($left + $right)"
-            AggregationExpressionOperator.SUBTRACT -> "($left - $right)"
-            AggregationExpressionOperator.MULTIPLY -> "($left * $right)"
-            AggregationExpressionOperator.DIVIDE -> "if($right = 0, NULL, $left / $right)"
+        /**
+         * `left op right` as the protocol computes it, a finite double: a division by zero, and a result past the
+         * double range (`inf`, `nan`), is NULL.
+         */
+        fun arithmetic(operator: AggregationExpressionOperator, left: String, right: String): String {
+            val result = when (operator) {
+                AggregationExpressionOperator.ADD -> "($left + $right)"
+                AggregationExpressionOperator.SUBTRACT -> "($left - $right)"
+                AggregationExpressionOperator.MULTIPLY -> "($left * $right)"
+                AggregationExpressionOperator.DIVIDE -> "if($right = 0, NULL, $left / $right)"
+            }
+            return "ifNotFinite($result, NULL)"
         }
+
+        /**
+         * None of [operands] holds. An operand that is NULL (a comparison with a NULL, in ClickHouse's three-valued
+         * logic) does not hold, so NOR holds for it, as the canonical semantics say: `NOT NULL` alone would be NULL.
+         */
+        fun nor(operands: List<String>): String = operands.joinToString(" OR ", "NOT ifNull((", "), 0)")
 
         fun comparison(operator: ComparisonOperator): String = when (operator) {
             ComparisonOperator.EQ -> "="

@@ -109,21 +109,27 @@ internal class ClickHouseAggregationCompiler(
         is AggregationGroup.DatePart -> datePart(group)
     }
 
-    /** The bucket of an instant: the start of its unit on the zone's wall clock, keyed as epoch milliseconds. */
+    /**
+     * The bucket of an instant: the start of its unit on the zone's wall clock (a week starts on Monday), in that
+     * start's own offset, keyed as epoch milliseconds. The instant stays a signed `DateTime64` (or `Date32`)
+     * throughout, which the executor's `enable_extended_results_for_datetime_functions` keeps: a `DateTime` would wrap
+     * an instant before 1970 past 2106. `toStartOfSecond` floors it first, since the coarser functions truncate a
+     * negative fraction of a second toward zero.
+     */
     private fun dateHistogram(group: AggregationGroup.DateHistogram): String {
         val zone = group.timeZone.sqlTimeZone()
-        val local = "toTimeZone(${filters.instant(group.field)}, $zone)"
+        val second = "toStartOfSecond(${filters.instant(group.field)})"
         val start = when (group.unit) {
-            AggregationDateUnit.YEAR -> "toStartOfYear($local)"
-            AggregationDateUnit.QUARTER -> "toStartOfQuarter($local)"
-            AggregationDateUnit.MONTH -> "toStartOfMonth($local)"
-            AggregationDateUnit.WEEK -> "toMonday($local)"
-            AggregationDateUnit.DAY -> "toStartOfDay($local)"
-            AggregationDateUnit.HOUR -> "toStartOfHour($local)"
-            AggregationDateUnit.MINUTE -> "toStartOfMinute($local)"
-            AggregationDateUnit.SECOND -> "toDateTime($local)"
+            AggregationDateUnit.YEAR -> "toStartOfYear($second, $zone)"
+            AggregationDateUnit.QUARTER -> "toStartOfQuarter($second, $zone)"
+            AggregationDateUnit.MONTH -> "toStartOfMonth($second, $zone)"
+            AggregationDateUnit.WEEK -> "toMonday($second, $zone)"
+            AggregationDateUnit.DAY -> "toStartOfDay($second, $zone)"
+            AggregationDateUnit.HOUR -> "toStartOfHour($second, $zone)"
+            AggregationDateUnit.MINUTE -> "toStartOfMinute($second, $zone)"
+            AggregationDateUnit.SECOND -> second
         }
-        return "toInt64(toUnixTimestamp(toDateTime($start, $zone))) * 1000"
+        return "toUnixTimestamp64Milli(toDateTime64($start, 3, $zone))"
     }
 
     private fun datePart(group: AggregationGroup.DatePart): String {

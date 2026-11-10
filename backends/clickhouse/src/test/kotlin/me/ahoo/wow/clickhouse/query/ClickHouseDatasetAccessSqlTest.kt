@@ -99,7 +99,7 @@ class ClickHouseDatasetAccessSqlTest {
             .contains("(JSONType(access, {p0:String}) = 'Array' AND JSONLength(access, {p0:String}) = 0)")
         sql(IsNullFilter(department)).assert().contains("JSONType(access, {p0:String}) = 'Null'")
         sql(NorFilter(listOf(IsNotNullFilter(department)))).assert()
-            .contains("NOT (JSONType(access, {p0:String}) != 'Null')")
+            .contains("NOT ifNull((JSONType(access, {p0:String}) != 'Null'), 0)")
     }
 
     @Test

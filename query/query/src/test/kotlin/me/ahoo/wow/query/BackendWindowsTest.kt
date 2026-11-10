@@ -50,6 +50,7 @@ import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -215,6 +216,79 @@ class BackendWindowsTest {
                 .assert().containsExactly("9223372036854775808" to 2.0, "9223372036854775807" to 1.0)
         }
     }
+
+    @Test
+    fun `a moving average of values near the double range stays their finite mean`() {
+        runTest {
+            val backend = RecordingBackend { hugeCities() }
+            val query = AggregationQuery(
+                groupBy = listOf(province, city),
+                metrics = listOf(
+                    gmv,
+                    derived(
+                        "moving",
+                        DerivedExpression.Running(
+                            "gmv",
+                            Sort(QueryField("city"), Sort.Direction.ASC),
+                            frame = 2,
+                            function = RunningFunction.AVG,
+                        ),
+                    ),
+                ),
+            )
+            val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
+            rows.map { it["moving"].doubleValue() }.assert().containsExactly(HUGE, HUGE)
+        }
+    }
+
+    @Test
+    fun `a moving average over a frame without a value is null`() {
+        runTest {
+            val backend = RecordingBackend { cities.map { it.deepCopy() }.asFlow() }
+            val query = AggregationQuery(
+                groupBy = listOf(province, city),
+                metrics = listOf(
+                    gmv,
+                    derived(
+                        "moving",
+                        DerivedExpression.Running(
+                            "gmv",
+                            Sort(QueryField("city"), Sort.Direction.ASC),
+                            listOf("province"),
+                            frame = 1,
+                            function = RunningFunction.AVG,
+                        ),
+                    ),
+                ),
+            )
+            val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
+            // xz has no gmv: its one-group frame holds no value.
+            rows.single { it["city"].stringValue() == "xz" }["moving"].isNull.assert().isTrue()
+            rows.single { it["city"].stringValue() == "hz" }["moving"].doubleValue().assert().isEqualTo(60.0)
+        }
+    }
+
+    @Test
+    fun `a total or a running sum past the double range fails the query, as a storage's would`() {
+        listOf(
+            DerivedExpression.Total("gmv"),
+            DerivedExpression.Running("gmv", Sort(QueryField("city"), Sort.Direction.ASC)),
+        ).forEach { window ->
+            runTest {
+                val backend = RecordingBackend { hugeCities() }
+                val query =
+                    AggregationQuery(groupBy = listOf(province, city), metrics = listOf(gmv, derived("w", window)))
+                val failure = runCatching {
+                    backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
+                }.exceptionOrNull()
+                (failure is QueryExecutionException).assert().describedAs("$window: $failure").isTrue()
+                failure?.message.assert().isEqualTo("Aggregation metric [w] must be finite.")
+            }
+        }
+    }
+
+    private fun hugeCities(): Flow<ObjectNode> =
+        listOf("a", "b").map { json("""{"province":"zj","city":"$it","gmv":$HUGE}""") }.asFlow()
 
     @Test
     fun `groups tied on the running order follow the remaining group keys`() {
@@ -399,5 +473,9 @@ class BackendWindowsTest {
             windows += window
             emitAll(groups())
         }
+    }
+
+    private companion object {
+        const val HUGE = 1e308
     }
 }

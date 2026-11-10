@@ -100,12 +100,13 @@ internal class SchemaCompatibility(
     private fun refSchema(ref: String): Map<String, Any?> = mapOf(REF to ref)
 
     /**
-     * One comparison in [direction]. [comparing] holds the pairs of definitions being compared, so a recursive type ends
-     * the comparison instead of looping; a trial of one alternative starts with the pairs its enclosing comparison holds.
+     * One comparison in [direction]. [comparing] holds the pairs of references being compared, each as written (a
+     * nullable reference is another pair than the bare one), so a recursive type ends the comparison instead of
+     * looping; a trial of one alternative starts with the pairs its enclosing comparison holds.
      */
     private inner class Comparison(
         private val direction: SchemaDirection,
-        private val comparing: MutableSet<Pair<String, String>> = mutableSetOf(),
+        private val comparing: MutableSet<Pair<Any?, Any?>> = mutableSetOf(),
     ) {
         val changes = mutableListOf<ManifestChange>()
 
@@ -134,9 +135,7 @@ internal class SchemaCompatibility(
 
         /** [queryPath] is the logical query path of the schema (`state.address`), when it is a state's field. */
         fun compare(path: String, baseline: Any?, current: Any?, queryPath: String?) {
-            val oldKey = refKey(baseline)
-            val newKey = refKey(current)
-            val pair = if (oldKey != null && newKey != null) oldKey to newKey else null
+            val pair = if (refers(baseline) && refers(current)) baseline to current else null
             if (pair != null && !comparing.add(pair)) return
             val old = resolve(baseline, baselineDefs)
             val new = resolve(current, currentDefs)
@@ -352,6 +351,16 @@ internal class SchemaCompatibility(
     private fun refKey(schema: Any?): String? =
         ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
 
+    /** Whether [schema] refers to a definition: by its `$ref`, or as the value of a nullable one ([nullableValue]). */
+    private fun refers(schema: Any?): Boolean =
+        refKey(schema) != null || (schema as? Map<*, *>)?.let { refKey(nullableValue(it)) } != null
+
+    /** The value a nullable [schema] accepts beside `null`, `S` of `anyOf: [{"type": "null"}, S]`; null for another. */
+    private fun nullableValue(schema: Map<*, *>): Any? {
+        val alternatives = schema[ANY_OF] as? List<*> ?: return null
+        return alternatives.singleOrNull { it != NULL_SCHEMA }?.takeIf { alternatives.size == 2 }
+    }
+
     /**
      * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by
      * `{}`, and a nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a
@@ -389,8 +398,7 @@ internal class SchemaCompatibility(
     }
 
     private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
-        val alternatives = schema[ANY_OF] as? List<*> ?: return schema
-        val value = alternatives.singleOrNull { it != NULL_SCHEMA }?.takeIf { alternatives.size == 2 } ?: return schema
+        val value = nullableValue(schema) ?: return schema
         val resolved = resolve(value, defs)
         val types = types(resolved) ?: return schema
         return resolved + (schema - ANY_OF) + (TYPE to (types + NULL).sorted())
