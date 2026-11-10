@@ -55,6 +55,15 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     assert.ok(all([path]), path);
 });
 
+test("a Node script under scripts/ runs the static checks, whose Quality job runs the scripts' tests", () => {
+  for (const path of [
+    'scripts/patch-coverage-local.mjs',
+    'scripts/patch-coverage-local.test.mjs',
+  ])
+    assert.deepEqual(on([path]), ['typescript'], path);
+  assert.ok(none(['scripts/validate_wow_skills.py']));
+});
+
 test('lint and format rules run only the static checks and the site build', () => {
   for (const path of ['eslint.config.js', '.prettierrc', '.prettierignore'])
     assert.deepEqual(on([path]), ['typescript', 'docs'], path);
