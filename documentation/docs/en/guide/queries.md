@@ -94,7 +94,7 @@ Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query
 
 ## Declare indexes
 
-A query that filters or sorts by a field without an index scans the store. `@QueryIndex` on a state field declares the index the backend builds at startup, as the `ddl` of its store says (`wow.ddl` by default; `validate` refuses to start while one is missing); `with` adds the fields that follow it, for the usual filter and sort together. The storefront filters products by category, brand and status, and sorts them by price:
+A query that filters or sorts by a field without an index scans the store. `@QueryIndex` on a state field declares the index the backend builds at startup, as the `ddl` of its store says (`wow.ddl` by default; `validate` refuses to start while one is missing, or is not the index the backend plans: one of another definition, such as one built by an earlier release, which `auto` rebuilds once); `with` adds the fields that follow it, for the usual filter and sort together. The storefront filters products by category, brand and status, and sorts them by price:
 
 <!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 

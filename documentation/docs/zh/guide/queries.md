@@ -94,7 +94,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 ## 声明索引 {#declare-indexes}
 
-按没有索引的字段过滤或排序的查询，会扫描存储。状态字段上的 `@QueryIndex` 声明后端在启动时建立的索引，按所在存储的 `ddl` 管理（默认 `wow.ddl`；`validate` 下缺失索引会拒绝启动）；`with` 添加跟在它后面的字段，用于常见的过滤与排序组合。店面按分类、品牌和状态过滤商品，并按价格排序：
+按没有索引的字段过滤或排序的查询，会扫描存储。状态字段上的 `@QueryIndex` 声明后端在启动时建立的索引，按所在存储的 `ddl` 管理（默认 `wow.ddl`；`validate` 下缺失索引，或现有索引不是后端规划的那个时，会拒绝启动：例如早先版本建立的另一种定义的索引，`auto` 会重建它一次）；`with` 添加跟在它后面的字段，用于常见的过滤与排序组合。店面按分类、品牌和状态过滤商品，并按价格排序：
 
 <!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 

@@ -22,6 +22,7 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.sql.Connection
@@ -32,7 +33,9 @@ import javax.sql.DataSource
 data class PostgresQueryIndex(val name: String, val table: String, val ddl: String) {
     /**
      * The fingerprint of the planned definition, recorded on the index as its comment when it is built: an existing
-     * index of the name whose comment differs (another definition, or none: built before) is drift.
+     * index of the name whose comment differs (another definition, or none: built before) is drift. It hashes the DDL
+     * text, so any edit of that text (this planner's, or a key's expression) rebuilds every declared index of every
+     * deployment at its next start under `auto`, and is refused under `validate` until then.
      */
     val fingerprint: String
         get() = "wow:" + MessageDigest.getInstance("SHA-256").digest(ddl.toByteArray(Charsets.UTF_8))
@@ -66,6 +69,13 @@ data class PostgresQueryIndexReport(
  * query model compiles for it), so the planner matches the two; `NULLS FIRST` is the compiler's ascending order. The
  * name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per schema, not per table.
  *
+ * A B-tree index ends with the columns the compiler ends a snapshot sort with ([PostgresQueryLayout.SNAPSHOT]'s
+ * tie-breakers but the tenant): `aggregate_id`. A sort by its keys whose tie-breaker runs in the same direction is the
+ * index's order, forward or backward, with no sort. Today the compiler ends every sort with the tie-breaker ascending,
+ * so an ascending sort is read in index order and a descending one still sorts, until the tie-breaker follows the
+ * direction of the sort's last field. An existing index whose definition is not the planned one is drift
+ * ([PostgresQueryIndex.fingerprint]).
+ *
  * An index of one key that holds many values (a multiple access attribute) is a GIN index of its `jsonb` node,
  * `USING gin ((<node>) jsonb_path_ops) WHERE NOT deleted`: it serves the containment `@>` the SQL compiler writes for
  * an equality, a membership and a containment of such a key, each value one `@>`. A GIN index takes no tenant;
@@ -78,16 +88,17 @@ data class PostgresQueryIndexReport(
 object PostgresQueryIndexes {
     private val log = LoggerFactory.getLogger(PostgresQueryIndexes::class.java)
 
-    /** The column every snapshot sort ends with under the tenant's equality, which ends a declared B-tree index. */
-    private const val TIE_BREAKER = "aggregate_id"
-
     /**
      * The indexes of [plan] on the snapshot table of [aggregate] in [context], keyed by the expressions of its keys'
      * physical fields. Fails on a key with many values (an array): a B-tree indexes one.
      */
     fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val tables = PostgresSnapshotTables(context, aggregate)
-        return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions, TIE_BREAKER) { "NOT deleted" }
+        // The columns the compiler ends a snapshot sort with, but the tenant, which leads every index already.
+        val tieBreakers = PostgresQueryLayout.SNAPSHOT.tieBreakers
+            .filterNot { (field, _) -> field == SnapshotFields.TENANT_ID }
+            .map { (_, column) -> column }
+        return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions, tieBreakers) { "NOT deleted" }
     }
 
     /**
@@ -95,11 +106,18 @@ object PostgresQueryIndexes {
      * `events` model's SQL compiler reads them ([PostgresEventQueryExpressions]) and each partial on its key holding a
      * value (`WHERE <key> IS NOT NULL`) rather than on the snapshots not deleted: a stream not stamped, or of an
      * aggregate without an owner or a space, adds nothing to an index, and every comparison an access policy makes
-     * implies the key holds one.
+     * implies the key holds one. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
+     * and are not read for an order, which for an `events` query ends with the stream key (tenant, aggregate, version).
      */
     fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val table = PostgresEventLogTables(context).aggregate(aggregate)
-        return plan(table.base, table.log, plan, PostgresEventQueryExpressions, null) { key -> "$key IS NOT NULL" }
+        return plan(
+            table.base,
+            table.log,
+            plan,
+            PostgresEventQueryExpressions,
+            emptyList()
+        ) { key -> "$key IS NOT NULL" }
     }
 
     private fun plan(
@@ -107,7 +125,7 @@ object PostgresQueryIndexes {
         table: String,
         plan: QueryIndexPlan,
         expressions: PostgresQueryExpressions,
-        tieBreaker: String?,
+        tieBreakers: List<String>,
         predicate: (key: String) -> String,
     ): List<PostgresQueryIndex> = plan.indexes.map { index ->
         val name = PostgresIdentifiers.limited(base + "_" + index.name)
@@ -117,9 +135,9 @@ object PostgresQueryIndexes {
             "USING gin ($node jsonb_path_ops)" to node
         } else {
             val keys = index.keys.map { key(index, it, expressions) }
-            // Ended by the aggregate ID, the tie-breaker every sort ends with under the tenant's equality, so a sort by
-            // the keys is the index's order (a NOT NULL column, ordered plainly as the compiler orders it).
-            val columns = keys.map { "$it NULLS FIRST" } + listOfNotNull(tieBreaker).filterNot { it in keys }
+            // Ended by the tie-breakers, NOT NULL columns the compiler orders plainly: a sort by the keys whose
+            // tie-breaker runs in the same direction is the index's order, forward or backward.
+            val columns = keys.map { "$it NULLS FIRST" } + tieBreakers.filterNot { it in keys }
             "(tenant_id, ${columns.joinToString(", ")})" to keys.first()
         }
         PostgresQueryIndex(

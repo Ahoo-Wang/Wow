@@ -55,6 +55,8 @@ class PostgresQueryIndexesTest {
             "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot__shop__order_ix_order_state_name\" ON \"wow_snapshot__shop__order\" " +
                 "(tenant_id, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST, aggregate_id) WHERE NOT deleted",
         )
+        // Pinned: a change here means an edit of the DDL text, which rebuilds every declared index of every deployment.
+        index.fingerprint.assert().isEqualTo("wow:a676f0ec29e8261bf6ff65921c9d1668")
     }
 
     /** The `events` model of `shop.order`, whose Manifest declares a single and a multiple access attribute. */
