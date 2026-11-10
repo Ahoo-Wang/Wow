@@ -18,6 +18,7 @@ import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.spi.Ddl
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.core.env.Environment
 import java.time.Duration
@@ -214,6 +215,17 @@ class WowProperties {
          */
         fun of(environment: Environment): WowProperties =
             Binder.get(environment).bindOrCreate(PREFIX, WowProperties::class.java)
+
+        /**
+         * [of], for an environment post-processor, which runs before Spring Boot configures the application's logging:
+         * null when a `wow.*` setting does not bind. The post-processor then adds nothing, and the properties' bean
+         * refuses the setting when it is bound, with Spring Boot's failure analysis on the application's own log.
+         */
+        fun ofOrNull(environment: Environment): WowProperties? = try {
+            of(environment)
+        } catch (@Suppress("SwallowedException") refused: BindException) {
+            null
+        }
 
         const val DEFAULT_INTERNAL_PORT: Int = 9090
         const val DEFAULT_PARTITIONS: Int = 64

@@ -55,12 +55,18 @@ internal class ConnectionDefaultsEnvironmentPostProcessor : EnvironmentPostProce
 
         /**
          * The database a MongoDB connection string names, the path after its hosts (`mongodb://host/shop?...` names
-         * `shop`); null when it names none.
+         * `shop`); null when it names none, or when the path does not decode: the host's MongoDB client refuses that
+         * URI when it is built ([MongoClientAutoConfiguration]), once Spring Boot has configured the logging.
          */
         fun databaseOf(uri: String): String? {
             val afterScheme = uri.substringAfter("://", missingDelimiterValue = "")
             val path = afterScheme.substringAfter('/', missingDelimiterValue = "").substringBefore('?')
-            return URLDecoder.decode(path, Charsets.UTF_8).takeIf { it.isNotBlank() }
+            val database = try {
+                URLDecoder.decode(path, Charsets.UTF_8)
+            } catch (@Suppress("SwallowedException") malformed: IllegalArgumentException) {
+                return null
+            }
+            return database.takeIf { it.isNotBlank() }
         }
     }
 }

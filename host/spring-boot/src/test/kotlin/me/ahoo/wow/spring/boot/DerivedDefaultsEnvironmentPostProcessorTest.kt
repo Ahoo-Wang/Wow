@@ -14,10 +14,8 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 
@@ -72,11 +70,14 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
         unset.propertySources.contains(CoSecModeEnvironmentPostProcessor.SOURCE).assert().isFalse()
     }
 
+    /**
+     * The properties' bean refuses the mode once Spring Boot has configured the logging, naming the key
+     * ([EarlyRefusalTest]); the post-processor, which runs before, adds nothing.
+     */
     @Test
-    fun `an unknown mode should fail the startup, naming the key`() {
-        assertThrownBy<BindException> {
-            environment(CoSecModeEnvironmentPostProcessor.MODE to "off").coSec()
-        }.actual().message.assert().contains(CoSecModeEnvironmentPostProcessor.MODE)
+    fun `an unknown mode should add nothing, left to the properties' bean to refuse`() {
+        val unknown = environment(CoSecModeEnvironmentPostProcessor.MODE to "off").coSec()
+        unknown.propertySources.contains(CoSecModeEnvironmentPostProcessor.SOURCE).assert().isFalse()
     }
 
     @Test
