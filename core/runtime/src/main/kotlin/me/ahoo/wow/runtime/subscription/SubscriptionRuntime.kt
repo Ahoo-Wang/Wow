@@ -46,7 +46,6 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
-import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -154,6 +153,9 @@ class SubscriptionRuntime internal constructor(
     /** The registered subscriptions by name, read by waits from any thread. */
     private val directory = ConcurrentHashMap<String, Subscription>()
 
+    /** The checkpoints the group's subscriptions left behind under a name it no longer has. */
+    private val orphanCheckpoints = GroupOrphans(group, ledger, directory)
+
     @Volatile
     private var running: Running? = null
 
@@ -198,7 +200,7 @@ class SubscriptionRuntime internal constructor(
             run.joined = saved.mapTo(HashSet()) { it.subscription }
             if (tellsOrphans && !orphansTold) {
                 orphansTold = true
-                tellOrphans(saved)
+                orphanCheckpoints.tellOrphans(saved)
             }
             partitions.forEach { open(run, it, startsIn(run, subscriptions.values, it)) }
             started = true
@@ -494,44 +496,9 @@ class SubscriptionRuntime internal constructor(
     /** The checkpoints saved in the group: of each subscription of its name that has read its stream. */
     internal suspend fun saved(): List<Checkpoint> = checkpoints.list(group)
 
-    /**
-     * The checkpoints in [saved] of a subscription the group no longer has (not Wow's own, `wow.…`, which it ends),
-     * with the entries parked under the name in the group's contexts, up to [maxParked]: what one renamed or removed
-     * left behind, by name. A start warns of them; operators read them ([me.ahoo.wow.runtime.node.subscriptionsView]).
-     */
-    internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> {
-        require(maxParked >= 1) { "At least one parked entry is counted." }
-        return saved.filter { !directory.containsKey(it.subscription) && !it.subscription.startsWith(RESERVED) }
-            .groupBy { it.subscription }
-            .toSortedMap()
-            .map { (name, positions) ->
-                val parked = directory.values.mapTo(HashSet()) { it.context }
-                    .sumOf { ledger.count(SubscriptionId(it, name), maxParked) }.coerceAtMost(maxParked)
-                OrphanCheckpoints(group, name, positions.sortedBy { it.partition }, parked)
-            }
-    }
-
-    /**
-     * Warns of the [orphans] in [saved]: a subscription's name is its identity, so a renamed one starts again as its
-     * start says; pinning its `@Name` to the old name keeps its position.
-     */
-    private suspend fun tellOrphans(saved: List<Checkpoint>) {
-        val orphans = orphans(saved, ORPHAN_COUNT)
-        if (orphans.isEmpty()) {
-            return
-        }
-        val described = orphans.map { orphan ->
-            val at = orphan.positions.joinToString { "partition ${it.partition} at ${it.position}" }
-            val held = if (orphan.parked >= ORPHAN_COUNT) "$ORPHAN_COUNT or more" else "${orphan.parked}"
-            "${orphan.name} ($at; $held parked)"
-        }
-        logger.warn {
-            "Subscription group $group has checkpoints of subscriptions it no longer has: " +
-                "${described.joinToString("; ")}. A renamed subscription starts again under its new name, as its " +
-                "start says; to keep its position, pin its @Name to the old one. What is left under an old name " +
-                "is not read again."
-        }
-    }
+    /** [GroupOrphans.orphans] of the group's [saved] checkpoints. */
+    internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> =
+        orphanCheckpoints.orphans(saved, maxParked)
 
     /** The subscriptions of the group with a checkpoint: those that have read its stream. */
     private suspend fun joinedSubscriptions(): Set<String> =
@@ -682,23 +649,4 @@ class SubscriptionRuntime internal constructor(
 @InternalWowApi
 data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
 
-/**
- * The checkpoints a subscription of [group] left behind: [name], a name the group no longer has, saved its [positions],
- * one per partition, and has [parked] entries under it, counted up to a limit. A checkpoint holds a subscription's name
- * alone, without its context.
- */
-@InternalWowApi
-data class OrphanCheckpoints(
-    val group: String,
-    val name: String,
-    val positions: List<Checkpoint>,
-    val parked: Int,
-)
-
 private val logger = KotlinLogging.logger {}
-
-/** The prefix of Wow's own subscriptions' names, which the compiler reserves. */
-private const val RESERVED = "wow."
-
-/** How many entries parked under an old name a start counts at most. */
-private const val ORPHAN_COUNT = 1_000
