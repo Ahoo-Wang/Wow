@@ -64,13 +64,14 @@ class PostgresSnapshotKeysetTest {
         val active = AndFilter(listOf(TenantIdFilter("t1"), DeletionFilter(DeletionState.ACTIVE)))
         fun deepPage(sort: List<Sort>, position: List<Any?>): String {
             val admitted = QueryAdmission.Trusted.cursor(CursorQuery(active, sort = sort, size = PAGE), schema)
-            return analyze(compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(position), PAGE)))
+            return analyze(compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(position), PAGE)).first)
         }
 
         // The default order, the table's key: (tenant_id, aggregate_id) from the position on.
         val byKey = deepPage(emptyList(), listOf("t1", "id-%06d".format(DEEP)))
         // An ordered scan of the primary key from the position, which reads the page and stops.
-        byKey.assert().contains("Index Scan using").contains("_pkey").contains("ROW(tenant_id, aggregate_id) > ROW(")
+        // The tenant, pinned, is a constant of the order: the key's bound is the aggregate ID's.
+        byKey.assert().contains("Index Scan using").contains("_pkey").contains("(aggregate_id > '")
             .doesNotContain("Sort")
         removed(byKey).assert().isLessThanOrEqualTo(PAGE.toLong())
 
@@ -155,7 +156,7 @@ class PostgresSnapshotKeysetTest {
             val deep = window(DEEP.toLong(), DEEP)
             page(deep).assert().hasSize(PAGE).first().isEqualTo("id-%06d".format(DEEP - 3))
             statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(1)
-            val values = analyze(compiler.keyset(admitted(), deep))
+            val values = analyze(compiler.keyset(admitted(), deep).first)
             values.assert().contains("Index Scan Backward using").contains("_amount").contains("Index Cond")
                 .contains("ROW(").doesNotContain("Sort")
             removed(values).assert().isLessThanOrEqualTo(PAGE.toLong())
@@ -165,20 +166,19 @@ class PostgresSnapshotKeysetTest {
                 listOf("id-000004", "id-000001") + (0 until PAGE - 2).map { "id-%06d".format(89_980 - 30 * it) },
             )
             statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(2)
-            val nulls = analyze(checkNotNull(compiler.keysetNulls(admitted(), window(7, 7), PAGE - 2)))
+            val nulls = analyze(checkNotNull(compiler.keyset(admitted(), window(7, 7)).rest).invoke(PAGE - 2))
             nulls.assert().contains("Index Scan Backward using").contains("IS NULL").doesNotContain("Sort")
             removed(nulls).assert().isLessThanOrEqualTo(PAGE.toLong())
 
-            // A position among the nulls: one statement, the nulls after it. The index seeks to the nulls; within them
-            // the tie-breakers (tenant_id, aggregate_id) are not consecutive columns of the index, so it filters the
-            // 501 nulls before the position rather than seeking to it.
+            // A position among the nulls: one statement, the nulls after it. The tenant, pinned, leaves the bound, so
+            // the index seeks to the position among them: the nulls before it are not read.
             val among = window(null, 89_980 - 30 * 500)
             page(among).assert().first().isEqualTo("id-%06d".format(89_980 - 30 * 501))
             statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(1)
-            compiler.keysetNulls(admitted(), among, PAGE).assert().isNull()
-            val amongNulls = analyze(compiler.keyset(admitted(), among))
+            compiler.keyset(admitted(), among).rest.assert().isNull()
+            val amongNulls = analyze(compiler.keyset(admitted(), among).first)
             amongNulls.assert().contains("Index Scan Backward using").contains("IS NULL").doesNotContain("Sort")
-            removed(amongNulls).assert().isEqualTo(501L)
+            removed(amongNulls).assert().isLessThanOrEqualTo(PAGE.toLong())
         }
 
     /** [PostgresFixture.dataSource], recording the SQL of every statement it prepares into [statements]. */

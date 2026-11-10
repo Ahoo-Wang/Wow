@@ -22,7 +22,6 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.spi.Ddl
-import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.sql.Connection
@@ -96,7 +95,7 @@ object PostgresQueryIndexes {
         val tables = PostgresSnapshotTables(context, aggregate)
         // The columns the compiler ends a snapshot sort with, but the tenant, which leads every index already.
         val tieBreakers = PostgresQueryLayout.SNAPSHOT.tieBreakers
-            .filterNot { (field, _) -> field == SnapshotFields.TENANT_ID }
+            .filterNot { (field, _) -> field == PostgresQueryLayout.SNAPSHOT.tenant }
             .map { (_, column) -> column }
         return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions, tieBreakers) { "NOT deleted" }
     }

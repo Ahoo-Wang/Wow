@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NotInFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
@@ -229,7 +230,7 @@ class PostgresSnapshotSqlCompilerTest {
             admitted,
             // The snapshot's unique key ends the sort: the tenant, then the aggregate id.
             PageWindow.Keyset(CursorPosition(listOf("n", BigDecimal.TEN, "t", "id")), 3)
-        ).let { statement ->
+        ).first.let { statement ->
             // The leading key's bound, which an index can seek to, then the exact condition.
             statement.sql.assert().contains(
                 "AND $name >= ? AND (($name > ?) OR ($name = ? AND ($amount < ? OR $amount IS NULL)) OR " +
@@ -255,19 +256,22 @@ class PostgresSnapshotSqlCompilerTest {
             )
         }
         // Nothing sorts after a NULL descending; after a NULL ascending, every value does.
-        compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(listOf(null, null, "t", "id")), 3)).sql.assert()
+        compiler.keyset(
+            admitted,
+            PageWindow.Keyset(CursorPosition(listOf(null, null, "t", "id")), 3)
+        ).first.sql.assert()
             .contains(
                 "AND (($name IS NOT NULL) OR ($name IS NULL AND $amount IS NULL AND tenant_id < ?) OR " +
                     "($name IS NULL AND $amount IS NULL AND tenant_id = ? AND aggregate_id < ?)) ORDER BY",
             )
-        compiler.keyset(admitted, PageWindow.Keyset(null, 3)).sql.assert().doesNotContain(" OR ")
+        compiler.keyset(admitted, PageWindow.Keyset(null, 3)).first.sql.assert().doesNotContain(" OR ")
     }
 
     @Test
     fun `a keyset page seeks to the leading keys of one direction that hold a value`() {
         fun after(sort: List<Sort>, vararg values: Any?): String {
             val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), schema)
-            val sql = compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(values.toList()), 3)).sql
+            val sql = compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(values.toList()), 3)).first.sql
             return sql.substringAfter("WHERE TRUE AND ").substringBefore(" ORDER BY")
         }
         val name = PostgresSnapshotQueryExpressions.value(NAME, PostgresQueryType.TEXT)
@@ -310,11 +314,36 @@ class PostgresSnapshotSqlCompilerTest {
     }
 
     @Test
+    fun `a pinned tenant leaves the keyset condition when the position holds it`() {
+        fun after(filter: FilterExpression, sort: List<Sort>, vararg values: Any?): String {
+            val admitted = QueryAdmission.Trusted.cursor(CursorQuery(filter, sort = sort, size = 2), schema)
+            val sql = compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(values.toList()), 3)).first.sql
+            return sql.substringAfter(" AND ").substringBefore(" ORDER BY")
+        }
+        val name = PostgresSnapshotQueryExpressions.value(NAME, PostgresQueryType.TEXT)
+        val pinned = TenantIdFilter("t")
+        val descending = listOf(Sort(NAME, Sort.Direction.DESC))
+        // The order of an index led by the tenant, (name, aggregate_id), sought to whole.
+        after(pinned, descending, "n", "t", "id").assert().isEqualTo("($name, aggregate_id) < (?, ?)")
+        after(pinned, emptyList(), "t", "id").assert().isEqualTo("aggregate_id > ?")
+        // Among the NULLs: the NULLs before the position's aggregate, both conditions of the index.
+        after(pinned, descending, null, "t", "id").assert().isEqualTo("(($name IS NULL AND aggregate_id < ?))")
+        // A sort led by the pinned tenant: the key after it may hold NULL and is not the window's first, so its NULLs
+        // stay in the expanded form, as no second part reads them.
+        after(pinned, listOf(Sort(QueryField("tenantId"), Sort.Direction.DESC)) + descending, "t", "n", "id")
+            .assert().isEqualTo("((($name < ? OR $name IS NULL)) OR ($name = ? AND aggregate_id < ?))")
+        // A position of another tenant, or a query across tenants, keeps the tenant in the bound.
+        after(pinned, descending, "n", "u", "id").assert().isEqualTo("($name, tenant_id, aggregate_id) < (?, ?, ?)")
+        after(OrFilter(listOf(TenantIdFilter("t"), TenantIdFilter("u"))), descending, "n", "t", "id")
+            .assert().isEqualTo("($name, tenant_id, aggregate_id) < (?, ?, ?)")
+    }
+
+    @Test
     fun `a descending window on a field that may hold NULL reads its NULLs in a second part, after a value only`() {
         fun nulls(sort: List<Sort>, vararg values: Any?): SqlStatement? {
             val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), schema)
             val position = if (values.isEmpty()) null else CursorPosition(values.toList())
-            return compiler.keysetNulls(admitted, PageWindow.Keyset(position, 3), 2)
+            return compiler.keyset(admitted, PageWindow.Keyset(position, 3)).rest?.invoke(2)
         }
         val name = PostgresSnapshotQueryExpressions.value(NAME, PostgresQueryType.TEXT)
         val descending = listOf(Sort(NAME, Sort.Direction.DESC))

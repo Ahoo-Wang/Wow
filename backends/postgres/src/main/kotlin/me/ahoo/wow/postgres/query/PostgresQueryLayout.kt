@@ -27,12 +27,14 @@ import java.sql.ResultSet
  * - [select]: the `SELECT` list a row of a [Projection] needs;
  * - [tieBreakers]: the physical fields, with their columns, that end a list's and an offset page's order so it is
  *   total (each not already sorted by), and that order the rows of an `ANY`, `FIRST` or `LAST` metric;
+ * - [tenant]: the physical field of the tenant among them, a constant of the order under a pinned tenant;
  * - [record]: the record of one row read by [select].
  */
 internal class PostgresQueryLayout(
     val expressions: PostgresQueryExpressions,
     val select: (Projection) -> String,
     val tieBreakers: List<Pair<String, String>>,
+    val tenant: String,
     val record: (ResultSet, Projection) -> ObjectNode,
 ) {
     companion object {
@@ -44,6 +46,7 @@ internal class PostgresQueryLayout(
                 SnapshotFields.AGGREGATE_ID to "aggregate_id",
                 SnapshotFields.TENANT_ID to "tenant_id"
             ),
+            tenant = SnapshotFields.TENANT_ID,
             record = { row, projection -> PostgresQueryBackend.record(row, projection.keepsState()) },
         )
     }

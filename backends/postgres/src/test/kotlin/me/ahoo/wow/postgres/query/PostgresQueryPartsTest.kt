@@ -163,7 +163,7 @@ class PostgresQueryPartsTest {
             .keyset(
                 admitted,
                 PageWindow.Keyset(CursorPosition(listOf(null, null)), 2)
-            ).sql.assert().contains("WHERE TRUE AND FALSE ORDER BY")
+            ).first.sql.assert().contains("WHERE TRUE AND FALSE ORDER BY")
     }
 
     @Test

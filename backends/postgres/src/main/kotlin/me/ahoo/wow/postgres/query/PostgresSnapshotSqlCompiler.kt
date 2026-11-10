@@ -72,23 +72,30 @@ internal class PostgresSnapshotSqlCompiler(
      * The rows of a keyset window, each with its position: the sort values as the columns `k0`, `k1`, ... The rows
      * after a position are those that sort strictly after it, the expanded form of a row comparison that honors each
      * field's direction and its nulls. A window whose first key descends and may hold `NULL`, after a position that
-     * holds a value, is read in two parts ([splitsNulls]): these are its rows that hold a value, and [keysetNulls]
-     * the rest.
+     * holds a value, is read in two parts ([splitsNulls]): first its rows that hold a value, then, for the rows left,
+     * those whose first key is `NULL`, which sort after every value descending, all of them after the position.
      */
-    fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): SqlStatement {
+    fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): KeysetWindow {
         val after = window.after
-        return window(query, window.limit) { parameters, keys -> after?.let { after(parameters, query, keys, it) } }
+        val split = after != null && splitsNulls(query, after)
+        val first = window(
+            query,
+            window.limit
+        ) { parameters, keys -> after?.let { after(parameters, query, keys, it) } }
+        val nulls: ((Int) -> SqlStatement)? = if (!split) {
+            null
+        } else {
+            { left -> window(query, left) { _, keys -> "${keys.first().first} IS NULL" } }
+        }
+        return KeysetWindow(first, nulls)
     }
 
     /**
-     * The second part of a window [keyset] reads in two, at most [limit] rows: those whose first key is `NULL`, which
-     * sort after every value descending, all of them after the position. `null` for a window read in one part. The
-     * backend reads it only when the first part does not fill the window.
+     * A keyset window's statements: [first], and, for a window read in two parts, [rest], the statement of the second
+     * part for the rows the first leaves. A caller reads [first] and, when it falls short, [rest] for what is left, so
+     * no caller can take half a window.
      */
-    fun keysetNulls(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset, limit: Int): SqlStatement? {
-        val after = window.after?.takeIf { splitsNulls(query, it) } ?: return null
-        return window(query, limit) { _, keys -> "${keys.first().first} IS NULL" }
-    }
+    class KeysetWindow(val first: SqlStatement, val rest: ((left: Int) -> SqlStatement)?)
 
     /**
      * Whether a window after [after] is read in two parts: its first key descends, may hold `NULL` and holds a value at
@@ -157,20 +164,26 @@ internal class PostgresSnapshotSqlCompiler(
      * is no index condition and a page would scan every row before its position. Descending, the first key leads the
      * row even when it may hold `NULL`: such a window reads its `NULL`s in a second part ([splitsNulls]), so this one
      * is its rows that hold a value, which the row comparison keeps.
+     *
+     * Under a [pinned][AdmittedQuery.pinnedTenant] tenant that the position holds, the tenant key leaves the
+     * condition: it ties every row, so it bounds nothing, and without it the row is the order of an index led by the
+     * tenant, `(k, aggregate_id)` under `tenant_id = ?`, which the index seeks to whole.
      */
     private fun after(
         parameters: SqlParameters,
         query: AdmittedQuery<Queryable<*>>,
         keys: List<Pair<String, PostgresQueryType>>,
-        after: CursorPosition,
+        position: CursorPosition,
     ): String {
-        val sort = query.query.sort
+        val constant = pinnedTenantKey(query, position)
+        fun <T> List<T>.bound(): List<T> = filterIndexed { index, _ -> index != constant }
+        val sort = query.query.sort.bound()
+        val keys = keys.bound()
+        val after = CursorPosition(position.values.bound())
         val notNull = sort.map { layout.expressions.notNull(query.field(it.field).physicalField) }
         val direction = sort.first().direction
-        val leading = sort.indices.takeWhile { index ->
-            sort[index].direction == direction && after.values.getOrNull(index) != null &&
-                (direction == Sort.Direction.ASC || notNull[index] || index == 0)
-        }
+        // The first key, unless it was the pinned tenant, may lead although it may hold NULL: see splitsNulls.
+        val leading = leading(sort, notNull, after, firstLeads = constant != 0)
         if (leading.isEmpty()) return expanded(parameters, sort, keys, notNull, after)
         val whole = leading.size == sort.size
         val operator = when (direction) {
@@ -182,6 +195,36 @@ internal class PostgresSnapshotSqlCompiler(
         val bound = columns.singleOrNull()?.let { "$it $operator ${values.single()}" }
             ?: (columns.joinToString(", ", "(", ")") + " $operator " + values.joinToString(", ", "(", ")"))
         return if (whole) bound else "$bound AND " + expanded(parameters, sort, keys, notNull, after)
+    }
+
+    /**
+     * The leading keys of [sort] that compare as one row with the position [after]: of the first key's direction,
+     * holding a value there, and, descending, holding no `NULL` (which sorts last, after every value), but the first
+     * key when [firstLeads], the original first key, whose NULLs a window reads apart ([splitsNulls]).
+     */
+    private fun leading(
+        sort: List<Sort>,
+        notNull: List<Boolean>,
+        after: CursorPosition,
+        firstLeads: Boolean,
+    ): List<Int> {
+        val direction = sort.first().direction
+        return sort.indices.takeWhile { index ->
+            sort[index].direction == direction && after.values.getOrNull(index) != null &&
+                (direction == Sort.Direction.ASC || notNull[index] || index == 0 && firstLeads)
+        }
+    }
+
+    /**
+     * The index of the tenant key in [query]'s sort when the tenant is [pinned][AdmittedQuery.pinnedTenant] and the
+     * position holds that tenant; `null` otherwise, the tenant then bounding as any key (a position of another tenant
+     * must still read as it says, and a query across tenants orders by them).
+     */
+    private fun pinnedTenantKey(query: AdmittedQuery<Queryable<*>>, position: CursorPosition): Int? {
+        val tenant = query.pinnedTenant ?: return null
+        val sort = query.query.sort
+        val index = sort.indexOfFirst { query.physicalPath(it.field) == layout.tenant }
+        return index.takeIf { it >= 0 && sort.size > 1 && position.values[it] == tenant }
     }
 
     /** The rows after [after] in [sort], the expanded row comparison that honors each key's direction and nulls. */

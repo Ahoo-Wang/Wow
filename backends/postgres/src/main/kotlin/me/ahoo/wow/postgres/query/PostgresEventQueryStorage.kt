@@ -150,6 +150,7 @@ internal object PostgresEventQueryLayout {
             EventStreamFields.AGGREGATE_ID to "aggregate_id",
             EventStreamFields.VERSION to "version",
         ),
+        tenant = EventStreamFields.TENANT_ID,
         record = ::record,
     )
 
