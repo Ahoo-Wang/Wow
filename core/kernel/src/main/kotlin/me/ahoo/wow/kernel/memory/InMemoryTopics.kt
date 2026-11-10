@@ -82,6 +82,15 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
 
     override suspend fun partitions(topic: String): List<Int> = (0 until topicOf(topic).size).toList()
 
+    /**
+     * The partition of [key] in [topic]: its `String.hashCode`, not the log's hash ([me.ahoo.wow.spi.log.Partitioner]).
+     * For an aggregate's key in ASCII, as the ids of the test fixtures are (the text the log hashes when its names
+     * need no escape), the two hashes' low bits always differ: `String.hashCode`'s is the parity of the characters'
+     * low bits, FNV-1a's, over the same bytes, that parity flipped by its odd offset basis. Beyond ASCII they need not
+     * (`String.hashCode` reads UTF-16 units, FNV-1a UTF-8 bytes). So with an even number of partitions here, the log's
+     * being a power of two, no such aggregate is in the same partition of a topic and of the log: a test that needs one
+     * in both gives the topic an odd number of partitions (3, say) and picks an aggregate the two agree on.
+     */
     override suspend fun partitionOf(topic: String, key: String): Int =
         Math.floorMod(key.hashCode(), topicOf(topic).size)
 
