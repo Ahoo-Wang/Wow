@@ -40,7 +40,7 @@ Each module gets one class implementing `ModelProvider`, registered for `Service
 
 ## The Manifest fragment
 
-The compiler writes the module's part of the service's contract to `META-INF/wow/manifest/<module>.json`: the context, its aggregates with their commands, events, lifecycle commands, query models and schedules, its subscriptions with what each derives, schedules and calls, its published streams and its error codes. Its type schemas are references until the Gradle plugin completes them with the JSON Schemas Jackson's rules give, the query keywords included. [The Manifest and Compatibility](./manifest) covers what happens to it next.
+The compiler writes the module's part of the service's contract to `META-INF/wow/manifest/<module>.json`, named by the module's project path with its segments as directories (`:eshop:ordering-domain` writes `eshop/ordering-domain.json`, `:eshop-ordering-domain` `eshop-ordering-domain.json`, the root project `.root.json`), so two projects never share one: the context, its aggregates with their commands, events, lifecycle commands, query models and schedules, its subscriptions with what each derives, schedules and calls, its published streams and its error codes. Its type schemas are references until the Gradle plugin completes them with the JSON Schemas Jackson's rules give, the query keywords included. [The Manifest and Compatibility](./manifest) covers what happens to it next.
 
 ## The contract code of the api module
 

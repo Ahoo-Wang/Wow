@@ -107,7 +107,7 @@ class WowApiPluginTest {
             variants.getByName("classes").artifacts.map { it.file.canonicalFile }.assert().contains(wowContractClasses)
             // One core view per paired domain module, named after its path, without the generated classes.
             val cores = variants.filter { it.attributes.contains(WowPlugin.API_VIEW) }
-            cores.map { it.name }.assert().containsExactlyInAnyOrder("wowCoreShopDomain", "wowCoreAuditDomain")
+            cores.map { it.name }.assert().containsExactlyInAnyOrder("wowCore:shop-domain", "wowCore:audit-domain")
             cores.map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
                 .assert().containsExactlyInAnyOrder(
                     WowPlugin.coreView(":shop-domain"),

@@ -96,7 +96,7 @@ object ManifestTools {
         val found = classpath.flatMap { entry ->
             val owner = owners[entry.path] ?: entry.name
             ManifestJson.fragments(entry).map { fragment ->
-                val resource = Manifest.FRAGMENT_DIRECTORY + "/" + File(fragment.source.substringAfter("!/")).name
+                val resource = ManifestJson.resourceOf(fragment.source)
                 resource to ManifestFragment("$owner $resource", fragment.manifest)
             }
         }

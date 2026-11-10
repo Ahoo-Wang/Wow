@@ -39,23 +39,20 @@ object ManifestJson {
     fun pretty(tree: Any?): String = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(tree)
 
     /**
-     * The fragments under `META-INF/wow/manifest/` of [entry], a directory or a jar of a classpath, sorted by path;
-     * each is named by where it was found.
+     * The fragments under `META-INF/wow/manifest/` of [entry], a directory or a jar of a classpath, at any depth (a
+     * nested project's is in a directory of its path), sorted by path; each is named by where it was found.
      */
     fun fragments(entry: File): List<ManifestFragment> = when {
-        entry.isDirectory -> File(entry, Manifest.FRAGMENT_DIRECTORY)
-            .listFiles { file -> file.isFile && file.name.endsWith(JSON) }.orEmpty()
-            .sortedBy { it.name }
+        entry.isDirectory -> File(entry, Manifest.FRAGMENT_DIRECTORY).walkTopDown()
+            .filter { it.isFile && it.name.endsWith(JSON) }
+            .sortedBy { it.invariantSeparatorsPath }
             .map { ManifestFragment(it.path, read(it)) }
+            .toList()
 
         entry.isFile && entry.name.endsWith(".jar") -> ZipFile(entry).use { jar ->
             jar.entries().asSequence()
                 .filter { !it.isDirectory && it.name.startsWith("${Manifest.FRAGMENT_DIRECTORY}/") }
-                .filter {
-                    it.name.removePrefix(
-                        "${Manifest.FRAGMENT_DIRECTORY}/"
-                    ).let { name -> '/' !in name && name.endsWith(JSON) }
-                }
+                .filter { it.name.endsWith(JSON) }
                 .sortedBy { it.name }
                 .map { ManifestFragment("${entry.path}!/${it.name}", jar.getInputStream(it).use(::read)) }
                 .toList()
@@ -77,6 +74,11 @@ object ManifestJson {
 
         else -> null
     }
+
+    /** The class path resource of a fragment [ManifestFragment.source] names: `META-INF/wow/manifest/a/b.json`. */
+    internal fun resourceOf(source: String): String =
+        Manifest.FRAGMENT_DIRECTORY + "/" +
+            source.replace('\\', '/').substringAfterLast("${Manifest.FRAGMENT_DIRECTORY}/")
 
     private const val JSON = ".json"
 }

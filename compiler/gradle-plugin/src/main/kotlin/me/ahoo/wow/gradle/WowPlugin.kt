@@ -30,7 +30,7 @@ import java.util.Properties
  *   kernel unless the module declares it itself, so the module's other Wow dependencies take no version;
  * - applies KSP with `wow-compiler` of the plugin's version (unless `ksp` declares `wow-compiler` itself) in `generate`
  *   mode, so the module's aggregates compile into models and its Manifest fragment
- *   (`META-INF/wow/manifest/<module>.json`, the module named by its project path, [moduleName]);
+ *   (`META-INF/wow/manifest/<module>.json`, the module named by its project path, [fragmentName]);
  * - registers [GENERATE_FRAGMENT_TASK] ([GenerateManifestFragment]), which completes the fragment with the
  *   schemas Jackson introspection gives; the completed fragment is part of the module's resources in
  *   place of the compiler's. A module whose compiler writes no fragment (no model, no processor) contributes nothing;
@@ -125,11 +125,25 @@ class WowPlugin : Plugin<Project> {
         }
 
         /**
-         * The name of the module at the project [path], which names its Manifest fragment and, by default, the service
-         * it merges: the path's segments joined by `-` (`:eshop:ordering-domain` is `eshop-ordering-domain`), the
-         * root project's [rootName] for the root. Unique within a build, where a project's name need not be.
+         * The name of the module at the project [path], which names its Manifest fragment
+         * (`META-INF/wow/manifest/<name>.json`): the path's segments as directories (`:eshop:ordering-domain` is
+         * `eshop/ordering-domain`), and [ROOT_FRAGMENT] for the root project, a name no project can take. Two paths are
+         * two names, since a project's name holds no `/` and starts with no `.` (`:a-b` is `a-b`, `:a:b` is `a/b`); it
+         * holds no root project's name, which defaults to the checkout's directory. Two builds of one path give one name,
+         * which the merge refuses ([MERGE_TASK]).
          */
-        internal fun moduleName(path: String, rootName: String): String =
+        internal fun fragmentName(path: String): String =
+            if (path == ":") ROOT_FRAGMENT else path.removePrefix(":").replace(':', '/')
+
+        /** The fragment name of the root project: a project name never starts with a `.`. */
+        internal const val ROOT_FRAGMENT = ".root"
+
+        /**
+         * The name of the service the module at the project [path] merges, unless its contracts name one: the path's
+         * segments joined by `-` (`:eshop:ordering-server` is `eshop-ordering-server`), the root project's [rootName]
+         * for the root.
+         */
+        internal fun defaultServiceName(path: String, rootName: String): String =
             if (path == ":") rootName else path.removePrefix(":").replace(':', '-')
 
         /** Fails a project at [path] built by a Gradle older than [MIN_GRADLE]. */

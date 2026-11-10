@@ -72,10 +72,12 @@ internal abstract class GenerateManifestFragment @Inject constructor(
     internal fun submit(queue: WorkQueue) {
         val output = outputDirectory.get().asFile
         output.deleteRecursively()
-        fragments.files.sortedBy { it.name }.forEach { fragment ->
+        fragments.files.sortedBy { it.invariantSeparatorsPath }.forEach { fragment ->
             queue.submit(ManifestToolsWork.CompleteFragment::class.java) { parameters ->
                 parameters.fragment.set(fragment)
-                parameters.output.set(output.resolve("META-INF/wow/manifest/${fragment.name}"))
+                // Its path below the fragments' directory, which names it: a nested project's is a directory's.
+                val name = fragment.invariantSeparatorsPath.substringAfterLast("${WowRoles.FRAGMENT_RESOURCES}/")
+                parameters.output.set(output.resolve("${WowRoles.FRAGMENT_RESOURCES}/$name"))
                 parameters.schemaOverrides.set(schemaOverrides)
             }
         }
