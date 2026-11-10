@@ -15,15 +15,21 @@ package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 
 /**
- * What a [SubscriptionWorker]'s retry of a parked aggregate writes to the ledger when it ends: where the aggregate is
- * parked now and why, when it did not handle all of it, else its resolution. A repark waits for the partition to run
- * again ([PartitionPause]) and is retried until it is stored.
+ * What a [SubscriptionWorker] writes to the ledger: the park of an aggregate whose handler failed ([park]), and, when a
+ * retry of a parked aggregate ends, where the aggregate is parked now and why, when it did not handle all of it, else
+ * its resolution. A park and a repark wait for the partition to run again ([PartitionPause]) and are retried until they
+ * are stored.
  *
  * Each is fenced by the partition the retry read the entry in ([FailureLedger.repark], [FailureLedger.resolve]): an
  * entry re-homed meanwhile to the partition its aggregate's key maps to now is no longer this retry's, and nothing of
@@ -37,7 +43,59 @@ internal class ParkWrites(
     private val pause: PartitionPause,
     private val readRetry: RetryPolicy,
     private val clock: Clock,
+    /** How the handler's failures are classified: an unrecoverable one parks marked so. */
+    private val classification: FailureClassification,
+    /** The handler's own retry budget, which its classification reads. */
+    private val handlerRetry: HandlerRetry?,
+    /** The budget the handler was retried by before it parked, which the park's warning names. */
+    private val retry: RetryPolicy,
+    private val backpressure: BackpressureOptions,
 ) {
+    /**
+     * Parks [sourced]'s aggregate at its version, and at its position in a topic, after [failure], once the partition
+     * runs again ([PartitionPause]), retried until it is stored. Returns the entry, and whether the ledger changed
+     * ([FailureLedger.park]): the worker then holds the aggregate back and tells of the parking.
+     */
+    suspend fun park(sourced: SourcedEntry, failure: Throwable): Pair<ParkedAggregate, Boolean> {
+        val stream = sourced.stream
+        val kind = if (failure is HandlingRejectedException) {
+            null
+        } else {
+            classification.classify(
+                failure,
+                handlerRetry
+            )
+        }
+        val unrecoverable = kind == FailureClass.UNRECOVERABLE
+        val entry = ParkedAggregate(
+            subscription,
+            stream.ref,
+            partition,
+            stream.version,
+            reasonOf(failure),
+            clock.millis(),
+            source.sourcePosition(sourced),
+            // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
+            recoverable = if (unrecoverable) Recoverable.UNRECOVERABLE else Recoverable.UNKNOWN,
+        )
+        workerLogger.warn(failure) {
+            val after = when {
+                failure is HandlingRejectedException -> "a rejection"
+                unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
+                kind == FailureClass.BACKPRESSURE ->
+                    "${backpressure.maxAttempts} attempts its downstream pushed back"
+                else -> "${retry.maxAttempts} attempts"
+            }
+            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
+        }
+        // The ledger may sit on what paused the partition: it is written once the partition runs again.
+        pause.awaitRunning()
+        val changed = retryForever(readRetry, { "park ${stream.ref} for ${subscription.name}" }) {
+            ledger.park(entry)
+        }
+        return entry to changed
+    }
+
     /**
      * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked, while it
      * is parked in partition [from], the one the retry read it in; returns the entry.
@@ -91,3 +149,6 @@ internal class ParkWrites(
 
 /** The reason a parked entry records for [failure]: its class and its message. */
 internal fun reasonOf(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
+
+/** The worker's: the park's warning is logged as it was. */
+private val workerLogger = KotlinLogging.logger(SubscriptionWorker::class.java.name)

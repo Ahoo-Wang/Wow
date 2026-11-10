@@ -37,7 +37,6 @@ import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.FailureClass
 import java.time.Clock
 import kotlin.random.Random
 
@@ -167,8 +166,20 @@ internal class SubscriptionWorker(
     private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
 
-    /** What a retry writes to the ledger when it ends without handling all of an aggregate. */
-    private val writes = ParkWrites(subscription.id, partition, source, ledger, pause, options.readRetry, clock)
+    /** What the worker writes to the ledger: a park, and a retry's repark or resolution. */
+    private val writes = ParkWrites(
+        subscription.id,
+        partition,
+        source,
+        ledger,
+        pause,
+        options.readRetry,
+        clock,
+        classification,
+        subscription.retry,
+        retry,
+        options.backpressure,
+    )
 
     /** The aggregates parked here, and the retry or skip running on each. Guarded by the monitor. */
     private val parking = ParkStates(parked)
@@ -386,42 +397,7 @@ internal class SubscriptionWorker(
      * the ledger entry is resolved.
      */
     private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
-        val stream = sourced.stream
-        val kind = if (failure is HandlingRejectedException) {
-            null
-        } else {
-            classification.classify(
-                failure,
-                subscription.retry
-            )
-        }
-        val unrecoverable = kind == FailureClass.UNRECOVERABLE
-        val entry = ParkedAggregate(
-            subscription.id,
-            stream.ref,
-            partition,
-            stream.version,
-            reasonOf(failure),
-            clock.millis(),
-            source.sourcePosition(sourced),
-            // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
-            recoverable = if (unrecoverable) Recoverable.UNRECOVERABLE else Recoverable.UNKNOWN,
-        )
-        logger.warn(failure) {
-            val after = when {
-                failure is HandlingRejectedException -> "a rejection"
-                unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
-                kind == FailureClass.BACKPRESSURE ->
-                    "${options.backpressure.maxAttempts} attempts its downstream pushed back"
-                else -> "${retry.maxAttempts} attempts"
-            }
-            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
-        }
-        // The ledger may sit on what paused the partition: it is written once the partition runs again.
-        pause.awaitRunning()
-        val changed = retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) {
-            ledger.park(entry)
-        }
+        val (entry, changed) = writes.park(sourced, failure)
         if (changed && notifier !== ParkedNotifier.NONE) {
             val notice = ParkedNotice(
                 ParkedNotice.Kind.PARKED,
@@ -433,7 +409,7 @@ internal class SubscriptionWorker(
             lanes.launch { notifier.notifyQuietly(notice) }
         }
         // As a restart reads it back from the ledger: an undecodable message parks from the first version.
-        synchronized(this) { parking.park(stream.ref, source.ordinalOf(entry)) }
+        synchronized(this) { parking.park(entry.ref, source.ordinalOf(entry)) }
     }
 
     /**
