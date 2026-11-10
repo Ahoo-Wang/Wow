@@ -212,6 +212,28 @@ describe('the descriptor cache', () => {
     expect(describe).toHaveBeenCalledTimes(3);
   });
 
+  it('tries again past the maximum age after a describe that threw before answering', async () => {
+    // #5563: a source may throw before it hands back a promise. That is a
+    // failure like a rejection: what is held stays, and the next check asks.
+    const clock = clocked();
+    const failed = vi.fn();
+    const describe = vi
+      .fn<Describe>()
+      .mockImplementationOnce(() => {
+        throw new Error('not ready');
+      })
+      .mockResolvedValue(read(ordersDescriptor()));
+    const cache = new DescriptorCache({ now: clock.now, failed });
+
+    await expect(cache.load('orders', describe)).resolves.toBeNull();
+    expect(failed).toHaveBeenCalledWith('orders', new Error('not ready'));
+
+    clock.advance(DESCRIPTOR_MAX_AGE_MS);
+    await cache.revalidate('orders');
+    expect(describe).toHaveBeenCalledTimes(2);
+    expect(cache.current('orders')?.version).toBe('sha256:orders-1');
+  });
+
   it('answers null for a source it never read, and does nothing for one it does not know', async () => {
     const describe = vi.fn<Describe>(() => Promise.reject(new Error('404')));
     const cache = new DescriptorCache({ now: () => 0 });

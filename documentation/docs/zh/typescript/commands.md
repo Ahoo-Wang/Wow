@@ -168,7 +168,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。
+在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流开始之后连接断开时，读取以网络的错误失败，`requestIdOf(error)` 交回它发送时的请求 ID：命令可能已经提交，所以用这个 ID 再发一次。
 
 ## 命令失败时 {#when-a-command-fails}
 

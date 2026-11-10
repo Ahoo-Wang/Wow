@@ -302,7 +302,7 @@ export class MemoryViewStore implements ViewStore {
 
   getPreferences(definitionId: string): Promise<ViewPreferences> {
     return Promise.resolve(
-      this.preferences.get(definitionId) ?? emptyPreferences(),
+      copy(this.preferences.get(definitionId) ?? emptyPreferences()),
     );
   }
 
@@ -315,7 +315,7 @@ export class MemoryViewStore implements ViewStore {
     // other write does: a retry after a lost answer is the same logical
     // write, and reporting a conflict for it would be a lie.
     const replayed = this.preferenceOutcomes.get(context.requestId);
-    if (replayed) return Promise.resolve(replayed);
+    if (replayed) return Promise.resolve(copy(replayed));
     this.reload();
 
     const held = this.preferences.get(definitionId);
@@ -325,14 +325,18 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError(
           'CONFLICT',
           `Preferences for ${definitionId} changed`,
-          { preferences: current },
+          { preferences: copy(current) },
         ),
       );
 
-    const next: ViewPreferences = {
+    // Held as a copy and answered as one, as an instance is (#5557): the
+    // `order` and `lastTabs` a caller handed in, or read back and edits as a
+    // draft, are its own, and neither what is stored nor a replay's answer
+    // moves with them.
+    const next: ViewPreferences = copy({
       ...preferences,
       revision: nextRevision(current.revision),
-    };
+    });
     this.preferences.set(definitionId, next);
     const refused = this.persist(() =>
       held
@@ -341,7 +345,7 @@ export class MemoryViewStore implements ViewStore {
     );
     if (refused) return Promise.reject(refused);
     this.preferenceOutcomes.set(context.requestId, next);
-    return Promise.resolve(next);
+    return Promise.resolve(copy(next));
   }
 
   /**
@@ -447,7 +451,7 @@ export class MemoryViewStore implements ViewStore {
     try {
       this.snapshot.save({
         instances: [...this.instances.values()].map(instance => copy(instance)),
-        preferences: Object.fromEntries(this.preferences),
+        preferences: copy(Object.fromEntries(this.preferences)),
       });
       return undefined;
     } catch (error) {
@@ -476,7 +480,7 @@ export class MemoryViewStore implements ViewStore {
     for (const instance of state.instances)
       this.instances.set(instance.id, copy(instance));
     for (const [definitionId, preferences] of Object.entries(state.preferences))
-      this.preferences.set(definitionId, preferences);
+      this.preferences.set(definitionId, copy(preferences));
   }
 }
 

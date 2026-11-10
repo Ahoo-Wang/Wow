@@ -38,8 +38,9 @@ data class ReviseDataset(val definition: DatasetDefinition, val title: String? =
 
 /**
  * Publishes the dataset's definition as its next version (-2): compiled against the catalog as it
- * is now into the version's own view, `ds_<context>_<name>_v<N>`, which the publication creates in the warehouse (the
- * only way the catalog changes the warehouse, audited by the event); queries then read that version.
+ * is now into the version's own view, `ds_<context>_<name>_<digest>_v<N>` (the digest that of the exact id, so ids
+ * that read the same once lower-cased and made safe have views of their own), which the publication creates in the
+ * warehouse (the only way the catalog changes the warehouse, audited by the event); queries then read that version.
  * A definition that compiles to what is published already changes nothing.
  */
 @Summary("Publish the dataset's definition as its next version")

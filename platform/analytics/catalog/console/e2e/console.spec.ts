@@ -90,6 +90,16 @@ let table: string;
 let source: string;
 let dataset: string;
 
+/**
+ * A version's view in the warehouse: the readable context and name, then the
+ * digest of the dataset's exact id, which the catalog computes.
+ */
+function viewOf(context: string, name: string, version: number): RegExp {
+  return new RegExp(
+    `^wow_datasets\\.ds_${context}_${name}_[0-9a-f]{10}_v${version}$`,
+  );
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ request }) => {
@@ -199,7 +209,7 @@ test("an analyst drafts a dataset over it and publishes it", async ({
   await act(page, "Publish");
   await expect
     .poll(() => views(request))
-    .toContain(`wow_datasets.ds_${context}_${name}_v1`);
+    .toContainEqual(expect.stringMatching(viewOf(context, name, 1)));
   await expect(page.getByText("PUBLISHED").first()).toBeVisible();
   // Nothing awaited an approver here; the words cannot know ahead.
   await expect(
@@ -260,7 +270,7 @@ test("a publication computing from a sensitive value awaits an approver, and the
   await actFromMenu(approver, dataset, "Approve publication");
   await expect
     .poll(() => views(request))
-    .toContain(`wow_datasets.ds_${context}_${name}_v2`);
+    .toContainEqual(expect.stringMatching(viewOf(context, name, 2)));
   await expect
     .poll(async () => (await datasetState(request, dataset)).current)
     .toBe(2);

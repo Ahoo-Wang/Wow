@@ -644,6 +644,54 @@ describe('a time axis over its own window', () => {
     expect(data.points[0].filled).toEqual(['orders']);
   });
 
+  // #5517: a window of only the second 01:00 of the night New York's clocks
+  // go back (06:00Z–06:59Z, EST) is that one hour; the first 01:00 (05:00Z,
+  // EDT) was never asked about, and is no known 0.
+  it.each([
+    ['the second repeated hour', '2026-11-01T06:00:00.000Z'],
+    ['the first repeated hour', '2026-11-01T05:00:00.000Z'],
+    ['an ordinary hour', '2026-11-01T07:00:00.000Z'],
+  ])('keeps a window of %s to that hour', (_, from) => {
+    const start = Date.parse(from);
+    const zone = 'America/New_York';
+    const hourly: AnalysisViewConfig = {
+      ...bars([METRICS.orders]),
+      groups: [
+        {
+          ...DAY,
+          alias: 'hour',
+          unit: AggregationDateUnit.HOUR,
+          timeZone: zone,
+        },
+      ],
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'hour', series: [{ metric: 'orders' }] },
+      },
+      filter: {
+        op: 'and',
+        children: [
+          {
+            field: 'createdAt',
+            operator: FilterOperator.BETWEEN,
+            value: {
+              type: 'absolute',
+              from,
+              to: new Date(start + 3_600_000 - 1).toISOString(),
+            },
+          } as never,
+        ],
+      },
+    };
+    const data = shapeChart(hourly, [{ hour: start, orders: 7 }], undefined, {
+      timeZone: zone,
+      now: new Date('2026-11-01T08:00:00Z'),
+    }) as CartesianData;
+    expect(data.points.map(point => [point.x, point.values.orders])).toEqual([
+      [start, 7],
+    ]);
+  });
+
   it('fills a split one combination at a time', () => {
     const split: AnalysisViewConfig = {
       ...config(

@@ -119,6 +119,22 @@ describe('Generations: server knowledge (admit)', () => {
   });
 });
 
+describe('Generations: a listing, one read answering for many keys', () => {
+  it('judges each key it answers for against that key’s writes and reads', () => {
+    const generations = new Generations<string>();
+    const listing = generations.issue('list');
+    generations.confirm('renamed');
+    const read = generations.issue('read-again');
+    expect(generations.admit(read)).toBe(true);
+    expect(generations.admit(listing, 'renamed')).toBe(false);
+    expect(generations.admit(listing, 'read-again')).toBe(false);
+    expect(generations.admit(listing, 'untouched')).toBe(true);
+    generations.release(listing);
+    generations.release(read);
+    expect(generations.size).toBe(0);
+  });
+});
+
 describe('Generations: local intent (latest)', () => {
   it('says the last operation started is the latest, and an earlier one is not', () => {
     const generations = new Generations<string>();

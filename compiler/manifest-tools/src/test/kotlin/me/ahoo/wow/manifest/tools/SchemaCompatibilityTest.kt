@@ -238,6 +238,24 @@ class SchemaCompatibilityTest {
                 obj("a" to STRING + ("x-wow-alias" to listOf("state.x"))),
                 "ADDITIVE s.a: query alias state.x added",
             ),
+            row(
+                "allOf member changed",
+                mapOf("allOf" to listOf(obj("a" to STRING, "b" to STRING), obj("kind" to STRING))),
+                mapOf("allOf" to listOf(obj("a" to STRING), obj("kind" to STRING))),
+                "BREAKING s.allOf[0].b: field removed",
+            ),
+            row(
+                "allOf member added",
+                mapOf("allOf" to listOf(obj("a" to STRING))),
+                mapOf("allOf" to listOf(obj("a" to STRING), obj("kind" to STRING, required = listOf("kind")))),
+                "BREAKING s.allOf[1]: member added",
+            ),
+            row(
+                "allOf member removed",
+                mapOf("allOf" to listOf(obj("a" to STRING), obj("kind" to STRING))),
+                mapOf("allOf" to listOf(obj("a" to STRING))),
+                "ADDITIVE s.allOf[1]: member removed",
+            ),
             row("no value accepted", STRING, false, "BREAKING s: no value accepted any more"),
             row("still no value accepted", false, false),
         )
@@ -286,6 +304,55 @@ class SchemaCompatibilityTest {
             .compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.OUTPUT)
             .map { it.toString() }.assert()
             .containsExactly("BREAKING s.m{}: type widened from [integer] to [integer, null]")
+    }
+
+    @Test
+    fun `a change behind a reference of an allOf member should be compared, either way it flows`() {
+        val subtype = mapOf("allOf" to listOf(obj("p" to mapOf("\$ref" to "#/\$defs/P")), obj("kind" to STRING)))
+        val payload = obj("secret" to STRING, required = listOf("secret"))
+        val relaxed = obj("secret" to STRING)
+        changes(subtype, subtype, oldDefs = mapOf("P" to payload), newDefs = mapOf("P" to relaxed))
+            .assert().containsExactly("ADDITIVE s.allOf[0].p.secret: field made optional")
+        SchemaCompatibility(mapOf("t" to subtype, "P" to payload), mapOf("t" to subtype, "P" to relaxed))
+            .compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.OUTPUT)
+            .map { it.toString() }.assert().containsExactly("BREAKING s.allOf[0].p.secret: field made optional")
+        changes(subtype, subtype, oldDefs = mapOf("P" to payload), newDefs = mapOf("P" to obj()))
+            .assert().containsExactly("BREAKING s.allOf[0].p.secret: field removed")
+    }
+
+    @Test
+    fun `the properties beside a reference should hold with its definition's`() {
+        // A recursive subtype: a reference to its class's schema beside its discriminator.
+        val node = mapOf("\$ref" to "#/\$defs/N", "type" to "object", "properties" to mapOf("kind" to STRING))
+        val children = obj("children" to ARRAY, required = listOf("children"))
+        changes(node, node, oldDefs = mapOf("N" to children), newDefs = mapOf("N" to obj()))
+            .assert().containsExactly("BREAKING s.children: field removed")
+        changes(node, node, oldDefs = mapOf("N" to children), newDefs = mapOf("N" to children)).assert().isEmpty()
+    }
+
+    @Test
+    fun `what a reference's definition requires should hold beside a required sibling`() {
+        // The reference adds a required name and no property: the definition still requires its own.
+        val node = mapOf("\$ref" to "#/\$defs/N", "required" to listOf("kind"))
+        val strict = obj("a" to STRING, "kind" to STRING, required = listOf("a"))
+        val relaxed = obj("a" to STRING, "kind" to STRING)
+        fun compared(direction: SchemaDirection) =
+            SchemaCompatibility(mapOf("t" to node, "N" to strict), mapOf("t" to node, "N" to relaxed))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction).map { it.toString() }
+        compared(SchemaDirection.OUTPUT).assert().containsExactly("BREAKING s.a: field made optional")
+        compared(SchemaDirection.INPUT).assert().containsExactly("ADDITIVE s.a: field made optional")
+    }
+
+    @Test
+    fun `a property both a reference's definition and its siblings declare should hold as both`() {
+        // The class declares its discriminator too; the reference narrows it to its constant.
+        val node = mapOf("\$ref" to "#/\$defs/N", "properties" to mapOf("kind" to mapOf("const" to "node")))
+        val declared = obj("kind" to STRING, required = listOf("kind"))
+        changes(node, node, oldDefs = mapOf("N" to declared), newDefs = mapOf("N" to declared)).assert().isEmpty()
+        // The definition's own schema of it is still compared, not hidden behind the sibling's constant.
+        val retyped = obj("kind" to NUMBER, required = listOf("kind"))
+        changes(node, node, oldDefs = mapOf("N" to declared), newDefs = mapOf("N" to retyped))
+            .assert().containsExactly("BREAKING s.kind.allOf[0]: type narrowed from [string] to [number]")
     }
 
     @Test

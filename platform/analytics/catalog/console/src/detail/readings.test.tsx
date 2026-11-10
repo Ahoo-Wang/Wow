@@ -221,7 +221,7 @@ describe("a dataset's detail", () => {
     expect(within(versions).getByText("→ shop.order")).toBeVisible();
     expect(
       within(versions).getByText(
-        /CREATE VIEW wow_datasets.ds_shop_order_wide_v1/,
+        /CREATE VIEW wow_datasets.ds_shop_order_wide_b33b301849_v1/,
       ),
     ).toBeVisible();
   });
