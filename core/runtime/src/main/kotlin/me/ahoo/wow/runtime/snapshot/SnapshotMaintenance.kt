@@ -322,9 +322,10 @@ class SnapshotMaintenance(
 
     /**
      * Rewrites a run's pages of the pending snapshots of [type] in [store], under the table's rebuild lease, from where
-     * the last run stopped while this node has held the lease since, at the same revision: the snapshots before it are
-     * rewritten, so each run reads on instead of scanning them again. At the end of the table the scan starts over,
-     * for the snapshots marked stale behind it meanwhile; the table is rebuilt once a scan from the first finds none.
+     * the last run stopped while this node has held the lease since (at [revision], the node's own for its life): the
+     * snapshots before it are rewritten, so each run reads on instead of scanning them again. At the end of the table
+     * the scan starts over, for the snapshots marked stale behind it meanwhile; the table is rebuilt once a scan from
+     * the first finds none.
      */
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
         val key = store to type
@@ -336,13 +337,13 @@ class SnapshotMaintenance(
         }
         val snapshots = rebuildsOf(store)
         val model = models.getValue(type)
-        var after = cursors[key]?.takeIf { it.revision == revision && it.epoch == held.epoch }?.after
+        var after = cursors[key]?.takeIf { it.epoch == held.epoch }?.after
         repeat(options.pages) {
             val pending = snapshots.pending(type, revision, after, options.batch)
             if (pending.isEmpty()) {
                 if (after == null) {
                     cursors.remove(key)
-                    snapshots.mark(type, revision, rebuilding = false)?.let { tables[key] = it }
+                    snapshots.mark(type, revision, rebuilding = false)?.let { tables[store to type] = it }
                     leases.release(lease, 0, node)
                     logger.info { "The snapshots of $type in $store are rebuilt at state revision $revision." }
                     return
@@ -361,7 +362,7 @@ class SnapshotMaintenance(
             after = pending.last()
             leases.renew(lease, listOf(0), node, options.leaseTtl)
         }
-        cursors[key] = RebuildCursor(revision, held.epoch, after)
+        cursors[key] = RebuildCursor(held.epoch, after)
     }
 
     /**
@@ -467,10 +468,10 @@ class SnapshotMaintenance(
     private fun rebuildGroup(store: String, type: AggregateType): String = "$group#snapshot-rebuild/$store/${type.name}"
 
     /**
-     * Where a rebuild of a table stopped: at [revision], under the rebuild lease of [epoch], after the snapshot [after]
-     * (null to start from the first).
+     * Where a rebuild of a table stopped: under the rebuild lease of [epoch], after the snapshot [after] (null to start
+     * from the first). It is at this node's revision, which a node keeps for its life.
      */
-    private class RebuildCursor(val revision: Int, val epoch: Long, val after: AggregateRef?)
+    private class RebuildCursor(val epoch: Long, val after: AggregateRef?)
 
     @InternalWowApi
     companion object {
