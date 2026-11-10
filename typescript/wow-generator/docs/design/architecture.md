@@ -42,7 +42,7 @@
 | `cli/`      | commander 程序与用法错误的退出码（`program.ts`）、`runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                                            | 否                           |
 | `pipeline/` | `CodeGenerator` 串起各段、记警告；`seams.ts` 的内部接缝 `PROJECT_SEAM`、`SIGNAL_SEAM`                                                                  | 经各段                       |
 | `input/`    | 加载资源（文件、http）、JSON/YAML、文档校验、配置读取与校验（警告作为返回值）                                                                          | 否                           |
-| `manifest/` | V10 Manifest 的读取与校验（`document.ts`）、Manifest → `ManifestModel` 与警告（`analyze.ts`，含 JSON Schema → 类型文本），纯函数（§6）                 | 否                           |
+| `manifest/` | V10 Manifest 的读取与校验（`document.ts`）、Manifest → `ManifestModel` 与警告（`analyze.ts`，类型文本 `schemaTypes.ts`），纯函数（§6）                 | 否                           |
 | `openapi/`  | `OpenApiDocument`（endpoint 只算一次、合并路径级参数）、组件与引用、操作、响应、schema 判定                                                            | 否                           |
 | `naming/`   | 标识符与大小写、固定的 en-US 排序、`ModelInfo`、文件布局（`modelFilePath`、`boundedContextFilePath`）与 `combinePaths`                                 | 否                           |
 | `wow/`      | `conventions.ts`（全部 Wow 约定）、`model.ts`（`WowModel`）、`resolveWowModel`（纯函数，不改文档）                                                     | 否                           |

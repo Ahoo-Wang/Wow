@@ -19,7 +19,7 @@
 import { basename, join } from 'node:path';
 import { relativeModuleSpecifier } from '../emit/imports';
 import type { ModuleBuilder, ModuleSet } from '../emit/moduleBuilder';
-import type { AggregateModel, ContextModel } from '../manifest/analyze';
+import type { AggregateModel, ContextModel } from '../manifest/model';
 import type { TextNumbersModel } from '../manifest/textNumbers';
 import { quoteStringLiteral, resolvePropertyName } from '../naming/naming';
 

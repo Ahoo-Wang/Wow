@@ -105,6 +105,12 @@ src/
     seams.ts                  — PROJECT_SEAM, SIGNAL_SEAM, Seams, SeamOptions
   input/                      — Loading: file and http resources, JSON/YAML, the configuration (warnings returned)
   manifest/                   — A Wow V10 Manifest: reading and checking it (document.ts); Manifest → ManifestModel and its types (analyze.ts); no ts-morph
+    model.ts                  — ManifestModel and its parts, which the emitters read
+    analyze.ts                — analyzeManifest(): which types each context declares, the model and its warnings
+    schemaTypes.ts            — SchemaTypes: $defs names, JSON Schema → type text, reference closure, state fields
+    aggregates.ts             — An aggregate's model: commands, lifecycle, access, events, state, exact numbers
+    serviceRoutes.ts          — A service route's model
+    textNumbers.ts            — Exact-number marks of a schema
   openapi/                    — Reading the document: OpenApiDocument (endpoints listed once), components, references, operations, responses, schemas
   naming/                     — Identifiers and cases (naming.ts); the en-US order of names (order.ts); ModelInfo; file layout and combinePaths (paths.ts)
   analysis/                   — OpenAPI document + configuration → GenerationModel, as plain data; no ts-morph

@@ -22,7 +22,7 @@ import type {
   ManifestModel,
   Route,
   TypeModel,
-} from '../manifest/analyze';
+} from '../manifest/model';
 import type { ServiceRouteModel } from '../manifest/serviceRoutes';
 import {
   emitTextNumbers,
