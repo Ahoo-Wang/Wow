@@ -28,6 +28,7 @@ export * from './edit.js';
 export * from './filterEdit.js';
 export * from './filters.js';
 export * from './layout.js';
+export * from './reorder.js';
 export * from './merge.js';
 export * from './panels.js';
 export * from './tabs.js';
