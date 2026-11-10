@@ -72,7 +72,7 @@ class ParkedRetriesTest {
 
     private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, claimTtl = 1.seconds)
 
-    private fun runtime(spec: ParkedRetrySpec = this.spec) = SubscriptionRuntime(
+    private fun runtime(spec: ParkedRetrySpec = this.spec, ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
@@ -253,6 +253,72 @@ class ParkedRetriesTest {
         second.stop()
         first.stop()
     }
+
+    /**
+     * A ledger whose next scan that finds entries due, once [armed], lets an operator change each of them right after
+     * the owner read it: the owner then claims, takes or schedules at a revision the entry is no longer at.
+     */
+    private inner class ChangedAfterRead : FailureLedger by ledger {
+        val armed = AtomicBoolean()
+
+        override suspend fun due(
+            subscription: String,
+            partitions: Collection<Int>,
+            now: Long,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<ParkedAggregate> = ledger.due(subscription, partitions, now, after, limit).also { page ->
+            if (page.isNotEmpty() && armed.compareAndSet(true, false)) {
+                val change = ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE)
+                page.forEach { ledger.amend(it.subscription, it.ref, change) }
+            }
+        }
+    }
+
+    @Test
+    fun `an operator's request whose take lost to a later change is run by the next scan`(): Unit = runBlocking {
+        failures.set(1)
+        val changing = ChangedAfterRead()
+        val runtime = runtime(ledger = changing)
+        parkX(runtime)
+        attemptedAfterScans(1)
+        changing.armed.set(true)
+        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
+        eventually { parked() == null }
+        changing.armed.get().assert().isFalse()
+        attempts.get().assert().isEqualTo(2)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an operator's skip whose take lost to a later change is run by the next scan`(): Unit = runBlocking {
+        val changing = ChangedAfterRead()
+        val runtime = runtime(ledger = changing)
+        parkX(runtime)
+        attemptedAfterScans(1)
+        changing.armed.set(true)
+        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
+        eventually { parked() == null }
+        changing.armed.get().assert().isFalse()
+        attempts.get().assert().isEqualTo(1)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an automatic retry whose claim lost to a later change is claimed by the next scan, counted once`(): Unit =
+        runBlocking {
+            failures.set(2)
+            val changing = ChangedAfterRead()
+            val runtime = runtime(ledger = changing)
+            parkX(runtime)
+            attemptedAfterScans(1)
+            changing.armed.set(true)
+            clock.advance(1.seconds)
+            eventually { attempts.get() == 2 && parked()?.retries == 1 }
+            changing.armed.get().assert().isFalse()
+            parked()!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
+            runtime.stop()
+        }
 
     @Test
     fun `an operator's retry accepted while the owner computes a schedule is run by the next scan`(): Unit =
