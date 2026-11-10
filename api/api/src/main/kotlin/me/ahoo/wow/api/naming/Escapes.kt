@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.api.naming
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
@@ -47,6 +48,13 @@ object Escapes {
             }
         }
     }
+
+    /**
+     * The text of [type] in an identity whose separators are [reserved]: its context, with `.` reserved too, a `.`, and
+     * its name, each [escaped], so `a.b`'s `c` and `a`'s `b.c` stay apart. An ordinary type reads `context.name`.
+     */
+    fun typeText(type: AggregateType, reserved: String): String =
+        "${escaped(type.context, "$reserved.")}.${escaped(type.name, reserved)}"
 
     /**
      * The text [escaped] made [text] from: each `%XX` decoded; null when a `%` is not followed by two upper-case hex

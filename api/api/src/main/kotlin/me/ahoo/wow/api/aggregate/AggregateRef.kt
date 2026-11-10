@@ -70,15 +70,13 @@ data class AggregateRef(val type: AggregateType, val tenantId: String, val id: S
      * execution's invocation key) name one aggregate each.
      */
     override fun toString(): String =
-        "${Escapes.escaped(type.context, CONTEXT_RESERVED)}.${Escapes.escaped(type.name, RESERVED)}/" +
-            "${Escapes.escaped(tenantId, RESERVED)}/${Escapes.escaped(id, RESERVED)}"
+        "${Escapes.typeText(type, RESERVED)}/${Escapes.escaped(tenantId, RESERVED)}/${Escapes.escaped(id, RESERVED)}"
 
     companion object {
         /** The id of a ref whose id admission has not chosen yet. */
         const val UNASSIGNED: String = "(none)"
 
         private const val RESERVED = "%/"
-        private const val CONTEXT_RESERVED = "%/."
         private const val PARTS = 3
 
         /**

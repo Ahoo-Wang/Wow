@@ -80,17 +80,28 @@ object Ledger {
      * The id of the ops aggregate recording the entry of [ref] that [subscription], of [context], parked in [service]:
      * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, so one service's entry of one
      * aggregate is one ops aggregate, whichever node publishes it, and two contexts' subscriptions of one name keep
-     * entries of their own. Each field has its `%` and `:` percent-escaped (`%25`, `%3A`, [Escapes]), so two entries never share
-     * an id however their names join: tenant `a:b` with id `c`, and tenant `a` with id `b:c`, stay apart.
+     * entries of their own. Each field has its `%` and `:` percent-escaped (`%25`, `%3A`, [Escapes]), and the aggregate
+     * type's context its `.` too ([Escapes.typeText]), so two entries never share an id however their names join:
+     * tenant `a:b` with id `c` and tenant `a` with id `b:c` stay apart, as do context `a.b`'s aggregate `c` and context
+     * `a`'s `b.c`.
      */
     @JvmStatic
     fun parkedId(service: String, context: String, subscription: String, ref: AggregateRef): String {
         require(service.isNotBlank()) { "A ledger entry names its service." }
         require(context.isNotBlank()) { "A ledger entry names its subscription's context." }
         require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
-        return listOf(service, context, subscription, ref.type.toString(), ref.tenantId, ref.id)
-            .joinToString(":") { Escapes.escaped(it, "%:") }
+        return listOf(
+            Escapes.escaped(service, RESERVED),
+            Escapes.escaped(context, RESERVED),
+            Escapes.escaped(subscription, RESERVED),
+            Escapes.typeText(ref.type, RESERVED),
+            Escapes.escaped(ref.tenantId, RESERVED),
+            Escapes.escaped(ref.id, RESERVED),
+        ).joinToString(":")
     }
+
+    /** The characters a field of a parked entry's ops id escapes: its separator and `%`. */
+    private const val RESERVED = "%:"
 
     /**
      * Where a system command of the ledger on the entry [parkedId] names ([Ledger.parkedId]) is sent: the command

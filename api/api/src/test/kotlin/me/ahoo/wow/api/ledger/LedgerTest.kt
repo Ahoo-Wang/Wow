@@ -55,6 +55,8 @@ class LedgerTest {
             Ledger.parkedId("svc:c", "s", "x", type.ref("a", "c")),
             Ledger.parkedId("svc", "c", "s", type.ref("a", "%3A")),
             Ledger.parkedId("svc", "c", "s", type.ref("a", ":")),
+            Ledger.parkedId("svc", "c", "s", AggregateType("a.b", "c").ref("t", "i")),
+            Ledger.parkedId("svc", "c", "s", AggregateType("a", "b.c").ref("t", "i")),
         )
         shifted.toSet().assert().hasSize(shifted.size)
         Ledger.parkedId("svc", "c", "s", type.ref("a:b", "50%")).assert()
