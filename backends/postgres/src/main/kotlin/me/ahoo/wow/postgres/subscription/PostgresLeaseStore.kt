@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -51,6 +52,9 @@ import kotlin.time.Duration
  *
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. JDBC calls
  * run on [dispatcher], virtual threads by default.
+ *
+ * Closing it gives the connection back to the pool, once the operation that holds it, if any, is done; an operation
+ * after that fails. Its store closes it when it is closed ([me.ahoo.wow.spi.store.Store.close]).
  */
 @InternalWowApi
 class PostgresLeaseStore(
@@ -59,7 +63,7 @@ class PostgresLeaseStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-) : LeaseStore {
+) : LeaseStore, AutoCloseable {
     /** Claims the tables' format ([PostgresFormat]) and creates them when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
@@ -154,8 +158,23 @@ class PostgresLeaseStore(
     private var pinned: Connection? = null
     private val pinning = Mutex()
 
+    /** Whether it was closed ([close]); read and written under [pinning]. */
+    private var closed = false
+
+    /** Gives the pinned connection back, once the operation holding it is done: an operation after that fails. */
+    override fun close(): Unit = runBlocking {
+        pinning.withLock {
+            closed = true
+            pinned?.let { connection ->
+                pinned = null
+                connection.close()
+            }
+        }
+    }
+
     private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = dispatcher.jdbc {
         pinning.withLock {
+            check(!closed) { "The lease store is closed." }
             val connection = pinned ?: dataSource.connection.also {
                 if (!it.autoCommit) {
                     it.autoCommit = true

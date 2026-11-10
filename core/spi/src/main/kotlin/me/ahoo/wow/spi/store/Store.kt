@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTailReader
@@ -36,12 +37,18 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A backend subclasses it and opens its ports in the `open*` functions, each returning the port [Opened] with what
  * creates its schema, so that no port is opened without it; the node calls them once each (a context's log once per
  * context), so a port is never opened twice, and runs [createSchemas] when it starts.
+ *
+ * What a store opens it closes ([close]): each port that holds something of its own (a connection it keeps, say)
+ * implements [AutoCloseable], and the store closes it once, in reverse order of opening, then runs [closeStore].
  */
 @WowSpi
 abstract class Store(val config: StoreConfig) : AutoCloseable {
     private val schemas = CopyOnWriteArrayList<() -> Unit>()
     private val tails = ConcurrentHashMap<String, Optional<SnapshotTailReader>>()
     private val closed = AtomicBoolean()
+
+    /** The ports opened that close ([AutoCloseable]), in the order they were opened; guarded by itself. */
+    private val closeables = ArrayList<AutoCloseable>()
 
     /** How many of [schemas] [createSchemas] ran. */
     private var created = 0
@@ -133,16 +140,20 @@ abstract class Store(val config: StoreConfig) : AutoCloseable {
 
     /**
      * Closes the store once nothing reads it any more, which the host that opened it calls once the node and its
-     * queries stopped: what it holds of its own (a client it built, say), not the resources the host gave it
-     * ([StoreConfig.resources]), which their owner closes. Closing it again does nothing.
+     * queries stopped: what it holds of its own, not the resources the host gave it ([StoreConfig.resources]), which
+     * their owner closes. Each port it opened that is [AutoCloseable] is closed, in reverse order of opening, then
+     * [closeStore] runs, every one even when another fails; the first failure is thrown, the later ones suppressed by
+     * it ([Closing]). Closing it again does nothing, and a closed store opens no port.
      */
     final override fun close() {
-        if (closed.compareAndSet(false, true)) {
-            closeStore()
+        val ports = synchronized(closeables) {
+            if (!closed.compareAndSet(false, true)) return
+            closeables.toList()
         }
+        Closing.inReverse(listOf(AutoCloseable(::closeStore)) + ports)
     }
 
-    /** What [close] releases, once: nothing by default. */
+    /** What [close] releases besides its ports, once, after them: nothing by default (a client it built, say). */
     protected open fun closeStore() = Unit
 
     /**
@@ -158,10 +169,21 @@ abstract class Store(val config: StoreConfig) : AutoCloseable {
         }
     }
 
-    /** [opened]'s port, remembering what creates its schema: [createSchemas] runs it. */
+    /**
+     * [opened]'s port, remembering what creates its schema ([createSchemas] runs it) and, when it closes, that [close]
+     * closes it. A port opened once the store is closed is closed at once and refused.
+     */
     private fun <P : Any> recorded(opened: Opened<P>): P {
+        val port = opened.port
+        if (port is AutoCloseable) {
+            val open = synchronized(closeables) { !closed.get() && closeables.add(port) }
+            if (!open) {
+                val refused = IllegalStateException("$this is closed: it opens no port.")
+                Closing.onFailure(listOf(port)) { throw refused }
+            }
+        }
         opened.schema?.let { schemas += it }
-        return opened.port
+        return port
     }
 
     protected abstract fun openCheckpoints(): Opened<CheckpointStore>
