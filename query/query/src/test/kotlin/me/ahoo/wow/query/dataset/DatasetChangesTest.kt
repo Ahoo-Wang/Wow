@@ -47,7 +47,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 /** How the datasets, their catalog, gateways and bindings follow a change: listeners, recompiling, unavailable datasets, storages. */
-internal class DatasetQueryGatewaysTest : DatasetQueryGatewayFixtures() {
+internal class DatasetChangesTest : DatasetQueryGatewayFixtures() {
     @Test
     fun `datasets change in place, every listener validating before any applies`() {
         val datasets = QueryDatasets()
