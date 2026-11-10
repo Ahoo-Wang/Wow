@@ -14,11 +14,14 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -88,6 +91,28 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
 
     override val edgeTieBreakers: List<String> = listOf(AGGREGATE_ID, TENANT_ID)
 
+    /**
+     * A cursor's sort, which admission ends with the tenant and the aggregate ID, read in the order of the `_id`
+     * index: those two fields, in one direction, are `_id` (`{t, a}`, which orders as they do) in that direction, and
+     * their position values the key they make (a value there that is not a string is an invalid cursor). Without it
+     * every page would sort the tenant's documents in memory.
+     */
+    override fun keyed(sort: List<Sort>): MongoKeyedSort {
+        val tenant = sort.getOrNull(sort.size - 2)
+        val aggregate = sort.lastOrNull()
+        if (tenant?.field?.path != TENANT_ID || aggregate?.field?.path != AGGREGATE_ID ||
+            tenant.direction != aggregate.direction
+        ) {
+            return super.keyed(sort)
+        }
+        return MongoKeyedSort(sort.dropLast(2) + Sort(QueryField(ID), tenant.direction)) { values ->
+            val (tenantId, aggregateId) = values.takeLast(2)
+            // A position of another query or a damaged one holds something else there: a caller's bad cursor.
+            if (tenantId !is String || aggregateId !is String) throw QueryViolation.InvalidCursor.rejection()
+            values.dropLast(2) + MongoSnapshotStore.keyOf(tenantId, aggregateId)
+        }
+    }
+
     /** [path], a logical path of the snapshot model, where the document stores it: its root renamed. */
     override fun physical(path: QueryPathTemplate): QueryPathTemplate = renameRoot(path, PHYSICAL)
 
@@ -146,6 +171,15 @@ internal interface MongoQueryDocuments {
      */
     fun keysOf(tenantId: String): Bson? = null
 
+    /**
+     * The documents of [tenantId]'s aggregates [aggregateIds] as a condition on what leads their key's index, which a
+     * query pinned to them adds; null when nothing more than their fields leads it.
+     */
+    fun keysOf(tenantId: String, aggregateIds: Collection<String>): Bson? = null
+
+    /** The stored fields no record reads, which a native projection that keeps the rest leaves out. */
+    val unread: List<String> get() = emptyList()
+
     /** [path], a logical path of the model, where the document stores it. */
     fun physical(path: QueryPathTemplate): QueryPathTemplate
 
@@ -154,7 +188,16 @@ internal interface MongoQueryDocuments {
 
     /** The record of [document]; a field a native projection left out is absent. */
     fun record(document: Document): ObjectNode
+
+    /** [sort], a cursor's physical sort, as MongoDB reads it best: by default as it is. */
+    fun keyed(sort: List<Sort>): MongoKeyedSort = MongoKeyedSort(sort) { it }
 }
+
+/**
+ * A cursor's sort as a keyset page sorts and conditions on it ([sort]), and the position values of the cursor's own
+ * sort as that sort's ([values]).
+ */
+internal class MongoKeyedSort(val sort: List<Sort>, val values: (List<Any?>) -> List<Any?>)
 
 /** [filter] within [scope], when there is one. */
 internal fun scoped(filter: Bson, scope: Bson?): Bson = scope?.let { Filters.and(it, filter) } ?: filter

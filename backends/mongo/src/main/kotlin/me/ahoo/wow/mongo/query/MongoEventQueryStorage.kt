@@ -33,6 +33,7 @@ import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
+import me.ahoo.wow.spi.log.Partitioner
 import org.bson.Document
 import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory
@@ -44,10 +45,11 @@ import tools.jackson.databind.node.ObjectNode
  * `MongoEventLog` appends to, its documents read as streams ([MongoEventDocuments]), with the facts of
  * [MongoEventStorageAdapter]. One record per stream, as stored.
  *
- * The log is the write store: its indexes are `(aggregate_id, tenant_id, version)`, `(tenant_id, request_id)`,
- * `(partition, sequence)` and those of the access attributes, partial on the streams ([MongoQueryIndexes.planLog]), so a
- * query under an access policy uses its attributes' indexes, and any other that does not pin the aggregate (or the
- * request) scans the aggregate type's collection. The entry's budget bounds it (`maxTimeMS`, sizes, the count limit). [readPreference] moves the reads
+ * The log is the write store: its indexes are `(partition, aggregate_id, tenant_id, version)`,
+ * `(partition, tenant_id, request_id)`, `(partition, sequence)` and those of the access attributes, partial on the
+ * streams ([MongoQueryIndexes.planLog]). A query that pins its tenant and aggregates is given their partitions, by
+ * the log's own partition function over the log's partition count ([partitions]), so it reads the version key; a
+ * query under an access policy uses its attributes' indexes, and any other scans the aggregate type's collection. The entry's budget bounds it (`maxTimeMS`, sizes, the count limit). [readPreference] moves the reads
  * off the primary (`secondaryPreferred`, say), at the cost of reading a little behind the appends; the primary's by
  * default. An analytics-heavy deployment serves the model from ClickHouse or Elasticsearch.
  */
@@ -59,6 +61,8 @@ class MongoEventQueryStorage @JvmOverloads constructor(
     val options: MongoQueryOptions = MongoQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val readPreference: ReadPreference? = null,
+    /** The partition count of the context's log, when this node has it open; without it no query is given partitions. */
+    private val partitions: () -> Int? = { null },
 ) : CachedQueryBindings<AggregateType>({ it }) {
     private val database = client.getDatabase(databaseName)
 
@@ -70,7 +74,7 @@ class MongoEventQueryStorage @JvmOverloads constructor(
         val collection = database.getCollection(collection(key.name))
             .let { collection -> readPreference?.let(collection::withReadPreference) ?: collection }
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(key, collection, options, dispatcher, MongoEventDocuments),
+            MongoSnapshotQueryBackend(key, collection, options, dispatcher, MongoEventStreams(key, partitions)),
             MongoEventStorageAdapter,
         )
     }
@@ -126,6 +130,16 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         "events" to ARRAY_TYPES,
     )
 
+    /** The log's own fields of a stream: its position, causation, headers and transport bytes. */
+    override val unread: List<String> = listOf(
+        MongoEventLog.PARTITION,
+        MongoEventLog.SEQUENCE,
+        MongoEventLog.CAUSATION,
+        MongoEventLog.HEADERS,
+        MongoEventLog.ACCESS_VERSION,
+        MongoEventLog.TRANSPORT,
+    )
+
     /** The tenant, the aggregate ID and the version: the unique key of a stream. */
     override val tieBreakers: List<String> = listOf("tenant_id", "aggregate_id", "version")
 
@@ -179,6 +193,21 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                 else -> set(logical, ExactBson.node(document[physical]))
             }
         }
+    }
+}
+
+/**
+ * The streams of one aggregate type's log collection: [MongoEventDocuments], and the partition a stream of a pinned
+ * aggregate is in, which leads every index of the collection.
+ */
+internal class MongoEventStreams(
+    private val type: AggregateType,
+    private val partitions: () -> Int?,
+) : MongoQueryDocuments by MongoEventDocuments {
+    override fun keysOf(tenantId: String, aggregateIds: Collection<String>): Bson? {
+        val count = partitions() ?: return null
+        val pinned = aggregateIds.map { Partitioner.partitionOf(type.ref(tenantId, it), count) }.distinct()
+        return Filters.`in`(MongoEventLog.PARTITION, pinned)
     }
 }
 

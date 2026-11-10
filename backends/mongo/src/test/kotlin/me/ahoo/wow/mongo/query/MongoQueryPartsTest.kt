@@ -16,8 +16,10 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.MongoCommandException
 import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.ServerAddress
+import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -25,8 +27,12 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.StorageTimeoutException
+import me.ahoo.wow.spi.log.Partitioner
 import org.bson.BsonDocument
+import org.bson.BsonString
 import org.bson.Document
 import org.bson.types.Decimal128
 import org.junit.jupiter.api.Test
@@ -81,10 +87,62 @@ class MongoQueryPartsTest {
             """{"${'$'}or": [{"state.name": {"${'$'}ne": null}}, {"${'$'}and": [{"state.name": null}, {"_id": {"${'$'}in": []}}]}]}""",
         )
         assertThrownBy<IllegalArgumentException> { MongoKeyset.after(sort, listOf("n")) }
-        assertThrownBy<IllegalArgumentException> { MongoKeyset.after(sort, listOf("n", Document())) }
+        assertThrownBy<IllegalArgumentException> { MongoKeyset.checked(sort, listOf("n")) }
+        assertThrownBy<IllegalArgumentException> { MongoKeyset.checked(sort, listOf("n", Document())) }
+        MongoKeyset.checked(sort, listOf("n", "a")).assert().containsExactly("n", "a")
         MongoKeyset.sort(emptyList()).assert().isNull()
         MongoKeyset.valueAt(Document("state", Document("name", "n")), "state.name").assert().isEqualTo("n")
         MongoKeyset.valueAt(Document("state", "text"), "state.name").assert().isNull()
+    }
+
+    @Test
+    fun `a cursor sort ending with the tenant and the aggregate ID reads the snapshot key`() {
+        fun sort(vararg fields: Pair<String, Sort.Direction>) =
+            fields.map { (path, direction) -> Sort(QueryField(path), direction) }
+        val asc = Sort.Direction.ASC
+        val desc = Sort.Direction.DESC
+        val keyed = MongoSnapshotDocuments.keyed(sort("state.name" to desc, "tenant_id" to asc, "aggregate_id" to asc))
+        keyed.sort.assert().isEqualTo(sort("state.name" to desc, "_id" to asc))
+        keyed.values(listOf("n", "t", "a")).assert()
+            .containsExactly("n", BsonDocument("t", BsonString("t")).append("a", BsonString("a")))
+        // A position whose tenant or aggregate value is not a string is another query's or a damaged token.
+        listOf(listOf("n", 1, "a"), listOf("n", "t", 2L), listOf("n", null, "a")).forEach { values ->
+            val refused = runCatching { keyed.values(values) }.exceptionOrNull()
+            (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.InvalidCursor)
+        }
+        MongoSnapshotDocuments.keyed(sort("tenant_id" to desc, "aggregate_id" to desc)).sort
+            .assert().isEqualTo(sort("_id" to desc))
+        // Anything else is sorted as it is.
+        listOf(
+            sort("tenant_id" to asc, "aggregate_id" to desc),
+            sort("aggregate_id" to asc, "tenant_id" to asc),
+            sort("aggregate_id" to asc),
+            sort(),
+        ).forEach { other ->
+            val unkeyed = MongoSnapshotDocuments.keyed(other)
+            unkeyed.sort.assert().isEqualTo(other)
+            unkeyed.values(other.map { "v" }).assert().isEqualTo(other.map { "v" })
+        }
+        MongoEventDocuments.keyed(sort("tenant_id" to asc, "aggregate_id" to asc)).sort
+            .assert().isEqualTo(sort("tenant_id" to asc, "aggregate_id" to asc))
+    }
+
+    @Test
+    fun `a stream query leaves out the log's own fields and is given the partitions of the aggregates it pins`() {
+        val unread = MongoEventDocuments.unread
+        MongoProjections.native(admitted(Projection.ALL), unread = unread).toBsonDocument().toJson().assert().isEqualTo(
+            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "transport": 0, "_id": 0}""",
+        )
+        MongoProjections.native(admitted(Projection(include = listOf(QueryField("tenantId")))), unread = unread)
+            .toBsonDocument().toJson().assert().isEqualTo("""{"tenant_id": 1, "_id": 0}""")
+        val type = AggregateType("ctx", "order")
+        val partitions = listOf("a", "b", "c").map { Partitioner.partitionOf(type.ref("t", it), 4) }.distinct()
+        MongoEventStreams(type) { 4 }.keysOf("t", listOf("a", "b", "c"))!!.toBsonDocument().toJson().assert()
+            .isEqualTo(Filters.`in`("partition", partitions).toBsonDocument().toJson())
+        // A node without the context's log open has no partition count: the query is not given partitions.
+        MongoEventStreams(type) { null }.keysOf("t", listOf("a")).assert().isNull()
+        MongoSnapshotDocuments.keysOf("t", listOf("a")).assert().isNull()
+        MongoSnapshotDocuments.unread.assert().isEmpty()
     }
 
     @Test
