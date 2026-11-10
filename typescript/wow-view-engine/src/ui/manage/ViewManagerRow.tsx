@@ -200,8 +200,9 @@ export function ViewManagerRow({
               // Not a permission, so not an absence (D4): while a write is
               // in flight or this row's title is being edited, the row is
               // busy with something else and comes back as soon as it is
-              // done.
-              disabled={busy || renaming}
+              // done. A write keeps the keyboard on the handle (`held`).
+              disabled={renaming}
+              held={busy}
               onMove={onMove}
             />
           )}

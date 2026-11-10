@@ -21,15 +21,14 @@ import { tableSettingsStore } from './fixtures.js';
 import { holdWrite, nextFrame, openManager } from './recordWorkbenchTest.js';
 
 /**
- * A row action of the view manager that leaves the row where it is keeps the
- * keyboard on the button it was pressed with, for as long as the store takes
- * to answer (#5820).
+ * A row of the view manager keeps the keyboard on the control it was used
+ * from — a button pressed where the row stays, a handle whose arrow moves it —
+ * for as long as the store takes to answer (#5820).
  *
  * While a write runs, every action of the row is out of reach. Drawn as the
- * native `disabled`, the pressed button lost the focus to `<body>` as soon
- * as a frame was drawn before the answer, and nothing gave it back: the row
- * does not move, so no hand-off follows the write as one follows a change of
- * audience. The in-memory store answered within the frame and hid it. So
+ * native `disabled`, the control lost the focus to `<body>` as soon as a
+ * frame was drawn before the answer, and nothing gave it back. The in-memory
+ * store answered within the frame and hid it. So
  * each play here holds the store's write open across two drawn frames
  * before it lets it land.
  */
@@ -104,5 +103,47 @@ export const DefaultStarKeepsTheKeyboard: Story = {
       expect(star).not.toHaveAttribute('aria-disabled', 'true'),
     );
     await expect(document.activeElement).toBe(star);
+  },
+};
+
+/**
+ * A row moved from the keyboard carries its handle along, and the keyboard
+ * stays on it while the store takes the new order.
+ */
+export const HandleKeepsTheKeyboard: Story = {
+  ...DisplayManageViews,
+  args: { ...DisplayManageViews.args, systemViews: 'admin' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const row = await openManager(canvas, '待出库订单');
+    const handle = within(row).getByRole('button', {
+      name: say('label.manage.drag', { title: '待出库订单' }),
+    });
+    const shared = [
+      ...document.querySelectorAll(
+        '[data-slot="view-manager-group"][data-audience="shared"] [data-slot="view-manager-row"]',
+      ),
+    ];
+    const at = shared.indexOf(row);
+    const down = at + 1 < shared.length;
+    handle.focus();
+    const write = holdWrite(tableSettingsStore.current!, 'setPreferences');
+    await userEvent.keyboard(down ? '{ArrowDown}' : '{ArrowUp}');
+    await heldWithTheKeyboard(handle);
+    write.release();
+    await waitFor(() =>
+      expect(
+        [
+          ...document.querySelectorAll(
+            '[data-slot="view-manager-group"][data-audience="shared"] [data-slot="view-manager-row"]',
+          ),
+        ].indexOf(row),
+      ).toBe(down ? at + 1 : at - 1),
+    );
+    await waitFor(() =>
+      expect(handle).not.toHaveAttribute('aria-disabled', 'true'),
+    );
+    await expect(document.activeElement).toBe(handle);
   },
 };

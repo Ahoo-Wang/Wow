@@ -117,14 +117,15 @@ export function IconButton({
   children,
   ...button
 }: IconButtonProps) {
-  const holds =
-    held === undefined
-      ? {}
-      : {
-          disabled: held,
-          focusableWhenDisabled: true,
-          className: cn('fve:aria-disabled:opacity-50', button.className),
-        };
+  // Only while held: a button that is not held is the caller's, its own
+  // `disabled` included.
+  const holds = held
+    ? {
+        disabled: true,
+        focusableWhenDisabled: true,
+        className: cn('fve:aria-disabled:opacity-50', button.className),
+      }
+    : {};
   return (
     <IconTooltip
       label={label}
