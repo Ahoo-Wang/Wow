@@ -206,6 +206,19 @@ class EventStreamExporterTest {
     }
 
     @Test
+    fun `an aggregate whose every instance the map excludes counts no stream on either side`(): Unit = runTest {
+        val plan = NineXExample.planExcluding(NineXExample.stream("order-stream-v1.json").aggregateId.id)
+        val v10 = InMemoryEventLog(4)
+        val importer = EventStreamImporter(nineX, plan, { v10 }, InMemoryCheckpointRepository())
+        plan.aggregates.keys.forEach { importer.importAll(it) }
+        val exporter = EventStreamExporter(plan, { v10 }, target, InMemoryCheckpointRepository())
+        val scan = exporter.scan(NineXExample.CONTEXT)
+        scan.streams.keys.assert().containsExactly(cartType)
+        exporter.verify(scan).first { it.aggregate == order }.render().assert()
+            .isEqualTo("EQUAL example-service.order <- example.order: V10 0 streams, 9.x 0 streams")
+    }
+
+    @Test
     fun `a stream 9x got after the scan should be skipped when it is V10's own, and stop the export otherwise`(): Unit = runTest {
         val written = writtenByV10()
         val scan = exporter().scan(NineXExample.CONTEXT)
