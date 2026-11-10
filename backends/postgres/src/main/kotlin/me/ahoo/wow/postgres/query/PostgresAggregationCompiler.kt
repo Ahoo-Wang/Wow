@@ -177,7 +177,7 @@ internal class PostgresAggregationCompiler(
         is AggregationMetric.Any -> {
             val node = compiler.node(admitted.field(metric.field))
             "(array_agg($node ORDER BY ${ties("")}) FILTER (WHERE " +
-                "coalesce(jsonb_typeof($node), 'null') <> 'null'" + and(compiler, metric.filter) + "))[1]"
+                present(node) + and(compiler, metric.filter) + "))[1]"
         }
         is AggregationMetric.Edge -> {
             val node = compiler.node(admitted.field(metric.field))
@@ -186,10 +186,13 @@ internal class PostgresAggregationCompiler(
             ).first
             val direction = if (metric is AggregationMetric.First) "ASC" else "DESC"
             "(array_agg($node ORDER BY $orderBy $direction, ${ties(" $direction")}) " +
-                "FILTER (WHERE $orderBy IS NOT NULL" + and(compiler, metric.filter) + "))[1]"
+                "FILTER (WHERE $orderBy IS NOT NULL AND ${present(node)}" + and(compiler, metric.filter) + "))[1]"
         }
         is AggregationMetric.Derived -> throw QueryExecutionException("A derived metric is not a column of the groups.")
     }
+
+    /** Whether the `jsonb` [node] holds a value: neither missing nor a JSON `null`. */
+    private fun present(node: String): String = "coalesce(jsonb_typeof($node), 'null') <> 'null'"
 
     /** The layout's tie-breakers on the table's rows, each in [direction] (`""` for ascending). */
     private fun ties(direction: String): String =
