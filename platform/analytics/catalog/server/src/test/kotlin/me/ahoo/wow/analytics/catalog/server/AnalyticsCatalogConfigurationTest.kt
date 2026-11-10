@@ -153,7 +153,7 @@ class AnalyticsCatalogConfigurationTest {
                 error("the warehouse is down")
             }
         }
-        val watcher = CatalogWatcher(failing, { mockk<CommandClient>() }, Duration.ofMillis(10))
+        val watcher = CatalogWatcher(failing, { mockk<CommandClient>() }, Duration.ofMillis(10)) { _, _ -> emptySet() }
         watcher.phase.assert().isEqualTo(org.springframework.context.SmartLifecycle.DEFAULT_PHASE)
         watcher.isRunning.assert().isFalse()
         watcher.start()

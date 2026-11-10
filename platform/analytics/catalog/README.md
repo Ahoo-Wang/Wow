@@ -55,7 +55,7 @@ until a revision is published or its sources come back.
 | `ApproveSource` | approver | With `require-source-approval`, lets the datasets read a reviewed or adopted source |
 | `RecompileDataset` | the catalog (internal) | Compiles a published dataset again after a source changed |
 
-The internal commands (`@InternalCommand`) are the catalog's own: its watcher, its recompilation saga and a retirement's schedule send them in process, and the public port answers their routes `404`. The watcher syncs each changed table every `refresh-interval` and every table when the node starts.
+The internal commands (`@InternalCommand`) are the catalog's own: its watcher, its recompilation saga and a retirement's schedule send them in process, and the public port answers their routes `404`. The watcher syncs each changed table every `refresh-interval` and every table when the node starts, including each table the catalog holds a source of that the warehouse no longer lists, so a table dropped while the catalog was down is marked missing.
 
 Roles: `analytics.catalog.admin` (connections, trusted writers), `analytics.catalog.approver` (reviews and
 sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `analytics.catalog.viewer` (reads).

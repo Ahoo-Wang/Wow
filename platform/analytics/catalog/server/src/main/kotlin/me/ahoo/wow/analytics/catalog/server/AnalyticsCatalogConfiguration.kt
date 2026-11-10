@@ -236,7 +236,13 @@ class AnalyticsCatalogConfiguration {
         catalog: WarehouseCatalog,
         commands: ObjectProvider<CommandClient>,
         properties: AnalyticsCatalogProperties,
-    ): CatalogWatcher = CatalogWatcher(catalog, { commands.getObject() }, properties.refreshInterval)
+        queries: ObjectProvider<NodeQueryApi>,
+    ): CatalogWatcher = CatalogWatcher(
+        catalog,
+        { commands.getObject() },
+        properties.refreshInterval,
+        QueriedCatalogSources { queries.getObject() },
+    )
 
     /** The settings under `wow.clickhouse`, keys relative to it, as the Sink and the dataset backend read them. */
     private fun clickHouseSettings(environment: Environment): Map<String, String> =
