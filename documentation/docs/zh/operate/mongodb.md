@@ -65,7 +65,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 
 - **三个保存数据的成员组成的副本集**，分布在三个故障域中，不用仲裁节点（[生产部署](#in-production)）。开发以外，单机 `mongod` 上的日志会拒绝启动：日志以多数派写入，而单机服务器无法保证多数派。
 - **始终使用写关注 `majority`。** 不论客户端默认的写关注是什么，Wow 都以多数派写入每个集合，日志以及快照、定时器、预留、检查点、租约和台账都一样（[必须使用副本集](#a-replica-set-is-required)）：故障切换不会丢失任何已确认的写入。
-- **查询与追加争用时，让查询走从节点**：`wow.mongo.query-read-preference: secondaryPreferred`（[查询与读偏好](#queries-and-read-preferences)）。命令和状态读取总是读取主节点。
+- **查询与追加争用时，让查询走从节点**：`wow.mongo.query-read-preference: secondaryPreferred`（[查询与读偏好](#queries-and-read-preferences)）。命令、状态读取以及 Wow 各存储的其他读取（日志、检查点、租约、定时器、预留、台账）总是读取主节点，不论连接串设置的 `readPreference` 是什么。
 - **一个副本集承载不了写入或数据时，使用分片集群**：日志和定时器按分区分片，快照和预留按租户和哈希键分片（[分片集群](#sharded-clusters)）。
 
 ## 必须使用副本集 {#a-replica-set-is-required}
