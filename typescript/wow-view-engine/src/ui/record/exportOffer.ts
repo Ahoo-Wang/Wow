@@ -27,7 +27,8 @@ import {
   type RecordExportScope,
   type RecordTableController,
 } from '../../react/index.js';
-import { csvCellText, isoDay } from '../kit/display.js';
+import { csvCellText } from '../kit/display.js';
+import { isoDay } from '../kit/displayTime.js';
 import { currencyCsvText } from '../kit/currency.js';
 import { downloadFile, fileName } from '../kit/download.js';
 import type { ExportWindowProps } from '../kit/ExportDialog.js';

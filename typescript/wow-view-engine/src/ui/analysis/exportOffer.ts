@@ -32,7 +32,8 @@ import {
   type RecordExportController,
   type RecordExportOutcome,
 } from '../../react/index.js';
-import { columnTitle, isoDay, type DisplayContext } from '../kit/display.js';
+import { columnTitle, type DisplayContext } from '../kit/display.js';
+import { isoDay } from '../kit/displayTime.js';
 import { currencyCsvText } from '../kit/currency.js';
 import { downloadFile, fileName } from '../kit/download.js';
 import type { ExportWindowProps } from '../kit/ExportDialog.js';

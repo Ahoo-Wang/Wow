@@ -22,7 +22,7 @@ import {
   type CaptureChart,
   type ChartImageSlot,
 } from '../charts/image.js';
-import { isoDay } from '../kit/display.js';
+import { isoDay } from '../kit/displayTime.js';
 import { downloadFile, fileName } from '../kit/download.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { conditionsText } from '../kit/summary.js';

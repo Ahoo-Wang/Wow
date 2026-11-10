@@ -21,10 +21,10 @@ import {
   displayValue,
   heldReading,
   labelsOf,
-  tableTime,
   type DisplayContext,
   type DisplayField,
 } from '../kit/display.js';
+import { tableTime } from '../kit/displayTime.js';
 import { formatNumber } from '../kit/numbers.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { ToneBadge } from '../kit/variants.js';
