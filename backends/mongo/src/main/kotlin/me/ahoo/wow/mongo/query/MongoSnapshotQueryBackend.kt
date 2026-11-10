@@ -123,18 +123,22 @@ class MongoSnapshotQueryBackend internal constructor(
     }
 
     /**
-     * One keyset window after [PageWindow.Keyset.after], ordered by the cursor sort's physical fields. Each row's
-     * position is the BSON values at those fields of the native document, read before the record is projected.
+     * One keyset window after [PageWindow.Keyset.after], ordered by the cursor sort's physical fields as the documents
+     * read them best ([MongoQueryDocuments.keyed]). Each row's position is the BSON values at the cursor sort's fields
+     * of the native document, read before the record is projected.
      */
     private fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): BackendPage {
         val sort = physicalSort(query, query.query.sort)
         val paths = sort.map { it.field.path }
+        val keyed = documents.keyed(sort)
         val match = match(query.query.filter, query)
-        val filter = window.after?.let { Filters.and(match, MongoKeyset.after(sort, it.values)) } ?: match
+        val filter = window.after?.let {
+            Filters.and(match, MongoKeyset.after(keyed.sort, keyed.values(MongoKeyset.checked(sort, it.values))))
+        } ?: match
         val positions = ArrayList<CursorPosition>()
         val rows = collection.find(filter)
             .projection(MongoProjections.native(query, paths))
-            .sort(MongoKeyset.sort(sort))
+            .sort(MongoKeyset.sort(keyed.sort))
             .limit(window.limit)
             .batchSize(window.limit)
             .maxTime(query.timeout)

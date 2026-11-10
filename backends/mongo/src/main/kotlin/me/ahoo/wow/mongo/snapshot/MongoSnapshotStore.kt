@@ -488,8 +488,11 @@ class MongoSnapshotStore(
         fun collectionName(context: String, aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
 
         /** The `_id` of [ref]'s snapshot: its tenant, then its aggregate id. */
-        fun keyOf(ref: AggregateRef): BsonDocument =
-            BsonDocument(KEY_TENANT, BsonString(ref.tenantId)).append(KEY_AGGREGATE, BsonString(ref.id))
+        fun keyOf(ref: AggregateRef): BsonDocument = keyOf(ref.tenantId, ref.id)
+
+        /** The `_id` of the snapshot of [tenantId]'s aggregate [aggregateId]. */
+        fun keyOf(tenantId: String, aggregateId: String): BsonDocument =
+            BsonDocument(KEY_TENANT, BsonString(tenantId)).append(KEY_AGGREGATE, BsonString(aggregateId))
 
         /** The keys of [tenantId]'s snapshots: one range of `_id`. */
         fun tenantKeys(tenantId: String): Bson = Filters.and(

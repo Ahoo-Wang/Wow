@@ -67,7 +67,6 @@ internal object MongoKeyset {
      */
     fun after(sort: List<Sort>, values: List<Any?>): Bson {
         require(sort.size == values.size) { "Cursor values must match effective sort fields." }
-        require(values.all(Any?::isMongoCursorScalar)) { "Cursor values must be BSON scalar values." }
         return Filters.or(
             sort.indices.map { index ->
                 val terms = buildList {
@@ -77,6 +76,13 @@ internal object MongoKeyset {
                 terms.singleOrNull() ?: Filters.and(terms)
             },
         )
+    }
+
+    /** [values], a cursor's position under [sort], checked: one BSON scalar per sort field. */
+    fun checked(sort: List<Sort>, values: List<Any?>): List<Any?> {
+        require(sort.size == values.size) { "Cursor values must match effective sort fields." }
+        require(values.all(Any?::isMongoCursorScalar)) { "Cursor values must be BSON scalar values." }
+        return values
     }
 
     private fun after(sort: Sort, value: Any?): Bson = when {
