@@ -42,7 +42,7 @@ internal object ElasticsearchEventIndex {
 
     /** The kind and the version of this layout, recorded in the mapping's `_meta`. */
     const val KIND = "events"
-    const val FORMAT = 2
+    const val FORMAT = 1
 
     /** The version of the stream whose access attributes a stream document holds; see the class. */
     const val ACCESS_VERSION = "accessVersion"

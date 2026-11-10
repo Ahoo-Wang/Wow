@@ -61,8 +61,6 @@ outline: deep
 
 10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据不做兼容承诺：之后版本的存储格式可能不同。本版本不打开预发布版以更早格式写下的存储：启动时格式检查拒绝它，并说出是哪个结构、以什么格式存储。在 PostgreSQL 上，这是预发布版写下的每张表：日志、快照、预留、定时器、检查点和租约表以及它们的注册表（键和索引里的每个文本列现在都按码点比较，日志的版本键以租户开头），以及失败账本 `wow_failure_ledger`（它的键现在包含订阅所属的上下文）。在 MongoDB 上，是预留集合（`wow_reservation__<context>__<aggregate>`，不再保留所有者索引），以及失败账本的集合 `wow_failure_ledger`，键与 PostgreSQL 上相同。请全新开始这样的存储：用新的数据库，或者删掉该存储的每张 `wow_*` 表（在 MongoDB 上是集合），包括 `wow_format`。只删掉表而把记录留在 `wow_format` 里，检查会在那里读到更早的格式，再次拒绝。从 9.x 迁移的服务用 `migrate-data` 重新导入它的历史（[迁移数据](../migrate/data)）。预发布版写下的数据既不迁移，也不读取。
 
-在 Elasticsearch 上，快照索引与事件索引的格式为 2：字符串字段只有在 schema 标了 `@QueryText` 时才能按词检索，不指定字段的 `search` 也只读这些字段（[全文检索](./elasticsearch#full-text-search)）。启动时，预发布版创建的索引（格式 1）会被拒绝，并说出它的布局：`records the layout snapshot/1; this version reads snapshot/2`。先给检索要读的字段标上 `@QueryText`，再删除这些索引（`<prefix>_wow_snapshot__*` 与 `<prefix>_wow_events__*`），然后从日志重新写入：快照通过重建快照，事件通过让每个 Sink 的订阅 `wow.elasticsearch-sink.<aggregate>` 从日志开头开始（[重建](./elasticsearch#rebuild)）。在此之前，类型中没有标记任何字段时，不指定字段的 `search`（预发布版上它会读每个字段）回答 `model-search-unsupported`。
-
 导入时没有访问属性的流（从 9.x 导入可能这样写入），在每个聚合类型的访问遍历为它们盖章之前没有访问属性，这段时间里有些读取不包含它们：
 
 - **隐藏什么。** 在访问策略下，快照查询不包含该类型未盖章的快照，事件查询不包含它未盖章的流。没有访问策略时，以所有者身份或在某个空间里行事的调用方，其事件查询不包含未盖章的流。整个租户的调用方仍能读到它们；状态读取，以及按版本、按时间和 trace 的读取不受影响。

@@ -46,7 +46,7 @@ wow:
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
-Each index records its layout in its `_meta` and refuses a store that expects another. The snapshot and events indices are in format 2; one of format 1, which a pre-release created, is refused ([From a 10.0.0 pre-release](./upgrades#from-a-10-0-0-pre-release)).
+Each index records its layout in its `_meta` and refuses a store that expects another.
 
 ## Snapshot queries
 

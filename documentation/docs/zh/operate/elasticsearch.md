@@ -46,7 +46,7 @@ wow:
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储 | 它的主快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
-每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。快照索引与事件索引的格式为 2；预发布版创建的格式 1 的索引会被拒绝（[从 10.0.0 预发布版升级](./upgrades#from-a-10-0-0-pre-release)）。
+每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。
 
 ## 快照查询 {#snapshot-queries}
 

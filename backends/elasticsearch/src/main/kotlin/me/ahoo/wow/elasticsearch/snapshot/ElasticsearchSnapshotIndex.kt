@@ -36,7 +36,7 @@ internal object ElasticsearchSnapshotIndex {
 
     /** The kind and the version of this layout, recorded in the mapping's `_meta`. */
     const val KIND = "snapshot"
-    const val FORMAT = 2
+    const val FORMAT = 1
 
     /** The longest keyword Elasticsearch indexes: Lucene's 32766-byte term limit at four UTF-8 bytes a character. */
     const val KEYWORD_LIMIT = 8191
