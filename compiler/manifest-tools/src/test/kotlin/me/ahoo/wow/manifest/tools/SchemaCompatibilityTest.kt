@@ -181,6 +181,12 @@ class SchemaCompatibilityTest {
                 "ADDITIVE s: format changed from int32 to int64",
             ),
             row(
+                "numeric format lifted",
+                mapOf("type" to "integer", "format" to "int64"),
+                mapOf("type" to "integer"),
+                "ADDITIVE s: format changed from int64 to any",
+            ),
+            row(
                 "Double narrowed to Float",
                 NUMBER,
                 NUMBER + ("format" to "float"),
@@ -480,6 +486,27 @@ class SchemaCompatibilityTest {
             .isEmpty()
         changes(alternatives("anyOf", "integer"), alternatives("anyOf", "integer", "number")).assert()
             .containsExactly("ADDITIVE s.anyOf[1]: alternative added")
+        // Two alternatives added that overlap each other: reported once, on the first. A number placed before the
+        // integer it now matches too: the overlap read from either side.
+        changes(alternatives("oneOf", "string"), alternatives("oneOf", "string", "integer", "number")).assert()
+            .containsExactlyInAnyOrder(
+                "ADDITIVE s.oneOf[1]: alternative added",
+                "ADDITIVE s.oneOf[2]: alternative added",
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 2: a value both accept is refused",
+            )
+        changes(alternatives("oneOf", "integer"), alternatives("oneOf", "number", "integer")).assert()
+            .contains("BREAKING s.oneOf[0]: alternative overlaps alternative 1: a value both accept is refused")
+        // Two old alternatives collapsed into one, the second widened: nothing left for it to overlap.
+        changes(
+            mapOf("oneOf" to listOf(integer, integer + ("minimum" to 0))),
+            mapOf("oneOf" to listOf(integer)),
+        ).assert().isEmpty()
+        // An alternative of no JSON type, an `enum` say, is not proven apart from another: either side.
+        val one = mapOf("enum" to listOf(1))
+        changes(mapOf("oneOf" to listOf(integer)), mapOf("oneOf" to listOf(integer, one))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+        changes(mapOf("oneOf" to listOf(one)), mapOf("oneOf" to listOf(one, STRING))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
         // A stored record is read back as an input is.
         SchemaCompatibility(
             mapOf("t" to alternatives("oneOf", "integer")),

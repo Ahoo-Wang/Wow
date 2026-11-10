@@ -296,7 +296,8 @@ internal class SchemaCompatibility(
                 if (match == null) {
                     breaking("$path.$keyword[$index]", "alternative no longer accepted")
                 } else {
-                    matched[match.first] = matched[match.first] != false && match.second
+                    // Unchanged only when every old alternative it matched is.
+                    matched.merge(match.first, match.second, Boolean::and)
                 }
             }
             (newAlternatives.indices - matched.keys).forEach { additive("$path.$keyword[$it]", "alternative added") }
