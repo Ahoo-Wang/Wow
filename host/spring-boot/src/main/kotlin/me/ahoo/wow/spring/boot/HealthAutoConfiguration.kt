@@ -40,7 +40,7 @@ import org.springframework.util.ClassUtils
 
 /**
  * The node's health in Spring Boot Actuator, when the application has Actuator's health support
- * (`spring-boot-starter-actuator`), unless `wow.health.enabled=false` ([WowProperties.Health]):
+ * (`spring-boot-starter-actuator`), unless `wow.health.enabled=false` ([HealthProperties]):
  *
  * - a [NodeHealth] of the node, sampling from the bean's start to its end (it samples nothing while the node does
  *   not run);

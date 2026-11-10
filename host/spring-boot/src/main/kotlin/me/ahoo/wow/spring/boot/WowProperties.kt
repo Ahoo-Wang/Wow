@@ -14,44 +14,26 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.http.internal.HttpSignalSender
-import me.ahoo.wow.http.internal.InternalHttp
-import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
-import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.runtime.ExecutorOptions
-import me.ahoo.wow.runtime.InFlightLimit
-import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.access.AccessStampOptions
-import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.health.HealthOptions
-import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffOptions
-import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.BackpressureOptions
-import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
-import me.ahoo.wow.runtime.wait.UnknownContexts
-import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
@@ -61,7 +43,6 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.core.env.Environment
-import org.springframework.util.unit.DataSize
 import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -85,13 +66,13 @@ class WowProperties {
     var service: String? = null
 
     /** This node's identity among the nodes of the service, and where they reach it. */
-    var node: Node = Node()
+    var node: NodeProperties = NodeProperties()
 
     /** The internal port: the cluster channel, the wait signals and the calls of other services. */
-    var internal: Internal = Internal()
+    var internal: InternalProperties = InternalProperties()
 
     /** The bounded contexts the node serves. */
-    var contexts: Contexts = Contexts()
+    var contexts: ContextsProperties = ContextsProperties()
 
     /**
      * The profiles in which the node runs for development, as it does when its internal port binds a loopback address
@@ -127,13 +108,13 @@ class WowProperties {
 
     /** The aggregates' logs: their partitions, their store, and how their appends and tails run. */
     var log: Log = Log()
-    var cluster: Cluster = Cluster()
-    var wait: Wait = Wait()
-    var executor: Executor = Executor()
-    var stateCache: StateCache = StateCache()
+    var cluster: ClusterProperties = ClusterProperties()
+    var wait: WaitProperties = WaitProperties()
+    var executor: ExecutorProperties = ExecutorProperties()
+    var stateCache: StateCacheProperties = StateCacheProperties()
 
     /** The bounds of each context's shared states: `wow.shared-states.*`. */
-    var sharedStates: SharedStates = SharedStates()
+    var sharedStates: SharedStatesProperties = SharedStatesProperties()
     var subscription: Subscription = Subscription()
 
     /**
@@ -150,7 +131,7 @@ class WowProperties {
      * subscription configured under `wow.subscriptions`.
      */
     var schedules: MutableMap<String, Schedule> = LinkedHashMap()
-    var tenant: Tenant = Tenant()
+    var tenant: TenantProperties = TenantProperties()
     var http: Http = Http()
 
     /** How the node calls its peers, the services of the other contexts it calls over HTTP: `wow.peer.*`. */
@@ -170,7 +151,7 @@ class WowProperties {
      * is reachable by the platform's own pods alone; a service that names itself is taken on that network's word.
      */
     var callers: MutableMap<String, CallerPermits> = LinkedHashMap()
-    var ops: Ops = Ops()
+    var ops: OpsProperties = OpsProperties()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
@@ -179,7 +160,7 @@ class WowProperties {
      * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
      * Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
      */
-    var cosec: CoSec = CoSec()
+    var cosec: CoSecProperties = CoSecProperties()
 
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
     internal fun peerTimeouts(): Map<String, kotlin.time.Duration> =
@@ -212,7 +193,7 @@ class WowProperties {
     var access: Access = Access()
 
     /** The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`. */
-    var health: Health = Health()
+    var health: HealthProperties = HealthProperties()
 
     /**
      * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
@@ -243,80 +224,6 @@ class WowProperties {
                 require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
                 field = value
             }
-    }
-
-    @InternalWowApi
-    class Node {
-        /** This node's id among the nodes of the service; a new one each start when not set. */
-        var id: String? = null
-
-        /**
-         * The `host:port` of this node's internal port that the other nodes reach, an IPv6 host in brackets (`[::1]:9191`;
-         * a bare one fails the start), as the node writes it when not set; the port binds at `wow.internal.host`.
-         */
-        var address: String? = null
-
-        /**
-         * Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of
-         * what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no
-         * subscription, retries no parked entry and runs no job, until its operator activates it on the internal port
-         * (`POST /wow/node/activate` from a node of its service, naming who activates it). A subscription that starts
-         * at the end of its stream starts where the stream ends at the activation.
-         */
-        var standby: Boolean = false
-
-        /**
-         * How often the node samples what is read rather than heard: for its health, the logs' heads, the
-         * subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges
-         * (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress.
-         */
-        var sampleInterval: Duration = DEFAULT_HEALTH.sampleInterval.toJavaDuration()
-
-        /**
-         * How many parked entries of one subscription a sample counts at most: a count past it reads as the cap, so a
-         * flood of parked entries costs one bounded read per sample. The health's `parked-degraded-at` is at most it.
-         */
-        var maxParked: Int = NodeSampler.DEFAULT_MAX_PARKED
-    }
-
-    @InternalWowApi
-    class Internal {
-        /**
-         * The port of the internal server, which carries the cluster channel and the wait signals; 0 for one the
-         * system chooses, which the node advertises once the server is bound.
-         */
-        var port: Int = DEFAULT_INTERNAL_PORT
-
-        /**
-         * The address the internal server binds, `0.0.0.0` for every interface; when not set,
-         * the host of the member address the node advertises (`wow.node.address`, else this host's address).
-         */
-        var host: String? = null
-
-        /** How long a peer has to accept a connection of the cluster channel or the signal sender. */
-        var connectTimeout: Duration = InternalHttp.DEFAULT_CONNECT_TIMEOUT.toJavaDuration()
-
-        /**
-         * The wait signals queued per origin node before they are dropped, so a slow or unreachable node cannot
-         * hold the sender's memory.
-         */
-        var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
-    }
-
-    /**
-     * The bounded contexts the node serves among the domain modules on the class path ([ContextSelection]), all of
-     * them by default. A name that is no context on the class path is refused at startup.
-     */
-    @InternalWowApi
-    class Contexts {
-        /** The contexts the node serves; every context on the class path when empty. */
-        var include: MutableSet<String> = LinkedHashSet()
-
-        /** The contexts the node does not serve, taken out of those [include] gives. */
-        var exclude: MutableSet<String> = LinkedHashSet()
-
-        @InternalWowApi
-        fun selection(): ContextSelection = ContextSelection(include.toSet(), exclude.toSet())
     }
 
     @InternalWowApi
@@ -562,176 +469,6 @@ class WowProperties {
     class AggregateStore {
         /** The store of `wow.stores` the type's log is on, over `wow.log.store`. */
         var store: String? = null
-    }
-
-    /** How the nodes of a service share the partitions of each context's log, and forward commands to their owners. */
-    @InternalWowApi
-    class Cluster {
-        /** How long a partition stays with a node that stopped renewing its lease. */
-        var leaseTtl: Duration = DEFAULT_CLUSTER.leaseTtl.toJavaDuration()
-
-        /** How often a node renews its leases; less than half of `lease-ttl`, or every lease is lost between rounds. */
-        var renewInterval: Duration = DEFAULT_CLUSTER.renewInterval.toJavaDuration()
-
-        /** How long a node stays a member of the cluster after its last heartbeat. */
-        var memberTtl: Duration = DEFAULT_CLUSTER.memberTtl.toJavaDuration()
-
-        /** How often a node sends its heartbeat; less than half of `member-ttl`, so one late heartbeat is harmless. */
-        var heartbeatInterval: Duration = DEFAULT_CLUSTER.heartbeatInterval.toJavaDuration()
-
-        /**
-         * How often a node compares the partitions it holds with those it should hold; a change of the members it
-         * notices reconciles at once.
-         */
-        var reconcileInterval: Duration = DEFAULT_CLUSTER.reconcileInterval.toJavaDuration()
-
-        /** How often the route table is read from the leases and members; a failed forward refreshes it at once. */
-        var routeRefreshInterval: Duration = DEFAULT_CLUSTER.routeRefreshInterval.toJavaDuration()
-
-        /**
-         * How long a forward waits for the owner's reply, capped by the command's own deadline:
-         * `wow.wait.default-timeout` when not set, so a node whose waits are longer forwards as long. A forward the
-         * owner received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so the
-         * command never runs twice and a retry with the same request id is safe.
-         */
-        var forwardTimeout: Duration? = null
-
-        /** The forwards one node may have outstanding with another; one more runs here instead. */
-        var maxInFlightPerNode: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
-
-        /** How long a hand-off of a partition waits for its commands in flight before it moves on. */
-        var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
-
-        /** The most lease acquisitions a node runs at a time. */
-        var leaseParallelism: Int = DEFAULT_CLUSTER.leaseParallelism
-
-        /**
-         * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends,
-         * so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after
-         * `wow.health.liveness.stall-timeout` fails the node's liveness.
-         */
-        var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
-
-        /** The cluster options, a forward waiting [ClusterOptions]' default when [forwardTimeout] is not set. */
-        fun options(): ClusterOptions = options(DEFAULT_CLUSTER.forwardTimeout.toJavaDuration())
-
-        /** The cluster options, a forward waiting [defaultWaitTimeout] when [forwardTimeout] is not set. */
-        fun options(defaultWaitTimeout: Duration): ClusterOptions = ClusterOptions(
-            leaseTtl = leaseTtl.toKotlinDuration(),
-            renewInterval = renewInterval.toKotlinDuration(),
-            memberTtl = memberTtl.toKotlinDuration(),
-            heartbeatInterval = heartbeatInterval.toKotlinDuration(),
-            reconcileInterval = reconcileInterval.toKotlinDuration(),
-            routeRefreshInterval = routeRefreshInterval.toKotlinDuration(),
-            forwardTimeout = (forwardTimeout ?: defaultWaitTimeout).toKotlinDuration(),
-            maxInFlightPerPeer = maxInFlightPerNode,
-            drainTimeout = drainTimeout.toKotlinDuration(),
-            leaseParallelism = leaseParallelism,
-            reconcileTimeout = reconcileTimeout.toKotlinDuration(),
-        )
-    }
-
-    /** How long and how far the commands' waits go. */
-    @InternalWowApi
-    class Wait {
-        /**
-         * How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came
-         * through: at most [maxTimeout].
-         */
-        var defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT.toJavaDuration()
-
-        /** The longest wait; a longer timeout is capped to it, and a node stops within it. */
-        var maxTimeout: Duration = WaitOptions.DEFAULT_MAX_TIMEOUT.toJavaDuration()
-
-        /** The most hops of a wait plan, at most [WaitOptions.MAX_HOPS_CAP]; each saga a chain follows adds two. */
-        var maxHops: Int = WaitOptions.DEFAULT_MAX_HOPS
-
-        /**
-         * Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where
-         * the chain arrives, or `reject`.
-         */
-        var unknownContexts: UnknownContexts = UnknownContexts.ALLOW
-
-        /**
-         * The most waits the node holds at once, which bounds their memory: beyond it a command whose plan waits past
-         * ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.
-         */
-        var maxRegistered: Int = WaitOptions.DEFAULT_MAX_REGISTERED
-
-        fun options(): WaitOptions = WaitOptions(
-            maxTimeout.toKotlinDuration(),
-            maxHops,
-            defaultTimeout.toKotlinDuration(),
-            unknownContexts,
-            maxRegistered,
-        )
-    }
-
-    /** How the node executes commands. */
-    @InternalWowApi
-    class Executor {
-        /** The commands one aggregate may have waiting in the executor. */
-        var laneCapacity: Int = me.ahoo.wow.runtime.Executor.DEFAULT_LANE_CAPACITY
-
-        /**
-         * The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1
-         * runs each alone. It never waits to fill a batch.
-         */
-        var maxBatch: Int = me.ahoo.wow.runtime.Executor.DEFAULT_MAX_BATCH
-
-        /**
-         * The commands the node may have in flight, all contexts together: beyond it a command is
-         * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
-         */
-        var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
-
-        fun options(): ExecutorOptions = ExecutorOptions(laneCapacity, maxBatch, maxInFlight)
-    }
-
-    /**
-     * The bounds of each context's shared states, the states its consumers share after each commit.
-     */
-    @InternalWowApi
-    class SharedStates {
-        /** The most shared states a context keeps. */
-        var capacity: Int = SharedStateOptions.DEFAULT_CAPACITY
-
-        /** How long a shared state is kept at most. */
-        var maxAge: Duration = SharedStateOptions.DEFAULT_MAX_AGE.toJavaDuration()
-
-        /** The most serialized state a context's views hold, counting two bytes a character (`64MB`). */
-        var maxBytes: DataSize = DataSize.ofBytes(SharedStateOptions.DEFAULT_MAX_BYTES)
-
-        fun options(): SharedStateOptions = SharedStateOptions(
-            capacity,
-            maxAge.toKotlinDuration(),
-            maxBytes.toBytes()
-        )
-    }
-
-    /** The cache of aggregate states each context keeps between commands. */
-    @InternalWowApi
-    class StateCache {
-        /**
-         * The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's
-         * cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between
-         * the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its
-         * rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with
-         * full rings. Most aggregates commit few requests, so the default holds several times as many of them as a
-         * count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the
-         * cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a
-         * capacity times the average state size should stay well within the heap). The `wow.state-cache` counter
-         * (`hit`, `miss`, `evicted`) shows the fit.
-         */
-        var capacity: Int? = null
-
-        /**
-         * The requests each cached aggregate keeps of those it committed last, derived from the log, so
-         * that most commands skip looking their request id up; 0 looks every request id up.
-         */
-        var recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS
-
-        fun options(): StateCacheOptions = StateCacheOptions(capacity, recentRequests)
     }
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
@@ -994,70 +731,6 @@ class WowProperties {
     }
 
     /**
-     * The operator's side of the parked entries: the webhook told when an entry parks, and the failure ledger published
-     * to the ops context. Their routes are the edge's, `wow.http.ops.enabled`.
-     */
-    @InternalWowApi
-    class Ops {
-        /** The webhook told when an entry parks or spends its retries. */
-        var webhook: Webhook = Webhook()
-
-        /** Publishing the failure ledger to the ops context. */
-        var publish: Publish = Publish()
-    }
-
-    /**
-     * Publishing the failure ledger to the ops context, so one console sees the parked entries of every service: each
-     * entry goes to the `parked` aggregate of the ops context through its command topic, which needs a topic transport.
-     */
-    @InternalWowApi
-    class Publish {
-        /**
-         * Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's
-         * command topic exists on the node's transport, which the ops service creates once it is deployed, checked at
-         * start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which
-         * needs a transport; `false` never.
-         */
-        var enabled: Switch = Switch.AUTO
-
-        /** The ops context the ledger is published to. */
-        var context: String = Ledger.OPS_CONTEXT
-
-        /** How often the node scans its ledger and publishes it; an entry is also published at once when it parks. */
-        var interval: Duration = LedgerPublishing.DEFAULT_INTERVAL.toJavaDuration()
-
-        /** Where the node publishes its ledger, null when it does not; [transport] is whether it has one. */
-        fun options(transport: Boolean): LedgerPublishing? = when (enabled) {
-            Switch.TRUE -> LedgerPublishing(context, interval.toKotlinDuration())
-            Switch.AUTO -> LedgerPublishing(context, interval.toKotlinDuration(), automatic = true).takeIf { transport }
-            Switch.FALSE -> null
-        }
-    }
-
-    /**
-     * The webhook of the parked entries, told when an entry parks or spends its retries.
-     */
-    @InternalWowApi
-    class Webhook {
-        /** The URL the webhook posts to; none is posted when not set. */
-        var url: URI? = null
-
-        /** The body's format: `generic`, Wow's JSON, or `wecom`, a WeCom robot's Markdown message. */
-        var format: WebhookNotifier.Format = WebhookNotifier.Format.GENERIC
-
-        /**
-         * The events posted: `parked`, an entry parked, and `exhausted`, an entry spent its retries; both by default.
-         */
-        var events: MutableSet<ParkedNotice.Kind> = ParkedNotice.Kind.entries.toCollection(LinkedHashSet())
-
-        /** How long one post may take. */
-        var timeout: Duration = WebhookNotifier.DEFAULT_TIMEOUT.toJavaDuration()
-
-        /** The headers added to each post, such as a token the receiver checks. */
-        var headers: MutableMap<String, String> = LinkedHashMap()
-    }
-
-    /**
      * The node's firing loop of the timers, which sends the scheduled commands when they are due.
      */
     @InternalWowApi
@@ -1225,13 +898,6 @@ class WowProperties {
                 multiplier = policy.multiplier
             }
         }
-    }
-
-    /** The tenants of the callers. */
-    @InternalWowApi
-    class Tenant {
-        /** The tenant of a caller that has none, such as the anonymous one. */
-        var default: String = Caller.DEFAULT_TENANT
     }
 
     /** The HTTP edge: its routes and its error answers. */
@@ -1497,158 +1163,6 @@ class WowProperties {
         var ttl: Duration? = null
     }
 
-    /**
-     * CoSec's settings (wow-cosec), which the host's CoSec configuration reads from here alone, their one reader and
-     * their one default: they have metadata, and a key of `wow.cosec` that none of these is refuses
-     * the startup ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the
-     * authorizer that allows all in place.
-     */
-    @InternalWowApi
-    class CoSec {
-        /**
-         * How CoSec runs in this service, as defaults its own `cosec.*` keys override
-         * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the
-         * caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified
-         * here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests
-         * itself, the Manifest's routes its route map.
-         */
-        var mode: CoSecMode? = null
-
-        /** CoSec's authorization of the commands. */
-        var authorizer: Authorizer = Authorizer()
-
-        /** How CoSec runs in a service (`wow.cosec.mode`). */
-        @InternalWowApi
-        enum class CoSecMode {
-            /** Behind a CoSec gateway, reading the identity it forwards. */
-            GATEWAY,
-
-            /** CoSec off. */
-            DISABLED,
-        }
-
-        /** The callers that may act across scopes: by CoSec role or policy. */
-        var crossScope: Principals = Principals()
-
-        /** The tenant-level callers, who read and write every aggregate of their tenant. */
-        var tenantLevel: Principals = Principals()
-
-        @InternalWowApi
-        class Authorizer {
-            /**
-             * Whether CoSec authorizes every command and service route call of a request as its caller
-             * (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes,
-             * where CoSec decides itself. A request-less command gets no objection. Off, and without a
-             * `CommandAuthorizer` of the application's, the command gateway allows every command that passed its
-             * route: behind a CoSec gateway, authorization is the gateway's.
-             */
-            var enabled: Boolean = false
-        }
-
-        /** Callers by their CoSec roles or policies, comma-separated or as a list. */
-        @InternalWowApi
-        class Principals {
-            /** The CoSec roles of these callers. */
-            var roles: MutableSet<String> = LinkedHashSet()
-
-            /** The CoSec policies of these callers. */
-            var policies: MutableSet<String> = LinkedHashSet()
-        }
-    }
-
-    /**
-     * The node's health (me.ahoo.wow.runtime.health.NodeHealth): with Spring Boot Actuator on the class
-     * path, the contributor `wow` (every component), and `wowReadiness` and `wowLiveness`, which the host adds to
-     * Actuator's `readiness` and `liveness` groups (`/actuator/health/readiness`, `/actuator/health/liveness`) unless
-     * the application configures their members itself. The thresholds are conservative: a probe that fails too soon
-     * takes nodes out of service, or restarts them, for what a retry would have absorbed.
-     */
-    @InternalWowApi
-    class Health {
-        /** Whether the host contributes the node's health to Actuator and its probe groups. */
-        var enabled: Boolean = true
-
-        var stores: HealthStores = HealthStores()
-        var ownership: HealthOwnership = HealthOwnership()
-        var topics: HealthTopics = HealthTopics()
-        var executor: HealthExecutor = HealthExecutor()
-        var subscriptions: HealthSubscriptions = HealthSubscriptions()
-        var liveness: HealthLiveness = HealthLiveness()
-
-        /** These thresholds, the node sampling every [sampleInterval] (`wow.node.sample-interval`). */
-        @InternalWowApi
-        fun options(sampleInterval: Duration): HealthOptions = HealthOptions(
-            sampleInterval = sampleInterval.toKotlinDuration(),
-            storeDownAfter = stores.downAfter.toKotlinDuration(),
-            storeWindow = stores.window.toKotlinDuration(),
-            handoverGrace = ownership.handoverGrace.toKotlinDuration(),
-            topicsRequired = topics.required,
-            executorSaturation = executor.saturation,
-            lagDegradedAt = subscriptions.lagDegradedAt,
-            parkedDegradedAt = subscriptions.parkedDegradedAt,
-            stallTimeout = liveness.stallTimeout.toKotlinDuration(),
-        )
-    }
-
-    /** The node's event logs, as its own calls and a probe of their heads see them. */
-    @InternalWowApi
-    class HealthStores {
-        /**
-         * How long a log must keep failing, with no success since, before it is down and the node not ready: a failed
-         * call or probe, or a probe that timed out (after this long, at least a second); a probe still under way is no
-         * failure. `0s` is down at the first failure.
-         */
-        var downAfter: Duration = DEFAULT_HEALTH.storeDownAfter.toJavaDuration()
-
-        /** A log with a failure this recent is degraded. */
-        var window: Duration = DEFAULT_HEALTH.storeWindow.toJavaDuration()
-    }
-
-    /** The node's share of each lease group's partitions. */
-    @InternalWowApi
-    class HealthOwnership {
-        /**
-         * How long the owned partitions may differ from the node's share (a hand-over) before the group is degraded,
-         * and down (the node not ready) when it owns none of a share that is not empty.
-         */
-        var handoverGrace: Duration = DEFAULT_HEALTH.handoverGrace.toJavaDuration()
-    }
-
-    /** The topics of other contexts the node reads. */
-    @InternalWowApi
-    class HealthTopics {
-        /** Whether a topic the node is still joining makes it not ready; degraded only when false. */
-        var required: Boolean = DEFAULT_HEALTH.topicsRequired
-    }
-
-    /** The node's command executors. */
-    @InternalWowApi
-    class HealthExecutor {
-        /** The share of `wow.executor.max-in-flight` in flight at which the executor is degraded. */
-        var saturation: Double = DEFAULT_HEALTH.executorSaturation
-    }
-
-    /** The node's subscriptions, never a reason to take it out of service. */
-    @InternalWowApi
-    class HealthSubscriptions {
-        /** The entries a subscription may be behind the log's head before it is degraded. */
-        var lagDegradedAt: Long = DEFAULT_HEALTH.lagDegradedAt
-
-        /** The parked entries of a subscription, counted up to this, at which it is degraded (as when they grow). */
-        var parkedDegradedAt: Int = DEFAULT_HEALTH.parkedDegradedAt
-    }
-
-    /** Whether the node is stuck, so a restart helps; a storage outage never fails it. */
-    @InternalWowApi
-    class HealthLiveness {
-        /**
-         * How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or
-         * commands in flight not finish while every log answers, before the node is not live; longer than
-         * `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.
-         */
-        var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
-    }
-
     /** Where commands run (`wow.routing`, and an aggregate type's `wow.aggregates.[<context>.<aggregate>].routing`). */
     @InternalWowApi
     enum class CommandRouting {
@@ -1682,11 +1196,9 @@ class WowProperties {
 
         const val DEFAULT_INTERNAL_PORT: Int = 9090
         const val DEFAULT_PARTITIONS: Int = 64
-        private val DEFAULT_CLUSTER = ClusterOptions()
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
         private val DEFAULT_TIMERS = TimerOptions()
         private val DEFAULT_PARKED = ParkedRetryOptions()
-        private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
         private val DEFAULT_BACKPRESSURE = BackpressureOptions()
     }
