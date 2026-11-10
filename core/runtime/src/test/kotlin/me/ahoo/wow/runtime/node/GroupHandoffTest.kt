@@ -14,8 +14,10 @@
 package me.ahoo.wow.runtime.node
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -46,28 +48,29 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeSource
+import org.junit.jupiter.api.Timeout
+import kotlin.time.Duration.Companion.milliseconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 /**
  * The hand-off of a partition in two log groups stops the two groups' subscription runtimes at once: each drains its
  * entries in flight within the subscriptions' stop timeout, so the partition's hand-off takes one stop timeout, not one
- * per group.
+ * per group. Held by a gate, not a clock: each group's held handler, once cancelled, ends only when the other group's
+ * has been cancelled too, which only a stop of both at once allows, since a runtime's stop waits for its handlers.
  */
 class GroupHandoffTest {
     private val stores = GroupedStores()
 
-    /** The groups whose projector holds an entry, each completed once its handler holds it. */
-    private val holding = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
+    /** Each group's projector holding its entry, completed once its handler holds it. */
+    private val holding = mapOf(ORDER.name to CompletableDeferred<Unit>(), INVOICE.name to CompletableDeferred())
+
+    /** Each group's held handler cancelled by its runtime's stop. */
+    private val cancelled = mapOf(ORDER.name to CompletableDeferred<Unit>(), INVOICE.name to CompletableDeferred())
 
     @Test
-    fun `a partition held in two groups should be handed off within one stop timeout, not one per group`(): Unit =
+    @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun `a partition held in two groups should have both groups' subscriptions stopped at once`(): Unit =
         runBlocking {
-            val handedOff = CompletableDeferred<Duration>()
-            var stopping = TimeSource.Monotonic.markNow()
             val node = ServiceNode(
                 SERVICE,
                 "node-1",
@@ -79,15 +82,21 @@ class GroupHandoffTest {
                 options = fastNodeOptions().copyWith(subscription = testOptions(stopTimeout = STOP)),
                 subscriptions = SubscriptionFactory { context ->
                     listOf(
-                        // Holds every entry for good: its group's drain takes the whole stop timeout.
+                        // Holds its entry for good, so its group's drain takes the whole stop timeout; once cancelled,
+                        // it ends only when the other group's handler is cancelled too.
                         Subscription(PROJECTOR, SubscriptionFilter(context.context)) { entry ->
-                            holding.getValue(entry.stream.ref.type.name).complete(Unit)
-                            awaitCancellation()
+                            val group = entry.stream.ref.type.name
+                            holding.getValue(group).complete(Unit)
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                withContext(NonCancellable) {
+                                    cancelled.getValue(group).complete(Unit)
+                                    cancelled.getValue(if (group == ORDER.name) INVOICE.name else ORDER.name).await()
+                                }
+                            }
                         },
                     )
-                },
-                listener = { step ->
-                    if (step == ServiceNode.Step.HANDED_OFF) handedOff.complete(stopping.elapsedNow())
                 },
             )
             node.start()
@@ -95,15 +104,12 @@ class GroupHandoffTest {
             val order = ORDER.ref(TENANT, "o-1")
             val invoice = (1..100).map { INVOICE.ref(TENANT, "i-$it") }
                 .first { Partitioner.partitionOf(it, PARTITIONS) == Partitioner.partitionOf(order, PARTITIONS) }
-            holding[ORDER.name] = CompletableDeferred()
-            holding[INVOICE.name] = CompletableDeferred()
             node.send(order, Place(delayMillis = 60_000))
             node.send(invoice, Issue(delayMillis = 60_000))
             holding.values.forEach { it.await() }
-            stopping = TimeSource.Monotonic.markNow()
+            // Stopped one after the other, the first group's handler would never end, nor the stop.
             node.stop()
-            // Each group waited its stop timeout for its held entry, both at once.
-            handedOff.await().assert().isGreaterThanOrEqualTo(STOP).isLessThan(STOP * 3 / 2)
+            cancelled.values.forEach { it.isCompleted.assert().isTrue() }
         }
 
     private suspend fun ServiceNode.send(ref: AggregateRef, body: Any) {
@@ -124,8 +130,8 @@ class GroupHandoffTest {
         val ORDER = AggregateType(CONTEXT, "order")
         val INVOICE = AggregateType(CONTEXT, "invoice")
 
-        /** Long enough that two drains in turn are told from one by far more than a slow runner's noise. */
-        val STOP = 2.seconds
+        /** Each group's drain waits it out for its held entry. */
+        val STOP = 200.milliseconds
 
         fun orderModel(): AggregateModel<Item> = aggregate<Item>(CONTEXT, "order") {
             initial { Item() }
