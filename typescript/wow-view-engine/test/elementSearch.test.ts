@@ -328,6 +328,32 @@ describe('narrowing an element search to the descriptor', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('takes away an element search that names no fields, where the root would search the whole model (#5890)', () => {
+    // At the root an empty list is the whole model; inside an element there
+    // is no such thing, so an empty one stays a search in nothing.
+    const unnamed = ordersDefinition({
+      fields: [
+        ...ordersDefinition().fields,
+        {
+          ...lines,
+          elements: [
+            ...(lines.elements ?? []).filter(entry => entry.name !== 'q'),
+            { ...lineSearch, searchFields: [] },
+          ],
+        },
+      ],
+    });
+    const { findings } = narrowDefinition(
+      unnamed,
+      described({ modes: both, fields: ['lines.sku', 'lines.title'] }),
+      builtinFieldKinds,
+    );
+
+    expect(findings.map(found => `${found.severity} ${found.code}`)).toEqual([
+      'warning capability.search.unavailable',
+    ]);
+  });
+
   it('searches a phrase as words where the element matches words only', () => {
     const { element, findings } = narrowed(
       described({
