@@ -16,9 +16,9 @@ Ask for JSON (`Accept: application/json`); `list` can stream as server-sent even
 
 - `model`, `version`, `timeZone`.
 - `fields[]`: `path` and `aliases`; `types`, `kind`, `nullable`, `enum` (never listed for protected fields), `semantic` (time encoding, decimal scale, money); `sensitivity` (`level`, `comparable`); `project`; `filter.operators`; `sort.paged`, `sort.cursor`; `aggregate` (`groups`, `functions`, `distinctCount`, `percentile`, `any`, `firstLast`, `missingKey`, `expressionInput`, `inMetricFilter`); `scope` (the element it lives in: filter it only inside an `element-match` on that element); `deprecated` (use the field its message names).
-- `elements[]`: collections an `element-match` (`filter`) or an aggregation's `elements` (`aggregate`) reaches.
+- `elements[]`: collections an `element-match` (`filter`) or an aggregation's `elements` (`aggregate`) reaches; `search` (`modes`, `fields`) where a `search` inside an `element-match` on it may name those fields.
 - `dynamic[]`: fields under the keys of a map, written with `{key}` in place of the key (`state.labels.{key}`).
-- `record`: `identity`, `paging` (`list`, `paged`, `cursor`), `defaultScope`, `rootOperators` (operators that name no field: `id`, `aggregate-id`, `tenant-id`, `owner-id`, `space-id`, `deletion`, …).
+- `record`: `identity`, `paging` (`list`, `paged`, `cursor`), `defaultScope`, `rootOperators` (operators that name no field: `id`, `aggregate-id`, `tenant-id`, `owner-id`, `space-id`, `deletion`, …), `search` (`modes`: those of a `search` that names no field; `fields`: the record's fields a `search` may name; absent where the model offers none), `stream` (`resumable`: whether a streamed `list` resumes).
 - `limits`: list, page, page window, filter nodes and values, sort fields, aggregation limits. They win over anything remembered.
 - `analysis`: metric kinds, `approximate`, `expressions`, `having`, `sort`, `dense`, `dateUnits`, `dateParts`, `dateDiffUnits`, `windows`.
 - `constraints[]`: `cursor-unique-sort`, `count-requires-filter` (a count or paged total must not match everything), `aggregate-required` (an `events` query must name the aggregate), `starts-with-requires-prefix`, `parallel-array-sort`, `null-or-empty-as-missing`, `array-equality`.
@@ -27,7 +27,7 @@ Ask for JSON (`Accept: application/json`); `list` can stream as server-sent even
 
 - **snapshot:** system fields at the root (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `access`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `schedules`), the state under `state.` (`state.status`); `access.<name>` is one of the access attributes the aggregate declares, typed as its Manifest says.
 - **events:** `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `access` (the aggregate's current access attributes, `access.owner` and `access.space` among them; `null` for a stream not stamped yet), `operator`, and `events[]` of `{name, revision, body}`; event names are `<context>.<aggregate>.<Name>`.
-- **dataset:** columns at the root, no `state.` prefix, no event elements; `record.identity` may be absent (then no `cursor`).
+- **dataset:** columns at the root, no `state.` prefix, no event elements; `record.identity` is empty (`""`) when the dataset has none, and `paging` then has no `cursor`.
 
 ## Request shapes
 
@@ -42,7 +42,7 @@ Ask for JSON (`Accept: application/json`); `list` can stream as server-sent even
 
 A property a kind does not have is refused (`unknown-property`): send only its own. `filter` is required except in `aggregate`; `{"op": "match-all"}` matches everything. A count stops at its `limit` (or the server's count limit): `exact: false` means "at least".
 
-**Filters** are `{"op", "field", …}`: `value` (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `starts-with`, …), `values` (`in`, `not-in`, `contains-all`), `lowerBound`/`upperBound` (`between`), presence (`is-null`, `is-not-null`, `exists`, `not-exists`), `element-match` with a `predicate` relative to the element, combinators `and`, `or`, `nor` with `operands`. Relative time: `today`, `yesterday`, `this-week`, `last-month`, `recent-days` (`days`), `earlier-days`, `before-today` (`time`), `before-now`/`after-now` (`offset`, ISO-8601), each with an optional `zoneId` (UTC when absent), `datePattern`, `timeUnit`.
+**Filters** are `{"op", "field", …}`: `value` (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `starts-with`, …), `values` (`in`, `not-in`, `contains-all`), `lowerBound`/`upperBound` (`between`), presence (`is-null`, `is-not-null`, `exists`, `not-exists`), `element-match` with a `predicate` relative to the element, combinators `and`, `or`, `nor` with `operands`; `search` (`query`, `fields`, `mode` `terms` (default) or `phrase`), a full-text match only where `record.search` (or an element's `search`) offers it: without `fields` it searches what the backend searches the record by (on Elasticsearch the fields `record.search.fields` lists, on MongoDB its text index), and a field it does not list is `unsupported-capability`. Relative time: `today`, `yesterday`, `this-week`, `last-month`, `recent-days` (`days`), `earlier-days`, `before-today` (`time`), `before-now`/`after-now` (`offset`, ISO-8601), each with an optional `zoneId` (UTC when absent), `datePattern`, `timeUnit`.
 
 **Aggregation:** `groupBy` `terms`, `histogram`, `date-histogram` (`unit`, `timeZone`, `dense`), `date-part`; `metrics` `count`, `numeric` (`function`, `expression`), `distinct-count`, `percentile`, `any`, `first`, `last`, `derived`; each metric but `derived` takes its own `filter`. `sort` names aliases; `having` is its own tree (`condition`, `between`, `in`, `is-null`, `and`, `or`). `limit` defaults to 100 groups. A `date-histogram` key is the bucket's start in epoch milliseconds in its `timeZone`.
 
@@ -80,7 +80,7 @@ A refusal is `application/problem+json` with `code`, `status`, `detail` and `vio
 | `code` | Status | Means | Do |
 | --- | --- | --- | --- |
 | `wow.query.malformed` | 400 | The body does not read as a query (`unknown-property`, `invalid-value`, `unknown-type`, `invalid-json`, …) | Fix the shape |
-| `wow.query.invalid` | 400 | The model refuses it (`unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `protected-comparison`, `protected-aggregation`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `count-requires-filter`, `invalid-cursor`, `storage-unsupported`, …) | Fix within the descriptor; never work around protection |
+| `wow.query.invalid` | 400 | The model refuses it (`unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `protected-comparison`, `protected-aggregation`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `count-requires-filter`, `invalid-cursor`, `storage-unsupported`, `model-search-unsupported` (a `search` without `fields` where the model offers none), …) | Fix within the descriptor; never work around protection |
 | `wow.query.not-found` | 404 | A `single` matched nothing | Answer "none" |
 | `wow.query.dataset-not-found` | 404 | No such dataset for this caller | Re-read `GET /wow/dataset` |
 | `wow.query.dataset-unavailable` | 409 | The dataset is being revised | Try later, or answer from another source and say so |
