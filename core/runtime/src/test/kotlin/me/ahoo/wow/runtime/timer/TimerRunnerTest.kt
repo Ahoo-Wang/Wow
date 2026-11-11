@@ -271,7 +271,8 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         store.put(timer("pay"))
         runner(timers = failingOnce).startPartition(0)
         eventually { fired.size == 1 }
-        delay(50)
+        // The write of its outcome failed: the timer stays claimed.
+        eventually { failingOnce.failed }
         // Its claim lapses, and it is sent again.
         clock.advance(CLAIM)
         eventually { status("pay").status == TimerStatus.FIRED }
