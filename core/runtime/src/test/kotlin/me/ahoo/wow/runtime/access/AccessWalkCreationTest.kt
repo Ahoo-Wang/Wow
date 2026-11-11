@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The walk a type's store records when a log its node serves creates it, completed with nothing walked, so neither
@@ -35,6 +36,10 @@ import org.junit.jupiter.api.Test
 class AccessWalkCreationTest : AccessWalkingFixtures() {
     private val schema = AccessSchema.of(model)
     private val members = "service/office#access"
+    private val older = "department:integer"
+
+    private suspend fun InMemoryLeaseStore.olderNode() =
+        heartbeat(members, "n-0", "n-0", 30.seconds, setOf("document@${AccessSchema.hashOf(older)}"))
 
     /** Appends the streams of [ids], each moved to [departments] in turn, as a node of this schema commits them. */
     private fun committed(log: InMemoryEventLog, ids: List<String>, vararg departments: String) = runBlocking {
@@ -83,6 +88,59 @@ class AccessWalkCreationTest : AccessWalkingFixtures() {
         second.walks().getValue(type).walked.assert().isZero()
         walked().assert().isEmpty()
     }
+
+    @Test
+    fun `a store this schema created while an older one appended is walked once the older one's nodes are gone`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            val leases = InMemoryLeaseStore()
+            val walking = walking(log, leases)
+            walking.serve()
+            committed(log, listOf("d-1"), "sales")
+            walking.maintain()
+            // A node of the older schema, still running, appends; the walk recorded at creation stays while it serves.
+            leases.olderNode()
+            unstamped(log, listOf("d-2"), "legal")
+            walking.maintain()
+            log.walk(type).assert().isEqualTo(AccessWalk.created(schema))
+            // Gone: the first run that sees none claims the walk again over the heads, and walks both aggregates.
+            leases.leave(members, "n-0")
+            walking.maintain().assert().isFalse()
+            log.walk(type)!!.let {
+                it.schema.assert().isEqualTo(schema)
+                it.walked.assert().isEqualTo(2)
+                it.completed.assert().isTrue()
+            }
+            history(log, "d-2").assert().containsExactly(access("legal"))
+            // Nothing is left to claim: a later run reads the walk it recorded.
+            walking.maintain().assert().isFalse()
+            log.walk(type)!!.walked.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a store an older schema created while this one appended is walked once the older one's nodes are gone`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            val leases = InMemoryLeaseStore()
+            // A node of the older schema creates the store, which records its walk.
+            log.serves(mapOf(type to older))
+            leases.olderNode()
+            unstamped(log, listOf("d-1"), "sales")
+            log.walk(type).assert().isEqualTo(AccessWalk.created(older))
+            val walking = walking(log, leases)
+            committed(log, listOf("d-2"), "legal")
+            walking.maintain()
+            log.walk(type).assert().isEqualTo(AccessWalk.created(older))
+            // Gone: this node claims its own schema's walk in that one's place, as for any schema without nodes.
+            leases.leave(members, "n-0")
+            walking.maintain().assert().isFalse()
+            log.walk(type)!!.let {
+                it.schema.assert().isEqualTo(schema)
+                it.walked.assert().isEqualTo(2)
+                it.completed.assert().isTrue()
+            }
+            history(log, "d-1").assert().containsExactly(access("sales"))
+        }
 
     @Test
     fun `a store a log serving no schema created records no walk, and is claimed and walked`(): Unit = runBlocking {

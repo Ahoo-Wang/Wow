@@ -68,9 +68,10 @@ interface AccessWalks : AccessStamps {
      * log no node told (an importer's, a tool's) records none: its types' walks are claimed as before. Without this
      * call a log records none.
      *
-     * What it leaves: a store first created during a rolling deployment that changes the type's schema, appended to
-     * by the earlier version's nodes before they stop, holds streams with that version's attributes, which a walk
-     * recorded at creation does not stamp again.
+     * A store created during a rolling deployment that changes the type's access schema is walked once the other
+     * version's nodes are gone: a node whose walk was recorded so, and that saw a node of another schema serve the type,
+     * claims the walk again over the log's heads then. It rests on a node of the schema that stays that saw the other
+     * and is still up once it is gone, which a rolling deployment gives.
      */
     fun serves(schemas: Map<AggregateType, String>) = Unit
 }

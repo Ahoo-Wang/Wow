@@ -141,6 +141,12 @@ class AccessWalking(
     /** The types this node found without a store, read again after fewer runs each time. */
     private val absent = AbsentTypes()
 
+    /**
+     * The types whose walk of this node's schema is completed with nothing walked, that a run saw a member of another
+     * schema serve: the first run that sees none re-claims their walk ([claims]).
+     */
+    private val crossed = ConcurrentHashMap.newKeySet<AggregateType>()
+
     @Volatile
     private var loop: Job? = null
 
@@ -294,11 +300,28 @@ class AccessWalking(
         }
     }
 
-    /** Reads the walk of each type, claiming it for this node's schema as the class says. */
+    /**
+     * Reads the walk of each type, claiming it for this node's schema as the class says. A walk of this node's schema
+     * completed with nothing walked, such as the one a store's creation records, is not final while a member of another
+     * schema serves the type: that node may append streams of its schema's attributes. Once a run has seen one, the
+     * first run that sees none re-claims the walk over the log's heads, so it reaches them. It rests on a node of this
+     * schema that saw the other and is still up once it is gone, which a rolling deployment gives.
+     */
     private suspend fun claims() {
+        var served: Set<String>? = null
+
+        // Whether a member of the walks serves a type under another schema: the members read once a run, if at all.
+        suspend fun mixed(type: AggregateType, schema: String): Boolean {
+            val groups = served ?: leases.members(members).flatMapTo(HashSet()) { it.groups }.also { served = it }
+            return groups.any { it.startsWith("${type.name}@") && it != servedOf(type, schema) }
+        }
         schemas.forEach { (type, schema) ->
-            if (walked[type]?.let { it.schema == schema && it.completed } != true) {
-                claim(type, schema)
+            val walk = walked[type]
+            when {
+                walk == null || walk.schema != schema || !walk.completed -> claim(type, schema)
+                walk.walked != 0L -> Unit
+                mixed(type, schema) -> crossed += type
+                crossed.remove(type) -> record(type, checkNotNull(walksOf(type)), schema, expected = schema)
             }
         }
     }
