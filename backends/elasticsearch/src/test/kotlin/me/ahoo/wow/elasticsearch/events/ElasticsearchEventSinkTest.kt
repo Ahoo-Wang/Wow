@@ -93,6 +93,16 @@ class ElasticsearchEventSinkTest {
     }
 
     @Test
+    fun `a sink takes batches of a thousand records unless told otherwise`() {
+        sink.maxBatch.assert().isEqualTo(ElasticsearchEventSink.DEFAULT_MAX_BATCH).isEqualTo(1_000)
+        ElasticsearchEventSink(client, ElasticsearchNames("p"), type, Ddl.NONE, null, maxBatch = 10).maxBatch
+            .assert().isEqualTo(10)
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchEventSink(client, ElasticsearchNames("p"), type, Ddl.NONE, null, maxBatch = 0)
+        }
+    }
+
+    @Test
     fun `an empty batch sends nothing`(): Unit = runBlocking {
         sink.write(emptyList())
         verify(exactly = 0) { client.bulk(any<BulkRequest>()) }

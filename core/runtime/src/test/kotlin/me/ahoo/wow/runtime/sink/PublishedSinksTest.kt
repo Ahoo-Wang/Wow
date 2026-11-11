@@ -229,6 +229,36 @@ class PublishedSinksTest {
     }
 
     @Test
+    fun `a batching sink should be handed an aggregate's commits waiting together as one write, in order`(): Unit =
+        runBlocking {
+            val gate = CompletableDeferred<Unit>()
+            val writes = CopyOnWriteArrayList<List<String>>()
+            val batching = object : Sink {
+                override val maxBatch: Int = 8
+
+                override suspend fun write(records: List<StateEventRecord>) {
+                    writes += records.map { it.id }
+                    gate.await()
+                }
+            }
+            val published = manifest.contexts.associate { it.name to it.published }
+            val node = node(subscriptions = PublishedSinks(published, "wow.test-sink") { _, _ -> batching }.factory)
+            node.start()
+            node.fill("c-1")
+            eventually { writes.size == 1 }
+            // While the first write is held, the cart's next commits wait in its lane.
+            repeat(4) { node.fill("c-1") }
+            delay(300.milliseconds)
+            writes.size.assert().isEqualTo(1)
+            gate.complete(Unit)
+            eventually { writes.sumOf { it.size } == 5 }
+            writes.assert().containsExactly(
+                listOf("shop.cart/t/c-1@1"),
+                (2..5).map { "shop.cart/t/c-1@$it" },
+            )
+        }
+
+    @Test
     fun `a write the broker refused should be retried until it is acknowledged`(): Unit = runBlocking {
         val refusals = AtomicInteger(2)
         val flaky = object : TopicProducer {

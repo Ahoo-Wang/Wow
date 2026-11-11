@@ -30,8 +30,20 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   returned; a batch may hold records of several aggregates.
  * - **Failure**: [write] throws when not every record is durable; the subscription retries, then parks the
  *   aggregate. Some records of a failed batch may have been written already: the retry writes them again.
+ * - **Batches** ([maxBatch]): a sink that takes more than one record at once is handed the records of every
+ *   aggregate's commits waiting together, at most [maxBatch]; one that does not say is handed one record a call.
  */
 @WowSpi
 fun interface Sink {
     suspend fun write(records: List<StateEventRecord>)
+
+    /**
+     * The most records one [write] takes, 1 by default. Above 1, the sink subscription hands each aggregate's lane the
+     * run of its commits waiting together, at most this many, and writes the runs of all its lanes waiting together
+     * with one [write] of at most this many records. A commit whose events were all retired has no record, so a run
+     * of this many commits holds at most this many records; the limit counts records. A run is one attempt within the
+     * subscription handler's timeout, so this is sized for a write of this many records to fit it: a write that times
+     * out costs the timeout, and its aggregate's next attempt writes one record alone.
+     */
+    val maxBatch: Int get() = 1
 }
