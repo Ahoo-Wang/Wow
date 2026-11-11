@@ -21,7 +21,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * Several observers as one ([Observer.of]): each is told of every stage and event, in their order. An observation
+ * One or several observers as one ([Observer.of]): each is told of every stage and event, in their order. An observation
  * of a stage is each observer's; its [Observation.context] is the first one's that has a context (a tracer's), so
  * one trace goes with the work. An observer only watches, so one that fails never fails the work nor keeps the
  * others from being told: its failure is logged, at WARNING the first time for that observer and at DEBUG after.
@@ -59,13 +59,21 @@ internal class CompositeObserver(private val observers: List<Observer>) : Observ
 
     override fun toString(): String = "CompositeObserver($observers)"
 
-    /** The observation of each observer for one stage, as one; [Observation.NONE] when none observes it. */
+    /**
+     * The observation of each observer for one stage, as one, each guarded as its observer is; [Observation.NONE]
+     * when none observes it.
+     */
     private inline fun each(start: (Observer) -> Observation): Observation {
+        if (observers.size == 1) {
+            val observer = observers[0]
+            val observation = guarded(observer, Observation.NONE) { start(observer) }
+            return if (observation === Observation.NONE) Observation.NONE else Guarded(observer, observation)
+        }
         val started = observers.map { observer -> observer to guarded(observer, Observation.NONE) { start(observer) } }
             .filter { (_, observation) -> observation !== Observation.NONE }
         return when (started.size) {
             0 -> Observation.NONE
-            1 -> started.single().second
+            1 -> started.single().let { (observer, observation) -> Guarded(observer, observation) }
             else -> Composite(started)
         }
     }
@@ -76,6 +84,17 @@ internal class CompositeObserver(private val observers: List<Observer>) : Observ
         val level = if (warned.add(observer)) System.Logger.Level.WARNING else System.Logger.Level.DEBUG
         logger.log(level, "The observer $observer failed; the work goes on without it.", failure)
         otherwise
+    }
+
+    /** One stage's observation of one [observer], guarded as the observer is. */
+    private inner class Guarded(private val observer: Observer, private val observation: Observation) : Observation {
+        override val context: CoroutineContext get() = observation.context
+
+        override fun outcome(outcome: ObservedOutcome) = guarded(observer, Unit) { observation.outcome(outcome) }
+
+        override fun failed(error: Throwable) = guarded(observer, Unit) { observation.failed(error) }
+
+        override fun end() = guarded(observer, Unit) { observation.end() }
     }
 
     /** One stage's observations of several observers. */
