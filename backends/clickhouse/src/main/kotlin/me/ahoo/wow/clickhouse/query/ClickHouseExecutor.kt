@@ -38,6 +38,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.toKotlinDuration
 
 /**
  * Runs statements over the client-v2 HTTP [client] and decodes `JSONEachRow`, one record per line, with the Wow
@@ -184,7 +185,7 @@ internal class ClickHouseExecutor(
          */
         fun translate(error: Exception, timeout: Duration?): Exception =
             if (timeout != null && ClickHouseFailures.codeOf(error) == TIMEOUT_EXCEEDED) {
-                StorageTimeoutException(timeout, error)
+                StorageTimeoutException(timeout.toKotlinDuration(), error)
             } else {
                 ClickHouseFailures.translate(error)
             }

@@ -66,6 +66,7 @@ import me.ahoo.wow.spi.StorageTimeoutException
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.UUID
+import kotlin.time.toKotlinDuration
 
 class PostgresSnapshotQueryStorageTest {
     private fun newType(): AggregateType =
@@ -173,7 +174,7 @@ class PostgresSnapshotQueryStorageTest {
         suspend fun times(block: suspend () -> Unit) {
             val error = runCatching { block() }.exceptionOrNull()
             (error is StorageTimeoutException).assert().describedAs("$error").isTrue()
-            (error as StorageTimeoutException).timeout.assert().isEqualTo(timeout)
+            (error as StorageTimeoutException).timeout.assert().isEqualTo(timeout.toKotlinDuration())
         }
         times { backend.count(QueryAdmission.Trusted.count(CountQuery(slow), schema).withTimeout(timeout)) }
         times {

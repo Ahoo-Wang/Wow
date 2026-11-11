@@ -54,6 +54,7 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import kotlin.time.toJavaDuration
 
 /*
  * Every query shape, derived by the core from the four backend primitives. The gateway calls these
@@ -75,7 +76,7 @@ import java.time.Duration
 internal fun storageFault(error: Throwable): Throwable = when (error) {
     is QueryError -> error
     is StorageUnavailableException -> QueryStorageUnavailableException(error)
-    is StorageTimeoutException -> QueryTimeoutException(error.timeout, error)
+    is StorageTimeoutException -> QueryTimeoutException(error.timeout.toJavaDuration(), error)
     else -> QueryExecutionException("Query storage failed.", error)
 }
 

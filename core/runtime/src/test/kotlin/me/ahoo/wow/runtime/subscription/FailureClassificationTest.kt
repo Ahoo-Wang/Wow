@@ -66,7 +66,7 @@ class FailureClassificationTest {
             SQLNonTransientConnectionException("refused"),
             SQLException("connection failure", "08006"),
             HandlerTimeoutException("projection", cart("x"), 1, kotlin.time.Duration.parse("1s")),
-            StorageTimeoutException(java.time.Duration.ofSeconds(1)),
+            StorageTimeoutException(1.seconds),
         ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.RECOVERABLE) }
     }
 

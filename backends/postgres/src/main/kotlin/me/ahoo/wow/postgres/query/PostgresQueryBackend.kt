@@ -50,6 +50,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.time.Duration
 import javax.sql.DataSource
+import kotlin.time.toKotlinDuration
 
 /**
  * A query backend of one aggregate type on PostgreSQL: the four primitives over one of the aggregate type's own tables,
@@ -199,7 +200,8 @@ class PostgresQueryBackend internal constructor(
     } catch (error: SQLException) {
         when {
             error.sqlState == UNDEFINED_TABLE -> missing()
-            timeout != null && error.sqlState == QUERY_CANCELED -> throw StorageTimeoutException(timeout, error)
+            timeout != null && error.sqlState == QUERY_CANCELED ->
+                throw StorageTimeoutException(timeout.toKotlinDuration(), error)
             else -> throw PostgresFailures.translate(error)
         }
     }

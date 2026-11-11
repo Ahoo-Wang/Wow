@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spi
 
-import java.time.Duration
+import kotlin.time.Duration
 
 /**
  * A store stopped a statement at the time limit its caller gave it ([timeout]): PostgreSQL's `statement_timeout`,
@@ -24,4 +24,4 @@ import java.time.Duration
  * answers it as `wow.query.timeout`; a subscription handler retries it within its budget.
  */
 class StorageTimeoutException(val timeout: Duration, cause: Throwable? = null) :
-    RuntimeException("The store stopped the statement at its timeout of ${timeout.toMillis()} ms.", cause)
+    RuntimeException("The store stopped the statement at its timeout of ${timeout.inWholeMilliseconds} ms.", cause)

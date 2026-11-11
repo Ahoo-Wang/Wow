@@ -38,6 +38,7 @@ import org.bson.types.Decimal128
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 class MongoQueryPartsTest {
     private val schema = MongoQueryTestSchemas.SCHEMA
@@ -213,7 +214,7 @@ class MongoQueryPartsTest {
         fun failure(timeout: Duration?, error: RuntimeException): Throwable? =
             runCatching { MongoSnapshotQueryBackend.timed(timeout) { throw error } }.exceptionOrNull()
         (failure(timeout, MongoExecutionTimeoutException(50, "expired")) as StorageTimeoutException).timeout
-            .assert().isEqualTo(timeout)
+            .assert().isEqualTo(timeout.toKotlinDuration())
         (failure(timeout, command(50)) is StorageTimeoutException).assert().isTrue()
         (failure(timeout, command(2)) is MongoCommandException).assert().isTrue()
         (

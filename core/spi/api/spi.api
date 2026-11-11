@@ -23,9 +23,9 @@ public final class me/ahoo/wow/spi/StorageRefusedException : java/lang/IllegalAr
 }
 
 public final class me/ahoo/wow/spi/StorageTimeoutException : java/lang/RuntimeException {
-	public fun <init> (Ljava/time/Duration;Ljava/lang/Throwable;)V
-	public synthetic fun <init> (Ljava/time/Duration;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getTimeout ()Ljava/time/Duration;
+	public synthetic fun <init> (JLjava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JLjava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getTimeout-UwyO8pc ()J
 }
 
 public class me/ahoo/wow/spi/StorageUnavailableException : java/lang/RuntimeException {

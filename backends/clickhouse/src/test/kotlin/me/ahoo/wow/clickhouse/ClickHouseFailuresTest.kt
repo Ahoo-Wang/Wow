@@ -29,6 +29,7 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /** ClickHouse unreachable or overloaded is a storage unavailable; a statement's own timeout is its timeout. */
 class ClickHouseFailuresTest {
@@ -70,7 +71,8 @@ class ClickHouseFailuresTest {
         val exceeded = server(ClickHouseExecutor.TIMEOUT_EXCEEDED)
         ClickHouseFailures.translate(exceeded).assert().isSameAs(exceeded)
         ClickHouseExecutor.translate(exceeded, timeout).assert().isInstanceOf(StorageTimeoutException::class.java)
-        (ClickHouseExecutor.translate(exceeded, timeout) as StorageTimeoutException).timeout.assert().isEqualTo(timeout)
+        (ClickHouseExecutor.translate(exceeded, timeout) as StorageTimeoutException).timeout
+            .assert().isEqualTo(timeout.toKotlinDuration())
         ClickHouseExecutor.translate(exceeded, null).assert().isSameAs(exceeded)
         ClickHouseExecutor.translate(
             server(203),

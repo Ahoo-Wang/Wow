@@ -56,6 +56,7 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import kotlin.time.toKotlinDuration
 
 /**
  * A query backend of one aggregate type on MongoDB: the four primitives over one of the aggregate type's own
@@ -282,6 +283,6 @@ class MongoSnapshotQueryBackend internal constructor(
 
         /** [error] as a [StorageTimeoutException] of [timeout]; as it is when the query had no timeout. */
         fun expired(timeout: Duration?, error: MongoException): RuntimeException =
-            timeout?.let { StorageTimeoutException(it, error) } ?: error
+            timeout?.let { StorageTimeoutException(it.toKotlinDuration(), error) } ?: error
     }
 }
