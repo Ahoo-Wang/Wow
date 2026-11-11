@@ -52,7 +52,7 @@ export function ToShipCount() {
 ```ts
 export declare function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
 export declare function useEngine(own?: ViewEngine): ViewEngine;
-export declare function useOpenView(engine: ViewEngine, instanceId: string | null, options?: OpenViewOptions): OpenViewState;
+export declare function useOpenView(engine: ViewEngine, instanceId: string | null, input?: OpenViewOptions): OpenViewState;
 export declare function useViewRuntime<R extends ViewRuntimeStore<unknown>>(runtime: R | null): SnapshotOf<R> | null;
 
 export interface OpenViewOptions {
@@ -79,7 +79,7 @@ export interface OpenViewState {
 
 ```ts
 export declare function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
-export declare function useViewManager(engine: ViewEngine, definitionId: string, options: ViewManagerOptions): ViewManagerController;
+export declare function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 export interface ViewListState {
   all: ViewInstanceSummary[];
@@ -141,7 +141,7 @@ export interface WorkbenchOptions {
 export declare function useFilterEditor(runtime: ViewRuntime | null): FilterEditorController;
 export declare function useRecordTable(runtime: RecordViewRuntime | null): RecordTableController;
 export declare function useAnalysisEditor(runtime: AnalysisViewRuntime | null): AnalysisEditorController;
-export declare function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, options: AnalysisResultOptions): AnalysisResultController;
+export declare function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, input: AnalysisResultOptions): AnalysisResultController;
 export declare function useDashboard(runtime: DashboardRuntime | null): DashboardController;
 ```
 
