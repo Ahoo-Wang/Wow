@@ -37,16 +37,16 @@ import me.ahoo.wow.clickhouse.sink.ClickHouseSinkIntegrationTest
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
 import me.ahoo.wow.clickhouse.sink.SinkFixtures
-import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.policy.ScopeQueryPolicy
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDataset
-import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
@@ -108,7 +108,11 @@ class StateFlatDatasetTest {
     private suspend fun target(): DatasetTarget {
         ClickHouseContainers.execute("DROP DATABASE IF EXISTS $database")
         ClickHouseContainers.execute("CREATE DATABASE $database")
-        val sink = ClickHouseSinks(ClickHouseSinkIntegrationTest.client, SinkFixtures.MANIFEST, ClickHouseSinkOptions(database = database))
+        val sink = ClickHouseSinks(
+            ClickHouseSinkIntegrationTest.client,
+            SinkFixtures.MANIFEST,
+            ClickHouseSinkOptions(database = database)
+        )
             .sinkOf("shop", "order")
         sink.write(listOf(SinkFixtures.recordOf(version = 1)))
         sink.write(listOf(SinkFixtures.recordOf(version = 2, state = SinkFixtures.stateOf(2, total = "99.90"))))
@@ -119,7 +123,13 @@ class StateFlatDatasetTest {
             ),
         )
         sink.write(
-            listOf(SinkFixtures.recordOf(id = "order-3", tenantId = "tenant-2", state = SinkFixtures.stateOf(1, total = "5.55"))),
+            listOf(
+                SinkFixtures.recordOf(
+                    id = "order-3",
+                    tenantId = "tenant-2",
+                    state = SinkFixtures.stateOf(1, total = "5.55")
+                )
+            ),
         )
         return DatasetTarget(dataset, factory)
     }
@@ -132,7 +142,9 @@ class StateFlatDatasetTest {
             QueryAdmission.Trusted.list(
                 ListQuery(
                     MatchAllFilter,
-                    projection = Projection(include = listOf(QueryField("aggregate_id"), QueryField("total"), QueryField("version"))),
+                    projection = Projection(
+                        include = listOf(QueryField("aggregate_id"), QueryField("total"), QueryField("version"))
+                    ),
                     sort = listOf(Sort(QueryField("total"), Sort.Direction.DESC)),
                 ),
                 schema,
@@ -156,7 +168,11 @@ class StateFlatDatasetTest {
                 AggregationQuery(
                     groupBy = listOf(AggregationGroup.Terms(QueryField("tenant_id"), "tenant")),
                     metrics = listOf(
-                        AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("total")), "gmv"),
+                        AggregationMetric.Numeric(
+                            AggregationFunction.SUM,
+                            AggregationExpression.Field(QueryField("total")),
+                            "gmv"
+                        ),
                         AggregationMetric.Count("orders"),
                     ),
                 ),
@@ -170,14 +186,23 @@ class StateFlatDatasetTest {
     @Test
     fun `the gateway should restrict the flat view to the caller's tenant, owner and space`(): Unit = runBlocking {
         val target = target()
-        val gateways = DatasetQueryGateways.of(target.datasets, target.catalog, factory, policies = listOf(ScopeQueryPolicy()))
+        val gateways = DatasetQueryGateways.of(
+            target.datasets,
+            target.catalog,
+            factory,
+            policies = listOf(ScopeQueryPolicy())
+        )
         val gateway = checkNotNull(gateways[dataset.name])
-        val owner2 = QueryCaller(Caller(tenantId = "tenant-1", scope = Scope("owner-2", "space-1")), entry = QueryEntry.HTTP)
-        gateway.list(ListQuery(MatchAllFilter, limit = 10), owner2).toList().map { it.get("aggregate_id").stringValue() }
+        val owner2 =
+            QueryCaller(Caller(tenantId = "tenant-1", scope = Scope("owner-2", "space-1")), entry = QueryEntry.HTTP)
+        gateway.list(ListQuery(MatchAllFilter, limit = 10), owner2).toList()
+            .map { it.get("aggregate_id").stringValue() }
             .assert().containsExactly("order-2")
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "tenant-1"), entry = QueryEntry.HTTP)).count
+        val tenant1 = QueryCaller(Caller(tenantId = "tenant-1"), entry = QueryEntry.HTTP)
+        gateway.count(CountQuery(MatchAllFilter), tenant1).count
             .assert().isEqualTo(2L)
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "tenant-2", scope = Scope("owner-2")), entry = QueryEntry.HTTP))
+        val tenant2 = QueryCaller(Caller(tenantId = "tenant-2", scope = Scope("owner-2")), entry = QueryEntry.HTTP)
+        gateway.count(CountQuery(MatchAllFilter), tenant2)
             .count.assert().isEqualTo(0L)
     }
 
@@ -190,7 +215,10 @@ class StateFlatDatasetTest {
         do {
             val query = CursorQuery(
                 MatchAllFilter,
-                sort = listOf(Sort(QueryField("commit_time"), Sort.Direction.DESC), Sort(QueryField("id"), Sort.Direction.ASC)),
+                sort = listOf(
+                    Sort(QueryField("commit_time"), Sort.Direction.DESC),
+                    Sort(QueryField("id"), Sort.Direction.ASC)
+                ),
                 size = 2,
                 cursor = cursor,
             )

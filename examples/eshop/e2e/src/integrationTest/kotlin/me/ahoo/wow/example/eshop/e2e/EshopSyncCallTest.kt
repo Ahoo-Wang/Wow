@@ -400,7 +400,6 @@ class EshopSyncCallTest {
         )
 
         const val BIND_ATTEMPTS = 5
-
     }
 }
 

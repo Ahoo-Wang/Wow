@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.kafka
 
+import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -54,14 +54,17 @@ object KafkaFixture {
     private fun awaitServed(topic: String, partitions: Int) {
         val deadline = TimeSource.Monotonic.markNow() + servedWithin
         while (ledPartitions(topic) != partitions) {
-            check(deadline.hasNotPassedNow()) { "The broker did not serve $topic's $partitions partitions within $servedWithin." }
+            check(deadline.hasNotPassedNow()) {
+                "The broker did not serve $topic's $partitions partitions within $servedWithin."
+            }
             Thread.sleep(servedPoll.inWholeMilliseconds)
         }
     }
 
     /** How many partitions of [topic] the broker's metadata gives a leader: none while it does not know the topic. */
     private fun ledPartitions(topic: String): Int = try {
-        admin.describeTopics(listOf(topic)).allTopicNames().get().getValue(topic).partitions().count { it.leader() != null }
+        admin.describeTopics(listOf(topic)).allTopicNames().get().getValue(topic).partitions()
+            .count { it.leader() != null }
     } catch (failure: ExecutionException) {
         if (failure.cause !is UnknownTopicOrPartitionException) {
             throw failure

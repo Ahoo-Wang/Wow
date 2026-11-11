@@ -21,9 +21,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -57,7 +57,8 @@ class KafkaStateEventTest {
             if (count == 0) {
                 emptyList()
             } else {
-                withTimeout(30.seconds) { source.read(topic, partition, 0).take(count).toList() }.map { partition to it }
+                withTimeout(30.seconds) { source.read(topic, partition, 0).take(count).toList() }
+                    .map { partition to it }
             }
         }
 
@@ -76,7 +77,11 @@ class KafkaStateEventTest {
             ExactJson.of(WowJson.mapper.writeValueAsString(decoded.first().state!!.state))
                 .assert().isEqualTo(ExactJson.of(ExactJson.NUMBERS))
             ofO1.first().second.headers.assert().isEqualTo(
-                mapOf(EnvelopeHeaders.FORMAT to "1", EnvelopeHeaders.KIND to "state-event", EnvelopeHeaders.TYPE to "shop.order"),
+                mapOf(
+                    EnvelopeHeaders.FORMAT to "1",
+                    EnvelopeHeaders.KIND to "state-event",
+                    EnvelopeHeaders.TYPE to "shop.order"
+                ),
             )
         }
 

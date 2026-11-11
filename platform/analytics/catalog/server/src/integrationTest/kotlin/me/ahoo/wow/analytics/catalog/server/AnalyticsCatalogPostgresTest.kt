@@ -36,10 +36,21 @@ class AnalyticsCatalogPostgresTest {
             sources = listOf(MemoryWarehouseConfiguration::class.java),
         ).use { node ->
             node.context.getBean(MemoryWarehouse::class.java).put(
-                WarehouseTable(MemoryWarehouse.DATABASE, "orders", "u-1", "MergeTree", listOf(SourceColumn("t", "UInt8"))),
+                WarehouseTable(
+                    MemoryWarehouse.DATABASE,
+                    "orders",
+                    "u-1",
+                    "MergeTree",
+                    listOf(SourceColumn("t", "UInt8"))
+                ),
             )
             val id = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, "orders")
-            node.command(id, "draft-source", """{"database":"${MemoryWarehouse.DATABASE}","table":"orders"}""", Who.EDITOR)
+            node.command(
+                id,
+                "draft-source",
+                """{"database":"${MemoryWarehouse.DATABASE}","table":"orders"}""",
+                Who.EDITOR
+            )
                 .assertOk()
             eventually("the source listed") {
                 node.sources().json.values().any { it["aggregateId"].asString() == id }

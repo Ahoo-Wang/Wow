@@ -213,6 +213,7 @@ class EshopFullChainTest {
     }
 
     @Test
+    @Suppress("LongMethod") // One flow across a node's kill and its replacement: steps that hold only together.
     @Order(5)
     fun `an ordering node killed mid-flow should lose no effect and repeat none once replaced`() {
         product("kite", "Wow kite", "20.00")

@@ -231,13 +231,19 @@ class EshopService private constructor(
             val service = try {
                 val bound = awaitPorts(context, process, log)
                 EshopService(context, process, log, bound.first, bound.second)
-            } catch (failure: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Whatever failed, the process is stopped before it is thrown.
+                failure: Throwable,
+            ) {
                 process.destroyForcibly().waitFor()
                 throw failure
             }
             try {
                 service.awaitReady(readyHeaders)
-            } catch (failure: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Whatever failed, the service is closed before it is thrown.
+                failure: Throwable,
+            ) {
                 service.close()
                 throw failure
             }

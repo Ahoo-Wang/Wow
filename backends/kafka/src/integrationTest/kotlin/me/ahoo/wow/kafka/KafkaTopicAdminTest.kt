@@ -46,7 +46,8 @@ class KafkaTopicAdminTest {
             admin.create(mapOf(existing to 6, created to 3))
 
             admin.partitions(setOf(existing, created)).assert().isEqualTo(mapOf(existing to 2, created to 3))
-            KafkaFixture.admin.describeConfigs(listOf(ConfigResource(ConfigResource.Type.TOPIC, created))).all().get().values.single()
+            KafkaFixture.admin.describeConfigs(listOf(ConfigResource(ConfigResource.Type.TOPIC, created)))
+                .all().get().values.single()
                 .get("retention.ms").value().assert().isEqualTo("3600000")
         }
 

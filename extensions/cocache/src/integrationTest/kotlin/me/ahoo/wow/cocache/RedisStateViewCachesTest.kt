@@ -31,10 +31,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

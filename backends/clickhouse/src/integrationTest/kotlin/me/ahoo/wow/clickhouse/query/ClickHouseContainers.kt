@@ -70,7 +70,11 @@ object ClickHouseContainers {
         is String -> "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
         is Long, is Int -> value.toString()
         is BigDecimal -> value.toPlainString()
-        is Instant -> "fromUnixTimestamp64Micro(${Math.addExact(Math.multiplyExact(value.epochSecond, MICROS), value.nano / NANOS_PER_MICRO.toLong())}, 'UTC')"
+        is Instant -> {
+            val seconds = Math.multiplyExact(value.epochSecond, MICROS)
+            val micros = Math.addExact(seconds, value.nano / NANOS_PER_MICRO.toLong())
+            "fromUnixTimestamp64Micro($micros, 'UTC')"
+        }
         is List<*> -> value.joinToString(", ", "[", "]") { literal(it) }
         else -> error("Unsupported test value [$value].")
     }

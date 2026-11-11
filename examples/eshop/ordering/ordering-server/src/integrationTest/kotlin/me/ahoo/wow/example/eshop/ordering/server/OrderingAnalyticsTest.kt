@@ -233,7 +233,7 @@ class OrderingAnalyticsTest {
             if (answer.status == OK && condition(answer.body!!.values().toList())) return answer.body!!.values().toList()
             Thread.sleep(POLL.toMillis())
         }
-        throw AssertionError("The sales dataset never matched; the last answer: ${last}")
+        throw AssertionError("The sales dataset never matched; the last answer: $last")
     }
 
     private fun array(values: List<String>): String = values.joinToString(",", "[", "]") { "\"$it\"" }

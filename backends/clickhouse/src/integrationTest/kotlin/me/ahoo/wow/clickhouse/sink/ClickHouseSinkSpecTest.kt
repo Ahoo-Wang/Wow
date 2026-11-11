@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -36,7 +35,11 @@ class ClickHouseSinkSpecTest : SinkSpec() {
     override val aggregateType: AggregateType = SinkFixtures.ORDER
 
     override fun createSink(): Sink =
-        ClickHouseSinks(ClickHouseSinkIntegrationTest.client, SinkFixtures.MANIFEST, ClickHouseSinkOptions(database = database))
+        ClickHouseSinks(
+            ClickHouseSinkIntegrationTest.client,
+            SinkFixtures.MANIFEST,
+            ClickHouseSinkOptions(database = database)
+        )
             .sinkOf("shop", "order")
 
     override fun provided(): Pair<SinkProvider, SinkConfig> = ClickHouseSinkProvider() to SinkConfig.of(
