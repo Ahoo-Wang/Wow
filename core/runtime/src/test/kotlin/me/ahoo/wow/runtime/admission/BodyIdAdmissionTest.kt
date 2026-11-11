@@ -146,6 +146,11 @@ class BodyIdAdmissionTest {
                 request("Restock", """{"productId":"","quantity":1}"""),
                 "The body of $CONTEXT.product.Restock names a blank aggregate id.",
             )
+            val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+            refused(
+                request("Restock", """{"productId":"$long","quantity":1}"""),
+                "The aggregate id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
+            )
             refused(
                 request("Audit", """{"productId":"mug"}"""),
                 "The aggregate the body of $CONTEXT.product.Audit names cannot be read: No product is audited as mug.",

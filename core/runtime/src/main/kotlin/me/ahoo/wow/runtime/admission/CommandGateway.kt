@@ -480,6 +480,9 @@ class CommandGateway @InternalWowApi constructor(
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
+        // Before any store is read for the request, the creation lookup by its request id included.
+        AdmissionLimits.oversized(facts.requestId, request.aggregateId, tenantId, scope)
+            ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // A command whose body names its aggregate is read now, so that its authorization names that aggregate.
         val early = if (fromBody) {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
@@ -515,8 +518,6 @@ class CommandGateway @InternalWowApi constructor(
             }
         }
         facts.ref = facts.type.ref(tenantId, inputId)
-        AdmissionLimits.oversized(facts.requestId, inputId, tenantId, scope)
-            ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 3. Action-level authorization.
         authorizer.authorize(request, CommandAction(commandType, facts.ref, scope, creation))
             ?.let { return facts.refuse(it) }
@@ -526,6 +527,7 @@ class CommandGateway @InternalWowApi constructor(
             bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
         }
+        AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 5. The transformation.
         val headers = headersOf(request)
         var command = Resolved(model, commandType, decoded.value, headers)

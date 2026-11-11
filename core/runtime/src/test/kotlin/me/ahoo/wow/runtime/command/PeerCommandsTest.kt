@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
@@ -288,6 +290,22 @@ class PeerCommandsTest {
         sales.gateway.execute(
             ServerCommandRequest(STOCK, "item", "Reserve", CommandBody.Value(Reserve(1)), clerk, "i", call = call),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        // A lifecycle command is refused before its body is read: its schema is keyed by its system name, no class, so
+        // the owner a transfer names needs no check on the peer path.
+        val long = "o".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+        sales.gateway.execute(
+            ServerCommandRequest(
+                STOCK,
+                "item",
+                Lifecycle.TRANSFER_OWNER,
+                CommandBody.Value(TransferOwner(long)),
+                clerk,
+                "i",
+            ),
+        ).error!!.let {
+            it.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+            it.message.assert().contains("${Lifecycle.TRANSFER_OWNER} is not on the class path")
+        }
         topics.messages(COMMANDS).assert().isEmpty()
     }
 
