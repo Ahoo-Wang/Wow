@@ -19,43 +19,24 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
-import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
-import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.cluster.ClusterCodec
-import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
-import me.ahoo.wow.runtime.cluster.ReplyTo
-import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.node.BackendFactory
-import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.subscription.Checkpoint
-import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeKind
 import me.ahoo.wow.spi.transport.TopicMessage
-import me.ahoo.wow.spi.transport.TopicProducer
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -65,90 +46,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * only once its outcome is settled, a rejection's receipt is durable before that and comes back to the saga's
  * `@OnRejected` handler once, and a technical failure parks the aggregate at the command's offset.
  */
-class CommandIntakeTest {
-    private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
-    private val channel = LoopbackClusterChannel()
-    private val nodes = CopyOnWriteArrayList<ServiceNode>()
-    private val stock = StockItems()
-    private val stockBackends = InMemoryBackends(PARTITIONS)
-    private val salesBackends = InMemoryBackends(PARTITIONS)
-    private val cancelled = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
-
-    @AfterEach
-    fun stop(): Unit = runBlocking {
-        nodes.forEach { it.stop() }
-    }
-
-    private fun stockNode(
-        name: String = "stock-1",
-        producer: TopicProducer = topics,
-        backends: BackendFactory = stockBackends,
-        options: ServiceNodeOptions = fastNodeOptions(),
-    ): ServiceNode = ServiceNode(
-        STOCK_SERVICE,
-        name,
-        "$name.internal:9090",
-        listOf(stock.model),
-        stockManifest(),
-        backends,
-        channel,
-        options = options,
-        contracts = ContractDirectory(stockManifest()),
-        topics = SourceTopics(topics, PREFIX, producer, intake = true),
-    ).also {
-        nodes += it
-        channel.bind(it.address, it.forwardHandler)
-    }
-
-    private fun salesNode(peer: ManifestFragment = peer(stockManifest())): ServiceNode = ServiceNode(
-        SALES_SERVICE,
-        "sales-1",
-        "sales-1.internal:9090",
-        listOf(orderModel(cancelled)),
-        salesManifest(),
-        salesBackends,
-        channel,
-        options = fastNodeOptions(),
-        subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))),
-        contracts = ContractDirectory(salesManifest(), listOf(peer)),
-        topics = SourceTopics(topics, PREFIX, topics),
-    ).also {
-        nodes += it
-        channel.bind(it.address, it.forwardHandler)
-    }
-
-    private suspend fun ServiceNode.place(
-        id: String,
-        quantity: Int,
-        headers: Map<String, String> = emptyMap(),
-    ): CommandResult {
-        val context = context(SALES)
-        return context.coordinator.execute(
-            context.models.first(),
-            Command(
-                "place-$id",
-                "place-$id",
-                ORDER.ref(TENANT, id),
-                PlaceOrder(quantity),
-                headers = headers,
-                wait = WaitPlan.COMMITTED,
-            ),
-        )
-    }
-
-    private val sender = CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics, PREFIX, topics))
-
-    private suspend fun reserve(id: String, quantity: Int, item: String = "i-1"): Command<Reserve> =
-        Command(id, "r-$id", ITEM.ref(TENANT, item), Reserve(quantity)).also { sender.send(it) }
-
-    private suspend fun checkpoint(node: ServiceNode, ref: AggregateRef): Long =
-        stockBackends.backends(STOCK).checkpoints.load(
-            node.context(STOCK).group.name,
-            CommandIntake.NAME,
-            Partitioner.partitionOf(ref, PARTITIONS),
-        ) ?: 0L
-
+class CommandIntakeTest : CommandIntakeFixtures() {
     @Test
     fun `a saga's command to another context should reach its command topic and be executed by its owner`(): Unit =
         runBlocking {
@@ -304,218 +202,6 @@ class CommandIntakeTest {
     }
 
     @Test
-    fun `a command delivered twice should be decided once`(): Unit = runBlocking {
-        val node = stockNode().also { it.start() }
-        val command = reserve("c-1", 1)
-        sender.send(command)
-        val ref = command.ref
-        eventually { checkpoint(node, ref) == 2L }
-        stock.decided.assert().containsExactly("c-1")
-    }
-
-    @Test
-    fun `the checkpoint should pass a command only once its outcome is settled`(): Unit = runBlocking {
-        val gate = CompletableDeferred<Unit>()
-        stock.gates["i-slow"] = gate
-        val node = stockNode().also { it.start() }
-        val slow = reserve("c-slow", 1, item = "i-slow")
-        // Another aggregate in the same partition goes on meanwhile, but the checkpoint stays before the slow one.
-        val other = generateSequence(0) { it + 1 }.map { "i-$it" }
-            .first { Partitioner.partitionOf(ITEM.ref(TENANT, it), PARTITIONS) == Partitioner.partitionOf(slow.ref, PARTITIONS) }
-        reserve("c-other", 1, item = other)
-        eventually { "c-other" in stock.decided }
-        delay(100.milliseconds)
-        checkpoint(node, slow.ref).assert().isEqualTo(0L)
-        gate.complete(Unit)
-        eventually { checkpoint(node, slow.ref) == 2L }
-        stock.decided.assert().containsExactlyInAnyOrder("c-slow", "c-other")
-    }
-
-    @Test
-    fun `a receipt should be durable before the checkpoint passes the rejected command`(): Unit = runBlocking {
-        val held = CompletableDeferred<Unit>()
-        val producer = object : TopicProducer {
-            override suspend fun send(topic: String, messages: List<TopicMessage>) {
-                if (topic == RECEIPTS) {
-                    held.await()
-                }
-                topics.send(topic, messages)
-            }
-        }
-        val node = stockNode(producer = producer).also { it.start() }
-        val command = Command(
-            "c-r",
-            "r-c-r",
-            ITEM.ref(TENANT, "i-r"),
-            Reserve(AVAILABLE + 1),
-        )
-        CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics, PREFIX, topics))
-            .send(
-                command,
-                replyTo = me.ahoo.wow.runtime.cluster.ReplyTo(
-                    SALES,
-                    "OrderSaga.onOrderPlaced",
-                    ORDER.ref(TENANT, "o"),
-                    1
-                )
-            )
-        eventually { "c-r" in stock.decided }
-        delay(100.milliseconds)
-        checkpoint(node, command.ref).assert().isEqualTo(0L)
-        topics.messages(RECEIPTS).assert().isEmpty()
-        held.complete(Unit)
-        eventually { checkpoint(node, command.ref) == 1L }
-        CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value))
-            .commandId.assert().isEqualTo("c-r")
-    }
-
-    @Test
-    fun `a crash between the receipt and the checkpoint should send the receipt again, handled once`(): Unit =
-        runBlocking {
-            val sales = salesNode().also { it.start() }
-            // The first stock node never saves a checkpoint: it crashes after the receipt, before the save.
-            val crashing = BackendFactory { context ->
-                stockBackends.backends(context).copyWith(checkpoints = DroppedCheckpoints)
-            }
-            val first = stockNode("stock-1", backends = crashing).also { it.start() }
-            sales.place("o-3", AVAILABLE + 1)
-            eventually { rejections.size == 1 }
-            first.stop()
-            nodes -= first
-            stockNode("stock-2").start()
-            eventually { topics.messages(RECEIPTS).size == 2 }
-            val (receipt, copy) = topics.messages(RECEIPTS).map { EnvelopeCodec.decode(it.value).id }
-            copy.assert().isEqualTo(receipt)
-            stock.decided.size.assert().isEqualTo(2)
-            delay(100.milliseconds)
-            rejections.size.assert().isEqualTo(1)
-            cancelled.size.assert().isEqualTo(1)
-        }
-
-    @Test
-    fun `a technical failure should park the aggregate at the command's offset until it is retried`(): Unit =
-        runBlocking {
-            val node = stockNode().also { it.start() }
-            val broken = reserve("c-broken", BREAKING, item = "i-b")
-            val after = reserve("c-after", 1, item = "i-b")
-            val elsewhere = reserve("c-elsewhere", 1, item = "i-e")
-            val ledger = stockBackends.backends(STOCK).ledger
-            eventually { ledger.isParked(INTAKE, broken.ref) }
-            val parked = ledger.parked(INTAKE, broken.ref)!!
-            parked.fromPosition.assert().isEqualTo(0L)
-            parked.reason.assert().contains("unreachable")
-            eventually { elsewhere.id in stock.decided }
-            // The parked aggregate's later command waits; the checkpoint passes both.
-            val end = topics.offsets(COMMANDS, Partitioner.partitionOf(broken.ref, PARTITIONS)).end
-            eventually { checkpoint(node, broken.ref) == end }
-            stock.decided.assert().doesNotContain(broken.id, after.id)
-            stock.broken = false
-            node.context(STOCK).intake!!.retry(CommandIntake.NAME, broken.ref).assert().isTrue()
-            stock.decided.assert().contains(broken.id, after.id)
-            ledger.isParked(INTAKE, broken.ref).assert().isFalse()
-            // A command of the aggregate after the retry runs as any other.
-            val later = reserve("c-later", 1, item = "i-b")
-            eventually { later.id in stock.decided }
-        }
-
-    @Test
-    fun `a command type the context does not know should be rejected, not park its aggregate`(): Unit =
-        runBlocking {
-            // Review X-5: a sender's mistake is its rejection; the aggregate it names takes its later commands.
-            val node = stockNode().also { it.start() }
-            val unknown = Command("c-u", "r-c-u", ITEM.ref(TENANT, "i-u"), Reserve(1))
-            val partition = Partitioner.partitionOf(unknown.ref, PARTITIONS)
-            val replyTo = ReplyTo(SALES, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-u"), 1)
-            val wire = ClusterCodec.wire("stock.item.Unknown", unknown, replyTo)
-            topics.send(COMMANDS, CommandMessages.command(wire, partition))
-            val later = reserve("c-u-later", 1, item = "i-u")
-            eventually { later.id in stock.decided }
-            val ledger = stockBackends.backends(STOCK).ledger
-            ledger.isParked(INTAKE, unknown.ref).assert().isFalse()
-            eventually { checkpoint(node, unknown.ref) == 2L }
-            val rejected = CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value))
-            rejected.commandId.assert().isEqualTo("c-u")
-            rejected.commandType.assert().isEqualTo("stock.item.Unknown")
-            rejected.ref.assert().isEqualTo(unknown.ref)
-            rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-            rejected.error.message.assert().contains("no command type stock.item.Unknown")
-            rejected.executionId.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-u"))
-        }
-
-    @Test
-    fun `an aggregate type the context does not know should be rejected without a receipt when none is asked`(): Unit =
-        runBlocking {
-            val node = stockNode().also { it.start() }
-            val ref = AggregateRef(AggregateType(STOCK, "shelf"), TENANT, "s-1")
-            val partition = Partitioner.partitionOf(ref, PARTITIONS)
-            val wire = ClusterCodec.wire(
-                "stock.shelf.Reserve",
-                Command("c-s", "r-c-s", ref, Reserve(1)),
-            )
-            topics.send(COMMANDS, CommandMessages.command(wire, partition))
-            eventually { checkpoint(node, ref) == 1L }
-            stockBackends.backends(STOCK).ledger.isParked(INTAKE, ref).assert().isFalse()
-            topics.messages(RECEIPTS).assert().isEmpty()
-        }
-
-    @Test
-    fun `a saga's command of a type the other context does not know yet should come back as its rejection`(): Unit =
-        runBlocking {
-            // Review X-5: the sales service has a newer stock contract, which names the reservation ReserveV2.
-            val stockNode = stockNode().also { it.start() }
-            val sales = salesNode(peer = peer(renamed(stockManifest(), "Reserve", "ReserveV2"))).also { it.start() }
-            sales.place("o-v2", 1).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-            // The saga's @OnRejected handler takes the rejection and cancels the order.
-            eventually { cancelled.size == 1 }
-            val rejected = rejections.single()
-            rejected.commandType.assert().isEqualTo("stock.item.ReserveV2")
-            rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-            rejected.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-v2"))
-            stock.decided.assert().isEmpty()
-            // The stock item is not parked: its later commands are executed.
-            val item = ITEM.ref(TENANT, "o-v2")
-            stockBackends.backends(STOCK).ledger.isParked(INTAKE, item).assert().isFalse()
-            val later = reserve("c-v2-later", 1, item = "o-v2")
-            eventually { later.id in stock.decided }
-            eventually { checkpoint(stockNode, item) == 2L }
-        }
-
-    @Test
-    fun `a message of an aggregate that holds no command should park the aggregate there`(): Unit = runBlocking {
-        // Review A3-14: an undecodable command is not dropped silently.
-        val node = stockNode().also { it.start() }
-        val ref = ITEM.ref(TENANT, "i-garbled")
-        val partition = Partitioner.partitionOf(ref, PARTITIONS)
-        topics.send(COMMANDS, TopicMessage.of(ref.toString(), "not an envelope".toByteArray(), partition = partition))
-        val after = reserve("c-after-garbled", 1, item = "i-garbled")
-        val ledger = stockBackends.backends(STOCK).ledger
-        eventually { ledger.isParked(INTAKE, ref) }
-        ledger.parked(INTAKE, ref)!!.reason.assert().contains("cannot be decoded")
-        eventually { checkpoint(node, ref) == topics.offsets(COMMANDS, partition).end }
-        stock.decided.assert().doesNotContain(after.id)
-        // Skipped by an operator, the aggregate takes its commands again.
-        node.context(STOCK).intake!!.skip(CommandIntake.NAME, ref).assert().isTrue()
-        val later = reserve("c-later-garbled", 1, item = "i-garbled")
-        eventually { later.id in stock.decided }
-    }
-
-    @Test
-    fun `a message that names no aggregate and holds no command should be passed over, parking nothing`(): Unit =
-        runBlocking {
-            val node = stockNode().also { it.start() }
-            val ref = ITEM.ref(TENANT, "i-after-keyless")
-            val partition = Partitioner.partitionOf(ref, PARTITIONS)
-            topics.send(
-                COMMANDS,
-                TopicMessage.of("no aggregate", "not an envelope".toByteArray(), partition = partition)
-            )
-            val after = reserve("c-after-keyless", 1, item = "i-after-keyless")
-            eventually { after.id in stock.decided }
-            stockBackends.backends(STOCK).ledger.isParked(INTAKE, ref).assert().isFalse()
-            node.context(STOCK).intake.assert().isNotNull()
-        }
-
-    @Test
     fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
         runBlocking {
             // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.
@@ -590,22 +276,4 @@ class CommandIntakeTest {
             stockBackends.backends(STOCK).ledger.isParked(INTAKE, scheduled.ref).assert().isFalse()
             eventually { checkpoint(node, scheduled.ref) == 1L }
         }
-
-    /** A checkpoint store that never saves: the node crashes before each save. */
-    private object DroppedCheckpoints : CheckpointStore {
-        override suspend fun load(group: String, subscription: String, partition: Int): Long? = null
-
-        override suspend fun list(group: String): List<Checkpoint> = emptyList()
-
-        override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
-    }
-
-    private companion object {
-        const val PARTITIONS = 4
-        const val COMMANDS = PREFIX + "wow.stock.commands"
-        const val RECEIPTS = PREFIX + "wow.sales.receipts"
-
-        /** The stock context's command intake, which parks the commands it cannot execute. */
-        val INTAKE = SubscriptionId(STOCK, CommandIntake.NAME)
-    }
 }
