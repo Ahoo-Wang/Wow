@@ -47,7 +47,7 @@
  * culori's `wcagContrast`.
  */
 
-import { clampChroma, converter, parse } from 'culori';
+import { clampChroma, parse } from 'culori';
 import postcss from 'postcss';
 import {
   type ContrastPair,
@@ -59,6 +59,7 @@ import {
   at,
   contrast,
   type Gamut,
+  mix,
   over,
   relativeOklch,
   rgba,
@@ -114,8 +115,6 @@ export interface ThemeSources {
     'tokens' | 'grounds' | 'lines' | 'presetLines'
   >;
 }
-
-const toOklab = converter('oklab');
 
 /** A declaration's value on one line, with no padding inside its brackets. */
 const tidy = (value: string) =>
@@ -526,9 +525,9 @@ export function createResolver({
         return rgba(
           gamut === 'clip' ? relative : clampChroma(relative, 'oklch'),
         );
-      const mix = /^color-mix\(in oklab,\s*([\s\S]+)\)$/.exec(value);
-      if (mix) {
-        const [first, second] = splitArguments(mix[1]);
+      const call = /^color-mix\(in oklab,\s*([\s\S]+)\)$/.exec(value);
+      if (call) {
+        const [first, second] = splitArguments(call[1]);
         // A weight is a percentage, or a token that holds one: a state's
         // strength (`var(--_fve-state-hover)`), as this call declares it.
         const weighted = (part: string) => {
@@ -548,20 +547,7 @@ export function createResolver({
         const one = weighted(first);
         const other = weighted(second);
         const p = one.weight ?? 1 - (other.weight ?? 0.5);
-        const q = 1 - p;
-        const alpha = one.color.alpha * p + other.color.alpha * q;
-        if (alpha === 0) return { r: 0, g: 0, b: 0, alpha: 0 };
-        const a = toOklab({ mode: 'rgb', ...one.color });
-        const b = toOklab({ mode: 'rgb', ...other.color });
-        const channel = (x: number, y: number) =>
-          (x * one.color.alpha * p + y * other.color.alpha * q) / alpha;
-        return rgba({
-          mode: 'oklab',
-          l: channel(a.l, b.l),
-          a: channel(a.a, b.a),
-          b: channel(a.b, b.b),
-          alpha,
-        });
+        return mix(one.color, p, other.color);
       }
       const parsed = parse(value);
       if (!parsed) throw new Error(`unreadable colour ${value}`);

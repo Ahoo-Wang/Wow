@@ -14,14 +14,16 @@
 /**
  * The colour arithmetic the theme's resolver measures with
  * (ui/theme.md「质量门」): a colour as clipped sRGB with alpha, a relative
- * `oklch(from …)` worked out, one colour composited over another the way
- * the browser paints it, and the WCAG contrast of an ink on a ground. Pure
- * functions over colour values: nothing here knows a layer, a preset or
- * the registry, which are `resolve.ts`'s.
+ * `oklch(from …)` worked out, two colours mixed in OKLab, one colour
+ * composited over another the way the browser paints it, and the WCAG
+ * contrast of an ink on a ground. Pure functions over colour values:
+ * nothing here knows a layer, a preset or the registry, which are
+ * `resolve.ts`'s.
  */
 import { type Color, converter, parse, wcagContrast } from 'culori';
 
 const toRgb = converter('rgb');
+const toOklab = converter('oklab');
 const toOklch = converter('oklch');
 
 /** One opaque or half-transparent sRGB colour, channels clipped to 0–1. */
@@ -130,6 +132,27 @@ export function over(top: Rgba, bottom: Rgba): Rgba {
     b: mix(top.b, bottom.b),
     alpha: 1,
   };
+}
+
+/**
+ * `one` at the share `p` mixed with `other`, as `color-mix(in oklab, …)`
+ * does: alpha premultiplied.
+ */
+export function mix(one: Rgba, p: number, other: Rgba): Rgba {
+  const q = 1 - p;
+  const alpha = one.alpha * p + other.alpha * q;
+  if (alpha === 0) return { r: 0, g: 0, b: 0, alpha: 0 };
+  const a = toOklab({ mode: 'rgb', ...one });
+  const b = toOklab({ mode: 'rgb', ...other });
+  const channel = (x: number, y: number) =>
+    (x * one.alpha * p + y * other.alpha * q) / alpha;
+  return rgba({
+    mode: 'oklab',
+    l: channel(a.l, b.l),
+    a: channel(a.a, b.a),
+    b: channel(a.b, b.b),
+    alpha,
+  });
 }
 
 /** A token at a Tailwind opacity modifier (`bg-input/30`). */
