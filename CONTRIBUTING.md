@@ -21,9 +21,12 @@ The JVM build requires JDK 21. Use the Gradle wrapper from the repository root, 
 ./gradlew <module>:integrationTest
 ./gradlew :check
 ./gradlew detekt
+./gradlew detekt -Pwow.detekt.autoCorrect
 ```
 
 Use the narrowest task that covers the change. `:check` compiles every module and runs its unit tests, detekt, the ABI checks and the architecture test; container-backed tests run with `integrationTest` and need Docker. [Test Layers](documentation/docs/en/contribute/testing.md) says which tests a change needs.
+
+Detekt reads every Kotlin source set of a module, the integration tests and test fixtures included, and changes nothing. `-Pwow.detekt.autoCorrect` lets it correct the formatting rules' findings in place: read what it rewrote before you commit it.
 
 ```bash
 ./gradlew :kernel:test

@@ -243,6 +243,10 @@ ext.set("checkShardProjects", checkShardProjects)
 val testTimeoutMinutes = providers.gradleProperty("wow.test.timeout-minutes").orNull?.toLong() ?: 10L
 val hangIdleSeconds = providers.gradleProperty("wow.test.hang-idle-seconds").orNull?.toLong() ?: 480L
 
+// Detekt reports and changes nothing, in CI and before a push alike. `-Pwow.detekt.autoCorrect` lets a developer's run
+// correct the formatting rules' findings in place, to be read before they are committed.
+val detektAutoCorrect = providers.gradleProperty("wow.detekt.autoCorrect").orNull?.let { it != "false" } ?: false
+
 /**
  * Watches one test task: whenever no test or suite of it starts or finishes for [idleSeconds] while it runs, it dumps
  * the threads of every JVM below this build into [dir], at most [MAX_DUMPS] times a run, and says so in the build log.
@@ -466,7 +470,10 @@ allprojects {
     configure<DetektExtension> {
         config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
         buildUponDefaultConfig = true
-        autoCorrect = true
+        autoCorrect = detektAutoCorrect
+        // The integration tests and the test fixtures meet the rules the unit tests meet: `detekt`, which `check`
+        // runs, reads them beside the plugin's own `src/main` and `src/test`.
+        source.from("src/integrationTest/kotlin", "src/testFixtures/kotlin")
     }
     dependencies {
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
