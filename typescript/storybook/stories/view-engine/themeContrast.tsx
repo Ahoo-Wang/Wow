@@ -25,7 +25,8 @@ import {
   linesOf,
   type PairKind,
 } from '@/ui/theme/pairs';
-import { declaredVariable, type TokenEntry, TOKENS } from '@/ui/theme/tokens';
+import { declaredVariable, TOKENS } from '@/ui/theme/tokens';
+import { type TokenEntry } from '@/ui/theme/entry';
 import { measureBorderContrast, measureTextContrast } from './contrast.js';
 
 /**

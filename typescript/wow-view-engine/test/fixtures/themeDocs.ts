@@ -36,9 +36,9 @@ import { TOKEN_DOCS, type Words } from '../../theme-check/tokenDocs';
 import {
   presetVariables,
   THEME_ATTRIBUTES,
-  type TokenEntry,
   TOKENS,
 } from '../../src/ui/theme/tokens';
+import { type TokenEntry } from '../../src/ui/theme/entry';
 import { declared, type Mode, tokenVariable } from './themeTokens';
 import { stylesSource } from '../../scripts/styles.mjs';
 

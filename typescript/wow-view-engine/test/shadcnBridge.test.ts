@@ -16,11 +16,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss, { type Rule } from 'postcss';
 import { describe, expect, it } from 'vitest';
-import {
-  presetVariables,
-  type TokenEntry,
-  TOKENS,
-} from '../src/ui/theme/tokens';
+import { presetVariables, TOKENS } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 
 /**
  * The shadcn bridge (phase 5, 5D, D30 Q46), read from its source.

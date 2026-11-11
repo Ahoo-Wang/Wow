@@ -37,7 +37,8 @@ import {
   resolveTokens,
   tokenVariable,
 } from './fixtures/themeTokens';
-import { type TokenEntry, TOKENS } from '../src/ui/theme/tokens';
+import { TOKENS } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 
 const NAMES = (TOKENS as readonly TokenEntry[])
   .filter(entry => entry.block)

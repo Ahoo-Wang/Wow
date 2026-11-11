@@ -37,10 +37,9 @@ import {
   THEME_ATTRIBUTES,
   THEME_AXES,
   TOKEN_CLASSES,
-  TOKEN_GROUPS,
-  type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
+import { TOKEN_GROUPS, type TokenEntry } from '../src/ui/theme/entry';
 
 /** One registry entry, with the variables it is written and declared as. */
 export interface RegistryToken extends TokenEntry {

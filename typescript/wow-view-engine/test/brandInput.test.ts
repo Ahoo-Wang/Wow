@@ -32,7 +32,8 @@ import { clampChroma, converter, formatHex, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { measure } from './fixtures/presetPairs';
 import { isPending } from '../src/ui/theme/pairs';
-import { type TokenEntry, TOKENS } from '../src/ui/theme/tokens';
+import { TOKENS } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 import {
   CONVENTIONS,
   declared,
