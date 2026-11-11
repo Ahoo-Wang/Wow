@@ -272,7 +272,7 @@ const page = (locale, title, description, sources, body) =>
 /**
  * A configuration type as an operator reads it: the JDK's and Kotlin's packages dropped, and a Wow class by its own name,
  * a nested one by its last name (`WowProperties$Switch` is `Switch`). A host properties class, the class of one area of
- * the `wow.*` tree (`me.ahoo.wow.spring.boot.StoreProperties`), is the group it binds: `Store`.
+ * the `wow.*` tree (`me.ahoo.wow.spring.boot.store.StoreProperties`), is the group it binds: `Store`.
  */
 export const javaType = (type = '') =>
   type
