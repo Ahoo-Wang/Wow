@@ -391,7 +391,7 @@ class SkillEvalDescriptorsTest {
         const val UNMAPPED_STATE = """"state": { "type": "object", "dynamic": false }"""
         const val UNMAPPED_BODY = """"body": { "type": "object", "dynamic": false }"""
         val TIERS = listOf("T1", "T2", "T3", "T4")
-        val TEMPORAL = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
+        val TEMPORAL = "x-wow-temporal" to mapOf("unit" to "milliseconds")
         val SKILLS: Path = Path.of("..", "..", "skills")
         val DESCRIPTOR_BLOCK = Regex("```json\\n(\\{.*?\\n})\\n```", RegexOption.DOT_MATCHES_ALL)
         val UPDATE = System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)

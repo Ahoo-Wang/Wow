@@ -25,12 +25,21 @@ import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Reference
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.TimeSpan
+import me.ahoo.wow.query.schema.timeUnitOf
+import me.ahoo.wow.query.schema.word
+import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueDeserializer
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.deser.std.StdDeserializer
 import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.jsontype.NamedType
 import tools.jackson.databind.module.SimpleModule
+import java.util.concurrent.TimeUnit
 
 /*
  * The JSON of the capability descriptor's vocabulary (`me.ahoo.wow.query.descriptor`), as 9.x `wow-api` wrote it:
@@ -59,6 +68,8 @@ internal fun SimpleModule.registerDescriptorJson() {
     setMixInAnnotation(NumericFormat.Money::class.java, NonNullMixin::class.java)
     setMixInAnnotation(Reference::class.java, NonNullMixin::class.java)
     setMixInAnnotation(QueryDeprecation::class.java, NonNullMixin::class.java)
+    setMixInAnnotation(Temporal.Epoch::class.java, TimeUnitWordMixin::class.java)
+    setMixInAnnotation(TimeSpan::class.java, TimeUnitWordMixin::class.java)
     registerSubtypes(*semanticSubtypes.toTypedArray())
 }
 
@@ -87,3 +98,25 @@ internal interface UnknownSemanticTypeMixin
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 internal interface NonNullMixin
+
+/** A semantic type's `timeUnit`, written and read as its lower-case word, `milliseconds`; the JDK's name is refused. */
+internal interface TimeUnitWordMixin {
+    @get:JsonSerialize(using = TimeUnitWordWriter::class)
+    @get:JsonDeserialize(using = TimeUnitWordReader::class)
+    val timeUnit: TimeUnit
+}
+
+private class TimeUnitWordWriter : ValueSerializer<TimeUnit>() {
+    override fun serialize(value: TimeUnit, gen: JsonGenerator, ctxt: SerializationContext) {
+        gen.writeString(value.word)
+    }
+}
+
+private class TimeUnitWordReader : ValueDeserializer<TimeUnit>() {
+    override fun deserialize(parser: JsonParser, context: DeserializationContext): TimeUnit = try {
+        timeUnitOf(parser.valueAsString)
+    } catch (unknown: IllegalArgumentException) {
+        throw MismatchedInputException.from(parser, TimeUnit::class.java, unknown.message)
+    }
+}
+

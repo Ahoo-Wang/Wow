@@ -24,6 +24,15 @@ import java.util.concurrent.TimeUnit
 
 private const val NANOS_PER_SECOND = 1_000_000_000L
 
+/** A time unit's word in the capability descriptor and the Manifest: its name in lower case, `milliseconds`. */
+internal val TimeUnit.word: String
+    get() = name.lowercase()
+
+/** The time unit [word] names: only the lower-case word, `milliseconds`, names one. */
+internal fun timeUnitOf(word: String): TimeUnit = requireNotNull(TimeUnit.entries.firstOrNull { it.word == word }) {
+    "Unknown time unit [$word]: one of ${TimeUnit.entries.joinToString { it.word }}."
+}
+
 /** An epoch of [TimeUnit.MILLISECONDS], the unit a number that declares none counts in. */
 internal val EPOCH_MILLIS: Temporal.Epoch = Temporal.Epoch(TimeUnit.MILLISECONDS)
 

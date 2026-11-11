@@ -221,7 +221,7 @@
       "nullable": false,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -456,7 +456,7 @@
       "nullable": false,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -1150,7 +1150,7 @@
       "nullable": false,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -1329,7 +1329,7 @@
       "nullable": true,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -1502,7 +1502,7 @@
       "nullable": false,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -1724,7 +1724,7 @@
       "nullable": true,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -1851,7 +1851,7 @@
       "nullable": true,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "project": true,
       "filter": {
@@ -2409,7 +2409,7 @@
       "nullable": false,
       "semantic": {
         "type": "temporal-epoch",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "filter": {
         "operators": [
@@ -2529,7 +2529,7 @@
       "nullable": false,
       "semantic": {
         "type": "duration",
-        "timeUnit": "MILLISECONDS"
+        "timeUnit": "milliseconds"
       },
       "filter": {
         "operators": [

@@ -15,12 +15,17 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AfterNowFilter
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.EarlierDaysFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
+import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.NextMonthFilter
 import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NextYearFilter
@@ -34,11 +39,12 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.query.resolve.QueryResolver
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
 import java.math.BigDecimal
-import java.time.format.DateTimeFormatter
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class QueryValueDomainsTest {
@@ -115,23 +121,13 @@ class QueryValueDomainsTest {
         TodayFilter(field).temporal(epoch).assert().isEqualTo(epoch)
         TodayFilter(field).temporal(Temporal.Date).assert().isEqualTo(Temporal.Date)
         TodayFilter(field).temporal(formatted).assert().isEqualTo(formatted)
-        TodayFilter(field, datePattern = "yyyy-MM-dd").temporal(formatted).assert().isEqualTo(formatted)
 
         assertThrows<QuerySchemaValidationException> { TodayFilter(field).temporal(null) }
             .violation.assert().isEqualTo(QueryViolation.TemporalRepresentationRequired(field))
-        assertThrows<QuerySchemaValidationException> {
-            TodayFilter(field, dateFormatter = DateTimeFormatter.ISO_DATE).temporal(formatted)
-        }.violation.assert().isEqualTo(QueryViolation.TemporalRepresentationRequired(field))
-        assertThrows<QuerySchemaValidationException> {
-            TodayFilter(field, datePattern = "yyyy-MM-dd").temporal(epoch, QueryField("at"))
-        }.violation.assert().isEqualTo(QueryViolation.TemporalConfigurationConflict(QueryField("at")))
-        assertThrows<QuerySchemaValidationException> {
-            TodayFilter(field, datePattern = "yyyy/MM/dd").temporal(formatted)
-        }
     }
 
     @Test
-    fun `every relative-time filter takes on the encoding of its field`() {
+    fun `every relative-time filter is lowered in the encoding of its field`() {
         val filters: List<RelativeTimeFilter> = listOf(
             TodayFilter(field),
             BeforeTodayFilter(field, "10:00"),
@@ -151,17 +147,19 @@ class QueryValueDomainsTest {
             BeforeNowFilter(field),
             AfterNowFilter(field),
         )
+        val now = Instant.parse("2026-08-22T12:00:00Z")
+        fun bounds(lowered: FilterExpression): List<Any?> = when (lowered) {
+            is AndFilter -> lowered.operands.flatMap(::bounds)
+            is GreaterThanOrEqualFilter -> listOf(lowered.value)
+            is GreaterThanFilter -> listOf(lowered.value)
+            is LessThanFilter -> listOf(lowered.value)
+            else -> error("Not a bound: $lowered")
+        }
         filters.forEach { filter ->
-            val seconds = filter.withTemporal(Temporal.Epoch(TimeUnit.SECONDS))
-            seconds.javaClass.assert().isEqualTo(filter.javaClass)
-            seconds.timeUnit.assert().isEqualTo(TimeUnit.SECONDS)
-            seconds.field.assert().isEqualTo(field)
-            val formatted = filter.withTemporal(Temporal.Formatted("yyyy-MM-dd"))
-            formatted.datePattern.assert().isEqualTo("yyyy-MM-dd")
-            formatted.javaClass.assert().isEqualTo(filter.javaClass)
-            filter.withTemporal(Temporal.Date).assert().isSameAs(filter)
-            // An encoding the filter already states keeps the filter.
-            filter.withTemporal(Temporal.Epoch(TimeUnit.MILLISECONDS)).assert().isSameAs(filter)
+            val seconds = bounds(QueryResolver.normalizer.lower(filter, now, Temporal.Epoch(TimeUnit.SECONDS)))
+            seconds.forEach { (it as Long).assert().isLessThan(now.epochSecond * 2) }
+            val text = bounds(QueryResolver.normalizer.lower(filter, now, Temporal.Formatted("yyyy-MM-dd")))
+            text.forEach { (it as String).assert().matches("\\d{4}-\\d{2}-\\d{2}") }
         }
     }
 }

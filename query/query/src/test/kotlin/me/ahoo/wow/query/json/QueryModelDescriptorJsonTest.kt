@@ -61,7 +61,7 @@ class QueryModelDescriptorJsonTest {
     }
 
     @Test
-    fun `the descriptor's vocabulary is lower-kebab, but for a JDK time unit`() {
+    fun `the descriptor's vocabulary is lower-kebab, its time units included`() {
         val values = protocolValues(QueryJson.mapper.readTree(GOLDEN.readText()))
         values.map { it.first }.distinct().assert().containsExactlyInAnyOrderElementsOf(PROTOCOL_KEYS)
         values.filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
@@ -145,6 +145,16 @@ class QueryModelDescriptorJsonTest {
         QueryJson.mapper.readValue("\"decimal\"", QueryValueType::class.java).assert().isEqualTo(QueryValueType.DECIMAL)
         // An upper-case identifier is not a wire name: a model or a value type is spelled lower-kebab.
         assertThrows<JacksonException> { QueryJson.mapper.readValue("\"SNAPSHOT\"", QueryModel::class.java) }
+        // A time unit is its lower-case word, and the JDK's name is refused.
+        QueryJson.mapper.writeValueAsString(TimeSpan(TimeUnit.SECONDS))
+            .assert().isEqualTo("""{"type":"duration","timeUnit":"seconds"}""")
+        val micros = """{"type":"temporal-epoch","timeUnit":"microseconds"}"""
+        QueryJson.mapper.readValue(micros, QuerySemanticType::class.java)
+            .assert().isEqualTo(Temporal.Epoch(TimeUnit.MICROSECONDS))
+        listOf("""{"type":"temporal-epoch","timeUnit":"SECONDS"}""", """{"type":"duration","timeUnit":"ages"}""")
+            .forEach { json ->
+                assertThrows<JacksonException> { QueryJson.mapper.readValue(json, QuerySemanticType::class.java) }
+            }
     }
 
     private companion object {
@@ -154,7 +164,7 @@ class QueryModelDescriptorJsonTest {
         /** The keys whose values are the protocol's own words; paths, patterns, currencies and zones are not. */
         val PROTOCOL_KEYS = setOf(
             "model", "role", "types", "kind", "operators", "rootOperators", "groups", "functions", "metrics", "windows",
-            "paging", "type", "dateUnits", "dateParts", "dateDiffUnits", "level", "defaultScope",
+            "paging", "type", "dateUnits", "dateParts", "dateDiffUnits", "level", "defaultScope", "timeUnit",
         )
         val GOLDEN: Path = Path.of("src", "test", "resources", "descriptor", "order-snapshot.descriptor.json")
     }

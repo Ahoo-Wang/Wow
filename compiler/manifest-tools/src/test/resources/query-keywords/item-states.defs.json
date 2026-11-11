@@ -12,14 +12,14 @@
                 "type" : [ "integer", "null" ],
                 "format" : "int64",
                 "x-wow-temporal" : {
-                  "unit" : "MILLISECONDS"
+                  "unit" : "milliseconds"
                 }
               },
               "startDate" : {
                 "type" : "integer",
                 "format" : "int64",
                 "x-wow-temporal" : {
-                  "unit" : "MILLISECONDS"
+                  "unit" : "milliseconds"
                 }
               },
               "type" : {
@@ -45,14 +45,14 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "startDate" : {
           "type" : "integer",
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "type" : {
@@ -86,14 +86,14 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "startDate" : {
           "type" : "integer",
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "type" : {
@@ -133,14 +133,14 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "startDate" : {
           "type" : "integer",
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "type" : {

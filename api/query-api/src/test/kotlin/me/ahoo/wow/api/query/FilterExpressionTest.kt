@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.time.Duration
-import java.time.format.DateTimeFormatter
 
 class FilterExpressionTest {
     @Test
@@ -30,9 +29,6 @@ class FilterExpressionTest {
         }
         assertThrows<IllegalArgumentException> {
             NextMonthFilter(field, zoneId = "Not/AZone")
-        }
-        assertThrows<IllegalArgumentException> {
-            ThisYearFilter(field, datePattern = "invalid")
         }
     }
 
@@ -71,31 +67,21 @@ class FilterExpressionTest {
     }
 
     @Test
-    fun `new relative calendar filters should keep their common configuration`() {
+    fun `new relative calendar filters should keep their zone`() {
         val field = QueryField("state.createTime")
         val filters = listOf<RelativeTimeFilter>(
-            YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
-            NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
-            LastYearFilter(field, "UTC", "yyyy-MM-dd"),
-            ThisYearFilter(field, "UTC", "yyyy-MM-dd"),
-            NextYearFilter(field, "UTC", "yyyy-MM-dd"),
+            YesterdayFilter(field, "UTC"),
+            NextMonthFilter(field, "UTC"),
+            LastYearFilter(field, "UTC"),
+            ThisYearFilter(field, "UTC"),
+            NextYearFilter(field, "UTC"),
         )
 
         filters.forEach { filter ->
             filter.field.assert().isEqualTo(field)
             filter.zoneId.assert().isEqualTo("UTC")
-            filter.datePattern.assert().isEqualTo("yyyy-MM-dd")
-            filter.resolvedDateFormatter().assert().isNotNull()
             filter.resolvedZoneId().assert().isEqualTo(java.time.ZoneId.of("UTC"))
         }
-    }
-
-    @Test
-    fun `a runtime formatter should take the place of the date pattern`() {
-        val filter = YesterdayFilter(QueryField("state.createTime"), dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE)
-
-        filter.datePattern.assert().isNull()
-        filter.resolvedDateFormatter().assert().isSameAs(DateTimeFormatter.ISO_LOCAL_DATE)
     }
 
     @Test

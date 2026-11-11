@@ -26,17 +26,28 @@ import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.boundSchemaFixture
 import org.junit.jupiter.api.Test
-import java.time.Clock
+import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
-    private val normalizer = FilterNormalizer(
-        Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
-        ZoneOffset.UTC,
-    )
+    private val normalizer = FilterNormalizer(ZoneOffset.UTC)
+    private val noon = Instant.parse("2026-08-22T12:00:00Z")
+    private val millis = Temporal.Epoch(TimeUnit.MILLISECONDS)
+
+    /** [expression] lowered at [at] as admission's resolution pass lowers it, every field keeping time as [temporal]. */
+    private fun FilterNormalizer.normalize(
+        expression: FilterExpression,
+        temporal: Temporal = millis,
+        at: Instant = noon,
+    ): FilterExpression = when (expression) {
+        is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, temporal, at) })
+        is OrFilter -> simplifyOr(expression.operands.map { normalize(it, temporal, at) })
+        is NorFilter -> simplifyNor(expression.operands.map { normalize(it, temporal, at) })
+        is ElementMatchFilter -> ElementMatchFilter(expression.field, normalize(expression.predicate, temporal, at))
+        else -> lower(expression, at, temporal)
+    }
 
     @Test
     fun `raw normalization must not inject a deletion predicate`() {
@@ -117,14 +128,27 @@ class FilterNormalizerTest {
     }
 
     @Test
-    fun `should preserve runtime date formatter`() {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    fun `a field kept as text is given its window in its pattern`() {
         val normalized = normalizer.normalize(
-            TodayFilter(QueryField("createdAt"), dateFormatter = formatter),
+            TodayFilter(QueryField("createdAt")),
+            Temporal.Formatted("yyyy-MM-dd HH:mm:ss"),
         ) as AndFilter
 
+        (normalized.operands[0] as GreaterThanOrEqualFilter).value.assert().isEqualTo("2026-08-22 00:00:00")
+        (normalized.operands[1] as LessThanFilter).value.assert().isEqualTo("2026-08-23 00:00:00")
+    }
+
+    @Test
+    fun `a date field is given its window in epoch milliseconds`() {
+        val normalized = normalizer.normalize(TodayFilter(QueryField("createdAt")), Temporal.Date) as AndFilter
+
         (normalized.operands[0] as GreaterThanOrEqualFilter).value.assert()
-            .isEqualTo("2026-08-22 00:00:00")
+            .isEqualTo(Instant.parse("2026-08-22T00:00:00Z").toEpochMilli())
+    }
+
+    @Test
+    fun `relative time is lowered only with the field's temporal`() {
+        assertThrows<IllegalStateException> { normalizer.lower(TodayFilter(QueryField("createdAt")), noon, null) }
     }
 
     @Test
@@ -132,26 +156,20 @@ class FilterNormalizerTest {
         val jvmZone = java.util.TimeZone.getDefault()
         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
         try {
-            val defaults = FilterNormalizer(Clock.fixed(Instant.parse("2026-08-22T20:00:00Z"), ZoneOffset.UTC))
-            defaults.normalize(TodayFilter(QueryField("createdAt"))).assert()
-                .isEqualTo(defaults.normalize(TodayFilter(QueryField("createdAt"), "UTC")))
+            val defaults = FilterNormalizer()
+            val evening = Instant.parse("2026-08-22T20:00:00Z")
+            defaults.normalize(TodayFilter(QueryField("createdAt")), at = evening).assert()
+                .isEqualTo(defaults.normalize(TodayFilter(QueryField("createdAt"), "UTC"), at = evening))
         } finally {
             java.util.TimeZone.setDefault(jvmZone)
         }
     }
 
     @Test
-    fun `should emit numeric boundaries in configured time unit`() {
-        val normalized = FilterNormalizer(
-            clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
-            defaultZoneId = ZoneOffset.UTC,
-        ).normalize(
-            BeforeTodayFilter(
-                field = QueryField("createdAt"),
-                time = "12:00:00.123456789",
-                zoneId = "UTC",
-                timeUnit = TimeUnit.NANOSECONDS,
-            ),
+    fun `should emit numeric boundaries in the field's time unit`() {
+        val normalized = normalizer.normalize(
+            BeforeTodayFilter(field = QueryField("createdAt"), time = "12:00:00.123456789", zoneId = "UTC"),
+            Temporal.Epoch(TimeUnit.NANOSECONDS),
         ) as LessThanFilter
 
         normalized.value.assert().isEqualTo(1_787_400_000_123_456_789L)
@@ -161,10 +179,7 @@ class FilterNormalizerTest {
     fun `should expand extended calendar filters in their local zone across leap year`() {
         val field = QueryField("createdAt")
         val zoneId = "Asia/Shanghai"
-        val localNormalizer = FilterNormalizer(
-            clock = Clock.fixed(Instant.parse("2024-02-29T12:00:00Z"), ZoneOffset.UTC),
-            defaultZoneId = ZoneOffset.UTC,
-        )
+        val leapDay = Instant.parse("2024-02-29T12:00:00Z")
         val cases = listOf(
             YesterdayFilter(field, zoneId) to
                 (Instant.parse("2024-02-27T16:00:00Z") to Instant.parse("2024-02-28T16:00:00Z")),
@@ -179,7 +194,7 @@ class FilterNormalizerTest {
         )
 
         cases.forEach { (relative, expected) ->
-            val normalized = localNormalizer.normalize(relative) as AndFilter
+            val normalized = normalizer.normalize(relative, at = leapDay) as AndFilter
             val start = normalized.operands[0] as GreaterThanOrEqualFilter
             val end = normalized.operands[1] as LessThanFilter
             start.field.assert().isEqualTo(field)
@@ -223,9 +238,9 @@ class FilterNormalizerTest {
             .isEqualTo(
                 GreaterThanFilter(field, now.minusSeconds(1800).toEpochMilli())
             )
-        normalizer.normalize(BeforeNowFilter(field, "PT1H", timeUnit = TimeUnit.SECONDS)).assert()
+        normalizer.normalize(BeforeNowFilter(field, "PT1H"), Temporal.Epoch(TimeUnit.SECONDS)).assert()
             .isEqualTo(LessThanFilter(field, now.plusSeconds(3600).epochSecond))
-        normalizer.normalize(BeforeNowFilter(field, zoneId = "Asia/Shanghai", datePattern = "yyyy-MM-dd HH:mm"))
+        normalizer.normalize(BeforeNowFilter(field, zoneId = "Asia/Shanghai"), Temporal.Formatted("yyyy-MM-dd HH:mm"))
             .assert()
             .isEqualTo(LessThanFilter(field, "2026-08-22 20:00"))
     }

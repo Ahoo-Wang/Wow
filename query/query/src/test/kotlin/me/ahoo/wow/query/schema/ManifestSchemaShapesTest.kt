@@ -41,7 +41,7 @@ class ManifestSchemaShapesTest {
                     "times" to mapOf(
                         "type" to "array",
                         "items" to mapOf("type" to "integer"),
-                        ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "SECONDS"),
+                        ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "seconds"),
                     ),
                     "either" to mapOf(
                         "anyOf" to listOf(
@@ -49,7 +49,7 @@ class ManifestSchemaShapesTest {
                             mapOf("type" to "array", "items" to mapOf("type" to "integer")),
                             mapOf("type" to "null"),
                         ),
-                        ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "MILLISECONDS"),
+                        ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "milliseconds"),
                     ),
                     "amounts" to mapOf(
                         "anyOf" to listOf(

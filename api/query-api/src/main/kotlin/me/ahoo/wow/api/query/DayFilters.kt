@@ -15,25 +15,14 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 class TodayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
-    override fun withField(field: QueryField<*>): TodayFilter = TodayFilter(
-        field,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): TodayFilter = TodayFilter(field, zoneId)
 
     init {
         validateConfiguration()
@@ -44,19 +33,16 @@ class TodayFilter @InternalWowApi constructor(
     fun copy(
         field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): TodayFilter = TodayFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+    ): TodayFilter = TodayFilter(field, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is TodayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "TodayFilter(field=$field, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "TodayFilter(field=$field, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, zoneId)
 
     companion object {
         /** A [TodayFilter] of the given values. */
@@ -65,10 +51,7 @@ class TodayFilter @InternalWowApi constructor(
         fun of(
             field: QueryField<*>,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): TodayFilter = TodayFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+        ): TodayFilter = TodayFilter(field, zoneId)
     }
 }
 
@@ -76,20 +59,10 @@ class BeforeTodayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val time: String,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
-    override fun withField(field: QueryField<*>): BeforeTodayFilter = BeforeTodayFilter(
-        field,
-        time,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
 
     init {
         try {
@@ -106,19 +79,16 @@ class BeforeTodayFilter @InternalWowApi constructor(
         field: QueryField<*> = this.field,
         time: String = this.time,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId, datePattern, dateFormatter, timeUnit)
+    ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is BeforeTodayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "BeforeTodayFilter(field=$field, time=$time, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "BeforeTodayFilter(field=$field, time=$time, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, time, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, time, zoneId)
 
     companion object {
         /** A [BeforeTodayFilter] of the given values. */
@@ -128,29 +98,17 @@ class BeforeTodayFilter @InternalWowApi constructor(
             field: QueryField<*>,
             time: String,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId, datePattern, dateFormatter, timeUnit)
+        ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
     }
 }
 
 class TomorrowFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
-    override fun withField(field: QueryField<*>): TomorrowFilter = TomorrowFilter(
-        field,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): TomorrowFilter = TomorrowFilter(field, zoneId)
 
     init {
         validateConfiguration()
@@ -161,19 +119,16 @@ class TomorrowFilter @InternalWowApi constructor(
     fun copy(
         field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): TomorrowFilter = TomorrowFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+    ): TomorrowFilter = TomorrowFilter(field, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is TomorrowFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "TomorrowFilter(field=$field, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "TomorrowFilter(field=$field, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, zoneId)
 
     companion object {
         /** A [TomorrowFilter] of the given values. */
@@ -182,29 +137,17 @@ class TomorrowFilter @InternalWowApi constructor(
         fun of(
             field: QueryField<*>,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): TomorrowFilter = TomorrowFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+        ): TomorrowFilter = TomorrowFilter(field, zoneId)
     }
 }
 
 class YesterdayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
-    override fun withField(field: QueryField<*>): YesterdayFilter = YesterdayFilter(
-        field,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): YesterdayFilter = YesterdayFilter(field, zoneId)
 
     init { validateConfiguration() }
 
@@ -213,19 +156,16 @@ class YesterdayFilter @InternalWowApi constructor(
     fun copy(
         field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): YesterdayFilter = YesterdayFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+    ): YesterdayFilter = YesterdayFilter(field, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is YesterdayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "YesterdayFilter(field=$field, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "YesterdayFilter(field=$field, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, zoneId)
 
     companion object {
         /** A [YesterdayFilter] of the given values. */
@@ -234,9 +174,6 @@ class YesterdayFilter @InternalWowApi constructor(
         fun of(
             field: QueryField<*>,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): YesterdayFilter = YesterdayFilter(field, zoneId, datePattern, dateFormatter, timeUnit)
+        ): YesterdayFilter = YesterdayFilter(field, zoneId)
     }
 }

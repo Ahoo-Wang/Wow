@@ -100,7 +100,6 @@ import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.query.YesterdayFilter
 import java.math.BigDecimal
 import java.math.BigInteger
-import java.util.concurrent.TimeUnit
 
 /**
  * The values the golden wire file (`json/query-golden.tsv`) holds the JSON of, one per line by name. The 9.x half was
@@ -150,16 +149,16 @@ internal object QueryJsonGoldenCases {
         "DELETION" to DeletionFilter(DeletionState.DELETED),
         "ELEMENT_MATCH" to ElementMatchFilter(items, EqualFilter(QueryField("name"), v(null))),
         "SEARCH" to SearchFilter("event sourcing", setOf(QueryField("state.description")), SearchMode.PHRASE),
-        "TODAY" to TodayFilter(created, "UTC", "yyyy-MM-dd"),
+        "TODAY" to TodayFilter(created, "UTC"),
         "BEFORE_TODAY" to BeforeTodayFilter(created, "18:00", "Asia/Shanghai"),
-        "TOMORROW" to TomorrowFilter(created, timeUnit = TimeUnit.SECONDS),
+        "TOMORROW" to TomorrowFilter(created),
         "THIS_WEEK" to ThisWeekFilter(created),
         "NEXT_WEEK" to NextWeekFilter(created),
         "LAST_WEEK" to LastWeekFilter(created),
         "THIS_MONTH" to ThisMonthFilter(created),
         "LAST_MONTH" to LastMonthFilter(created),
         "RECENT_DAYS" to RecentDaysFilter(created, 7, "UTC"),
-        "EARLIER_DAYS" to EarlierDaysFilter(created, 30, datePattern = "yyyyMMdd"),
+        "EARLIER_DAYS" to EarlierDaysFilter(created, 30),
         "YESTERDAY" to YesterdayFilter(created),
         "NEXT_MONTH" to NextMonthFilter(created),
         "LAST_YEAR" to LastYearFilter(created),

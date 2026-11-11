@@ -31,6 +31,7 @@ class QueryValueSemanticsTest : ValueSemanticsSpec() {
             "the events model's constant, or read from the stored names, which equals compares"
     } + mapOf(
         "me.ahoo.wow.query.schema.MaskRule#compiled" to "compiled from the mask, which equals compares",
+        "me.ahoo.wow.query.schema.Temporal\$Formatted#formatter" to "built from the pattern, which equals compares",
     ) + listOf("keyCount", "hasOrderedKeys", "hash", "fixedField").associate {
         "me.ahoo.wow.query.schema.QueryPathTemplate#$it" to "computed from the segments, which equals compares"
     }

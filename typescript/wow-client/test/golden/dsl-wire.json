@@ -304,141 +304,141 @@
   "filter.today": {
     "field": "state.createTime",
     "op": "today",
-    "timeUnit": "MILLISECONDS"
+    "timeUnit": "milliseconds"
   },
   "filter.today (zone)": {
     "field": "state.createTime",
     "op": "today",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.today (pattern)": {
     "datePattern": "yyyy-MM-dd",
     "field": "state.date",
     "op": "today",
-    "timeUnit": "SECONDS",
+    "timeUnit": "seconds",
     "zoneId": "+08:00"
   },
   "filter.beforeToday": {
     "field": "state.createTime",
     "op": "before-today",
     "time": "12:00",
-    "timeUnit": "MILLISECONDS"
+    "timeUnit": "milliseconds"
   },
   "filter.beforeToday (pattern)": {
     "datePattern": "yyyy-MM-dd",
     "field": "state.date",
     "op": "before-today",
     "time": "08:30:15",
-    "timeUnit": "SECONDS",
+    "timeUnit": "seconds",
     "zoneId": "+08:00"
   },
   "filter.tomorrow": {
     "field": "state.dueTime",
     "op": "tomorrow",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.yesterday": {
     "field": "state.createTime",
     "op": "yesterday",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.thisWeek": {
     "field": "state.createTime",
     "op": "this-week",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.nextWeek": {
     "field": "state.createTime",
     "op": "next-week",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.lastWeek": {
     "field": "state.createTime",
     "op": "last-week",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.thisMonth": {
     "field": "state.createTime",
     "op": "this-month",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.nextMonth": {
     "field": "state.createTime",
     "op": "next-month",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.lastMonth": {
     "field": "state.createTime",
     "op": "last-month",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.thisYear": {
     "field": "state.createTime",
     "op": "this-year",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.nextYear": {
     "field": "state.createTime",
     "op": "next-year",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.lastYear": {
     "field": "state.createTime",
     "op": "last-year",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.recentDays": {
     "days": 7,
     "field": "state.createTime",
     "op": "recent-days",
-    "timeUnit": "MILLISECONDS"
+    "timeUnit": "milliseconds"
   },
   "filter.recentDays (pattern)": {
     "datePattern": "yyyy-MM-dd",
     "days": 30,
     "field": "state.date",
     "op": "recent-days",
-    "timeUnit": "SECONDS",
+    "timeUnit": "seconds",
     "zoneId": "+08:00"
   },
   "filter.earlierDays": {
     "days": 7,
     "field": "state.createTime",
     "op": "earlier-days",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.beforeNow": {
     "field": "state.timeoutAt",
     "offset": "PT0S",
     "op": "before-now",
-    "timeUnit": "MILLISECONDS"
+    "timeUnit": "milliseconds"
   },
   "filter.beforeNow (pattern)": {
     "datePattern": "yyyy-MM-dd",
     "field": "state.date",
     "offset": "P1DT2H",
     "op": "before-now",
-    "timeUnit": "SECONDS",
+    "timeUnit": "seconds",
     "zoneId": "+08:00"
   },
   "filter.afterNow": {
     "field": "state.createTime",
     "offset": "-PT30M",
     "op": "after-now",
-    "timeUnit": "MILLISECONDS",
+    "timeUnit": "milliseconds",
     "zoneId": "Asia/Shanghai"
   },
   "filter.expression": {

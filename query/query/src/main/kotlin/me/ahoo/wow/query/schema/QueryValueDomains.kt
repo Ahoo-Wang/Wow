@@ -13,29 +13,11 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.AfterNowFilter
-import me.ahoo.wow.api.query.BeforeNowFilter
-import me.ahoo.wow.api.query.BeforeTodayFilter
-import me.ahoo.wow.api.query.EarlierDaysFilter
-import me.ahoo.wow.api.query.LastMonthFilter
-import me.ahoo.wow.api.query.LastWeekFilter
-import me.ahoo.wow.api.query.LastYearFilter
-import me.ahoo.wow.api.query.NextMonthFilter
-import me.ahoo.wow.api.query.NextWeekFilter
-import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
-import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
-import me.ahoo.wow.api.query.ThisMonthFilter
-import me.ahoo.wow.api.query.ThisWeekFilter
-import me.ahoo.wow.api.query.ThisYearFilter
-import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.api.query.TomorrowFilter
-import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.query.resolve.jsonValueOrNull
 import tools.jackson.databind.JsonNode
-import java.util.concurrent.TimeUnit
 
 /**
  * The values an operation on this value compares: the value itself, an array's items (one member layer, without
@@ -95,52 +77,10 @@ private fun JsonNode.matches(type: QueryValueType): Boolean = when (type) {
 }
 
 /**
- * The encoding this relative-time filter resolves against: the field's [temporal] encoding (its compiled
- * [QueryFieldCapabilities.temporal]), which the filter's own configuration must not contradict.
+ * The encoding this relative-time filter's window is written in: the field's [temporal] encoding (its compiled
+ * [QueryFieldCapabilities.temporal]). A field that keeps no time takes no relative-time filter.
  */
 internal fun RelativeTimeFilter.temporal(temporal: Temporal?, logical: QueryField<*> = field): Temporal {
-    requireValid(dateFormatter == null && temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
-    requireValid(
-        when (temporal) {
-            is Temporal.Epoch, Temporal.Date -> datePattern == null
-            is Temporal.Formatted -> datePattern == null || datePattern == temporal.pattern
-            null -> false
-        },
-    ) { QueryViolation.TemporalConfigurationConflict(logical) }
+    requireValid(temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
     return checkNotNull(temporal)
-}
-
-/** This filter encoding its window as a field with [temporal] stores time. */
-internal fun RelativeTimeFilter.withTemporal(temporal: Temporal): RelativeTimeFilter = when (temporal) {
-    is Temporal.Epoch -> copyTemporal(field, timeUnit = temporal.timeUnit)
-    is Temporal.Formatted -> copyTemporal(field, datePattern = temporal.pattern)
-    Temporal.Date -> this
-}
-
-@Suppress("CyclomaticComplexMethod")
-private fun RelativeTimeFilter.copyTemporal(
-    field: QueryField<*>,
-    datePattern: String? = this.datePattern,
-    timeUnit: TimeUnit = this.timeUnit,
-): RelativeTimeFilter {
-    if (field === this.field && datePattern == this.datePattern && timeUnit == this.timeUnit) return this
-    return when (this) {
-        is TodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is BeforeTodayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is TomorrowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastWeekFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is RecentDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is EarlierDaysFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is YesterdayFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextMonthFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is LastYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is ThisYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is NextYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is BeforeNowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-        is AfterNowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
-    }
 }
