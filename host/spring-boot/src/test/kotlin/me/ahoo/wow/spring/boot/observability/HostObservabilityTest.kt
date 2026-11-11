@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
@@ -42,6 +42,9 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

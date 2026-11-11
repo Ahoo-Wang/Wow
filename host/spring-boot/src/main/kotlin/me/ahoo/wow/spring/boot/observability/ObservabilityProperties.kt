@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.boot.context.properties.ConfigurationProperties

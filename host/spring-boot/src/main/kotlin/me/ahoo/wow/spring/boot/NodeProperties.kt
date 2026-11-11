@@ -19,6 +19,7 @@ import me.ahoo.wow.http.internal.HttpSignalSenderOptions
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_INTERNAL_PORT
+import me.ahoo.wow.spring.boot.observability.DEFAULT_HEALTH
 import java.time.Duration
 import kotlin.time.toJavaDuration
 

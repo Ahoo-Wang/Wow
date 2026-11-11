@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.Manifest
@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint

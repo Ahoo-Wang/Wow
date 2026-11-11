@@ -52,6 +52,7 @@ import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import me.ahoo.wow.spring.boot.config.SingleSeams
+import me.ahoo.wow.spring.boot.observability.ObservabilityAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration

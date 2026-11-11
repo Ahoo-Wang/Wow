@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,6 +37,10 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spring.boot.Answer
+import me.ahoo.wow.spring.boot.Host
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.health.contributor.Status

@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.config.ConnectionDefaultsEnvironmentPostProcessor
+import me.ahoo.wow.spring.boot.observability.HealthGroupsEnvironmentPostProcessor
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows

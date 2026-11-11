@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.store.QueryStores
@@ -21,6 +21,8 @@ import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication

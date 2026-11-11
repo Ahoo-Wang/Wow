@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.observability
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.WowHttpOptions
@@ -21,6 +21,8 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
