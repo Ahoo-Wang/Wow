@@ -33,15 +33,15 @@ sealed interface QueryField<T> {
     /** The field at [relative] under this one. */
     fun append(relative: QueryField<*>): QueryField<Any?> = PathField("$path.${relative.path}")
 
-    /** This field, absolute: under [parent] unless it already is. */
+    /**
+     * This field, absolute: under [parent] unless its path already lies under it, the one rule of a path under a
+     * prefix, which the filter and projection DSLs' blocks follow. A name equal to the parent's is under it: `state` in
+     * `state` is `state.state`. The rule cannot tell one case: a path that starts with the parent's path and a dot reads
+     * as already absolute, so a field of that same name one level down is written from the root (`state.state.name`,
+     * not `state.name`). That is what lets a generated field constant, which is absolute, be used inside a block.
+     */
     fun absoluteTo(parent: QueryField<*>?): QueryField<T> =
-        if (parent == null || this == parent || path.startsWith("${parent.path}.")) {
-            this
-        } else {
-            of(
-                parent.append(this).path
-            )
-        }
+        if (parent == null || path.startsWith("${parent.path}.")) this else of(parent.append(this).path)
 
     /** This field relative to [parent], or null when it is not under it. */
     fun relativeTo(parent: QueryField<*>): QueryField<T>? =

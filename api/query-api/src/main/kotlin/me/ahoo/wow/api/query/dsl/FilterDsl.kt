@@ -419,7 +419,7 @@ class FilterDsl internal constructor(
     }
 
     private fun resolvePath(value: String): String =
-        if (prefix == "" || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"
+        if (prefix == "") value else QueryField(value).absoluteTo(QueryField(prefix)).path
 }
 
 /** Builds a [FilterExpression]; see [FilterDsl]. */

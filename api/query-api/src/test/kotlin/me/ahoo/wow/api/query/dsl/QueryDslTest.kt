@@ -98,6 +98,25 @@ class QueryDslTest {
     }
 
     @Test
+    fun `a name equal to its block's path is under it, and a path under it is kept, in every block`() {
+        val state = QueryField("state")
+        val nestedState = QueryField("state.state")
+        QueryField("state").absoluteTo(state).assert().isEqualTo(nestedState)
+        QueryField("state.name").absoluteTo(state).assert().isEqualTo(QueryField("state.name"))
+        QueryField("name").absoluteTo(state).assert().isEqualTo(QueryField("state.name"))
+        filter { "state".path { "state" eq "paid" } }.assert().isEqualTo(EqualFilter(nestedState, "paid"))
+        filter { state.path { "state.name" eq "x" } }.assert().isEqualTo(EqualFilter(QueryField("state.name"), "x"))
+        projection {
+            nested("state")
+            include("state", "state.name")
+        }.include.assert().containsExactly(nestedState, QueryField("state.name"))
+        sort {
+            nested(state)
+            "state".asc()
+        }.assert().containsExactly(Sort(nestedState, Sort.Direction.ASC))
+    }
+
+    @Test
     fun `sort, projection and pagination stand alone`() {
         sort {
             nested("state")

@@ -26,6 +26,7 @@ class QueryFieldTest {
 
         absolute.assert().isEqualTo(QueryField("state.name"))
         name.absoluteTo(state).assert().isEqualTo(absolute)
+        absolute.absoluteTo(state).assert().isSameAs(absolute)
         absolute.relativeTo(state).assert().isEqualTo(name)
         state.relativeTo(state).assert().isNull()
     }

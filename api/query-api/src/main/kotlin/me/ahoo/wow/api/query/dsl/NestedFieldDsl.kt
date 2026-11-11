@@ -17,7 +17,8 @@ import me.ahoo.wow.api.query.QueryField
 
 /**
  * A DSL whose fields may be named under a common path: after `nested("state")`, `"name"` is `state.name`. A path
- * already under it is kept as it is.
+ * already under it is kept as it is, and a name equal to it is under it: `"state"` is `state.state`
+ * ([QueryField.absoluteTo]).
  */
 @QueryDslMarker
 abstract class NestedFieldDsl {
@@ -29,14 +30,7 @@ abstract class NestedFieldDsl {
 
     fun nested(nestedField: QueryField<*>) = nested(nestedField.path)
 
-    fun String.withNestedField(): String {
-        if (nestedField.isBlank() || startsWith("$nestedField$NESTED_FIELD_DELIMITER")) {
-            return this
-        }
-        return "$nestedField$NESTED_FIELD_DELIMITER$this"
-    }
-
-    private companion object {
-        const val NESTED_FIELD_DELIMITER = "."
-    }
+    /** This path in the block's terms: under its nested field, as [QueryField.absoluteTo] places it. */
+    fun String.withNestedField(): String =
+        if (nestedField.isBlank()) this else QueryField(this).absoluteTo(QueryField(nestedField)).path
 }
