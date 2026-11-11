@@ -140,7 +140,7 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
                 snapshot("s4", """{"name":"Four"}"""),
             ),
         )
-        fixture.ids(EqualFilter(QueryField("schedules.tick.zone"), "Asia/Shanghai")).assert().containsExactly("s1")
+        fixture.ids(EqualFilter(QueryField("schedules.tick.timeZone"), "Asia/Shanghai")).assert().containsExactly("s1")
         fixture.ids(EqualFilter(QueryField("schedules.tick.type"), "cron")).assert()
             .containsExactlyInAnyOrder("s1", "s2")
         fixture.ids(EqualFilter(QueryField("schedules.pay.millis"), 60_000)).assert().containsExactly("s3")

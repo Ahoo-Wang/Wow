@@ -207,7 +207,7 @@
           "job": {
             "name": "receive-deliveries",
             "cron": "0 0 6 * * *",
-            "zone": "UTC",
+            "timeZone": "UTC",
             "scope": "system",
             "misfire": "coalesce"
           }
@@ -514,7 +514,7 @@
             }
           ]
         },
-        "zone": { "type": ["string", "null"] }
+        "timeZone": { "type": ["string", "null"] }
       },
       "x-wow-class": "me.ahoo.wow.api.schedule.JobRule"
     },

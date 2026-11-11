@@ -140,7 +140,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`
-- 参数: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `misfire: Misfire = Misfire.COALESCE`
+- 参数: `name: String`, `cron: String`, `timeZone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `misfire: Misfire = Misfire.COALESCE`
 
 ## `@OnSourcing`
 

@@ -331,7 +331,7 @@ private fun String.schedulesField() = field(QueryValueType.OBJECT).let { (field,
                         ),
                         ScheduleFields.MILLIS to optionalProperty(QueryValueType.INTEGER, TimeSpan(TimeUnit.MILLISECONDS)),
                         ScheduleFields.EXPRESSION to optionalProperty(QueryValueType.STRING),
-                        ScheduleFields.ZONE to optionalProperty(QueryValueType.STRING),
+                        ScheduleFields.TIME_ZONE to optionalProperty(QueryValueType.STRING),
                         ScheduleFields.MISFIRE to optionalProperty(QueryValueType.STRING),
                     ),
                 ),
@@ -346,7 +346,7 @@ internal object ScheduleFields {
     const val EPOCH_MILLIS: String = "epochMillis"
     const val MILLIS: String = "millis"
     const val EXPRESSION: String = "expression"
-    const val ZONE: String = "zone"
+    const val TIME_ZONE: String = "timeZone"
     const val MISFIRE: String = "misfire"
 }
 

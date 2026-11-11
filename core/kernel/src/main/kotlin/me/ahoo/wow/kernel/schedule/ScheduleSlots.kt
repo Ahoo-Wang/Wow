@@ -74,9 +74,9 @@ object ScheduleSlots {
      */
     @JvmStatic
     fun zoneOf(rule: ScheduleRule.Cron): ZoneId = try {
-        ZoneId.of(rule.zone)
+        ZoneId.of(rule.timeZone)
     } catch (invalid: java.time.DateTimeException) {
-        throw IllegalArgumentException("\"${rule.zone}\" is not a time zone: ${invalid.message}", invalid)
+        throw IllegalArgumentException("\"${rule.timeZone}\" is not a time zone: ${invalid.message}", invalid)
     }
 
     /** Fails with an [IllegalArgumentException] unless [rule]'s expression and time zone are valid. */
@@ -90,7 +90,7 @@ object ScheduleSlots {
     @JvmStatic
     fun next(rule: ScheduleRule.Cron, after: Long): Long? = Parsed(rule).next(after)
 
-    /** A rule's expression and zone, parsed once for the slots stepped through. */
+    /** A rule's expression and time zone, parsed once for the slots stepped through. */
     private class Parsed(rule: ScheduleRule.Cron) {
         private val expression = expressionOf(rule)
         private val zone = zoneOf(rule)

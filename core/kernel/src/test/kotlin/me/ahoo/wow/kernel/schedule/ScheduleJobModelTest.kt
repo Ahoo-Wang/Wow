@@ -130,10 +130,10 @@ class ScheduleJobModelTest {
 
     @Test
     fun `a tenant overrides the time zone and keeps the default expression`() {
-        val shanghai = JobRule(zone = "Asia/Shanghai")
+        val shanghai = JobRule(timeZone = "Asia/Shanghai")
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice", shanghai)) {
-                expectEvents(JobEnabled("invoice", monthly.copyWith(zone = "Asia/Shanghai"), shanghai))
+                expectEvents(JobEnabled("invoice", monthly.copyWith(timeZone = "Asia/Shanghai"), shanghai))
             }
             // Midnight of February 1st in Shanghai is 16:00 UTC on January 31st.
             advanceTime(30.days + 16.hours) {
@@ -186,7 +186,7 @@ class ScheduleJobModelTest {
             whenCommand(EnableJob("sweep", partition = 1)) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
         }
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
-            whenCommand(EnableJob("invoice", JobRule(zone = "Mars/Olympus"))) {
+            whenCommand(EnableJob("invoice", JobRule(timeZone = "Mars/Olympus"))) {
                 expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID)
             }
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
@@ -251,7 +251,7 @@ class ScheduleJobModelTest {
         val codec = EventCodec()
         val kernel = Kernel(InMemoryEventLog(partitions = 1), codec, clock = { 1_000 })
         val ref = ScheduleJobModel.refOf("billing", "invoice", "acme")
-        val shanghai = JobRule(zone = "Asia/Shanghai")
+        val shanghai = JobRule(timeZone = "Asia/Shanghai")
         kernel.execute(model, Command("c-1", "r-1", ref, EnableJob("invoice", shanghai)))
         val timer = "$ref#tick@1"
         val tick = Command("c-2", "r-2", ref, TickJob(), headers = ScheduleContext(timer, "tick", 1, 900).headers())
