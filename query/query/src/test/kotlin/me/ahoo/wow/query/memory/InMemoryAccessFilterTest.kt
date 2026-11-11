@@ -23,8 +23,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
  * The access filter contract on the in-memory backend, whose filters are the point reads' (X-26): the kernel's
- * evaluator and the compiled filter agree. Until snapshots record the `access` system field, the attributes are
- * stored under the state, `state.access`.
+ * evaluator and the compiled filter agree. The attributes are stored under the state, `state.access`, so a record can
+ * be not stamped, which a snapshot cannot ([InMemorySnapshotAccessFilterTest] runs the snapshots' own `access`).
  */
 class InMemoryAccessFilterTest : AccessFilterSpec() {
     private val storage = InMemoryQueryStorage()
