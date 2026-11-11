@@ -92,7 +92,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `snapshots created by a build without format records are refused`() {
+    fun `a snapshot collection without a format record is refused`() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.createUnrecorded(collection(context))
         assertThrownBy<IllegalStateException> { store(context) }

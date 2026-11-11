@@ -43,7 +43,7 @@ internal object MongoOperators {
             .append(CROSS_SCOPE, BsonBoolean.valueOf(it.crossScope))
     } ?: BsonNull.VALUE
 
-    /** The operator [document] holds; null for none, as a document written before the field has. */
+    /** The operator [document] holds; null for none. */
     fun of(document: Document?): Operator? = document?.let {
         Operator(it.getString(ID), it.getString(TENANT_ID), it.getBoolean(CROSS_SCOPE, false))
     }

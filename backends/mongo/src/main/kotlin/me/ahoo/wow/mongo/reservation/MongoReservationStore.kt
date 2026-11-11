@@ -270,8 +270,8 @@ class MongoReservationStore(
     }
 
     private companion object {
-        /** The version of this layout: 3 since the collection has no owner index; 2 is refused. */
-        const val FORMAT = 3
+        /** The version of this layout: the collection has no owner index. */
+        const val FORMAT = 1
         const val WRITE_ATTEMPTS = 8
         const val PREFIX = "wow_reservation"
         const val ID_FIELD = "_id"

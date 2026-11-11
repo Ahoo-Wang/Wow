@@ -75,9 +75,8 @@ import kotlin.time.Duration
  * through `$unionWith`, each collection's first due timers over its partial index on `(partition, due_at, timer_id)`
  * of the PENDING and FIRING (claimed) timers, merged by due time. A count other than the collections read tells the
  * store to read the registry again, so a collection another node created is read at once. The body is kept as the
- * command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 5 is the layout per
- * aggregate type; the timers are a view rebuilt from the log, so a collection of an earlier format is refused, dropped
- * and rebuilt.
+ * command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). The layout is one collection
+ * per aggregate type; the timers are a view rebuilt from the log.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -422,8 +421,7 @@ class MongoTimerStore(
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
         slotDueAt = document.getLong(SLOT_DUE_AT),
-        // Added within format 3: a document written before it skipped none.
-        skipped = document.getLong(SKIPPED) ?: 0L,
+        skipped = document.getLong(SKIPPED),
     )
 
     /** The timer collection of one aggregate type. */
@@ -433,7 +431,7 @@ class MongoTimerStore(
 
     private companion object {
         /** The version of this layout. */
-        const val FORMAT = 5
+        const val FORMAT = 1
         const val PREFIX = "wow_timer"
 
         /** The registry of timer collections, shared by every context. */

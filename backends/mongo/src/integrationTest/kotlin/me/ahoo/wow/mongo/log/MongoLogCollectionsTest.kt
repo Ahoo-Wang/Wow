@@ -85,7 +85,7 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
     }
 
     @Test
-    fun `a log created by a build without format records is refused`() {
+    fun `a log collection without a format record is refused`() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.createUnrecorded(collection(context, "partition"))
         assertThrownBy<IllegalStateException> { MongoLogFixture.log(4, context) }

@@ -46,7 +46,7 @@ class MongoTailReadsTest : MongoLogFixtures() {
     }
 
     @Test
-    fun `a partition's stored lineage reads back, and a counter written without it reads as created`(): Unit =
+    fun `a partition's stored lineage reads back`(): Unit =
         runBlocking {
             val context = MongoLogFixture.newContext()
             val log = MongoLogFixture.log(2, context)
@@ -61,10 +61,6 @@ class MongoTailReadsTest : MongoLogFixtures() {
             counters.updateOne(Filters.eq("_id", 1), Updates.combine(Updates.set("parent", 0), Updates.set("epoch", 1)))
             log.lineage(0).assert().isEqualTo(PartitionLineage.ROOT)
             log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
-            // A counter of format 1 written before the lineage fields reads as a partition the log was created with.
-            counters.updateOne(Filters.eq("_id", 1), Updates.combine(Updates.unset("parent"), Updates.unset("epoch")))
-            log.lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
-            MongoLogFixture.log(2, context).lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
             counters.deleteOne(Filters.eq("_id", 1))
             runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         }

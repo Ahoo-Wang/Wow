@@ -17,14 +17,12 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.tck.reservation.ReservationStoreSpec
-import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.time.Clock
 
@@ -48,19 +46,7 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
     }
 
     @Test
-    fun `a collection of format 2, which had an owner index, is refused`() {
-        val earlier = AggregateType("reservation_format_2", "user")
-        val name = MongoNames.of("wow_reservation", earlier.context, earlier.name)
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
-            .insertOne(Document("_id", name).append("version", 2))
-        assertThrownBy<IllegalStateException> {
-            runBlocking { store().find(ReservationScope(earlier, "t", "names"), "k") }
-        }.hasMessageContaining("format 2")
-    }
-
-    @Test
-    fun `a collection of an earlier layout or another format is refused`() {
-        // Format 1 had no record: its collection must be dropped (decision D59).
+    fun `a collection without a format record, or of another format, is refused`() {
         val unrecorded = AggregateType("reservation_unrecorded", "user")
         MongoLogFixture.createUnrecorded(MongoNames.of("wow_reservation", unrecorded.context, unrecorded.name))
         assertThrownBy<IllegalStateException> {

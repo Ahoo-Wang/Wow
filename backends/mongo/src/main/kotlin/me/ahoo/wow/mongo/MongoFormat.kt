@@ -26,10 +26,9 @@ import org.bson.conversions.Bson
  * The format versions of stored structures: one document per structure (a log or a snapshot
  * collection) in [COLLECTION], keyed by the structure's name and recorded by the collection, not by each document.
  * `createSchema` claims its structure's version before creating it: the first claim records it, a structure recorded
- * under another version is refused, and so is a collection that exists without a record (an earlier, incompatible
- * build created it), so this version of Wow never reads or writes a layout it does not know. An incompatible layout
- * changes only in a major version, through the migration tool; adding an optional field does not change the
- * version.
+ * under another version is refused, and so is a collection that exists without a record (Wow did not record its
+ * layout), so this version of Wow never reads or writes a layout it does not know. Nothing is converted from one
+ * version to another.
  */
 internal object MongoFormat {
     /**
@@ -49,7 +48,7 @@ internal object MongoFormat {
             ?: return false
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
-                "Migrate it with the migration tool rather than opening it."
+                "Open it with the version of Wow that wrote it, or start from an empty store."
         }
         return true
     }
@@ -84,13 +83,15 @@ internal object MongoFormat {
     fun record(database: MongoDatabase, structure: String, version: Int) {
         val formats = database.getCollection(COLLECTION)
         if (formats.find(Filters.eq(ID, structure)).first() == null) {
-            // The record is written before the collection is created, so one without a record predates them; a
-            // collection that appeared since the first read was created by a concurrent claim, whose record now exists.
+            // The record is written before the collection is created, so one without a record is not of a layout Wow
+            // recorded; a collection that appeared since the first read was created by a concurrent claim, whose
+            // record now exists.
             check(
                 database.listCollectionNames().filter(Filters.eq(NAME, structure)).first() == null ||
                     formats.find(Filters.eq(ID, structure)).first() != null,
             ) {
-                "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
+                "$structure exists without a format record: Wow did not record its layout, so it is not read. " +
+                    "Drop it, or restore its record with it."
             }
         }
         try {

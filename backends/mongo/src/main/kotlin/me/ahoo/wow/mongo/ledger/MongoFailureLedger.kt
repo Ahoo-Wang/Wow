@@ -53,8 +53,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * context, subscription, context, aggregate name, tenant, id). The key starts with [service], the service the ledger
  * is of, then the subscription's context and name ([SubscriptionId]): services that share a database, and
  * subscriptions of one name in two contexts, see and resolve only their own entries. The collection's layout is
- * recorded as format [FORMAT] ([MongoFormat]); a collection of another format, an earlier one among them, is refused,
- * not converted.
+ * recorded as format [FORMAT] ([MongoFormat]); a collection of another format is refused, not converted.
  *
  * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest
@@ -355,13 +354,11 @@ class MongoFailureLedger(
         const val DEFAULT_SERVICE = ""
 
         /**
-         * The layout version of the collection: format 1 keyed entries by service; format 2 adds each entry's
-         * partition and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
-         * `claim_ttl_millis` and an operator's request to retry `RETRY`, and gained the revision in place; format 4
-         * keys an entry by its subscription's context too (`subscription_context`), in the key and both indexes, every
-         * document with its revision from the start.
+         * The layout version of the collection: an entry is keyed by service and by its subscription's context and
+         * name (`subscription_context`), in the key and both indexes; it holds its partition, its next attempt and its
+         * revision; an applied spec's claim TTL is `claim_ttl_millis`, an operator's request to retry `RETRY`.
          */
-        const val FORMAT = 4
+        const val FORMAT = 1
         const val LEDGER_KEY = "ledger_key"
         const val DUE_INDEX = "ledger_due"
         const val TENANT_INDEX = "ledger_tenant"
