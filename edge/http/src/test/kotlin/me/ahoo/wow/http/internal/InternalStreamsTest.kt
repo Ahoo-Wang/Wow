@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 /**
  * A node's forwards and signals on its one HTTP/2 connection to a peer, more of them at once than the peer's streams
@@ -246,13 +247,18 @@ class InternalStreamsTest {
             val channel = HttpClusterChannel(client, streams = 1, answerGrace = grace)
             channel.connect(server.address)
             val start = System.currentTimeMillis()
+            val stuck = TimeSource.Monotonic.markNow()
             // An owner that does not answer: the channel waits the grace past the deadline, then fails, not unsent.
             failsWith<ClusterChannelException> {
                 channel.forward(server.address, forwardCommand("stuck", context = "slow", deadline = start + 100))
             }.unsent.assert().isFalse()
-            (System.currentTimeMillis() - start).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
+            // At least the grace, and no tighter: the deadline is a wall-clock millisecond the channel turns into whole
+            // milliseconds left, then waits on monotonic time, so the part up to the deadline can come out just under
+            // 100 ms. Waiting the grace past the deadline takes about 500 ms; giving up at it, about 100.
+            stuck.elapsedNow().assert().isGreaterThanOrEqualTo(grace)
             // A caller that gives up at the deadline: the stream is the forward's until its grace ends.
             val abandoned = System.currentTimeMillis()
+            val sent = TimeSource.Monotonic.markNow()
             val given = forwardCommand("abandoned", context = "slow", deadline = abandoned + 100)
             withTimeoutOrNull(100.milliseconds) { channel.forward(server.address, given) }.assert().isNull()
             val waiting = forwardCommand("c-1", deadline = System.currentTimeMillis() + 100)
@@ -261,7 +267,8 @@ class InternalStreamsTest {
                 channel.forward(server.address, forwardCommand("c-2", deadline = System.currentTimeMillis() + 5_000))
                     .result!!.commandId.assert().isEqualTo("c-2")
             }
-            (System.currentTimeMillis() - abandoned).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
+            // At least the grace, as above: the stream came free about 500 ms after the abandoned forward was sent.
+            sent.elapsedNow().assert().isGreaterThanOrEqualTo(grace)
             waited.assert().isLessThan(5_000)
         }
 

@@ -186,13 +186,18 @@ class TestCluster(
     /** The addresses each [ClusterChannel.connect] was asked for, in order. */
     val connects = CopyOnWriteArrayList<String>()
 
+    /** Each request [channel] was asked to forward, in order, as it was sent. */
+    val forwards = CopyOnWriteArrayList<ForwardCommand>()
+
     /** The addresses whose connections fail. */
     val unreachable: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     /** The [loopback] channel, connecting to an address in its [connectLatencies], or failing when [unreachable]. */
     val channel = object : ClusterChannel {
-        override suspend fun forward(address: String, request: ForwardCommand): ForwardReply =
-            loopback.forward(address, request)
+        override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
+            forwards += request
+            return loopback.forward(address, request)
+        }
 
         override suspend fun connect(address: String) {
             connects += address
