@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * A command whose request may name no aggregate: a `CommandTransformer` of the service finds the
  * aggregate it acts on, such as one whose id the server derives from the caller and the body. The Manifest lists its
@@ -24,7 +22,6 @@ import java.lang.annotation.Inherited
  *
  * A creation command (`@CreateAggregate`, `@AllowCreate`) and a `@MountedCommand` have that route already.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.CLASS)
 @MustBeDocumented
 annotation class Unaddressed

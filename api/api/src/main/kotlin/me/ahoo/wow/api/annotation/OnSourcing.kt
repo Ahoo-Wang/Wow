@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * A sourcing function of an aggregate's state: it applies one event to the state. A function named
  * `onSourcing` needs no annotation.
@@ -31,7 +29,6 @@ import java.lang.annotation.Inherited
  * }
  * ```
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class OnSourcing

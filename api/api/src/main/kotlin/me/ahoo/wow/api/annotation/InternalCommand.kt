@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * A command only the platform sends: the service's own sagas, schedules and in-process gateway, and the other services
  * that call it on its internal port, as `wow.callers.<service>` permits them. The Manifest lists it as `internal`, with
@@ -26,6 +24,5 @@ import java.lang.annotation.Inherited
  * must never send itself; its authorization still applies to the calls the internal port takes.
  */
 @Target(AnnotationTarget.CLASS)
-@Inherited
 @MustBeDocumented
 annotation class InternalCommand

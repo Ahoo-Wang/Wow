@@ -19,7 +19,6 @@ import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
-import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
@@ -71,8 +70,7 @@ import kotlin.reflect.KClass
  * neither an event's nor retired still fails to read. The compiler rejects a blank name, one listed twice, and one
  * that is the name or a former name of one of the aggregate's events or commands.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.CLASS)
 @MustBeDocumented
 annotation class AggregateRoot(
     val lifecycle: Array<KClass<*>> = [

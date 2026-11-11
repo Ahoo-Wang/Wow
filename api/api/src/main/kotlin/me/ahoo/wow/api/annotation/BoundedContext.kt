@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * The bounded context a domain module belongs to. The runtime binds the context when it assembles
  * the Manifest fragments, so a module rarely carries it; when it does, its [name] and [description] go into the
@@ -27,8 +25,7 @@ import java.lang.annotation.Inherited
  *   compilation then fails.
  * @param description what the context is for, for documentation.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.CLASS)
 @MustBeDocumented
 annotation class BoundedContext(
     val name: String,

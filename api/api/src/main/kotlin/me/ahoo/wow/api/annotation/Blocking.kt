@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC.
  * A synchronous function is otherwise taken for pure computation and runs inline on a shared worker; the
@@ -25,6 +23,5 @@ import java.lang.annotation.Inherited
  * publisher it is a warning, since a publisher should not block.
  */
 @Target(AnnotationTarget.FUNCTION)
-@Inherited
 @MustBeDocumented
 annotation class Blocking
