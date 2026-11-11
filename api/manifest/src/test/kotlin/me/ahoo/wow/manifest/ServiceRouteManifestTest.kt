@@ -15,6 +15,7 @@ package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /** A service route whose answer may be absent: `responseOptional`, written only when true. */
@@ -51,5 +52,16 @@ class ServiceRouteManifestTest {
         val required = manifest(route.copyWith(responseOptional = false))
         written(required).keys.assert().doesNotContain("responseOptional")
         ManifestTree.read(ManifestTree.write(required)).assert().isEqualTo(required)
+    }
+
+    @Test
+    fun `a path variable is always required, and one declared optional is refused`() {
+        val string = mapOf("type" to "string")
+        RouteParameterManifest("id", RouteParameterManifest.Location.PATH, string).required.assert().isTrue()
+        RouteParameterManifest("q", RouteParameterManifest.Location.QUERY, string, required = false)
+            .required.assert().isFalse()
+        assertThrows<IllegalArgumentException> {
+            RouteParameterManifest("id", RouteParameterManifest.Location.PATH, string, required = false)
+        }.message.assert().contains("path variable id is always required")
     }
 }

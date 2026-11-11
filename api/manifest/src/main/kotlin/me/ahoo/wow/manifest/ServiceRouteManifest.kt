@@ -67,6 +67,10 @@ class RouteParameterManifest @InternalWowApi constructor(
     val schema: Map<String, Any?>,
     val required: Boolean = location == Location.PATH,
 ) {
+    init {
+        require(required || location != Location.PATH) { "The path variable $name is always required." }
+    }
+
     /** Where a parameter is read from. */
     enum class Location { PATH, QUERY }
 
