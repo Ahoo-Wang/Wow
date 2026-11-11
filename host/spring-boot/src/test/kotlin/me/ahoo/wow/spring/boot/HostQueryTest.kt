@@ -40,9 +40,11 @@ import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spring.boot.HostQueryFixtures.ACCOUNT
 import me.ahoo.wow.spring.boot.HostQueryFixtures.eventually
 import me.ahoo.wow.spring.boot.HostQueryFixtures.openAccount
@@ -222,7 +224,7 @@ class HostQueryTest {
     fun `a queried memory store should write each snapshot written, saved or rebuilt, into its query storage`() {
         runBlocking {
             val queries = InMemoryQueryStorage()
-            val store = MemoryStore("memory", queries = queries).snapshots(BANK)
+            val store = MemoryStore(StoreConfig("memory", StoreTypes.MEMORY), queries = queries).snapshots(BANK)
             val ref = AggregateRef(ACCOUNT, "t-1", "a-1")
             fun record(version: Int, owner: String) = SnapshotRecord(
                 ref = ref,
@@ -241,7 +243,8 @@ class HostQueryTest {
             owner().assert().isEqualTo("rebuilt")
             store.rebuilds!!.rewrite(record(1, "older")).assert().isFalse()
             owner().assert().isEqualTo("rebuilt")
-            MemoryStore("plain").snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
+            val plain = MemoryStore(StoreConfig("plain", StoreTypes.MEMORY))
+            plain.snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
         }
     }
 

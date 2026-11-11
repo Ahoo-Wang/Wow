@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -61,7 +62,8 @@ class HostStoresTest {
     private val models = BankModels().models(Dependencies.of(DecidedCommands()))
     private val account = AggregateType(BANK, "account")
 
-    private fun memory(vararg names: String): Map<String, Store> = names.associateWith { MemoryStore(it) }
+    private fun memory(vararg names: String): Map<String, Store> =
+        names.associateWith { MemoryStore(StoreConfig(it, StoreTypes.MEMORY)) }
 
     private val providers = StoreProviders.load(javaClass.classLoader)
 
@@ -276,7 +278,10 @@ class HostStoresTest {
 
     @Test
     fun `a store that holds no log is refused as a log store`() {
-        val stores = mapOf("auto" to Unopened("auto", "acme", holdsLogs = false), "a" to MemoryStore("a"))
+        val stores = mapOf(
+            "auto" to Unopened("auto", "acme", holdsLogs = false),
+            "a" to MemoryStore(StoreConfig("a", StoreTypes.MEMORY)),
+        )
         assertThrows<IllegalStateException> { layoutOf(properties { log.store = "auto" }, stores, models) }
             .message.assert().contains("holds no log")
     }
