@@ -95,7 +95,7 @@ export function splitArguments(text: string): string[] {
  */
 export function relativeOklch(
   value: string,
-  token?: (variable: string) => Rgba,
+  token: (variable: string) => Rgba,
 ): Color | undefined {
   const match = /^oklch\(from\s+([\s\S]+)\)$/.exec(value);
   if (!match) return undefined;
@@ -103,7 +103,7 @@ export function relativeOklch(
   const [l, c, h] = words.slice(-3);
   const source = words.slice(0, -3).join(' ');
   // The origin is a colour, or a token the caller resolves: `var(--primary)`.
-  const named = token && /^var\((--[\w-]+)\)$/.exec(source);
+  const named = /^var\((--[\w-]+)\)$/.exec(source);
   const origin: Color | undefined = named
     ? { mode: 'rgb', ...token(named[1]) }
     : parse(source);
