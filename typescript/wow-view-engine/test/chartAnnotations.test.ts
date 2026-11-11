@@ -17,9 +17,9 @@ import { cartesianFit } from '../src/ui/charts/cartesianFit.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import {
   cartesianPlan,
-  stackPeaksFound,
   type CartesianContext,
 } from '../src/ui/charts/cartesianPlan.js';
+import { stackPeaksFound } from '../src/ui/charts/cartesianStacks.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /**

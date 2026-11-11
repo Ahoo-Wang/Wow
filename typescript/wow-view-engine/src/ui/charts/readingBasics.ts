@@ -14,7 +14,7 @@
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
-import { stackPlan } from './cartesianPlan.js';
+import { stackPlan } from './cartesianStacks.js';
 import { drawnStages, dropText } from './funnelOption.js';
 import { derivedName } from './markWords.js';
 import type { ChartReading, ReadingContext } from './reading.js';
