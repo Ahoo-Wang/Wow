@@ -51,7 +51,7 @@ import java.time.Duration
  *   CoCache refuses fails the start rather than a first read. (CoCache's `CacheNameContributor` would only relax the
  *   check.)
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
- *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
+ *   after each commit (`wow.cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */
 @Configuration(proxyBeanMethods = false)
 @Conditional(WowCoCacheAutoConfiguration.RunsCoCache::class)
@@ -106,7 +106,7 @@ class WowCoCacheAutoConfiguration {
     }
 
     companion object {
-        /** The processor of the sink subscriptions that write the states: `cocache-sink.<aggregate>`. */
+        /** The processor of the sink subscriptions that write the states: `wow.cocache-sink.<aggregate>`. */
         const val PROCESSOR: String = "wow.cocache-sink"
 
         /** Registers the `StateViewCache<V>` beans before the others are created. */
