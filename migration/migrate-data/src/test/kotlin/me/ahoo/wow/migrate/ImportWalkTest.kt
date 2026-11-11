@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
@@ -25,6 +26,8 @@ import me.ahoo.wow.runtime.access.AccessSchema
 import me.ahoo.wow.runtime.access.AccessWalking
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalk.Companion.IMPORTING
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
@@ -149,4 +152,16 @@ class ImportWalkTest {
             service.imported(InMemoryCheckpointRepository())
             service.log.walk(type).assert().isEqualTo(walked)
         }
+
+    @Test
+    fun `an import into a log that holds no store of the type claims no walk`(): Unit = runBlocking {
+        val service = Service()
+        // A log that says it holds none: a type it holds no store of has no walk, and claims none.
+        val holdsNone = object : EventLog by service.log, AccessWalks by service.log {
+            override suspend fun holds(type: AggregateType): Boolean = false
+        }
+        EventStreamImporter(service.events, NineXExample.plan, { holdsNone }, service.checkpoints).importAll(order)
+        service.stamped().assert().isNotEmpty()
+        service.log.walk(type).assert().isNull()
+    }
 }
