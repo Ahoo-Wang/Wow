@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.runtime.sink
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
@@ -35,12 +39,16 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.TestTrace
 import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.state.SharedStates
+import me.ahoo.wow.runtime.subscription.RunEntry
+import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -50,6 +58,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.EmptyCoroutineContext
 
 /** The records a sink subscription writes (design 04 §4, decisions D58, D133, D140). */
 class SinkSubscriptionTest {
@@ -246,6 +255,128 @@ class SinkSubscriptionTest {
     }
 
     @Test
+    fun `a sink that takes one record a call should be handed its entries one by one`() {
+        val sink = sink()
+        sink.subscription.maxRun.assert().isEqualTo(1)
+        sink.subscription.runHandler.assert().isNull()
+    }
+
+    /** A sink that takes [MAX_BATCH] records a write, records each write by version and refuses [refusing]. */
+    private inner class Batching(val refusing: Set<Int> = emptySet()) : Sink {
+        val writes = CopyOnWriteArrayList<List<Int>>()
+        override val maxBatch: Int = MAX_BATCH
+
+        override suspend fun write(records: List<StateEventRecord>) {
+            writes += records.map { it.version }
+            records.firstOrNull { it.version in refusing }?.let { throw IllegalArgumentException("v${it.version}") }
+        }
+
+        fun subscription() =
+            SinkSubscription(
+                NAME,
+                type,
+                this,
+                SharedStateReader(NAME, listOf(model), kernel, codec, views)
+            ).subscription
+    }
+
+    /**
+     * Versions 1 and 3 price the order; version 2 holds a retired event only, so it has no record, unless [second]
+     * gives its events.
+     */
+    private suspend fun runOf(
+        subscription: Subscription,
+        second: List<EventRecord>? = null,
+        aggregate: AggregateRef = ref,
+        partition: Int? = null,
+    ): List<RunEntry> {
+        val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
+        val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+        listOf(listOf(priced), second ?: listOf(discounted), listOf(priced)).forEachIndexed { index, events ->
+            val version = index + 1
+            val stream = EventStreamRecord(
+                ref = aggregate,
+                version = version,
+                commandId = "c-${aggregate.id}-$version",
+                requestId = "r-${aggregate.id}-$version",
+                commandType = "shop.order.SetPrice",
+                commitTime = version.toLong(),
+                events = events,
+                scope = Scope.NONE,
+            )
+            log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        }
+        return log.read(aggregate).toList().map { stream ->
+            val position = log.positionOf(stream.ref, stream.version)
+                ?.let { if (partition == null) it else LogPosition(partition, it.sequence) }
+            RunEntry(subscription.decoder.decode(stream, position, null), EmptyCoroutineContext)
+        }
+    }
+
+    @Test
+    fun `a batching sink's run should be one write of its records, an entry without one done with them`(): Unit =
+        runBlocking {
+            val sink = Batching()
+            val subscription = sink.subscription()
+            subscription.maxRun.assert().isEqualTo(MAX_BATCH)
+            val handled = subscription.runHandler!!(runOf(subscription))
+            handled.done.assert().isEqualTo(3)
+            handled.failure.assert().isNull()
+            sink.writes.assert().containsExactly(listOf(1, 3))
+        }
+
+    @Test
+    fun `a refused record should answer the entries before its own, and its failure`(): Unit = runBlocking {
+        val sink = Batching(refusing = setOf(3))
+        val subscription = sink.subscription()
+        val handled = subscription.runHandler!!(runOf(subscription))
+        // Version 1 written, version 2 without a record: the third entry, version 3's, failed.
+        handled.done.assert().isEqualTo(2)
+        handled.failure!!.message.assert().isEqualTo("v3")
+        sink.writes.assert().containsExactly(listOf(1, 3), listOf(1), listOf(3))
+    }
+
+    @Test
+    fun `an entry whose record cannot be built fails there, after the records before it are written`(): Unit =
+        runBlocking {
+            val sink = Batching()
+            val subscription = sink.subscription()
+            // The second entry's record cannot be built: its event is of a name the model does not know.
+            val run = runOf(subscription, second = listOf(EventRecord("shop.order.Unknown", 1, "{}")))
+            val handled = subscription.runHandler!!(run)
+            handled.done.assert().isEqualTo(1)
+            handled.failure.assert().isNotNull()
+            sink.writes.assert().containsExactly(listOf(1))
+        }
+
+    @Test
+    fun `a fatal error of the sink is thrown by the run, not answered`(): Unit = runBlocking {
+        val sink = object : Sink {
+            override val maxBatch: Int = MAX_BATCH
+
+            override suspend fun write(records: List<StateEventRecord>): Unit = throw OutOfMemoryError("test")
+        }
+        val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
+        val subscription = SinkSubscription(NAME, type, sink, reader).subscription
+        assertThrows<OutOfMemoryError> { runBlocking { subscription.runHandler!!(runOf(subscription)) } }
+    }
+
+    @Test
+    fun `runs of different partitions ready together should go in one write`(): Unit = runBlocking {
+        val sink = Batching()
+        val subscription = sink.subscription()
+        val runs = listOf(
+            runOf(subscription, aggregate = type.ref("t", "o-1"), partition = 0),
+            runOf(subscription, aggregate = type.ref("t", "o-2"), partition = 3),
+            runOf(subscription, aggregate = type.ref("t", "o-3"), partition = 1),
+        )
+        // Ready in the same instant: the first leads, and the others, of other partitions, join its write.
+        val handled = runs.map { async { subscription.runHandler!!(it) } }.awaitAll()
+        handled.map { it.done }.assert().containsExactly(3, 3, 3)
+        sink.writes.map { it.size }.assert().containsExactly(6)
+    }
+
+    @Test
     fun `a sink should read the shared states under its own name`() {
         assertThrows<IllegalArgumentException> {
             SinkSubscription(NAME, type, {}, SharedStateReader("other", listOf(model), kernel, codec, views))
@@ -255,5 +386,6 @@ class SinkSubscriptionTest {
     private companion object {
         const val NAME = "wow.transport-sink.order"
         const val DISCOUNTED = "shop.order.Discounted"
+        const val MAX_BATCH = 8
     }
 }

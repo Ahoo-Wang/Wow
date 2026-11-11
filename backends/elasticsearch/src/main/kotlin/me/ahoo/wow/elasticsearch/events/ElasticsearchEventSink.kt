@@ -49,7 +49,10 @@ import java.util.concurrent.ConcurrentHashMap
  * sink subscription hands it as one stream document ([ElasticsearchEventDocuments]) of the type's events index
  * ([ElasticsearchNames.events], [ElasticsearchEventIndex]), which the `events` queries of an Elasticsearch store read.
  *
- * - **Batch**: one `_bulk` request per [write], every record a `create` of its document.
+ * - **Batch**: one `_bulk` request per [write], every record a `create` of its document. The sink subscription hands
+ *   [write] the records of every aggregate's commits waiting together, at most [maxBatch] ([Sink.maxBatch]), so a
+ *   sustained load is written in a few large requests instead of one per commit, and one refresh and one stamp per
+ *   aggregate whose attributes changed serve the whole write.
  * - **Idempotent by id**: a document's id is the commit's identity ([ElasticsearchNames.streamId]: tenant, aggregate
  *   id and version), and a record written before is answered `409` by its `create`, which counts as written: a
  *   record written again changes nothing, whether a retry, a replay or an old owner of the partition writes it.
@@ -82,8 +85,14 @@ class ElasticsearchEventSink internal constructor(
     private val ddl: Ddl,
     private val refresh: Refresh?,
     private val capacity: Int = DEFAULT_CAPACITY,
+    /** The most records one write takes, one `_bulk` request: see [Sink.maxBatch]. */
+    override val maxBatch: Int = DEFAULT_MAX_BATCH,
 ) : Sink,
     AccessStamps {
+    init {
+        require(maxBatch >= 1) { "A write takes at least one record." }
+    }
+
     /** The type's events index. */
     val index: String = names.events(type.context, type.name)
 
@@ -300,6 +309,12 @@ class ElasticsearchEventSink internal constructor(
     companion object {
         /** The aggregates whose last record a Sink remembers by default. */
         const val DEFAULT_CAPACITY: Int = 100_000
+
+        /**
+         * The records one write takes by default: a `_bulk` of this many stream documents, sized, as the ClickHouse
+         * Sink's batch, for a write to fit the subscription handler's timeout.
+         */
+        const val DEFAULT_MAX_BATCH: Int = 1_000
 
         private const val MAX_REPORTED = 3
         private const val MAX_STAMP_RUNS = 5

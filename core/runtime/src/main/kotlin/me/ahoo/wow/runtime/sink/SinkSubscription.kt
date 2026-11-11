@@ -14,12 +14,17 @@
 package me.ahoo.wow.runtime.sink
 
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.subscription.EntryDecoder
+import me.ahoo.wow.runtime.subscription.RunEntry
+import me.ahoo.wow.runtime.subscription.RunHandled
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -54,6 +59,12 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * - **At least once**: an entry is done, and the checkpoint may pass it, only once [Sink.write]
  *   returned, which is once the records are durable (the broker acknowledged them). A crash, a retry or an old owner
  *   beside the new one writes a record again; a reader drops it by [StateEventRecord.id].
+ * - **Batches**: a sink of [Sink.maxBatch] above 1 is handed runs: the subscription is a batching one
+ *   ([Subscription.batching]), whose lane hands [writeRun] the run of an aggregate's entries waiting together, at
+ *   most [Sink.maxBatch]; each entry's record is built in its own observation, and the runs of all lanes waiting
+ *   together, of every partition, are written with one [Sink.write] ([SinkWrites], one per sink, one write in flight).
+ *   A run answers how many of its entries are done: those whose records are durable,
+ *   and those that have none. A sink of [Sink.maxBatch] 1 is handed one record a call, its entries handled one by one.
  */
 internal class SinkSubscription(
     val name: String,
@@ -72,18 +83,69 @@ internal class SinkSubscription(
         ) { "The sink $name reads the shared states as ${reader.reader}, not as itself." }
     }
 
+    /** The batched writes of a sink of [Sink.maxBatch] above 1, of all its partitions; null for a sink of 1. */
+    private val writes: SinkWrites? = if (sink.maxBatch > 1) SinkWrites(sink, sink.maxBatch) else null
+
     /** The subscription to register: of [type]'s streams only, every event of them. */
-    val subscription: Subscription = Subscription(
-        name = name,
-        filter = SubscriptionFilter(type.context, setOf(type.name)),
-        startFrom = startFrom,
-        decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
-        kind = FunctionKind.PROJECT,
-        handler = ::write,
-    )
+    val subscription: Subscription = if (writes == null) {
+        Subscription(
+            name = name,
+            filter = SubscriptionFilter(type.context, setOf(type.name)),
+            startFrom = startFrom,
+            decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
+            kind = FunctionKind.PROJECT,
+            handler = ::write,
+        )
+    } else {
+        Subscription.batching(
+            name = name,
+            filter = SubscriptionFilter(type.context, setOf(type.name)),
+            maxRun = sink.maxBatch,
+            startFrom = startFrom,
+            decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
+            runHandler = ::writeRun,
+            handler = ::write,
+        )
+    }
 
     private suspend fun write(entry: SubscribedEntry) {
         recordOf(entry)?.let { sink.write(listOf(it)) }
+    }
+
+    /**
+     * Writes [run]'s records, each built in its entry's observation, with the runs waiting in its lane; how many of its
+     * entries are done. An entry whose record cannot be built fails there, after the records before it are written.
+     */
+    @Suppress("TooGenericExceptionCaught") // A record that cannot be built is its entry's failure.
+    private suspend fun writeRun(run: List<RunEntry>): RunHandled {
+        val records = ArrayList<StateEventRecord>(run.size)
+        // The run's index of the entry each record is of.
+        val owners = ArrayList<Int>(run.size)
+        var built = run.size
+        var unbuilt: Throwable? = null
+        for ((index, item) in run.withIndex()) {
+            val record = try {
+                withContext(item.context) { recordOf(item.entry) }
+            } catch (failure: Throwable) {
+                if (NodeFatals.isFatal(failure)) {
+                    throw failure
+                }
+                currentCoroutineContext().ensureActive()
+                built = index
+                unbuilt = failure
+                break
+            }
+            if (record != null) {
+                records += record
+                owners += index
+            }
+        }
+        val written = checkNotNull(writes) { "A sink of maxBatch 1 runs no run." }.write(records)
+        val failure = written.failure ?: return RunHandled(built, unbuilt)
+        if (NodeFatals.isFatal(failure)) {
+            throw failure
+        }
+        return RunHandled(owners[written.done], failure)
     }
 
     /**

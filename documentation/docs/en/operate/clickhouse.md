@@ -259,7 +259,7 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 - Every table remembers its last `wow.clickhouse.sink.deduplication-window` (1,000) insert blocks, so a retried insert is dropped, from the views' tables too.
 - Beyond that window, the history tables are `ReplacingMergeTree`s keyed by the aggregate, version and event: a replayed row is merged away, and a read with `FINAL` counts every commit and event once.
 
-`wow.clickhouse.sink.batch-size` (1,000) is the most commits one insert carries.
+`wow.clickhouse.sink.batch-size` (1,000) is the most commits one insert carries. The sink's subscription hands it the commits of every aggregate waiting together, each aggregate's in version order, in one insert at a time: under load an insert carries many commits, and one part of each table, rather than one each; an idle sink adds no delay. An insert is one attempt within the subscription's handler timeout, so the batch size is sized for one insert to fit it.
 
 ## Schema management
 

@@ -70,23 +70,30 @@ class ClickHouseSinkTest {
     }
 
     @Test
-    fun `writes queued while an insert runs should go together in the next one, up to the batch size`(): Unit =
-        runTest {
-            // Finding A2-10: one INSERT per commit, three parts each with the views, overran ClickHouse's merges.
-            val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE, batchSize = 3)).sinkOf("shop", "order")
-            val gate = CompletableDeferred<Unit>().also { statements.gate = it }
-            val first = async { sink.write(listOf(recordOf(version = 1))) }
-            statements.waiting.await()
-            val queued = (2..6).map { version -> async { sink.write(listOf(recordOf(version = version))) } }
-            testScheduler.runCurrent()
-            gate.complete(Unit)
-            (listOf(first) + queued).awaitAll()
-            statements.inserts.map { it.second.trimEnd().lines().size }.assert().containsExactly(1, 3, 2)
-            statements.inserts[1].third.assert().startsWith("batch:")
-        }
+    fun `a write should be one insert at a time, of the batch the subscription hands it`(): Unit = runTest {
+        // Finding A2-10: one INSERT per commit, three parts each with the views, overran ClickHouse's merges. The sink
+        // subscription hands the sink its batches (Sink.maxBatch), of at most the batch size.
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE, batchSize = 3)).sinkOf("shop", "order")
+        sink.maxBatch.assert().isEqualTo(3)
+        val gate = CompletableDeferred<Unit>().also { statements.gate = it }
+        val first = async { sink.write((1..3).map { recordOf(version = it) }) }
+        statements.waiting.await()
+        val second = async { sink.write((4..5).map { recordOf(version = it) }) }
+        testScheduler.runCurrent()
+        // The second waits for the first insert to end.
+        statements.inserts.assert().isEmpty()
+        statements.gate = null
+        gate.complete(Unit)
+        listOf(first, second).awaitAll()
+        statements.inserts.map { it.second.trimEnd().lines().size }.assert().containsExactly(3, 2)
+        statements.inserts[0].third.assert().startsWith("batch:")
+        // More than the batch size, which the subscription never hands it, is cut into inserts of the batch size.
+        sink.write((6..9).map { recordOf(version = it) })
+        statements.inserts.drop(2).map { it.second.trimEnd().lines().size }.assert().containsExactly(3, 1)
+    }
 
     @Test
-    fun `a failed insert should fail every write it carried, and the next writes go on`(): Unit = runTest {
+    fun `a failed insert should fail its write, and the next writes go on`(): Unit = runTest {
         val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("shop", "order")
         val gate = CompletableDeferred<Unit>().also { statements.gate = it }
         val first = async { runCatching { sink.write(listOf(recordOf(version = 1))) } }

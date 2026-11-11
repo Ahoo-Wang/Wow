@@ -259,7 +259,7 @@ Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、
 - 每张表记住它最近的 `wow.clickhouse.sink.deduplication-window`（1,000）个插入块，所以重试的插入会被丢弃，视图的表也一样。
 - 超出这个窗口时，历史表是以聚合、版本和事件为键的 `ReplacingMergeTree`：重放的行会在合并中去掉，用 `FINAL` 读取时每次提交、每个事件都只计一次。
 
-`wow.clickhouse.sink.batch-size`（1,000）是一次插入最多携带的提交数。
+`wow.clickhouse.sink.batch-size`（1,000）是一次插入最多携带的提交数。Sink 的订阅把所有聚合一同等待的提交交给它，每个聚合的按版本顺序，一次一个插入：负载下一次插入携带许多提交，每张表一个 part，而不是每次提交一个；空闲时 Sink 不增加任何延迟。一次插入是订阅处理器超时之内的一次尝试，所以批大小要让一次插入能在超时之内完成。
 
 ## schema 管理 {#schema-management}
 
