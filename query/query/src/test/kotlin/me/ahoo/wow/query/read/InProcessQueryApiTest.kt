@@ -46,9 +46,9 @@ import me.ahoo.wow.api.read.aggregate
 import me.ahoo.wow.api.read.datasets
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -286,7 +286,7 @@ class InProcessQueryApiTest {
         val tooMany = ListQuery(MatchAllFilter, limit = 1001)
         val refused = runCatching { api.trusted().snapshots<CartState>().list(tooMany).toList() }
             .exceptionOrNull() as WowProblemException
-        refused.code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        refused.code.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         refused.status.assert().isEqualTo(400)
         refused.cause.assert().isInstanceOf(QueryError::class.java)
         api.trusted().unbounded().snapshots<CartState>().list(tooMany).toList().assert().hasSize(2)
@@ -307,7 +307,7 @@ class InProcessQueryApiTest {
                 defaultListSize = 0
             ).of(alice).snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList()
         }
-        (refused.exceptionOrNull() as WowProblemException).code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        (refused.exceptionOrNull() as WowProblemException).code.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().list(ListQuery(MatchAllFilter))
             .toList().assert().hasSize(3)
     }
@@ -336,7 +336,7 @@ class InProcessQueryApiTest {
             limited.forEach { it.position.assert().isNull() }
             val refused = runCatching { carts.stream(ListQuery(MatchAllFilter)).toList() }
                 .exceptionOrNull() as WowProblemException
-            refused.code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            refused.code.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
             (refused.cause as QueryError).bindingErrors.single().code
                 .assert().isEqualTo(QueryErrorCodes.STREAM_NOT_RESUMABLE)
         }

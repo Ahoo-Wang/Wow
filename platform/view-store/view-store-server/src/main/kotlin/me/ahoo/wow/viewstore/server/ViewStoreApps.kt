@@ -14,7 +14,7 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.policy.ReadAction
 import me.ahoo.wow.query.policy.ReadAuthorization
 import me.ahoo.wow.query.policy.ReadAuthorizer
@@ -34,7 +34,7 @@ class ViewStoreApps : ReadAuthorizer {
         } else {
             ReadAuthorization.Denied.of(
                 "The request's CoSec scope has no application.",
-                FrameworkErrors.QUERY_MALFORMED
+                FrameworkCodes.QUERY_MALFORMED
             )
         }
 }

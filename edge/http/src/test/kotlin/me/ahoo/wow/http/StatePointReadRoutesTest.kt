@@ -29,7 +29,6 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.filter.QueryType
@@ -138,7 +137,7 @@ class StatePointReadRoutesTest {
         // Not committed within the wait: 409, its current version, and a retry later.
         val behind = node.get("/shop/cart/c-1/state?minVersion=4")
         behind.status.assert().isEqualTo(409)
-        behind.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED)
+        behind.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED)
         behind.body!!["version"].asInt().assert().isEqualTo(3)
         behind.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isEqualTo("1")
         // A caller who may not see it, and an aggregate with no commit, are not found as ever (Q-5).
@@ -214,7 +213,7 @@ class StatePointReadRoutesTest {
         }
         val busy = node.get("/shop/cart/c-1/state/trace?from=2")
         busy.status.assert().isEqualTo(429)
-        busy.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+        busy.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
         busy.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isNotNull()
         node.get("/shop/cart/c-1/state?at=1970-01-01T00:00:02Z").status.assert().isEqualTo(429)
         // The latest state is the snapshot: it needs no permit.
@@ -235,10 +234,10 @@ class StatePointReadRoutesTest {
         node.get("/shop/cart/c-1/state/trace?limit=${StateHandler.MAX_TRACE_LIMIT + 1}")
             .assertInvalid(QueryErrorCodes.INVALID_VALUE, "limit")
         node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "owner=\"alice"))
-            .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertCode(400, FrameworkCodes.QUERY_MALFORMED)
         // A state read never crosses tenants (decision D254 ⑦).
         node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "true"))
-            .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertCode(400, FrameworkCodes.QUERY_MALFORMED)
     }
 
     @Test
@@ -326,7 +325,7 @@ class StatePointReadRoutesTest {
     private fun Answer.assertNotFound() = assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
 
     private fun Answer.assertInvalid(violation: String, path: String) {
-        assertCode(400, FrameworkErrors.QUERY_INVALID)
+        assertCode(400, FrameworkCodes.QUERY_INVALID)
         val first = body!!["violations"][0]
         first["code"].asString().assert().isEqualTo(violation)
         first["path"].asString().assert().isEqualTo(path)

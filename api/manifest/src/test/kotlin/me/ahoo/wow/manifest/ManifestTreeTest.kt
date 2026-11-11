@@ -14,6 +14,12 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -333,7 +339,7 @@ class ManifestTreeTest {
 
     @Test
     fun `a job should come back, its defaults written too, and an absent one left out`() {
-        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant")
+        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = JobScope.TENANT)
         val subscription = SubscriptionManifest(
             "Billing.nightly",
             SubscriptionKind.SAGA,
@@ -447,8 +453,8 @@ class ManifestTreeTest {
         val cart = manifest.contexts.single().aggregates.first()
         val read = ManifestTree.read(
             treeWith(
-                "\"creation\":\"${ManifestTree.wire(cart.commands.first().creation)}\"" to "\"creation\":\"SOMETIMES\"",
-                "\"kind\":\"${ManifestTree.wire(manifest.contexts.single().subscriptions.first().kind)}\"" to "\"kind\":\"WORKFLOW\"",
+                "\"creation\":\"${WireNames.of(cart.commands.first().creation)}\"" to "\"creation\":\"SOMETIMES\"",
+                "\"kind\":\"${WireNames.of(manifest.contexts.single().subscriptions.first().kind)}\"" to "\"kind\":\"WORKFLOW\"",
             ),
         ) { warnings += it }
         val context = read.contexts.single()

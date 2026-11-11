@@ -26,8 +26,6 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.CommandRelay
 import me.ahoo.wow.spi.wait.WaitContext
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * The commands of peer contexts that the [CommandGateway] admits: the aggregates of a
  * context another service serves, known from the contract its api jar carries ([contracts]). Such a
@@ -69,9 +67,9 @@ class PeerCommands(
             "$type.${manifest.name}",
             classOf(manifest.schema),
             when (manifest.creation) {
-                ManifestCreation.NONE -> Creation.NONE
-                ManifestCreation.REQUIRED -> Creation.REQUIRED
-                ManifestCreation.ALLOWED -> Creation.ALLOWED
+                Creation.NONE -> Creation.NONE
+                Creation.REQUIRED -> Creation.REQUIRED
+                Creation.ALLOWED -> Creation.ALLOWED
             },
             manifest.idProperty,
         )

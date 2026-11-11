@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.manifest.AccessAttributeManifest
-import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest

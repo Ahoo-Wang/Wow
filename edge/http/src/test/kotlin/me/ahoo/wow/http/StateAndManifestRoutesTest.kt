@@ -16,14 +16,13 @@ package me.ahoo.wow.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.CLASS_KEYWORD
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.ManifestTree
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
@@ -121,8 +120,8 @@ class StateAndManifestRoutesTest {
         twoItems(snapshot = false)
         node.get("/shop/cart/c-2/state").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
-        node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkErrors.QUERY_INVALID)
-        node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkErrors.QUERY_INVALID)
+        node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkCodes.QUERY_INVALID)
+        node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkCodes.QUERY_INVALID)
     }
 
     @Test
@@ -211,7 +210,7 @@ class StateAndManifestRoutesTest {
             user = "admin",
             headers = admin + (WowHeaders.SCOPE to "tenant=other")
         )
-            .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertCode(400, FrameworkCodes.QUERY_MALFORMED)
         fixed.get("/shop/cart/c-1/state?version=1", headers = mapOf(WowHeaders.SCOPE to "tenant=fixed"))
             .assertCode(403, FrameworkCodes.AUTH_FORBIDDEN)
         // Without the fixed tenant, the cart would be the caller's: that tenant holds none.

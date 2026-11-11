@@ -16,18 +16,18 @@ package me.ahoo.wow.spring.cloud
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.call.OutgoingCall
@@ -141,11 +141,11 @@ class LoadBalancedEndpointsTest {
     fun `a listed service with no instance to call should be an outage, a context not listed the code's mistake`() {
         // No instance to choose.
         val none = failureOf() as WowProblemException
-        none.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        none.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
         none.message.assert().contains("The lookup of bank lists no node on its internal port now.")
         // An instance registered without its internal port: an outage too, until the peer's nodes register one.
         chosen += DefaultServiceInstance("bank-3", "bank-service", "10.0.1.3", 8080, false)
-        (failureOf() as WowProblemException).code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        (failureOf() as WowProblemException).code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
         // A context the endpoints do not list has no URL at all: the code's mistake, the cause of its failure.
         val unlisted = LoadBalancedEndpoints.of(loadBalancers, emptyMap())
         failureOf(unlisted)!!.cause.assert().isInstanceOf(Misuse.State::class.java)

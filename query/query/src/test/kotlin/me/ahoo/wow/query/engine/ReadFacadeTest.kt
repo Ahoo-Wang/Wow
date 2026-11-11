@@ -20,9 +20,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
@@ -107,7 +107,7 @@ class ReadFacadeTest {
                 facade.observed<Unit>(cart, StateRead.VERSION, caller) { throw StateNotFoundException(ref, reason) }
             }.exceptionOrNull() as StateNotFoundException
             refused.ref.assert().isEqualTo(ref)
-            refused.errorCode.assert().isEqualTo(FrameworkErrors.AGGREGATE_NOT_FOUND)
+            refused.errorCode.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             refused.message.assert().isEqualTo("No state of $ref.")
         }
         observer.audited.map { it.errorCode }.assert().containsExactly(

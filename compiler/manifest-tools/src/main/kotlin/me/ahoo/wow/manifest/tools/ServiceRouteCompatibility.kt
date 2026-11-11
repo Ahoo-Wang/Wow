@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
-import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.RouteParameterManifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
 
@@ -58,7 +58,7 @@ internal fun Changes.compareServiceRoute(path: String, baseline: ServiceRouteMan
  * may share a name; a parameter moved from one to the other is one removed and another added.
  */
 private fun parameter(parameter: RouteParameterManifest): String =
-    "${ManifestTree.wire(parameter.location)}:${parameter.name}"
+    "${WireNames.of(parameter.location)}:${parameter.name}"
 
 private fun Changes.compareBody(
     path: String,

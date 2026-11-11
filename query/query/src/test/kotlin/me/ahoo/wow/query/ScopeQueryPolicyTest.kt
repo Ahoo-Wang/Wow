@@ -64,8 +64,6 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
-import me.ahoo.wow.manifest.Ownership as ManifestOwnership
-
 class ScopeQueryPolicyTest {
     private suspend fun context(filter: FilterExpression = MatchAllFilter, schema: QueryModelSchema? = null) =
         QueryContext(
@@ -126,9 +124,9 @@ class ScopeQueryPolicyTest {
         val product = AggregateManifest(
             "product",
             state = StateManifest(Manifest.schemaRef("Product")),
-            ownership = ManifestOwnership.TENANT,
+            ownership = Ownership.TENANT,
         )
-        val order = AggregateManifest("order", state = product.state, ownership = ManifestOwnership.OWNER)
+        val order = AggregateManifest("order", state = product.state, ownership = Ownership.OWNER)
         val manifest = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(product, order))))
         val ownerships = QueryOwnership.of(manifest)
         ownerships.ownershipOf(AggregateType("shop", "product")).assert().isEqualTo(Ownership.TENANT)

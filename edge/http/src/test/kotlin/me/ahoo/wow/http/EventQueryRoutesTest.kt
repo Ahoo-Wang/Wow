@@ -24,8 +24,8 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.admission.QueryBudget
@@ -118,7 +118,7 @@ class EventQueryRoutesTest {
         versions(last).assert().containsExactly(3)
         last.body!!["nextCursor"].isNull.assert().isTrue()
         events("""{"kind":"cursor","filter":$id,"cursor":"bm9wZQ"}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_INVALID)
             .violations().assert().containsExactly(QueryErrorCodes.INVALID_CURSOR)
 
         events("""{"kind":"single","filter":$id}""").body!!["version"].asInt().assert().isEqualTo(1)
@@ -182,7 +182,7 @@ class EventQueryRoutesTest {
     @Test
     fun `admission should refuse what the model cannot answer`() {
         fun refused(filter: String, code: String, body: String = """{"kind":"list","filter":$filter}""") =
-            events(body).assertQueryProblem(400, FrameworkErrors.QUERY_INVALID).violations().assert()
+            events(body).assertQueryProblem(400, FrameworkCodes.QUERY_INVALID).violations().assert()
                 .containsExactly(code)
         refused("""{"op":"eq","field":"state.items","value":1}""", QueryErrorCodes.UNKNOWN_FIELD)
         refused("""{"op":"eq","field":"aggregateId","value":1}""", QueryErrorCodes.VALUE_MISMATCH)

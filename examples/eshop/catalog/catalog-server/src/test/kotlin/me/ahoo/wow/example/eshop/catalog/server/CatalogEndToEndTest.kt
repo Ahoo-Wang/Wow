@@ -21,6 +21,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
@@ -33,7 +34,6 @@ import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
 import me.ahoo.wow.example.eshop.catalog.domain.product.Storefront
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -115,11 +115,11 @@ class CatalogEndToEndTest {
     fun `an employee should change the catalog, a buyer only read it (D189)`() {
         val id = send { catalog(EMPLOYEE).wait(CreateProduct("Wow cap", BigDecimal("12"))) }.ref.id
         rejected { catalog(BUYER).wait(CreateProduct("Mine", BigDecimal.ONE)) }
-            .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         // The product belongs to the tenant: it records no owner, and the buyer reads it.
         product(id, BUYER)!!.scope.ownerId.assert().isNull()
         rejected { catalog(BUYER).wait(ChangeProductPrice(BigDecimal("13")), id) }
-            .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         send { catalog(EMPLOYEE).wait(ChangeProductPrice(BigDecimal("13")), id) }
     }
 
@@ -167,7 +167,7 @@ class CatalogEndToEndTest {
         val rebuild = "/eshop-catalog/product/wow.snapshot.rebuild"
         for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
             server.http.post(rebuild, """{"ids":["p-1"]}""", caller = caller).problem!!
-                .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+                .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         }
         server.http.post(rebuild, """{"ids":["p-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
     }
@@ -193,7 +193,7 @@ class CatalogEndToEndTest {
     /** The violations (path to constraint) of the command [send] sends, which the gateway refuses as invalid. */
     private fun invalid(send: suspend () -> Unit): List<Pair<String, String>> {
         val refused = rejected(send)
-        refused.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        refused.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         return refused.result.error!!.violations.map { it.path to it.code }
     }
 

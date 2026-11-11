@@ -18,6 +18,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -78,7 +79,7 @@ class PeerProblem(
      * ([me.ahoo.wow.api.read.MinVersionNotReachedException]).
      */
     val retriesQuery: Boolean
-        get() = retry != Retry.NONE && code != FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+        get() = retry != Retry.NONE && code != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED
 
     /**
      * The exception of this problem for [what] was asked: a [CommandRejectedException] for a command's rejection,
@@ -100,7 +101,7 @@ class PeerProblem(
         const val GATEWAY_TIMEOUT: Int = 504
 
         /** The codes of a node that refused a request before handling it: shutting down, or on standby. */
-        private val REFUSED_BEFORE_HANDLING = setOf(FrameworkErrors.NODE_CLOSING, FrameworkErrors.NODE_STANDBY)
+        private val REFUSED_BEFORE_HANDLING = setOf(FrameworkCodes.NODE_CLOSING, FrameworkCodes.NODE_STANDBY)
 
         /** The problem of the catalog [code] the client's transport met itself, said as [detail], from [cause]. */
         fun of(code: String, detail: String, cause: Throwable): PeerProblem {

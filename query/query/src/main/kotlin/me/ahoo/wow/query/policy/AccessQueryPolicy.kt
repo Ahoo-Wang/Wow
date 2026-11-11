@@ -19,6 +19,7 @@ import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.AccessPredicate
 import me.ahoo.wow.api.access.resolveAccessPolicies
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
@@ -31,7 +32,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
@@ -44,8 +44,6 @@ import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.concurrent.ConcurrentHashMap
-import me.ahoo.wow.api.aggregate.Ownership as AggregateOwnership
-
 /**
  * The access policies of a node's aggregates ([AccessPolicy], a bean of the service for each aggregate), each resolved
  * to its aggregate and checked against the Manifest once, when the engine is built ([of]). An aggregate with a policy
@@ -75,7 +73,7 @@ class AccessPolicies private constructor(
      * events queries, its state reads, in process and over HTTP): none where a policy of its own governs [type], which
      * decides them instead; otherwise the part of [scope] [ownership], [type]'s, keeps.
      */
-    fun scopeOf(type: AggregateType, ownership: AggregateOwnership, scope: Scope): Scope =
+    fun scopeOf(type: AggregateType, ownership: Ownership, scope: Scope): Scope =
         if (governs(type)) Scope.NONE else ownership.scopeOf(scope)
 
     /** Whether the node has [type]: one of the Manifest's aggregates. */

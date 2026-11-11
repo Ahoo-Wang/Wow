@@ -30,8 +30,6 @@ import me.ahoo.wow.runtime.cluster.accountManifest
 import me.ahoo.wow.runtime.node.accountModel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /** A node refuses to start when its Manifest and its models disagree (decision D108). */
 class ManifestCheckTest {
     data class Withdraw(val amount: Long)
@@ -58,7 +56,7 @@ class ManifestCheckTest {
         val differing = changed { aggregate ->
             aggregate.copyWith(
                 commands = listOf(
-                    deposit.copyWith(aliases = listOf("Pay"), creation = ManifestCreation.REQUIRED),
+                    deposit.copyWith(aliases = listOf("Pay"), creation = Creation.REQUIRED),
                     CommandManifest("Withdraw", schema = Manifest.schemaRef("Withdraw")),
                 ) + aggregate.commands.filter { it.system },
             )
@@ -166,7 +164,7 @@ class ManifestCheckTest {
             "command bank.account.Deposit creates its aggregate ALLOWED in the Manifest, REQUIRED in the model",
         )
         val none = changed { aggregate ->
-            aggregate.copyWith(commands = aggregate.commands.map { it.copyWith(creation = ManifestCreation.NONE) })
+            aggregate.copyWith(commands = aggregate.commands.map { it.copyWith(creation = Creation.NONE) })
         }
         ManifestCheck.differences(none, listOf(accountModel("bank"))).assert().containsExactly(
             "command bank.account.Deposit creates its aggregate NONE in the Manifest, ALLOWED in the model",

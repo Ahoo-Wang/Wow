@@ -17,9 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.core.Ordered
@@ -81,7 +81,7 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
             val problem = Problem.ofFailure(failure)
             if (problem.status == HttpStatus.INTERNAL_SERVER_ERROR.value()) {
                 logger.error(failure) { "An application route failed with an unexpected error." }
-            } else if (problem.code == FrameworkErrors.STORAGE_UNAVAILABLE) {
+            } else if (problem.code == FrameworkCodes.STORAGE_UNAVAILABLE) {
                 logger.warn(failure) { "An application route failed: a store is unavailable." }
             }
             problem

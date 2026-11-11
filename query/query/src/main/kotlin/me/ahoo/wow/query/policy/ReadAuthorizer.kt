@@ -16,6 +16,7 @@ package me.ahoo.wow.query.policy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -114,7 +115,7 @@ sealed interface ReadAuthorization {
      */
     class Denied @InternalWowApi constructor(
         val message: String,
-        val code: String = FrameworkErrors.AUTH_FORBIDDEN,
+        val code: String = FrameworkCodes.AUTH_FORBIDDEN,
     ) : ReadAuthorization {
         init {
             require(FrameworkErrors.ALL.any { it.code == code }) {
@@ -135,7 +136,7 @@ sealed interface ReadAuthorization {
             /** A Denied of the given fields; parameters added later come last, with a default. */
             @JvmStatic
             @JvmOverloads
-            fun of(message: String, code: String = FrameworkErrors.AUTH_FORBIDDEN): Denied = Denied(message, code)
+            fun of(message: String, code: String = FrameworkCodes.AUTH_FORBIDDEN): Denied = Denied(message, code)
         }
     }
 }

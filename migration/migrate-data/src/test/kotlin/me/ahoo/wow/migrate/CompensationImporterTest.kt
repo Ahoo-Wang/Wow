@@ -16,10 +16,10 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionKind

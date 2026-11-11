@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.FrameworkCodes
 
 /**
  * Assembles a service's Manifest from its modules' fragments. The build merges them into the
@@ -122,7 +123,7 @@ object ManifestMerger {
         val codes = context.errors.map { it.code }.toSet()
         return context.routes.flatMap { route ->
             route.errors.filterNot { it in codes || it in FrameworkErrors.BY_CODE }.map {
-                val owner = if (it.startsWith(FrameworkErrors.PREFIX)) "the framework" else "the context"
+                val owner = if (it.startsWith(FrameworkCodes.PREFIX)) "the framework" else "the context"
                 "service route ${context.name}.${route.name} ($source) refuses with $it, which is not an error of $owner"
             }
         }
@@ -163,7 +164,7 @@ object ManifestMerger {
         context.routes.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             add("service route $it of context ${context.name} is declared twice in $source")
         }
-        context.errors.filter { it.code.startsWith(FrameworkErrors.PREFIX) }.forEach {
+        context.errors.filter { it.code.startsWith(FrameworkCodes.PREFIX) }.forEach {
             add("error ${it.code} of context ${context.name} in $source takes the framework's prefix")
         }
     }

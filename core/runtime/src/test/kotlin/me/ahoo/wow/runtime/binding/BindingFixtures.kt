@@ -28,8 +28,6 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
 import java.util.concurrent.CopyOnWriteArrayList
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 const val SHOP = "shop"
 const val SHOP_SERVICE = "shop-service"
 const val TENANT = "t"
@@ -88,7 +86,7 @@ fun cartModel(decided: MutableList<String> = CopyOnWriteArrayList()): AggregateM
 /** The Manifest of aggregate [name] of [context], with its [commands] and [events] and the lifecycle commands. */
 fun aggregateManifest(
     name: String,
-    commands: List<Pair<String, ManifestCreation>>,
+    commands: List<Pair<String, Creation>>,
     events: List<String>,
     context: String = SHOP,
 ) =
@@ -108,10 +106,10 @@ fun shopManifest(): Manifest = Manifest(
         ContextManifest(
             SHOP,
             aggregates = listOf(
-                aggregateManifest("order", listOf("Place" to ManifestCreation.REQUIRED), listOf("Placed")),
+                aggregateManifest("order", listOf("Place" to Creation.REQUIRED), listOf("Placed")),
                 aggregateManifest(
                     "cart",
-                    listOf("AddItems" to ManifestCreation.ALLOWED, "RemoveItems" to ManifestCreation.NONE),
+                    listOf("AddItems" to Creation.ALLOWED, "RemoveItems" to Creation.NONE),
                     listOf("ItemsAdded", "ItemsRemoved"),
                 ),
             ),

@@ -14,7 +14,7 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.openapi.OpenApiFixtures.MANIFEST
 import me.ahoo.wow.openapi.OpenApiFixtures.ref
 import me.ahoo.wow.openapi.OpenApiFixtures.responses
@@ -30,7 +30,7 @@ class ErrorResponsesTest {
         val document = ManifestOpenApi.write(
             MANIFEST,
             OpenApiOptions(
-                errorStatuses = mapOf(FrameworkErrors.AGGREGATE_VERSION_MISMATCH to 409, "shop.cart.full" to 400),
+                errorStatuses = mapOf(FrameworkCodes.AGGREGATE_VERSION_MISMATCH to 409, "shop.cart.full" to 400),
             ),
         )
 

@@ -16,8 +16,8 @@ package me.ahoo.wow.spring.boot
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -98,7 +98,7 @@ class PostgresOutageTest {
         failed.contentType.assert().isEqualTo("application/problem+json")
         val problem = failed.body!!
         val code = problem["code"].asString()
-        code.assert().isIn(FrameworkErrors.COMMAND_UNKNOWN, FrameworkErrors.STORAGE_UNAVAILABLE)
+        code.assert().isIn(FrameworkCodes.COMMAND_UNKNOWN, FrameworkCodes.STORAGE_UNAVAILABLE)
         problem["type"].asString().assert().isEqualTo("urn:wow:error:$code")
         problem["result"]["status"].asString().assert().isEqualTo("failed")
         problem["result"]["requestId"].asString().assert().isEqualTo("outage-deposit")

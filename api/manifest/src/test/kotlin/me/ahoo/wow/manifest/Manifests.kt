@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.result.FunctionKind
+
 /** Sample fragments for the tests. */
 object Manifests {
     fun cart(context: String = "shop", aggregate: String = "cart"): AggregateManifest = AggregateManifest(

@@ -31,7 +31,6 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -497,7 +496,7 @@ class ParkedRoutesTest {
             .get(entry("a"))
         answer.status.assert().isEqualTo(503)
         answer.contentType.assert().contains("problem+json")
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
         answer.headers.getFirst("Retry-After").assert().isEqualTo("1")
     }
 

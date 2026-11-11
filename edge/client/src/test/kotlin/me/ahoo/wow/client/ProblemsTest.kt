@@ -15,8 +15,8 @@ package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
-import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import java.net.http.HttpHeaders
 import java.time.Instant
@@ -54,21 +54,21 @@ class ProblemsTest {
     @Test
     fun `a command is retried with its request id and never at 504, a query whenever a retry may get past it`() {
         fun problem(status: Int, code: String, retry: Retry) = PeerProblem(status, code, null, null, retry, null)
-        problem(503, FrameworkErrors.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
+        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
         // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
-        problem(504, FrameworkErrors.WAIT_TIMEOUT, Retry.SAME_REQUEST).retriesCommand.assert().isFalse()
-        problem(429, FrameworkErrors.QUERY_BUSY, Retry.NEW_REQUEST).retriesCommand.assert().isFalse()
-        problem(429, FrameworkErrors.QUERY_BUSY, Retry.NEW_REQUEST).retriesQuery.assert().isTrue()
-        problem(503, FrameworkErrors.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesQuery.assert().isTrue()
-        problem(400, FrameworkErrors.QUERY_INVALID, Retry.NONE).retriesQuery.assert().isFalse()
+        problem(504, FrameworkCodes.WAIT_TIMEOUT, Retry.SAME_REQUEST).retriesCommand.assert().isFalse()
+        problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesCommand.assert().isFalse()
+        problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesQuery.assert().isTrue()
+        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesQuery.assert().isTrue()
+        problem(400, FrameworkCodes.QUERY_INVALID, Retry.NONE).retriesQuery.assert().isFalse()
         // A state read below its minimum version is the caller's to wait for.
-        problem(409, FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED, Retry.NEW_REQUEST).retriesQuery.assert().isFalse()
+        problem(409, FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED, Retry.NEW_REQUEST).retriesQuery.assert().isFalse()
     }
 
     @Test
     fun `a failure of the transport should be the problem of its catalog code`() {
         val failure = java.io.IOException("refused")
-        PeerProblem.of(FrameworkErrors.PEER_UNAVAILABLE, "No node.", failure).apply {
+        PeerProblem.of(FrameworkCodes.PEER_UNAVAILABLE, "No node.", failure).apply {
             status.assert().isEqualTo(503)
             retry.assert().isEqualTo(Retry.NEW_REQUEST)
             retryAfter.assert().isEqualTo(1.seconds)

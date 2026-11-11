@@ -21,9 +21,9 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -128,7 +128,7 @@ class SubscriptionBackpressureTest {
         ledger.list(SubscriptionId("shop", "saga")).assert().isEmpty()
         signals.events.filter { it.startsWith("paused") }.assert().isEmpty()
         signals.events.filter { "throttled" in it }.assert().containsExactly("throttled saga@0", "unthrottled saga@0")
-        signals.codes.assert().containsOnly(FrameworkErrors.WAIT_TIMEOUT)
+        signals.codes.assert().containsOnly(FrameworkCodes.WAIT_TIMEOUT)
     }
 
     @Test
@@ -139,7 +139,7 @@ class SubscriptionBackpressureTest {
             if (entry.ref.id == "x") {
                 attempts.incrementAndGet()
                 throw WowProblemException(
-                    FrameworkErrors.COMMAND_BUSY,
+                    FrameworkCodes.COMMAND_BUSY,
                     TOO_MANY_REQUESTS,
                     Retry.SAME_REQUEST,
                     null,
@@ -243,11 +243,11 @@ class SubscriptionBackpressureTest {
     private fun timedOut(id: String) = IllegalStateException(
         "The saga failed.",
         WowProblemException(
-            FrameworkErrors.WAIT_TIMEOUT,
+            FrameworkCodes.WAIT_TIMEOUT,
             GATEWAY_TIMEOUT,
             Retry.SAME_REQUEST,
             null,
-            "The derived command on $id failed: ${FrameworkErrors.WAIT_TIMEOUT} The wait timed out.",
+            "The derived command on $id failed: ${FrameworkCodes.WAIT_TIMEOUT} The wait timed out.",
         ),
     )
 

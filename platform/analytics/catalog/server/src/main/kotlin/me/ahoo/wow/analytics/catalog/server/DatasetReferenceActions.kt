@@ -19,6 +19,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.RouteMethod
 import me.ahoo.wow.api.annotation.ServiceRoute
@@ -29,12 +30,12 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.manifest.CommandManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import tools.jackson.databind.node.ObjectNode
@@ -232,7 +233,7 @@ class DatasetReferenceActions(
     }
 
     private fun unhandled(reference: DatasetReference, command: String) = RouteRefusal(
-        FrameworkErrors.COMMAND_UNHANDLED,
+        FrameworkCodes.COMMAND_UNHANDLED,
         "$command is no action the rows offer on ${reference.context}.${reference.aggregate}.",
     )
 

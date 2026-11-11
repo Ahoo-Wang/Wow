@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 

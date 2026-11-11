@@ -15,9 +15,9 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample

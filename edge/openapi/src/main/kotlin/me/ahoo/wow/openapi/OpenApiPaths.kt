@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.openapi
 
-import me.ahoo.wow.manifest.AggregateIdSource
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
@@ -189,7 +189,7 @@ internal class OpenApiPaths(
             val parameters = route.parameters.map { parameter ->
                 obj(
                     "name" to parameter.name,
-                    "in" to ManifestTree.wire(parameter.location),
+                    "in" to WireNames.of(parameter.location),
                     "required" to parameter.required,
                     "schema" to parameter.schema,
                 )
@@ -290,7 +290,7 @@ internal class OpenApiPaths(
             "x-wow-command" to obj(
                 "type" to type,
                 "aliases" to command.aliases.takeIf { it.isNotEmpty() },
-                "creation" to ManifestTree.wire(command.creation),
+                "creation" to WireNames.of(command.creation),
                 "produces" to command.produces,
                 "mounted" to command.mounted.takeIf { it },
                 "transformsTo" to command.transformsTo,

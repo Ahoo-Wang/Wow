@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.spi.json.WowJson
 
 /**

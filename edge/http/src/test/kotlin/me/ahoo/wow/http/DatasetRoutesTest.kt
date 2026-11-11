@@ -31,7 +31,6 @@ import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.backend.QueryBackendStorages
@@ -220,7 +219,7 @@ class DatasetRoutesTest {
             .assert().isEqualTo("west")
         // Another owner's record is not found.
         node.query("""{"kind":"single","filter":{"op":"id","value":"s-3"}}""")
-            .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
+            .assertQueryProblem(404, FrameworkCodes.QUERY_NOT_FOUND)
     }
 
     @Test
@@ -264,7 +263,7 @@ class DatasetRoutesTest {
 
     @Test
     fun `a dataset the node does not serve, or the caller does not see, should be a 404`() {
-        val notFound = FrameworkErrors.QUERY_DATASET_NOT_FOUND
+        val notFound = FrameworkCodes.QUERY_DATASET_NOT_FOUND
         node.query("""{"kind":"count","filter":{"op":"match-all"}}""", path = "/wow/dataset/shop/none/query")
             .assertQueryProblem(404, notFound)
         node.get("/wow/dataset/shop/none/query", "alice").assertQueryProblem(404, notFound)
@@ -319,9 +318,9 @@ class DatasetRoutesTest {
             .returnResult()
         result.responseHeaders.contentType.toString().assert().startsWith("text/event-stream")
         result.responseBody.orEmpty().split("\n\n").count { it.contains("event:row") }.assert().isEqualTo(3)
-        node.query("""{"filter":{"op":"match-all"}}""").assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+        node.query("""{"filter":{"op":"match-all"}}""").assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
         node.query("""{"kind":"list","filter":{"op":"eq","field":"missing","value":1}}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_INVALID)
         node.query("""{"kind":"count","filter":{"op":"match-all"}}""", user = null).status.assert().isEqualTo(401)
         node.get(SALES, null).status.assert().isEqualTo(401)
     }

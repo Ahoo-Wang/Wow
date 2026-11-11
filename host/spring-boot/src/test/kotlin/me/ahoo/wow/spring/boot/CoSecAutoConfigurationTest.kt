@@ -26,6 +26,7 @@ import me.ahoo.cosec.runtime.snapshot.ViewKey
 import me.ahoo.cosec.spi.authn.AuthnResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -53,8 +54,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.concurrent.CompletableFuture
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
@@ -233,7 +232,7 @@ class CoSecAutoConfigurationTest {
                                 CommandManifest(
                                     name = "AddItem",
                                     schema = Manifest.schemaRef("AddItem"),
-                                    routes = CommandRoutes.of("shop", "cart", "AddItem", ManifestCreation.NONE),
+                                    routes = CommandRoutes.of("shop", "cart", "AddItem", Creation.NONE),
                                 ),
                             ),
                         ),

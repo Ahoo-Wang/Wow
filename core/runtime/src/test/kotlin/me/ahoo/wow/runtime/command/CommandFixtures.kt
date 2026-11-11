@@ -40,8 +40,6 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 const val SALES = "sales"
 const val STOCK = "stock"
 const val SALES_SERVICE = "sales-service"
@@ -209,7 +207,7 @@ fun committingOrderSaga(
 private fun aggregateManifest(
     context: String,
     name: String,
-    commands: List<Pair<Class<*>, ManifestCreation>>,
+    commands: List<Pair<Class<*>, Creation>>,
     events: List<Class<*>>,
 ) = AggregateManifest(
     name,
@@ -231,9 +229,9 @@ fun salesManifest(): Manifest = Manifest(
                     SALES,
                     "order",
                     listOf(
-                        PlaceOrder::class.java to ManifestCreation.REQUIRED,
-                        CancelOrder::class.java to ManifestCreation.NONE,
-                        ConfirmOrder::class.java to ManifestCreation.NONE,
+                        PlaceOrder::class.java to Creation.REQUIRED,
+                        CancelOrder::class.java to Creation.NONE,
+                        ConfirmOrder::class.java to Creation.NONE,
                     ),
                     listOf(OrderPlaced::class.java, OrderCancelled::class.java, OrderConfirmed::class.java),
                 ),
@@ -253,8 +251,8 @@ fun stockManifest(): Manifest = Manifest(
                     STOCK,
                     "item",
                     listOf(
-                        Reserve::class.java to ManifestCreation.ALLOWED,
-                        Restock::class.java to ManifestCreation.NONE,
+                        Reserve::class.java to Creation.ALLOWED,
+                        Restock::class.java to Creation.NONE,
                     ),
                     listOf(Reserved::class.java)
                 ).withIdProperty("Restock", "item"),

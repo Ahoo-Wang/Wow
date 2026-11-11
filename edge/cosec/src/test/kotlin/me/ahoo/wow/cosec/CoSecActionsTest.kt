@@ -17,10 +17,10 @@ import me.ahoo.cosec.runtime.route.RouteMap
 import me.ahoo.cosec.runtime.route.RouteMapCodec
 import me.ahoo.cosec.runtime.route.RouteResolution
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.ServiceRouteManifest

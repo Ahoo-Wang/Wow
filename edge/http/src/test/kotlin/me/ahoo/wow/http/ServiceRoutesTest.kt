@@ -24,6 +24,7 @@ import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.api.wire.WowHeaders
@@ -32,7 +33,6 @@ import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
 import me.ahoo.wow.kernel.route.ServiceRouteHandler
 import me.ahoo.wow.manifest.ErrorManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.RouteParameterManifest
@@ -138,7 +138,7 @@ class ServiceRoutesTest {
         handler("peer") { _, request ->
             when (request.path("answer", String::class)) {
                 "gone" -> throw WowProblemException("crm.member.gone", 410, Retry.NONE, null, "Gone.")
-                else -> throw RouteRefusal(FrameworkErrors.COMMAND_UNHANDLED, "Not offered.")
+                else -> throw RouteRefusal(FrameworkCodes.COMMAND_UNHANDLED, "Not offered.")
             }
         },
         handler("addNote") { _, request ->
@@ -182,7 +182,7 @@ class ServiceRoutesTest {
     fun `a parameter or a body that does not read is malformed, naming it`() {
         val missing = node.get("/$CONTEXT/summaries/mon")
         missing.status.assert().isEqualTo(400)
-        missing.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.ROUTE_MALFORMED)
+        missing.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.ROUTE_MALFORMED)
         missing.body["violations"][0]["path"].asString().assert().isEqualTo("limit")
         val notANumber = node.get("/$CONTEXT/summaries/mon?limit=many")
         notANumber.body!!["violations"][0]["path"].asString().assert().isEqualTo("limit")
@@ -212,7 +212,7 @@ class ServiceRoutesTest {
     fun `a call is admitted before its handler runs`() {
         node.get("/$CONTEXT/summaries/mon?limit=1", user = null).status.assert().isEqualTo(401)
         node.get("/$CONTEXT/summaries/mon?limit=1", user = "bob").body!!["code"].asString().assert()
-            .isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            .isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         node.get("/$CONTEXT/summaries/mon?limit=1", headers = mapOf(WowHeaders.SCOPE to "owner=\"bob\""))
             .status.assert().isEqualTo(403)
         node.get("/$CONTEXT/summaries/mon?limit=1", headers = mapOf(WowHeaders.CALL to "x")).status.assert()
@@ -279,7 +279,7 @@ class ServiceRoutesTest {
         gone.body["detail"].asString().assert().isEqualTo("Gone.")
         val unhandled = node.post("/$CONTEXT/peer/other", null)
         unhandled.status.assert().isEqualTo(400)
-        unhandled.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+        unhandled.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test

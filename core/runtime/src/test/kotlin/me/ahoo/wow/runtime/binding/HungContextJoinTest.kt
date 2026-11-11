@@ -51,8 +51,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * A node of two contexts whose second one's join hangs, a lease it cannot take: the partitions the first one started
  * hold back their reads for the reconcile timeout at most, then read their backlogs, and a warning names the context
@@ -165,7 +163,7 @@ class HungContextJoinTest {
             service = ServiceInfo(SHOP_SERVICE),
             contexts = shop.contexts + ContextManifest(
                 BACK,
-                aggregates = listOf(aggregateManifest("box", listOf("Fill" to ManifestCreation.ALLOWED), listOf("Filled"), BACK)),
+                aggregates = listOf(aggregateManifest("box", listOf("Fill" to Creation.ALLOWED), listOf("Filled"), BACK)),
             ),
         )
     }

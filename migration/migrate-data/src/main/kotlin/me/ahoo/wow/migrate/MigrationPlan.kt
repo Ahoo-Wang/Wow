@@ -92,7 +92,7 @@ internal class AggregatePlan(
 
     /** Who the aggregate belongs to besides its tenant in V10; a missing Manifest entry reads as OWNER. */
     val ownership: Ownership = when (manifest?.ownership) {
-        me.ahoo.wow.manifest.Ownership.TENANT -> Ownership.TENANT
+        me.ahoo.wow.api.aggregate.Ownership.TENANT -> Ownership.TENANT
         else -> Ownership.OWNER
     }
 

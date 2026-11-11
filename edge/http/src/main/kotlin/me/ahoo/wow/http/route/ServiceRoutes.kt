@@ -35,7 +35,6 @@ import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
 import me.ahoo.wow.kernel.route.ServiceRouteHandler
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
 import me.ahoo.wow.query.admission.QueryTargetException
@@ -185,7 +184,7 @@ internal class ServiceRouteHandling(
             // Another service's answer, relayed as that service answered: what a retry may do included.
             throw ProblemException(statuses.problemOf(relayed, context.name))
         } catch (refusal: RouteRefusal) {
-            val framework = refusal.code.startsWith(FrameworkErrors.PREFIX)
+            val framework = refusal.code.startsWith(FrameworkCodes.PREFIX)
             if (!framework && refusal.code !in route.errors && undeclared.add(route.name to refusal.code)) {
                 logger.warn {
                     "Service route ${context.name}.${route.name} refused with ${refusal.code}, which it does not " +

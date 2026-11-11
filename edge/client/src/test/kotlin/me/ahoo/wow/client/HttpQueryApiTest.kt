@@ -29,11 +29,11 @@ import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
@@ -97,7 +97,7 @@ class HttpQueryApiTest {
         peer.reply(Reply.events("event: row\ndata: ${record("b-1")}\n\n"))
         caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
             .apply {
-                code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+                code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
                 message.assert().contains("cut off")
             }
         peer.taken.assert().hasSize(1)

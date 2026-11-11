@@ -14,10 +14,11 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.AggregateIdSource
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.manifest.CommandRoutes
-import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.JobManifest
 import me.ahoo.wow.manifest.SnapshotManifest
@@ -125,11 +126,11 @@ class OpenApiPathsTest {
         val conflict = response("shop.command.409")
         conflict["x-wow-error-codes"].assert().isEqualTo(
             listOf(
-                FrameworkErrors.AGGREGATE_EXISTS,
-                FrameworkErrors.AGGREGATE_VERSION_MISMATCH,
-                FrameworkErrors.COMMAND_REQUEST_ID_REUSED,
-                FrameworkErrors.COMMAND_CONTENDED,
-                FrameworkErrors.COMMAND_REFUSED,
+                FrameworkCodes.AGGREGATE_EXISTS,
+                FrameworkCodes.AGGREGATE_VERSION_MISMATCH,
+                FrameworkCodes.COMMAND_REQUEST_ID_REUSED,
+                FrameworkCodes.COMMAND_CONTENDED,
+                FrameworkCodes.COMMAND_REFUSED,
                 "shop.cart.full",
             ),
         )
@@ -176,7 +177,7 @@ class OpenApiPathsTest {
                                 kind = SubscriptionKind.SAGA,
                                 source = SubscriptionSource("shop", listOf("schedule")),
                                 function = FunctionManifest(FunctionKind.SAGA, "shop", "Jobs", "report"),
-                                job = JobManifest("report", "0 0 9 * * *", scope = "TENANT"),
+                                job = JobManifest("report", "0 0 9 * * *", scope = JobScope.TENANT),
                             ),
                         ),
                     )
@@ -198,7 +199,7 @@ class OpenApiPathsTest {
         OpenApiChecks.validate(document, "wow.schedule.Enable", """{"job":"report","rule":{"misfire":"catch-up"}}""")
             .assert().isEmpty()
         val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
-        invalid.assert().contains(FrameworkErrors.SCHEDULE_JOB_INVALID)
+        invalid.assert().contains(FrameworkCodes.SCHEDULE_JOB_INVALID)
         paths().keys.assert().noneMatch { it.contains("/wow.schedule/") }
     }
 

@@ -15,8 +15,8 @@ package me.ahoo.wow.spring.boot
 
 import com.zaxxer.hikari.HikariPoolMXBean
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.admission.AdaptiveQueryLimit
 import me.ahoo.wow.query.admission.AdaptiveQueryLimits
 import me.ahoo.wow.query.admission.QueryBulkhead
@@ -128,7 +128,7 @@ class PostgresAdaptiveQueryLimitTest {
                 eventually { pool.held.get() == 1 && again.count { it.isDone } == CLIENTS - 1 }
                 bulkhead.limit.assert().isEqualTo(1)
                 again.filter { it.isDone }.forEach {
-                    it.get().body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                    it.get().body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
                 }
                 val started = System.nanoTime()
                 host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).status.assert().isEqualTo(200)
