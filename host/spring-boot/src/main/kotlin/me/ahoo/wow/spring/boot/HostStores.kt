@@ -65,12 +65,6 @@ internal class MemoryStore(
     private val snapshotsOf: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
     scansEvents: Boolean = true,
 ) : Store(config) {
-    constructor(
-        name: String,
-        queries: InMemoryQueryStorage? = null,
-        snapshotsOf: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
-    ) : this(StoreConfig(name, StoreTypes.MEMORY), queries, snapshotsOf)
-
     override val location: Any get() = this
 
     override val durable: Boolean get() = false

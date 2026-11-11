@@ -61,7 +61,7 @@ class HostStoresTest {
     private val models = BankModels().models(Dependencies.of(DecidedCommands()))
     private val account = AggregateType(BANK, "account")
 
-    private fun memory(vararg names: String): Map<String, Store> = names.associateWith { MemoryStore(it) }
+    private fun memory(vararg names: String): Map<String, Store> = names.associateWith { memoryStore(it) }
 
     private val providers = StoreProviders.load(javaClass.classLoader)
 
@@ -276,7 +276,7 @@ class HostStoresTest {
 
     @Test
     fun `a store that holds no log is refused as a log store`() {
-        val stores = mapOf("auto" to Unopened("auto", "acme", holdsLogs = false), "a" to MemoryStore("a"))
+        val stores = mapOf("auto" to Unopened("auto", "acme", holdsLogs = false), "a" to memoryStore("a"))
         assertThrows<IllegalStateException> { layoutOf(properties { log.store = "auto" }, stores, models) }
             .message.assert().contains("holds no log")
     }

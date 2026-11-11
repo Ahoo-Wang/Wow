@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -89,7 +90,8 @@ class HostBackends @InternalWowApi constructor(
             partitions: Int,
             snapshots: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
         ): HostBackends {
-            val store = MemoryStore(ContextBackends.DEFAULT_STORE, snapshotsOf = snapshots)
+            val store =
+                MemoryStore(StoreConfig(ContextBackends.DEFAULT_STORE, StoreTypes.MEMORY), snapshotsOf = snapshots)
             return of(mapOf(store.name to store), StoreLayout(store.name), partitions)
         }
 

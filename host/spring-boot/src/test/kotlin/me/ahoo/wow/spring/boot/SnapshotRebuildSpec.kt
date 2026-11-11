@@ -48,6 +48,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.Closing
@@ -57,6 +58,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -417,7 +419,7 @@ abstract class SnapshotRebuildSpec {
 
 /** [SnapshotRebuildSpec] in memory. */
 class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): Store = MemoryStore(name)
+    override fun store(name: String): Store = memoryStore(name)
 }
 
 /**
@@ -426,9 +428,9 @@ class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
  */
 class SlowStoreSnapshotRebuildTest : SnapshotRebuildSpec() {
     override fun store(name: String): Store = if (name != A) {
-        MemoryStore(name)
+        memoryStore(name)
     } else {
-        MemoryStore(name) { SlowSaves(InMemorySnapshotStore()) }
+        MemoryStore(StoreConfig(name, StoreTypes.MEMORY), snapshotsOf = { SlowSaves(InMemorySnapshotStore()) })
     }
 
     /** Saves to [delegate] after [SLOW_WRITE]. */
