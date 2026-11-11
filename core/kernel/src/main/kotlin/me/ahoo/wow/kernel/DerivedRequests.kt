@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * each as its own duplicate, never one target's request as another's. A creation without an id takes the same request
  * id again, so admission gives it the aggregate its first attempt created.
  *
- * Every derived identity is written by one encoder ([encoded], [DerivedIds.encoded]): each field as its length, `:`,
+ * Every derived identity is written by one encoder ([DerivedIds.encoded]): each field as its length, `:`,
  * and itself. Two different lists of fields never give one text, whatever characters the fields hold (a `/` or `#` in
  * a tenant, an id or a business key, the id `unassigned`), so two different requests never share an id. An unassigned
  * id needs no marker of its own: no assigned id is [AggregateRef.UNASSIGNED], which the gateway refuses as one.
@@ -61,8 +61,9 @@ internal class DerivedRequests {
         scheduled(
             key,
             requestId?.let(::keyed) ?: occurrence(
-                occurrences.computeIfAbsent(encoded(SCHEDULE, keyOf(ref, commandType), key)) { AtomicInteger() }
-                    .getAndIncrement(),
+                occurrences.computeIfAbsent(DerivedIds.encoded(SCHEDULE, keyOf(ref, commandType), key)) {
+                    AtomicInteger()
+                }.getAndIncrement(),
             ),
         )
 
@@ -71,24 +72,21 @@ internal class DerivedRequests {
         private const val OCCURRENCE = "occurrence"
         private const val SCHEDULE = "schedule"
 
-        /** The one text of [fields], in order: [DerivedIds.encoded], so they join one way only. */
-        fun encoded(vararg fields: String): String = DerivedIds.encoded(*fields)
-
         /** What a request asks: its target and its command type. */
         fun keyOf(ref: AggregateRef, commandType: Class<*>): String =
-            encoded(ref.type.context, ref.type.name, ref.tenantId, ref.id, commandType.name)
+            DerivedIds.encoded(ref.type.context, ref.type.name, ref.tenantId, ref.id, commandType.name)
 
         /** The discriminator of a request with the business key [requestId], never an occurrence's. */
-        fun keyed(requestId: String): String = encoded(KEY, requestId)
+        fun keyed(requestId: String): String = DerivedIds.encoded(KEY, requestId)
 
         /** The discriminator of a schedule request of the schedule [key], told from that key's others by [within]. */
-        fun scheduled(key: String, within: String): String = encoded(SCHEDULE, key, within)
+        fun scheduled(key: String, within: String): String = DerivedIds.encoded(SCHEDULE, key, within)
 
         /** The discriminator of the [occurrence]-th request (from 0) of a target and type without a business key. */
-        fun occurrence(occurrence: Int): String = encoded(OCCURRENCE, occurrence.toString())
+        fun occurrence(occurrence: Int): String = DerivedIds.encoded(OCCURRENCE, occurrence.toString())
 
         /** The fields of [execution]: its subscription, the commit's aggregate, and its version. */
-        fun executionOf(execution: ExecutionId): String = encoded(
+        fun executionOf(execution: ExecutionId): String = DerivedIds.encoded(
             execution.subscription,
             execution.ref.type.context,
             execution.ref.type.name,
@@ -96,9 +94,6 @@ internal class DerivedRequests {
             execution.ref.id,
             execution.version.toString(),
         )
-
-        /** A name-based UUID of [name]. */
-        fun idOf(name: String): String = DerivedIds.idOf(name)
     }
 }
 

@@ -34,6 +34,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.IdGenerators
 import java.util.Collections
 
@@ -133,7 +134,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
         /**
          * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
          * [execution]: a name-based UUID of the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation
-         * that leaves it to admission), the command type and the occurrence ([DerivedRequests.encoded]), stable across
+         * that leaves it to admission), the command type and the occurrence ([DerivedIds.encoded]), stable across
          * every execution of the same commit by the same subscription, whatever order the handler derives its commands
          * in.
          */
@@ -178,8 +179,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
         }
 
         private fun derivedIdOf(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, key: String): String =
-            DerivedRequests.idOf(
-                DerivedRequests.encoded(
+            DerivedIds.idOf(
+                DerivedIds.encoded(
                     DERIVED,
                     DerivedRequests.executionOf(execution),
                     DerivedRequests.keyOf(ref, commandType),

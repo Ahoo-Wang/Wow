@@ -22,6 +22,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.spi.id.DerivedIds
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
 
@@ -46,7 +47,7 @@ class DerivedIdentityTest {
         val fields = strings(2)
         val tuples = fields.flatMap { a -> fields.flatMap { b -> listOf(listOf(a, b), listOf(a, b, "")) } } +
             fields.map { listOf(it) }
-        val encoded = tuples.map { DerivedRequests.encoded(*it.toTypedArray()) }
+        val encoded = tuples.map { DerivedIds.encoded(*it.toTypedArray()) }
         encoded.toSet().size.assert().isEqualTo(tuples.toSet().size)
     }
 

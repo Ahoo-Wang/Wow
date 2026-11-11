@@ -222,14 +222,13 @@ class HttpCommandClientTest {
         runBlocking {
             peer.reply(Reply.json(committed()))
             peer.reply(Reply.json(committed()))
-            val deciding = BOX.ref("t1", "deciding")
-            withContext(DecidingCommand(deciding, "r-deciding")) {
+            withContext(DecidingCommand(ref, "r-deciding")) {
                 client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("mug"))))
                 client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("cup"))))
             }
             peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.assert().containsExactly(
-                DecidingCommand.requestIdOf(deciding, "r-deciding", 0),
-                DecidingCommand.requestIdOf(deciding, "r-deciding", 1),
+                DecidingCommand.requestIdOf(ref, "r-deciding", 0),
+                DecidingCommand.requestIdOf(ref, "r-deciding", 1),
             )
         }
 
