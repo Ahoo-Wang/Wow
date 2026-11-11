@@ -115,6 +115,11 @@ class IdentityTextTest {
         val billing = ExecutionId("billing", "Audit.onPlaced", ref, 2)
         val shipping = ExecutionId("shipping", "Audit.onPlaced", ref, 2)
         billing.assert().isNotEqualTo(shipping)
+        // An execution is a value: equal, and of one hash, by every field.
+        ExecutionId.of("billing", "Audit.onPlaced", ref, 2).assert().isEqualTo(billing)
+            .isEqualTo(shipping.copyWith(context = "billing"))
+            .isNotEqualTo(billing.copyWith(version = 3))
+        billing.hashCode().assert().isEqualTo(ExecutionId.of("billing", "Audit.onPlaced", ref, 2).hashCode())
         billing.toString().assert().isEqualTo("billing.Audit.onPlaced:shop.order/t/o-1@2")
         shipping.toString().assert().isNotEqualTo(billing.toString())
         // A context that held a '.', ':' or '%' could make two texts one: it is refused, as no bounded context holds one.

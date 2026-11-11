@@ -53,7 +53,7 @@ class ShipmentNotifierTest {
         val order = paid()
         whenEvent(OrderShipped, by = ShipOrder::class) { expectHandledBy("onOrderShipped") }
         sent.single().assert().isEqualTo(
-            Triple("alice", "alice-1", "ShipmentNotifier.onOrderShipped:${order.ref}@3:0"),
+            Triple("alice", "alice-1", "${order.ref.type.context}.ShipmentNotifier.onOrderShipped:${order.ref}@3:0"),
         )
     }
 
@@ -75,7 +75,8 @@ class ShipmentNotifierTest {
         }
         // The retry hands the same commit again: the same key, so the mail service sends it once.
         whenRedelivered()
-        sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
+        sent.single().third.assert()
+            .isEqualTo("${order.ref.type.context}.ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
     }
     // endregion
 
