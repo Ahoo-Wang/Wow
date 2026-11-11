@@ -36,7 +36,7 @@ class ClickHouseSinkSpecTest : SinkSpec() {
 
     override fun createSink(): Sink =
         ClickHouseSinks(
-            ClickHouseSinkIntegrationTest.client,
+            ClientStatements(ClickHouseSinkIntegrationTest.client),
             SinkFixtures.MANIFEST,
             ClickHouseSinkOptions(database = database)
         )

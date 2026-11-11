@@ -33,9 +33,6 @@ internal interface ClickHouseStatements {
      */
     suspend fun insert(table: String, body: ByteArray, token: String)
 
-    /** Whether [database] has a table or view named [name]. */
-    suspend fun exists(database: String, name: String): Boolean
-
     /** The columns of [database]'s table or view [name], in order; empty when there is none. */
     suspend fun columns(database: String, name: String): List<ClickHouseColumn>
 
@@ -64,13 +61,6 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
             val rows = ByteArrayInputStream(body)
             client.insert(table, rows, ClickHouseFormat.JSONEachRow, settings).awaitResponse().close()
         }
-    }
-
-    override suspend fun exists(database: String, name: String): Boolean = Dispatchers.IO.clickhouse {
-        client.queryAll(
-            "SELECT name FROM system.tables WHERE database = {database:String} AND name = {name:String}",
-            mapOf<String, Any>("database" to database, "name" to name),
-        ).isNotEmpty()
     }
 
     override suspend fun columns(database: String, name: String): List<ClickHouseColumn> = Dispatchers.IO.clickhouse {

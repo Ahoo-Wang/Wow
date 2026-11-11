@@ -340,7 +340,7 @@ class DatasetBinderTest {
             columns = listOf(DatasetColumn("state", from = "m.state")),
         )
         problems(members, governed).single().assert().contains("the access policy of shop.member decides its rows")
-        // A row of an earlier Sink says nothing of a policy: read as one, until its service writes it again.
+        // A row of a Sink whose node has no query engine says nothing of a policy: read as one.
         problems(members, SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = ""))).single().assert()
             .contains("does not say whether an access policy decides the rows of shop.member")
         // Its service says the default rule reads them: the dataset binds as before.

@@ -35,7 +35,8 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *   of `commit_time`, ordered by `(tenant_id, aggregate_id, version)`, one row per commit ([ClickHouseRows]); with a TTL
  *   on `commit_time` when [AggregateSinkOptions.historyTtl] is set.
  * - `<ctx>_<agg>_state`, a ReplacingMergeTree(version) ordered by `(tenant_id, aggregate_id)`, the current state:
- *   filled by the materialized view `<ctx>_<agg>_state_mv` from the base table.
+ *   filled by the materialized view `<ctx>_<agg>_state_mv` from the base table, with the base table's columns but
+ *   the events and the headers, which the history keeps ([STATE_COLUMNS]).
  * - `<ctx>_<agg>_events`, a ReplacingMergeTree ordered by `(tenant_id, aggregate_id, version, sequence)`, one row
  *   per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
  *   base table's `events`; under the same TTL.
@@ -46,6 +47,9 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *
  * Without the history ([AggregateSinkOptions.history] false) only `_state` and `_state_flat` exist, and the Sink
  * inserts into `_state` directly ([target]).
+ *
+ * Every table and view carries the format of the Sink's tables in its comment ([FORMAT_COMMENT], `wow-sink-format:1`),
+ * which the Sink checks before it writes: a table or view without it is not the Sink's ([hasFormat]).
  *
  * Every table remembers the last [deduplicationWindow] insert blocks (`non_replicated_deduplication_window`), so an
  * insert retried with the same token is dropped from the base table and, the inserts setting
@@ -88,23 +92,36 @@ class ClickHouseSinkSchema(
             add(
                 createTable(
                     state,
-                    BASE_COLUMNS,
+                    STATE_COLUMNS,
                     "ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" + settings()
                 )
             )
             if (aggregate.history) {
                 add(createTable(events, EVENT_COLUMNS, mergeTree(EVENT_ORDER)))
                 add(
-                    "CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(stateView)} TO ${qualified(state)} AS\n" +
-                        "SELECT ${BASE_COLUMNS.joinToString(", ") { it.name }}\nFROM ${qualified(stateEvents)}",
+                    materializedView(
+                        stateView,
+                        state,
+                        "SELECT ${STATE_COLUMNS.joinToString(", ") { it.name }}\nFROM ${qualified(stateEvents)}",
+                    ),
                 )
                 add(
-                    "CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(eventsView)} TO ${qualified(events)} AS\n" +
+                    materializedView(
+                        eventsView,
+                        events,
                         "SELECT ${EVENT_SELECT.joinToString(", ")}\nFROM ${qualified(stateEvents)}\n" +
-                        "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence",
+                            "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence",
+                    ),
                 )
             }
         }
+
+    /**
+     * A materialized view [name] that fills [to] with [select]. The `SELECT` is in parentheses: after a plain `FROM
+     * <table>` ClickHouse would read `COMMENT` as the table's alias.
+     */
+    private fun materializedView(name: String, to: String, select: String): String =
+        "CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(name)} TO ${qualified(to)} AS\n($select)\n" + comment()
 
     /**
      * The fingerprint of the flat view's definition: the first 16 hex digits of the SHA-256 of its
@@ -116,20 +133,26 @@ class ClickHouseSinkSchema(
         digest.joinToString("") { "%02x".format(it) }.take(FINGERPRINT_LENGTH)
     }
 
-    /** The statement that creates or replaces the flat view, its comment the writers' [lineage], this one's last. */
+    /**
+     * The statement that creates or replaces the flat view, its comment the format and the writers' [lineage], this
+     * one's last: `wow-sink-format:1 wow-sink-flat:<fingerprint>,…`.
+     */
     fun flatView(lineage: FlatLineage): String =
         "CREATE OR REPLACE VIEW ${qualified(stateFlat)} AS\n" + flatDefinition(qualified(state)) +
-            "\nCOMMENT ${ClickHouseSql.literal(lineage.comment)}"
+            "\nCOMMENT ${ClickHouseSql.literal("$FORMAT_COMMENT ${lineage.comment}")}"
 
     private fun flatDefinition(from: String): String = "SELECT ${flatSelect().joinToString(", ")}\nFROM $from FINAL"
 
-    /** What [Ddl.VALIDATE] checks: every table and view with its columns, the materialized views by name. */
+    /**
+     * What [Ddl.VALIDATE] checks: every table and view with its columns, the materialized views by name; each of them
+     * with the format in its comment ([hasFormat]).
+     */
     val expected: List<ClickHouseObject>
         get() = buildList {
             if (aggregate.history) {
                 add(ClickHouseObject(stateEvents, BASE_COLUMNS))
             }
-            add(ClickHouseObject(state, BASE_COLUMNS))
+            add(ClickHouseObject(state, STATE_COLUMNS))
             if (aggregate.history) {
                 add(ClickHouseObject(events, EVENT_COLUMNS))
                 add(ClickHouseObject(stateView, null))
@@ -146,7 +169,9 @@ class ClickHouseSinkSchema(
     private fun createTable(name: String, columns: List<ClickHouseColumn>, engine: String): String =
         "CREATE TABLE IF NOT EXISTS ${qualified(name)}\n(\n" +
             columns.joinToString(",\n") { "    ${identifier(it.name)} ${it.type}" } +
-            "\n)\nENGINE = $engine"
+            "\n)\nENGINE = $engine\n" + comment()
+
+    private fun comment(): String = "COMMENT ${ClickHouseSql.literal(FORMAT_COMMENT)}"
 
     /**
      * A history table: by the month of its commits, kept for the history's TTL; a row of the same key, a replayed
@@ -170,7 +195,16 @@ class ClickHouseSinkSchema(
 
     @InternalWowApi
     companion object {
-        /** The columns of the base table and of `_state`, one row per commit ([ClickHouseRows]). */
+        /** The format of the Sink's tables and views; raised only by an incompatible change of them. */
+        const val FORMAT: Int = 1
+
+        /** What the comment of each of the Sink's tables and views says: their [FORMAT]. */
+        const val FORMAT_COMMENT: String = "wow-sink-format:$FORMAT"
+
+        /** Whether a table's or view's [comment] says it is of the Sink's [FORMAT], among its words. */
+        fun hasFormat(comment: String?): Boolean = comment?.split(' ')?.contains(FORMAT_COMMENT) == true
+
+        /** The columns of the base table, one row per commit ([ClickHouseRows]). */
         val BASE_COLUMNS: List<ClickHouseColumn> = listOf(
             ClickHouseColumn("id", "String"),
             ClickHouseColumn("tenant_id", "String"),
@@ -196,6 +230,15 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("state_numbers", "Map(String, String)"),
         )
 
+        /** The columns only the history keeps: `_state` has the others. */
+        private val HISTORY_ONLY = setOf("headers", "events")
+
+        /**
+         * The columns of `_state`, the current state: the base table's, but the events and the headers, which only the
+         * history needs. The Sink inserts these alone when it keeps no history.
+         */
+        val STATE_COLUMNS: List<ClickHouseColumn> = BASE_COLUMNS.filterNot { it.name in HISTORY_ONLY }
+
         /** The columns of `_events`, one row per event. */
         val EVENT_COLUMNS: List<ClickHouseColumn> = listOf(
             ClickHouseColumn("id", "String"),
@@ -219,7 +262,7 @@ class ClickHouseSinkSchema(
         /** The system columns `_state_flat` starts with, as `_state` has them. */
         val FLAT_SYSTEM_COLUMNS: List<ClickHouseColumn> =
             listOf("id", "tenant_id", "aggregate_id", "version", "commit_time", "owner_id", "space_id", "deleted", "access")
-                .map { name -> BASE_COLUMNS.first { it.name == name } }
+                .map { name -> STATE_COLUMNS.first { it.name == name } }
 
         private const val BASE_ORDER = "tenant_id, aggregate_id, version"
         private const val EVENT_ORDER = "tenant_id, aggregate_id, version, sequence"
@@ -269,13 +312,14 @@ class ClickHouseSinkSchema(
 
 /**
  * The fingerprints of the flat view's definitions that writers created it with, oldest first, as its comment keeps
- * them (`wow-sink-flat:<fingerprint>,<fingerprint>`): the last is the view's definition.
+ * them (`wow-sink-flat:<fingerprint>,<fingerprint>`, after the format, [ClickHouseSinkSchema.flatView]): the last is
+ * the view's definition.
  *
  * During a rolling upgrade, instances of two versions start and restart in turn, each creating the view of its own
  * state schema. A writer replaces the view only when its own fingerprint is not in the lineage yet, a newer
  * definition than every one before it; one whose fingerprint is there but not last was replaced by a newer writer and
- * leaves the view as it is. The lineage keeps the last [MAX] fingerprints; a view without one (created by an earlier
- * Wow, or by an operator) has an empty lineage, which the first writer replaces.
+ * leaves the view as it is. The lineage keeps the last [MAX] fingerprints; a view without one (created by an
+ * operator) has an empty lineage, which the first writer replaces.
  */
 @InternalWowApi
 class FlatLineage(val fingerprints: List<String>) {
@@ -303,12 +347,14 @@ class FlatLineage(val fingerprints: List<String>) {
         const val MAX: Int = 16
         val EMPTY: FlatLineage = FlatLineage(emptyList())
 
-        /** The lineage a view's [comment] keeps; empty when it keeps none. */
-        fun of(comment: String?): FlatLineage =
-            if (comment == null || !comment.startsWith(PREFIX)) {
-                EMPTY
-            } else {
-                FlatLineage(comment.removePrefix(PREFIX).split(',').map { it.trim() }.filter { it.isNotEmpty() })
+        /** The lineage a view's [comment] keeps, from [PREFIX] on (after the format); empty when it keeps none. */
+        fun of(comment: String?): FlatLineage {
+            val at = comment?.indexOf(PREFIX) ?: -1
+            if (at < 0) {
+                return EMPTY
             }
+            val fingerprints = comment!!.substring(at + PREFIX.length).split(',')
+            return FlatLineage(fingerprints.map { it.trim() }.filter { it.isNotEmpty() })
+        }
     }
 }

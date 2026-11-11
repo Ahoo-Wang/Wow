@@ -60,7 +60,7 @@ class ClickHouseDatasetAccessTest : DatasetAccessSpec() {
                 events = listOf(StateEventPayload("document_changed", 1, WowJson.mapper.createObjectNode())),
                 access = record.access,
             )
-            val body = ClickHouseRows.bodyOf(listOf(row)).toString(Charsets.UTF_8)
+            val body = ClickHouseRows.bodyOf(listOf(row), history = false).toString(Charsets.UTF_8)
             ClickHouseContainers.execute("INSERT INTO ${schema.qualified(schema.state)} FORMAT JSONEachRow $body")
         }
     }

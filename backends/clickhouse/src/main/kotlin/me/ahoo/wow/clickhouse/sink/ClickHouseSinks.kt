@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.clickhouse.sink
 
-import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.AggregateManifest
@@ -31,6 +30,7 @@ import me.ahoo.wow.query.policy.GovernedAggregates
  */
 @InternalWowApi
 class ClickHouseSinks internal constructor(
+    /** The statements the Sinks run: over a client-v2 client, [ClientStatements], which stays the caller's to close. */
     private val statements: ClickHouseStatements,
     private val manifest: Manifest,
     val options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
@@ -49,14 +49,6 @@ class ClickHouseSinks internal constructor(
                 "[a-z0-9_] as `_`, and are part of the storage format: rename one of the aggregates."
         }
     }
-
-    /** The Sinks over a client-v2 [client]; the client is the caller's to close. */
-    constructor(
-        client: Client,
-        manifest: Manifest,
-        options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
-        governed: GovernedAggregates? = null,
-    ) : this(ClientStatements(client), manifest, options, governed)
 
     /** The Sink of [aggregate] of [context]. */
     fun sinkOf(context: String, aggregate: String): ClickHouseSink {

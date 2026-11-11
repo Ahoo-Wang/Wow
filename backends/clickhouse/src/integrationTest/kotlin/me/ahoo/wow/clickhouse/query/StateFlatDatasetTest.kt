@@ -36,6 +36,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkIntegrationTest
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
+import me.ahoo.wow.clickhouse.sink.ClientStatements
 import me.ahoo.wow.clickhouse.sink.SinkFixtures
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -109,7 +110,7 @@ class StateFlatDatasetTest {
         ClickHouseContainers.execute("DROP DATABASE IF EXISTS $database")
         ClickHouseContainers.execute("CREATE DATABASE $database")
         val sink = ClickHouseSinks(
-            ClickHouseSinkIntegrationTest.client,
+            ClientStatements(ClickHouseSinkIntegrationTest.client),
             SinkFixtures.MANIFEST,
             ClickHouseSinkOptions(database = database)
         )

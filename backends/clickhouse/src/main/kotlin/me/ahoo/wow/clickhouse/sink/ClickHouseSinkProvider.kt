@@ -63,7 +63,7 @@ class ClickHouseSinkProvider : SinkProvider {
         // Which aggregates an access policy governs, as the host's query engine says: recorded in wow_catalog.
         val governed = GovernedAggregates::class.java.takeIf(config.resources::has)
             ?.let { config.resources.resource(it, null, config.key) }
-        val sinks = ClickHouseSinks(client.client, manifest, options(config), governed)
+        val sinks = ClickHouseSinks(ClientStatements(client.client), manifest, options(config), governed)
         return object : StreamSinks {
             override val processor: String = ClickHouseSinks.PROCESSOR
 

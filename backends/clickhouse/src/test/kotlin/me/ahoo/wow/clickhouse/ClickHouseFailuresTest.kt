@@ -84,7 +84,7 @@ class ClickHouseFailuresTest {
         Client.Builder().addEndpoint("http://127.0.0.1:1").setUsername("default").setPassword("").build().use {
             val statements = ClientStatements(it)
             assertThrownBy<StorageUnavailableException> { runBlocking { statements.execute("SELECT 1") } }
-            assertThrownBy<StorageUnavailableException> { runBlocking { statements.exists("db", "t") } }
+            assertThrownBy<StorageUnavailableException> { runBlocking { statements.columns("db", "t") } }
         }
     }
 }

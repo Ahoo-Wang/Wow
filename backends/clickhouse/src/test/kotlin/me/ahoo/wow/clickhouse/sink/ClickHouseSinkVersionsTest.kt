@@ -94,7 +94,7 @@ class ClickHouseSinkVersionsTest {
         Unit = runTest {
         val first = sinkOf(SinkFixtures.MANIFEST)
         statements.create(first.schema)
-        // A view an earlier Wow created, without a lineage: replaced once, to record it.
+        // A view an operator created, without the format or a lineage: replaced once, to record both.
         statements.comments["default.shop_order_state_flat"] = ""
         first.write(listOf(recordOf(version = 1)))
         sinkOf(SinkFixtures.MANIFEST).write(listOf(recordOf(version = 2)))
@@ -128,7 +128,8 @@ class ClickHouseSinkVersionsTest {
         val new = sinkOf(newer, Ddl.VALIDATE)
         val old = sinkOf(SinkFixtures.MANIFEST)
         statements.create(old.schema)
-        statements.comments["default.shop_order_state_flat"] = FlatLineage(listOf(old.schema.flatFingerprint)).comment
+        statements.comments["default.shop_order_state_flat"] =
+            "${ClickHouseSinkSchema.FORMAT_COMMENT} ${FlatLineage(listOf(old.schema.flatFingerprint)).comment}"
         val error = runCatching { new.write(listOf(recordOf())) }.exceptionOrNull()
         error!!.message.assert().contains("shop_order_state_flat has the columns")
         statements.executed.assert().isEmpty()
@@ -164,6 +165,9 @@ class ClickHouseSinkVersionsTest {
         long.fingerprints.size.assert().isEqualTo(FlatLineage.MAX)
         long.fingerprints.first().assert().isEqualTo("f3")
         FlatLineage.of(long.comment).assert().isEqualTo(long)
+        // The flat view's comment says the format first.
+        FlatLineage.of("wow-sink-format:1 wow-sink-flat:a,b").fingerprints.assert().containsExactly("a", "b")
+        FlatLineage.of("wow-sink-format:1").assert().isEqualTo(FlatLineage.EMPTY)
     }
 
     private fun manifestOf(vararg types: AggregateType) = Manifest(

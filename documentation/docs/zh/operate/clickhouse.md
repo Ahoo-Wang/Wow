@@ -53,7 +53,7 @@ fun analyticsCatalogClickHouseClient(environment: Environment): Client {
 | 表 | 保存 |
 | --- | --- |
 | `<ctx>_<agg>_state_events` | Sink 插入的基表：每次提交一行，带着它的事件和提交之后的状态。按提交的月份分区，按租户、聚合和版本排序 |
-| `<ctx>_<agg>_state` | 每个聚合的当前状态，由物化视图从基表填充 |
+| `<ctx>_<agg>_state` | 每个聚合的当前状态，由物化视图从基表填充：基表的列，但没有事件与 headers，它们由历史保留 |
 | `<ctx>_<agg>_events` | 每个事件一行，由物化视图填充 |
 | `<ctx>_<agg>_state_flat` | 当前状态的一个视图，状态的每个顶层标量都是一个有类型的列，供分析工具使用 |
 
@@ -120,7 +120,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
 (
@@ -138,18 +139,17 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `access` String,
     `correlation_id` String,
     `causation_id` String,
-    `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
     `operator_cross_scope` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String)
 )
 ENGINE = ReplacingMergeTree(version)
 ORDER BY (tenant_id, aggregate_id)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
 (
@@ -173,21 +173,24 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version, sequence)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
-FROM `default`.`shop_order_state_events`;
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events`)
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
-ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
+COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
 SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 ```
 
 排序键就是一行的身份：键与先前某行相同的行，在 ClickHouse 合并时替换它。
@@ -201,7 +204,7 @@ COMMENT 'wow-sink-flat:eb326856599fc0e7';
 
 聚合的每张表都带 `SETTINGS non_replicated_deduplication_window = N`，N 即 `wow.clickhouse.sink.deduplication-window`。`...history.ttl` 会给 `_state_events` 和 `_events` 加上 `TTL toDateTime(commit_time) + toIntervalSecond(<秒数>)`。不保留历史时只有 `_state` 和 `_state_flat`。
 
-**`_state_events` 与 `_state`**，每次提交一行：
+**`_state_events` 与 `_state`**，每次提交一行；`_state` 有除 `headers` 与 `events` 之外的每一列：
 
 | 列 | 保存 |
 | --- | --- |
@@ -213,9 +216,9 @@ COMMENT 'wow-sink-flat:eb326856599fc0e7';
 | `owner_id`、`space_id` | 提交之后聚合的作用域，没有则为空 |
 | `deleted`、`access` | 聚合是否已删除，以及提交时的访问属性（JSON 文本，含内置的 `owner` 与 `space`）：只作信息，不用于读取的授权 |
 | `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
-| `headers` | 命令携带的请求事实 |
+| `headers` | 命令携带的请求事实；仅 `_state_events` 有 |
 | `operator_id`、`operator_tenant_id`、`operator_cross_scope` | 谁提交的；没有时为空和 false |
-| `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本 |
+| `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本；仅 `_state_events` 有 |
 | `state`、`state_fingerprint` | 提交之后的状态（JSON 文本）和它的 schema 的指纹；不发布状态的聚合为空 |
 | `state_numbers` | 状态每个顶层数字的原文，`_state_flat` 从中读取小数 |
 
@@ -246,7 +249,9 @@ Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、
 
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
-滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图记住创建它所用的定义的指纹，写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
+Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，重置 Sink 的订阅即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+
+滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图在注释里、格式之后，记住创建它所用的定义的指纹（`wow-sink-format:1 wow-sink-flat:<指纹>,…`），写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
 
 ## 在集群上运行 {#run-it-on-a-cluster}
 
@@ -288,14 +293,37 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
--- _state has the columns of _state_events.
+-- _state has the columns of _state_events but the events and the headers.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
-AS `default`.`shop_order_state_events_local`
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `deleted` Bool,
+    `access` String,
+    `correlation_id` String,
+    `causation_id` String,
+    `operator_id` String,
+    `operator_tenant_id` String,
+    `operator_cross_scope` Bool,
+    `state` String,
+    `state_fingerprint` String,
+    `state_numbers` Map(String, String)
+)
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}', version)
 ORDER BY (tenant_id, aggregate_id)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{cluster}'
 (
@@ -319,38 +347,45 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{clus
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version, sequence)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
--- Every commit of an aggregate goes to one shard: the sharding key is its tenant and id.
+-- Every commit of an aggregate goes to one shard: the sharding key is its tenant and id. The Sink reads the format from
+-- the comment of the tables it expects, these Distributed ones, which `AS` does not copy.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_state_events_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_state_events_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_events_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_state_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_state_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_events_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
-FROM `default`.`shop_order_state_events_local`;
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events_local`)
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
-SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events_local`
-ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
+COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
 SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 ```
 
-- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、或列不同时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
+- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、列不同或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
 - **按聚合分片。** 分片键是 `sipHash64(tenant_id, aggregate_id)`，与 9.x 相同，所以一个聚合的所有提交都在同一个分片上：`_state` 保留同一个键版本最高的行，历史表按各自的键合并掉重放的行，两者都只在一个分片之内生效。
 - **每个分片一个副本接收写入。** 在集群的分片上设置 `<internal_replication>true</internal_replication>`，与任何复制表一样：分布式插入于是只写分片的一个副本，由副本互相复制。
 - **同步插入。** 默认情况下，ClickHouse 对分布式表的插入在行落到接收节点的磁盘后就应答，之后才把它们发往各分片。Sink 把应答当作提交已在数仓中，并推进它的检查点。让 Sink 的用户同步插入，这样应答就表示各分片已收到这些行：

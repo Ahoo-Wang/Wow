@@ -48,6 +48,14 @@ class ClickHouseRowsTest {
     }
 
     @Test
+    fun `a record should map to one row of the current state without the history`() {
+        val row = ClickHouseRows.rowOf(SinkFixtures.recordOf(), history = false)
+        row.propertyNames().toList().assert()
+            .containsExactlyElementsOf(ClickHouseSinkSchema.STATE_COLUMNS.map { it.name })
+        row.get("state_numbers").assert().isEqualTo(ClickHouseRows.rowOf(SinkFixtures.recordOf()).get("state_numbers"))
+    }
+
+    @Test
     fun `numbers should keep their exact text in the events, the state and the state's numbers`() {
         val row = ClickHouseRows.rowOf(SinkFixtures.recordOf())
         WowJson.mapper.writeValueAsString(row.get("events")).assert().isEqualTo(

@@ -43,13 +43,14 @@ class PublishedDdlTest {
         statements.size.assert().isEqualTo(CLUSTER_STATEMENTS)
         val (stateEvents, state, events) = statements
         columnsOf(stateEvents).assert().isEqualTo(columnsOf(schema.ddl[0]))
+        columnsOf(state).assert().isEqualTo(columnsOf(schema.ddl[1]))
         columnsOf(events).assert().isEqualTo(columnsOf(schema.ddl[2]))
-        // _state has the columns of _state_events, which `AS` takes.
-        state.assert().contains("AS `default`.`shop_order_state_events_local`")
+        // Every table says the Sink's format, the Distributed ones the Sink reads it from among them.
+        statements.subList(0, 6).forEach { it.assert().endsWith("\nCOMMENT 'wow-sink-format:1'") }
         statements.subList(3, 6).forEach {
             it.assert().contains(
                 "ENGINE = Distributed('{cluster}', `default`, "
-            ).endsWith("sipHash64(tenant_id, aggregate_id))")
+            ).endsWith("sipHash64(tenant_id, aggregate_id))\nCOMMENT 'wow-sink-format:1'")
         }
         statements[6].assert().isEqualTo(clustered(schema.ddl[3], schema.state, schema.stateEvents))
         statements[7].assert().isEqualTo(clustered(schema.ddl[4], schema.events, schema.stateEvents))

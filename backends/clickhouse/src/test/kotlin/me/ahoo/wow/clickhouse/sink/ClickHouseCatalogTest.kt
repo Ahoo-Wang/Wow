@@ -28,7 +28,6 @@ import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
 
 class ClickHouseCatalogTest {
@@ -71,26 +70,6 @@ class ClickHouseCatalogTest {
         }
 
     @Test
-    fun `auto should add the access column to an earlier wow_catalog, and validate refuse one without it`(): Unit =
-        runTest {
-            val auto = sinks().sinkOf("crm", "member")
-            statements.create(auto.schema)
-            auto.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
-            statements.executed.assert().contains(ClickHouseCatalog.migration("default"))
-            ClickHouseCatalog.migration("default").assert().isEqualTo(
-                "ALTER TABLE `default`.`wow_catalog` ADD COLUMN IF NOT EXISTS `access` LowCardinality(String) " +
-                    "AFTER columns_hash",
-            )
-            val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.VALIDATE)).sinkOf("crm", "member")
-            statements.create(sink.schema)
-            statements.tables["default.wow_catalog"] = ClickHouseCatalog.COLUMNS - ClickHouseCatalog.ACCESS
-            assertThrows<IllegalStateException> { sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER))) }
-                .message.assert().contains("default.wow_catalog has no access column", "ddl=auto", "ADD COLUMN")
-            statements.tables["default.wow_catalog"] = ClickHouseCatalog.COLUMNS
-            sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
-        }
-
-    @Test
     fun `the entries should say whose each table is, and what in it is sensitive or refers to an aggregate`() {
         val entries = sinks().catalogOf(CatalogFixtures.MEMBER).associateBy { it.role }
         entries.keys.assert().containsExactly("state_events", "state", "events", "state_flat")
@@ -115,7 +94,7 @@ class ClickHouseCatalogTest {
             CatalogReference("state.storeId", "shop", "store"),
         )
         state.eventRevisions.assert().isEqualTo(mapOf("member_registered" to 2))
-        state.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(ClickHouseSinkSchema.BASE_COLUMNS))
+        state.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(ClickHouseSinkSchema.STATE_COLUMNS))
 
         val events = entries.getValue("events")
         events.sensitive.assert().containsExactly(
@@ -200,7 +179,8 @@ class ClickHouseCatalogTest {
             },
         )
         statements.create(schema)
-        statements.comments["default.crm_member_state_flat"] = FlatLineage(listOf(schema.flatFingerprint)).comment
+        statements.comments["default.crm_member_state_flat"] =
+            "${ClickHouseSinkSchema.FORMAT_COMMENT} ${FlatLineage(listOf(schema.flatFingerprint)).comment}"
         sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
         sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 2)))
         statements.catalog.size.assert().isEqualTo(1)
@@ -213,7 +193,7 @@ class ClickHouseCatalogTest {
     @Test
     fun `with ddl none the rows should be appended for the tables whose uuid is readable`(): Unit = runTest {
         val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("crm", "member")
-        statements.tables["default.crm_member_state"] = ClickHouseSinkSchema.BASE_COLUMNS
+        statements.tables["default.crm_member_state"] = ClickHouseSinkSchema.STATE_COLUMNS
         sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
         statements.executed.assert().isEmpty()
         statements.catalog.single().second.trimEnd().lines().size.assert().isEqualTo(1)

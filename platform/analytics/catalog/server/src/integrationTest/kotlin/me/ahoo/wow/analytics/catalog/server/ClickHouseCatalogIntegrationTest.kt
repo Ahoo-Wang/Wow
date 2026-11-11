@@ -67,7 +67,7 @@ class ClickHouseCatalogIntegrationTest {
                 "`sensitive` Array(Tuple(path String, level String, mask String, event String, revision UInt32)), " +
                 "`references` Array(Tuple(path String, context String, aggregate String)), " +
                 "`event_revisions` Map(String, UInt32), `fingerprint` String, `columns_hash` String, " +
-                "`written_at` DateTime64(3, 'UTC') DEFAULT now64(3), `writer` String MATERIALIZED currentUser()) " +
+                "`access` LowCardinality(String), `written_at` DateTime64(3, 'UTC') DEFAULT now64(3), `writer` String MATERIALIZED currentUser()) " +
                 "ENGINE = ReplacingMergeTree(written_at) ORDER BY (`database`, `table`, fingerprint)",
         )
     }
@@ -123,11 +123,8 @@ class ClickHouseCatalogIntegrationTest {
         )
         row.references.assert().containsExactly(SourceReference("state.memberId", "crm", "member"))
         row.eventRevisions.assert().isEqualTo(mapOf("order_paid" to 2))
-        // A wow_catalog of an earlier Sink says nothing of an access policy; once the Sink adds the column, its rows do.
+        // A row whose Sink was told neither POLICY nor DEFAULT says nothing of an access policy; one that says, says so.
         row.access.assert().isEmpty()
-        execute(
-            "ALTER TABLE $DATABASE.wow_catalog ADD COLUMN IF NOT EXISTS `access` LowCardinality(String) AFTER columns_hash",
-        )
         execute(
             "ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'POLICY' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1"
         )

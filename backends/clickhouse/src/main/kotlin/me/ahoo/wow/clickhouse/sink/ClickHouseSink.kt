@@ -45,14 +45,16 @@ import kotlin.time.Duration.Companion.minutes
  * - **DDL**: before its first write, and again once [recheckEvery] has passed since, the Sink creates
  *   or validates its tables as [ddl] says; a failure fails the write, which the subscription retries. The check
  *   repeated finds what changed since: a table dropped or altered fails the writes until it is as the Sink expects.
+ *   A table or view is the Sink's when it has the columns the Sink expects and its comment says the Sink's format
+ *   ([ClickHouseSinkSchema.FORMAT_COMMENT]); `auto` creates what is missing with it, and leaves an existing table as
+ *   it is, so one of another format is refused as one of other columns is.
  * - **The flat view across versions**: during a rolling upgrade, writers of two state schemas run at
  *   once. The view's comment keeps the fingerprints of the definitions it was created with ([FlatLineage]): a writer
  *   replaces it only when its own definition is newer than every one before it, so an older instance that restarts
  *   leaves a newer one's view as it is, and validates it by existence only.
  * - **Catalog**: once its tables are created or validated (at once with `ddl=none`), the Sink
  *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
- *   table's current uuid; `auto` creates `wow_catalog` when it is missing and adds the column an earlier version's
- *   lacks ([ClickHouseCatalog.migration]), and `validate` refuses a `wow_catalog` without it. A table whose uuid the account cannot read
+ *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
  *   gets no row, and a failed write is logged and never fails the Sink's write.
  */
 @InternalWowApi
@@ -138,7 +140,7 @@ class ClickHouseSink internal constructor(
         try {
             val table = schema.qualified(schema.target)
             batch.flatMap { it.records }.chunked(batchSize).forEach { records ->
-                statements.insert(table, ClickHouseRows.bodyOf(records), tokenOf(records))
+                statements.insert(table, ClickHouseRows.bodyOf(records, schema.aggregate.history), tokenOf(records))
             }
             batch.forEach { it.done.complete(Unit) }
         } catch (
@@ -226,7 +228,6 @@ class ClickHouseSink internal constructor(
      */
     private suspend fun create(): FlatLineage {
         statements.execute(ClickHouseCatalog.ddl(schema.database))
-        statements.execute(ClickHouseCatalog.migration(schema.database))
         schema.ddl.forEach { statements.execute(it) }
         val lineage = lineage()
         val fingerprint = schema.flatFingerprint
@@ -247,30 +248,31 @@ class ClickHouseSink internal constructor(
                 }
             }
         }
-        val problems = schema.expected.mapNotNull { expected ->
-            if (expected.columns == null || newer && expected.name == schema.stateFlat) {
-                expected.name.takeUnless { statements.exists(schema.database, it) }?.let { "$it does not exist" }
-            } else {
-                val actual = statements.columns(schema.database, expected.name)
-                when {
-                    actual.isEmpty() -> "${expected.name} does not exist"
-                    actual != expected.columns -> "${expected.name} has the columns $actual, not ${expected.columns}"
-                    else -> null
-                }
-            }
-        }
-        val catalogColumns = statements.columns(schema.database, ClickHouseCatalog.TABLE)
-        check(catalogColumns.isEmpty() || catalogColumns.any { it.name == ClickHouseCatalog.ACCESS.name }) {
-            "${schema.database}.${ClickHouseCatalog.TABLE} has no ${ClickHouseCatalog.ACCESS.name} column, which " +
-                "says whether each aggregate's access policy decides its rows: a Sink with ddl=auto adds it, or run " +
-                "${ClickHouseCatalog.migration(schema.database)}."
-        }
+        val problems = schema.expected.mapNotNull { expected -> problemOf(expected, newer) }
         check(problems.isEmpty()) {
             "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString(
                 "; "
-            )}. They hold nothing the log does not: an earlier version's (one with a tags column, say) is dropped and " +
-                "filled again from the log by resetting the Sink's subscription."
+            )}. They hold nothing the log does not: drop them, and resetting the Sink's subscription fills them " +
+                "again from the log."
         }
+    }
+
+    /**
+     * Why the table or view [expected] is not the Sink's, or null when it is: it does not exist, its comment does not
+     * say the Sink's format, or it has other columns. A materialized view, and a flat view a [newer] writer replaced,
+     * are checked by their comment alone.
+     */
+    private suspend fun problemOf(expected: ClickHouseObject, newer: Boolean): String? {
+        val name = expected.name
+        val comment = statements.comment(schema.database, name) ?: return "$name does not exist"
+        if (!ClickHouseSinkSchema.hasFormat(comment)) {
+            return "$name is not of format ${ClickHouseSinkSchema.FORMAT}"
+        }
+        if (expected.columns == null || newer && name == schema.stateFlat) {
+            return null
+        }
+        val actual = statements.columns(schema.database, name)
+        return "$name has the columns $actual, not ${expected.columns}".takeIf { actual != expected.columns }
     }
 
     override fun toString(): String = "ClickHouseSink(${schema.database}.${schema.target})"
