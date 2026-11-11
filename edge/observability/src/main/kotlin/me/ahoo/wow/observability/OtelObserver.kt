@@ -139,6 +139,7 @@ class OtelObserver(
             is ObservedEvent.SignalDropped -> signalDropped(event.reason.value)
             is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome.value)
             is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
+            is ObservedEvent.StateRebuilt -> stateRebuilt(event)
             is ObservedEvent.ReservationLost -> reservationLost(event.context)
             is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability.value, event.reason.value)
             is ObservedEvent.AccessStamped -> accessStamped(event)
@@ -209,6 +210,16 @@ class OtelObserver(
             ObservedEvent.StateCache.Outcome.STALE -> cached.counter(WowMetrics.STATE_CACHE_INVALIDATIONS, context)
             else -> cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, context, outcome.value)
         }.increment()
+    }
+
+    private fun stateRebuilt(event: ObservedEvent.StateRebuilt) {
+        val (context, aggregate, outcome) = Triple(event.type.context, event.type.name, event.outcome.value)
+        val kind = if (event.gated) WowMetrics.GATED_KIND else WowMetrics.UNGATED_KIND
+        cached.counter(WowMetrics.SHARED_STATE_REBUILDS, context, aggregate, kind, outcome).increment()
+        if (event.gated) {
+            cached.timer(WowMetrics.SHARED_STATE_REBUILD_WAIT, context, aggregate, outcome)
+                .record(event.waitMillis, TimeUnit.MILLISECONDS)
+        }
     }
 
     private fun reservationLost(context: String) {

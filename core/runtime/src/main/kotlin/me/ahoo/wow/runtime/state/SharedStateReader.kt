@@ -41,11 +41,11 @@ import tools.jackson.core.JacksonException
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
  * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
- * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views], under the node's
- * [ReplayGate] ([SharedStates.rebuild]): a reader that misses an aggregate another reader is rebuilding waits for that
- * rebuild, then reads again, so the view it left, at this version or the one before, is evolved rather than the log
- * replayed again. A gate that refuses the replay fails the read as a busy store, which the subscription retries as
- * backpressure.
+ * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views] ([SharedStates.rebuild]):
+ * a reader that misses an aggregate another reader is rebuilding waits for that rebuild, then reads again, so the view
+ * it left, at this version or the one before, is evolved rather than the log replayed again. One that replays more
+ * than a page of the log runs under the node's [ReplayGate]; a gate that refuses it fails the read as a busy store,
+ * which the subscription retries as backpressure. One of a page or less runs at once.
  *
  * A rebuilt state is put back into the views, so the next commit of the aggregate, for this reader or another
  * behind it, evolves it with one stream rather than replaying the log again: a subscription behind the snapshot
@@ -94,9 +94,20 @@ class SharedStateReader(
      */
     private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
         while (true) {
-            views.rebuild(stream.ref) { rebuilt(stream, snapshot) }?.let { return it }
+            views.rebuild(stream.ref, streamsOf(stream, snapshot)) { rebuilt(stream, snapshot) }?.let { return it }
             held(stream)?.let { return it }
         }
+    }
+
+    /**
+     * How many streams of the log rebuilding the state after [stream] reads: from the nearest base before it, the
+     * latest view or [snapshot], whichever is later, else from version 1.
+     */
+    private fun streamsOf(stream: EventStreamRecord, snapshot: SnapshotRecord?): Int {
+        val version = stream.version
+        val usable = snapshot?.takeIf { it.ref == stream.ref && it.version <= version }?.version ?: 0
+        val view = views.floor(stream.ref, version)?.version ?: 0
+        return version - maxOf(usable, view)
     }
 
     private suspend fun rebuilt(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
