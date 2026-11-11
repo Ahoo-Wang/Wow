@@ -177,7 +177,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 ### 很长的列表 {#long-lists}
 
-引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.listedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或看板打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { listedViews: 5000 } })`）。
+引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.listedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或仪表盘打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { listedViews: 5000 } })`）。
 
 ### 写入与重试 {#writes-and-retries}
 
