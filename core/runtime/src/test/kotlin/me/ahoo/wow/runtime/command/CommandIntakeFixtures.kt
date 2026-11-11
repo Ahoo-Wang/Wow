@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -63,6 +64,7 @@ abstract class CommandIntakeFixtures {
         producer: TopicProducer = topics,
         backends: BackendFactory = stockBackends,
         options: ServiceNodeOptions = fastNodeOptions(),
+        observer: Observer = Observer.NONE,
     ): ServiceNode = ServiceNode(
         STOCK_SERVICE,
         name,
@@ -72,6 +74,7 @@ abstract class CommandIntakeFixtures {
         backends,
         channel,
         options = options,
+        observer = observer,
         contracts = ContractDirectory(stockManifest()),
         topics = SourceTopics(topics, PREFIX, producer, intake = true),
     ).also {

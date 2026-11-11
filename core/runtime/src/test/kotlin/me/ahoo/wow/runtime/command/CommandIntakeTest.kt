@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -32,11 +31,14 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeKind
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -205,8 +207,16 @@ class CommandIntakeTest : CommandIntakeFixtures() {
     fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
         runBlocking {
             // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.
+            val pushedBack = AtomicInteger()
             val node = stockNode(
                 options = fastNodeOptions().copyWith(executor = ExecutorOptions(maxInFlight = 2)),
+                observer = object : Observer {
+                    override fun observed(event: ObservedEvent) {
+                        if (event is ObservedEvent.Backpressured && event.subscription == CommandIntake.NAME) {
+                            pushedBack.incrementAndGet()
+                        }
+                    }
+                },
             ).also {
                 it.start()
             }
@@ -225,8 +235,8 @@ class CommandIntakeTest : CommandIntakeFixtures() {
             val busy = try {
                 eventually { context.executor.commandsInFlight == 2 }
                 reserve("c-busy", 1, item = "i-busy").also { busy ->
-                    // Far longer than the subscription's three attempts take.
-                    delay(300.milliseconds)
+                    // Pushed back more times than the subscription's three attempts: a failure would have parked it.
+                    eventually { pushedBack.get() > 3 }
                     ledger.isParked(INTAKE, busy.ref).assert().isFalse()
                     stock.decided.assert().doesNotContain(busy.id)
                 }

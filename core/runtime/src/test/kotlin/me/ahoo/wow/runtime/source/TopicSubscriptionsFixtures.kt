@@ -27,9 +27,9 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A topic of orders over [InMemoryTopics], its leases, checkpoints and ledger, the board subscription and the nodes
@@ -76,12 +76,13 @@ abstract class TopicSubscriptionsFixtures {
         node: String,
         subscription: Subscription = board,
         starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
+        source: PartitionedSource = topics,
     ): TopicSubscriptions = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
         node = node,
         addressOf = { "$node.internal:9090" },
-        source = topics,
+        source = source,
         checkpoints = checkpoints,
         leases = leases,
         ledger = ledger,
@@ -102,9 +103,6 @@ abstract class TopicSubscriptionsFixtures {
         const val SERVICE = "board-service"
         const val BOARD = "Board.onOrder"
         const val PARTITIONS = 4
-
-        /** Long enough for a read that fails to have been retried several times. */
-        val READ_RETRIES = 300.milliseconds
 
         /** An envelope a later version may read: of another format, which this version does not. */
         const val BAD = """{"format":2,"kind":"state-event","id":"sales.order/t/o-1@2","payload":{}}"""

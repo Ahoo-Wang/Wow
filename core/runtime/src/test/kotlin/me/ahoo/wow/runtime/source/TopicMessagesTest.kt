@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.runtime.source
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -21,9 +21,12 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.SourceMessage
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Messages a topic subscription cannot take as they come: undecodable, of another producer, keyless or holding no state
@@ -72,9 +75,24 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
                 .contains("wow.kafka.topics.prefix")
 
             // A wrong topic is no failure of an aggregate: nothing parks, and the record after it is never reached.
-            start("node-1")
+            val reads = AtomicInteger()
+            val counting = object : PartitionedSource by topics {
+                override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> =
+                    topics.read(topic, partition, from).also { counted(partition) }
+
+                override fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
+                    topics.read(topic, partition, from, until).also { counted(partition) }
+
+                private fun counted(read: Int) {
+                    if (read == partition) reads.incrementAndGet()
+                }
+            }
+            start("node-1", source = counting)
             topics.publish(orderRecord("o-1", 1))
-            delay(READ_RETRIES)
+            // Two more reads of the partition, each stopped at the foreign record: the second opens only once the first
+            // failed, which opened after o-1 was published.
+            val opened = reads.get()
+            eventually { reads.get() >= opened + 2 }
             handled.size.assert().isZero()
             (checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) ?: 0L).assert().isZero()
             ledger.list(BOARD_ID).assert().isEmpty()
