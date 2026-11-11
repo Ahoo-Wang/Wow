@@ -24,7 +24,7 @@ class ProviderOptionTest {
     private val timeout = ProviderOption.duration("append-timeout", "how long an append may take.", 5.seconds)
     private val size = ProviderOption.int("batch.size", "how many records a batch holds.")
     private val enabled = ProviderOption.boolean("enabled", "whether it runs.", true)
-    private val client = ProviderOption.string("client", "the client bean.").instance()
+    private val client = ProviderOption.string("client", "the client bean.").perInstance()
 
     @Test
     fun `each factory should parse its type and keep its default and scope`() {
@@ -55,13 +55,13 @@ class ProviderOptionTest {
         refresh.values.assert().containsExactly("wait-for", "immediate")
         refresh.parse(" Wait-For ", "k").assert().isEqualTo(Refresh.WAIT_FOR)
         refresh.default.assert().isEqualTo(Refresh.WAIT_FOR)
-        refresh.instance().values.assert().containsExactly("wait-for", "immediate")
+        refresh.perInstance().values.assert().containsExactly("wait-for", "immediate")
         val failure = assertThrows<WowConfigurationException> { refresh.parse("wait_for", "wow.stores.a.refresh") }
         failure.key.assert().isEqualTo("wow.stores.a.refresh")
         failure.message.assert().contains("not one of wait-for, immediate")
         val optional = ProviderOption.enumeration("mode", "the mode.", Refresh::class.java)
         optional.default.assert().isNull()
-        optional.instance().values.assert().containsExactly("wait-for", "immediate")
+        optional.perInstance().values.assert().containsExactly("wait-for", "immediate")
         ProviderOption.valueOf(Refresh.IMMEDIATE).assert().isEqualTo("immediate")
         size.values.assert().isEmpty()
     }
@@ -69,7 +69,7 @@ class ProviderOptionTest {
     @Test
     fun `an option given a default should be read as a value that is always there, per store too`() {
         val region: ProviderOption.Defaulted<String> = ProviderOption.string("region", "the region.", "eu-1")
-        val instance: ProviderOption.Defaulted<String> = region.instance()
+        val instance: ProviderOption.Defaulted<String> = region.perInstance()
         instance.scope.assert().isEqualTo(ProviderOption.Scope.INSTANCE)
         instance.default.assert().isEqualTo("eu-1")
         val retries: ProviderOption.Defaulted<Int> = ProviderOption.int("retries", "how many retries.", 3)
@@ -83,7 +83,7 @@ class ProviderOptionTest {
         set.settings.option(timeout).assert().isEqualTo(5.seconds)
         // Without a default, the value may be missing.
         set.settings.option(size).assert().isNull()
-        size.instance().default.assert().isNull()
+        size.perInstance().default.assert().isNull()
     }
 
     @Test

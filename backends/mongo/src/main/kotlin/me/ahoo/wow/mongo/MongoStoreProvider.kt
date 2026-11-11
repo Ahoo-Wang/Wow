@@ -119,7 +119,7 @@ internal class MongoStoreProvider : StoreProvider {
         val CLIENT = ProviderOption.string(
             "client",
             "the name of the MongoClient bean the store opens over; the only one when not set.",
-        ).instance()
+        ).perInstance()
 
         /** The option naming the store's database. */
         val DATABASE = ProviderOption.string(
@@ -157,7 +157,7 @@ internal class MongoStoreProvider : StoreProvider {
         val POOL_GAUGE = ProviderOption.string(
             "pool-gauge",
             "the name of the MongoPoolGauge bean the store's client was built with, when the application has several.",
-        ).instance()
+        ).perInstance()
 
         /** The option of the read preference of the store's snapshot and `events` queries. */
         val QUERY_READ_PREFERENCE = ProviderOption.string(

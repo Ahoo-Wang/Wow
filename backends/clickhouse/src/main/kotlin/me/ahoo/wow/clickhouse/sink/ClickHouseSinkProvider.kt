@@ -125,7 +125,7 @@ class ClickHouseSinkProvider : SinkProvider {
             "aggregates",
             "each aggregate type's history settings, <context>.<aggregate>.history.enabled and .ttl, given by the " +
                 "host from wow.aggregates.[<context>.<aggregate>].clickhouse.history.",
-        ).instance()
+        ).perInstance()
 
         private const val HISTORY = ".history."
 

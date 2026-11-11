@@ -22,7 +22,7 @@ import java.time.Clock
 
 /**
  * What a [StoreProvider] opens one store instance from: the store's [name] and [type], how it manages
- * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([options]), how the tails
+ * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([settings]), how the tails
  * of its logs poll ([polling], `wow.log.poll-interval`), the [service] whose failure ledger it keeps (the key of its
  * entries), the application's [resources], whether the node runs for [development], where a store
  * may accept a deployment it refuses for production (a standalone MongoDB server, say), and the [clock] its ports read
@@ -36,7 +36,7 @@ class StoreConfig @InternalWowApi constructor(
     val name: String,
     val type: String,
     val ddl: Ddl = Ddl.AUTO,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val polling: TailPolling = TailPolling.DEFAULT,
     val service: String = "",
     val resources: StoreResources = StoreResources.NONE,
@@ -54,7 +54,7 @@ class StoreConfig @InternalWowApi constructor(
     /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
     val settings: ProviderSettings = ProviderSettings(key, options)
 
-    override fun toString(): String = "StoreConfig(name=$name, type=$type, ddl=$ddl, options=$options)"
+    override fun toString(): String = "StoreConfig(name=$name, type=$type, ddl=$ddl, options=${settings.values})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

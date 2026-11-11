@@ -28,7 +28,7 @@ import me.ahoo.wow.spi.store.StoreResources
  * place of a provider of its type on the classpath, as it finds a [me.ahoo.wow.spi.store.StoreProvider].
  *
  * A provider is stateless: [open] gives each configured transport its own [TopicTransport], over the settings
- * [TransportConfig.options] holds and the application's [TransportConfig.resources].
+ * [TransportConfig.settings] holds and the application's [TransportConfig.resources].
  */
 @WowSpi
 interface TransportProvider {
@@ -39,7 +39,7 @@ interface TransportProvider {
     val requirement: String get() = "its settings"
 
     /**
-     * Every setting of its own it reads from [TransportConfig.options], each read through its option, for the host to
+     * Every setting of its own it reads from [TransportConfig.settings], each read through its option, for the host to
      * bind and check (`wow.<type>.<key>`): each of [ProviderOption.Scope.TYPE], since a transport has no instances
      * with settings of their own ([ProviderOption.Scope.INSTANCE]). The settings every topic transport has
      * ([TopicTransportOptions]) are not listed again: [TopicTransportOptions.of] joins them.
@@ -76,7 +76,7 @@ interface TopicTransport : AutoCloseable {
 }
 
 /**
- * What a [TransportProvider] opens a transport from: its [name] and [type], its own settings ([options], each key
+ * What a [TransportProvider] opens a transport from: its [name] and [type], its own settings ([settings], each key
  * relative to the transport's configuration, `bootstrap-servers` say), the application's [resources], and whether the
  * node runs for [development] (a profile of `wow.dev-profiles` is active, or its internal port binds a loopback address
  * alone): a provider may say less then.
@@ -88,7 +88,7 @@ interface TopicTransport : AutoCloseable {
 class TransportConfig @InternalWowApi constructor(
     val name: String,
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
     val development: Boolean = false,
     /** The node's observer, which the transport tells what it meets, such as an offset gap. */
@@ -105,7 +105,7 @@ class TransportConfig @InternalWowApi constructor(
     /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
     val settings: ProviderSettings = ProviderSettings(key, options)
 
-    override fun toString(): String = "TransportConfig(name=$name, type=$type, options=${options.keys})"
+    override fun toString(): String = "TransportConfig(name=$name, type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

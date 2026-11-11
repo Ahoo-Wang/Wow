@@ -66,7 +66,7 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
     val isMap: Boolean get() = type == Map::class.java
 
     /** This option, set only in one instance's own settings ([Scope.INSTANCE]). */
-    open fun instance(): ProviderOption<T> =
+    open fun perInstance(): ProviderOption<T> =
         ProviderOption(key, description, type, default, Scope.INSTANCE, values, parser)
 
     /** An option with a [default]: a config reads its value, set or not, as a `T`. */
@@ -79,7 +79,7 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         values: List<String> = emptyList(),
         parser: (String) -> T,
     ) : ProviderOption<T>(key, description, type, default, scope, values, parser) {
-        override fun instance(): Defaulted<T> =
+        override fun perInstance(): Defaulted<T> =
             Defaulted(key, description, type, default, Scope.INSTANCE, values, parser)
     }
 

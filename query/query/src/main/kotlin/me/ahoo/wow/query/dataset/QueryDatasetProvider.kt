@@ -32,7 +32,7 @@ interface QueryDatasetProvider {
     val type: String
 
     /**
-     * Every setting it reads from its [QueryDatasetConfig.options], each read through its option, for the host to bind
+     * Every setting it reads from its [QueryDatasetConfig.settings], each read through its option, for the host to bind
      * and check (`wow.<type>.<key>`): each of [ProviderOption.Scope.TYPE], since a dataset backend has no instances
      * with settings of their own ([ProviderOption.Scope.INSTANCE]).
      */
@@ -50,14 +50,14 @@ interface QueryDatasetProvider {
 }
 
 /**
- * What a [QueryDatasetProvider] opens from: its [type], its settings ([options], `wow.<type>.*` relative to it) and
+ * What a [QueryDatasetProvider] opens from: its [type], its settings ([settings], `wow.<type>.*` relative to it) and
  * the application's [resources]. Fields may be added: the host builds it, so the constructor is internal to Wow; a
  * provider's test builds one with [of].
  */
 @WowSpi
 class QueryDatasetConfig @InternalWowApi constructor(
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
 ) {
     /** The configuration key of its settings, `wow.<type>`, for a provider's failures to name. */
@@ -66,7 +66,7 @@ class QueryDatasetConfig @InternalWowApi constructor(
     /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
     val settings: ProviderSettings = ProviderSettings(key, options)
 
-    override fun toString(): String = "QueryDatasetConfig(type=$type, options=${options.keys})"
+    override fun toString(): String = "QueryDatasetConfig(type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

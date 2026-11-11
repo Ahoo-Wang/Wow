@@ -121,7 +121,7 @@ class TransportAutoConfiguration {
             val observed = TransportConfig.of(
                 config.name,
                 config.type,
-                config.options,
+                config.settings.values,
                 config.resources,
                 config.development,
                 Observer.of(observers.orderedStream().toList()),

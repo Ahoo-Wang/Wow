@@ -29,7 +29,7 @@ import me.ahoo.wow.spi.store.StoreResources
  * [me.ahoo.wow.spi.store.StoreProvider], and runs one sink subscription per published stream over what it opens.
  *
  * A provider is stateless: [open] gives each configured sink its own [StreamSinks], over the settings
- * [SinkConfig.options] holds and the application's [SinkConfig.resources] (the service's Manifest among them).
+ * [SinkConfig.settings] holds and the application's [SinkConfig.resources] (the service's Manifest among them).
  */
 @WowSpi
 interface SinkProvider {
@@ -40,7 +40,7 @@ interface SinkProvider {
     val requirement: String get() = "its settings"
 
     /**
-     * Every setting it reads from [SinkConfig.options], each read through its option, for the host to bind and check
+     * Every setting it reads from [SinkConfig.settings], each read through its option, for the host to bind and check
      * (`wow.<type>.<key>`). A [ProviderOption.Scope.INSTANCE] option is in the settings the host gives the sink itself,
      * never under `wow.<type>` (the ClickHouse Sink's per-aggregate `aggregates.*`).
      */
@@ -70,7 +70,7 @@ interface StreamSinks : AutoCloseable {
 }
 
 /**
- * What a [SinkProvider] opens its sinks from: their [name] and [type], their own settings ([options], each key relative
+ * What a [SinkProvider] opens its sinks from: their [name] and [type], their own settings ([settings], each key relative
  * to the sink's configuration, `endpoint` say), and the application's [resources].
  *
  * A Sink that writes into one of the node's stores, as an event search index written into an Elasticsearch store is,
@@ -84,7 +84,7 @@ interface StreamSinks : AutoCloseable {
 class SinkConfig @InternalWowApi constructor(
     val name: String,
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
     /** The aggregate types this Sink writes, null for the streams the Manifest publishes. */
     val streams: Set<AggregateType>? = null,
@@ -102,7 +102,7 @@ class SinkConfig @InternalWowApi constructor(
     /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
     val settings: ProviderSettings = ProviderSettings(key, options)
 
-    override fun toString(): String = "SinkConfig(name=$name, type=$type, options=${options.keys})"
+    override fun toString(): String = "SinkConfig(name=$name, type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

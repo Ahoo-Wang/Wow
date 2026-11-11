@@ -101,14 +101,14 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         val CLIENT = ProviderOption.string(
             "client",
             "the name of the Rest5Client bean the store opens over; the only one when not set.",
-        ).instance()
+        ).perInstance()
 
         /** The option naming the `Rest5Client` bean of the store's queries, when they have a pool of their own. */
         val QUERY_CLIENT = ProviderOption.string(
             "query-client",
             "the name of the Rest5Client bean the store's queries use, so they draw on a connection pool of their " +
                 "own instead of the one the snapshot writes use; the store's client when not set.",
-        ).instance()
+        ).perInstance()
 
         /** The option of the prefix of the store's index names. */
         val INDEX_PREFIX = ProviderOption.string(

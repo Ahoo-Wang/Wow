@@ -302,7 +302,7 @@ class DnsPeerDiscoveryTest {
                 override val options: List<ProviderOption<*>> = listOf(domain)
 
                 override fun open(config: PeerDiscoveryConfig): PeerTargets {
-                    seen += config.options
+                    seen += config.settings.values
                     return object : PeerTargets {
                         override suspend fun targetsOf(service: String, context: String): List<URI> =
                             listOf(URI.create("http://$service.${config.settings.option(domain)}:9090"))

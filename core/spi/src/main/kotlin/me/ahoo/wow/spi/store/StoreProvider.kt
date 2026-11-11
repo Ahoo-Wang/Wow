@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.config.ProviderOption
  * taking the place of a provider of its type on the classpath.
  *
  * A provider is stateless: [open] gives each store instance its own [Store], over the resources [StoreConfig.resources]
- * finds (a `DataSource`, a driver's client) and the settings [StoreConfig.options] holds.
+ * finds (a `DataSource`, a driver's client) and the settings [StoreConfig.settings] holds.
  */
 @WowSpi
 interface StoreProvider {
@@ -46,9 +46,9 @@ interface StoreProvider {
     fun available(config: StoreConfig): Boolean
 
     /**
-     * Every setting a store of this type reads from its [StoreConfig.options], each read through its option
-     * ([StoreConfig.settings]): the host binds `wow.<type>.<key>` for each [ProviderOption.Scope.TYPE] one, and refuses
-     * a store's setting no option declares, naming these.
+     * Every setting a store of this type reads from its [StoreConfig.settings], each read through its option: the host
+     * binds `wow.<type>.<key>` for each [ProviderOption.Scope.TYPE] one, and refuses a store's setting no option
+     * declares, naming these.
      */
     val options: List<ProviderOption<*>> get() = emptyList()
 

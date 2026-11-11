@@ -110,7 +110,7 @@ abstract class StoreTck {
             config.name,
             config.type,
             config.ddl,
-            config.options,
+            config.settings.values,
             config.polling,
             config.service,
             config.resources,

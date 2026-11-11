@@ -156,7 +156,7 @@ class ThirdPartyStoreTest {
                 }
             },
         ).getValue("acme")
-        open().config.options.assert().isEqualTo(mapOf("region" to "us-1"))
+        open().config.settings.values.assert().isEqualTo(mapOf("region" to "us-1"))
         open("region" to "eu-1").config.settings.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
         assertThrows<WowConfigurationException> { open("colour" to "red") }.key.assert()
             .isEqualTo("wow.stores.acme.colour")
@@ -168,8 +168,8 @@ class ThirdPartyStoreTest {
             override val options: List<ProviderOption<*>> = listOf(
                 REGION,
                 ProviderOption.map("properties", "the client's properties."),
-                ProviderOption.string("secret", "a store's own secret.").instance(),
-                ProviderOption.map("labels", "a store's own labels.").instance(),
+                ProviderOption.string("secret", "a store's own secret.").perInstance(),
+                ProviderOption.map("labels", "a store's own labels.").perInstance(),
             )
         }
         val providers = StoreProviders.load(javaClass.classLoader, beans = listOf(mapped))
@@ -191,7 +191,7 @@ class ThirdPartyStoreTest {
                 }
             },
         ).getValue("main")
-        store.config.options.assert().isEqualTo(
+        store.config.settings.values.assert().isEqualTo(
             mapOf(
                 "region" to "global-region",
                 "properties.shared" to "global-shared",
@@ -224,7 +224,7 @@ class ThirdPartyStoreTest {
         host.use {
             val backends = host.context.getBean(HostBackends::class.java)
             val acme = backends.stores.getValue("acme") as AcmeStore
-            acme.config.options.assert().containsEntry("region", "eu-1")
+            acme.config.settings.values.assert().containsEntry("region", "eu-1")
             acme.config.ddl.name.assert().isEqualTo("NONE")
             acme.config.service.assert().isEqualTo("bank-service")
             backends.snapshotStoreOf(account).assert().isSameAs(acme)

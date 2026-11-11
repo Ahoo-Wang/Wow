@@ -39,7 +39,7 @@ interface PeerDiscovery {
     val type: String
 
     /**
-     * Every setting it reads from [PeerDiscoveryConfig.options], each read through its option, for the host to bind and
+     * Every setting it reads from [PeerDiscoveryConfig.settings], each read through its option, for the host to bind and
      * check (`wow.peer.<type>.<key>`): a key it does not declare fails the start.
      */
     val options: List<ProviderOption<*>> get() = emptyList()
@@ -70,7 +70,7 @@ interface PeerTargets : AutoCloseable {
 }
 
 /**
- * What a [PeerDiscovery] opens its targets from: its [type], its own settings ([options], each key relative to
+ * What a [PeerDiscovery] opens its targets from: its [type], its own settings ([settings], each key relative to
  * `wow.peer.<type>`, `name-template` say) and the application's [resources].
  *
  * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
@@ -80,7 +80,7 @@ interface PeerTargets : AutoCloseable {
 @ExperimentalWowApi
 class PeerDiscoveryConfig @InternalWowApi constructor(
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
 ) {
     init {
@@ -93,7 +93,7 @@ class PeerDiscoveryConfig @InternalWowApi constructor(
     /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
     val settings: ProviderSettings = ProviderSettings(key, options)
 
-    override fun toString(): String = "PeerDiscoveryConfig(type=$type, options=${options.keys})"
+    override fun toString(): String = "PeerDiscoveryConfig(type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

@@ -78,7 +78,7 @@ internal class PostgresStoreProvider : StoreProvider {
         val DATA_SOURCE = ProviderOption.string(
             "data-source",
             "the name of the DataSource bean the store opens over; the only one when not set.",
-        ).instance()
+        ).perInstance()
 
         /**
          * The option naming the `DataSource` bean the store's snapshot and `events` queries read through:
@@ -88,7 +88,7 @@ internal class PostgresStoreProvider : StoreProvider {
             "query-data-source",
             "the name of the DataSource bean the store's snapshot and events queries read through, so they do not " +
                 "take the appends' connections; the store's data-source when not set.",
-        ).instance()
+        ).perInstance()
 
         /** The option bounding each of the store's calls besides the schema's and the queries'. */
         val OPERATION_TIMEOUT = ProviderOption.duration(

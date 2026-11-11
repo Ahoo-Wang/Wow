@@ -489,7 +489,7 @@ class HostStoresTest {
         // Only the options of its own type: a PostgreSQL store is given no MongoDB database.
         stores.getValue(
             "a"
-        ).config.options.assert().isEqualTo(mapOf("data-source" to "second"))
+        ).config.settings.values.assert().isEqualTo(mapOf("data-source" to "second"))
         stores.getValue("a").toString().assert().isEqualTo("a (postgres)")
     }
 
