@@ -20,7 +20,7 @@ outline: deep
 | 节点不提供的订阅、聚合或上下文 | `wow.subscriptions`、`wow.aggregates` 或 `wow.contexts` 下有一个什么都不匹配的名字 | 修正名字，或删除这一项 |
 | 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers`，或在开发中运行，主题保存在它的 JVM 里（`wow.transport`） |
 | 缺少主题，或命令主题的分区数不对 | `wow.kafka.ddl: validate`，而运维人员没有按日志的需要创建主题 | 创建主题：命令主题的分区数恰好是 `wow.log.partitions`（[Kafka](./kafka#creating-topics)） |
-| 另一种格式的结构 | 一张由不兼容的 Wow 构建创建的表 | 运行那个主版本的迁移；绝不要编辑 `wow_format` |
+| 另一种格式的结构 | 一张以本版本 Wow 不读取的格式记录的表 | 用写下它的那个 Wow 版本打开它，或者从空的存储开始；绝不要编辑 `wow_format` |
 
 ## 命令超时 {#commands-time-out}
 

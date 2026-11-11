@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFixture
-import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
@@ -55,20 +54,6 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
         val ref = AggregateType(context, "order").ref("t", "o-1")
         store(context).put(timer(ref))
         PostgresFixture.bumpFormat(PostgresTimerTables(context).aggregate("order").base)
-        assertThrownBy<IllegalStateException> { runBlocking { store(context).find(ref, "k") } }
-    }
-
-    @Test
-    fun `a table of format 4, one per context, is refused`(): Unit = runBlocking {
-        val ref = AggregateType(context, "order").ref("t", "o-1")
-        val base = PostgresTimerTables(context).aggregate("order").base
-        store(context).put(timer(ref))
-        PostgresFixture.dataSource.connection.use { connection ->
-            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 4 WHERE structure = ?").use {
-                it.setString(1, base)
-                it.executeUpdate().assert().isEqualTo(1)
-            }
-        }
         assertThrownBy<IllegalStateException> { runBlocking { store(context).find(ref, "k") } }
     }
 

@@ -137,13 +137,12 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     companion object {
         /**
-         * The layout version of the table: format 1 keyed entries by service; format 2 adds each entry's partition
-         * and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
-         * `retry_claim_ttl_millis` and an operator's request to retry `RETRY`, and gained the revision in place;
-         * format 4 keys an entry by its subscription's context too (`subscription_context`), in the key and both
-         * indexes, the revision among its columns from the start.
+         * The layout version of the table: an entry is keyed by service and by its subscription's context and name
+         * (`subscription_context`, `subscription`), in the key and both indexes; it holds its partition, its next
+         * attempt and its revision; an applied spec's claim TTL is `retry_claim_ttl_millis`, an operator's request to
+         * retry `RETRY`.
          */
-        const val FORMAT = 4
+        const val FORMAT = 1
 
         /**
          * The retry state: the automatic retries made and the start of the last one; the retry spec an

@@ -49,7 +49,7 @@ The stores create their tables on first use. Names derive from the context and t
 
 A log table's keys are the position (`partition`, `sequence`), the version (`aggregate_id`, `tenant_id`, `version`) and the request (`tenant_id`, `request_id`): the database itself refuses a second commit of the same version or the same request.
 
-**Formats.** Every structure claims its format version in `wow_format` before it is created. A structure recorded under another version, or one that exists without a record, is refused: a build of Wow never reads or writes a layout it does not know. Columns added within a format are added to existing tables when they are next checked.
+**Formats.** Every structure claims its format version in `wow_format` before it is created. A structure recorded under another version, or one that exists without a record, is refused: a build of Wow never reads or writes a layout it does not know.
 
 ## Manage the schema
 

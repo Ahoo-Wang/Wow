@@ -60,7 +60,17 @@ class PostgresStoreDdlTest {
         PostgresFixture.bumpFormat(PostgresEventLogTables(context).aggregate("order").base)
         assertThrows<IllegalStateException> {
             PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
-        }.message.assert().contains("Migrate it")
+        }.message.assert().contains("reads format 1", "start from an empty store")
+    }
+
+    @Test
+    fun `validate refuses a table without a format record`() {
+        val context = PostgresFixture.newContext("ddl")
+        PostgresEventLog(dataSource, context, 2).createSchema()
+        PostgresFixture.createUnrecorded(PostgresEventLogTables(context).aggregate("order").base)
+        assertThrows<IllegalStateException> {
+            PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
+        }.message.assert().contains("exists without a format record", "Drop it, or restore its record with it.")
     }
 
     @Test

@@ -18,7 +18,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
-import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -36,7 +35,7 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a ledger table created by a build without format records is refused`() {
+    fun `a ledger table without a format record is refused`() {
         // Finding A2-13: the old layout was accepted silently and failed on its first statement.
         PostgresFixture.createUnrecorded("ledger_unrecorded")
         assertThrownBy<IllegalStateException> {
@@ -70,18 +69,12 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a format 3 table, keyed by the bare subscription name, is refused rather than converted`() {
-        // Issue 5678: the key gained the subscription's context; an earlier ledger is not read.
-        PostgresFailureLedger(PostgresFixture.dataSource, "ledger_format_3").createSchema()
-        PostgresFixture.dataSource.connection.use { connection ->
-            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 3 WHERE structure = ?").use {
-                it.setString(1, "ledger_format_3")
-                it.executeUpdate().assert().isEqualTo(1)
-            }
-        }
+    fun `a ledger table recorded in another format is refused`() {
+        PostgresFailureLedger(PostgresFixture.dataSource, "ledger_other_format").createSchema()
+        PostgresFixture.bumpFormat("ledger_other_format")
         assertThrownBy<IllegalStateException> {
-            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_format_3").createSchema()
-        }.message().contains("format 3", "format 4")
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_other_format").createSchema()
+        }.message().contains("format 2", "format 1")
     }
 
     @Test

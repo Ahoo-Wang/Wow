@@ -23,15 +23,15 @@ import kotlin.time.TimeSource
 /**
  * The schema's statements, run only for what the catalog lacks, each lock wait bounded.
  *
- * `CREATE INDEX IF NOT EXISTS` and `ALTER TABLE … ADD COLUMN IF NOT EXISTS` take their table's lock before they check:
- * behind a transaction that holds the table (a crashed node's, idle in transaction until its backend is reaped), they
- * queue, and every later reader of the table queues behind them. So [execute] reads the catalog first and runs a
- * statement only when its table, index or columns are missing: a current schema takes no table lock. What it does
+ * `CREATE INDEX IF NOT EXISTS` takes its table's lock before it checks: behind a transaction that holds the table (a
+ * crashed node's, idle in transaction until its backend is reaped), it queues, and every later reader of the table
+ * queues behind it. So [execute] reads the catalog first and runs a statement only when its table or index is missing:
+ * a current schema takes no table lock. What it does
  * run waits at most [LockWait.timeout] for a lock (`lock_timeout`), and [retrying] gives the lock back between
  * attempts, so a reader never waits behind it for longer, then fails naming the table and who holds it.
  *
  * Nodes starting together on a new database run one table's steps one at a time ([locked]): a node's
- * `ALTER TABLE` waits for the table's lock, which another node's `CREATE INDEX CONCURRENTLY` holds while it waits for
+ * `CREATE INDEX` waits for the table's lock, which another node's `CREATE INDEX CONCURRENTLY` holds while it waits for
  * every open transaction, the first node's among them, and PostgreSQL ends one of them as a deadlock (`40P01`).
  */
 internal object PostgresSchema {
@@ -60,15 +60,8 @@ internal object PostgresSchema {
         }
     }
 
-    /** What a schema statement makes: a relation (a table or an index), or columns of a table. */
-    sealed interface Target {
-        /** The table the statement locks, as the statement names it. */
-        val table: String
-
-        data class Relation(val name: String, override val table: String) : Target
-
-        data class Columns(override val table: String, val columns: List<String>) : Target
-    }
+    /** What a schema statement makes: a relation [name] (a table or an index) on [table], the table it locks. */
+    data class Target(val name: String, val table: String)
 
     private val CREATE_TABLE =
         Regex("""^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)""", RegexOption.IGNORE_CASE)
@@ -77,32 +70,22 @@ internal object PostgresSchema {
         """^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF\s+NOT\s+EXISTS\s+$NAME\s+ON\s+$NAME""",
         RegexOption.IGNORE_CASE,
     )
-    private val ALTER_TABLE = Regex("""^\s*ALTER\s+TABLE\s+("[^"]+"|[\w.]+)\s""", RegexOption.IGNORE_CASE)
-    private val ADD_COLUMN = Regex("""ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|\w+)""", RegexOption.IGNORE_CASE)
 
     /**
-     * What [statement] makes. Only the idempotent forms the stores write are known: `CREATE TABLE IF NOT EXISTS`,
-     * `CREATE [UNIQUE] INDEX [CONCURRENTLY] IF NOT EXISTS … ON`, and `ALTER TABLE … ADD COLUMN IF NOT EXISTS …`.
+     * What [statement] makes. Only the idempotent forms the stores write are known: `CREATE TABLE IF NOT EXISTS` and
+     * `CREATE [UNIQUE] INDEX [CONCURRENTLY] IF NOT EXISTS … ON`.
      */
     fun target(statement: String): Target {
         CREATE_TABLE.find(statement)?.let {
             val table = it.groupValues[1]
-            return Target.Relation(table, table)
+            return Target(table, table)
         }
-        CREATE_INDEX.find(statement)?.let { return Target.Relation(it.groupValues[1], it.groupValues[2]) }
-        ALTER_TABLE.find(statement)?.let { alter ->
-            val columns = ADD_COLUMN.findAll(statement).map { unquoted(it.groupValues[1]) }.toList()
-            require(columns.isNotEmpty()) { "Not a schema statement the catalog can check: $statement" }
-            return Target.Columns(alter.groupValues[1], columns)
-        }
+        CREATE_INDEX.find(statement)?.let { return Target(it.groupValues[1], it.groupValues[2]) }
         throw IllegalArgumentException("Not a schema statement the catalog can check: $statement")
     }
 
     /** Whether the catalog lacks what [statement] makes. */
-    fun missing(connection: Connection, statement: String): Boolean = when (val target = target(statement)) {
-        is Target.Relation -> !exists(connection, target.name)
-        is Target.Columns -> !hasColumns(connection, target.table, target.columns)
-    }
+    fun missing(connection: Connection, statement: String): Boolean = !exists(connection, target(statement).name)
 
     /** Runs those of [statements] that make something the catalog lacks, in order, on [connection]. */
     fun execute(connection: Connection, statements: List<String>) {
@@ -118,20 +101,6 @@ internal object PostgresSchema {
         connection.prepareStatement("SELECT to_regclass(?) IS NOT NULL").use { query ->
             query.setString(1, relation)
             query.executeQuery().use { rows -> rows.next() && rows.getBoolean(1) }
-        }
-
-    /** Whether [table], named as a statement names it, has every one of [columns]. */
-    fun hasColumns(connection: Connection, table: String, columns: List<String>): Boolean =
-        connection.prepareStatement(
-            "SELECT count(*) FROM pg_attribute WHERE attrelid = to_regclass(?) AND attname = ANY (?) " +
-                "AND attnum > 0 AND NOT attisdropped",
-        ).use { query ->
-            query.setString(1, table)
-            query.setArray(2, connection.createArrayOf("text", columns.toTypedArray()))
-            query.executeQuery().use { rows ->
-                rows.next()
-                rows.getInt(1) == columns.size
-            }
         }
 
     /** Bounds the lock waits of the transaction [connection] is in by [wait] (`SET LOCAL lock_timeout`). */

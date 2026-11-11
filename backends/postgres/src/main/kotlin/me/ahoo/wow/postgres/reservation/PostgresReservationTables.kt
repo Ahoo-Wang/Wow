@@ -110,8 +110,8 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
     val find = "SELECT $OWNER_COLUMNS FROM $table WHERE $KEY AND (expires_at IS NULL OR expires_at > ?)"
 
     companion object {
-        /** The version of this layout: 3 since the key compares by code point and has no owner index; 2 is refused. */
-        const val FORMAT = 3
+        /** The version of this layout: the key compares by code point, and there is no owner index. */
+        const val FORMAT = 1
 
         /** The prefix of the tables' names, `wow_reservation__<context>__<aggregate>`. */
         const val PREFIX = "wow_reservation"

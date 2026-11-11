@@ -48,7 +48,7 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
                     buildList { while (rows.next()) add(rows.getString(1) to rows.getInt(2)) }
                 }
             }
-        }.assert().containsExactly("wow_checkpoint" to 2, "wow_lease" to 2, "wow_lease_member" to 2)
+        }.assert().containsExactly("wow_checkpoint" to 1, "wow_lease" to 1, "wow_lease_member" to 1)
     }
 
     @Test
