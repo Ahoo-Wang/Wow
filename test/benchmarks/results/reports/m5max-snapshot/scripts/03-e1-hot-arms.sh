@@ -2,16 +2,20 @@
 #
 # A controlled check of one of 1-S-postgres's sweeps, by default e1-hot: one fresh single-node PostgreSQL session per
 # arm (100,000 accounts, primed, 1 GB heap, the same seed as 01-single-node.sh), in it only that sweep, 1 to 4,096
-# clients: --scenario (E1 by default) with --keys (hot by default, one hot account; uniform or zipf). Every arm runs this checkout's harness and load generator; an arm changes only the server's
-# distribution (--install, another commit's build) or its JDK (--server-java). With pg_stat_statements loaded, each
-# sweep keeps PostgreSQL's statements over it (pg-statements.txt, lib.sh), and with hot keys the session keeps the hot
-# account's version every 5 s (hot-version.tsv: epoch, version), read from the account's log table, so a step's
-# version at its start and end can be told. After the sweep, its measurement over, the session keeps the plan of the appends' version read on the
-# hot account at its last version (EXPLAIN ANALYZE, BUFFERS) and the tables' statistics before and after it
-# (pg_stat_user_tables): explain.txt and tables.txt. An install must be inside this checkout (results/e2e/ is ignored
-# by git): a server started from anywhere else reads as another JVM (lib.sh's foreign_jvms), and every step as void.
+# clients: --scenario (E1 by default) with --keys (hot by default, one hot account; uniform or zipf). Every arm runs
+# this checkout's harness and load generator; an arm changes only the server's distribution (--install, another commit's
+# build), its JDK (--server-java) or its arguments (--server-args). With pg_stat_statements loaded, each sweep keeps
+# PostgreSQL's statements over it (pg-statements.txt, lib.sh), and with hot keys the session keeps the hot account's
+# version every 5 s (hot-version.tsv: epoch, version), read from the account's log table, so a step's version at its
+# start and end can be told. After the sweep, its measurement over, the session keeps the plan of the appends' version
+# read on the hot account at its last version (EXPLAIN ANALYZE, BUFFERS) and the tables' statistics before and after it
+# (pg_stat_user_tables): explain.txt and tables.txt. An install must be inside this checkout (results/e2e/ is ignored by
+# git): a server started from anywhere else reads as another JVM (lib.sh's foreign_jvms), and every step as void.
 #
-#   03-e1-hot-arms.sh [--scenario=E1] [--keys=hot] <name>=<install>[,<server JDK home>] ...     (the arms, in order)
+#   03-e1-hot-arms.sh [--scenario=E1] [--keys=hot] <name>=<install>[,<server JDK home>[,<server args>]] ...
+#
+# The arms run in order. An arm's JDK home may be empty to keep the default; its server args are separated by
+# spaces: no-gate=<install>,,--wow.subscription.max-catch-ups=0.
 #
 # Each arm's session is <raw root>/<scenario>-<keys>-arms/<n>-<name>/ (e1-hot-arms/ by default), its sweep
 # <scenario>-<keys>-sweep/, n counting from ARM_FROM (1 by default). WOW_REPO and BENCH_OUT as for 01-single-node.sh.
@@ -93,9 +97,10 @@ versions_stop() {
 }
 
 arm() {
-  local n=$1 name=$2 install=$3 java=$4 dir="$OUT_ROOT/$CHECK-arms/$1-$2"
+  local n=$1 name=$2 install=$3 java=$4 args=$5 dir="$OUT_ROOT/$CHECK-arms/$1-$2"
   local C=(--backend=postgres --accounts="$ACCOUNTS" --heap=1g --install="$install")
   if [ -n "$java" ]; then C+=(--server-java="$java"); fi
+  if [ -n "$args" ]; then C+=(--server-args="$args"); fi
   session_up "$dir" "${C[@]}" || return 1
   if [ "$KEYS" = hot ]; then versions_start "$dir/hot-version.tsv"; fi
   tables "$dir/tables.txt" "before the sweep"
@@ -120,7 +125,12 @@ for spec in "$@"; do
   value=${spec#*=}
   install=${value%%,*}
   java=""
-  if [ "$value" != "$install" ]; then java=${value#*,}; fi
-  arm "$n" "$name" "$install" "$java" || say "the $name session failed"
+  args=""
+  if [ "$value" != "$install" ]; then
+    rest=${value#*,}
+    java=${rest%%,*}
+    if [ "$rest" != "$java" ]; then args=${rest#*,}; fi
+  fi
+  arm "$n" "$name" "$install" "$java" "$args" || say "the $name session failed"
 done
 say "$CHECK arms done"
