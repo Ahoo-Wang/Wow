@@ -42,7 +42,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [Alias](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Alias.kt): Former names of a command or event type.
 
 - 目标: `CLASS`
-- 参数: 无。
+- 参数: `vararg value: String`
 
 ## `@AllowCreate`
 
@@ -198,6 +198,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 - 目标: `FUNCTION`
 - 参数: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
 - 指南: [服务路由](../guide/service-routes)
+
+## `@RouteQuery`
+
+[RouteQuery](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ServiceRoute.kt): A parameter of a `ServiceRoute` bound to the query parameter of its name, or `name`: optional when the parameter is nullable, required otherwise.
+
+- 目标: `VALUE_PARAMETER`
+- 参数: `name: String = ""`
 
 ## `@Summary`
 

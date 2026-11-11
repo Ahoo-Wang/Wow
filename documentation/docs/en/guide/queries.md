@@ -128,7 +128,7 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryDecimal`, `@QueryMoney` | A fixed-point decimal; an amount of money in a currency |
 | `@QueryDuration` | A length of time counted in a unit |
 | `@QueryReference` | The id of another aggregate |
-| `@QueryAlias` | Other paths a query may use for the field, such as its name before a rename |
+| `@QueryAlias` | Other paths a query may use for the field, such as its name before a rename; input only, as a response holds the field under its own path |
 | `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 

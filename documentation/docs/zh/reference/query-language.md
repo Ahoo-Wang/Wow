@@ -61,7 +61,7 @@ outline: deep
 | `schedules` | object | 它保有的调度，按键存放每条规则：`type`（`at`、`after` 或 `cron`），以及 `epochMillis`、`millis`，或 `expression`、`zone` 和 `misfire`；`schedules.<key>` 指明其中一条 |
 | `state.*` | 由状态 schema 决定 | 状态，按补全后的 Manifest 片段中的状态 schema 描述 |
 
-模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。
+模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。字段的 `aliases`（能力描述列出它们）是查询可以用来指明它的其他路径，例如它改名之前的名字；它们只用于输入：响应总是把每个字段放在它的规范 `path` 下。
 
 `events` 模型每条已提交的流一条记录：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`、`ownerId`、`spaceId`、`access`（聚合当前的访问属性，`owner` 与 `space` 也在其中，`access.<name>` 指明其中一个；未盖章的流为 `null`）、`operator`，以及 `events`，每个事件为 `{name, revision, body}`。对事件的过滤是在 `events` 上的 `element-match`，对事件的聚合要先展开 `events`；两者见[查询事件流](../guide/event-queries)。部署可以要求每个事件查询都指明它的聚合（`wow.query.events.unpinned`）。
 

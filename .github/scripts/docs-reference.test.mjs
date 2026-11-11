@@ -7,7 +7,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  annotationOf,
   annotationsPage,
   configurationGroups,
   firstSentence,
@@ -18,9 +17,9 @@ import {
   referencePages,
   staleMessage,
   manifestObjects,
-  markedDeclarations,
   publishedModules,
 } from './docs-reference.mjs';
+import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 
 test('prose loses the design records’ references, and a KDoc link reads as code outside code spans', () => {
   assert.equal(
@@ -113,24 +112,24 @@ test('the framework codes are read from the error catalog snapshot, with their r
   ]);
 });
 
-test('the query codes take the first sentence of their group’s comment', () => {
+test('the query codes, kebab-case as the source writes them, take the first sentence of their group’s comment', () => {
   const source = `object QueryErrorCodes {
     // Reading the body; BindingError.name is the path.
-    const val INVALID_JSON = "INVALID_JSON"
-    const val EMPTY_BODY = "EMPTY_BODY"
+    const val INVALID_JSON = "invalid-json"
+    const val EMPTY_BODY = "empty-body"
 
     // Admission against the model. More.
-    const val UNKNOWN_FIELD = "UNKNOWN_FIELD"
+    const val UNKNOWN_FIELD = "unknown-field"
 }`;
   assert.deepEqual(queryErrorCodes(source), [
-    { code: 'INVALID_JSON', group: 'Reading the body.' },
-    { code: 'EMPTY_BODY', group: 'Reading the body.' },
-    { code: 'UNKNOWN_FIELD', group: 'Admission against the model.' },
+    { code: 'invalid-json', group: 'Reading the body.' },
+    { code: 'empty-body', group: 'Reading the body.' },
+    { code: 'unknown-field', group: 'Admission against the model.' },
   ]);
 });
 
 test('an annotation gives its summary, targets and parameters, multi-line defaults included', () => {
-  const annotation = annotationOf(`package a
+  const [annotation] = annotationsOf(`package a
 
 /**
  * An aggregate root: the compiler binds it.
@@ -166,10 +165,58 @@ annotation class AggregateRoot(
     ],
   });
   assert.deepEqual(
-    annotationOf('/** A marker. */\nannotation class Blocking\n').parameters,
+    annotationsOf('/** A marker. */\nannotation class Blocking\n')[0]
+      .parameters,
     [],
   );
-  assert.equal(annotationOf('class NotAnAnnotation'), undefined);
+  assert.deepEqual(annotationsOf('class NotAnAnnotation'), []);
+});
+
+test('every annotation of a file is read, its parameters on one line or several, a vararg one included', () => {
+  const annotations = annotationsOf(`package a
+
+/** Former names. */
+@Target(AnnotationTarget.CLASS)
+annotation class Alias(
+    vararg val value: String
+)
+
+/** A route. */
+@Target(AnnotationTarget.FUNCTION)
+annotation class ServiceRoute(
+    val path: String,
+)
+
+/** A query parameter of a route. */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class RouteQuery(val name: String = "")
+`);
+  assert.deepEqual(annotations, [
+    {
+      name: 'Alias',
+      summary: 'Former names.',
+      targets: ['CLASS'],
+      parameters: [
+        { name: 'value', type: 'String', vararg: true, default: undefined },
+      ],
+    },
+    {
+      name: 'ServiceRoute',
+      summary: 'A route.',
+      targets: ['FUNCTION'],
+      parameters: [{ name: 'path', type: 'String', default: undefined }],
+    },
+    {
+      name: 'RouteQuery',
+      summary: 'A query parameter of a route.',
+      targets: ['VALUE_PARAMETER'],
+      parameters: [{ name: 'name', type: 'String', default: '""' }],
+    },
+  ]);
+  const page = annotationsPage('en', [
+    { file: 'Alias.kt', annotation: annotations[0] },
+  ]);
+  assert.match(page, /- Parameters: `vararg value: String`/);
 });
 
 test('an annotation the guide explains links its page, in each locale', () => {
@@ -299,6 +346,20 @@ class Plain {
     @WowSpi
     val size: Int = 0
 }
+
+enum class Operator {
+    EQ,
+
+    /** Experimental with its filter. */
+    @WowSpi
+    EXPRESSION,
+    NE,
+}
+
+internal enum class Hidden {
+    @WowSpi
+    SECRET,
+}
 `;
   assert.deepEqual(markedDeclarations(source, 'WowSpi'), [
     { name: 'me.ahoo.wow.q.Backend', kind: 'interface' },
@@ -306,6 +367,7 @@ class Plain {
     { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
     { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
     { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Operator.EXPRESSION', kind: 'enum entry' },
   ]);
 });
 

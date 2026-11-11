@@ -72,7 +72,7 @@ The settings of ClickHouse: the connection the Sink and the dataset backend shar
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.clickhouse.database` | `String` | `default` | The database of the Sink's tables and of a dataset whose table names none. |
-| `wow.clickhouse.ddl` | `Ddl` |  | How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set. |
+| `wow.clickhouse.ddl` | `Ddl` |  | How the Sink manages its tables: auto creates what is missing, _state's computed columns included, then validates; validate creates nothing and refuses a table that is missing, is not of the Sink's format (its comment's wow-sink-format:1), has other columns or lacks a computed column; none creates and checks nothing. wow.ddl when not set. |
 | `wow.clickhouse.endpoint` | `String` |  | The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use. |
 | `wow.clickhouse.password` | `String` | `""` | The password to sign in with. |
 | `wow.clickhouse.query.enabled` | `Boolean` | `true` | Whether the datasets are served over ClickHouse when the endpoint is set or the application has a ClickHouse client. |
@@ -245,7 +245,7 @@ The HTTP status of an error code, by code (bracketed in a property name: `wow.ht
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.http.errors.[<code>].status` | `Integer` | `0` | The HTTP status the code is answered with. |
+| `wow.http.errors.[<code>].status` | `Integer` | `0` | The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start. |
 
 ## `wow.http.global-errors`
 
@@ -613,7 +613,7 @@ Where the snapshots are by default, and how the snapshot maintenance runs: `wow.
 | --- | --- | --- | --- |
 | `wow.snapshot.maintenance-interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
 | `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set. |
-| `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`. |
+| `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`. |
 | `wow.snapshot.write-batch` | `Integer` | `256` | How many snapshots of a partition the snapshot subscriptions write together at most. |
 
 ## `wow.snapshot.rebuild`
@@ -631,7 +631,7 @@ The cache of aggregate states each context keeps between commands.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.state-cache.capacity` | `Integer` |  | The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit. |
+| `wow.state-cache.capacity` | `Integer` |  | The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The counters `wow.state_cache.lookups` (`hit`, `miss`) and `wow.state_cache.evictions` show the fit. |
 | `wow.state-cache.recent-requests` | `Integer` | `32` | The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up. |
 
 ## `wow.stores.<name>`
