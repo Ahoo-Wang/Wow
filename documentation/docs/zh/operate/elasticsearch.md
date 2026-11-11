@@ -54,6 +54,8 @@ wow:
 
 状态或事件 body 里的 map（键不固定的对象，如 `Map<String, Item>` 属性）映射为一个 `flattened` 字段，所以它某个键下的值只能做存在性与精确匹配的过滤：没有范围、相对时间、排序和聚合。描述符的 `dynamic` 模式列出的正是这些算子。
 
+快照的文档和事件检索的文档还保存 `accessPresent`：聚合持有的每个访问属性下为 `true`，单值属性有值时，多值属性无论空或不空。Elasticsearch 不为空数组建立任何索引，所以访问策略从这里读出某个属性是否存在，在 Elasticsearch 上授予的聚合与在任何存储上、与状态读取时相同。属性声明之前写下的文档没有它，就像属性在其中缺失一样，直到聚合的下一次提交或访问遍历再次写它。
+
 ## 全文检索 {#full-text-search}
 
 状态或事件 body 中的字符串字段映射为 `keyword`：按整个值匹配，等值、`contains`、`startsWith`、排序和分组都是这样匹配的。只有 schema 把它标为供人按词检索的文字时，它才可以按词检索：属性上的 `@QueryText`（[描述类型说明不了的东西](../guide/queries#describe-what-types-cannot)）、Manifest 中的 `x-wow-text`、代码中声明的 `text()`。标记过的字段会得到一个 `text` 子字段，由索引默认的分析器分析，能力描述符把它列入 `search` 可以指定的字段：`record.search.fields`，或它所在元素的。

@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.mapping.Property
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
@@ -403,8 +404,14 @@ internal class ElasticsearchQuerySchemaAdapter(
         private const val DOCUMENT_ID = "_id"
 
         /**
-         * The presence of a field a built-in store marks with a field of its own: an events index cannot tell an
-         * `access` object of null values from a missing one, so whether a stream is stamped is its `accessVersion`.
+         * The presence of a field a built-in store marks with a field of its own, as Elasticsearch indexes nothing for a
+         * null, an empty array or an object of them:
+         * - an events index cannot tell an `access` object of null values from a missing one, so whether a stream is
+         *   stamped is its `accessVersion`;
+         * - under `access`, a multiple attribute that is present and empty reads as one the document lacks, so whether
+         *   a snapshot or a stream holds an attribute is its `accessPresent.<name>` ([ElasticsearchAccessPresence]).
+         *   That field is mapped once a document holds it; until then no document holds the attribute, and the
+         *   unmapped field matches none, as it should.
          */
         private fun ElasticsearchIndexMapping.presenceMarkerBinding(
             model: QueryModel,
@@ -412,10 +419,17 @@ internal class ElasticsearchQuerySchemaAdapter(
             capability: QueryCapability,
         ): QueryFieldBindingTemplate? {
             if (capability != QueryCapability.PRESENCE) return null
-            val marker = PRESENCE_MARKERS[model to source] ?: return null
-            val mapped = fields[marker] ?: return null
-            return QueryFieldBindingTemplate(marker.template(), setOf(QueryStorageType(mapped.kind.jsonValue())))
+            PRESENCE_MARKERS[model to source]?.let { marker ->
+                val mapped = fields[marker] ?: return null
+                return QueryFieldBindingTemplate(marker.template(), setOf(QueryStorageType(mapped.kind.jsonValue())))
+            }
+            if (model != QueryModel.SNAPSHOT && model != QueryModel.EVENTS) return null
+            val marker = ElasticsearchAccessPresence.markerOf(source) ?: return null
+            return QueryFieldBindingTemplate(marker.template(), setOf(QueryStorageType(BOOLEAN_STORAGE)))
         }
+
+        /** The storage type of a presence marker of [ElasticsearchAccessPresence]: a `boolean`. */
+        private const val BOOLEAN_STORAGE = "boolean"
 
         private val PRESENCE_MARKERS: Map<Pair<QueryModel, String>, String> = mapOf(
             (QueryModel.EVENTS to EventStreamFields.ACCESS) to ElasticsearchEventIndex.ACCESS_VERSION,

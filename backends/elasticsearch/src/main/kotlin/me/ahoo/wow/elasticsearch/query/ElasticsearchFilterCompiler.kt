@@ -34,6 +34,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -205,7 +206,7 @@ internal object ElasticsearchFilterCompiler {
             }
             DeletionState.ALL -> matchAll { it }
         }
-        is IsEmptyFilter -> bool { it.mustNot(present(admitted.physicalPath(filter.field), nested)) }
+        is IsEmptyFilter -> empty(admitted.physicalPath(filter.field), nested)
 
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
             throw QueryExecutionException("Filter [${filter.operator}] must be normalized before compilation.")
@@ -223,6 +224,16 @@ internal object ElasticsearchFilterCompiler {
         return bool {
             it.should(exists, term { ignored -> ignored.field(IGNORED_FIELD).value(path) }).minimumShouldMatch("1")
         }
+    }
+
+    /**
+     * Whether the collection at [path] holds no value. An access attribute's presence is its marker
+     * ([ElasticsearchAccessPresence]): such an attribute is empty when the document holds it and no value is indexed
+     * under it, and a document that lacks it is not empty.
+     */
+    private fun empty(path: String, nested: Boolean): Query {
+        val values = ElasticsearchAccessPresence.valuesOf(path) ?: return bool { it.mustNot(present(path, nested)) }
+        return bool { it.must(exists { marker -> marker.field(path) }).mustNot(present(values, nested)) }
     }
 
     private const val IGNORED_FIELD = "_ignored"

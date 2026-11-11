@@ -67,6 +67,7 @@ internal object ElasticsearchSnapshotIndex {
               "spaceId": { "type": "keyword" },
               "deleted": { "type": "boolean" },
               "access": { "type": "object", "dynamic": true },
+              "accessPresent": { "type": "object", "dynamic": true },
               "firstEventTime": { "type": "long" },
               "lastEventTime": { "type": "long" },
               "operator": {

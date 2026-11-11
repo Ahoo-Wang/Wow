@@ -24,6 +24,7 @@ import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
 import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
@@ -168,7 +169,11 @@ class ElasticsearchEventSink internal constructor(
         if (from >= until) return 0
         require(ref.type == type) { "The Sink of $type does not stamp $ref." }
         prepare()
-        val params = mapOf(ACCESS_PARAM to JsonData.of(access), AS_OF_PARAM to JsonData.of(asOf))
+        val params = mapOf(
+            ACCESS_PARAM to JsonData.of(access),
+            PRESENT_PARAM to JsonData.of(ElasticsearchAccessPresence.of(access)),
+            AS_OF_PARAM to JsonData.of(asOf),
+        )
         var written = 0
         repeat(MAX_STAMP_RUNS) {
             val response = whenShardReady {
@@ -203,7 +208,12 @@ class ElasticsearchEventSink internal constructor(
         ranges.forEach { require(it.ref.type == type) { "The Sink of $type does not stamp ${it.ref}." } }
         prepare()
         val table = byRef.entries.groupBy({ it.key.tenantId }) { (ref, group) ->
-            ref.id to mapOf(ACCESS_PARAM to group.first().access, AS_OF_PARAM to group.first().asOf)
+            val access = group.first().access
+            ref.id to mapOf(
+                ACCESS_PARAM to access,
+                PRESENT_PARAM to ElasticsearchAccessPresence.of(access),
+                AS_OF_PARAM to group.first().asOf,
+            )
         }.mapValues { (_, ids) -> ids.toMap() }
         val params = mapOf(STAMPS_PARAM to JsonData.of(table))
         val query = Query.of { query ->
@@ -322,6 +332,8 @@ class ElasticsearchEventSink internal constructor(
         private const val LOAD = 0.75f
         private const val ACCESS_PARAM = "access"
         private const val AS_OF_PARAM = "asOf"
+        private const val PRESENT_PARAM = "present"
+        private const val PRESENT = ElasticsearchAccessPresence.FIELD
         private const val ACCESS_VERSION = ElasticsearchEventIndex.ACCESS_VERSION
 
         private const val STAMPS_PARAM = "stamps"
@@ -335,6 +347,7 @@ class ElasticsearchEventSink internal constructor(
                 "if (stamped == null || stamped < own.$AS_OF_PARAM || " +
                 "(stamped == own.$AS_OF_PARAM && ctx._source.${EventStreamFields.ACCESS} != own.$ACCESS_PARAM)) " +
                 "{ ctx._source.${EventStreamFields.ACCESS} = own.$ACCESS_PARAM; " +
+                "ctx._source.$PRESENT = own.$PRESENT_PARAM; " +
                 "ctx._source.$ACCESS_VERSION = own.$AS_OF_PARAM; } else { ctx.op = 'noop'; }"
 
         /** The guard of a stamp, again on the document it writes: see [stamp]. */
@@ -343,6 +356,7 @@ class ElasticsearchEventSink internal constructor(
                 "if (stamped == null || stamped < params.$AS_OF_PARAM || " +
                 "(stamped == params.$AS_OF_PARAM && ctx._source.${EventStreamFields.ACCESS} != params.$ACCESS_PARAM)) " +
                 "{ ctx._source.${EventStreamFields.ACCESS} = params.$ACCESS_PARAM; " +
+                "ctx._source.$PRESENT = params.$PRESENT_PARAM; " +
                 "ctx._source.$ACCESS_VERSION = params.$AS_OF_PARAM; } else { ctx.op = 'noop'; }"
     }
 }

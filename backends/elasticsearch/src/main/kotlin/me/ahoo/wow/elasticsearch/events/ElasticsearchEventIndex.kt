@@ -80,6 +80,7 @@ internal object ElasticsearchEventIndex {
                 }
               },
               "access": { "type": "object", "dynamic": true },
+              "accessPresent": { "type": "object", "dynamic": true },
               "$ACCESS_VERSION": { "type": "integer" },
               "events": {
                 "type": "nested",

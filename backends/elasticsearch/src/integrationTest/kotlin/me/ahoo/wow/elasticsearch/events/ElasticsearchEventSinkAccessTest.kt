@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessValues
@@ -76,6 +77,38 @@ class ElasticsearchEventSinkAccessTest {
             val source = checkNotNull(hit.source())
             AccessValues.of(source.get("access")) to source.get("accessVersion")?.intValue()
         }
+    }
+
+    /** The attributes each document of [ref] holds as present ([ElasticsearchAccessPresence]), in version order. */
+    private fun presence(ref: AggregateRef = this.ref): List<Set<String>?> = runBlocking {
+        val index = ElasticsearchFixture.names.events(type.context, type.name)
+        ElasticsearchFixture.client.indices().refresh { it.index(index) }.await()
+        val response = ElasticsearchFixture.client.search({ search ->
+            search.index(index).size(MAX_HITS)
+                .query { query -> query.term { term -> term.field("aggregateId").value(ref.id) } }
+                .sort { it.field { field -> field.field("version").order(SortOrder.Asc) } }
+        }, ObjectNode::class.java).await()
+        response.hits().hits().map { hit ->
+            checkNotNull(hit.source()).get(ElasticsearchAccessPresence.FIELD)?.properties()?.map { it.key }?.toSet()
+        }
+    }
+
+    @Test
+    fun `each write of the attributes records which are present, an empty one among them`(): Unit = runBlocking {
+        val sink = sink()
+        val shared = mapOf("owner" to "alice", "space" to null, "sharedWith" to listOf("bob"))
+        val unshared = mapOf("owner" to "alice", "space" to null, "sharedWith" to emptyList<String>())
+        sink.write(listOf(record(1, null, null), record(2, null, null)))
+        presence().assert().containsExactly(null, null)
+        // The wow.access follower's stamp of a change.
+        sink.stamp(ref, shared, asOf = 2, from = 1, until = 3).assert().isEqualTo(2)
+        presence().assert().containsExactly(setOf("owner", "sharedWith"), setOf("owner", "sharedWith"))
+        // The walk's page of stamps: the set is empty now, and still present.
+        sink.stampAll(listOf(AccessStamp(ref, unshared, asOf = 3, from = 1, until = 3))).assert().isEqualTo(2)
+        presence().assert().containsExactly(setOf("owner", "sharedWith"), setOf("owner", "sharedWith"))
+        // A stream the Sink writes with its attributes.
+        sink.write(listOf(record(3, unshared)))
+        presence().last().assert().isEqualTo(setOf("owner", "sharedWith"))
     }
 
     @Test
