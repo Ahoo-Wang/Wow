@@ -110,7 +110,7 @@ fun <S : Any> aggregateSpecTests(
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.caller = caller }
+    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree = tree).also { it.caller = caller }
     tree.run { spec.block() }
     return tree.nodes.stream()
 }

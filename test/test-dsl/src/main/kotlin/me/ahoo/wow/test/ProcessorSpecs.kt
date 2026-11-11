@@ -113,6 +113,6 @@ private fun processorSpecTests(
     block: ProcessorSpec.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    tree.run { ProcessorSpec(handlers, kind, tree).block() }
+    tree.run { ProcessorSpec(handlers, kind, tree = tree).block() }
     return tree.nodes.stream()
 }
