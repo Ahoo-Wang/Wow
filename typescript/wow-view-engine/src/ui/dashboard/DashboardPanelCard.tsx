@@ -19,13 +19,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../components/empty.js';
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import {
   isOwnedPanel,
@@ -43,20 +37,13 @@ import {
   RecordPanelPaging,
   type RecordPanelHost,
 } from './PanelBodies.js';
-import {
-  hasMarks,
-  PanelMarks,
-  panelMarks,
-  type PanelMarkSet,
-} from './PanelMarks.js';
+import { panelMarks } from './PanelMarks.js';
 import { analysisIssueNamer } from '../analysis/issueNames.js';
-import { PanelHandle, PanelOrder } from './DashboardArrange.js';
 import type { HandleMove } from '../kit/DragHandle.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './commands.js';
 import type { PanelPress } from './press.js';
 import { isNumberCard, OpensNumber } from './OpensNumber.js';
-import { hasMenu, PanelMenu, PanelTitleInput } from './PanelMenu.js';
 import { PanelExport } from './PanelExport.js';
 import { useScrollMore } from './scrollMore.js';
 import { ScrollCue } from './ScrollCue.js';
@@ -64,7 +51,6 @@ import { ImageFailed } from '../analysis/ExportMenu.js';
 import {
   useChartImageOffer,
   useChartImageSlot,
-  type ChartImageOffer,
 } from '../analysis/imageExport.js';
 import { ChartImageTarget } from '../charts/image.js';
 import { outPanelNamer, PanelUnavailable } from './PanelUnavailable.js';
@@ -78,8 +64,8 @@ import {
 } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
 import { FOCUS_PANEL, PanelCard } from '../kit/frames.js';
-import { CardContent, CardHeader, CardTitle } from '../components/card.js';
-import { Truncated } from '../kit/Truncated.js';
+import { CardContent } from '../components/card.js';
+import { PanelHeader } from './PanelHeader.js';
 
 /** Where a panel title may sit in a page's outline — never above a page title. */
 export type PanelHeadingLevel = 2 | 3 | 4 | 5 | 6;
@@ -438,125 +424,6 @@ export function DashboardPanelCard({
         />
       )}
     </PanelCard>
-  );
-}
-
-/**
- * A panel's header: the marks before the title, the arrange handle while the
- * board is built, the reorder handle in the one-column reading, the title — or the
- * field it is renamed in — and the 「⋯」 menu; the badges on a line under it.
- */
-function PanelHeader({
-  panel,
-  name,
-  headingLevel,
-  untitled,
-  marks,
-  arrange,
-  onArrangeCancel,
-  order,
-  commands,
-  menuTrigger,
-  onExport,
-  picture,
-}: Pick<
-  DashboardPanelCardProps,
-  'panel' | 'onArrangeCancel' | 'order' | 'commands'
-> & {
-  name: string;
-  headingLevel: PanelHeadingLevel;
-  untitled: boolean;
-  marks: PanelMarkSet;
-  /** The arrange command, only while the board is built. */
-  arrange?: (step: ArrangeStep) => boolean;
-  menuTrigger: RefObject<HTMLButtonElement | null>;
-  onExport(): void;
-  /** The chart the body draws, as a picture, while it draws one. */
-  picture: ChartImageOffer | null;
-}) {
-  const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
-  const heading = panel.panel.kind === 'heading';
-  const menu = commands && hasMenu(commands) ? commands : undefined;
-  // A title turned off is read, not seen; the row it stood in goes with it
-  // when nothing else stands there.
-  const bare =
-    untitled &&
-    !hasMarks(marks) &&
-    !arrange &&
-    !order &&
-    !commands?.renaming &&
-    !menu;
-  return (
-    <CardHeader
-      data-untitled={untitled || undefined}
-      className={cn('fve:px-(--_fve-panel-padding)', bare && 'fve:sr-only')}
-    >
-      <CardTitle
-        className={cn(
-          'fve:flex fve:min-w-0 fve:items-center fve:gap-1',
-          heading ? 'fve:text-base' : 'fve:text-sm',
-        )}
-      >
-        <PanelMarks marks={marks} line="glyphs" />
-        {/*
-        One handle, dragged by a pointer and arranged with by keyboard
-        (V-02); only while the board is built (D22 A): outside that,
-        nothing on a panel moves it.
-      */}
-        {arrange && (
-          <PanelHandle
-            title={name}
-            onStep={arrange}
-            onCancel={steps => onArrangeCancel?.(steps)}
-          />
-        )}
-        {order && (
-          <PanelOrder
-            panelId={panel.id}
-            title={name}
-            index={order.index}
-            total={order.total}
-            onMove={order.onMove}
-          />
-        )}
-        {commands?.renaming ? (
-          <PanelTitleInput
-            initial={
-              panel.panel.kind === 'heading'
-                ? panel.panel.content
-                : panel.title || undefined
-            }
-            name={name}
-            heading={heading}
-            renaming={commands.renaming}
-            returnTo={menuTrigger}
-          />
-        ) : (
-          <Truncated
-            as={Title}
-            data-slot="panel-title"
-            className={cn('fve:min-w-0', untitled && 'fve:sr-only')}
-            text={name}
-          />
-        )}
-        {/* A 24px target hung in the title's own line (`-my-1`): the
-          menu is on every panel a reader sees, and a header grown by
-          it would take its height from a metric card's two rows. */}
-        {menu && (
-          <span className="fve:-my-1 fve:ml-auto fve:flex fve:shrink-0">
-            <PanelMenu
-              name={name}
-              commands={menu}
-              triggerRef={menuTrigger}
-              onExport={onExport}
-              picture={picture}
-              {...(arrange ? { arrange } : {})}
-            />
-          </span>
-        )}
-      </CardTitle>
-      <PanelMarks marks={marks} line="badges" />
-    </CardHeader>
   );
 }
 
