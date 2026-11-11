@@ -64,4 +64,4 @@ outline: deep
 | 订阅落后 | `wow.subscription.backlog`、`wow.subscription.lag` | 加快处理函数，增加节点 |
 | 查询被拒绝 | `wow.query.limit.current`、`wow.query.duration` | 查询连接池或只读副本、更窄的查询、索引 |
 
-指标见[健康、指标与追踪](./observability)。
+指标见[健康、指标与追踪](./observability)。基准测试的数字及其对容量规划的含义见[性能](./performance)。

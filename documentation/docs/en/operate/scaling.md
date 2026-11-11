@@ -64,4 +64,4 @@ More partitions at once did not catch up sooner, since they share the same store
 | Subscriptions fall behind | `wow.subscription.backlog`, `wow.subscription.lag` | Speed up the handler, add nodes |
 | Queries are refused | `wow.query.limit.current`, `wow.query.duration` | A query pool or replica, narrower queries, indexes |
 
-[Health, Metrics and Tracing](./observability) lists the metrics.
+[Health, Metrics and Tracing](./observability) lists the metrics. [Performance](./performance) gives the benchmarks' figures and what they mean for sizing.

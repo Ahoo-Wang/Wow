@@ -61,6 +61,8 @@ Elasticsearch 上的副本不是在命令路径中与主存储并列写入的。
 - **版本不一致。** 检索可能显示比稍后的状态读取更旧的版本。答案必须是最新的时，读取状态。
 - **又一个集群。** Elasticsearch 是在 MongoDB 之外要运行、规划容量、保护和监控的第二个系统。
 
+各存储在基准测试中的数字见[性能](./performance)。
+
 ## 什么时候选 PostgreSQL {#when-postgresql}
 
 PostgreSQL 保存 MongoDB 保存的一切，保证也相同，所以选择取决于你运行的是什么：

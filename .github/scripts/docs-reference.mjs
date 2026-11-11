@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
+import { HEADLINES, performancePages } from './docs-performance.mjs';
 
 // The reference pages generated from the sources of truth, in English and
 // Chinese (the descriptions stay in the sources' English):
@@ -18,6 +19,9 @@ import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 //   and the codes of rejected query requests (api/query-api QueryErrorCodes).
 // - reference/annotations: the annotations of the programming model
 //   (api/api me.ahoo.wow.api.annotation), from their declarations and KDoc.
+//
+// It also writes the figures block of operate/performance, a hand-written page,
+// from the benchmark reports' headline.json (docs-performance.mjs).
 //
 // `node .github/scripts/docs-reference.mjs` fails when a committed page is not
 // what the sources give; `--write` (`pnpm docs:reference`) writes them.
@@ -820,7 +824,7 @@ export function referencePages(root = ROOT) {
       omissionsOf(tree),
     );
   }
-  return pages;
+  return { ...pages, ...performancePages(root) };
 }
 
 /** The sources each generated page is read from, by its file name. */
@@ -835,6 +839,7 @@ export const SOURCES = {
   'annotations.md': [`${ANNOTATIONS}/`],
   'manifest.md': [MANIFEST_TREE],
   'modules.md': [BUILD, SETTINGS, "each published module's build.gradle.kts"],
+  'performance.md': HEADLINES,
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
   ],
