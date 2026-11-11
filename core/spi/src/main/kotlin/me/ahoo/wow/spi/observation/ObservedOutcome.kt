@@ -19,6 +19,8 @@ import me.ahoo.wow.api.annotation.WowSpi
  * How an observed stage ended ([Observation.outcome]): its span's `wow.outcome` and the tag of its metric. A value
  * is lower case and one word per concept, whichever stage reports it: a command committed before is `duplicate` to
  * its execution, its append and its timer alike.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 @WowSpi
 enum class ObservedOutcome(val value: String) {
