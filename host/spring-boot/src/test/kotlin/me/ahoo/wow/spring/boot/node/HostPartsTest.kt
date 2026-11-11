@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import com.mongodb.client.MongoClient
 import me.ahoo.test.asserts.assert
@@ -39,6 +39,10 @@ import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.BankModels
+import me.ahoo.wow.spring.boot.DecidedCommands
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.store.MemoryStoreProvider
 import me.ahoo.wow.spring.boot.store.StoreProviders

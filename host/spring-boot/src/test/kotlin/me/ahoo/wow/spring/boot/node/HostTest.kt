@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -34,6 +34,12 @@ import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.BankModels
+import me.ahoo.wow.spring.boot.FROZEN
+import me.ahoo.wow.spring.boot.FROZEN_AMOUNT
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

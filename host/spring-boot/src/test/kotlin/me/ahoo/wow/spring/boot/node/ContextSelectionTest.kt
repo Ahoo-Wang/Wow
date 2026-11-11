@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

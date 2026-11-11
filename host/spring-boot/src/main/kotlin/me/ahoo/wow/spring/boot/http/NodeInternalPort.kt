@@ -34,13 +34,13 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spring.boot.InternalServerLifecycle
-import me.ahoo.wow.spring.boot.NodeIdentity
-import me.ahoo.wow.spring.boot.NodeStandby
-import me.ahoo.wow.spring.boot.RoutesScope
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.INTERNAL_HTTP_CLIENT
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.InternalServerLifecycle
+import me.ahoo.wow.spring.boot.node.NodeIdentity
+import me.ahoo.wow.spring.boot.node.NodeStandby
+import me.ahoo.wow.spring.boot.node.RoutesScope
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

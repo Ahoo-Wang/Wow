@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessPolicy
@@ -47,11 +47,13 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.transport.TransportProvider
-import me.ahoo.wow.spring.boot.NodeAdmission.Companion.aggregateIdGenerators
-import me.ahoo.wow.spring.boot.NodeAdmission.Companion.idGeneratorLookup
-import me.ahoo.wow.spring.boot.NodeAdmission.Companion.tenants
-import me.ahoo.wow.spring.boot.NodeAdmission.Companion.writePolicies
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.WOW_AGGREGATE_ID_GENERATOR
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.aggregateIdGenerators
+import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.idGeneratorLookup
+import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.tenants
+import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.writePolicies
 import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.transport.PortProviders

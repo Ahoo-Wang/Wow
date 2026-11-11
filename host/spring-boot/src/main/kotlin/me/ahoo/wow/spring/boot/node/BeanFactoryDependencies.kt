@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.caller.Caller

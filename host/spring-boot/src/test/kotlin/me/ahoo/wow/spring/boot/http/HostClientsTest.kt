@@ -55,9 +55,9 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spring.boot.Account
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.Deposit
-import me.ahoo.wow.spring.boot.NodeIdentity
 import me.ahoo.wow.spring.boot.OpenAccount
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

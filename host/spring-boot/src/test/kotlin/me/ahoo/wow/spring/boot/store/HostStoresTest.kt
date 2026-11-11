@@ -45,12 +45,12 @@ import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spring.boot.AggregateProperties
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.BankModels
 import me.ahoo.wow.spring.boot.DecidedCommands
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.memoryStore
+import me.ahoo.wow.spring.boot.node.AggregateProperties
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

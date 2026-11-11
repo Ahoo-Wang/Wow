@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 
 /**

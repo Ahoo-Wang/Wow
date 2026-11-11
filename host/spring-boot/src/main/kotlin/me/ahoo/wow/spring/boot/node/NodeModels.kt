@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.Dependencies
@@ -22,6 +22,8 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean

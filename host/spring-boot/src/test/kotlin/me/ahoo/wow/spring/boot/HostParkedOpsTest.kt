@@ -26,6 +26,9 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spring.boot.node.ParkedProperties
+import me.ahoo.wow.spring.boot.node.ParkedSpecProperties
+import me.ahoo.wow.spring.boot.node.PublishProperties
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.caller.DeclaredServices
@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.cluster.NodeAddress
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.core.env.Environment
 import java.net.InetAddress
 import java.util.UUID

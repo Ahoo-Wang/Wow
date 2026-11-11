@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -24,7 +24,9 @@ import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.tenant.TenantPolicy
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.WOW_AGGREGATE_ID_GENERATOR
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean

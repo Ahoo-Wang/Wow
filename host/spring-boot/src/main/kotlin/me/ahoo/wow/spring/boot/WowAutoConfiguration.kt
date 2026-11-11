@@ -56,6 +56,16 @@ import me.ahoo.wow.spring.boot.http.NodeInternalPort
 import me.ahoo.wow.spring.boot.http.NodePeers
 import me.ahoo.wow.spring.boot.http.NodePublicPort
 import me.ahoo.wow.spring.boot.http.PeerDiscoveries
+import me.ahoo.wow.spring.boot.node.BeanFactoryDependencies
+import me.ahoo.wow.spring.boot.node.ContextSelection
+import me.ahoo.wow.spring.boot.node.GracefulShutdownSettled
+import me.ahoo.wow.spring.boot.node.NodeAdmission
+import me.ahoo.wow.spring.boot.node.NodeClock
+import me.ahoo.wow.spring.boot.node.NodeIdentity
+import me.ahoo.wow.spring.boot.node.NodeModels
+import me.ahoo.wow.spring.boot.node.NodeService
+import me.ahoo.wow.spring.boot.node.RoutesScope
+import me.ahoo.wow.spring.boot.node.WowLifecycles
 import me.ahoo.wow.spring.boot.observability.ObservabilityAutoConfiguration
 import me.ahoo.wow.spring.boot.query.HostDatasets
 import me.ahoo.wow.spring.boot.query.RetiredQueryPolicies

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.isActive
@@ -27,6 +27,8 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.BankModels
+import me.ahoo.wow.spring.boot.DecidedCommands
 import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

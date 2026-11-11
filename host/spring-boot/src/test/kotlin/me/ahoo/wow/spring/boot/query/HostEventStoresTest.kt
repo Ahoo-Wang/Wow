@@ -33,10 +33,10 @@ import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
-import me.ahoo.wow.spring.boot.AggregateProperties
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.AggregateProperties
 import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.spring.boot.store.AcmeStore
 import me.ahoo.wow.spring.boot.store.AcmeStoreProvider

@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spring.boot.WowProperties
 
 /** Where the node runs commands: `wow.routing` and each aggregate type's `wow.aggregates.[<context>.<aggregate>].routing`. */
 internal object CommandRoutings {

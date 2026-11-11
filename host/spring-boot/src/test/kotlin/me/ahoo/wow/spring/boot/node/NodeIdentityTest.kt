@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.node
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.env.MockEnvironment

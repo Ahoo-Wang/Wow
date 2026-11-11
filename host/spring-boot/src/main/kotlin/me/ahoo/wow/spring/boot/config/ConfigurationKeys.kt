@@ -17,13 +17,13 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spring.boot.AggregateProperties
-import me.ahoo.wow.spring.boot.ScheduleProperties
-import me.ahoo.wow.spring.boot.SubscriptionSettingsProperties
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.http.CallerPermitsProperties
 import me.ahoo.wow.spring.boot.http.HttpProperties
 import me.ahoo.wow.spring.boot.http.PeerTargetProperties
+import me.ahoo.wow.spring.boot.node.AggregateProperties
+import me.ahoo.wow.spring.boot.node.ScheduleProperties
+import me.ahoo.wow.spring.boot.node.SubscriptionSettingsProperties
 import me.ahoo.wow.spring.boot.store.StoreProperties
 import org.springframework.beans.BeanUtils
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName

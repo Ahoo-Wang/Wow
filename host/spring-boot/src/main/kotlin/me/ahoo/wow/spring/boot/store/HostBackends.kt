@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
-import me.ahoo.wow.spring.boot.WowLifecycles
+import me.ahoo.wow.spring.boot.node.WowLifecycles
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 

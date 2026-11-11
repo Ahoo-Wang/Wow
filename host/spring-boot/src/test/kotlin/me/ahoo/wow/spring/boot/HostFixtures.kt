@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.node.ServiceNodeListener
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.availability.AvailabilityChangeEvent

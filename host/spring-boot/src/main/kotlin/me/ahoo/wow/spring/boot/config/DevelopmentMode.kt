@@ -16,8 +16,8 @@ package me.ahoo.wow.spring.boot.config
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.spi.config.WowConfigurationException
-import me.ahoo.wow.spring.boot.NodeIdentity
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.NodeIdentity
 import org.springframework.core.env.Environment
 
 /**

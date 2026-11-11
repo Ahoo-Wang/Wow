@@ -16,9 +16,9 @@ package me.ahoo.wow.spring.boot.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.config.WowConfigurationException
-import me.ahoo.wow.spring.boot.AggregateProperties
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.AggregateProperties
 import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.Test

@@ -28,8 +28,8 @@ import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
 import me.ahoo.wow.spring.boot.BANK
-import me.ahoo.wow.spring.boot.NodeModels
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.NodeModels
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir

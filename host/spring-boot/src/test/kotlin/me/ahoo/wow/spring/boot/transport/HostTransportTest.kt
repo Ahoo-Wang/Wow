@@ -25,9 +25,9 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.AnonymousCallers
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
-import me.ahoo.wow.spring.boot.NodeIdentity
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
