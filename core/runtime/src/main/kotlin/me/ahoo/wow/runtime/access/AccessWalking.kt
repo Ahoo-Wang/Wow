@@ -333,12 +333,15 @@ class AccessWalking(
     private suspend fun reclaim(type: AggregateType, schema: String) {
         val walks = checkNotNull(walksOf(type))
         val recorded = walks.walk(type)
-        if (recorded != null && recorded.schema == schema && recorded.completed && recorded.walked == 0L) {
+        if (recorded != null && recorded.stampedNothing(schema)) {
             record(type, walks, schema, expected = schema)
         } else {
             recorded?.let { walked[type] = it }
         }
     }
+
+    /** Whether this walk is [schema]'s, completed with nothing walked, as a store's creation records it. */
+    private fun AccessWalk.stampedNothing(schema: String): Boolean = this.schema == schema && completed && walked == 0L
 
     /** Reads the walk of [type], claiming it for [schema] as the class says. */
     private suspend fun claim(type: AggregateType, schema: String) {
