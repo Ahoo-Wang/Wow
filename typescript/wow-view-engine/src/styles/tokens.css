@@ -572,7 +572,9 @@
    * takes `foreground` unless `outline-hover-edge` and
    * `outline-hover-foreground` say otherwise. `control-hover` and
    * `control-pressed` are the ink at the hover and the pressed strength
-   * over whatever the control stands on (the `state-*` numbers below).
+   * (the `state-*` numbers below) mixed into the control's own fill, so a
+   * filled control keeps its fill under the pointer; with no fill, into
+   * nothing, over whatever the control stands on.
    *
    * A role that is another token of the surface — a highlight in the
    * primary fill, the view on screen in a selected row's tint — says so by
@@ -662,7 +664,7 @@
       color-mix(
         in oklab,
         var(--foreground) var(--_fve-state-hover),
-        transparent
+        var(--_fve-control, transparent)
       )
     )
   );
@@ -673,7 +675,7 @@
       color-mix(
         in oklab,
         var(--foreground) var(--_fve-state-pressed),
-        transparent
+        var(--_fve-control, transparent)
       )
     )
   );

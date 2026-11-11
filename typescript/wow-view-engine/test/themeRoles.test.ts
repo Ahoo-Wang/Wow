@@ -98,9 +98,9 @@ const BUILT_IN: Readonly<
   'row-selected':
     'color-mix(in oklab, var(--primary) var(--_fve-state-selected), var(--_fve-content))',
   'control-hover':
-    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), transparent)',
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-control, transparent))',
   'control-pressed':
-    'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), transparent)',
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), var(--_fve-control, transparent))',
   'card-edge': 'color-mix(in oklab, var(--foreground) 10%, transparent)',
   'card-shadow': '0 0 #0000',
   scrim: 'oklch(0 0 0deg / 10%)',

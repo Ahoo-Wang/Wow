@@ -513,8 +513,13 @@ export function createResolver({
     const resolved = new Map<string, Rgba>();
 
     const evaluate = (value: string, seen: string[]): Rgba => {
-      const reference = /^var\((--[\w-]+)\)$/.exec(value);
-      if (reference) return token(reference[1], seen);
+      // A token, or what stands in for one no layer gave a value:
+      // `var(--_fve-control, transparent)`, a fill only some themes have.
+      const reference = /^var\((--[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(value);
+      if (reference)
+        return reference[2] === undefined || text.has(reference[1])
+          ? token(reference[1], seen)
+          : evaluate(reference[2], seen);
       if (value === 'transparent') return { r: 0, g: 0, b: 0, alpha: 0 };
       const relative = relativeOklch(value);
       if (relative)

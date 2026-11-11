@@ -120,15 +120,15 @@ export const STATE_DOCS = {
       zh: '指针下的按钮或切换',
     },
     light: {
-      en: '`foreground` at `state-hover`',
-      zh: '`foreground` 按 `state-hover`',
+      en: "`foreground` at `state-hover`, into the control's fill",
+      zh: '`foreground` 按 `state-hover` 混进控件的填色',
     },
   },
   'control-pressed': {
     role: { en: 'A toggle pressed', zh: '按下的切换' },
     light: {
-      en: '`foreground` at `state-pressed`',
-      zh: '`foreground` 按 `state-pressed`',
+      en: "`foreground` at `state-pressed`, into the control's fill",
+      zh: '`foreground` 按 `state-pressed` 混进控件的填色',
     },
   },
   'outline-hover-edge': {

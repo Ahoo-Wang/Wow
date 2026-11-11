@@ -19,10 +19,12 @@
  *
  * Each step is the distance in OKLab between the two colours the surface
  * paints, on the values the shipped stylesheets resolve to, in every
- * built-in preset and both modes. `STEP` is about the smallest difference
- * between two adjoining areas a reader sees; before the state strengths a
- * selected row was the header band's own colour and a hovered row sat 0.015
- * from the row at rest.
+ * built-in preset and both modes. A control's state also moves away from
+ * the page it stands on, never back toward it: a filled control that lost
+ * its fill under the pointer was a step, the wrong way. `STEP` is about the
+ * smallest difference between two adjoining areas a reader sees; before the
+ * state strengths a selected row was the header band's own colour and a
+ * hovered row sat 0.015 from the row at rest.
  */
 
 import { converter } from 'culori';
@@ -47,7 +49,13 @@ type Stack = readonly string[];
 const ROW: Stack = ['background', 'content'];
 const CONTROL: Stack = ['background', 'control'];
 
-const STEPS: readonly { name: string; from: Stack; to: Stack }[] = [
+const STEPS: readonly {
+  name: string;
+  from: Stack;
+  to: Stack;
+  /** `to` is farther from the page than `from` is. */
+  onward?: true;
+}[] = [
   {
     name: 'hovered row off the row at rest',
     from: ROW,
@@ -72,11 +80,13 @@ const STEPS: readonly { name: string; from: Stack; to: Stack }[] = [
     name: 'hovered control off the control at rest',
     from: CONTROL,
     to: ['background', 'control-hover'],
+    onward: true,
   },
   {
     name: 'pressed control off the hovered control',
     from: ['background', 'control-hover'],
     to: ['background', 'control-pressed'],
+    onward: true,
   },
 ];
 
@@ -102,9 +112,14 @@ function steps(preset: string, mode: Mode) {
       .map(token => tokens.get(tokenVariable(token)))
       .filter(color => color !== undefined)
       .reduce((below, color) => over(color, below));
-  return STEPS.map(({ name, from, to }) => ({
+  const page = painted(['background']);
+  return STEPS.map(({ name, from, to, onward }) => ({
     name,
-    distance: distance(painted(from), painted(to)),
+    // A step back toward the page is no step.
+    distance:
+      onward && distance(painted(to), page) < distance(painted(from), page)
+        ? 0
+        : distance(painted(from), painted(to)),
   }));
 }
 

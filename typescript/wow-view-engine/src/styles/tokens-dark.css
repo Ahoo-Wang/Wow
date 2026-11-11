@@ -385,7 +385,7 @@
         color-mix(
           in oklab,
           var(--foreground) var(--_fve-state-hover),
-          transparent
+          var(--_fve-control, transparent)
         )
       )
     );
@@ -396,7 +396,7 @@
         color-mix(
           in oklab,
           var(--foreground) var(--_fve-state-pressed),
-          transparent
+          var(--_fve-control, transparent)
         )
       )
     );
