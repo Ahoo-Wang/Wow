@@ -55,7 +55,7 @@ Kotlin 用 DSL 构建查询；Java 没有 DSL，用同样类型的工厂方法�
 每个聚合类型在 `POST /<context>/<aggregate>/snapshot/query` 上提供快照查询。请求体是 JSON 形式的查询，操作写在 `kind` 中：
 
 ```bash
-curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
+curl -X POST localhost:8081/eshop-catalog/product/snapshot/query \
   -H 'Content-Type: application/json' \
   -d '{"kind":"paged","filter":{"op":"eq","field":"state.status","value":"PUBLISHED"},
        "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
@@ -136,4 +136,4 @@ var status: ProductStatus = ProductStatus.DRAFT
 
 ## 在哪些存储上 {#on-which-stores}
 
-快照在 PostgreSQL 和 MongoDB 上原地查询；某个类型的快照被索引到 Elasticsearch 时，也在那里查询。在内存后端上，快照路由返回 404，除非 `wow.query.memory.enabled` 让它们从内存提供服务，用于本地运行和测试。
+快照在 PostgreSQL 和 MongoDB 上原地查询；某个类型的快照被索引到 Elasticsearch 时，也在那里查询。在内存后端上，快照从内存中查询，用于本地运行和测试；`wow.query.memory.enabled: false` 关闭它，此时快照路由返回 404。

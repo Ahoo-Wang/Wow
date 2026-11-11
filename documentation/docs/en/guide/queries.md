@@ -55,7 +55,7 @@ A list read whole is bounded by its limit. To read every row of a large result, 
 Each aggregate type serves its snapshot queries at `POST /<context>/<aggregate>/snapshot/query`. The body is the query in JSON, its operation in `kind`:
 
 ```bash
-curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
+curl -X POST localhost:8081/eshop-catalog/product/snapshot/query \
   -H 'Content-Type: application/json' \
   -d '{"kind":"paged","filter":{"op":"eq","field":"state.status","value":"PUBLISHED"},
        "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
@@ -136,4 +136,4 @@ A masked field is masked for every caller, in queries, state reads and traces al
 
 ## On which stores
 
-Snapshots are queried on PostgreSQL and MongoDB, in place, and on Elasticsearch when a type's snapshots are indexed there. On the memory backend the snapshot routes answer 404, unless `wow.query.memory.enabled` serves them from memory for local runs and tests.
+Snapshots are queried on PostgreSQL and MongoDB, in place, and on Elasticsearch when a type's snapshots are indexed there. On the memory backend they are queried from memory, for local runs and tests; `wow.query.memory.enabled: false` turns that off, and the snapshot routes then answer 404.
