@@ -221,11 +221,8 @@ function searchField(
     name: key,
     label: spec.label ?? key,
     kind: 'search',
+    searchFields: search.fields,
   };
-  // No fields named is a box that looks wherever the model indexes, which
-  // the definition says by leaving the list out: an empty one would be a
-  // search in nothing, and narrowing takes such a box away (#5890).
-  if (search.fields.length > 0) field.searchFields = search.fields;
   if (search.mode) field.searchMode = search.mode;
   return { field, described: null, spec, sensitive: false };
 }

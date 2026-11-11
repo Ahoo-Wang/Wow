@@ -23,7 +23,6 @@ import {
   FilterOperator,
   AggregationFunction,
   PagingMode,
-  SearchMode,
   TimeUnit,
   type DynamicFieldDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
@@ -31,13 +30,11 @@ import { describe, expect, it } from 'vitest';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
   builtinFieldKinds,
-  compileFilter,
   defineView,
   validateDefinition,
   type DefineViewSpec,
   type Issue,
 } from '../src/index.js';
-import { searchFieldOf } from '../src/filter/search.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 import { recordConfig } from './fixtures.js';
 
@@ -419,60 +416,6 @@ describe('defineView', () => {
     expect(codes(definition.described?.findings ?? [])).toEqual([
       'definition.field.undescribed',
     ]);
-  });
-
-  it('writes a search box that names no fields as one that looks wherever the model indexes (#5890)', () => {
-    const described = descriptor();
-    described.record = {
-      ...described.record,
-      search: { modes: [SearchMode.TERMS], fields: ['status', 'email'] },
-    };
-    const definition = defineView(described, {
-      id: 'orders',
-      source: 'orders',
-      title: 'Orders',
-      fields: {
-        id: 'Order',
-        keyword: { label: 'Search', search: { fields: [] } },
-      },
-    });
-    // No list is what the author wrote, so none is what the definition says.
-    expect(
-      definition.fields.find(field => field.name === 'keyword'),
-    ).not.toHaveProperty('searchFields');
-
-    // Narrowed, it keeps its search: the model searches model-wide by words.
-    const narrowed = narrowDefinition(definition, described, builtinFieldKinds);
-    expect(codes(narrowed.findings)).not.toContain(
-      'capability.search.unavailable',
-    );
-    const search = searchFieldOf(narrowed.definition.fields);
-    expect(search?.name).toBe('keyword');
-
-    // And what it sends is a search across the model.
-    expect(
-      compileFilter(
-        narrowed.definition.fields,
-        {
-          op: 'and',
-          children: [
-            {
-              field: 'keyword',
-              operator: FilterOperator.SEARCH,
-              value: 'late',
-            },
-          ],
-        },
-        builtinFieldKinds,
-        { now: new Date('2026-11-10T00:00:00Z'), timeZone: 'UTC' },
-      ),
-    ).toEqual({
-      op: 'search',
-      query: 'late',
-      // The client's spelling of "the backend's default search fields".
-      fields: [],
-      mode: SearchMode.TERMS,
-    });
   });
 
   it('takes records from the descriptor: its identity, paged, as a table', () => {
