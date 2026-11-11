@@ -163,7 +163,7 @@ class CommittedReceiptsTest {
             committed.result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             committed.result.duplicate.assert().isFalse()
             committed.executionId.assert().isEqualTo(
-                ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 1)
+                ExecutionId(ORDER.context, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 1)
             )
             commits.single().assert().isEqualTo(committed)
             rejections.assert().isEmpty()

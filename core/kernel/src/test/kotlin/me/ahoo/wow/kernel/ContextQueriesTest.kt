@@ -77,7 +77,7 @@ class ContextQueriesTest {
     fun `every handler's context should read in the tenant of its commit`() {
         val queries = ContextQueries.of(api)
         listOf(FunctionKind.PROJECT, FunctionKind.REACT, FunctionKind.SAGA).forEach { kind ->
-            val context = contextOf(kind, "shop.processor.on", event, queries = queries)
+            val context = contextOf(kind, event.ref.type.context, "shop.processor.on", event, queries = queries)
             val read = context.queries
             read.tenantId.assert().isEqualTo("acme")
             read.snapshots(order).assert().isSameAs(snapshots)
@@ -92,7 +92,7 @@ class ContextQueriesTest {
     @Test
     fun `a receipt's handler should read in the tenant of the commit that derived its command`() {
         ExecutionReceiptContext(
-            ExecutionId("shop.saga.onPlaced", order.ref("acme", "o-1"), 3),
+            ExecutionId(order.context, "shop.saga.onPlaced", order.ref("acme", "o-1"), 3),
             "cmd-1",
             Causation("root", "cause"),
             null,
@@ -111,7 +111,7 @@ class ContextQueriesTest {
 
     @Test
     fun `a context without queries should refuse a read`() {
-        val context = contextOf(FunctionKind.SAGA, "shop.processor.on", event)
+        val context = contextOf(FunctionKind.SAGA, event.ref.type.context, "shop.processor.on", event)
         assertThrownBy<UnsupportedOperationException> { context.queries }
         assertThrownBy<UnsupportedOperationException> { ExecutionContext(context.executionId).queries }
     }

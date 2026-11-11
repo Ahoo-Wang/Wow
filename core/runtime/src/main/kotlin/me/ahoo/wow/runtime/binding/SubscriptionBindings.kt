@@ -327,6 +327,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): SubscriptionContext =
             contextOf(
                 handler.kind,
+                context.context,
                 name,
                 event,
                 context.ids,

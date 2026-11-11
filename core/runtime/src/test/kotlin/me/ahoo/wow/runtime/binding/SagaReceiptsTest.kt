@@ -165,14 +165,18 @@ class SagaReceiptsTest {
     private val log get() = backends.opened.getValue(SHOP).log
 
     private fun rejectedId(order: String) =
-        ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), cart, RemoveItems::class.java)
+        ExecutionSagaContext.derivedId(
+            ExecutionId(ORDER.context, SAGA, ORDER.ref(TENANT, order), 1),
+            cart,
+            RemoveItems::class.java
+        )
 
     private fun compensationId(
         order: String,
         handler: String = "CartSaga.onRemoveRejected",
         type: Class<*> = AddItems::class.java,
     ) = ExecutionReceiptContext.compensationId(
-        ExecutionId(handler, ORDER.ref(TENANT, order), 1),
+        ExecutionId(ORDER.context, handler, ORDER.ref(TENANT, order), 1),
         rejectedId(order),
         cart,
         type
@@ -196,7 +200,7 @@ class SagaReceiptsTest {
             rejected.commandType.assert().isEqualTo("shop.cart.RemoveItems")
             rejected.ref.assert().isEqualTo(cart)
             rejected.error.assert().isEqualTo(ErrorInfo(FORBIDDEN, "$FORBIDDEN_ITEM cannot be removed."))
-            rejected.executionId.assert().isEqualTo(ExecutionId(SAGA, ORDER.ref(TENANT, "o-1"), 1))
+            rejected.executionId.assert().isEqualTo(ExecutionId(ORDER.context, SAGA, ORDER.ref(TENANT, "o-1"), 1))
             rejected.causation.causationId.assert().isEqualTo("shop.order/t/o-1@1")
             rejected.causation.correlationId.assert().isEqualTo(all.first().commandId)
             decided.assert().containsExactly(rejectedId("o-1"))
@@ -224,7 +228,7 @@ class SagaReceiptsTest {
             committed.ref.assert().isEqualTo(cart)
             committed.version.assert().isEqualTo(2)
             committed.result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-            committed.executionId.assert().isEqualTo(ExecutionId(SAGA, ORDER.ref(TENANT, "o-c"), 1))
+            committed.executionId.assert().isEqualTo(ExecutionId(ORDER.context, SAGA, ORDER.ref(TENANT, "o-c"), 1))
             // What the handler derives is committed, caused by the committed command, but the wait does not follow it.
             val thanks = compensationId("o-c", "CartSaga.onRemoved")
             val derived = log.findByRequestId(CART, TENANT, thanks)!!
@@ -439,17 +443,17 @@ class SagaReceiptsTest {
             cart,
             ErrorInfo(FORBIDDEN, "No."),
             Causation("root", "shop.order/t/o-7@1"),
-            ExecutionId("Other.saga", ORDER.ref(TENANT, "o-7"), 1),
+            ExecutionId(ORDER.context, "Other.saga", ORDER.ref(TENANT, "o-7"), 1),
         )
         rejections.rejected(rejected, RemoveItems::class.java).assert().isNull()
         rejections.rejected(
-            rejected.copyWith(executionId = rejected.executionId.copy(subscription = SAGA)),
+            rejected.copyWith(executionId = rejected.executionId.copyWith(subscription = SAGA)),
             String::class.java
         )
             .assert().isNull()
         // The entry point of a receipt from another context (decision D136) takes the same rejection.
         rejections.rejected(
-            rejected.copyWith(executionId = rejected.executionId.copy(subscription = SAGA)),
+            rejected.copyWith(executionId = rejected.executionId.copyWith(subscription = SAGA)),
             RemoveItems::class.java
         )
             .assert().hasSize(1)

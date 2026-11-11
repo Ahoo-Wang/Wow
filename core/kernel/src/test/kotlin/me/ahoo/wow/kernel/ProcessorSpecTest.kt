@@ -25,13 +25,18 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.kernel.schedule.JobState
+import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.test.commandTypeOf
 import me.ahoo.wow.test.committedReceipt
 import me.ahoo.wow.test.projectionSpec
@@ -175,7 +180,7 @@ class ProcessorSpecTest {
                 causation.assert().isEqualTo(Causation("command-3", "shop.order/tenant/order-1@3"))
                 id.assert().isEqualTo(
                     ExecutionSagaContext.derivedId(
-                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        ExecutionId(order.type.context, "OrderSaga.onOrder", order, 3),
                         stock,
                         Reserve::class.java
                     ),
@@ -186,7 +191,7 @@ class ProcessorSpecTest {
             schedules.single().id.assert()
                 .isEqualTo(
                     ExecutionSagaContext.scheduleId(
-                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        ExecutionId(order.type.context, "OrderSaga.onOrder", order, 3),
                         order,
                         me.ahoo.wow.api.schedule.SetSchedule::class.java,
                         "remind",
@@ -194,6 +199,37 @@ class ProcessorSpecTest {
                 )
             expectNoError()
             expectDeterministic()
+        }
+    }
+
+    @Test
+    fun `a job's handler executes under its own context, whatever context the tick it is given comes from`() {
+        val nightly = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"), JobScope.SYSTEM)
+        val job = ProcessorBinding.schedule(
+            "Billing",
+            "onNightly",
+            nightly,
+            context = "billing",
+            derives = listOf(Reserve::class.java),
+        ) { _, _ -> listOf(CommandRequest.to(stock, Reserve("nightly", 1))) }
+        // A tick of another context's job aggregate: the execution is still billing's, as the runtime runs it.
+        val tick = stateEvent(
+            ScheduleJobModel.refOf("shop", "nightly"),
+            JobState().apply { this.job = "nightly" },
+            Ticked("t", 1, 0, 0),
+        )
+        sagaSpec(listOf(job)) {
+            whenEvent(tick) {
+                expectCommandEnvelope<Reserve> {
+                    id.assert().isEqualTo(
+                        ExecutionSagaContext.derivedId(
+                            ExecutionId.of("billing", job.name, tick.ref, tick.version),
+                            stock,
+                            Reserve::class.java,
+                        ),
+                    )
+                }
+            }
         }
     }
 
@@ -236,7 +272,7 @@ class ProcessorSpecTest {
             ref = stock,
             error = ErrorInfo("inventory.stock.insufficient", "None."),
             causation = Causation("command-1", "shop.order/tenant/order-1@1"),
-            executionId = ExecutionId("OrderSaga.onOrder", order, 1),
+            executionId = ExecutionId(order.type.context, "OrderSaga.onOrder", order, 1),
         )
         whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
         // A rejection no @OnRejected handler takes parks the aggregate at once, as the runtime does.
@@ -245,7 +281,10 @@ class ProcessorSpecTest {
             expectParked().message.assert().contains("was rejected: inventory.stock.insufficient")
         }
         assertThrownBy<IllegalArgumentException> {
-            whenRejected(rejected.copyWith(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
+            whenRejected(
+                rejected.copyWith(executionId = ExecutionId(order.type.context, "Other.onOrder", order, 1)),
+                Reserve::class
+            ) { }
         }
         assertThrownBy<IllegalArgumentException> {
             whenRejected(Command("x", "x", stock, Reserve("order-1", 1)), code = "c") { }
@@ -285,13 +324,16 @@ class ProcessorSpecTest {
                 signalTime = 0L,
             ),
             causation = Causation("command-1", "shop.order/tenant/order-1@1"),
-            executionId = ExecutionId("OrderSaga.onOrder", order, 1),
+            executionId = ExecutionId(order.type.context, "OrderSaga.onOrder", order, 1),
         )
         whenCommitted(committed, Reserve::class) { expectCommands(Confirm("apple", 2, duplicate = false)) }
         // A saga without a handler of the command's receipts, or a receipt of another saga's command, fails.
         assertThrownBy<AssertionError> { whenCommitted(committed, Release::class) { } }
         assertThrownBy<IllegalArgumentException> {
-            whenCommitted(committed.copyWith(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
+            whenCommitted(
+                committed.copyWith(executionId = ExecutionId(order.type.context, "Other.onOrder", order, 1)),
+                Reserve::class
+            ) { }
         }
         assertThrownBy<IllegalArgumentException> {
             whenCommitted(Command("x", "x", stock, Reserve("order-1", 1))) { }
@@ -391,7 +433,7 @@ class ProcessorSpecTest {
                         order,
                         ErrorInfo("e", "m"),
                         Causation("c", "c"),
-                        ExecutionId("View.on", order, 1),
+                        ExecutionId(order.type.context, "View.on", order, 1),
                     ),
                     Any::class,
                 ) { }
@@ -416,7 +458,7 @@ class ProcessorSpecTest {
                             signalTime = 0L,
                         ),
                         Causation("c", "c"),
-                        ExecutionId("View.on", order, 1),
+                        ExecutionId(order.type.context, "View.on", order, 1),
                     ),
                     Any::class,
                 ) { }
@@ -478,7 +520,7 @@ class ProcessorSpecTest {
     fun `receipts of a command another execution derived are built with the factories`() = sagaSpec(
         orderSagaHandlers()
     ) {
-        val execution = ExecutionId("OrderSaga.onOrder", order, 1)
+        val execution = ExecutionId(order.type.context, "OrderSaga.onOrder", order, 1)
         val reserve = Command("derived-1", "derived-1", stock, Reserve("order-1", 1))
         val rejected = rejectedReceipt(reserve, execution, "inventory.stock.insufficient", "None.")
         rejected.commandType.assert().isEqualTo("inventory.stock.Reserve")

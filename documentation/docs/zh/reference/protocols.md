@@ -273,7 +273,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | 拒绝 | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers, version}`，不含命令体；`version` 是拒绝的事件到达的版本，否则是决策所见的版本，创建命令或在任何决策前被拒绝的命令为 `null` |
 | 成功（应要求时） | `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`，其中 `result` 是 `COMMITTED` 那一跳的[命令结果](#command-result)，不含状态 |
 
-`executionId` 是 `{subscription, ref, version}`：命令所来自的那次 Saga 处理函数调用。`headers` 只包含会传播的请求事实。
+`executionId` 是 `{context, subscription, ref, version}`：命令所来自的那次 Saga 处理函数调用，其订阅按所在上下文命名。`headers` 只包含会传播的请求事实。
 
 <!-- sample: core/runtime/src/test/resources/protocols/command-receipt.json -->
 
@@ -305,6 +305,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "causationId": "bank.transfer/t1/tr-9@1"
     },
     "executionId": {
+      "context": "bank",
       "subscription": "TransferSaga.onRequested",
       "ref": {
         "type": {

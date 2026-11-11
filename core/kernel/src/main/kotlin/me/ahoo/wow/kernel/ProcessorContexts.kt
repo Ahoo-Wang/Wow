@@ -319,13 +319,14 @@ internal class SagaDerivation(
 
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
- * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
+ * [ExecutionId] is (context, subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
  * schedules by [commandTypes], makes its synchronous calls through [calls] and sends what [sends] declares; every
  * handler reads through [queries].
  */
 @InternalWowApi
 fun contextOf(
     kind: FunctionKind,
+    context: String,
     subscription: String,
     event: StateEvent<*>,
     ids: Ids = IdGenerators.DEFAULT,
@@ -334,7 +335,7 @@ fun contextOf(
     queries: ContextQueries = ContextQueries.NONE,
     sends: SagaSends? = null,
 ): SubscriptionContext {
-    val execution = ExecutionId(subscription, event.ref, event.version)
+    val execution = ExecutionId(context, subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT, FunctionKind.REACT -> ExecutionContext(execution, queries)
         FunctionKind.SAGA ->

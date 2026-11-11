@@ -91,7 +91,7 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 }
 ```
 
-`context.invocationKey` is the same every time the same commit is handled by the same handler: `executionId` (`subscription:ref@version`, the ref as `context.aggregate/tenant/id`) for a handler of the whole stream, `executionId:eventIndex` for a handler of one event type. A `%` or `:` in the subscription's name, and a `%` or `/` in the tenant or the id, is percent-escaped (`%25`, `%3A`, `%2F`), so no two executions share a key; a name without them reads as it is. Pass it to the outside system as its idempotency key, so a notification asked for twice is sent once. `@Retry` gives the reactor its own retry budget: [Failures and Retries](./failures).
+`context.invocationKey` is the same every time the same commit is handled by the same handler: `executionId` (`context.subscription:ref@version`: the subscription's context, which holds no dot, then its name, and the ref as `context.aggregate/tenant/id`) for a handler of the whole stream, `executionId:eventIndex` for a handler of one event type. A `%` or `:` in the subscription's name, and a `%` or `/` in the tenant or the id, is percent-escaped (`%25`, `%3A`, `%2F`), so no two executions share a key; a name without them reads as it is. Pass it to the outside system as its idempotency key, so a notification asked for twice is sent once. `@Retry` gives the reactor its own retry budget: [Failures and Retries](./failures).
 
 ## Where they start
 

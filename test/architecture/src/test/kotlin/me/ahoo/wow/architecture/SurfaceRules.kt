@@ -82,7 +82,6 @@ object SurfaceRules {
         "me/ahoo/wow/api/aggregate/AggregateRef" to "an aggregate instance's identity: its type, tenant and id",
         "me/ahoo/wow/api/aggregate/Scope" to "the owner and space dimensions of authorization (D56, D189)",
         "me/ahoo/wow/api/decide/Causation" to "the causal link of a command: its correlation and causation ids",
-        "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
         "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
     ) + PLATFORM_MESSAGES.associateWith { "a platform context's message type, governed by its Manifest" }
 

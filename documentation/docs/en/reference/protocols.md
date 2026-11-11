@@ -273,7 +273,7 @@ The target of a cross-context command writes a receipt to the sending context's 
 | Rejection | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers, version}`, without the command's body; `version` is the one the rejection's events reached, else the one the decision saw, and `null` for a creation or a command refused before any decision |
 | Success, when asked | `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`, where `result` is the [command result](#command-result) at its `COMMITTED` hop, without the state |
 
-`executionId` is `{subscription, ref, version}`: the saga's handler call the command came from. `headers` holds only the request facts that propagate.
+`executionId` is `{context, subscription, ref, version}`: the saga's handler call the command came from, its subscription named within its context. `headers` holds only the request facts that propagate.
 
 <!-- sample: core/runtime/src/test/resources/protocols/command-receipt.json -->
 
@@ -305,6 +305,7 @@ The target of a cross-context command writes a receipt to the sending context's 
       "causationId": "bank.transfer/t1/tr-9@1"
     },
     "executionId": {
+      "context": "bank",
       "subscription": "TransferSaga.onRequested",
       "ref": {
         "type": {

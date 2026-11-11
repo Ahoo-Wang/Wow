@@ -25,6 +25,7 @@
       "causationId": "bank.transfer/t1/tr-9@1"
     },
     "executionId": {
+      "context": "bank",
       "subscription": "TransferSaga.onRequested",
       "ref": {
         "type": {

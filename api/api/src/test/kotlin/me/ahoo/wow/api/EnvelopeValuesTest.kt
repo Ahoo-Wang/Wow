@@ -48,7 +48,7 @@ class EnvelopeValuesTest {
 
     private fun command(id: String = "c-1") = Command(id, "r-1", ref, mapOf("quantity" to 1))
 
-    private fun execution() = ExecutionId("OrderSaga.onPlaced", ref, 1)
+    private fun execution() = ExecutionId(ref.type.context, "OrderSaga.onPlaced", ref, 1)
 
     private fun committed(version: Int = 1) =
         CommandReceipt.Committed<Any>(

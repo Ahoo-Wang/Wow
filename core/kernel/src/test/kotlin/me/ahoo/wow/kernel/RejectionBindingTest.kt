@@ -38,7 +38,7 @@ class RejectionBindingTest {
     private class RemoveAll : Remove()
     private class Add : CartCommand
 
-    private val execution = ExecutionId("CartSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
+    private val execution = ExecutionId(order.context, "CartSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
     private val rejected = CommandReceipt.Rejected<Remove>(
         "c-1",
         "shop.cart.Remove",
@@ -124,7 +124,9 @@ class RejectionBindingTest {
                 )
             }
             val context = rejectionContextOf(handler, rejected)
-            context.executionId.assert().isEqualTo(ExecutionId("CartSaga.onRemoveRejected", execution.ref, 3))
+            context.executionId.assert().isEqualTo(
+                ExecutionId(execution.ref.type.context, "CartSaga.onRemoveRejected", execution.ref, 3)
+            )
             val commands: List<Command<*>> = handler.invoke(rejected, context)
             commands.map { it.id }.distinct().assert().hasSize(2)
             commands.forEach {

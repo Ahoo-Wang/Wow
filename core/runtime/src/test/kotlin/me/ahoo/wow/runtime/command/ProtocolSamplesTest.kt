@@ -78,7 +78,12 @@ class ProtocolSamplesTest {
 
     @Test
     fun `a command sent to another context`() {
-        val execution = ExecutionId("TransferSaga.onRequested", AggregateType("bank", "transfer").ref("t1", "tr-9"), 1)
+        val execution = ExecutionId(
+            "bank",
+            "TransferSaga.onRequested",
+            AggregateType("bank", "transfer").ref("t1", "tr-9"),
+            1
+        )
         val wire = ClusterCodec.wire(
             "bank.account.Withdraw",
             Command(
@@ -102,7 +107,7 @@ class ProtocolSamplesTest {
             ref,
             ErrorInfo("bank.account.insufficient-balance", "The balance is 20."),
             Causation("c-1", "bank.transfer/t1/tr-9@1"),
-            ExecutionId("TransferSaga.onRequested", AggregateType("bank", "transfer").ref("t1", "tr-9"), 1),
+            ExecutionId("bank", "TransferSaga.onRequested", AggregateType("bank", "transfer").ref("t1", "tr-9"), 1),
             operator,
             Scope("u-42"),
             version = 4,

@@ -157,7 +157,8 @@ fun `a failed notification should be asked for again with the same key`() = reac
     }
     // The retry hands the same commit again: the same key, so the mail service sends it once.
     whenRedelivered()
-    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
+    sent.single().third.assert()
+        .isEqualTo("${order.ref.type.context}.ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```
 

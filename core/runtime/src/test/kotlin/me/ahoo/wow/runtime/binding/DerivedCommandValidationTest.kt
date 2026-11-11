@@ -70,7 +70,9 @@ class DerivedCommandValidationTest {
             rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
             rejected.error.violations.assert().containsExactly(VIOLATION)
             // The saga's @OnRejected handler takes it with the violations, as it takes a decided rejection.
-            val receipt = rejected.toReceipt(ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2))
+            val receipt = rejected.toReceipt(
+                ExecutionId(ORDER.context, "CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
+            )
             receipt.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
             receipt.error.violations.assert().containsExactly(VIOLATION)
             // No aggregate decided it; the valid command after it ran.

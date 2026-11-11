@@ -38,6 +38,10 @@ class OrderingPortsTest {
 
     @Test
     fun `the logged notifications should accept a shipped order`(): Unit = runBlocking {
-        LoggedBuyerNotifications().orderShipped("alice", "alice-1", key = "ShipmentNotifier.onOrderShipped:x@6:0")
+        LoggedBuyerNotifications().orderShipped(
+            "alice",
+            "alice-1",
+            key = "eshop-ordering.ShipmentNotifier.onOrderShipped:x@6:0",
+        )
     }
 }

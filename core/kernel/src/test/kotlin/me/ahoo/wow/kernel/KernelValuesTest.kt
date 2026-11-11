@@ -61,14 +61,14 @@ class KernelValuesTest {
 
     @Test
     fun `a projection's and a reactor's context should name their execution`() {
-        val execution = ExecutionId("shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
+        val execution = ExecutionId("shop", "shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
         ExecutionContext(execution).toString().assert().contains(execution.toString())
         ExecutionContext(execution).toString().assert().contains(execution.toString())
     }
 
     @Test
     fun `only a deriving handler's context should derive commands`() {
-        val execution = ExecutionId("shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
+        val execution = ExecutionId("shop", "shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
         assertThrows<IllegalArgumentException> { derivationOf(ExecutionContext(execution)) }
             .message.assert().contains("derives no commands")
     }
