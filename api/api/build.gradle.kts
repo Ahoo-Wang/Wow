@@ -2,8 +2,9 @@ description = "Wow API: what domain code imports (the annotations, Decision, Dec
     "the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi"
 
 // The stability markers, the query protocol and the coroutines' Flow the QueryApi streams its rows with (decision
-// D260); and Jackson's databind, which this module's code does not use: an api module's free-shape content is an
-// ObjectNode or a JsonNode, its classes' and its generated state views' alike (D362), so every api module has it.
+// D260); and Jackson's databind: the QueryApi reads rows and states it has no class for as an ObjectNode, and an api
+// module's free-shape content is an ObjectNode or a JsonNode, its classes' and its generated state views' alike
+// (D362), so every api module has it.
 dependencies {
     // The guard of the hand-written equals (finding R5.B-13).
     testImplementation(project(":tck"))

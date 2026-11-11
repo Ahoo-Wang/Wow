@@ -28,7 +28,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
 import tools.jackson.databind.JsonNode
 
 /**
- * Reads and writes [Envelope]s as the JSON value of a Kafka message, with Wow's
+ * Reads and writes [Envelope]s as the JSON value of a topic's message, with Wow's
  * mapper ([WowJson]): every number of a payload or a state keeps its exact value and scale, and the
  * modules are fixed, so the wire form does not depend on what a host brings.
  *
@@ -42,10 +42,8 @@ import tools.jackson.databind.JsonNode
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access,
- *   accessVersion, causation, headers, operator, imported}` (`operator`, `imported`, `access` and `accessVersion`,
- *   additions within format 1; `imported` only when true; `access` in its stored form, [AccessValues], or null when
- *   not stamped, and an envelope of a version that wrote `tags` instead reads with none; `accessVersion` the version
- *   it is of, null with it or when an envelope of an earlier version left it out) with each event
+ *   accessVersion, causation, headers, operator, imported}` (`imported` only when true; `access` in its stored form,
+ *   [AccessValues], or null when not stamped; `accessVersion` the version it is of, null with it) with each event
  *   `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {

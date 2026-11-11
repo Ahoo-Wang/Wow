@@ -150,8 +150,8 @@ class EventStream @InternalWowApi constructor(
 
 /**
  * One event of an [EventStream]: its [name] and [revision] as the model reads it now (upgraded) and its
- * [body], masked as the Manifest declares: an instance of the model's event class, or a `Map` of an event the reader
- * has no class for. The commit a sourcing function reads holds the events as the model's classes, unmasked.
+ * [body], masked as the Manifest declares: an instance of the model's event class, or an `ObjectNode` of an event the
+ * reader has no class for. The commit a sourcing function reads holds the events as the model's classes, unmasked.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */

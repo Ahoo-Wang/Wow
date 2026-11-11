@@ -21,6 +21,9 @@ import tools.jackson.databind.JsonNode
 /**
  * What an [Envelope] carries, by its [wire] name ([WireNames]), the `kind` of the value and the `wow-kind` header:
  * `STATE_EVENT` is `state-event`.
+ *
+ * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
+ * [of] gives null for a name this version does not know.
  */
 enum class EnvelopeKind {
     /** A [me.ahoo.wow.spi.state.StateEventRecord]: `id` is `ref@version`, `type` the aggregate type. */
@@ -45,7 +48,7 @@ enum class EnvelopeKind {
 }
 
 /**
- * A message of a Kafka topic: `{format, kind, id, type, payload, transport}`.
+ * A message of a transport's topic: `{format, kind, id, type, payload, transport}`.
  *
  * - [format] is the envelope's format version. A field added with a default does not change it; a
  *   reader refuses a format it does not know, which only a major version brings.
@@ -104,7 +107,7 @@ class Envelope @InternalWowApi constructor(
     }
 }
 
-/** The headers of a Kafka message, each repeating a field of its [Envelope]. */
+/** The headers of a topic's message, each repeating a field of its [Envelope]. */
 object EnvelopeHeaders {
     /** [Envelope.format], as a decimal number. */
     const val FORMAT: String = "wow-format"

@@ -77,8 +77,8 @@ fun interface WritePolicies {
  * - A derived command ([isDerived]) is the server's own, and reaches every aggregate.
  * - Under a policy, so does a [service][Caller.service] acting as itself: a service is trusted, bounded by the
  *   commands its callers' configuration lets it send, as on its reads.
- * - Under a policy, a command without a caller (an older node's, or one a producer wrote on a command topic without
- *   one) reaches none: nothing is granted by omission.
+ * - Under a policy, a command without a caller (one a producer wrote on a command topic without one) reaches none:
+ *   nothing is granted by omission.
  */
 internal class CommandReach(
     private val model: AggregateModel<*>,

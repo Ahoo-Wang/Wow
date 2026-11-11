@@ -32,7 +32,7 @@ object QueryErrorCodes {
     const val INVALID_CURSOR = "invalid-cursor"
     const val STREAM_NOT_RESUMABLE = "stream-not-resumable"
 
-    // The entry budget and gates (errorCode IllegalArgument); BindingError.name is the request part the rule bounds.
+    // The entry budget and gates; BindingError.name is the request part the rule bounds.
     const val SIZE_OUT_OF_RANGE = "size-out-of-range"
     const val FILTER_TOO_LARGE = "filter-too-large"
     const val EXPENSIVE_OPERATOR_DISABLED = "expensive-operator-disabled"
@@ -41,7 +41,7 @@ object QueryErrorCodes {
     const val TOO_MANY_GROUPS = "too-many-groups"
     const val EXPLICIT_ENTRY_REQUIRED = "explicit-entry-required"
 
-    // A state point read (GET …/{id}/state?version=|at=, …/state/trace); BindingError.name is the query parameter.
+    // A state point read; BindingError.name is the query parameter.
     // The state asked for is more commits away from the snapshot, or from version 1, than a state read replays.
     const val REPLAY_TOO_LONG = "replay-too-long"
 
