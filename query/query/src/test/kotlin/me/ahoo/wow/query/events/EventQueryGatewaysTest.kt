@@ -94,7 +94,6 @@ class EventQueryGatewaysTest {
     private val binding = storage.binding(type)
     private val schema = QueryModelCompiler.of().compile(QuerySchemaContext(type, QueryModel.EVENTS), binding.storage)
 
-    @Suppress("LongParameterList")
     private fun gateway(
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy(inProcessTimeout = null),
         ownership: Ownership = Ownership.OWNER,

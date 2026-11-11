@@ -89,7 +89,6 @@ class CommandInput @InternalWowApi constructor(
 
     /** This CommandInput with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
-    @Suppress("LongParameterList")
     fun copyWith(
         type: CommandType = this.type,
         body: Any = this.body,

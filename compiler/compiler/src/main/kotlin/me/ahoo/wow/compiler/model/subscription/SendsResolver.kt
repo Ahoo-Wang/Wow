@@ -55,7 +55,6 @@ internal object SendsResolver {
      *   and declares no `@Sends(derives)`: the Manifest could not list what it derives, and the runtime would refuse
      *   each command it derives.
      */
-    @Suppress("LongParameterList")
     fun resolve(
         function: KSFunctionDeclaration,
         where: String,

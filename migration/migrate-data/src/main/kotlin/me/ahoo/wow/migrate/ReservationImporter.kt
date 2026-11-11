@@ -115,7 +115,6 @@ internal data class ReservationProgress(
  *   [ImportOptions.concurrency] at a time, and the checkpoint ([ReservationCheckpoint]) moves after each page;
  *   [ImportOptions.restart] walks every key again. A dry run reads and resolves every key and writes nothing.
  */
-@Suppress("LongParameterList")
 internal class ReservationImporter(
     private val source: NineXEventSource,
     private val reservations: NineXReservationSource,

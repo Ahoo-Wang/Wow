@@ -105,7 +105,6 @@ internal fun duplicate(
  * out of what it may change. A transfer of the owner or the space changes no declared attribute: it gives the
  * aggregate away on purpose, and is checked before deciding only.
  */
-@Suppress("LongParameterList") // The aggregate before and after the decision.
 internal fun leaves(
     command: Command<*>,
     reach: CommandReach,

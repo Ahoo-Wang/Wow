@@ -285,7 +285,6 @@ class CommandResult @InternalWowApi constructor(
          * [ref], produced by [function] at [signalTime] (epoch milliseconds), the aggregate then at [version].
          */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun succeeded(
             commandId: String,
             requestId: String,
@@ -309,7 +308,6 @@ class CommandResult @InternalWowApi constructor(
 
         /** The result of a command a rule refused at [hop] with [error]; the other fields are [succeeded]'s. */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun rejected(
             commandId: String,
             requestId: String,
@@ -326,7 +324,6 @@ class CommandResult @InternalWowApi constructor(
 
         /** The result of a command that did not reach [hop] for a technical reason, [error]; see [succeeded]. */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun failed(
             commandId: String,
             requestId: String,
@@ -341,7 +338,6 @@ class CommandResult @InternalWowApi constructor(
             commandId, requestId, correlationId, ref, hop, function, version, Status.FAILED, error, signalTime,
         )
 
-        @Suppress("LongParameterList")
         private fun notSucceeded(
             commandId: String,
             requestId: String,

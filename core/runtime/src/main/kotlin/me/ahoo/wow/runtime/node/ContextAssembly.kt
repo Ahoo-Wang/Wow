@@ -232,7 +232,6 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * that log keeps stamps and walks; the walks rewrite the snapshots through the context's [maintenance], read the
      * histories under the node's replay gate and give way to its log stores' write pressure.
      */
-    @Suppress("LongParameterList")
     private fun stampingOf(
         context: String,
         models: List<AggregateModel<*>>,

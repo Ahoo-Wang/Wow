@@ -114,7 +114,6 @@ internal class MapDrafter(private val manifest: Manifest) {
      * Matches [source], whose name no V10 aggregate has, with the one of [free] whose events hold most of its [events]:
      * at least half, and more than any other's.
      */
-    @Suppress("LongParameterList") // What a rename is matched from, and where it goes.
     private fun renamed(
         source: NineXAggregate,
         events: Set<String>,

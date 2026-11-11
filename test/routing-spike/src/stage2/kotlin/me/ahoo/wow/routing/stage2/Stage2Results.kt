@@ -182,7 +182,7 @@ object Stage2Analysis {
      * What the partitions of [victim] (its index among the receivers) saw after it was killed at [killedAt]: commands
      * due from then on, received by the live nodes. [takeovers] holds, per partition, when and to whom its lease went.
      */
-    @Suppress("LongParameterList", "CyclomaticComplexMethod") // One flat computation per partition.
+    @Suppress("CyclomaticComplexMethod") // One flat computation per partition.
     fun kill(
         recording: Recording,
         victim: Int,

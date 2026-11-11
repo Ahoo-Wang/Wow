@@ -212,7 +212,6 @@ sealed interface ParkedAmendment {
         companion object {
             /** A Restate of the given fields; parameters added later come last, with a default. */
             @JvmStatic
-            @Suppress("LongParameterList")
             fun of(
                 revision: Long,
                 reason: String,

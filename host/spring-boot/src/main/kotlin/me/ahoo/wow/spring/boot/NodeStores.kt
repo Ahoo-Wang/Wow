@@ -57,7 +57,6 @@ internal class NodeStores {
     @Bean(BACKENDS)
     @ConditionalOnMissingBean
     @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per input of the stores, each a bean the application may give.
     fun wowBackends(
         properties: WowProperties,
         beanFactory: ConfigurableListableBeanFactory,

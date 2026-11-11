@@ -153,7 +153,6 @@ internal class NodePublicPort {
      */
     @Bean
     @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per part of the routes, each a bean.
     fun wowRouterFunction(
         manifest: Manifest,
         node: ServiceNode,

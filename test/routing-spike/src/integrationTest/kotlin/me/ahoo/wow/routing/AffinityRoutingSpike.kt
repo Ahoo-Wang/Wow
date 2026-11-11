@@ -244,7 +244,6 @@ class AffinityRoutingSpike {
         }
     }
 
-    @Suppress("LongParameterList")
     private suspend fun append(
         log: PostgresEventLog,
         codec: EventCodec,

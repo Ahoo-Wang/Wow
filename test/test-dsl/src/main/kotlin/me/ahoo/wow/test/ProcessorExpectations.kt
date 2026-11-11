@@ -102,7 +102,6 @@ class ProcessorExpectations internal constructor(
      * Hands the success receipt of [command], one this handling derived, to the saga's `@OnCommitted` handler of it,
      * as [ProcessorSpec.whenCommitted] does: the specification goes on from this handling.
      */
-    @Suppress("LongParameterList")
     fun whenCommitted(
         command: Command<*>,
         version: Int = 1,

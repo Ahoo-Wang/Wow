@@ -116,7 +116,6 @@ abstract class SnapshotQueryFixtures internal constructor() {
         ).schema()
 
     /** A snapshot of this test's [type] whose state is [state], a JSON object. */
-    @Suppress("LongParameterList")
     protected fun snapshot(
         id: String,
         state: String,

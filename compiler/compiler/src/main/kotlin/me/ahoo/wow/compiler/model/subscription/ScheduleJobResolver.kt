@@ -68,7 +68,6 @@ internal object ScheduleJobResolver {
      * of [kind] (`SAGA`, or another kind they are a problem for). A handler with problems is left out, its problems
      * added to [problems], and so is a job declared twice differently. What it returns is checked as a saga's handler's ([SubscriptionResolver.sagaReturnProblem]).
      */
-    @Suppress("LongParameterList")
     fun handlers(
         functions: List<KSFunctionDeclaration>,
         className: String,
@@ -84,7 +83,6 @@ internal object ScheduleJobResolver {
         return handlers
     }
 
-    @Suppress("LongParameterList")
     private fun handler(
         function: KSFunctionDeclaration,
         processor: String,

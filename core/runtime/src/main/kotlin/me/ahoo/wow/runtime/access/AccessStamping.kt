@@ -43,7 +43,6 @@ import kotlin.time.TimeSource
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal to Wow.
  */
-@Suppress("LongParameterList")
 class AccessStampOptions @InternalWowApi constructor(
     val batch: Int = DEFAULT_BATCH,
     val capacity: Int = DEFAULT_CAPACITY,
@@ -133,7 +132,6 @@ class AccessStampOptions @InternalWowApi constructor(
  * - **Run as [FunctionKind.PROJECT]**: it writes derived data of the log, as a projection does. A kind of its own would
  *   be a new value of an enum the wire carries (the OpenAPI document, the TypeScript client) for one built-in.
  */
-@Suppress("LongParameterList")
 @InternalWowApi
 class AccessStamping(
     context: String,

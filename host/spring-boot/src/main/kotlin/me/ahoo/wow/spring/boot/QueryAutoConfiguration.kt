@@ -240,7 +240,6 @@ class QueryAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        @Suppress("LongParameterList") // One parameter per input of the engine, each a bean the application may give.
         @InternalWowApi
         fun wowQueryEngine(
             manifest: Manifest,
@@ -396,7 +395,6 @@ class QueryAutoConfiguration {
         /** The application's beans the engine is built of, which it may give or not. */
         @Bean
         @InternalWowApi
-        @Suppress("LongParameterList") // One parameter per kind of bean.
         fun wowQueryBeans(
             datasetBindings: HostDatasetBindings,
             datasetVisibility: ObjectProvider<DatasetVisibility>,

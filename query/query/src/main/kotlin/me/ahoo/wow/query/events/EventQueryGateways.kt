@@ -71,7 +71,6 @@ object EventQueryGateways {
     const val MODEL: String = "events"
 
     @JvmStatic
-    @Suppress("LongParameterList") // One parameter per part of a gateway, as DefaultQueryGateway's.
     fun create(
         aggregateType: AggregateType,
         backend: QueryBackend,

@@ -142,7 +142,6 @@ internal object StoreInstances {
      * and fails otherwise; with it, the node runs for development, and each store is told so
      * ([StoreConfig.development]).
      */
-    @Suppress("LongParameterList") // One parameter per input of the stores, each the host's own.
     fun open(
         properties: WowProperties,
         providers: StoreProviders,

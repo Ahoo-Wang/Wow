@@ -45,7 +45,6 @@ import kotlin.coroutines.CoroutineContext
  * registries ([registry], [waits]), the senders ([signals], [sender], [caller]), how its subscriptions notify and
  * classify, the one in-flight bound and timer loop, and the state-cache sizing. Built once, before the contexts.
  */
-@Suppress("LongParameterList")
 internal class NodeWiring(
     val service: String,
     val node: String,

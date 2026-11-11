@@ -150,7 +150,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
      * and schedule events; a state the kernel loaded holds them ([CachedState]). [operator] and [firstOperator] are the
      * operators of the last and the first of them.
      */
-    @Suppress("LongParameterList")
     fun <S : Any> snapshotOf(
         model: AggregateModel<S>,
         ref: AggregateRef,
@@ -183,7 +182,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
      * when the stream at [version] committed, so it is not serialized again, and [access] its declared access
      * attributes in their stored form ([accessOf], [accessAfter]). The rest is as for the snapshot of a state object.
      */
-    @Suppress("LongParameterList")
     fun snapshotOf(
         model: AggregateModel<*>,
         ref: AggregateRef,

@@ -29,7 +29,6 @@ internal class ImportPasses(
     private val out: PrintStream,
     private val running: () -> Boolean,
 ) {
-    @Suppress("LongParameterList") // A command's inputs.
     suspend fun importAll(
         plan: MigrationPlan,
         config: MigrationConfig,
@@ -78,7 +77,6 @@ internal class ImportPasses(
      * from the first. It refuses, writing nothing, when an aggregate's tail did not follow 9.x continuously: the final
      * pass is then `import --restart`.
      */
-    @Suppress("LongParameterList") // A command's inputs.
     suspend fun finalPass(
         plan: MigrationPlan,
         config: MigrationConfig,

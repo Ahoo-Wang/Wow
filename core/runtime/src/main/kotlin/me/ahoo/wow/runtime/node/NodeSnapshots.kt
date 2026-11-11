@@ -55,7 +55,6 @@ internal class NodeSnapshots(
     }
 
     /** The snapshot parts of [context]: its targets and the [models] whose snapshots it keeps. */
-    @Suppress("LongParameterList")
     fun assembly(
         context: String,
         models: List<AggregateModel<*>>,

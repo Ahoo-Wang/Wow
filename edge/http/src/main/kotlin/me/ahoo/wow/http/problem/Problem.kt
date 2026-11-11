@@ -127,7 +127,6 @@ class Problem @InternalWowApi constructor(
 
     /** This Problem with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
-    @Suppress("LongParameterList")
     fun copyWith(
         status: Int = this.status,
         title: String = this.title,

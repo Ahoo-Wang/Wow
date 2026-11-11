@@ -97,7 +97,7 @@ fun interface AccessSnapshots {
  * The walks are observable in the registry of each log (the walk's schema, heads, cursor, count and completion), in
  * the observer's [ObservedEvent.AccessWalked] and [ObservedEvent.AccessStamped], and in the log.
  */
-@Suppress("LongParameterList", "TooManyFunctions")
+@Suppress("TooManyFunctions")
 @InternalWowApi
 class AccessWalking(
     val context: String,

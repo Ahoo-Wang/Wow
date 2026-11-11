@@ -269,7 +269,6 @@ internal data class CompensationProgress(
  *   checkpoint ([CompensationCheckpoint]) moves after each page; [ImportOptions.restart] walks every one again. A dry
  *   run reads and resolves every execution and writes nothing; it does not look in the log, which it left empty.
  */
-@Suppress("LongParameterList")
 internal class CompensationImporter(
     private val source: NineXCompensationSource,
     private val plan: MigrationPlan,

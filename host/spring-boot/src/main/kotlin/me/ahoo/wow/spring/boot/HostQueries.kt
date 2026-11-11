@@ -306,7 +306,6 @@ class HostQueryNode(private val nodes: ObjectProvider<ServiceNode>) : SmartIniti
  * an index that `validate` finds missing or invalid: a query it would serve scans the whole collection.
  */
 @InternalWowApi
-@Suppress("LongParameterList")
 class QueryIndexesLifecycle(
     private val manifest: Manifest,
     private val types: List<AggregateType>,

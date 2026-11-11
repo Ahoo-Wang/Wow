@@ -138,7 +138,6 @@ class AggregationSupport @InternalWowApi constructor(
         /** Aggregation as given; everything native, and the windows computed by the core, by default. */
         @JvmStatic
         @JvmOverloads
-        @Suppress("LongParameterList") // One parameter per feature a storage declares.
         fun of(
             having: SupportMode = SupportMode.NATIVE,
             topN: SupportMode = SupportMode.NATIVE,

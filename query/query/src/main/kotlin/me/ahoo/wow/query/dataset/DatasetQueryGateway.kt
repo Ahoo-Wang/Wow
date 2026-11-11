@@ -160,7 +160,6 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         @JvmStatic
         @JvmOverloads
         @InternalWowApi
-        @Suppress("LongParameterList")
         fun of(
             datasets: QueryDatasets,
             catalog: QuerySchemaCatalog,

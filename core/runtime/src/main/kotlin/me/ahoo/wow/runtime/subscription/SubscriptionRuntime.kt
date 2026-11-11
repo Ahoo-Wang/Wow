@@ -110,7 +110,6 @@ class SubscriptionRuntime internal constructor(
     private val fatals: NodeFatals = NodeFatals.NONE,
 ) : SubscriptionDirectory, SubscriptionPauses {
     /** The runtime of a context's own [log]; the internal constructor takes any source, a topic's among them. */
-    @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
         group: String,
         log: EventLog,

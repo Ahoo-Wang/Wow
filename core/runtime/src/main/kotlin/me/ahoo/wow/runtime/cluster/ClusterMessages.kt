@@ -73,7 +73,6 @@ class CommandWire @InternalWowApi constructor(
 
     /** This CommandWire with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
-    @Suppress("LongParameterList")
     fun copyWith(
         type: String = this.type,
         id: String = this.id,

@@ -84,7 +84,6 @@ import org.springframework.web.reactive.function.server.coRouter
  * [wowRoutes]'s are.
  */
 @InternalWowApi
-@Suppress("LongParameterList") // One parameter per part of the routes, as wowRoutes takes them.
 fun peerReadRoutes(
     manifest: Manifest,
     gateway: CommandGateway,

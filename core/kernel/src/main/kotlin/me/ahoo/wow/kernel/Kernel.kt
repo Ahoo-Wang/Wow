@@ -513,7 +513,6 @@ class Kernel(
      * @return the commits, empty when the log holds no version from [fromVersion] up to [toVersion].
      * @throws ReplayLimitExceededException when the state before [fromVersion] is more than [maxReplay] streams away.
      */
-    @Suppress("LongParameterList")
     suspend fun <S : Any> trace(
         model: AggregateModel<S>,
         ref: AggregateRef,

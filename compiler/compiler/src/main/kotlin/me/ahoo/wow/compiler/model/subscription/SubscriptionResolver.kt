@@ -364,7 +364,6 @@ internal object SubscriptionResolver {
         Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
     }
 
-    @Suppress("LongParameterList")
     private fun handler(
         function: KSFunctionDeclaration,
         processor: String,

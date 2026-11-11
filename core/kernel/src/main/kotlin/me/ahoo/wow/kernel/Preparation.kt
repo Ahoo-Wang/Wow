@@ -57,7 +57,6 @@ internal class Preparation(
     }
 
     /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
-    @Suppress("LongParameterList")
     internal suspend fun <S : Any> prepare(
         model: AggregateModel<S>,
         decider: DecideFunction<S>,
@@ -106,7 +105,6 @@ internal class Preparation(
      * [commitTime], and the state after it; refused ([Prepared.Done.evolved]) when it leaves the aggregate out of its
      * caller's reach ([leaves]), checked once the events evolved the state, on the attributes the stream records.
      */
-    @Suppress("LongParameterList") // The facts of the commit.
     private fun <S : Any> appended(
         model: AggregateModel<S>,
         loaded: CachedState,
@@ -157,7 +155,6 @@ internal class Preparation(
      * [state] evolved by [events], decided on [command] and committed at [version] and [commitTime] in [scope]: an
      * evolve function that reads its commit reads it as the log will record it, so a rebuild reads the same.
      */
-    @Suppress("LongParameterList") // The facts of the commit.
     private fun <S : Any> evolveDecided(
         model: AggregateModel<S>,
         state: S,

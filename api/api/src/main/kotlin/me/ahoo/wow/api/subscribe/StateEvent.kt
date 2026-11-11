@@ -101,7 +101,6 @@ interface StateEvent<out S> {
     companion object {
         /** A committed stream; the runtime and the test DSL build them. */
         @InternalWowApi
-        @Suppress("LongParameterList")
         operator fun <S> invoke(
             ref: AggregateRef,
             version: Int,
@@ -136,7 +135,6 @@ interface StateEvent<out S> {
          * of [decode] is thrown by that read. The runtime builds them.
          */
         @InternalWowApi
-        @Suppress("LongParameterList")
         fun <S> deferred(
             ref: AggregateRef,
             version: Int,

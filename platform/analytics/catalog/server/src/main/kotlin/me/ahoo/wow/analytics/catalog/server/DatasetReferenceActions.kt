@@ -113,7 +113,6 @@ class DatasetReferenceActions(
      * One of the commands the row's [field] offers, sent with [body] to the aggregate [id] it refers to, as the
      * caller: the owning service's result, or its refusal as it answered it.
      */
-    @Suppress("LongParameterList") // The relay's path, its body and its call.
     @ServiceRoute(
         method = RouteMethod.POST,
         path = "datasets/{dataset}/rows/{field}/{id}/{command}",
@@ -150,7 +149,6 @@ class DatasetReferenceActions(
 
     /** Sends [command] with [body] through [commands] to the aggregate [id] of [field] of [dataset] refers to, as [caller]. */
     @Suppress(
-        "LongParameterList", // The relay's path, its body and its caller.
         "TooGenericExceptionCaught", // The owning service's answers pass through; any other failure as it is.
     )
     suspend fun send(

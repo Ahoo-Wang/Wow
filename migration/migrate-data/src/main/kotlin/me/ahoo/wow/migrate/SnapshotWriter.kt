@@ -101,7 +101,6 @@ internal data class SnapshotProgress(
  * The full import of the aggregate must be complete. The host still claims and backfills the snapshot tables:
  * its snapshot subscription then finds each snapshot written and passes over it.
  */
-@Suppress("LongParameterList")
 internal class SnapshotWriter(
     private val source: NineXEventSource,
     private val plan: MigrationPlan,

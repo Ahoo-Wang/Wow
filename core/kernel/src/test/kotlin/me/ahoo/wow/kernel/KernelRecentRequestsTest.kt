@@ -51,7 +51,6 @@ class KernelRecentRequestsTest {
     private fun kernel(recentRequests: Int = 256, snapshots: InMemorySnapshotStore? = null) =
         Kernel(log, states = states, snapshots = snapshots, options = KernelOptions(recentRequests = recentRequests))
 
-    @Suppress("LongParameterList")
     private fun command(
         body: Any,
         requestId: String = "request-${++sequence}",

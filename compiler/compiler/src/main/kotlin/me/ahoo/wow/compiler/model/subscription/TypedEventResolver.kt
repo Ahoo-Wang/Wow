@@ -93,7 +93,6 @@ internal object TypedEventResolver {
     }
 
     /** The event parameter of a handler of the module's own events that are an `E`. */
-    @Suppress("LongParameterList")
     private fun local(
         where: String,
         typed: Boolean,

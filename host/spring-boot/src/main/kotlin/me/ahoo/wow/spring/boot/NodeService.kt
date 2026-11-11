@@ -77,7 +77,7 @@ internal class NodeService {
     @Bean
     @ConditionalOnMissingBean
     // One parameter per part of the node, each a bean the application may replace, and one line per option.
-    @Suppress("LongParameterList", "LongMethod")
+    @Suppress("LongMethod")
     @InternalWowApi
     fun wowServiceNode(
         properties: WowProperties,
