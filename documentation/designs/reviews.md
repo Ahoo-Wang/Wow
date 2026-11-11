@@ -46,7 +46,7 @@
 | X-100 | P3 | `:migrate-data` 的两处收尾 | `CompensationImporter.kt` 贴近上限（登记时 494 行）。另一处（`MongoNineXEventSource.kt` 里已弃用的 `textNode(String)`）主源码中已不存在 | 下次改动 `CompensationImporter` 先把比较（`CompensationComparison` 与 `importedEntries`，约 120 行）移到自己的文件 | 已登记 |
 | X-106 | P3 | 基准工具 | 组件级套件没有噪声带与自对照；L2 的延迟在存储饱和时不成结论；`bench.yml` 每个 ref 只留一个排队的运行；共用的基准服务器类路径上已有 ClickHouse 存储，与 Axon 的对比读的就是它的启动时间与常驻内存 | `.github/scripts/bench.mjs` 4,725 行与 `bench.sh` 606 行待拆（`measure` 一类已移出，#5891）。改基准工作流属 CI 变更，动手前与用户确认 | 已登记 |
 | X-110 | P3 | 事件日志拆分的收尾 | 收尾笔记的各项已处理 | 三个未做的候选：两个存储在一次调用的后一部分只捕获各自的存储异常，不属于存储失败的拒绝仍会抛出；给 SPI 增加「未写入、重试可能成功」的追加结果；两个存储的测试夹具各有一份照 TCK 抄的 `stream`，是否由 TCK 开放给后端自己的测试 | 已处理，留三个候选 |
-| X-113 | P3 | 测试里的存量 | 运行时的测试以 `delay(…)` 等待；`compiler/compiler` 的测试包里 22 份相同的 `options` 辅助函数；两处类注释只覆盖类里的一部分测试（`SubscriptionCompatibilityTest`、`ServiceRoleTest`）；`AggregateCompatibilityTest` 的 `byId` 与 `CompatibilityFixtures.ROUTE` 同值；`TypeArgumentsTest` 的 `completed` 每个测试实例都重建；`QueryBulkhead.kt:180` 是否被覆盖取决于线程时序 | 运行时测试里真实时间上的 73 处等待分五类处理（会话 rt-subs-p1）：轮询、等时钟或某一步、闸门后的缺席、「不再发生」四类只改测试；「若干轮后的缺席」25 处逐组件定，没有现成信号可数的不为测试给产品代码加钩子。所有权的测试以 `abort()` 收尾随同一批。其余未排 | 进行中 |
+| X-113 | P3 | 测试里的存量 | `compiler/compiler` 的测试包里 22 份相同的 `options` 辅助函数；两处类注释只覆盖类里的一部分测试（`SubscriptionCompatibilityTest`、`ServiceRoleTest`）；`AggregateCompatibilityTest` 的 `byId` 与 `CompatibilityFixtures.ROUTE` 同值；`TypeArgumentsTest` 的 `completed` 每个测试实例都重建；`QueryBulkhead.kt:180` 是否被覆盖取决于线程时序。运行时测试里真实时间上的 73 处等待已处理：67 处改为等条件、事件或测试一侧的计数，没有给产品代码加钩子；6 处留在真实时间上（两处测的就是一段时间里的行为：`HandoffGapTest`、`TimerRunnerRateTest` 的慢发送；两处要的信号须在产品代码里开口子：`LocalSagaStateTest`、`SnapshotSubscriptionWritesTest` 的共用车道；两处经变异证明去掉等待即失效：`HungContextJoinTest`、`StandbyNodeTest`） | 余下各项未排。另两处由变异查出的缺口：`RecurringTimerRunnerTest`「不到期的定时器不被取走」在取走逻辑被改错时仍通过（它的定时器只被提供、不在存储里，取错了也发不出去）；`StandbyNodeTest` 试过的变异没有显示是什么让待机节点不处理导入的条目 | 已登记 |
 | X-114 | P3 | 代码与工作流里的注释 | 约 130 处注释以「roadmap <编号>」引用路线图的工作包或 §6 的条目，另有 4 处引用文档方案的 DG-6；这些编号所指的条目做完后已从路线图删去，注释指向的东西不再存在 | 逐处改为说明原因本身，或引用决定编号；随各模块下一次改动或一次专门的清理做 | 已登记 |
 | X-115 | P3 | 访问遍历对 Elasticsearch Sink 的盖章 | 遍历对每个聚合发一个 `_update_by_query`（`AccessWalking.stampCurrent`），Sink 按页成批的 `stampAll` 没有被用到；一次遍历是一次性的，按 `walkShare` 限速。实测：1,000 个账户的遍历是 999 个请求 | 遍历把一页交给目标的 `stampAllIn`；属运行时与查询两侧的改动，未排 | 已登记 |
 
@@ -122,20 +122,18 @@
 
 | issue | 级别 | 位置 | 现象 | 状态 |
 | --- | --- | --- | --- | --- |
-| #3721 | — | 视图引擎 | 主题一览的故事导航进入时整页横向溢出 | 未排 |
+| #3721 | — | 视图引擎 | 主题一览的故事导航进入时整页横向溢出（2026-09-28 报告，部署站） | 在今天的 `main` 上 288 次导航未复现，报告指向的测量已由 #3802 替换；同一网格里量到的缩窄瞬时溢出已修（#5966）。部署站未实测。结论已贴在 issue 上 | 是否关闭待用户定 |
 
 ## 13. 存储结构与索引的性能审查（2026-11-09，基线 `6405a72076`，只读）
 
 四个后端（PostgreSQL、MongoDB、ClickHouse、Elasticsearch）的存储结构与索引按代码只读盘点，没有运行数据库：代价都由代码推出，量级须在 Actions 上测过才作数。结论：写路径的结构是对的，问题集中在读平面与追赶路径。
 
-格式项的决定：D406（PostgreSQL 与 MongoDB，①～④ 已做）、D411（ES-3，已完成）、D412（CH-2、CH-5，已完成；余访问谓词落到 `access_<name>` 列的一步）、D413（CH-1、ES-1、ES-2）、D414（GA 前各格式号保持为 1，不升格式号）。
+格式项的决定：D406（PostgreSQL 与 MongoDB，①～④ 已做）、D411（ES-3，已完成）、D412（CH-2、CH-5，已完成；访问谓词已落到 `access_<name>` 列）、D413（CH-1、ES-1、ES-2，已完成）、D414（GA 前各格式号保持为 1，不升格式号）。
 
-本节共 26 行（一行可含多个编号），12 行已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
+本节共 26 行（一行可含多个编号），14 行已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
 
 | 编号 | 级别 | 后端 | 发现 | 余下 | 格式 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| CH-1、ES-2 | P1、P2 | ClickHouse、Elasticsearch | Sink 的订阅每条记录调用一次写入。实测（Actions，`sink-ch` 与 `sink-es`）：稳定的每秒 200 个提交下，ClickHouse 每次 INSERT 约 3 个提交、Elasticsearch 每个 `_bulk` 1 个；排空 13,000 个提交的积压时，ClickHouse 靠 Sink 自己的队列已到每次 INSERT 142.9 个提交，Elasticsearch 仍是每个 `_bulk` 1 个（13,000 个请求） | D413 的 Sink 一侧（#5951）：订阅层的组提交。四条写入车道的版本把 Elasticsearch 的积压提到每个 `_bulk` 101.6 个提交，却把 ClickHouse 降到 75.1 个，改为每个 Sink 一条写入车道后重测；合并的条件是 ClickHouse 的积压不低于 142.9、稳定负载不变差 | 否 | 进行中（会话 p1-sweep-edges） |
-| ES-1 | P1（属性常变时） | Elasticsearch | 一次提交改了访问属性，就对整个索引强制刷新一次，再用 `_update_by_query` 重写该聚合此前的全部版本；属性常变时一个聚合一生是平方级 | 随成批：一批一次刷新、一次盖章；文档写明这类属性的代价 | 否 | 进行中（D413，Sink 一侧） |
 | CH-3 | P1 | ClickHouse | 分析目录编译出的数据集视图把每个会合并的来源写成 `(SELECT * FROM t FINAL)`，租户条件只加在主体上；右表能否被下推过滤取决于服务器版本，未验证 | 先在 Actions 上用 `EXPLAIN indexes=1` 看右表的主键条件；不下推就把视图做成带租户参数的，或在来源子查询里显式加租户条件 | 否 | 待测 |
 | ES-4 | P2 | Elasticsearch | 快照写入默认 `wait_for`：每批要等到下一次刷新才返回，最长约 1 秒；命令的 SNAPSHOT 等待是否包含这次写入未能读定 | 非主存储的快照默认不等刷新，需要读己之写的查询再开 | 否（默认值） | 待定 |
 | PG-4、PG-5、PG-13 | P2 | PostgreSQL | 原地更新的表都没有设 `fillfactor`：快照保存只要有一个声明在 `state` 上的索引就失去 HOT；全部分区计数行挤在一个堆页上；检查点与租约同理 | 先量 HOT 比例（`n_tup_hot_upd / n_tup_upd`）与死元组，再定计数表、快照表、检查点表的 `fillfactor`；文档写明每个声明的状态索引都让快照保存多付一份 | 否（存储参数） | 待测 |
