@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.clickhouse.sink.ClickHouseSql.identifier
 import me.ahoo.wow.manifest.AccessAttributeManifest
+import me.ahoo.wow.spi.access.AccessValues
 
 /**
  * A column of `_state` that ClickHouse computes from its stored columns when a row is inserted (`MATERIALIZED`): its
@@ -46,9 +47,10 @@ data class ComputedColumn(val name: String, val type: String, val expression: St
 }
 
 /**
- * The access columns of `_state`: one per access attribute the Manifest declares, `access_<name>`, read from the
- * stored `access` (the attributes as JSON text) when a row is inserted. The built-in `owner` and `space` are not
- * declared, and are `owner_id` and `space_id`.
+ * The access columns of `_state`: one per access attribute, `access_<name>`, read from the stored `access` (the
+ * attributes as JSON text) when a row is inserted: the built-in `owner` and `space` first, strings every aggregate has
+ * ([BUILT_IN]), then each the Manifest declares. A declared attribute's name is never a built-in one's
+ * ([me.ahoo.wow.manifest.AccessAttributeName]), so no two columns share a name.
  *
  * | Declared | Column type |
  * | --- | --- |
@@ -60,7 +62,12 @@ data class ComputedColumn(val name: String, val type: String, val expression: St
 internal object AccessColumns {
     const val PREFIX: String = "access_"
 
-    fun of(attributes: List<AccessAttributeManifest>): List<ComputedColumn> = attributes.map { attribute ->
+    /** The built-in attributes, each a single string. */
+    val BUILT_IN: List<AccessAttributeManifest> = listOf(AccessValues.OWNER, AccessValues.SPACE).map {
+        AccessAttributeManifest(it, AccessAttributeManifest.Type.STRING)
+    }
+
+    fun of(attributes: List<AccessAttributeManifest>): List<ComputedColumn> = (BUILT_IN + attributes).map { attribute ->
         val element = when (attribute.type) {
             AccessAttributeManifest.Type.STRING -> "String"
             AccessAttributeManifest.Type.INTEGER -> "Int64"

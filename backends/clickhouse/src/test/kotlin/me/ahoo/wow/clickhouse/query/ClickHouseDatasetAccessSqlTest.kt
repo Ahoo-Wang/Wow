@@ -117,13 +117,12 @@ class ClickHouseDatasetAccessSqlTest {
     }
 
     @Test
-    fun `the owner and the space, which have no column, should be read from the access JSON as strings`() {
-        val owner = "JSONExtract(access, {p0:String}, 'Nullable(String)')"
-        sql(EqualFilter(QueryField("owner"), "alice")).assert().contains("$owner IN ({p1:String})")
-        sql(IsNullFilter(QueryField("space"))).assert().contains("$owner IS NULL")
-        sql(IsNotNullFilter(QueryField("owner"))).assert().contains("$owner IS NOT NULL")
-        sql(StartsWithFilter(QueryField("space"), "/a")).assert().contains("startsWith($owner, {p1:String})")
-        sql(IsEmptyFilter(QueryField("owner"))).assert().endsWith("AND 0)")
+    fun `the owner and the space should read their access columns, as any single string attribute`() {
+        sql(EqualFilter(QueryField("owner"), "alice")).assert().contains("`access_owner` IN ({p1:String})")
+        sql(IsNullFilter(QueryField("space"))).assert().contains("`access_space` IS NULL")
+        sql(IsNotNullFilter(QueryField("owner"))).assert().contains("`access_owner` IS NOT NULL")
+        sql(StartsWithFilter(QueryField("space"), "/a")).assert().contains("startsWith(`access_space`, {p1:String})")
+        sql(IsEmptyFilter(QueryField("owner"))).assert().endsWith("AND 0)").doesNotContain("JSON")
     }
 
     @Test
@@ -191,6 +190,8 @@ class ClickHouseDatasetAccessSqlTest {
                 ClickHouseColumn("tenant_id", "String"),
                 ClickHouseColumn("aggregate_id", "String"),
                 ClickHouseColumn("access", "String"),
+                ClickHouseColumn("access_owner", "Nullable(String)"),
+                ClickHouseColumn("access_space", "Nullable(String)"),
                 ClickHouseColumn("access_department", "Nullable(String)"),
                 ClickHouseColumn("access_org", "Nullable(String)"),
                 ClickHouseColumn("access_pages", "Nullable(Int64)"),

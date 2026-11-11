@@ -84,7 +84,7 @@ data class ClickHouseObject(
  * - `<ctx>_<agg>_state`, a ReplacingMergeTree(version) ordered by `(tenant_id, aggregate_id)`, the current state:
  *   filled by the materialized view `<ctx>_<agg>_state_mv` from the base table, with the base table's columns but
  *   the events and the headers, which the history keeps ([STATE_COLUMNS]); and the columns ClickHouse computes from
- *   them when a row is inserted ([computed]): an access column per declared access attribute ([accessColumns]), then a
+ *   them when a row is inserted ([computed]): an access column per access attribute ([accessColumns]), then a
  *   flat column per top-level scalar of the state ([flatColumns]), each with its fingerprint in its comment.
  * - `<ctx>_<agg>_events`, a ReplacingMergeTree ordered by `(tenant_id, aggregate_id, version, sequence)`, one row
  *   per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
@@ -114,7 +114,7 @@ class ClickHouseSinkSchema(
     val aggregate: AggregateSinkOptions,
     val flatColumns: List<FlatColumn>,
     private val deduplicationWindow: Int = ClickHouseSinkOptions.DEFAULT_DEDUPLICATION_WINDOW,
-    /** The access columns of `_state`, one per declared access attribute ([AccessColumns]). */
+    /** The access columns of `_state`: the built-in `owner` and `space`, then one per declared attribute ([AccessColumns]). */
     val accessColumns: List<ComputedColumn> = emptyList(),
 ) {
     /** The columns `_state` computes, in its order: the access columns, then the flat ones. */

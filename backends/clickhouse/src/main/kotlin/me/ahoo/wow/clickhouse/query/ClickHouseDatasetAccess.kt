@@ -36,7 +36,6 @@ import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.spi.access.AccessValues
 
 /**
  * The access restriction of a dataset bound to an aggregate ([DatasetAccess]) on ClickHouse: one semi-join of the
@@ -60,8 +59,8 @@ import me.ahoo.wow.spi.access.AccessValues
  *   older record never grants. An aggregate without a record, or with one of no attributes, is never read.
  * - Each comparison reads its attribute's column ([state], `_state`'s columns): `EQ` and `IN` hold of a value, or of
  *   an element of a multiple one, `CONTAINS_ALL` of all of them, `STARTS_WITH` of a string, each only of an operand of
- *   the column's type; `IS_NULL` of an attribute holding no value. The built-in `owner` and `space`, which have no
- *   column, are read from `access` as strings, as the attributes the record holds. A multiple attribute's `IS_NULL`, `IS_NOT_NULL` and `IS_EMPTY` read the type of
+ *   the column's type; `IS_NULL` of an attribute holding no value. The built-in `owner` and `space` have their
+ *   columns too, strings read from `access` as any single attribute's. A multiple attribute's `IS_NULL`, `IS_NOT_NULL` and `IS_EMPTY` read the type of
  *   its JSON value, since an empty array column cannot tell a missing attribute (a record written before it was
  *   declared) from an empty one. A `NULL` comparison holds of no row, under `NOR` too ([ClickHouseFilterCompiler.nor]).
  * - An attribute `_state` has no column of yet (the Sink has not added one a later version declared) is refused.
@@ -128,7 +127,7 @@ internal class ClickHouseDatasetAccess(
         }
     }
 
-    /** What an attribute is read from: its access column, single or multiple, or a built-in one's JSON value. */
+    /** What an attribute is read from: its access column, single or multiple. */
     private class Attribute(val column: String, val element: TypeOf, val multiple: Boolean, val key: String)
 
     /** An access restriction's predicate on `_state`'s columns ([state]), every operand bound as a typed parameter. */
@@ -199,10 +198,6 @@ internal class ClickHouseDatasetAccess(
         private fun jsonType(attribute: Attribute): String = "JSONType(access, ${attribute.key})"
 
         private fun attributeOf(field: QueryField<*>): Attribute {
-            if (field.path == AccessValues.OWNER || field.path == AccessValues.SPACE) {
-                val key = parameters.bind(field.path, STRING)
-                return Attribute("JSONExtract(access, $key, 'Nullable(String)')", TypeOf.STRING, false, key)
-            }
             val name = AccessColumns.PREFIX + field.path
             val column = state.columns[name] ?: throw QueryViolation.StorageUnsupported(
                 "the access attribute [${field.path}], which ${state.qualifiedName} has no column $name of yet",
