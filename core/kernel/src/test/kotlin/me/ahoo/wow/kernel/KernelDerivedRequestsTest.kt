@@ -27,7 +27,10 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 
-/** A command a client sends while deciding takes a request id derived from the deciding command (decision D314 ④). */
+/**
+ * A command a client sends while deciding takes a request id derived from the deciding request (decision D314 ④): its
+ * aggregate and its request id, which a caller's retry keeps, not its command id, which every arrival gets anew.
+ */
 class KernelDerivedRequestsTest {
     data class Open(val by: String)
     data class Charge(val amount: Int)
@@ -57,14 +60,40 @@ class KernelDerivedRequestsTest {
     }
 
     @Test
-    fun `a decision sends its n-th command as the n-th request derived from the deciding command`() = runTest {
+    fun `a decision sends its n-th command as the n-th request derived from the deciding request`() = runTest {
         Kernel(opened()).execute(model, Command("c-1", "r-1", ref, Charge(1)))
         sent.single().assert().containsExactly(
-            DecidingCommand.requestIdOf("c-1", 0),
+            DecidingCommand.requestIdOf(ref, "r-1", 0),
             "own",
-            DecidingCommand.requestIdOf("c-1", 1),
+            DecidingCommand.requestIdOf(ref, "r-1", 1),
         )
     }
+
+    @Test
+    fun `a caller's retry of an attempt that called a peer and did not commit sends the same requests again`() =
+        runTest {
+            val log = opened()
+            val refusing = object : EventLog by log {
+                var refused = false
+                override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+                    if (!refused) {
+                        refused = true
+                        return AppendOutcome.Rejected.of(IllegalStateException("The store refused the append."))
+                    }
+                    return log.append(stream, transport)
+                }
+            }
+            sent.clear()
+            val kernel = Kernel(refusing)
+            // A refused append committed nothing, and fails the attempt.
+            runCatching { kernel.execute(model, Command("c-1", "r-1", ref, Charge(1))) }.exceptionOrNull()
+                .assert().isInstanceOf(IllegalStateException::class.java)
+            // The retry arrives anew: the gateway gives it another command id, and it keeps the request id.
+            kernel.execute(model, Command("c-2", "r-1", ref, Charge(1)))
+                .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            sent.assert().hasSize(2)
+            sent[1].assert().isEqualTo(sent[0])
+        }
 
     @Test
     fun `a decision decided again after a conflict sends the same requests again`() = runTest {

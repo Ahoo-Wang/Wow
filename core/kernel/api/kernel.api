@@ -220,6 +220,8 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/client/CommandRequest;)V
+	public static final fun scheduleId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
+	public static final fun scheduleId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;I)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
@@ -227,6 +229,9 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
 	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
 	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
 	public static synthetic fun derivedId$default (Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;IILjava/lang/Object;)Ljava/lang/String;
+	public final fun scheduleId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
+	public final fun scheduleId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;I)Ljava/lang/String;
+	public static synthetic fun scheduleId$default (Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;IILjava/lang/Object;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/HandlerRetry {

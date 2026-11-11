@@ -153,6 +153,30 @@ class ExecutionSagaContext @InternalWowApi constructor(
         fun derivedId(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, requestId: String): String =
             derivedIdOf(execution, ref, commandType, DerivedRequests.keyed(requestId))
 
+        /**
+         * The id, and request id, of the [occurrence]-th schedule command (from 0) of [commandType], `wow.schedule.Set`
+         * ([me.ahoo.wow.api.schedule.SetSchedule]) or `wow.schedule.Cancel`, to [ref] for the schedule [key] derived by
+         * [execution]: keyed by the schedule's key, whatever other schedules the execution sets or cancels and in
+         * whatever order.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun scheduleId(
+            execution: ExecutionId,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            key: String,
+            occurrence: Int = 0,
+        ): String {
+            require(occurrence >= 0) { "An occurrence is never negative." }
+            return derivedIdOf(
+                execution,
+                ref,
+                commandType,
+                DerivedRequests.scheduled(key, DerivedRequests.occurrence(occurrence)),
+            )
+        }
+
         private fun derivedIdOf(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, key: String): String =
             DerivedRequests.idOf(
                 DerivedRequests.encoded(
@@ -176,11 +200,12 @@ class ExecutionSagaContext @InternalWowApi constructor(
  * request for each command it derives again, in whatever order, which the kernel does not decide twice.
  *
  * Its schedules are commands too: [schedule] and [cancel] record the system commands `wow.schedule.Set` and
- * `wow.schedule.Cancel` to their target, keyed with the other commands, the command they schedule named by
- * [commandTypes] and written by [codec]; [commandsOf] puts them after the returned ones. Its synchronous [call]s go
- * through [calls]. With [sends], the handler's declarations ([SagaSends]), each command it returns, schedules or calls
- * is one of them, or the handling fails ([UndeclaredSendException]); a context built outside a handler's binding, as a
- * domain module's test builds one, has none.
+ * `wow.schedule.Cancel` to their target, keyed by the schedule's key rather than their order
+ * ([DerivedRequests.nextScheduled]), the command they schedule named by [commandTypes] and written by [codec];
+ * [commandsOf] puts them after the returned ones. Its synchronous [call]s go through [calls]. With [sends], the
+ * handler's declarations ([SagaSends]), each command it returns, schedules or calls is one of them, or the handling
+ * fails ([UndeclaredSendException]); a context built outside a handler's binding, as a domain module's test builds
+ * one, has none.
  */
 internal class SagaDerivation(
     private val executionId: ExecutionId,
@@ -206,22 +231,26 @@ internal class SagaDerivation(
         return requests.map(::commandOf) + synchronized(recorded) { recorded.toList() }
     }
 
-    private fun commandOf(request: CommandRequest<*>): Command<*> = derive(
-        request.derivedTarget(executionId.subscription, tenantId, commandTypes),
-        request.command,
-        request.requestId,
-        request.expectedVersion,
-        request.targetScope,
-    )
+    private fun commandOf(request: CommandRequest<*>): Command<*> {
+        val target = request.derivedTarget(executionId.subscription, tenantId, commandTypes)
+        return derive(
+            target,
+            request.command,
+            derived.next(target, request.command.javaClass, request.requestId),
+            request.expectedVersion,
+            request.targetScope,
+        )
+    }
 
+    /** The command of [body] to [ref], its id [idOf] the target, the body's type and its [discriminator]. */
     private fun derive(
         ref: AggregateRef,
         body: Any,
-        requestId: String? = null,
+        discriminator: String,
         expectedVersion: Int? = null,
         targetScope: Scope? = null,
     ): Command<*> {
-        val id = idOf(ref, body.javaClass, derived.next(ref, body.javaClass, requestId))
+        val id = idOf(ref, body.javaClass, discriminator)
         return Command(
             id = id,
             requestId = id,
@@ -247,16 +276,18 @@ internal class SagaDerivation(
             "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +
                 "service or its peers names."
         }
+        val body = SetSchedule(key, rule, type, codec.commandText(command))
         recorded += derive(
             target,
-            SetSchedule(key, rule, type, codec.commandText(command)),
-            request.requestId,
+            body,
+            derived.nextScheduled(target, body.javaClass, key, request.requestId),
             targetScope = request.targetScope,
         )
     }
 
     fun cancel(key: String, target: AggregateRef) {
-        recorded += derive(target, CancelSchedule(key))
+        val body = CancelSchedule(key)
+        recorded += derive(target, body, derived.nextScheduled(target, body.javaClass, key))
     }
 
     /**

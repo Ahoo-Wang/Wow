@@ -218,17 +218,18 @@ class HttpCommandClientTest {
         }
 
     @Test
-    fun `a command sent while deciding should carry a request id derived from the deciding command`(): Unit =
+    fun `a command sent while deciding should carry a request id derived from the deciding request`(): Unit =
         runBlocking {
             peer.reply(Reply.json(committed()))
             peer.reply(Reply.json(committed()))
-            withContext(DecidingCommand("deciding")) {
+            val deciding = BOX.ref("t1", "deciding")
+            withContext(DecidingCommand(deciding, "r-deciding")) {
                 client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("mug"))))
                 client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("cup"))))
             }
             peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.assert().containsExactly(
-                DecidingCommand.requestIdOf("deciding", 0),
-                DecidingCommand.requestIdOf("deciding", 1),
+                DecidingCommand.requestIdOf(deciding, "r-deciding", 0),
+                DecidingCommand.requestIdOf(deciding, "r-deciding", 1),
             )
         }
 

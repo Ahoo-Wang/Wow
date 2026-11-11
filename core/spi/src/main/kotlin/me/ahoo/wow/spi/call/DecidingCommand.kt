@@ -13,33 +13,51 @@
 
 package me.ahoo.wow.spi.call
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
-import java.util.UUID
+import me.ahoo.wow.spi.id.DerivedIds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The command a decide function is deciding, in its coroutine context while it decides. A command
- * a Wow client sends from there takes [nextRequestId] as its request id unless its caller gives one, as a saga's
- * derived commands take theirs: a decision decided again after a version conflict sends the same requests again,
- * which their targets answer as repeats rather than run twice. The kernel puts a new one in for each attempt, so the
- * n-th command an attempt sends is the n-th request of every attempt, as long as the decision sends them in order.
+ * The command a decide function is deciding, by its aggregate [ref] and its [requestId], in its coroutine context
+ * while it decides. A command a Wow client sends from there takes [nextRequestId] as its request id unless its caller
+ * gives one, as a saga's derived commands take theirs. The request id, not the command id, keys it: the gateway gives
+ * every arrival a new command id, while a caller's retry keeps the request id. So a decision decided again, after a
+ * version conflict or for a caller's retry of an attempt that called a peer and did not commit, sends the same
+ * requests again, which their targets answer as repeats rather than run twice. The kernel puts a new one in for each
+ * attempt, so the n-th command an attempt sends is the n-th request of every attempt, as long as the decision sends
+ * them in order.
  */
 @InternalWowApi
-class DecidingCommand(val commandId: String) : AbstractCoroutineContextElement(Key) {
+class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCoroutineContextElement(Key) {
     private val sent = AtomicInteger()
 
     /** The request id of the next command sent while deciding: [requestIdOf] the command and the call's index. */
-    fun nextRequestId(): String = requestIdOf(commandId, sent.getAndIncrement())
+    fun nextRequestId(): String = requestIdOf(ref, requestId, sent.getAndIncrement())
 
-    override fun toString(): String = "DecidingCommand($commandId)"
+    override fun toString(): String = "DecidingCommand($ref, $requestId)"
 
     @InternalWowApi
     companion object Key : CoroutineContext.Key<DecidingCommand> {
-        /** The request id of the [index]-th command (from 0) sent while deciding [commandId]: a name-based UUID. */
-        fun requestIdOf(commandId: String, index: Int): String =
-            UUID.nameUUIDFromBytes("$commandId#call-$index".toByteArray(Charsets.UTF_8)).toString()
+        private const val CALL = "call"
+
+        /**
+         * The request id of the [index]-th command (from 0) sent while deciding the request [requestId] to [ref]: a
+         * name-based UUID of the aggregate, the request id and the index, in [DerivedIds.encoded].
+         */
+        fun requestIdOf(ref: AggregateRef, requestId: String, index: Int): String = DerivedIds.idOf(
+            DerivedIds.encoded(
+                CALL,
+                ref.type.context,
+                ref.type.name,
+                ref.tenantId,
+                ref.id,
+                requestId,
+                index.toString(),
+            ),
+        )
     }
 }
 
