@@ -139,6 +139,10 @@ class ImportWalkTest {
             service.log.claim(type, AccessWalk.created(schema), expected = IMPORTING).assert().isTrue()
             service.imported(InMemoryCheckpointRepository())
             service.log.walk(type).assert().isEqualTo(AccessWalk(IMPORTING, emptyMap()))
+            // The import's own walk, not completed, stays as it is when an import from its start appends again.
+            service.log.claim(type, AccessWalk(IMPORTING, emptyMap()), expected = IMPORTING).assert().isTrue()
+            service.imported(InMemoryCheckpointRepository())
+            service.log.walk(type).assert().isEqualTo(AccessWalk(IMPORTING, emptyMap()))
             // One that stamped aggregates stays: an import from its start appends the same streams again.
             val walked = AccessWalk(schema, emptyMap(), walked = 1, completed = true)
             service.log.claim(type, walked, expected = IMPORTING).assert().isTrue()

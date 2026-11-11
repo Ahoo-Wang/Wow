@@ -154,6 +154,33 @@ class AccessWalkCreationTest : AccessWalkingFixtures() {
         }
 
     @Test
+    fun `a re-claim that finds another schema's walk recorded meanwhile takes it, and claims as for any other`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            val leases = InMemoryLeaseStore()
+            val walking = walking(log, leases)
+            walking.serve()
+            committed(log, listOf("d-1"), "sales")
+            walking.maintain()
+            leases.olderNode()
+            walking.maintain()
+            leases.leave(members, "n-0")
+            // Before this node's next run, a node of another schema claimed the walk in place of the creation's.
+            val other = AccessWalk("other", mapOf(0 to 1L))
+            log.claim(type, other, expected = schema).assert().isTrue()
+            walking.maintain()
+            log.walk(type).assert().isEqualTo(other)
+            walking.walks().getValue(type).assert().isEqualTo(other)
+            // No node serves it: the next run claims this node's schema in its place, and walks.
+            walking.maintain().assert().isFalse()
+            log.walk(type)!!.let {
+                it.schema.assert().isEqualTo(schema)
+                it.completed.assert().isTrue()
+                it.walked.assert().isEqualTo(1)
+            }
+        }
+
+    @Test
     fun `a store an older schema created while this one appended is walked once the older one's nodes are gone`(): Unit =
         runBlocking {
             val log = InMemoryEventLog()
