@@ -65,7 +65,7 @@ The result says where the command got to:
 
 A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the method takes the body without it, `Omit<Body, 'stockId'>`, and the service computes the id.
 
-A `CommandClient` request written by hand sends such a command by the same route:
+A `CommandClient` request written by hand sends such a command by the same route. The eShop has none, so this one sends the `RestockProduct` of [Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body):
 
 <!-- typecheck-context
 import type { CommandClient } from '@ahoo-wang/wow-client';
