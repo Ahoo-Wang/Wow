@@ -31,7 +31,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList`, built with their `of` factories or the DSL; code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>` |
 | `ListQuery(limit = 0)`, every match on the query gateway | `limit` left out takes the entry's default list size, and `0` is refused; every match is `queryApi.trusted().unbounded()` or `stream` |
 | `limit(Int.MAX_VALUE)` for every match | Refused: an in-process list returns at most `max-list-size` (1,000), and a larger limit fails (`size-out-of-range`). Code that must see every match, such as a job, a backfill or a migration step, reads them with `NodeQueryApi.trusted().unbounded()` or streams them; a read for a caller pages instead |
-| An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `TOO_MANY_GROUPS` |
+| An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `wow.query.too-many-groups` (400) |
 | `Pagination.offset()` as an `Int` | A `Long` |
 | `wow-test` (`AggregateSpec`) | `wow-test`, with the functional `aggregateSpec` and `sagaSpec` |
 | `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
@@ -49,7 +49,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`; the context name is part of every command, event and route name, so choose it on purpose |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer`, its class in the domain module of its aggregate, where the compiler finds it |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, snapshot, stateRevision, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer`, its class in the domain module of its aggregate, where the compiler finds it |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`, needed only for a function returning `Decision` |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`; a migrated 9.x shape is revision 1 |
 | `EventUpgrader` | `@Upgrade(event, from)` on a function from `ObjectNode` to `ObjectNode` |

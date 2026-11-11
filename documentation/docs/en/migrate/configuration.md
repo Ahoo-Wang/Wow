@@ -5,7 +5,7 @@ description: Where each group of 9.x `wow.*` configuration keys went in V10, whi
 
 # Configuration Keys
 
-V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x key left in place binds to nothing, and the service refuses to start, naming it and pointing to this page. Map every key the 9.x service sets to its V10 counterpart, or record it as removed with what it configured. The `wow-migrate` Skill does this with the source. [Configuration Keys](../reference/configuration) is the complete list of V10 keys, generated from the code; [Configure a Service](../operate/configuration) explains them by task.
+V10's keys live under `wow.*` too, but most 9.x keys do not carry over: a 9.x key V10 does not name binds to nothing, and the service refuses to start, naming it and pointing to this page. A few keep their name and meaning: `wow.kafka.bootstrap-servers`, `wow.kafka.properties`, `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope`, `wow.query.sensitivity.display-comparable`. Map every key the 9.x service sets to its V10 counterpart, or record it as removed with what it configured. The `wow-migrate` Skill does this with the source. [Configuration Keys](../reference/configuration) is the complete list of V10 keys, generated from the code; [Configure a Service](../operate/configuration) explains them by task.
 
 ## The service and its node
 
@@ -24,7 +24,7 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 | --- | --- |
 | `wow.eventsourcing.store.storage`, `wow.eventsourcing.snapshot.storage` | `wow.backend`: PostgreSQL or MongoDB, chosen by the application's `DataSource` or `MongoClient` by default; `wow.log.store` and `wow.snapshot.stores` name stores of `wow.stores` |
 | `wow.eventsourcing.storage-routing.*` | The stores `wow.aggregates.[<context>.<aggregate>]` names for an aggregate's log and snapshots, such as `log.store` |
-| `wow.eventsourcing.snapshot.strategy`, `version-offset` | `wow.snapshot.*`: snapshots are written by the built-in `snapshot` subscription, in batches (`wow.snapshot.write-batch`); `maintenance-interval` and `rebuild.*` tune its maintenance |
+| `wow.eventsourcing.snapshot.strategy`, `version-offset` | `wow.snapshot.*`: snapshots are written by the built-in `wow.snapshot` subscription, in batches (`wow.snapshot.write-batch`); `maintenance-interval` and `rebuild.*` tune its maintenance |
 | `wow.mongo.event-stream-database`, `snapshot-database`, `prepare-database` | `wow.mongo.database`, one database for the log and every store |
 | `wow.mongo.auto-init-schema` | `wow.ddl` (`auto`, `validate`, `none`) for the framework's tables, collections, indexes and query indexes, and the Kafka topics |
 | `wow.mongo.*-batch.*`, `wow.elasticsearch.*-batch.*` | Removed: the log appends in batches of its own |
@@ -37,8 +37,8 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 | 9.x | V10 |
 | --- | --- |
 | `wow.kafka.bootstrap-servers` | `wow.kafka.bootstrap-servers`, now for published streams and commands to other contexts only |
-| `wow.kafka.properties`, `producer`, `consumer`, `close-timeout` | `wow.kafka.*` of V10 ([Kafka](../operate/kafka)) |
-| `wow.kafka.receiver.decode-failure-strategy` | Removed: a record a subscription cannot decode parks it (`wow.subscription.undecodable.messages` counts them) |
+| `wow.kafka.properties`, `producer`, `consumer`, `close-timeout` | `wow.kafka.properties`, the same key ([Kafka](../operate/kafka)); `producer` and `consumer` have no counterpart until 10.x: put their settings in `wow.kafka.properties`; `close-timeout` is removed |
+| `wow.kafka.receiver.decode-failure-strategy` | Removed: a record a subscription cannot decode parks the aggregate its key names, or is passed over when its key names none (`wow.subscription.undecodable.messages` counts them) |
 | Topic names by convention | `wow.<context>.commands` and `wow.<context>.<aggregate>.state`, created as `wow.kafka.ddl` says |
 
 ## HTTP and queries

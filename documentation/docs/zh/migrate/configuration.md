@@ -5,7 +5,7 @@ description: 每组 9.x `wow.*` 配置项在 V10 中的去向，哪些配置项�
 
 # 配置项
 
-V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用：留在原处的 9.x 配置项不绑定任何东西，服务会拒绝启动，指出这个配置项并指向本页。把 9.x 服务设置的每个配置项映射到 V10 的对应项，或者把它连同它所配置的东西一起记录为已移除。`wow-migrate` Skill 在改写源码时一并完成这件事。[配置项](../reference/configuration)是从代码生成的 V10 配置项完整列表；[配置服务](../operate/configuration)按任务解释它们。
+V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V10 不认识的 9.x 配置项不绑定任何东西，服务会拒绝启动，指出这个配置项并指向本页。少数配置项保留名字和含义：`wow.kafka.bootstrap-servers`、`wow.kafka.properties`、`wow.query.require-explicit-entry`、`wow.query.require-authenticated-scope`、`wow.query.sensitivity.display-comparable`。把 9.x 服务设置的每个配置项映射到 V10 的对应项，或者把它连同它所配置的东西一起记录为已移除。`wow-migrate` Skill 在改写源码时一并完成这件事。[配置项](../reference/configuration)是从代码生成的 V10 配置项完整列表；[配置服务](../operate/configuration)按任务解释它们。
 
 ## 服务与节点 {#the-service-and-its-node}
 
@@ -24,7 +24,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | --- | --- |
 | `wow.eventsourcing.store.storage`、`wow.eventsourcing.snapshot.storage` | `wow.backend`：PostgreSQL 或 MongoDB，默认由应用的 `DataSource` 或 `MongoClient` 选定；`wow.log.store` 和 `wow.snapshot.stores` 指明 `wow.stores` 中的存储 |
 | `wow.eventsourcing.storage-routing.*` | `wow.aggregates.[<context>.<aggregate>]` 为聚合的日志和快照指明的存储，例如 `log.store` |
-| `wow.eventsourcing.snapshot.strategy`、`version-offset` | `wow.snapshot.*`：快照由内置的 `snapshot` 订阅分批写出（`wow.snapshot.write-batch`）；`maintenance-interval` 与 `rebuild.*` 调整它的维护 |
+| `wow.eventsourcing.snapshot.strategy`、`version-offset` | `wow.snapshot.*`：快照由内置的 `wow.snapshot` 订阅分批写出（`wow.snapshot.write-batch`）；`maintenance-interval` 与 `rebuild.*` 调整它的维护 |
 | `wow.mongo.event-stream-database`、`snapshot-database`、`prepare-database` | `wow.mongo.database`，日志和每个存储共用一个数据库 |
 | `wow.mongo.auto-init-schema` | `wow.ddl`（`auto`、`validate`、`none`）用于框架的表、集合、索引和查询索引，以及 Kafka 主题 |
 | `wow.mongo.*-batch.*`、`wow.elasticsearch.*-batch.*` | 已移除：日志有自己的批量追加 |
@@ -37,8 +37,8 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | 9.x | V10 |
 | --- | --- |
 | `wow.kafka.bootstrap-servers` | `wow.kafka.bootstrap-servers`，现在只用于发布的事件流和发往其他上下文的命令 |
-| `wow.kafka.properties`、`producer`、`consumer`、`close-timeout` | V10 的 `wow.kafka.*`（[Kafka](../operate/kafka)） |
-| `wow.kafka.receiver.decode-failure-strategy` | 已移除：订阅无法解码的记录会让它停放（`wow.subscription.undecodable.messages` 对它们计数） |
+| `wow.kafka.properties`、`producer`、`consumer`、`close-timeout` | `wow.kafka.properties`，同一个配置项（[Kafka](../operate/kafka)）；`producer` 和 `consumer` 在 10.x 之前没有对应项：把它们的设置放进 `wow.kafka.properties`；`close-timeout` 已移除 |
+| `wow.kafka.receiver.decode-failure-strategy` | 已移除：订阅无法解码的记录会让它的键所指的聚合停放；键不指向任何聚合时，越过这条记录（`wow.subscription.undecodable.messages` 对它们计数） |
 | 按约定命名的 topic | `wow.<context>.commands` 和 `wow.<context>.<aggregate>.state`，按 `wow.kafka.ddl` 的设置创建 |
 
 ## HTTP 与查询 {#http-and-queries}

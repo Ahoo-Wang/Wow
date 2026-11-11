@@ -31,7 +31,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `ISingleQuery`、`IListQuery`、`IPagedQuery`、`ICursorQuery`、`ICountQuery`、`IPagedList` | 类 `SingleQuery`、`ListQuery`、`PagedQuery`、`CursorQuery`、`CountQuery`、`PagedList`，用它们的 `of` 工厂或 DSL 构建；对查询泛型的代码接收 `Queryable<Q>` 或 `FilterCapable<Q>` |
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
 | 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
-| 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `TOO_MANY_GROUPS` 失败 |
+| 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `wow.query.too-many-groups`（400）失败 |
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
 | `wow-redis`、`wow-bi`、`wow-apiclient`、`wow-compensation-*` | 已移除：没有 Redis 后端，改用 ClickHouse Sink、`CommandClient` 和 `QueryApi` 客户端、每个节点的失败台账 |
@@ -49,7 +49,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`；上下文名是每个命令、事件和路由名的一部分，所以要有意地选择 |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand`，它的类放在其聚合所在的领域模块里，编译器在那里找到它 |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, snapshot, stateRevision, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand`，它的类放在其聚合所在的领域模块里，编译器在那里找到它 |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`，只有返回 `Decision` 的函数才需要 |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`；迁移来的 9.x 形状是修订号 1 |
 | `EventUpgrader` | 在从 `ObjectNode` 到 `ObjectNode` 的函数上标注 `@Upgrade(event, from)` |
