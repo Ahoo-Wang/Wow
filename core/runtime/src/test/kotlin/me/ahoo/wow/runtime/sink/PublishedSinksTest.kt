@@ -229,8 +229,10 @@ class PublishedSinksTest {
     }
 
     @Test
-    fun `a batching sink should be handed an aggregate's commits waiting together as one write, in order`(): Unit =
+    fun `a batching sink should be handed an aggregate's commits through the worker in version order`(): Unit =
         runBlocking {
+            // How runs waiting together are batched is SinkWritesTest's and SinkSubscriptionTest's, with gates of their
+            // own; through the worker, the order and the write held until it returns.
             val gate = CompletableDeferred<Unit>()
             val writes = CopyOnWriteArrayList<List<String>>()
             val batching = object : Sink {
@@ -246,16 +248,11 @@ class PublishedSinksTest {
             node.start()
             node.fill("c-1")
             eventually { writes.size == 1 }
-            // While the first write is held, the cart's next commits wait in its lane.
             repeat(4) { node.fill("c-1") }
-            delay(300.milliseconds)
-            writes.size.assert().isEqualTo(1)
             gate.complete(Unit)
             eventually { writes.sumOf { it.size } == 5 }
-            writes.assert().containsExactly(
-                listOf("shop.cart/t/c-1@1"),
-                (2..5).map { "shop.cart/t/c-1@$it" },
-            )
+            writes.first().assert().containsExactly("shop.cart/t/c-1@1")
+            writes.flatten().assert().containsExactlyElementsOf((1..5).map { "shop.cart/t/c-1@$it" })
         }
 
     @Test

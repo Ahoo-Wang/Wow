@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.runtime.sink
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -43,7 +41,6 @@ import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.RunEntry
 import me.ahoo.wow.runtime.subscription.Subscription
-import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
@@ -62,7 +59,6 @@ import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.time.Duration.Companion.milliseconds
 
 /** The records a sink subscription writes (design 04 §4, decisions D58, D133, D140). */
 class SinkSubscriptionTest {
@@ -266,16 +262,12 @@ class SinkSubscriptionTest {
     }
 
     /** A sink that takes [MAX_BATCH] records a write, records each write by version and refuses [refusing]. */
-    private inner class Batching(
-        val refusing: Set<Int> = emptySet(),
-        val gate: CompletableDeferred<Unit>? = null,
-    ) : Sink {
+    private inner class Batching(val refusing: Set<Int> = emptySet()) : Sink {
         val writes = CopyOnWriteArrayList<List<Int>>()
         override val maxBatch: Int = MAX_BATCH
 
         override suspend fun write(records: List<StateEventRecord>) {
             writes += records.map { it.version }
-            gate?.await()
             records.firstOrNull { it.version in refusing }?.let { throw IllegalArgumentException("v${it.version}") }
         }
 
@@ -370,22 +362,18 @@ class SinkSubscriptionTest {
     }
 
     @Test
-    fun `runs of different partitions waiting together should go in one write`(): Unit = runBlocking {
-        val gate = CompletableDeferred<Unit>()
-        val sink = Batching(gate = gate)
+    fun `runs of different partitions ready together should go in one write`(): Unit = runBlocking {
+        val sink = Batching()
         val subscription = sink.subscription()
-        val first = runOf(subscription, aggregate = type.ref("t", "o-1"), partition = 0)
-        val second = runOf(subscription, aggregate = type.ref("t", "o-2"), partition = 3)
-        val third = runOf(subscription, aggregate = type.ref("t", "o-3"), partition = 1)
-        val leading = async { subscription.runHandler!!(first) }
-        eventually { sink.writes.size == 1 }
-        // While the first write is held, the runs of two other partitions wait for the next, together.
-        val waiting = listOf(second, third).map { async { subscription.runHandler!!(it) } }
-        delay(100.milliseconds)
-        sink.writes.size.assert().isEqualTo(1)
-        gate.complete(Unit)
-        (listOf(leading) + waiting).awaitAll().map { it.done }.assert().containsExactly(3, 3, 3)
-        sink.writes.map { it.size }.assert().containsExactly(2, 4)
+        val runs = listOf(
+            runOf(subscription, aggregate = type.ref("t", "o-1"), partition = 0),
+            runOf(subscription, aggregate = type.ref("t", "o-2"), partition = 3),
+            runOf(subscription, aggregate = type.ref("t", "o-3"), partition = 1),
+        )
+        // Ready in the same instant: the first leads, and the others, of other partitions, join its write.
+        val handled = runs.map { async { subscription.runHandler!!(it) } }.awaitAll()
+        handled.map { it.done }.assert().containsExactly(3, 3, 3)
+        sink.writes.map { it.size }.assert().containsExactly(6)
     }
 
     @Test
