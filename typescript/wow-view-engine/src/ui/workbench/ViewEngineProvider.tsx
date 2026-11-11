@@ -36,6 +36,10 @@ import {
   type ViewDestination,
   type ViewRouter,
 } from '../../runtime/routes.js';
+import {
+  CharacterKeysContext,
+  useCharacterKeys,
+} from '../kit/characterKeys.js';
 
 /**
  * What a surface finds above it besides the engine (`EngineContext`); see
@@ -113,6 +117,8 @@ interface ViewEngineProviderProps {
   router?: ViewRouter;
   /** Boards kept in the search too; the outer provider's when left out. */
   boardsInAddress?: boolean;
+  /** Whether 「/」, J and K act; the outer provider's when left out. */
+  characterKeys?: boolean;
   /** The record open in the address; the outer provider's when left out. */
   detail?: RecordDetailControl;
   /** Set by `ViewHost`: what is under it has a host above. */
@@ -143,11 +149,13 @@ export function ViewEngineProvider({
   bindings,
   router,
   boardsInAddress,
+  characterKeys,
   detail,
   hosted,
   children,
 }: ViewEngineProviderProps) {
   const outer = useContext(Context);
+  const outerKeys = useCharacterKeys();
   const outerEngine = useContext(EngineContext);
   const engine = own ?? outerEngine;
   const wording = useMergedMessages(messages);
@@ -202,11 +210,13 @@ export function ViewEngineProvider({
   return (
     <EngineContext.Provider value={engine}>
       <Context.Provider value={value}>
-        <StartingWords engine={engine}>
-          <MessagesProvider messages={messages} locale={locale}>
-            {children}
-          </MessagesProvider>
-        </StartingWords>
+        <CharacterKeysContext.Provider value={characterKeys ?? outerKeys}>
+          <StartingWords engine={engine}>
+            <MessagesProvider messages={messages} locale={locale}>
+              {children}
+            </MessagesProvider>
+          </StartingWords>
+        </CharacterKeysContext.Provider>
       </Context.Provider>
     </EngineContext.Provider>
   );

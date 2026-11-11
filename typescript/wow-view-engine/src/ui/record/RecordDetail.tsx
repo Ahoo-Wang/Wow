@@ -59,6 +59,7 @@ import { inRowCurrency } from '../kit/currency.js';
 import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';
+import { useCharacterKeys } from '../kit/characterKeys.js';
 
 interface RecordDetailProps {
   detail: RecordDetailController;
@@ -136,6 +137,7 @@ export function RecordDetail({
   status,
 }: RecordDetailProps) {
   const messages = useViewMessages();
+  const characterKeys = useCharacterKeys();
   const { key, record } = detail;
   const row: RecordRow | null =
     key !== null && record ? { key, data: record } : null;
@@ -177,7 +179,9 @@ export function RecordDetail({
         <SheetContent
           data-slot="record-detail"
           data-layer={nested ? 'nested' : undefined}
-          onKeyDown={event => stepKey(event, detail, rows)}
+          onKeyDown={event => {
+            if (characterKeys) stepKey(event, detail, rows);
+          }}
           aria-busy={detail.status === 'loading'}
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
@@ -508,6 +512,7 @@ function DetailStep({
   rows: readonly RecordRow[];
 }) {
   const messages = useViewMessages();
+  const characterKeys = useCharacterKeys();
   const place = neighbours(detail.key, rows);
   if (!place || rows.length < 2) return null;
   const step = (
@@ -521,7 +526,7 @@ function DetailStep({
       variant="ghost"
       size="icon-sm"
       label={messages.label(to ? name : end)}
-      aria-keyshortcuts={keys}
+      aria-keyshortcuts={characterKeys ? keys : undefined}
       focusableWhenDisabled
       aria-disabled={to ? undefined : true}
       className="fve:aria-disabled:opacity-50"

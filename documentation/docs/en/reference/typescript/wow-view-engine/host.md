@@ -63,6 +63,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `bindings` | What each resource does in this host (`bind`) — its route, how its records are read, the commands on its records; an inner host's wins by id |
 | `router` | The router port: `useReactRouter()` from `/react-router`, or two members over another router. With it the engine keeps the address: every way off a board or a view goes through the route of the resource it leads to; a workbench opens the address's `?view=` and writes it back; a bound resource's record detail follows `?id=`; a view handed over, and a board's filters and tab, travel as the history entry's state |
 | `boardsInAddress` | Whether a board's filters and tab are kept in the address's search too (`?boards=`), so a link opens the board on the same filters: the daily report sent as a link. Off by default, since a board's filters spelled into the search are long; the outer host's when left out; nothing without a `router` |
+| `characterKeys` | Whether the three single-character keys act: `/` puts the keyboard in a view's search box, and J and K step through the records of a record's detail, each while the keyboard is inside the view or the detail and never in a field. On by default; a host whose users speak their commands, or whose page has keys of its own, turns them off, and the surface then neither answers nor announces them (WCAG 2.1.4). The outer host's when left out |
 | `navigate` | Every way off in the host's own hands instead of the router's: handed resolved through the route of the resource it leads to (`ViewRoute`); a URL, and a resource with no route, as it came |
 | `locale`, `messages` | The language port: the language values show in, and words merged over those in force — the engine's own and the definitions' keys (`text(key)`) alike. Changing them redraws every open view without reopening, re-querying or dirtying anything |
 | `tokenSource`, `preset`, `brand` | The theme's two paths: `tokenSource="host"` takes the host's own variables, its shadcn theme (the host imports `shadcn-bridge.css`), rather than a preset; or `preset` names a preset (its stylesheet imported), which the host's own chrome wears through `fve-tokens`. `brand` is the brand colour over the preset |
@@ -75,6 +76,7 @@ export interface ViewHostProps {
   bindings?: readonly ViewBinding[];
   boardsInAddress?: boolean;
   brand?: string;
+  characterKeys?: boolean;
   children: import('react').ReactNode;
   colorMode?: HostColorMode;
   engine?: ViewEngine;

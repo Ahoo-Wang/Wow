@@ -20,13 +20,16 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench, ViewHost } from '../src/ui/index.js';
 import { mine, ordersDefinition, resourcesOf, testSource } from './fixtures.js';
 
 afterEach(cleanup);
 
-/** A workbench over a definition with a search field, and its store. */
-async function open() {
+/**
+ * A workbench over a definition with a search field, and its store; under a
+ * host that sets `characterKeys` when one is given.
+ */
+async function open(characterKeys?: boolean) {
   const base = ordersDefinition();
   const definition = ordersDefinition({
     fields: [
@@ -39,12 +42,19 @@ async function open() {
     resources: resourcesOf([definition], () => testSource()),
     store,
   });
-  render(
+  const workbench = (
     <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-    />,
+    />
+  );
+  render(
+    characterKeys === undefined ? (
+      workbench
+    ) : (
+      <ViewHost characterKeys={characterKeys}>{workbench}</ViewHost>
+    ),
   );
   await screen.findAllByRole('row');
   return { store };
@@ -64,6 +74,23 @@ describe('the workbench’s keys (R2-100)', () => {
     expect(press).toBe(false);
     expect(document.activeElement).toBe(search());
     expect(search().getAttribute('aria-keyshortcuts')).toBe('/');
+  });
+
+  it('leaves 「/」 alone, and does not announce it, under a host that turns the keys off (WCAG 2.1.4)', async () => {
+    await open(false);
+    table().focus();
+
+    expect(fireEvent.keyDown(table(), { key: '/' })).toBe(true);
+    expect(document.activeElement).not.toBe(search());
+    expect(search().getAttribute('aria-keyshortcuts')).toBeNull();
+  });
+
+  it('answers 「/」 under a host that leaves the keys on', async () => {
+    await open(true);
+    table().focus();
+
+    expect(fireEvent.keyDown(table(), { key: '/' })).toBe(false);
+    expect(document.activeElement).toBe(search());
   });
 
   it('leaves 「/」 to a field, where it is a character', async () => {

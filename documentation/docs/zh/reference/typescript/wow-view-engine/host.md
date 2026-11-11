@@ -63,6 +63,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `bindings` | 每个资源在这个宿主里的行为（`bind`）——路由、记录的读法、记录上的命令；内层宿主按 id 覆盖 |
 | `router` | 路由端口：`/react-router` 的 `useReactRouter()`，或在别的路由上写两个成员。有了它引擎管地址：离开仪表盘或视图的每条路都走目标资源的路由；工作台打开地址里的 `?view=` 并写回；绑定资源的记录详情跟随 `?id=`；交接的视图、仪表盘的筛选与页签作为历史条目的 state 旅行 |
 | `boardsInAddress` | 仪表盘的筛选与页签是否也写进地址的查询串（`?boards=`），让链接在同样的筛选上打开仪表盘：当链接发出的日报。缺省关，因为写进查询串的筛选很长；不写时取外层宿主的；没有 `router` 时无效 |
+| `characterKeys` | 三个单字符键是否起作用：`/` 把键盘移到视图的搜索框，J 与 K 在记录详情里逐条走，都只在键盘位于视图或详情之内、且不在输入框里时起作用。缺省开；用户用语音下命令、或页面有自己按键的宿主把它们关掉，界面随后既不响应也不宣告它们（WCAG 2.1.4）。不写时取外层宿主的 |
 | `navigate` | 每条离开的路交给宿主自己处理，而不是交给路由器：经目标资源的路由解析后交出（`ViewRoute`）；URL 与没有路由的资源原样交出 |
 | `locale`、`messages` | 语言端口：值显示用的语言，以及合并在当前生效措辞之上的措辞——引擎自己的和定义的键（`text(key)`）一样。换了它，每个打开的视图重画，不重开、不重查、不变脏 |
 | `tokenSource`、`preset`、`brand` | 主题的两条路：`tokenSource="host"` 取宿主自己的变量，即它的 shadcn 主题（宿主导入 `shadcn-bridge.css`），而不是预设；或 `preset` 命名一套预设（导入它的样式表），宿主自己的界面经 `fve-tokens` 穿上它。`brand` 是盖在预设上的品牌色 |
@@ -75,6 +76,7 @@ export interface ViewHostProps {
   bindings?: readonly ViewBinding[];
   boardsInAddress?: boolean;
   brand?: string;
+  characterKeys?: boolean;
   children: import('react').ReactNode;
   colorMode?: HostColorMode;
   engine?: ViewEngine;
