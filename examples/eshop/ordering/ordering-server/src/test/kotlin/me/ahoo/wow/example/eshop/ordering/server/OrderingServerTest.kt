@@ -23,6 +23,7 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.DevelopmentHeaders
@@ -34,7 +35,6 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.test.server.eventually
@@ -164,7 +164,7 @@ class OrderingServerTest {
     @Test
     fun `an order without items, or with an invalid one, should be invalid before the order decides`() {
         val empty = rejected { orders().wait(SubmitOrder(emptyList()), "order-empty") }
-        empty.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        empty.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         empty.result.error!!.violations.single().let {
             it.path.assert().isEqualTo("items")
             it.code.assert().isEqualTo("not-empty")
@@ -184,7 +184,7 @@ class OrderingServerTest {
         confirm("order-shipped", "mug", "cap", caller = alice)
         runBlocking { orders(alice).wait(PayOrder("p-2", BigDecimal("29.00")), "order-shipped") }
         val refused = rejected { orders(alice).wait(ShipOrder, "order-shipped") }
-        refused.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused.result.error!!.message.assert().contains("Only an employee ships an order")
         order("order-shipped").status.assert().isEqualTo(OrderStatus.PAID)
         runBlocking { orders(EMPLOYEE).wait(ShipOrder, "order-shipped") }
@@ -200,7 +200,7 @@ class OrderingServerTest {
         val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild"
         for (caller in listOf(Caller.ANONYMOUS, buyer("alice-rebuilds"))) {
             val refused = server.http.post(rebuild, """{"ids":["order-1"]}""", caller = caller).problem!!
-            refused.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
             refused.detail.assert().contains("Only an employee sends wow.snapshot.Rebuild")
         }
         server.http.post(rebuild, """{"ids":["order-1"]}""", caller = EMPLOYEE).problem.assert().isNull()

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -32,7 +33,6 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -44,8 +44,6 @@ import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 import java.net.URLClassLoader
-import me.ahoo.wow.api.result.FunctionKind as ResultKind
-
 /** Decision D192: a saga's `@OnCommitted` handlers in the fragment, their bindings and their problems. */
 @OptIn(ExperimentalCompilerApi::class)
 class CommittedManifestTest {
@@ -219,7 +217,7 @@ class CommittedManifestTest {
                     correlationId = "root",
                     ref = stock,
                     hop = Hop.committed("inventory"),
-                    function = FunctionInfo(ResultKind.COMMAND, "inventory", "stock", "ReserveStock"),
+                    function = FunctionInfo(FunctionKind.COMMAND, "inventory", "stock", "ReserveStock"),
                     status = CommandResult.Status.SUCCEEDED,
                     version = 2,
                     signalTime = 1L,
@@ -265,7 +263,7 @@ class CommittedManifestTest {
                 correlationId = "root",
                 ref = stock,
                 hop = Hop.committed("inventory"),
-                function = FunctionInfo(ResultKind.COMMAND, "inventory", "stock", "ReleaseStock"),
+                function = FunctionInfo(FunctionKind.COMMAND, "inventory", "stock", "ReleaseStock"),
                 status = CommandResult.Status.SUCCEEDED,
                 version = 2,
                 signalTime = 1L,

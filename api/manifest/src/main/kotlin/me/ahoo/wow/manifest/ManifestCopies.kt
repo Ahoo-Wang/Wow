@@ -15,8 +15,14 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
 
 // The Manifest model has no `copy`: it may gain fields, and a `copy` would be a promise to every caller.
 // Wow's own code replaces fields through these, never by calling a constructor with the fields it knows of, so a field
@@ -196,8 +202,8 @@ fun JobManifest.copyWith(
     name: String = this.name,
     cron: String = this.cron,
     zone: String = this.zone,
-    scope: String = this.scope,
-    misfire: String = this.misfire,
+    scope: JobScope = this.scope,
+    misfire: Misfire = this.misfire,
 ): JobManifest = JobManifest(name, cron, zone, scope, misfire)
 
 @InternalWowApi

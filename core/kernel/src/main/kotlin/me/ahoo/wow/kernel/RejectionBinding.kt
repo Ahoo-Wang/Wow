@@ -27,7 +27,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
-import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
@@ -259,8 +258,8 @@ class ExecutionReceiptContext(
             ref: AggregateRef,
             commandType: Class<*>,
             key: String,
-        ): String = DerivedIds.idOf(
-            DerivedIds.encoded(
+        ): String = DerivedRequests.idOf(
+            DerivedRequests.encoded(
                 COMPENSATION,
                 DerivedRequests.executionOf(execution),
                 receiptCommandId,

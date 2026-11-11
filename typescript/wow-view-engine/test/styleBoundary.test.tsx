@@ -34,7 +34,6 @@ import {
   type ViewSurfaceProps,
 } from '../src/ui/index.js';
 import { useSurfaceColorMode } from '../src/ui/kit/surfaceContext.js';
-import { stylesSource } from '../scripts/styles.mjs';
 
 afterEach(cleanup);
 
@@ -50,7 +49,10 @@ afterEach(cleanup);
  * host's chrome on `.fve-tokens` with a pinned view inside it, which is the
  * supported way round (D17-10).
  */
-const STYLESHEET = stylesSource();
+const STYLESHEET = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
+  'utf8',
+);
 
 /** Every rule of the stylesheet, as postcss reads it. */
 function rules(): Rule[] {
@@ -692,12 +694,19 @@ describe('a preset reaches the surface and its popups', () => {
     const dialog = await screen.findByRole('dialog');
     const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
     let reset: Rule | undefined;
-    postcss.parse(stylesSource()).walkAtRules('layer', layer => {
-      if (layer.params === 'fve-reset')
-        layer.walkRules(rule => {
-          reset = rule;
-        });
-    });
+    postcss
+      .parse(
+        readFileSync(
+          resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
+          'utf8',
+        ),
+      )
+      .walkAtRules('layer', layer => {
+        if (layer.params === 'fve-reset')
+          layer.walkRules(rule => {
+            reset = rule;
+          });
+      });
     for (const element of [surface(), dialog, backdrop]) {
       expect(element?.getAttribute('data-fve-preset')).toBe('neutral');
       expect(element?.matches(reset!.selector)).toBe(true);
@@ -824,7 +833,10 @@ describe('a preset reaches the surface and its popups', () => {
  * browser story `DensityAxis` measures the laid-out rows.
  */
 describe('the density axis', () => {
-  const STYLES = stylesSource();
+  const STYLES = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
+    'utf8',
+  );
   const lengths = new Map<string, string>();
   postcss.parse(STYLES).walkRules(':where(.fve-root, .fve-tokens)', rule => {
     rule.walkDecls(/^--/, decl => {

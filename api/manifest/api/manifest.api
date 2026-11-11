@@ -25,14 +25,6 @@ public final class me/ahoo/wow/manifest/AccessAttributeName {
 	public final fun problem (Ljava/lang/String;)Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/manifest/AggregateIdSource : java/lang/Enum {
-	public static final field ASSIGNED Lme/ahoo/wow/manifest/AggregateIdSource;
-	public static final field OWNER Lme/ahoo/wow/manifest/AggregateIdSource;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/AggregateIdSource;
-	public static fun values ()[Lme/ahoo/wow/manifest/AggregateIdSource;
-}
-
 public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAccess ()Ljava/util/List;
@@ -40,10 +32,10 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getDomainCommands ()Ljava/util/List;
 	public final fun getEvents ()Ljava/util/List;
-	public final fun getIdSource ()Lme/ahoo/wow/manifest/AggregateIdSource;
+	public final fun getIdSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public final fun getLifecycle ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
-	public final fun getOwnership ()Lme/ahoo/wow/manifest/Ownership;
+	public final fun getOwnership ()Lme/ahoo/wow/api/aggregate/Ownership;
 	public final fun getQueries ()Ljava/util/List;
 	public final fun getRetired ()Ljava/util/List;
 	public final fun getSchedules ()Ljava/util/List;
@@ -60,7 +52,7 @@ public final class me/ahoo/wow/manifest/ClassNames {
 public final class me/ahoo/wow/manifest/CommandManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
-	public final fun getCreation ()Lme/ahoo/wow/manifest/Creation;
+	public final fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getIdProperty ()Ljava/lang/String;
 	public final fun getInternal ()Z
@@ -88,8 +80,8 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 	public final fun getRESERVED_SEGMENTS ()Ljava/util/Set;
 	public final fun isReserved (Ljava/lang/String;)Z
 	public final fun jobRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Z)Ljava/util/List;
-	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;ZILjava/lang/Object;)Ljava/util/List;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Creation;Z)Ljava/util/List;
+	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Creation;ZILjava/lang/Object;)Ljava/util/List;
 	public final fun ownDeleteRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun pathOf (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;)Ljava/lang/String;
 	public final fun routeOf (Ljava/util/List;Z)Lme/ahoo/wow/manifest/RouteManifest;
@@ -118,15 +110,6 @@ public final class me/ahoo/wow/manifest/ContextName {
 	public final fun problem (Ljava/lang/String;)Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/manifest/Creation : java/lang/Enum {
-	public static final field ALLOWED Lme/ahoo/wow/manifest/Creation;
-	public static final field NONE Lme/ahoo/wow/manifest/Creation;
-	public static final field REQUIRED Lme/ahoo/wow/manifest/Creation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/Creation;
-	public static fun values ()[Lme/ahoo/wow/manifest/Creation;
-}
-
 public final class me/ahoo/wow/manifest/ErrorManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
@@ -150,55 +133,14 @@ public final class me/ahoo/wow/manifest/EventManifest {
 }
 
 public final class me/ahoo/wow/manifest/FrameworkErrors {
-	public static final field AGGREGATE_DELETED Ljava/lang/String;
-	public static final field AGGREGATE_EXISTS Ljava/lang/String;
-	public static final field AGGREGATE_FORBIDDEN Ljava/lang/String;
-	public static final field AGGREGATE_NOT_FOUND Ljava/lang/String;
-	public static final field AGGREGATE_VERSION_MISMATCH Ljava/lang/String;
-	public static final field AUTH_FORBIDDEN Ljava/lang/String;
-	public static final field AUTH_UNAUTHENTICATED Ljava/lang/String;
-	public static final field CALL_COMMAND_FORBIDDEN Ljava/lang/String;
-	public static final field COMMAND_BUSY Ljava/lang/String;
-	public static final field COMMAND_CONTENDED Ljava/lang/String;
-	public static final field COMMAND_FAILED Ljava/lang/String;
-	public static final field COMMAND_INVALID Ljava/lang/String;
-	public static final field COMMAND_MALFORMED Ljava/lang/String;
-	public static final field COMMAND_REFUSED Ljava/lang/String;
-	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;
-	public static final field COMMAND_UNDECLARED_EVENT Ljava/lang/String;
-	public static final field COMMAND_UNHANDLED Ljava/lang/String;
-	public static final field COMMAND_UNKNOWN Ljava/lang/String;
 	public static final field DOMAIN_REJECTION_STATUS I
 	public static final field INSTANCE Lme/ahoo/wow/manifest/FrameworkErrors;
 	public static final field INTERNAL_ERROR_STATUS I
-	public static final field LEDGER_STALE Ljava/lang/String;
-	public static final field NODE_CLOSING Ljava/lang/String;
-	public static final field NODE_STANDBY Ljava/lang/String;
-	public static final field PEER_UNAVAILABLE Ljava/lang/String;
 	public static final field PRECONDITION_FAILED_STATUS I
-	public static final field PREFIX Ljava/lang/String;
-	public static final field QUERY_BUSY Ljava/lang/String;
-	public static final field QUERY_DATASET_NOT_FOUND Ljava/lang/String;
-	public static final field QUERY_DATASET_UNAVAILABLE Ljava/lang/String;
-	public static final field QUERY_FAILED Ljava/lang/String;
-	public static final field QUERY_INVALID Ljava/lang/String;
-	public static final field QUERY_MALFORMED Ljava/lang/String;
-	public static final field QUERY_MIN_VERSION_NOT_REACHED Ljava/lang/String;
-	public static final field QUERY_NOT_FOUND Ljava/lang/String;
-	public static final field QUERY_TIMEOUT Ljava/lang/String;
-	public static final field QUERY_TOO_MANY_GROUPS Ljava/lang/String;
-	public static final field REQUEST_MALFORMED Ljava/lang/String;
 	public static final field RETRY_AFTER_SECONDS I
 	public static final field RETRY_ATTEMPTS I
 	public static final field RETRY_BACKOFF_MILLIS I
 	public static final field RETRY_MAX_WAIT_SECONDS I
-	public static final field ROUTE_MALFORMED Ljava/lang/String;
-	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
-	public static final field SCHEDULE_NOT_DUE Ljava/lang/String;
-	public static final field STORAGE_UNAVAILABLE Ljava/lang/String;
-	public static final field SUBSCRIPTION_PARKED Ljava/lang/String;
-	public static final field WAIT_INVALID Ljava/lang/String;
-	public static final field WAIT_TIMEOUT Ljava/lang/String;
 	public final fun getALL ()Ljava/util/List;
 	public final fun getBY_CODE ()Ljava/util/Map;
 	public final fun getTITLES ()Ljava/util/Map;
@@ -208,43 +150,30 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static synthetic fun problemOf$default (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;ILjava/lang/Object;)Lme/ahoo/wow/api/problem/WowProblemException;
 }
 
-public final class me/ahoo/wow/manifest/FunctionKind : java/lang/Enum {
-	public static final field COMMAND Lme/ahoo/wow/manifest/FunctionKind;
-	public static final field PROJECT Lme/ahoo/wow/manifest/FunctionKind;
-	public static final field REACT Lme/ahoo/wow/manifest/FunctionKind;
-	public static final field SAGA Lme/ahoo/wow/manifest/FunctionKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/FunctionKind;
-	public static fun values ()[Lme/ahoo/wow/manifest/FunctionKind;
-}
-
 public final class me/ahoo/wow/manifest/FunctionManifest {
+	public static final field Companion Lme/ahoo/wow/manifest/FunctionManifest$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getContext ()Ljava/lang/String;
-	public final fun getKind ()Lme/ahoo/wow/manifest/FunctionKind;
+	public final fun getKind ()Lme/ahoo/wow/api/result/FunctionKind;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getProcessor ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/manifest/FunctionManifest$Companion {
+	public final fun getKINDS ()Ljava/util/List;
+}
+
 public final class me/ahoo/wow/manifest/JobManifest {
-	public static final field COALESCE Ljava/lang/String;
-	public static final field Companion Lme/ahoo/wow/manifest/JobManifest$Companion;
-	public static final field SYSTEM Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCron ()Ljava/lang/String;
-	public final fun getMisfire ()Ljava/lang/String;
+	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
 	public final fun getName ()Ljava/lang/String;
-	public final fun getScope ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/schedule/JobScope;
 	public final fun getZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/manifest/JobManifest$Companion {
-	public final fun getMISFIRES ()Ljava/util/List;
-	public final fun getSCOPES ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/manifest/Manifest {
@@ -309,16 +238,7 @@ public final class me/ahoo/wow/manifest/ManifestTree {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestTree;
 	public final fun read (Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
 	public static synthetic fun read$default (Lme/ahoo/wow/manifest/ManifestTree;Ljava/util/Map;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
-	public final fun wire (Ljava/lang/Enum;)Ljava/lang/String;
 	public final fun write (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
-}
-
-public final class me/ahoo/wow/manifest/Ownership : java/lang/Enum {
-	public static final field OWNER Lme/ahoo/wow/manifest/Ownership;
-	public static final field TENANT Lme/ahoo/wow/manifest/Ownership;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/Ownership;
-	public static fun values ()[Lme/ahoo/wow/manifest/Ownership;
 }
 
 public final class me/ahoo/wow/manifest/PeerContracts {

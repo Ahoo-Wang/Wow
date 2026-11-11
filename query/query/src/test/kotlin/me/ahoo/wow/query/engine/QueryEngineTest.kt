@@ -30,9 +30,9 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -171,7 +171,7 @@ class QueryEngineTest {
                 runCatching { snapshots.list(ListQuery(MatchAllFilter, limit = 10), caller).toList() },
                 runCatching { orderEvents.count(CountQuery(AggregateIdFilter("o-1")), caller) },
             ).forEach { refused ->
-                (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
             }
             gate.complete(Unit)
             held.await()
@@ -191,7 +191,7 @@ class QueryEngineTest {
         val orders = engine.events.first { it.aggregateType == order }
         val refused = runCatching { carts.list(ListQuery(MatchAllFilter, limit = 10), caller).toList() }
             .exceptionOrNull() as QueryError
-        refused.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        refused.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         refused.bindingErrors.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
         refused.bindingErrors.single().name.assert().isEqualTo("aggregateId")
         carts.list(ListQuery(AggregateIdFilter("c-1"), limit = 10), caller).toList().assert().isEmpty()

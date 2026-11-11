@@ -85,8 +85,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * Cross-context commands and rejection receipts on a real broker (decisions D33, D47, D135–D137): two nodes of two
  * services in one JVM, a sales service whose saga reserves stock for each order and a stock service that takes
@@ -469,7 +467,7 @@ class KafkaCommandIntakeTest {
         private fun aggregateManifest(
             context: String,
             name: String,
-            commands: List<Pair<Class<*>, ManifestCreation>>,
+            commands: List<Pair<Class<*>, Creation>>,
             events: List<Class<*>>,
         ) = AggregateManifest(
             name,
@@ -490,9 +488,9 @@ class KafkaCommandIntakeTest {
                             SALES,
                             "order",
                             listOf(
-                                PlaceOrder::class.java to ManifestCreation.REQUIRED,
-                                CancelOrder::class.java to ManifestCreation.NONE,
-                                ConfirmOrder::class.java to ManifestCreation.NONE,
+                                PlaceOrder::class.java to Creation.REQUIRED,
+                                CancelOrder::class.java to Creation.NONE,
+                                ConfirmOrder::class.java to Creation.NONE,
                             ),
                             listOf(OrderPlaced::class.java, OrderCancelled::class.java, OrderConfirmed::class.java),
                         ),
@@ -510,7 +508,7 @@ class KafkaCommandIntakeTest {
                         aggregateManifest(
                             STOCK,
                             "item",
-                            listOf(Reserve::class.java to ManifestCreation.ALLOWED),
+                            listOf(Reserve::class.java to Creation.ALLOWED),
                             listOf(Reserved::class.java)
                         ),
                     ),

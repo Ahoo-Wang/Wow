@@ -96,8 +96,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-import me.ahoo.wow.manifest.FunctionKind as ManifestFunctionKind
 
 const val CONTEXT = "shop"
 const val TENANT = "acme"
@@ -164,7 +162,7 @@ fun cartManifest(
     unaddressed: Set<String> = emptySet(),
     internal: Set<String> = emptySet(),
 ): Manifest {
-    fun command(name: String, creation: ManifestCreation) = CommandManifest(
+    fun command(name: String, creation: Creation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
         creation = creation,
@@ -181,14 +179,14 @@ fun cartManifest(
                         name = "cart",
                         state = StateManifest(Manifest.schemaRef("Cart")),
                         commands = listOf(
-                            command("AddItem", ManifestCreation.ALLOWED),
-                            command("Checkout", ManifestCreation.NONE),
-                            command("OpenCart", ManifestCreation.REQUIRED),
+                            command("AddItem", Creation.ALLOWED),
+                            command("Checkout", Creation.NONE),
+                            command("OpenCart", Creation.REQUIRED),
                         ) + listOfNotNull(
                             CommandManifest(
                                 name = "ImportCart",
                                 schema = Manifest.schemaRef("ImportCart"),
-                                routes = CommandRoutes.of(CONTEXT, "cart", "ImportCart", ManifestCreation.NONE, true),
+                                routes = CommandRoutes.of(CONTEXT, "cart", "ImportCart", Creation.NONE, true),
                                 mounted = true,
                                 transformsTo = listOf("$CONTEXT.cart.OpenCart"),
                             ).takeIf { mounted },
@@ -418,8 +416,8 @@ private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
             "Jobs.${job.name}",
             SubscriptionKind.SAGA,
             SubscriptionSource(context.name, listOf(ScheduleJobs.AGGREGATE)),
-            FunctionManifest(ManifestFunctionKind.SAGA, context.name, "Jobs", job.name),
-            job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope.name),
+            FunctionManifest(FunctionKind.SAGA, context.name, "Jobs", job.name),
+            job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope),
         )
     }
     return copyWith(

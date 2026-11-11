@@ -42,7 +42,6 @@ import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.spi.call.requestIdOf
@@ -321,7 +320,7 @@ class HttpCommandClient internal constructor(
             CommandResults.read(body)
         } catch (invalid: JacksonException) {
             throw PeerProblem.of(
-                FrameworkErrors.COMMAND_UNKNOWN,
+                FrameworkCodes.COMMAND_UNKNOWN,
                 "The answer holds no result (${invalid.originalMessage}): whether the command committed is unknown.",
                 invalid,
             ).exception(what)

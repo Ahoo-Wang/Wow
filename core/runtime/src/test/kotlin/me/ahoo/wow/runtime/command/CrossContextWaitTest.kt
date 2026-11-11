@@ -63,8 +63,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
-import me.ahoo.wow.manifest.FunctionKind as ManifestFunctionKind
-
 /**
  * Waits across contexts (design 04 §6.3; decisions D34, D62, D65, D137, D138), between a sales service and a stock
  * service over [InMemoryTopics], each node signalling the other's waits as `/wow/internal/signals` would:
@@ -115,7 +113,7 @@ class CrossContextWaitTest {
             kind = kind,
             source = SubscriptionSource(SALES, listOf("order")),
             function = FunctionManifest(
-                if (kind == SubscriptionKind.SAGA) ManifestFunctionKind.SAGA else ManifestFunctionKind.PROJECT,
+                if (kind == SubscriptionKind.SAGA) FunctionKind.SAGA else FunctionKind.PROJECT,
                 STOCK,
                 name.substringBefore('.'),
                 name.substringAfter('.'),
@@ -133,7 +131,7 @@ class CrossContextWaitTest {
                             name = SAGA,
                             kind = SubscriptionKind.SAGA,
                             source = SubscriptionSource(SALES, listOf("order")),
-                            function = FunctionManifest(ManifestFunctionKind.SAGA, SALES, "OrderSaga", "onOrderPlaced"),
+                            function = FunctionManifest(FunctionKind.SAGA, SALES, "OrderSaga", "onOrderPlaced"),
                             derives = listOf(Manifest.schemaRef(Reserve::class.java.name)),
                         ),
                     ),

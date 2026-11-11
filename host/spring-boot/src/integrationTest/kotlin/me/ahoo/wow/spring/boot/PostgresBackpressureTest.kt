@@ -17,8 +17,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
@@ -53,11 +53,11 @@ class OverloadedSaga {
                     attempts.incrementAndGet()
                     if (overloaded.get()) {
                         throw WowProblemException(
-                            FrameworkErrors.WAIT_TIMEOUT,
+                            FrameworkCodes.WAIT_TIMEOUT,
                             GATEWAY_TIMEOUT,
                             Retry.SAME_REQUEST,
                             null,
-                            "The derived command on ${entry.ref} failed: ${FrameworkErrors.WAIT_TIMEOUT}",
+                            "The derived command on ${entry.ref} failed: ${FrameworkCodes.WAIT_TIMEOUT}",
                         )
                     }
                     handled += entry.ref.id

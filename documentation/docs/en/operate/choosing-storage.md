@@ -61,8 +61,6 @@ So the host refuses an Elasticsearch store as a log store, and as an aggregate t
 - **Versions apart.** A search may show a version older than the state read shows a moment later. Read the state when the answer must be current.
 - **Another cluster.** Elasticsearch is a second system to run, size, secure and monitor beside MongoDB.
 
-[Performance](./performance) gives each store's figures in the benchmarks.
-
 ## When to pick PostgreSQL {#when-postgresql}
 
 PostgreSQL holds everything MongoDB holds, with the same guarantees, so the choice is about what you run:

@@ -19,10 +19,11 @@
  * built-in presets to the arithmetic a host's theme is held to.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { themesSource } from '../../scripts/themes.mjs';
 import { registryData } from '../../theme-check/registry';
 import { createResolver } from '../../theme-check/resolve';
-import { stylesSource } from '../../scripts/styles.mjs';
 
 export {
   at,
@@ -40,7 +41,10 @@ export {
 
 /** The resolver over the package's own sources. */
 export const RESOLVER = createResolver({
-  styles: stylesSource(),
+  styles: readFileSync(
+    join(import.meta.dirname, '..', '..', 'src', 'styles.css'),
+    'utf8',
+  ),
   presets: themesSource(),
   registry: registryData(),
 });

@@ -3,11 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
-import { HEADLINES, performancePages } from './docs-performance.mjs';
 
 // The reference pages generated from the sources of truth, in English and
 // Chinese (the descriptions stay in the sources' English):
@@ -821,7 +820,7 @@ export function referencePages(root = ROOT) {
       omissionsOf(tree),
     );
   }
-  return { ...pages, ...performancePages(root) };
+  return pages;
 }
 
 /** The sources each generated page is read from, by its file name. */
@@ -836,7 +835,6 @@ export const SOURCES = {
   'annotations.md': [`${ANNOTATIONS}/`],
   'manifest.md': [MANIFEST_TREE],
   'modules.md': [BUILD, SETTINGS, "each published module's build.gradle.kts"],
-  'performance.md': HEADLINES,
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
   ],
@@ -864,9 +862,12 @@ if (
   const write = process.argv.includes('--write');
   const stale = [];
   for (const [path, text] of Object.entries(pages)) {
-    const current = existsSync(join(ROOT, path))
-      ? readFileSync(join(ROOT, path), 'utf8')
-      : undefined;
+    let current;
+    try {
+      current = readFileSync(join(ROOT, path), 'utf8');
+    } catch {
+      current = undefined;
+    }
     if (current === text) continue;
     stale.push(path);
     if (write) writeFileSync(join(ROOT, path), text);

@@ -14,8 +14,8 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.Creation
-import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionKind

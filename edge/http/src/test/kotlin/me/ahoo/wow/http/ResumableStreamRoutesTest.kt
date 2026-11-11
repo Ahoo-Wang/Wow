@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.query.QueryStreams
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
@@ -100,7 +99,7 @@ class ResumableStreamRoutesTest {
             streamed.status.assert().isEqualTo(400)
             QueryJson.mapper.readTree(
                 streamed.body
-            )["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            )["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         }
         invalid(node.stream(byItems, lastEventId = "not-a-token"))
         // A position of another sort, or of another model.
@@ -186,7 +185,7 @@ class ResumableStreamRoutesTest {
         streamed.end!!["resumable"].asBoolean().assert().isFalse()
         val refused = node.stream(byItemsLimited, lastEventId = "anything")
         refused.status.assert().isEqualTo(400)
-        QueryJson.mapper.readTree(refused.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        QueryJson.mapper.readTree(refused.body)["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
     }
 
     @Test
@@ -196,7 +195,7 @@ class ResumableStreamRoutesTest {
         val refused = node.stream(byItems)
         refused.status.assert().isEqualTo(400)
         val problem = QueryJson.mapper.readTree(refused.body)
-        problem["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        problem["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         problem["violations"].first()["code"].asString().assert().isEqualTo(QueryErrorCodes.STREAM_NOT_RESUMABLE)
         problem["violations"].first()["path"].asString().assert().isEqualTo("limit")
     }

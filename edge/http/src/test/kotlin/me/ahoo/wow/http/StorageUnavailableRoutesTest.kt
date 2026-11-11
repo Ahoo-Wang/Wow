@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
@@ -36,8 +37,8 @@ class StorageUnavailableRoutesTest {
         contentType.assert().isEqualTo("application/problem+json")
         val retryAfter = headers.getFirst(HttpHeaders.RETRY_AFTER)
         retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toString())
-        body!!["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
-        body!!["type"].asString().assert().isEqualTo("urn:wow:error:${FrameworkErrors.STORAGE_UNAVAILABLE}")
+        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        body!!["type"].asString().assert().isEqualTo("urn:wow:error:${FrameworkCodes.STORAGE_UNAVAILABLE}")
     }
 
     @Test
@@ -52,7 +53,7 @@ class StorageUnavailableRoutesTest {
         result["status"].asString().assert().isEqualTo("failed")
         result["requestId"].asString().assert().isEqualTo("add-1")
         result["hop"]["stage"].asString().assert().isEqualTo("committed")
-        result["error"]["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
+        result["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
         node.commands.assert().isEmpty()
 
         node.unavailable = false

@@ -17,6 +17,10 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.nio.file.Path
@@ -47,7 +51,7 @@ class ManifestSchemaTest {
                     derives = emptyList(),
                     rejected = emptyList(),
                     retry = RetryManifest(3, "PT1S", "PT10S", "PT30S", listOf("a"), listOf("b"), 2.0, listOf("c")),
-                    job = JobManifest("daily", "0 0 9 * * *", "UTC", "sharded", "catch-up"),
+                    job = JobManifest("daily", "0 0 9 * * *", "UTC", JobScope.SHARDED, Misfire.CATCH_UP),
                 )
             }
         }

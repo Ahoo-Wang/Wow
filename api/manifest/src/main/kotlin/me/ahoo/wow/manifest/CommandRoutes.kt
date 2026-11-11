@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.Creation
+
 /**
  * The REST routes of a command, and the names they reserve.
  *

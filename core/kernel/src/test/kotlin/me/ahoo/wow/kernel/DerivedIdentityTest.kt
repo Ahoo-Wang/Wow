@@ -15,16 +15,8 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.schedule.CancelSchedule
-import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.spi.id.DerivedIds
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.hours
 
 /**
  * A derived request's identity is one-to-one with what it asks (issue #5560, decision D407): two different targets,
@@ -47,7 +39,7 @@ class DerivedIdentityTest {
         val fields = strings(2)
         val tuples = fields.flatMap { a -> fields.flatMap { b -> listOf(listOf(a, b), listOf(a, b, "")) } } +
             fields.map { listOf(it) }
-        val encoded = tuples.map { DerivedIds.encoded(*it.toTypedArray()) }
+        val encoded = tuples.map { DerivedRequests.encoded(*it.toTypedArray()) }
         encoded.toSet().size.assert().isEqualTo(tuples.toSet().size)
     }
 
@@ -110,49 +102,6 @@ class DerivedIdentityTest {
             .isNotEqualTo(ExecutionReceiptContext.compensationId(execution, "", ref, Charge::class.java))
         ExecutionSagaContext.derivedId(execution, ref, Charge::class.java, 0).assert()
             .isNotEqualTo(ExecutionSagaContext.derivedId(execution, ref, Charge::class.java, "0"))
-    }
-
-    @Test
-    fun `a saga's schedules and cancels are told apart by their key, whatever order the handler makes them in`() {
-        val target = type.ref("t", "c")
-        val event = StateEvent(
-            execution.ref,
-            execution.version,
-            "c-3",
-            "r-3",
-            "billing.payment.Pay",
-            1L,
-            listOf("paid"),
-            "state",
-        )
-
-        /** The id of each schedule command one execution records, by its kind and key; a key with `-` cancels. */
-        fun handled(order: List<String>): Map<String, String> {
-            val context = contextOf(FunctionKind.SAGA, execution.subscription, event) as ExecutionSagaContext
-            order.forEach { key ->
-                if (key.startsWith("-")) {
-                    context.cancel(key.drop(1), target)
-                } else {
-                    context.schedule(key, ScheduleRule.after(1.hours), CommandRequest.to(target, Charge()))
-                }
-            }
-            return context.commandsOf(emptyList()).associate { command ->
-                when (val body = command.body) {
-                    is SetSchedule -> "set ${body.key}"
-                    is CancelSchedule -> "cancel ${body.key}"
-                    else -> error("Not a schedule command: $body.")
-                } to command.id
-            }
-        }
-
-        val first = handled(listOf("a", "b", "-c", "-d"))
-        // Its retry reads in another order and makes them in another: each key keeps its id.
-        handled(listOf("-d", "b", "-c", "a")).assert().isEqualTo(first)
-        first.values.toSet().assert().hasSize(4)
-        first["set a"].assert()
-            .isEqualTo(ExecutionSagaContext.scheduleId(execution, target, SetSchedule::class.java, "a"))
-        first["cancel d"].assert()
-            .isEqualTo(ExecutionSagaContext.scheduleId(execution, target, CancelSchedule::class.java, "d"))
     }
 
     private companion object {

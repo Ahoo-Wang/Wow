@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.engine.QueryEngine
@@ -87,10 +87,10 @@ class ReadAuthorizerTest {
             ReadAction.of(NOTE, QueryModel.EVENTS, QueryType.LIST, QueryEntry.IN_PROCESS),
         )
         val denied = refused { snapshots.single(SingleQuery(MatchAllFilter), stranger) }
-        denied.errorCode.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        denied.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         denied.errorMsg.assert().contains("needs the reader role")
         refused { engine.events(NOTE)!!.list(ListQuery(MatchAllFilter, limit = 10), stranger).toList() }
-            .errorCode.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            .errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
     }
 
     @Test
@@ -104,7 +104,7 @@ class ReadAuthorizerTest {
             }, { it })
         }
         read(reader, StateRead.LATEST).assert().isInstanceOf(ReadFacade.Read.Visible::class.java)
-        refused { read(stranger, StateRead.LATEST) }.errorCode.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        refused { read(stranger, StateRead.LATEST) }.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused { read(stranger, StateRead.TRACE) }
         loaded.assert().isEqualTo(1)
         asked.map { it.second.operation }.assert().containsExactly(QueryType.STATE, QueryType.STATE, QueryType.TRACE)
@@ -122,14 +122,14 @@ class ReadAuthorizerTest {
     fun `the first refusal answers, and the authorizers after it are not asked`(): Unit = runBlocking {
         val app = ReadAuthorizer { caller, _ ->
             if (caller.app == null) {
-                ReadAuthorization.Denied.of("The request names no application.", FrameworkErrors.QUERY_MALFORMED)
+                ReadAuthorization.Denied.of("The request names no application.", FrameworkCodes.QUERY_MALFORMED)
             } else {
                 ReadAuthorization.Allowed
             }
         }
         val engine = engine(app, readers)
         refused { engine.snapshots(NOTE)!!.list(ListQuery(MatchAllFilter, limit = 10), reader).toList() }
-            .errorCode.assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
+            .errorCode.assert().isEqualTo(FrameworkCodes.QUERY_MALFORMED)
         asked.assert().isEmpty()
         ReadAuthorizer.allOf(emptyList()).assert().isSameAs(ReadAuthorizer.ALLOW_ALL)
         ReadAuthorizer.allOf(listOf(readers)).assert().isSameAs(readers)
@@ -165,11 +165,11 @@ class ReadAuthorizerTest {
         val itself: Any = denied
         (denied == itself).assert().isTrue()
         (denied == text).assert().isFalse()
-        denied.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        denied.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         val again = ReadAuthorization.Denied.of("no")
         denied.assert().isEqualTo(again).hasSameHashCodeAs(again)
-            .isNotEqualTo(ReadAuthorization.Denied.of("no", FrameworkErrors.QUERY_MALFORMED))
-        denied.toString().assert().contains(FrameworkErrors.AUTH_FORBIDDEN)
+            .isNotEqualTo(ReadAuthorization.Denied.of("no", FrameworkCodes.QUERY_MALFORMED))
+        denied.toString().assert().contains(FrameworkCodes.AUTH_FORBIDDEN)
     }
 
     @Test
@@ -181,7 +181,7 @@ class ReadAuthorizerTest {
     @Test
     fun `a refusal names a code of the framework's error table`() {
         assertThrows<IllegalArgumentException> { ReadAuthorization.Denied.of("no", "app.not-mine") }
-        ReadAuthorization.Denied.of("no").code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        ReadAuthorization.Denied.of("no").code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.STATE, QueryEntry.HTTP).toString().assert().contains("STATE")
         Caller.ANONYMOUS.app.assert().isNull()
     }

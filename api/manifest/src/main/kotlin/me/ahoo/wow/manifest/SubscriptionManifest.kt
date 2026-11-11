@@ -14,6 +14,9 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
 
 /**
  * A subscription: one handler of a processor, named `processor.function`.
@@ -90,8 +93,7 @@ class SubscriptionManifest @InternalWowApi constructor(
 
 /**
  * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
- * handled as [misfire] says: `coalesce` or `catch-up`) and its [scope] (`system`, `tenant` or `sharded`), each value
- * spelled as Wow writes its enumerations.
+ * handled as [misfire] says) and its [scope].
  * The host configures the job under `wow.schedules.<name>.*`: its rule, and the retries of its subscriptions.
  *
  * Fields may be added: pass the constructor's arguments by name.
@@ -100,8 +102,8 @@ class JobManifest @InternalWowApi constructor(
     val name: String,
     val cron: String,
     val zone: String = "UTC",
-    val scope: String = SYSTEM,
-    val misfire: String = COALESCE,
+    val scope: JobScope = JobScope.SYSTEM,
+    val misfire: Misfire = Misfire.COALESCE,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is JobManifest && valueFields() == other.valueFields()
@@ -111,20 +113,6 @@ class JobManifest @InternalWowApi constructor(
     override fun toString(): String = "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, misfire=$misfire)"
 
     private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, misfire)
-
-    companion object {
-        /** The [scope] of a job of the whole system, the default. */
-        const val SYSTEM: String = "system"
-
-        /** The [misfire] that runs missed slots once, the default. */
-        const val COALESCE: String = "coalesce"
-
-        /** The values of [scope], the programming model's job scopes by their wire names. */
-        val SCOPES: List<String> = listOf(SYSTEM, "tenant", "sharded")
-
-        /** The values of [misfire], the programming model's misfires by their wire names. */
-        val MISFIRES: List<String> = listOf(COALESCE, "catch-up")
-    }
 }
 
 /**
@@ -258,7 +246,8 @@ class PublishedManifest @InternalWowApi constructor(
 }
 
 /**
- * The function a subscription runs, as `CommandResult.function` names it.
+ * The function a subscription runs, as `CommandResult.function` names it: one a context declares, of one of [KINDS],
+ * never a built-in subscription's.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -268,6 +257,10 @@ class FunctionManifest @InternalWowApi constructor(
     val processor: String,
     val name: String,
 ) {
+    init {
+        require(kind in KINDS) { "A Manifest names the functions a context declares, $KINDS, not $kind." }
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || other is FunctionManifest && valueFields() == other.valueFields()
 
@@ -276,7 +269,10 @@ class FunctionManifest @InternalWowApi constructor(
     override fun toString(): String = "FunctionManifest(kind=$kind, context=$context, processor=$processor, name=$name)"
 
     private fun valueFields(): List<Any?> = listOf(kind, context, processor, name)
-}
 
-/** The kinds of `me.ahoo.wow.api.result.FunctionKind` a Manifest names. */
-enum class FunctionKind { COMMAND, PROJECT, REACT, SAGA }
+    companion object {
+        /** The kinds of the functions a context declares, which a Manifest names; a reader leaves out any other. */
+        val KINDS: List<FunctionKind> =
+            listOf(FunctionKind.COMMAND, FunctionKind.PROJECT, FunctionKind.REACT, FunctionKind.SAGA)
+    }
+}

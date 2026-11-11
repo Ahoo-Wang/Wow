@@ -68,8 +68,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * Snapshot rebuild, repair and backfill (decision D172, roadmap 6.2e) end to end, on the nodes of a service over the
  * snapshot stores a backend gives ([store]: `a`, which holds the log too, and `b`): an in-place rebuild after the state
@@ -378,7 +376,7 @@ abstract class SnapshotRebuildSpec {
                                 CommandManifest(
                                     "Add",
                                     schema = Manifest.schemaRef(Add::class.java.name),
-                                    creation = ManifestCreation.ALLOWED,
+                                    creation = Creation.ALLOWED,
                                 ),
                             ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, COUNTER, it) } +
                                 SystemCommands.rebuild(context, COUNTER),

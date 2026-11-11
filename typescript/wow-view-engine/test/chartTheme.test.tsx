@@ -39,9 +39,11 @@ import { measureText } from '../src/ui/charts/measure.js';
 import { declared } from './fixtures/themeTokens';
 import { merged } from '../src/ui/charts/optionMerge.js';
 import { ChartLegend } from '../src/ui/charts/ChartLegend.js';
-import { stylesSource } from '../scripts/styles.mjs';
 
-const STYLESHEET = stylesSource();
+const STYLESHEET = readFileSync(
+  join(import.meta.dirname, '..', 'src', 'styles.css'),
+  'utf8',
+);
 
 afterEach(() => {
   cleanup();

@@ -16,7 +16,7 @@ package me.ahoo.wow.client
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
@@ -81,7 +81,7 @@ class PeerFailoverTest {
             }
             // No node reached: wow.peer.unavailable, its connection's failure the cause.
             val down = transport(URI.create("http://127.0.0.1:$port")).get() as Answer.Problem
-            down.problem.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            down.problem.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
             down.problem.cause.assert().isInstanceOf(IOException::class.java)
             unreachable.assert().containsExactly("mail")
         }
@@ -107,7 +107,7 @@ class PeerFailoverTest {
             }
             val once = transport(resolver, RetryPolicy.NONE)
             val down = once.get() as Answer.Problem
-            down.problem.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            down.problem.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
             down.problem.detail.assert().isEqualTo("The lookup of mail lists no node on its internal port now.")
             unreachable.assert().containsExactly("mail")
             live.taken.assert().isEmpty()
@@ -122,7 +122,7 @@ class PeerFailoverTest {
 
     @Test
     fun `a node's own refusal before handling should fail over, a bare 503 should not`() {
-        val standby = Reply.problem(503, mapOf("code" to FrameworkErrors.NODE_STANDBY, "status" to 503))
+        val standby = Reply.problem(503, mapOf("code" to FrameworkCodes.NODE_STANDBY, "status" to 503))
         FakePeer().reply(standby).use { a ->
             FakePeer().reply(Reply(200)).use { b ->
                 transport(a.base, b.base).get().assert().isInstanceOf(Answer.Ok::class.java)
@@ -132,7 +132,7 @@ class PeerFailoverTest {
         }
         FakePeer().reply(standby).use { a ->
             // Every node refused: the last refusal is the answer.
-            (transport(a.base).get() as Answer.Problem).problem.code.assert().isEqualTo(FrameworkErrors.NODE_STANDBY)
+            (transport(a.base).get() as Answer.Problem).problem.code.assert().isEqualTo(FrameworkCodes.NODE_STANDBY)
         }
         FakePeer().reply(Reply.problem(503, mapOf("status" to 503))).use { a ->
             FakePeer().reply(Reply(200)).use { b ->

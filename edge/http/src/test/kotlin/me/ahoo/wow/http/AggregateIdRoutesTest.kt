@@ -27,8 +27,6 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * The route of a command whose body names its aggregate (`@AggregateId`): without an id, to the aggregate the body
  * names; the lifecycle commands keep their routes by id.
@@ -53,7 +51,7 @@ class AggregateIdRoutesTest {
 
     /** The cart's Manifest with the shelf as the compiler writes its commands: by no id alone, and the id's property. */
     private val manifest: Manifest = cartManifest().let { manifest ->
-        fun command(name: String, creation: ManifestCreation) = CommandManifest(
+        fun command(name: String, creation: Creation) = CommandManifest(
             name = name,
             schema = Manifest.schemaRef(name),
             creation = creation,
@@ -63,7 +61,7 @@ class AggregateIdRoutesTest {
         val shelf = AggregateManifest(
             name = "shelf",
             state = StateManifest(Manifest.schemaRef("Shelf")),
-            commands = listOf(command("Stock", ManifestCreation.REQUIRED), command("Restock", ManifestCreation.NONE)) +
+            commands = listOf(command("Stock", Creation.REQUIRED), command("Restock", Creation.NONE)) +
                 Lifecycle.COMMANDS.keys.sorted().map { SystemCommands.lifecycle(CONTEXT, "shelf", it) },
         )
         val context = manifest.contexts.single()

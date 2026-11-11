@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.observe.started
@@ -71,7 +71,7 @@ class QueryBulkheadTest {
             val started = TimeSource.Monotonic.markNow()
             val refused = busy { bulkhead.run { "second" } }
             started.elapsedNow().assert().isGreaterThanOrEqualTo(50.milliseconds)
-            refused.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+            refused.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
             refused.store.assert().isEqualTo("main")
             refused.maxConcurrent.assert().isEqualTo(1)
             refused.errorMsg.assert().doesNotContain("main")
@@ -111,7 +111,7 @@ class QueryBulkheadTest {
         val queued = async(Dispatchers.Default) { bulkhead.run { "queued" } }
         while (bulkhead.queued == 0) yield()
         val started = TimeSource.Monotonic.markNow()
-        busy { bulkhead.run { "third" } }.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+        busy { bulkhead.run { "third" } }.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
         started.elapsedNow().assert().isLessThan(1.seconds)
         gate.complete(Unit)
         held.await()
@@ -128,7 +128,7 @@ class QueryBulkheadTest {
             val gate = CompletableDeferred<Unit>()
             val held = hold(bulkhead, gate)
             val started = TimeSource.Monotonic.markNow()
-            busy { bulkhead.run { "second" } }.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+            busy { bulkhead.run { "second" } }.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
             started.elapsedNow().assert().isLessThan(1.seconds)
             gate.complete(Unit)
             held.await()

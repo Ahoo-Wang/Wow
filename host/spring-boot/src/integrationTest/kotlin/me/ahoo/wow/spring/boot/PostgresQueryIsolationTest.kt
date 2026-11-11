@@ -16,8 +16,8 @@ package me.ahoo.wow.spring.boot
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.tck.containers.WowContainers
@@ -236,7 +236,7 @@ class PostgresQueryIsolationTest {
                 .assert().isGreaterThanOrEqualTo(QueryBulkhead.DEFAULT_MAX_WAIT.inWholeMilliseconds)
             answers.filter { it.isDone }.map { it.get() }.forEach { answer ->
                 answer.status.assert().isEqualTo(429)
-                answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
             }
             val started = System.nanoTime()
             val deposited = host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED)

@@ -45,8 +45,6 @@ import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.timer.TimerStore
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /*
  * An example of scheduled commands (decision D166): an order that cancels itself when it is not paid in time. Placing
  * it schedules its own cancellation; paying cancels the schedule; a cancellation that arrives once the order is paid is
@@ -132,10 +130,10 @@ fun shopManifest(): Manifest = Manifest(
                     "order",
                     state = StateManifest(Manifest.schemaRef(OrderState::class.java.name)),
                     commands = listOf(
-                        PlaceOrder::class.java to ManifestCreation.REQUIRED,
-                        PayOrder::class.java to ManifestCreation.NONE,
-                        CancelOrder::class.java to ManifestCreation.NONE,
-                        Remind::class.java to ManifestCreation.NONE,
+                        PlaceOrder::class.java to Creation.REQUIRED,
+                        PayOrder::class.java to Creation.NONE,
+                        CancelOrder::class.java to Creation.NONE,
+                        Remind::class.java to Creation.NONE,
                     ).map { (command, creation) ->
                         CommandManifest(
                             command.simpleName,

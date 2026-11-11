@@ -21,9 +21,9 @@ import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.checkUse
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.wire.CallWires
 import java.io.ByteArrayOutputStream
@@ -92,17 +92,17 @@ internal enum class Exchange(val retries: (PeerProblem) -> Boolean) {
     /** The problem of [request], sent and [failure] before it was answered. */
     fun unanswered(request: PeerRequest, failure: IOException): PeerProblem = when {
         this != QUERY -> PeerProblem.of(
-            FrameworkErrors.COMMAND_UNKNOWN,
+            FrameworkCodes.COMMAND_UNKNOWN,
             "The command sent to ${request.context} was not answered ($failure): whether it committed is unknown.",
             failure,
         )
         failure is HttpTimeoutException -> PeerProblem.of(
-            FrameworkErrors.QUERY_TIMEOUT,
+            FrameworkCodes.QUERY_TIMEOUT,
             "The query sent to ${request.context} was not answered within its timeout.",
             failure,
         )
         else -> PeerProblem.of(
-            FrameworkErrors.PEER_UNAVAILABLE,
+            FrameworkCodes.PEER_UNAVAILABLE,
             "The connection to ${request.context} was lost before it answered ($failure).",
             failure,
         )
@@ -196,7 +196,7 @@ internal class HttpTransport(
                     val wait = retry.delayBefore(attempts, null)
                         ?: return Answer.Problem(
                             PeerProblem.of(
-                                FrameworkErrors.PEER_UNAVAILABLE,
+                                FrameworkCodes.PEER_UNAVAILABLE,
                                 (failure as? NoNodeListed)?.message
                                     ?: "No node of ${request.context} could be reached ($failure).",
                                 failure,

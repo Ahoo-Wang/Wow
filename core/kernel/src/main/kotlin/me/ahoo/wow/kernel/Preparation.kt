@@ -71,7 +71,7 @@ internal class Preparation(
         val version = loaded.version
         val before = if (options.verifyDecidePurity) purityBaseline(state, version) else null
         // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
-        val deciding = DecidingCommand(command.ref, command.requestId)
+        val deciding = DecidingCommand(command.id)
         val decision = observer.deciding(command).observe {
             withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
         }

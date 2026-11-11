@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.migrate.example
 
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionKind

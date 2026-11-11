@@ -41,8 +41,6 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.tenant.TenantPolicy
-import me.ahoo.wow.manifest.Ownership as ManifestOwnership
-
 /**
  * Who each aggregate type belongs to besides its tenant, as the Manifest's
  * [AggregateManifest.ownership] says: [ScopeQueryPolicy] restricts a caller's queries by its owner only for an
@@ -63,7 +61,7 @@ fun interface QueryOwnership {
         @JvmStatic
         fun of(manifest: Manifest): QueryOwnership {
             val tenants = manifest.contexts.flatMap { context ->
-                context.aggregates.filter { it.ownership == ManifestOwnership.TENANT }
+                context.aggregates.filter { it.ownership == Ownership.TENANT }
                     .map { AggregateType(context.name, it.name) }
             }.toSet()
             if (tenants.isEmpty()) {

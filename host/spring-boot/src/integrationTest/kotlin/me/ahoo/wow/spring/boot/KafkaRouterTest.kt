@@ -71,8 +71,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * The topic router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
  * command is still committed): the node that accepts the commands of a type routed through Kafka writes them to the
@@ -251,7 +249,7 @@ class KafkaRouterTest {
                                 CommandManifest(
                                     "Reserve",
                                     schema = Manifest.schemaRef(Reserve::class.java.name),
-                                    creation = ManifestCreation.ALLOWED,
+                                    creation = Creation.ALLOWED,
                                 ),
                             ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(STOCK, "item", it) },
                             events = listOf(

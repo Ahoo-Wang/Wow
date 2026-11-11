@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleJobs
+
 /**
  * The framework's [system][CommandManifest.system] commands as a Manifest lists them, with their routes
  * ([CommandRoutes]): each named by its full system name, its body the schema of [Manifest.defs] keyed by that name.
@@ -23,19 +26,19 @@ package me.ahoo.wow.manifest
  */
 object SystemCommands {
     /** The prefix of the lifecycle commands' names. */
-    const val LIFECYCLE_PREFIX: String = "wow.lifecycle."
+    const val LIFECYCLE_PREFIX: String = Lifecycle.NAMESPACE + "."
 
     /** The lifecycle command routed as `DELETE` of the aggregate ([CommandRoutes.deleteRoute]). */
-    const val DELETE_AGGREGATE: String = "wow.lifecycle.DeleteAggregate"
+    const val DELETE_AGGREGATE: String = Lifecycle.DELETE_AGGREGATE
 
     /** The rebuild of an aggregate type's snapshots, the ids in its body. */
     const val REBUILD: String = "wow.snapshot.Rebuild"
 
-    /** The name of a context's built-in job aggregate, `:api`'s `ScheduleJobs.AGGREGATE`. */
-    internal const val JOB_AGGREGATE: String = "schedule"
+    /** The name of a context's built-in job aggregate. */
+    internal const val JOB_AGGREGATE: String = ScheduleJobs.AGGREGATE
 
     /** The commands of a context's schedule jobs, each to the job its route's id names. */
-    val JOBS: List<String> = listOf("wow.schedule.Enable", "wow.schedule.Reschedule", "wow.schedule.Disable")
+    val JOBS: List<String> = listOf(ScheduleJobs.ENABLE, ScheduleJobs.RESCHEDULE, ScheduleJobs.DISABLE)
 
     /**
      * The lifecycle command [name] (`wow.lifecycle.RestoreAggregate`) of [aggregate] in [context]; of an aggregate

@@ -21,7 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
@@ -64,7 +64,7 @@ class HostQueryIsolationTest {
                 ).forEach { busy ->
                     busy.status.assert().isEqualTo(429)
                     busy.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isEqualTo("1")
-                    busy.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                    busy.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
                 }
                 // The commands do not wait for the queries' permits.
                 host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(200)
@@ -84,7 +84,7 @@ class HostQueryIsolationTest {
                 // No snapshot of it: its log would be replayed, which waits for a permit.
                 val busy = host.get("/bank/account/unknown/state")
                 busy.status.assert().isEqualTo(429)
-                busy.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                busy.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
                 // A snapshot is read without one.
                 host.get("/bank/account/$id/state").status.assert().isEqualTo(200)
                 // A state at a version or a time, and a trace, replay the log too (review R4-Q, Q-1).
@@ -107,7 +107,7 @@ class HostQueryIsolationTest {
             listOf("state?version=2" to "version", "state/trace?from=3" to "from").forEach { (read, parameter) ->
                 val refused = host.get("/bank/account/$id/$read")
                 refused.status.assert().describedAs(read).isEqualTo(400)
-                refused.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+                refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
                 refused.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.REPLAY_TOO_LONG)
                 refused.body!!["violations"][0]["path"].asString().assert().isEqualTo(parameter)
             }
@@ -198,7 +198,7 @@ class HostQueryIsolationTest {
             val id = host.openAccount("pinned")
             val refused = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
             refused.status.assert().isEqualTo(400)
-            refused.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
             refused.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
             host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
                 .status.assert().isEqualTo(200)

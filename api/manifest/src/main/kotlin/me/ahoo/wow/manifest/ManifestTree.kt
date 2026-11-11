@@ -13,7 +13,13 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
+import me.ahoo.wow.api.wire.WireNames
 
 /**
  * The JSON shape of a [Manifest], as a tree of plain values: a JSON object is a `Map<String, Any?>` (insertion
@@ -58,7 +64,7 @@ object ManifestTree {
         "parameters" to route.parameters.map {
             obj(
                 "name" to it.name,
-                "in" to wire(it.location),
+                "in" to WireNames.of(it.location),
                 "schema" to it.schema,
                 "required" to it.required,
             )
@@ -75,7 +81,7 @@ object ManifestTree {
         "name" to command.name,
         "aliases" to command.aliases,
         "schema" to command.schema,
-        "creation" to wire(command.creation),
+        "creation" to WireNames.of(command.creation),
         "produces" to command.produces,
         "routes" to command.routes.map(::writeRoute),
         "mounted" to command.mounted.takeIf { it },
@@ -91,7 +97,7 @@ object ManifestTree {
             "code" to error.code,
             "status" to error.status,
             "description" to error.description,
-            "retry" to error.retry.takeUnless { it == Retry.NONE }?.let(::wire),
+            "retry" to error.retry.takeUnless { it == Retry.NONE }?.let(WireNames::of),
             "retryAfter" to error.retryAfter,
         )
 
@@ -122,11 +128,11 @@ object ManifestTree {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
         "schedules" to aggregate.schedules,
-        "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.let(::wire),
+        "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.let(WireNames::of),
         "retired" to aggregate.retired.ifEmpty { null },
-        "idSource" to aggregate.idSource.takeIf { it != AggregateIdSource.ASSIGNED }?.let(::wire),
+        "idSource" to aggregate.idSource.takeIf { it != AggregateIdSource.ASSIGNED }?.let(WireNames::of),
         "access" to aggregate.access.ifEmpty { null }?.map {
-            obj("name" to it.name, "type" to wire(it.type), "multiple" to it.multiple.takeIf { multiple -> multiple })
+            obj("name" to it.name, "type" to WireNames.of(it.type), "multiple" to it.multiple.takeIf { multiple -> multiple })
         },
     )
 
@@ -135,7 +141,7 @@ object ManifestTree {
 
     private fun writeSubscription(subscription: SubscriptionManifest): Map<String, Any?> = obj(
         "name" to subscription.name,
-        "kind" to wire(subscription.kind),
+        "kind" to WireNames.of(subscription.kind),
         "source" to obj(
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
@@ -144,7 +150,7 @@ object ManifestTree {
             "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
-            "kind" to wire(subscription.function.kind),
+            "kind" to WireNames.of(subscription.function.kind),
             "context" to subscription.function.context,
             "processor" to subscription.function.processor,
             "name" to subscription.function.name,
@@ -153,7 +159,7 @@ object ManifestTree {
         "rejected" to subscription.rejected,
         "committed" to subscription.committed,
         "calls" to subscription.calls,
-        "start" to subscription.start?.let(::wire),
+        "start" to subscription.start?.let(WireNames::of),
         "schedules" to subscription.schedules,
         "retry" to subscription.retry?.let {
             obj(
@@ -172,17 +178,11 @@ object ManifestTree {
                 "name" to it.name,
                 "cron" to it.cron,
                 "zone" to it.zone,
-                "scope" to it.scope,
-                "misfire" to it.misfire,
+                "scope" to WireNames.of(it.scope),
+                "misfire" to WireNames.of(it.misfire),
             )
         },
     )
-
-    /**
-     * The wire name of [value], an enumeration of the format: lower-kebab, `BEGINNING` is
-     * `beginning`, as Wow writes every enumeration of its own; a reader takes this name alone.
-     */
-    fun wire(value: Enum<*>): String = value.name.lowercase().replace('_', '-')
 
     /** A JSON object of the non-null [entries], in their order. */
     private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> =
@@ -195,10 +195,10 @@ object ManifestTree {
      *
      * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
      * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership`, `idSource` or access
-     * attribute `type`, a subscription of an unknown `kind`, function `kind` or `start`. Each of them decides behaviour
-     * (how a command routes, whom an aggregate is scoped to and who may see it, how a subscription runs), so a reader
-     * never guesses it: it reads what it understands and leaves out what it does not. No enumeration of the format is
-     * merely descriptive.
+     * attribute `type`, a subscription of an unknown `kind`, function `kind` (a built-in one too), `start`, or job
+     * `scope` or `misfire`. Each of them decides behaviour (how a command routes, whom an aggregate is scoped to and
+     * who may see it, how a subscription runs), so a reader never guesses it: it reads what it understands and leaves
+     * out what it does not. No enumeration of the format is merely descriptive.
      */
     fun read(tree: Map<*, *>, warn: (String) -> Unit = {}): Manifest {
         val root = Node(tree, "manifest", warn)
@@ -378,12 +378,13 @@ object ManifestTree {
         val source = node.obj("source")
         val function = node.obj("function")
         val kind = node.enum("kind", SubscriptionKind.entries)
-        val functionKind = function.enum("kind", FunctionKind.entries)
+        val functionKind = function.enum("kind", FunctionManifest.KINDS)
         val start = node.enumOrNull("start", SubscriptionStart.entries)
         val unknownStart = node.has("start") && start == null
         if (kind == null || functionKind == null || unknownStart) {
             return node.leftOut()
         }
+        val job = node.objOrNull("job")?.let { readJob(it) ?: return node.leftOut() }
         return SubscriptionManifest(
             name = node.string("name"),
             kind = kind,
@@ -407,15 +408,21 @@ object ManifestTree {
             start = start,
             schedules = node.stringsOrNull("schedules"),
             retry = node.objOrNull("retry")?.let(::readRetry),
-            job = node.objOrNull("job")?.let {
-                JobManifest(
-                    name = it.string("name"),
-                    cron = it.string("cron"),
-                    zone = it.stringOrNull("zone") ?: "UTC",
-                    scope = it.stringOrNull("scope") ?: JobManifest.SYSTEM,
-                    misfire = it.stringOrNull("misfire") ?: JobManifest.COALESCE,
-                )
-            },
+            job = job,
+        )
+    }
+
+    /** The job of [node], or null, told, when its `scope` or `misfire` has a value this reader does not know. */
+    private fun readJob(node: Node): JobManifest? {
+        val scope = if (node.has("scope")) node.enum("scope", JobScope.entries) ?: return null else JobScope.SYSTEM
+        val misfire =
+            if (node.has("misfire")) node.enum("misfire", Misfire.entries) ?: return null else Misfire.COALESCE
+        return JobManifest(
+            name = node.string("name"),
+            cron = node.string("cron"),
+            zone = node.stringOrNull("zone") ?: "UTC",
+            scope = scope,
+            misfire = misfire,
         )
     }
 
@@ -437,7 +444,7 @@ object ManifestTree {
             stringOrNull(field)?.let { known(field, it, entries) }
 
         private fun <E : Enum<E>> known(field: String, value: String, entries: List<E>): E? =
-            entries.firstOrNull { wire(it) == value }
+            entries.firstOrNull { WireNames.of(it) == value }
                 ?: null.also { warn("$path.$field: $value is unknown to this reader, which reads it leniently.") }
 
         /** The string list [field], or null when it is absent. */

@@ -25,12 +25,12 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.FailureClassification
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
@@ -236,7 +236,7 @@ class HttpCommandCallerTest {
         val caller = HttpCommandCaller(discovered, SERVICE, HttpCommandCaller.client(), 5.seconds, contracts = MAIL)
         caller.reaches("mail").assert().isTrue()
         val outage = caught<WowProblemException> { runBlocking { caller.call(call()) } }
-        outage.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        outage.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
         outage.message.assert().contains("The lookup of mail lists no node on its internal port now.")
         // Systemic: the subscription waits for the peer to come back rather than parking the aggregate.
         FailureClassification.DEFAULT.classify(outage, null).assert().isEqualTo(FailureClass.SYSTEMIC)

@@ -18,6 +18,7 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.sdk.trace.data.SpanData
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.memory.InMemoryTopics
@@ -37,8 +38,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
-import me.ahoo.wow.manifest.FunctionKind as ManifestFunctionKind
-
 /**
  * The trace of one HTTP request across two services over in-memory topics (decision D174; roadmap 6.9's exit): the
  * request's span → the sales admission → its execution, decision and append → the order saga's handling of the
@@ -69,7 +68,7 @@ class TraceChainTest {
                             name = SAGA,
                             kind = SubscriptionKind.SAGA,
                             source = SubscriptionSource(SALES, listOf("order")),
-                            function = FunctionManifest(ManifestFunctionKind.SAGA, SALES, "OrderSaga", "onOrderPlaced"),
+                            function = FunctionManifest(FunctionKind.SAGA, SALES, "OrderSaga", "onOrderPlaced"),
                             derives = listOf(Manifest.schemaRef(Reserve::class.java.name)),
                         ),
                     ),

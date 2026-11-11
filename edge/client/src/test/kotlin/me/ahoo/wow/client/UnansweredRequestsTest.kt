@@ -24,7 +24,7 @@ import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.call.OutgoingCall
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -69,7 +69,7 @@ class UnansweredRequestsTest {
     fun `a command cut on every attempt should fail as unknown once the policy's attempts are spent`() {
         peer.reply(cut)
         caught<WowProblemException> { runBlocking { client(attempts = 2).commands.wait(deliver()) } }
-            .code.assert().isEqualTo(FrameworkErrors.COMMAND_UNKNOWN)
+            .code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
         peer.taken.assert().hasSize(2)
     }
 
@@ -108,7 +108,7 @@ class UnansweredRequestsTest {
             causation = Causation("root", "root"),
         )
         caught<WowProblemException> { runBlocking { caller.call(OutgoingCall("mail.box.DeliverItems", command)) } }
-            .code.assert().isEqualTo(FrameworkErrors.COMMAND_UNKNOWN)
+            .code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
         peer.taken.assert().hasSize(1)
     }
 }

@@ -13,7 +13,13 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
+import me.ahoo.wow.api.wire.WireNames
 
 /**
  * The JSON Schema 2020-12 of the Manifest format ([Manifest.FORMAT]): every object [ManifestTree] writes, with its keys,
@@ -211,7 +217,7 @@ object ManifestSchema {
             FUNCTION to objectOf(
                 "The handler function of a subscription.",
                 listOf("kind", "context", "processor", "name"),
-                "kind" to enumOf(FunctionKind.entries),
+                "kind" to enumOf(FunctionManifest.KINDS),
                 "context" to string(),
                 "processor" to string(),
                 "name" to string(),
@@ -234,8 +240,8 @@ object ManifestSchema {
                 "name" to string(),
                 "cron" to string(),
                 "zone" to string(),
-                "scope" to values(JobManifest.SCOPES, "Who the job runs for."),
-                "misfire" to values(JobManifest.MISFIRES, "What the job does with the slots it missed."),
+                "scope" to enumOf(JobScope.entries, "Who the job runs for."),
+                "misfire" to enumOf(Misfire.entries, "What the job does with the slots it missed."),
             ),
         ),
     )
@@ -284,7 +290,7 @@ object ManifestSchema {
     private fun strings(description: String? = null) = array(obj("type" to "string"), description)
 
     private fun enumOf(entries: List<Enum<*>>, description: String? = null) =
-        values(entries.map(ManifestTree::wire), description)
+        values(entries.map(WireNames::of), description)
 
     private fun values(values: List<String>, description: String? = null) =
         obj("type" to "string", "enum" to values, "description" to description)

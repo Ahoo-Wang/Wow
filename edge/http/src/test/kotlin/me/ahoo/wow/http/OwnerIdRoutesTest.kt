@@ -32,9 +32,6 @@ import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import me.ahoo.wow.api.lifecycle.Lifecycle as Lifecycles
-import me.ahoo.wow.manifest.AggregateIdSource as ManifestIdSource
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * The routes of an aggregate whose id is its owner's: each command also without an id, the caller's own, and its
  * state read by no id too.
@@ -60,7 +57,7 @@ class OwnerIdRoutesTest {
 
     /** The cart's Manifest with the basket as the compiler writes an aggregate whose id is its owner's. */
     private val manifest: Manifest = cartManifest().let { manifest ->
-        fun command(name: String, creation: ManifestCreation) = CommandManifest(
+        fun command(name: String, creation: Creation) = CommandManifest(
             name = name,
             schema = Manifest.schemaRef(name),
             creation = creation,
@@ -69,11 +66,11 @@ class OwnerIdRoutesTest {
         val basket = AggregateManifest(
             name = "basket",
             state = StateManifest(Manifest.schemaRef("Basket")),
-            commands = listOf(command("OpenBasket", ManifestCreation.REQUIRED), command("PutItem", ManifestCreation.NONE)) +
+            commands = listOf(command("OpenBasket", Creation.REQUIRED), command("PutItem", Creation.NONE)) +
                 Lifecycles.COMMANDS.filterValues { it != TransferOwner::class.java }.keys.sorted().map {
                     SystemCommands.lifecycle(CONTEXT, "basket", it, owned = true)
                 },
-            idSource = ManifestIdSource.OWNER,
+            idSource = AggregateIdSource.OWNER,
         )
         val context = manifest.contexts.single()
         manifest.copyWith(contexts = listOf(context.copyWith(aggregates = context.aggregates + basket)))

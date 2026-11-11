@@ -36,6 +36,7 @@ import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -121,7 +122,7 @@ class DatasetReferenceActionsTest {
         )
         DatasetReferenceActions.statusOf(manifest, "crm.top").assert().isEqualTo(409)
         DatasetReferenceActions.statusOf(manifest, "crm.member.gone").assert().isEqualTo(410)
-        DatasetReferenceActions.statusOf(manifest, FrameworkErrors.AUTH_FORBIDDEN).assert().isEqualTo(403)
+        DatasetReferenceActions.statusOf(manifest, FrameworkCodes.AUTH_FORBIDDEN).assert().isEqualTo(403)
         DatasetReferenceActions.statusOf(manifest, "crm.member.suspended")
             .assert().isEqualTo(FrameworkErrors.DOMAIN_REJECTION_STATUS)
     }
@@ -158,7 +159,7 @@ class DatasetReferenceActionsTest {
                     .send("shop.invoices", "member", "m-1", "Bare", WowJson.mapper.createObjectNode(), caller, mockk())
             }
         }.actual()
-        refusal.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+        refusal.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test

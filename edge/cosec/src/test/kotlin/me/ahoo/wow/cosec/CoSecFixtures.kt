@@ -84,8 +84,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.api.decide.Decision as WowDecision
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 const val CONTEXT = "shop"
 
 data class OpenCart(val note: String = "")
@@ -108,7 +106,7 @@ val cartModel = aggregate<Cart>(CONTEXT, "cart") {
 
 /** The Manifest of [cartModel] as the compiler writes it: its commands, `DeleteAggregate`, its rebuild, and jobs. */
 fun cartManifest(): Manifest {
-    fun command(name: String, creation: ManifestCreation) = CommandManifest(
+    fun command(name: String, creation: Creation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
         creation = creation,
@@ -124,8 +122,8 @@ fun cartManifest(): Manifest {
                         name = "cart",
                         state = StateManifest(Manifest.schemaRef("Cart")),
                         commands = listOf(
-                            command("AddItem", ManifestCreation.NONE),
-                            command("OpenCart", ManifestCreation.REQUIRED),
+                            command("AddItem", Creation.NONE),
+                            command("OpenCart", Creation.REQUIRED),
                             SystemCommands.lifecycle(CONTEXT, "cart", SystemCommands.DELETE_AGGREGATE),
                             SystemCommands.rebuild(CONTEXT, "cart"),
                         ),

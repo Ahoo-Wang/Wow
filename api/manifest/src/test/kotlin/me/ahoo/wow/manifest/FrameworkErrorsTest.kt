@@ -15,6 +15,7 @@ package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -76,13 +77,14 @@ class FrameworkErrorsTest {
     }
 
     @Test
-    fun `every code should be once in the table, with a description and the framework's prefix`() {
+    fun `every framework code should be once in the table, with a description and the framework's prefix`() {
         FrameworkErrors.BY_CODE.size.assert().isEqualTo(FrameworkErrors.ALL.size)
+        FrameworkErrors.BY_CODE.keys.assert().isEqualTo(FrameworkCodes.ALL)
         FrameworkErrors.ALL.forEach {
-            it.code.assert().startsWith(FrameworkErrors.PREFIX)
+            it.code.assert().startsWith(FrameworkCodes.PREFIX)
             it.description.assert().isNotBlank()
         }
-        FrameworkErrors.BY_CODE[FrameworkErrors.AGGREGATE_VERSION_MISMATCH]?.description.assert().contains("412")
+        FrameworkErrors.BY_CODE[FrameworkCodes.AGGREGATE_VERSION_MISMATCH]?.description.assert().contains("412")
     }
 
     @Test
@@ -145,7 +147,7 @@ class FrameworkErrorsTest {
     fun `the snapshot the TypeScript client and the reference generate from should be this catalog`() {
         val json = jacksonObjectMapper()
         fun text(value: String) = json.writeValueAsString(value)
-        val constants = FrameworkErrors::class.java.declaredFields
+        val constants = FrameworkCodes::class.java.declaredFields
             .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
             .associate {
                 it.isAccessible = true

@@ -16,7 +16,6 @@ import { join, relative } from 'node:path';
 import postcss from 'postcss';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { stylesSource } from '../scripts/styles.mjs';
 
 /**
  * Every region the engine scrolls is the containing block of what it holds.
@@ -127,7 +126,7 @@ describe('every scroller is the containing block of what it holds', () => {
   });
 
   it('in a rule of styles.css', () => {
-    const root = postcss.parse(stylesSource());
+    const root = postcss.parse(readFileSync(join(SRC, 'styles.css'), 'utf8'));
     const unplaced: string[] = [];
     root.walkRules(rule => {
       const scrolls = rule.nodes.some(
@@ -151,7 +150,10 @@ describe('every scroller is the containing block of what it holds', () => {
     // An exception whose string is gone, or now placed itself, is a stale
     // line in the list: it would quietly cover the next scroller of that
     // name.
-    const css = stylesSource().replace(/\s+/g, ' ');
+    const css = readFileSync(join(SRC, 'styles.css'), 'utf8').replace(
+      /\s+/g,
+      ' ',
+    );
     for (const [selector, by] of Object.entries(CSS_PLACED_ELSEWHERE)) {
       expect(css).toContain(`${selector} {`);
       expect(css).toContain(`${by} {`);

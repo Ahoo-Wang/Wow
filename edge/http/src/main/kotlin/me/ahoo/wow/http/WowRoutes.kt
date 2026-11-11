@@ -18,9 +18,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
@@ -39,12 +42,9 @@ import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.http.route.ServiceRouteHandling
 import me.ahoo.wow.http.route.ServiceRoutes
-import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
@@ -522,7 +522,7 @@ private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse):
     problem.problem.respond()
 } catch (unavailable: StorageUnavailableException) {
     logger.warn(unavailable) { "A request failed: a store is unavailable." }
-    problemOf(FrameworkErrors.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
+    problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (failure: Exception) {

@@ -63,8 +63,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * A context whose aggregates are in two log groups (decision D177): its orders on the default store, its invoices on a
  * store of their own. Each group has its own partition sequences, checkpoints, parked entries and timers; the owner of
@@ -395,7 +393,7 @@ class LogGroupsTest {
         fun aggregateManifest(name: String, create: Class<*>, created: Class<*>): AggregateManifest = AggregateManifest(
             name,
             state = StateManifest(Manifest.schemaRef(Item::class.java.name)),
-            commands = listOf(create to ManifestCreation.REQUIRED, Close::class.java to ManifestCreation.NONE)
+            commands = listOf(create to Creation.REQUIRED, Close::class.java to Creation.NONE)
                 .map { (command, creation) ->
                     CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
                 } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(CONTEXT, name, it) },

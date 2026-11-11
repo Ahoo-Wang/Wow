@@ -131,7 +131,7 @@ class ProblemTest {
         val statuses = ErrorStatuses(cartManifest())
         val extensions = mapOf("rejectedCode" to FrameworkCodes.COMMAND_BUSY)
         val problem =
-            statuses.problemOf(result(ErrorInfo(FrameworkErrors.COMMAND_FAILED, "Refused.", extensions = extensions)))
+            statuses.problemOf(result(ErrorInfo(FrameworkCodes.COMMAND_FAILED, "Refused.", extensions = extensions)))
         problem.status.assert().isEqualTo(500)
         problem.title.assert().isEqualTo("Command failed")
         problem.detail.assert().isEqualTo("Refused.")
@@ -178,7 +178,7 @@ class ProblemTest {
             problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.toLong())
         }
         // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
-        statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").retryAfter.assert().isNull()
-        statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").status.assert().isEqualTo(504)
+        statuses.problemOf(FrameworkCodes.QUERY_TIMEOUT, "Too long.").retryAfter.assert().isNull()
+        statuses.problemOf(FrameworkCodes.QUERY_TIMEOUT, "Too long.").status.assert().isEqualTo(504)
     }
 }

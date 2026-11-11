@@ -14,12 +14,12 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.RouteManifest

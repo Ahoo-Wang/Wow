@@ -727,7 +727,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: ${{ matrix.helm }}
       - name: Install helm-unittest and kubeconform
@@ -764,7 +764,7 @@ jobs:
           ./gradlew --stacktrace :eshop-catalog-server:installDist
           docker build -q -f deploy/eshop-catalog/Dockerfile -t wow-eshop-catalog-server:local \
             examples/eshop/catalog/catalog-server
-      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v4.3.1
       - name: Create the kind cluster

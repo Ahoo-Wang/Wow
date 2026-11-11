@@ -29,7 +29,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
@@ -158,7 +157,7 @@ class SubscriptionRoutesTest {
         val answer = read()
         answer.status.assert().isEqualTo(503)
         answer.contentType.assert().contains("problem+json")
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
         answer.headers.getFirst("Retry-After").assert().isEqualTo("1")
     }
 

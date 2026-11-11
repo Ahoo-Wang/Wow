@@ -23,11 +23,11 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.kernel.FailureClassification
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
@@ -141,7 +141,7 @@ class HostCallsTest {
         val outage = assertThrows<WowProblemException> {
             runBlocking { caller.call(OutgoingCall("bank.account.OpenAccount", command)) }
         }
-        outage.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        outage.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
         // An outage the saga's subscription waits out, not a mistake that parks its aggregate.
         FailureClassification.DEFAULT.classify(outage, null).assert().isEqualTo(FailureClass.SYSTEMIC)
         heard.assert().containsExactly("bank-service")

@@ -50,9 +50,9 @@ import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantSnapshotQueries
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.CLASS_KEYWORD
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -134,7 +134,7 @@ class HttpQueryApi internal constructor(
                 is Answer.Ok -> row(tree(answer.value) as ObjectNode)
                 // Only a query that matched nothing is no row; a 404 of another code (a dataset or a route that
                 // does not exist, a context this peer does not serve) is a mistake the caller must hear of.
-                is Answer.Problem -> if (answer.problem.isNotFound(FrameworkErrors.QUERY_NOT_FOUND)) {
+                is Answer.Problem -> if (answer.problem.isNotFound(FrameworkCodes.QUERY_NOT_FOUND)) {
                     null
                 } else {
                     throw answer.problem.exception(what())
@@ -233,7 +233,7 @@ class HttpQueryApi internal constructor(
 
             /** A stream that lost its connection, [failure], as the transport answers one: `wow.peer.unavailable`. */
             private fun lost(detail: String, failure: IOException): Stop {
-                val problem = PeerProblem.of(FrameworkErrors.PEER_UNAVAILABLE, detail, failure)
+                val problem = PeerProblem.of(FrameworkCodes.PEER_UNAVAILABLE, detail, failure)
                 return Stop(problem.exception(what()), problem.retryAfter)
             }
 
@@ -360,7 +360,7 @@ class HttpQueryApi internal constructor(
             val view = when (val answer = transport.exchange(request, Exchange.QUERY)) {
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
-                    answer.problem.isNotFound(FrameworkErrors.AGGREGATE_NOT_FOUND) -> return null
+                    answer.problem.isNotFound(FrameworkCodes.AGGREGATE_NOT_FOUND) -> return null
                     minVersion != null && answer.problem.code == MinVersionNotReachedException.CODE ->
                         throw MinVersionNotReachedException(ref, minVersion, answer.problem.version ?: 0)
                     else -> throw answer.problem.exception("The state of $ref")

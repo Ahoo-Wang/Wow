@@ -56,7 +56,6 @@ import {
 import { checkTheme } from '../theme-check/check';
 import { registryData } from '../theme-check/registry';
 import { RESOLVER } from './fixtures/themeTokens';
-import { stylesSource } from '../scripts/styles.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 const REPOSITORY = join(ROOT, '../..');
@@ -99,7 +98,11 @@ const PRESET = new Set(ENTRIES.flatMap(presetVariables));
 
 /** The engine's own variables, as the stylesheet declares them. */
 const PRIVATE = new Set(
-  [...stylesSource().matchAll(/(--_fve-[\w-]+)\s*:/g)].map(([, name]) => name),
+  [
+    ...readFileSync(join(ROOT, 'src/styles.css'), 'utf8').matchAll(
+      /(--_fve-[\w-]+)\s*:/g,
+    ),
+  ].map(([, name]) => name),
 );
 
 /** The stylesheets the package exports, as a host imports them. */

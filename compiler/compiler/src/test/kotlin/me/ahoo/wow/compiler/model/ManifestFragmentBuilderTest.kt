@@ -16,6 +16,8 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.compiler.model.ManifestFragmentFixtures.cart
 import me.ahoo.wow.compiler.model.ManifestFragmentFixtures.context
 import me.ahoo.wow.compiler.model.ManifestFragmentFixtures.fragments
@@ -23,9 +25,7 @@ import me.ahoo.wow.compiler.model.ManifestFragmentFixtures.read
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.EventManifest
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef

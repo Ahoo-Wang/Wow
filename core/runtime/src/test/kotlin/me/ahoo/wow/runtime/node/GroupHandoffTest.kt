@@ -50,8 +50,6 @@ import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import kotlin.time.Duration.Companion.milliseconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * The hand-off of a partition in two log groups stops the two groups' subscription runtimes at once: each drains its
  * entries in flight within the subscriptions' stop timeout, so the partition's hand-off takes one stop timeout, not one
@@ -165,7 +163,7 @@ class GroupHandoffTest {
                 CommandManifest(
                     create.simpleName,
                     schema = Manifest.schemaRef(create.name),
-                    creation = ManifestCreation.REQUIRED,
+                    creation = Creation.REQUIRED,
                 ),
             ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(CONTEXT, name, it) },
             events = listOf(EventManifest(created.simpleName, schema = Manifest.schemaRef(created.name))),

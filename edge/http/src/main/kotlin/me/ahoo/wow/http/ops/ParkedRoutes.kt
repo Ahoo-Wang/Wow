@@ -34,7 +34,6 @@ import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -477,7 +476,7 @@ internal suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse)
     problem.problem.respond()
 } catch (unavailable: StorageUnavailableException) {
     logger.warn(unavailable) { "An operator's request failed: a store is unavailable." }
-    problemOf(FrameworkErrors.STORAGE_UNAVAILABLE, unavailable.message ?: "A store is unavailable.").respond()
+    problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, unavailable.message ?: "A store is unavailable.").respond()
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (failure: Exception) {

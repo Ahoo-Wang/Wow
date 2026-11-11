@@ -19,13 +19,13 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -101,7 +101,7 @@ class PaymentServerTest {
         val invalid = assertThrows<CommandRejectedException> {
             runBlocking { server.commands(Caller.ANONYMOUS).wait(nothing, "order-free") }
         }
-        invalid.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        invalid.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         invalid.result.error!!.violations.single().let {
             it.path.assert().isEqualTo("amount")
             it.code.assert().isEqualTo("positive")

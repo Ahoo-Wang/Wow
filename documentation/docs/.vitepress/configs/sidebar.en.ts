@@ -156,7 +156,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Spring Cloud Discovery', link: 'spring-cloud'},
                 {text: 'Health, Metrics and Tracing', link: 'observability'},
                 {text: 'Scaling and Capacity', link: 'scaling'},
-                {text: 'Performance', link: 'performance'},
                 {text: 'Elasticsearch', link: 'elasticsearch'},
                 {text: 'Backup and Recovery', link: 'backup'},
                 {text: 'Rebuild and Replay', link: 'replay'},

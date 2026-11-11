@@ -16,11 +16,11 @@ package me.ahoo.wow.runtime.subscription
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.UnreadableEventException
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
@@ -146,17 +146,17 @@ class FailureClassificationTest {
         listOf(
             CommandBusyException(cart("x"), "c-1", "busy"),
             IllegalStateException("The query was not admitted.", StorageBusyException("The store is busy.")),
-            problem(FrameworkErrors.COMMAND_BUSY, 429, 1.seconds),
-            problem(FrameworkErrors.WAIT_TIMEOUT, 504),
-            problem(FrameworkErrors.QUERY_BUSY, 429),
+            problem(FrameworkCodes.COMMAND_BUSY, 429, 1.seconds),
+            problem(FrameworkCodes.WAIT_TIMEOUT, 504),
+            problem(FrameworkCodes.QUERY_BUSY, 429),
             problem("shop.quota.exceeded", 429, 2.seconds),
-            IllegalStateException("The saga failed.", problem(FrameworkErrors.WAIT_TIMEOUT, 504)),
+            IllegalStateException("The saga failed.", problem(FrameworkCodes.WAIT_TIMEOUT, 504)),
         ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.BACKPRESSURE) }
-        classification.classify(problem(FrameworkErrors.STORAGE_UNAVAILABLE, 503, 1.seconds), null).assert()
+        classification.classify(problem(FrameworkCodes.STORAGE_UNAVAILABLE, 503, 1.seconds), null).assert()
             .isEqualTo(FailureClass.SYSTEMIC)
         // A 429 without a Retry-After, or another code, is the aggregate's own.
         classification.classify(problem("shop.quota.exceeded", 429), null).assert().isEqualTo(FailureClass.RECOVERABLE)
-        classification.classify(problem(FrameworkErrors.COMMAND_CONTENDED, 409), null).assert()
+        classification.classify(problem(FrameworkCodes.COMMAND_CONTENDED, 409), null).assert()
             .isEqualTo(FailureClass.RECOVERABLE)
         FailureClassification.retryAfterOf(IllegalStateException("x", problem("shop.quota", 429, 2.seconds))).assert()
             .isEqualTo(2.seconds)

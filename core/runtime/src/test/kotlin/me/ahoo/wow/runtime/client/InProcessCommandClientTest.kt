@@ -218,13 +218,12 @@ class InProcessCommandClientTest {
     }
 
     @Test
-    fun `a command sent while deciding takes a request id derived from the deciding request`(): Unit = runBlocking {
-        val deciding = AggregateType(CONTEXT, "order").ref(TENANT, "o-1")
-        withContext(DecidingCommand(deciding, "r-deciding")) {
+    fun `a command sent while deciding takes a request id derived from the deciding command`(): Unit = runBlocking {
+        withContext(DecidingCommand("deciding")) {
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", wait = WaitPlan.COMMITTED))
-            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf(deciding, "r-deciding", 0))
+            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf("deciding", 0))
             client.stream(CommandRequest.of(AddItem("plum"), "c-8", wait = WaitPlan.COMMITTED)).toList()
-            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf(deciding, "r-deciding", 1))
+            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf("deciding", 1))
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = "own"))
             commands.last().requestId.assert().isEqualTo("own")
         }

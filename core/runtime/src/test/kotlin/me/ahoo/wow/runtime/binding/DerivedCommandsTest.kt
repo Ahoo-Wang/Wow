@@ -26,7 +26,6 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
@@ -114,7 +113,7 @@ class DerivedCommandsTest {
         )
         unknown.cause!!.message.assert().isEqualTo("The log is gone.")
         // With its code, so the subscription tells backpressure from a failure (decision D263).
-        (unknown as WowProblemException).code.assert().isEqualTo(FrameworkErrors.COMMAND_UNKNOWN)
+        (unknown as WowProblemException).code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
         unknown.retryable.assert().isTrue()
         answer = AppendOutcome.Conflict(5)
         runCatching { derived.execute(listOf(command("c-3", AddItems(listOf("pear")))), null) }.exceptionOrNull()!!

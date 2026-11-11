@@ -185,11 +185,10 @@ class ProcessorSpecTest {
             expectScheduled("remind", Remind("order-1"))
             schedules.single().id.assert()
                 .isEqualTo(
-                    ExecutionSagaContext.scheduleId(
+                    ExecutionSagaContext.derivedId(
                         ExecutionId("OrderSaga.onOrder", order, 3),
                         order,
                         me.ahoo.wow.api.schedule.SetSchedule::class.java,
-                        "remind",
                     ),
                 )
             expectNoError()

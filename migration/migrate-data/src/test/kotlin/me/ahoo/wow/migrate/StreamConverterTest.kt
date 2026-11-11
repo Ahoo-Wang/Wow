@@ -15,11 +15,11 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson

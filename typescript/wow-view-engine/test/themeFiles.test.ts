@@ -50,10 +50,10 @@ import {
   THEME_PAGES,
   renderThemePage,
   renderStyles,
-  RESET_PART,
   ROOT,
 } from './fixtures/themeDocs';
-import { stylesSource } from '../scripts/styles.mjs';
+
+const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
 
 const ENTRIES: readonly TokenEntry[] = TOKENS;
 
@@ -67,7 +67,7 @@ const LINKS = new Map(
 /** The token blocks of `styles.css`, as each declares its tokens. */
 function tokenBlocks(): Record<'light' | 'dark', Map<string, string>> {
   const blocks = { light: new Map<string, string>(), dark: new Map() };
-  postcss.parse(stylesSource()).walkRules(rule => {
+  postcss.parse(read('src/styles.css')).walkRules(rule => {
     if (rule.parent?.type === 'atrule' && rule.parent.params === 'print')
       return;
     const selector = rule.selector.replace(/\s+/g, ' ');
@@ -117,7 +117,7 @@ describe('the registry is the contract', () => {
     // cannot own. The one the stylesheet sets is on paper, where the chart
     // patterns are pinned on over any host's pin.
     const written: string[] = [];
-    postcss.parse(stylesSource()).walkDecls(/^--fve-/, decl => {
+    postcss.parse(read('src/styles.css')).walkDecls(/^--fve-/, decl => {
       const media = decl.parent?.parent;
       if (!(media?.type === 'atrule' && media.params === 'print'))
         written.push(decl.prop);
@@ -190,7 +190,7 @@ describe('the registry is the contract', () => {
     // recommends. A preset variable read on its own would let a preset beat
     // the host.
     const alone: string[] = [];
-    postcss.parse(stylesSource()).walkDecls(decl => {
+    postcss.parse(read('src/styles.css')).walkDecls(decl => {
       const value = decl.value
         .replace(/\s+/g, ' ')
         .replace(/\(\s+/g, '(')
@@ -219,7 +219,7 @@ describe('the registry is the contract', () => {
     // `--_fve-link-<role>` per link — the token it names, at the share the
     // link token gives, over `transparent` — and nothing else.
     const rule = new Map<string, string>();
-    postcss.parse(stylesSource()).walkRules(node => {
+    postcss.parse(read('src/styles.css')).walkRules(node => {
       if (node.selector !== ':where(.fve-root, .fve-tokens)') return;
       if (node.parent?.type === 'atrule') return;
       node.walkDecls(/^--_fve-link-/, decl => {
@@ -356,7 +356,9 @@ describe("the engine's own variables", () => {
 describe('the reset rule', () => {
   // Regenerate with `pnpm --filter @ahoo-wang/wow-view-engine theme:docs`.
   it("empties the registry's preset layer, as the stylesheet writes it", async () => {
-    await expect(await renderStyles()).toMatchFileSnapshot(RESET_PART);
+    await expect(await renderStyles()).toMatchFileSnapshot(
+      join(ROOT, 'src', 'styles.css'),
+    );
   });
 });
 

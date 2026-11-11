@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.migrate
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.node.ObjectNode
 
