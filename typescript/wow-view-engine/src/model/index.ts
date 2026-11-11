@@ -17,6 +17,7 @@
  * this layer describes the first two and depends on nothing else.
  */
 export * from './analysis.js';
+export * from './cartesian.js';
 export * from './chart.js';
 export * from './config.js';
 // By name: the readings are the kernels' and the UI's, read from the file.

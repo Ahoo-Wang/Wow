@@ -992,7 +992,7 @@
   - **提示框**写上一期的值和较之的变化（`较上一期 +12.3%`），变化的读法与指标卡的「较前一期」同一套（`BucketChange`）。
   - **范围**：filter 对日期字段的条件不在顶层「且」里时，Wow 拒绝这条查询（`PREVIOUS_UNSHIFTABLE`，措辞已有），视图在结果处说原因；分析的范围编辑器写出的条件本来就在顶层。
   - **指标卡**：首发后指标卡的「较前一期」本就在同一份结果里读紧挨着的上一桶，不发第二条查询，保持不变。整段对比的另一半——「较去年同期」——在图表之后另做：读最后一期的 `PREVIOUS(YEAR)`（已做，放在走势上而不是 `compare` 上，见 D90）。
-- **落点**：`src/model/chart.ts`（`DERIVED_KINDS`）、`src/analysis/serverLines.ts`、`src/analysis/derived.ts`（`unsupported`）、`src/ui/charts/cartesianTooltip.ts`、`src/ui/charts/cartesianMarks.ts`、措辞；[kernels.md](kernels.md)「算出的线」。
+- **落点**：`src/model/cartesian.ts`（`DERIVED_KINDS`）、`src/analysis/serverLines.ts`、`src/analysis/derived.ts`（`unsupported`）、`src/ui/charts/cartesianTooltip.ts`、`src/ui/charts/cartesianMarks.ts`、措辞；[kernels.md](kernels.md)「算出的线」。
 
 ## D89 组内 TopN：「每个〈外层维度〉只留前 N 个」，由 Wow 的 RANK 算（2026-10-11）
 

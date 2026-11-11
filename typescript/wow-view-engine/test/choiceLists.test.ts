@@ -20,7 +20,7 @@ import type {
   DerivedKind,
   REFERENCE_STATISTICS,
   ReferenceStatistic,
-} from '../src/model/chart.js';
+} from '../src/model/cartesian.js';
 import type {
   FIELD_METRIC_TYPES,
   FieldMetricType,
