@@ -347,7 +347,8 @@ class FilterDsl internal constructor(
     /** `EARLIER_DAYS`: before the last [days] days. */
     fun String.earlierDays(days: Int, timeZone: ZoneId? = null) = add(EarlierDaysFilter(at(), days, timeZone?.id))
 
-    fun QueryField<*>.earlierDays(days: Int, timeZone: ZoneId? = null) = add(EarlierDaysFilter(at(), days, timeZone?.id))
+    fun QueryField<*>.earlierDays(days: Int, timeZone: ZoneId? = null) =
+        add(EarlierDaysFilter(at(), days, timeZone?.id))
 
     /** The field is before the server's `now + offset`; `offset` defaults to zero, i.e. before now. */
     fun String.beforeNow(
