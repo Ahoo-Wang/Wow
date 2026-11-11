@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.query.MongoQueries
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
@@ -46,9 +47,9 @@ import kotlin.time.Duration
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
- * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
- * its `sharding` option, `auto` (the default) or `none`, whether it shards its collections on a sharded cluster
- * ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
+ * its `append-timeout` option bounds an append's insert ([MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT] when not
+ * set), and its `sharding` option, `auto` (the default) or `none`, whether it shards its collections on a sharded
+ * cluster ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
  * ([MongoTimeouts.OPERATION] when not set). Its pool is the client's [MongoPoolGauge] bean its `pool-gauge` option names
  * (else the only one); without one, it says nothing of its pool, and its queries take the default bound.
  * Found by `ServiceLoader`.
@@ -129,7 +130,7 @@ internal class MongoStoreProvider : StoreProvider {
             "append-timeout",
             "how long an append's insert may take: below the default wait timeout, so a command appending during an " +
                 "outage is answered before its wait ends.",
-            MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+            MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT,
         )
 
         /** The option saying whether the store shards its collections on a sharded cluster. */
@@ -176,7 +177,7 @@ internal class MongoStore(
     config: StoreConfig,
     val client: MongoClient,
     val database: String,
-    private val appendTimeout: Duration = MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+    private val appendTimeout: Duration = MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT,
     private val sharding: MongoSharding = MongoSharding.AUTO,
     private val operationTimeout: Duration = MongoTimeouts.OPERATION,
     gauge: MongoPoolGauge? = null,
@@ -184,6 +185,16 @@ internal class MongoStore(
     val queryReadPreference: String? = null,
 ) : Store(config) {
     private val ddl = config.ddl
+
+    /** The settings of every log this store opens, bound once from its configuration. */
+    private val logOptions = MongoEventLogOptions(
+        pollInterval = config.polling.interval,
+        maxPollInterval = config.polling.maxInterval,
+        appendTimeout = appendTimeout,
+        operationTimeout = operationTimeout,
+        ddl = ddl,
+        sharding = sharding,
+    )
     private val pool = gauge?.let(::MongoPool)
 
     /** A `ping` of the store's database: the store answers. */
@@ -243,18 +254,8 @@ internal class MongoStore(
 
     override fun openLog(context: String, partitions: Int): Opened<EventLog> {
         replicated.value
-        return MongoEventLog(
-            client,
-            database,
-            context,
-            partitions,
-            pollInterval = config.polling.interval,
-            maxPollInterval = config.polling.maxInterval,
-            ddl = ddl,
-            appendTimeout = appendTimeout,
-            sharding = sharding,
-            operationTimeout = operationTimeout,
-        ).let { Opened.of(it, it::createSchema) }
+        return MongoEventLog(client, database, context, partitions, options = logOptions)
+            .let { Opened.of(it, it::createSchema) }
     }
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =

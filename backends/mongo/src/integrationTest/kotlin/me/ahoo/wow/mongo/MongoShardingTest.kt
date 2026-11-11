@@ -28,6 +28,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
@@ -194,7 +195,13 @@ class MongoShardingTest {
     @Test
     fun `with sharding off a store leaves its collections unsharded`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
-        MongoEventLog(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.NONE)
+        MongoEventLog(
+            client,
+            MongoLogFixture.DATABASE,
+            context,
+            PARTITIONS,
+            options = MongoEventLogOptions(sharding = MongoSharding.NONE),
+        )
             .also { it.createSchema() }.createCollection("order")
         MongoSnapshotStore(client, MongoLogFixture.DATABASE, context, sharding = MongoSharding.NONE)
             .createCollection("order")

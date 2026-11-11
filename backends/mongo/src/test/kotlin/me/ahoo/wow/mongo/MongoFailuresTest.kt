@@ -34,6 +34,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
@@ -120,7 +121,7 @@ class MongoFailuresTest {
             "shop",
             partitions = 1,
             dispatcher = Dispatchers.IO,
-            sharding = UNSHARDED
+            options = MongoEventLogOptions(sharding = UNSHARDED),
         )
         assertThrows<StorageUnavailableException> {
             runBlocking { log.findByRequestId(cart, "tenant", "request-1") }
@@ -206,7 +207,14 @@ class MongoFailuresTest {
     @Test
     fun `an append to an unreachable server should throw the retryable error, never append`() {
         // Nothing reached the store: the command is answered as unavailable, not unknown (finding A2-6).
-        val log = MongoEventLog(unreachable, "wow", "shop", 1, Dispatchers.IO, sharding = UNSHARDED)
+        val log = MongoEventLog(
+            unreachable,
+            "wow",
+            "shop",
+            1,
+            Dispatchers.IO,
+            MongoEventLogOptions(sharding = UNSHARDED),
+        )
         assertThrows<StorageUnavailableException> { runBlocking { log.append(stream()) } }
     }
 

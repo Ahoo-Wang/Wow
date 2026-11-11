@@ -70,7 +70,8 @@ class MongoTailWindowTest {
             }
             listened(listener).use { client ->
                 val context = MongoLogFixture.newContext()
-                val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, tailBatch = WINDOW)
+                val options = MongoEventLogOptions(tailBatch = WINDOW)
+                val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, options = options)
                     .also { it.createSchema() }
                 val types = listOf("order", "cart", "invoice").map { AggregateType(context, it) }
                 // Three collections, their streams interleaved, each collection's in a block of sequences of its own.
@@ -91,7 +92,8 @@ class MongoTailWindowTest {
             val context = MongoLogFixture.newContext()
             val type = AggregateType(context, "order")
             val stopped = MongoLogFixture.log(1, context)
-            val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, tailBatch = WINDOW)
+            val options = MongoEventLogOptions(tailBatch = WINDOW)
+            val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, options = options)
                 .also { it.createSchema() }
             stopped.append(stream(type, "a"))
             // The owner's stream lands past the stopped node's block: 254 sequences missing, the window 2.
@@ -128,8 +130,8 @@ class MongoTailWindowTest {
             val context = MongoLogFixture.newContext()
             val type = AggregateType(context, "order")
             // A window as long as a block: what the counter reserved lies within it.
-            val block = MongoEventLog.BLOCK.toInt()
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, tailBatch = block)
+            val options = MongoEventLogOptions(tailBatch = MongoEventLog.BLOCK.toInt())
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, options = options)
                 .also { it.createSchema() }
             for (n in 1..3) {
                 log.append(stream(type, "s$n"))

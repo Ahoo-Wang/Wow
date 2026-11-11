@@ -43,8 +43,14 @@ object MongoLogFixture {
         partitions: Int,
         context: String = newContext(),
         aggregates: Collection<String> = emptyList(),
-        tailBatch: Int = MongoEventLog.DEFAULT_TAIL_BATCH,
-    ): MongoEventLog = MongoEventLog(client, DATABASE, context, partitions, tailBatch = tailBatch).also { log ->
+        tailBatch: Int = MongoEventLogOptions.DEFAULT_TAIL_BATCH,
+    ): MongoEventLog = MongoEventLog(
+        client,
+        DATABASE,
+        context,
+        partitions,
+        options = MongoEventLogOptions(tailBatch = tailBatch),
+    ).also { log ->
         log.createSchema()
         aggregates.forEach { log.createCollection(it) }
     }
