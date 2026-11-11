@@ -18,21 +18,15 @@ import type {
   FieldOption,
   FilterLeaf,
   FilterOperatorName,
-  FilterTree,
-  Issue,
 } from '../../model/index.js';
 import {
-  elementFields,
-  variantGroups,
   filterIndexes,
   isBlankLeafValue,
-  writeValue,
   type FieldKind,
   type FilterPath,
 } from '../../filter/index.js';
 import { holdsTime } from '../../filter/kinds/duration.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { treeController } from '../../react/filterTree.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { Badge } from '../components/badge.js';
 import { Toggle } from '../components/toggle.js';
@@ -53,6 +47,7 @@ import { PendingDot, PENDING_AT_CORNER } from '../kit/PendingDot.js';
 import { PillSelectTrigger } from '../kit/pills.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
 import type { GroupBlock } from './GroupBlock.js';
+import { NestedPredicate } from './NestedPredicate.js';
 import { useConditionFocus } from './conditionFocus.js';
 import { recordIssueNamer } from '../record/issueNames.js';
 
@@ -496,83 +491,6 @@ export function ConditionPill({
       )}
     </div>
   );
-}
-
-/**
- * A condition whose value is itself a condition, on the fields of an array's
- * elements.
- *
- * It renders the same group the outer filter renders, because it is the same
- * thing: `treeController` writes each change straight back into the leaf that
- * carries the tree. Two conditions written side by side outside this block
- * are satisfied by any entries, one each; inside it they must be satisfied by
- * the same entry.
- */
-function NestedPredicate({
-  filter,
-  leaf,
-  path,
-  disabled,
-  optionsFor,
-  Group,
-}: {
-  filter: FilterTreeController;
-  leaf: FilterLeaf;
-  path: FilterPath;
-  disabled?: boolean;
-  optionsFor?: (remote: string) => FieldOption[] | undefined;
-  Group: typeof GroupBlock;
-}) {
-  const messages = useViewMessages();
-  const field = filter.fields.find(entry => entry.name === leaf.field);
-  // Built on every render rather than memoised: `filter` and `path` are fresh
-  // each time, so a memo keyed on them memoised nothing and only hid that a
-  // controller is a plain object over the values already in hand.
-  const nested = treeController({
-    tree: asTree(leaf.value),
-    fields: field ? elementFields(field) : [],
-    // A payload's fields listed by the event type that has them (#3519).
-    fieldGroups: field ? variantGroups(field) : [],
-    kinds: filter.kinds,
-    // The kind reports a predicate's findings under the leaf that holds it,
-    // so they are rebased here to address the nested tree instead.
-    issues: rebase(filter.issues, path),
-    onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
-    ...(filter.optionSource ? { optionSource: filter.optionSource } : {}),
-    durations: false,
-  });
-
-  return (
-    <div className="fve:min-w-0">
-      <Group
-        filter={nested}
-        group={nested.tree}
-        path={[]}
-        disabled={disabled}
-        optionsFor={optionsFor}
-        scope={messages.say(field?.label ?? leaf.field)}
-      />
-    </div>
-  );
-}
-
-/** A leaf's value read as the tree it holds; an unfinished one is empty. */
-function asTree(value: unknown): FilterTree {
-  return value !== null &&
-    typeof value === 'object' &&
-    Array.isArray((value as FilterTree).children)
-    ? (value as FilterTree)
-    : { op: 'and', children: [] };
-}
-
-/** Findings under one leaf, addressed against the tree that leaf carries. */
-function rebase(issues: readonly Issue[], path: FilterPath): Issue[] {
-  const prefix = path.flatMap(index => ['children', index]);
-  return issues.flatMap(found => {
-    const own = found.path.slice(0, prefix.length);
-    if (own.join('.') !== prefix.join('.')) return [];
-    return [{ ...found, path: found.path.slice(prefix.length) }];
-  });
 }
 
 /**

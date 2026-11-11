@@ -679,7 +679,8 @@ src/
     components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
-      ConditionPill.tsx       — One condition; the element-match block; `PendingDot`
+      ConditionPill.tsx       — One condition; the element-match block, its body `NestedPredicate.tsx`'s; `PendingDot`
+      NestedPredicate.tsx     — The group an element-match condition holds, edited as a tree of its own: the leaf's value read as one, its findings addressed against it
       FieldChecklist.tsx      — The field picker: a grid of checkboxes by catalogue group, with a search (user ruling 2026-09-21)
       FilterActions.tsx       — Clear and Apply, with the blocked count and why Apply waits for a condition
       FilterModes.tsx         — Simple / advanced, and whether the other mode is reachable
