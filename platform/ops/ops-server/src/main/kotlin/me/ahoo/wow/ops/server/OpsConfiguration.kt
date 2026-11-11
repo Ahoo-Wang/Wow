@@ -17,8 +17,8 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
-import me.ahoo.wow.spring.boot.SignedInCallerResolver
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.security.SignedInCallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean

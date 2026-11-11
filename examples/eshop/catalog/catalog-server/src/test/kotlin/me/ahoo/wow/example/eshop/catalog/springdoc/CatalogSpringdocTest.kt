@@ -24,7 +24,7 @@ import me.ahoo.wow.example.eshop.catalog.server.assertOk
 import me.ahoo.wow.example.eshop.catalog.server.json
 import me.ahoo.wow.example.eshop.catalog.server.startCatalog
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
-import me.ahoo.wow.spring.boot.WowOpenApiSecurity
+import me.ahoo.wow.spring.boot.openapi.WowOpenApiSecurity
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

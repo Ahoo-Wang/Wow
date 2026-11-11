@@ -123,7 +123,7 @@ class ConfigurationReadersTest {
 
         /** The files that may, each with its reason. */
         val ALLOWED: Map<String, String> = mapOf(
-            "host/spring-boot/src/main/kotlin/me/ahoo/wow/spring/boot/PortProviders.kt" to
+            "host/spring-boot/src/main/kotlin/me/ahoo/wow/spring/boot/transport/PortProviders.kt" to
                 "a provider's own settings, `wow.<type>.*` and `wow.stores.<name>.*`, handed to it as a map: the " +
                 "settings its provider declares, which no properties bean knows",
             "extensions/cosid/src/main/kotlin/me/ahoo/wow/cosid/WowCosIdAutoConfiguration.kt" to

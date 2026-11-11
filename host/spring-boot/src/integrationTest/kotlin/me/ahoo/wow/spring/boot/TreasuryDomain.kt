@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spring.boot.node.WowModels
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.context.annotation.Bean

@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.store.StoreProviders
 import me.ahoo.wow.tck.containers.WowContainers
 import javax.sql.DataSource
 

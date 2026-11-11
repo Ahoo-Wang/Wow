@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spring.boot.query.QUERY_MODULE
+import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory

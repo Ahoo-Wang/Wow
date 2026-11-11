@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

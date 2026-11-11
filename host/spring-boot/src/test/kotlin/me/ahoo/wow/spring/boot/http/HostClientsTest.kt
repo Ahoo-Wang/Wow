@@ -1,0 +1,422 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spring.boot.http
+
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.send
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.read.DatasetName
+import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.client.ClientMode
+import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.ForwardedHeaders
+import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.NamedCommand
+import me.ahoo.wow.client.PeerClients
+import me.ahoo.wow.client.PeerMode
+import me.ahoo.wow.client.Port
+import me.ahoo.wow.client.RoutedCommandClient
+import me.ahoo.wow.client.RoutedQueryApi
+import me.ahoo.wow.client.UserCredential
+import me.ahoo.wow.client.WowClient
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.Account
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.Deposit
+import me.ahoo.wow.spring.boot.OpenAccount
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.node.NodeIdentity
+import me.ahoo.wow.spring.boot.startHost
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.server.CoWebFilter
+import org.springframework.web.server.WebFilterChain
+import reactor.core.publisher.Mono
+import java.net.URI
+import kotlin.coroutines.CoroutineContext
+
+/**
+ * The typed clients of the peers in the host (decisions D257, D259): `wow.clients.*` and the routing beans, against a
+ * [bank] host as the peer whose contract the client knows, called over HTTP in either mode.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class HostClientsTest {
+    private val bank = startHost()
+
+    @AfterAll
+    fun close() {
+        bank.close()
+    }
+
+    /** The bank's contract as its api jar would carry it: its schemas named by the classes' binary names. */
+    private val contracts: ContractDirectory = run {
+        val defs = "#/" + '$' + "defs/"
+        val text = javaClass.getResource("/META-INF/wow/manifest/host-test-bank.json")!!.readText()
+            .replace(Regex("\"" + Regex.escape(defs) + "(\\w+)\"")) {
+                "\"" + defs + "me.ahoo.wow.spring.boot." + it.groupValues[1] + "\""
+            }
+        val manifest = ManifestTree.read(WowJson.mapper.readValue(text, Map::class.java))
+        ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), listOf(ManifestFragment("bank-api", manifest)))
+    }
+
+    private val endpoints = EndpointResolver.of(
+        mapOf(BANK to URI.create("http://127.0.0.1:${bank.publicPort}")),
+        mapOf(BANK to URI.create("http://127.0.0.1:${bank.internalPort}")),
+    )
+
+    private fun client(mode: ClientMode) = lazy {
+        WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply {
+            when (mode) {
+                is ClientMode.Service -> service(checkNotNull(mode.service))
+                is ClientMode.User -> user(mode.credential)
+            }
+        }.build()
+    }
+
+    private fun peers(mode: PeerMode = PeerMode.SERVICE) = PeerClients(
+        mapOf(BANK to mode),
+        contracts.localContexts,
+        contracts.peerContexts,
+        client(ClientMode.Service(SERVICE)),
+        client(ClientMode.User(UserCredential.FORWARDED)),
+        mode,
+        SERVICE,
+    )
+
+    private val dave = Caller.of(scope = Scope("dave"), subject = "dave")
+
+    /** The aggregate types the contracts on the class path list a command class for. */
+    private val types: (Class<*>) -> List<AggregateType> = { contracts.aggregatesOf(Manifest.schemaRef(it.name)) }
+    private val account = AggregateType(BANK, "account")
+
+    @Test
+    fun `a command to a listed peer should go over HTTP, in either mode, and be readable there`(): Unit = runBlocking {
+        val local = mockk<CommandClient>()
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
+            val commands: CommandClient = RoutedCommandClient(local, peers(mode), types).of(dave)
+            // The type comes from the peer's contract; a creation names no id.
+            val opened = commands.wait(OpenAccount("dave"))
+            opened.ref.type.assert().isEqualTo(account)
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            val queries = RoutedQueryApi(mockk(relaxed = true), peers(mode), emptySet()).of(dave)
+            queries.snapshots<Account>().state(opened.ref.id)!!.state.owner.assert().isEqualTo("dave")
+            queries.snapshots(account).state(opened.ref.id).assert().isNotNull()
+            commands.stream(CommandRequest.to(opened.ref, Deposit(5))).toList().last().status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+            commands.send(Deposit(5), opened.ref.id).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        }
+    }
+
+    @Test
+    fun `a context not listed should stay with the node, and a listed one must be a peer's`(): Unit = runBlocking {
+        val local = mockk<CommandClient>(relaxed = true)
+        val routed = RoutedCommandClient(local, peers(), types)
+        routed.of(dave).send(CommandRequest.to(AggregateType("ledger", "entry").unassigned("t"), OpenAccount("x")))
+        io.mockk.coVerify { local.of(dave) }
+        peers().clientOf("ledger").assert().isNotNull()
+        val localQueries = mockk<TenantQueryApi>(relaxed = true)
+        val pinned = mockk<SubscriptionQueries>(relaxed = true)
+        every { localQueries.tenant("t1") } returns pinned
+        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java))
+        val ledger = AggregateType("ledger", "entry")
+        val entries = DatasetName.of("ledger", "entries")
+        // The node's own state class, a context not listed and trusted queries stay in process.
+        queries.of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
+        queries.of(dave).events(ledger).assert().isSameAs(localQueries.of(dave).events(ledger))
+        queries.of(dave).snapshots(ledger).assert().isSameAs(localQueries.of(dave).snapshots(ledger))
+        queries.of(
+            dave
+        ).datasets(entries, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(entries, Map::class.java))
+        queries.trusted().assert().isSameAs(localQueries.trusted())
+        // The listed peer's models go over HTTP, a subscription's as a caller of its commit's tenant.
+        queries.of(dave).events(account).javaClass.name.assert().contains("HttpQueryApi")
+        queries.of(
+            dave
+        ).datasets(DatasetName.of(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
+        val tenant = queries.tenant("t1")
+        tenant.tenantId.assert().isEqualTo("t1")
+        tenant.trusted().assert().isSameAs(pinned.trusted())
+        tenant.snapshots(account).javaClass.name.assert().contains("HttpQueryApi")
+        // Without a peer listed, a state class is the node's.
+        // A local API that pins no tenant serves no handler.
+        assertThrows<IllegalStateException> {
+            RoutedQueryApi(mockk<NodeQueryApi>(relaxed = true), peers(), emptySet()).tenant("t1")
+        }
+        RoutedQueryApi(
+            localQueries,
+            PeerClients(
+                emptyMap(),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy { error("") },
+                lazy { error("") },
+                PeerMode.SERVICE,
+                SERVICE,
+            ),
+            emptySet()
+        )
+            .of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
+        assertThrows<WowConfigurationException> {
+            PeerClients(
+                mapOf("ledger" to PeerMode.SERVICE),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                PeerMode.SERVICE,
+                SERVICE,
+            )
+        }.message.assert().contains("[ledger]")
+    }
+
+    @Test
+    fun `a subscription should read a peer as the service its Manifest names`() {
+        val callers = mutableListOf<Caller>()
+        val client = mockk<WowClient>(relaxed = true)
+        every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
+        val named = ContractDirectory(Manifest(service = ServiceInfo("basket-service")), contracts.peers)
+        val peers = NodePeers().wowPeerClients(
+            WowProperties().apply { peers[BANK] = PeerTargetProperties() },
+            EndpointResolver.of(emptyMap(), emptyMap()),
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+            named,
+            GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
+        )
+        peers.serviceName.assert().isEqualTo("basket-service")
+        // The peer clients are lazy: hand the routed queries a client that records its caller.
+        val routed = PeerClients(
+            mapOf(BANK to PeerMode.SERVICE),
+            named.localContexts,
+            named.peerContexts,
+            lazy { client },
+            lazy { client },
+            PeerMode.SERVICE,
+            peers.serviceName,
+        )
+        RoutedQueryApi(mockk<TenantQueryApi>(relaxed = true), routed, emptySet()).tenant("t1").events(account)
+        callers.single().assert().isEqualTo(Caller.ofService("basket-service", "t1"))
+        callers.single().subject.assert().isEqualTo("service:basket-service")
+        // A Manifest that names no service has no identity to read a peer as.
+        assertThrows<IllegalStateException> {
+            NodePeers().wowPeerClients(
+                WowProperties(),
+                EndpointResolver.of(emptyMap(), emptyMap()),
+                NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+                ContractDirectory(Manifest(), contracts.peers),
+                GlobalIdGenerator.UUID_V7,
+                HttpCommandCaller.client(),
+            )
+        }.message.assert().contains("names no service")
+    }
+
+    @Test
+    fun `a peer described by its Manifest alone should take named commands, in either mode`(): Unit = runBlocking {
+        // No contract of the bank on the class path: its Manifest, read from the bank, is all the client knows.
+        val none = ContractDirectory(Manifest(), emptyList())
+        fun client(mode: ClientMode) = lazy {
+            WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply {
+                when (mode) {
+                    is ClientMode.Service -> service(checkNotNull(mode.service))
+                    is ClientMode.User -> user(mode.credential)
+                }
+            }.build()
+        }
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
+            val peers = PeerClients(
+                mapOf(BANK to mode),
+                none.localContexts,
+                none.peerContexts,
+                client(ClientMode.Service(SERVICE)),
+                client(ClientMode.User(UserCredential.FORWARDED)),
+                mode,
+                SERVICE,
+                described = setOf(BANK),
+            )
+            val commands = RoutedCommandClient(mockk(), peers, types).of(dave)
+            // A named command's type is the one its name gives.
+            val opened = commands.wait(
+                NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}"""))
+            )
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            assertThrows<Misuse.Argument> {
+                runBlocking {
+                    commands.wait(NamedCommand("$BANK.account.Burn", WowJson.mapper.readTree("{}")), opened.ref.id)
+                }
+            }.message.assert().contains("does not declare the command Burn")
+            assertThrows<Misuse.State> {
+                runBlocking {
+                    commands.wait(
+                        CommandRequest.to(opened.ref, Deposit(5))
+                    )
+                }
+            }
+                .message.assert().contains("send it a NamedCommand")
+        }
+        // A named command to a context not described by its Manifest is refused before it is routed: the code's mistake.
+        assertThrows<Misuse.Argument> {
+            runBlocking {
+                RoutedCommandClient(mockk(), peers(), types).of(dave)
+                    .wait(NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("{}")))
+            }
+        }.message.assert().contains("not described by its Manifest")
+    }
+
+    @Test
+    fun `contract manifest should admit a peer without its jar, and only such a peer`() {
+        val none = ContractDirectory(Manifest(), emptyList())
+        val service = PeerMode.SERVICE
+        PeerClients(
+            mapOf("mail" to service),
+            none.localContexts,
+            none.peerContexts,
+            lazy {
+                error("")
+            },
+            lazy { error("") },
+            service,
+            SERVICE,
+            setOf("mail")
+        )
+            .described.assert().containsExactly("mail")
+        assertThrows<WowConfigurationException> {
+            PeerClients(
+                emptyMap(),
+                none.localContexts,
+                none.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                SERVICE,
+                setOf("mail")
+            )
+        }.message.assert().contains("not in wow.peers")
+        assertThrows<WowConfigurationException> {
+            PeerClients(
+                mapOf(BANK to service),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                SERVICE,
+                setOf(BANK)
+            )
+        }.message.assert().contains("whose contract is on the class path")
+        val peers = NodePeers().wowPeerClients(
+            WowProperties().apply {
+                peers["mail"] = PeerTargetProperties().apply {
+                    contract = PeerTargetProperties.Contract.MANIFEST
+                }
+            },
+            endpoints,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+            ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), emptyList()),
+            GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
+        )
+        peers.described.assert().containsExactly("mail")
+    }
+
+    @Test
+    fun `the endpoints should be each peer's internal and public URLs`(): Unit = runBlocking {
+        val properties = WowProperties().apply {
+            peers["mail"] = PeerTargetProperties().apply {
+                url = URI.create("http://mail:9090")
+                publicUrl = URI.create("http://mail:8080")
+            }
+            peers["box"] = PeerTargetProperties().apply {
+                url = URI.create("http://box:9090")
+                mode = PeerMode.USER
+            }
+        }
+        val resolver = PeerEndpoints.of(
+            properties,
+            PeerDiscoveries.load(javaClass.classLoader),
+            { emptyMap() }
+        ) { null }
+        resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
+        resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
+        resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
+        val peers = NodePeers().wowPeerClients(
+            WowProperties().apply {
+                peers[BANK] = PeerTargetProperties().apply { timeout = java.time.Duration.ofSeconds(5) }
+            },
+            endpoints,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+            contracts,
+            GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
+        )
+        peers.contexts.assert().containsExactly(BANK)
+        NodePeers().wowClient(peers).assert().isSameAs(peers.client)
+    }
+
+    @Test
+    fun `the public requests' credential headers should be in the coroutine context of their handling`() {
+        val filter = NodePeers().wowForwardedHeadersFilter(
+            WowProperties().apply { peer.forwardedHeaders = mutableListOf("Authorization", " ") },
+        )
+        fun contextOf(request: MockServerHttpRequest): CoroutineContext? {
+            val exchange = MockServerWebExchange.from(request)
+            var seen: CoroutineContext? = null
+            filter.filter(
+                exchange,
+                WebFilterChain {
+                    seen = it.attributes[CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE] as CoroutineContext?
+                    Mono.empty()
+                }
+            ).block()
+            return seen
+        }
+        contextOf(MockServerHttpRequest.get("/").header("Authorization", "Bearer user").build())!![ForwardedHeaders]!!
+            .headers.assert().isEqualTo(mapOf("Authorization" to "Bearer user"))
+        contextOf(MockServerHttpRequest.get("/").build())?.get(ForwardedHeaders).assert().isNull()
+    }
+
+    private companion object {
+        const val SERVICE = "ledger-service"
+    }
+}

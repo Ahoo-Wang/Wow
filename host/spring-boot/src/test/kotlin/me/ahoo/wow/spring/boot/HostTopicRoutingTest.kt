@@ -23,6 +23,8 @@ import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spring.boot.node.AggregateProperties
+import me.ahoo.wow.spring.boot.node.CommandRoutings
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

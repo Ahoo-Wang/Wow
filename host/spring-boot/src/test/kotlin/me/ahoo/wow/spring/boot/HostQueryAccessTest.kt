@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.HostQueryFixtures.ACCOUNT
 import me.ahoo.wow.spring.boot.HostQueryFixtures.eventually
 import me.ahoo.wow.spring.boot.HostQueryFixtures.openAccount
+import me.ahoo.wow.spring.boot.config.WowConfigurationFailureAnalyzer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean

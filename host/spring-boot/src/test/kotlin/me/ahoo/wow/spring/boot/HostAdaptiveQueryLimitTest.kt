@@ -20,6 +20,8 @@ import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.query.HostQueryBulkheads
+import me.ahoo.wow.spring.boot.query.HostQueryNode
 import org.junit.jupiter.api.Test
 
 /**

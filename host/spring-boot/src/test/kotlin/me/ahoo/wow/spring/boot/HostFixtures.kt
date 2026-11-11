@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.node.ServiceNodeListener
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.availability.AvailabilityChangeEvent
@@ -142,7 +143,7 @@ val hostProperties: Map<String, Any> = mapOf(
     "spring.main.banner-mode" to "off",
     // wow-cosec and CoSec are on the tests' class path for CoSecAutoConfigurationTest; a host runs without CoSec, as
     // an application without them does, unless a test says otherwise.
-    "spring.autoconfigure.exclude" to "me.ahoo.wow.spring.boot.CoSecAutoConfiguration",
+    "spring.autoconfigure.exclude" to "me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration",
     "server.port" to 0,
     "server.address" to "127.0.0.1",
     "wow.internal.port" to 0,

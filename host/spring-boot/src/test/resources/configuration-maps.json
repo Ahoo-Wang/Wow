@@ -3,135 +3,135 @@
     "name" : "wow.callers.<service>.commands",
     "type" : "java.util.List<java.lang.String>",
     "description" : "The commands the service may call, names or patterns; the domain commands alone when empty.",
-    "sourceType" : "me.ahoo.wow.spring.boot.CallerPermitsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.CallerPermitsProperties"
   }, {
     "name" : "wow.callers.<service>.reads",
     "type" : "java.util.List<java.lang.String>",
     "description" : "The models the service may read on the internal port's read routes, patterns too; every one when empty.",
-    "sourceType" : "me.ahoo.wow.spring.boot.CallerPermitsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.CallerPermitsProperties"
   }, {
     "name" : "wow.peers.<context>.contract",
-    "type" : "me.ahoo.wow.spring.boot.PeerTargetProperties$Contract",
+    "type" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties$Contract",
     "description" : "Where the peer's contract comes from: `jar`, its api jar, or `manifest`, its Manifest alone.",
-    "sourceType" : "me.ahoo.wow.spring.boot.PeerTargetProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties",
     "defaultValue" : "jar"
   }, {
     "name" : "wow.peers.<context>.mode",
     "type" : "me.ahoo.wow.client.PeerMode",
     "description" : "The mode the peer is called in: `service` or `user`, over `wow.peer.mode`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.PeerTargetProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties"
   }, {
     "name" : "wow.peers.<context>.public-url",
     "type" : "java.net.URI",
     "description" : "The base URL of the peer's public routes (user mode).",
-    "sourceType" : "me.ahoo.wow.spring.boot.PeerTargetProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties"
   }, {
     "name" : "wow.peers.<context>.timeout",
     "type" : "java.time.Duration",
     "description" : "How long a call to the peer may take, over `wow.peer.timeout`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.PeerTargetProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties"
   }, {
     "name" : "wow.peers.<context>.url",
     "type" : "java.net.URI",
     "description" : "The base URL of the peer's internal port (service mode), never its public port; found when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.PeerTargetProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.PeerTargetProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Switch",
     "description" : "Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateHistoryProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateHistoryProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.ttl",
     "type" : "java.time.Duration",
     "description" : "How long the type's history is kept; forever when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateHistoryProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateHistoryProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].id-generator",
     "type" : "java.lang.String",
     "description" : "The id generator that gives the type's new ids, by name.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].log.store",
     "type" : "java.lang.String",
     "description" : "The store of `wow.stores` the type's log is on, over `wow.log.store`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateStoreProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateStoreProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.events.store",
     "type" : "java.lang.String",
     "description" : "The store of `wow.stores` the type's `events` queries read; its log store when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQueryEventsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateQueryEventsProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
     "description" : "Whether an `events` query of the type that names no aggregate runs, over its store's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQueryEventsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateQueryEventsProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.snapshot.store",
     "type" : "java.lang.String",
     "description" : "The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateQuerySnapshotProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateQuerySnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].routing",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CommandRouting",
     "description" : "How the commands of the type are routed, over `wow.routing` (CommandRouting): `topic` writes them to its context's command topic, accepted once the broker acknowledged them, which needs a topic transport; `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.primary",
     "type" : "java.lang.String",
     "description" : "The one of them the type's write side and state reads read; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateSnapshotProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.stores",
     "type" : "java.util.List<java.lang.String>",
     "description" : "The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateSnapshotProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].tenant",
     "type" : "java.lang.String",
     "description" : "The tenant every aggregate of the type is in, whoever the caller is.",
-    "sourceType" : "me.ahoo.wow.spring.boot.AggregateProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateProperties"
   }, {
     "name" : "wow.stores.<name>.ddl",
     "type" : "me.ahoo.wow.spi.Ddl",
     "description" : "How this store manages the framework's schema, over `wow.ddl`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreProperties"
   }, {
     "name" : "wow.stores.<name>.query.adaptive.ceiling",
     "type" : "java.lang.Integer",
     "description" : "The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreAdaptiveProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.adaptive.floor",
     "type" : "java.lang.Integer",
     "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreAdaptiveProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
     "description" : "Whether an `events` query that names no aggregate runs, over `wow.query.events.unpinned`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryEventsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.QueryEventsProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-concurrent",
     "type" : "java.lang.Integer",
     "description" : "How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-queued",
     "type" : "java.lang.Integer",
     "description" : "How many queries beyond the bound wait for a permit, over `wow.query.max-queued`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.query.max-wait",
     "type" : "java.time.Duration",
     "description" : "How long a query beyond the bound waits for a permit, over `wow.query.max-wait`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreQueryProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreQueryProperties"
   }, {
     "name" : "wow.stores.<name>.type",
     "type" : "java.lang.String",
     "description" : "The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.StoreProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.store.StoreProperties"
   }, {
     "name" : "wow.stores.<name>.client",
     "type" : "java.lang.String",
@@ -207,112 +207,112 @@
     "name" : "wow.subscriptions.[<context>.<name>].parked.claim-ttl",
     "type" : "java.time.Duration",
     "description" : "How long a retry's claim on the entry holds, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first automatic retry, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].parked.max-retries",
     "type" : "java.lang.Integer",
     "description" : "How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait after the first failure.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.max-attempts",
     "type" : "java.lang.Integer",
     "description" : "The most attempts of the handler in all, before its aggregate parks.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.max-backoff",
     "type" : "java.time.Duration",
     "description" : "The longest wait between two attempts.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.multiplier",
     "type" : "java.lang.Double",
     "description" : "How many times longer each wait is than the one before; at least 1.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.timeout",
     "type" : "java.time.Duration",
     "description" : "How long one attempt may run before it is cancelled and counts as failed.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].start",
     "type" : "java.lang.String",
     "description" : "Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant.",
-    "sourceType" : "me.ahoo.wow.spring.boot.SubscriptionSettingsProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.SubscriptionSettingsProperties"
   }, {
     "name" : "wow.schedules.<name>.cron",
     "type" : "java.lang.String",
     "description" : "The job's cron, six fields, over its annotation's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ScheduleProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ScheduleProperties"
   }, {
     "name" : "wow.schedules.<name>.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether a SYSTEM or a SHARDED job's instances run; false disables them at startup.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ScheduleProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ScheduleProperties",
     "defaultValue" : true
   }, {
     "name" : "wow.schedules.<name>.misfire",
     "type" : "me.ahoo.wow.api.schedule.Misfire",
     "description" : "What a firing missed while no node ran it does, over its annotation's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ScheduleProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ScheduleProperties"
   }, {
     "name" : "wow.schedules.<name>.parked.claim-ttl",
     "type" : "java.time.Duration",
     "description" : "How long a retry's claim on the entry holds, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.schedules.<name>.parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first automatic retry, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.schedules.<name>.parked.max-retries",
     "type" : "java.lang.Integer",
     "description" : "How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ParkedSpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedSpecProperties"
   }, {
     "name" : "wow.schedules.<name>.retry.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait after the first failure.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.retry.max-attempts",
     "type" : "java.lang.Integer",
     "description" : "The most attempts of the handler in all, before its aggregate parks.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.retry.max-backoff",
     "type" : "java.time.Duration",
     "description" : "The longest wait between two attempts.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.retry.multiplier",
     "type" : "java.lang.Double",
     "description" : "How many times longer each wait is than the one before; at least 1.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.retry.timeout",
     "type" : "java.time.Duration",
     "description" : "How long one attempt may run before it is cancelled and counts as failed.",
-    "sourceType" : "me.ahoo.wow.spring.boot.RetrySpecProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.zone",
     "type" : "java.lang.String",
     "description" : "The time zone its cron is read in, over its annotation's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ScheduleProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.ScheduleProperties"
   }, {
     "name" : "wow.http.errors.[<code>].status",
     "type" : "java.lang.Integer",
     "description" : "The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start.",
-    "sourceType" : "me.ahoo.wow.spring.boot.HttpProperties$Error"
+    "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties$Error"
   } ]
 }

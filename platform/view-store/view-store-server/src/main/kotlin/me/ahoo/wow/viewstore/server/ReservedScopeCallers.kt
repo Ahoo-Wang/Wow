@@ -16,7 +16,7 @@ package me.ahoo.wow.viewstore.server
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.spring.boot.DecoratingCallerResolver
+import me.ahoo.wow.spring.boot.security.DecoratingCallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**

@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.spring.boot.NodePublicPort.Companion.hasBuiltInSystemCommands
+import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.hasBuiltInSystemCommands
 import org.junit.jupiter.api.Test
 
 /**

@@ -16,6 +16,8 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryStreams
+import me.ahoo.wow.spring.boot.node.QueryStreamsLifecycle
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import org.junit.jupiter.api.Test
 import org.springframework.boot.web.server.context.WebServerApplicationContext
 import kotlin.time.Duration.Companion.seconds
