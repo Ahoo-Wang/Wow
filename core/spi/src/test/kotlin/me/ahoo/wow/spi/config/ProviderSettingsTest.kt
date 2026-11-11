@@ -31,6 +31,8 @@ class ProviderSettingsTest {
         settings.option("blank").assert().isNull()
         settings.option("missing").assert().isNull()
         settings.read.assert().containsExactlyInAnyOrder("region", "blank", "missing")
+        settings.toString().assert().isEqualTo("ProviderSettings(key=wow.acme, values=[region, blank])")
+        ProviderSettings("wow.none").option("region").assert().isNull()
     }
 
     @Test
