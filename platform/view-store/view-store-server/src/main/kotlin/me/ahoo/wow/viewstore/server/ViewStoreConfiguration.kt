@@ -15,7 +15,6 @@ package me.ahoo.wow.viewstore.server
 
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
-import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -97,10 +96,10 @@ class ViewStoreConfiguration {
         read { caller ->
             allOf(
                 DatasetWordingStateAccess.APP_ID eq caller.app,
-                ownerAndSpace(caller, Ownership.TENANT)
+                ownerAndSpace(caller)
             )
         }
-        write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+        write { caller -> ownerAndSpace(caller) }
     }
     // endregion
 

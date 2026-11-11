@@ -90,9 +90,13 @@ internal class CommandReach(
 
     private val trusted = command.isDerived || policy != null && command.caller?.service == true
 
-    private val write: AccessPredicate by lazy(LazyThreadSafetyMode.NONE) { predicate(AccessPolicy<*>::write) }
+    private val write: AccessPredicate by lazy(LazyThreadSafetyMode.NONE) {
+        predicate { policy, caller -> policy.write(caller, model.ownership) }
+    }
 
-    private val read: AccessPredicate by lazy(LazyThreadSafetyMode.NONE) { predicate(AccessPolicy<*>::read) }
+    private val read: AccessPredicate by lazy(LazyThreadSafetyMode.NONE) {
+        predicate { policy, caller -> policy.read(caller, model.ownership) }
+    }
 
     /** Whether the caller may change [aggregate], as the kernel holds it. */
     fun writes(aggregate: CachedState): Boolean = trusted || write.allows { valueOf(it, aggregate) }

@@ -163,15 +163,15 @@ fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
     read { caller ->
         allOf(
             DatasetWordingStateAccess.APP_ID eq caller.app,
-            ownerAndSpace(caller, Ownership.TENANT)
+            ownerAndSpace(caller)
         )
     }
-    write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+    write { caller -> ownerAndSpace(caller) }
 }
 ```
 
 - **`read` 与 `write`。** 策略两者都要给出：`read { caller -> … }` 说明调用方能读取什么，`write { caller -> … }` 说明它能修改什么，`readWrite { caller -> … }` 给出两者共用的一个谓词。没有什么是因省略而授予的，所以没有 `write` 的策略在构建时就被拒绝：`write { denyAll() }` 明确表示没有调用方能修改这个聚合。
-- **它取代默认规则。** 调用方的所有者和空间只在策略比较它们的地方才比较。`ownerAndSpace(caller)` 就是默认规则，用来与策略自己的比较组合；属于租户的聚合不比较所有者，写作 `ownerAndSpace(caller, Ownership.TENANT)`，如上面的措辞所示。
+- **它取代默认规则。** 调用方的所有者和空间只在策略比较它们的地方才比较。`ownerAndSpace(caller)` 就是默认规则，用来与策略自己的比较组合。它按聚合的所有权保留的作用域比较：属于租户的聚合不记录所有者，所以只比较空间，上面的措辞就是这样。
 - **一种状态的多个聚合。** 服务的几个聚合共用策略的状态类型时，策略指明它管辖哪一个：`accessPolicy(aggregate = …)`。
 
 谓词通过 `<State>Access` 的引用，用调用方的声明比较聚合的属性：

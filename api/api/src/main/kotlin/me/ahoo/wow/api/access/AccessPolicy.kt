@@ -34,13 +34,13 @@ class AccessPolicy<S : Any> @InternalWowApi constructor(
     private val read: AccessScope<S>.(Caller) -> AccessPredicate,
     private val write: AccessScope<S>.(Caller) -> AccessPredicate,
 ) {
-    private val scope = AccessScope<S>()
+    private val scopes = Ownership.entries.associateWith { AccessScope<S>(it) }
 
-    /** What [caller] may read of the aggregates. */
-    fun read(caller: Caller): AccessPredicate = scope.read(caller)
+    /** What [caller] may read of the aggregates, whose [ownership] is the aggregate's ([AccessScope.ownerAndSpace]). */
+    fun read(caller: Caller, ownership: Ownership): AccessPredicate = scopes.getValue(ownership).read(caller)
 
-    /** What [caller] may change of the aggregates. */
-    fun write(caller: Caller): AccessPredicate = scope.write(caller)
+    /** What [caller] may change of the aggregates, whose [ownership] is the aggregate's ([AccessScope.ownerAndSpace]). */
+    fun write(caller: Caller, ownership: Ownership): AccessPredicate = scopes.getValue(ownership).write(caller)
 
     override fun toString(): String = "AccessPolicy(stateType=${stateType.name}, aggregate=$aggregate)"
 }
@@ -125,9 +125,9 @@ class AccessPolicyBuilder<S : Any> internal constructor(
  * What an access policy's predicates are written with, for the aggregates whose state is [S]: comparisons of their
  * access attributes (`<State>Access`, typed by [S]) with the caller's claims, and logic. A comparison with a claim the
  * caller does not hold, a null or no values, denies ([AccessPredicate.Unknown]), as does one of a value the aggregate
- * does not have.
+ * does not have. A node builds it for the aggregate the policy governs, of that aggregate's [ownership].
  */
-class AccessScope<S : Any> internal constructor() {
+class AccessScope<S : Any> internal constructor(private val ownership: Ownership) {
     /** The attribute's value is [value]. */
     infix fun <V : Any> AccessAttribute.Single<S, V>.eq(value: V?): AccessPredicate =
         compare(this, AccessOperator.EQUAL, listOfNotNull(value))
@@ -186,13 +186,12 @@ class AccessScope<S : Any> internal constructor() {
 
     /**
      * The default rule of [caller] ([ScopeAccess]): the aggregates whose owner is the owner of the scope the caller acts
-     * in and whose space is its space, each part compared only when the scope names it, and no owner for an aggregate
-     * of its tenant ([ownership]). A policy replaces the default rule for its aggregate, so one that keeps the
-     * aggregates to their owner and space combines its own attributes with this:
-     * `allOf(DocumentStateAccess.APP eq caller.app, ownerAndSpace(caller))`.
+     * in and whose space is its space, each part compared only when the scope names it, as the aggregate's ownership
+     * keeps them: an aggregate of its tenant ([Ownership.TENANT]) records no owner, so only the space is compared. A
+     * policy replaces the default rule for its aggregate, so one that keeps the aggregates to their owner and space
+     * combines its own attributes with this: `allOf(DocumentStateAccess.APP eq caller.app, ownerAndSpace(caller))`.
      */
-    fun ownerAndSpace(caller: Caller, ownership: Ownership = Ownership.OWNER): AccessPredicate =
-        ScopeAccess.of(ownership.scopeOf(caller.scope))
+    fun ownerAndSpace(caller: Caller): AccessPredicate = ScopeAccess.of(ownership.scopeOf(caller.scope))
 
     private fun compare(attribute: AccessAttribute<*, *>, operator: AccessOperator, values: List<Any>): AccessPredicate =
         if (values.isEmpty()) AccessPredicate.Unknown else AccessPredicate.Comparison(attribute, operator, values)

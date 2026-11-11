@@ -91,7 +91,7 @@ class AccessPolicySpec<S : Any> internal constructor(
 
     /** Whether [caller] may change ([write]) or read the aggregate is [granted]; fails, saying why, otherwise. */
     private fun check(caller: Caller, write: Boolean, granted: Boolean) {
-        val predicate = if (write) policy.write(caller) else policy.read(caller)
+        val predicate = if (write) policy.write(caller, model.ownership) else policy.read(caller, model.ownership)
         val action = if (write) "change" else "read"
         val values = model.accessOf(state)
         val undeclared = attributesOf(predicate).filter { it.name !in AccessAttribute.BUILT_IN }
