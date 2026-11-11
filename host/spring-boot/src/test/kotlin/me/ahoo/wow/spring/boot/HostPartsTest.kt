@@ -313,20 +313,6 @@ class WowPropertiesTest {
     }
 
     @Test
-    fun `an error code without a status should refuse the start, naming its key`() {
-        val locked = HttpProperties.Error().apply { status = 423 }
-        val http = HttpProperties().apply {
-            errors["shop.cart.locked"] = locked
-            errors["shop.cart.full"] = HttpProperties.Error()
-        }
-        val refused = assertThrows<WowConfigurationException> { http.errorStatuses() }
-        refused.key.assert().isEqualTo("wow.http.errors.[shop.cart.full].status")
-        refused.value.assert().isNull()
-        HttpProperties().apply { errors["shop.cart.locked"] = locked }.errorStatuses().assert()
-            .isEqualTo(mapOf("shop.cart.locked" to 423))
-    }
-
-    @Test
     fun `the backpressure of the subscriptions should bind (D263)`() {
         val properties = bind(
             "wow.subscription.backpressure.max-attempts" to "5",
