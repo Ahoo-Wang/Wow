@@ -147,3 +147,12 @@ export function readJsonIfThere(path) {
     return undefined;
   }
 }
+
+/** The [q] quantile of [values] (nearest rank), null for none. */
+export function quantile(values, q) {
+  const finite = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (finite.length === 0) return null;
+  return finite[
+    Math.min(finite.length - 1, Math.max(0, Math.ceil(q * finite.length) - 1))
+  ];
+}

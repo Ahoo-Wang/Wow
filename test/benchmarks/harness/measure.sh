@@ -16,6 +16,20 @@
 # One statement $1 on the scale check's ClickHouse, its answer on stdout.
 clickhouse() { curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/" --data-binary "$1"; }
 
+# Starts the measure programs' ClickHouse ($CLICKHOUSE_IMAGE, the version CI runs) on the store's CPUs, and waits until
+# it answers.
+clickhouse_up() {
+  docker run -d --name "$CLICKHOUSE" -p 18123:8123 --ulimit nofile=262144:262144 \
+    -e CLICKHOUSE_USER=bench -e CLICKHOUSE_PASSWORD=bench "$CLICKHOUSE_IMAGE" >/dev/null
+  local store; store=$(opt store-cpus "$(opt server-cpus "")")
+  if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$CLICKHOUSE" >/dev/null; fi
+  local attempt
+  for attempt in $(seq 1 150); do
+    if clickhouse "SELECT 1" >/dev/null 2>&1; then break; fi
+    sleep 0.2
+  done
+}
+
 # The access scale check (D390 C4's, test/benchmarks/README.md): on fresh containers, ClickHouse seeded with 100,000
 # accounts' access records in each of two tenants and a dataset of 1,000,000 rows over them in each
 # (measure/dataset-access.sql), and one node of the server, whose access mode the arm gives (SPRING_APPLICATION_JSON:
@@ -39,15 +53,7 @@ measure_dataset() {
 "
   stores_up "$BACKEND"
   pin_containers "$BACKEND"
-  docker run -d --name "$CLICKHOUSE" -p 18123:8123 --ulimit nofile=262144:262144 \
-    -e CLICKHOUSE_USER=bench -e CLICKHOUSE_PASSWORD=bench "$CLICKHOUSE_IMAGE" >/dev/null
-  local store; store=$(opt store-cpus "$(opt server-cpus "")")
-  if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$CLICKHOUSE" >/dev/null; fi
-  local attempt
-  for attempt in $(seq 1 150); do
-    if clickhouse "SELECT 1" >/dev/null 2>&1; then break; fi
-    sleep 0.2
-  done
+  clickhouse_up
   log "seeding ClickHouse"
   local statement
   while IFS= read -r -d ';' statement; do
@@ -120,12 +126,211 @@ measure_walk() {
   log "results in $OUT"
 }
 
-# measure: the scale check --program names, dataset-access (the default) or walk.
+# The type of computed column $1 (0-based) of the insert experiment: a string, an integer, a float and a boolean in
+# turn, as a state's top-level scalars are.
+insert_type() {
+  case $(( $1 % 4 )) in
+    0) echo String ;;
+    1) echo Int64 ;;
+    2) echo Float64 ;;
+    *) echo Bool ;;
+  esac
+}
+
+# The computed columns of the insert experiment's table: $2 of them, each read from the JSON text `state` by its own
+# JSONExtract ($1 per-column), or each an element of one JSONExtract into a tuple of all of them ($1 tuple), the two
+# forms D412 compares; none for $1 none.
+insert_columns() {
+  local mode=$1 n=$2 i tuple=""
+  [ "$mode" = none ] && return 0
+  for i in $(seq 0 $(( n - 1 ))); do tuple="${tuple:+$tuple, }c$i $(insert_type "$i")"; done
+  for i in $(seq 0 $(( n - 1 ))); do
+    if [ "$mode" = tuple ]; then
+      printf ', c%s %s MATERIALIZED tupleElement(JSONExtract(state, %s), %s)' "$i" "$(insert_type "$i")" \
+        "'Tuple($tuple)'" "'c$i'"
+    elif [ "$(insert_type "$i")" = String ]; then
+      printf ", c%s String MATERIALIZED JSONExtractString(state, 'c%s')" "$i" "$i"
+    else
+      printf ", c%s %s MATERIALIZED JSONExtract(state, 'c%s', '%s')" "$i" "$(insert_type "$i")" "$i" "$(insert_type "$i")"
+    fi
+  done
+}
+
+# The state text of row `number` with $1 properties c0.., of the types insert_type gives.
+insert_state() {
+  local n=$1 i parts=""
+  for i in $(seq 0 $(( n - 1 ))); do
+    case "$(insert_type "$i")" in
+      String) parts="${parts:+$parts, }'\"c$i\":\"v', toString(number % 1000), '\"'" ;;
+      Int64) parts="${parts:+$parts, }'\"c$i\":', toString(number)" ;;
+      Float64) parts="${parts:+$parts, }'\"c$i\":', toString(number / 7)" ;;
+      *) parts="${parts:+$parts, }'\"c$i\":', if(number % 2 = 0, 'true', 'false')" ;;
+    esac
+  done
+  echo "concat('{', $parts, '}')"
+}
+
+# D412's insert experiment (d412-d413-design.md §2), on ClickHouse alone: what N computed columns cost an insert per
+# row, each column's own JSONExtract against one extraction into a tuple, inserted into the table itself and through a
+# materialized view into its TO table, as the Sink's _state is filled; and whether a skip index is used under FINAL, and
+# reads the right rows. Each insert takes --rows (200,000) rows of a state of N scalars from a table that holds them, in
+# blocks of --block (1,000, the Sink's batch), --repeats (5) times; insert.jsonl holds one line per insert with
+# ClickHouse's query log of it, skip.json the EXPLAIN and the counts. measure.json names them.
+measure_clickhouse_insert() {
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-clickhouse-insert")
+  mkdir -p "$OUT"
+  local rows block repeats
+  rows=$(opt rows 200000)
+  block=$(opt block 1000)
+  repeats=$(opt repeats 5)
+  local -a widths=(5 20 50)
+  trap down EXIT
+  down
+  log "starting ClickHouse"
+  clickhouse_up
+  local settings="max_block_size = $block, max_insert_block_size = $block, min_insert_block_size_rows = $block, min_insert_block_size_bytes = 0"
+  local n mode target repeat table
+  for n in "${widths[@]}"; do
+    clickhouse "CREATE TABLE src_$n ENGINE = MergeTree ORDER BY id AS SELECT number AS id, $(insert_state "$n") AS state FROM numbers($rows)" >/dev/null
+    for mode in none per-column tuple; do
+      for target in table view; do
+        table="t_${mode//-/_}_${target}_$n"
+        clickhouse "CREATE TABLE $table (id UInt64, state String$(insert_columns "$mode" "$n")) ENGINE = MergeTree ORDER BY id" >/dev/null
+        if [ "$target" = view ]; then
+          clickhouse "CREATE TABLE ${table}_in (id UInt64, state String) ENGINE = Null" >/dev/null
+          clickhouse "CREATE MATERIALIZED VIEW ${table}_mv TO $table AS SELECT id, state FROM ${table}_in" >/dev/null
+        fi
+        for repeat in $(seq 1 "$repeats"); do
+          clickhouse "TRUNCATE TABLE $table" >/dev/null
+          local into=$table
+          if [ "$target" = view ]; then into="${table}_in"; fi
+          local id="insert-$mode-$target-$n-$repeat"
+          curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/?query_id=$id" \
+            --data-binary "INSERT INTO $into (id, state) SELECT id, state FROM src_$n SETTINGS $settings" >/dev/null
+          clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+          clickhouse "SELECT '$mode' AS mode, $n AS columns, '$target' AS target, $repeat AS repeat,
+              $rows AS rows, written_rows AS writtenRows, query_duration_ms AS durationMs,
+              ProfileEvents['UserTimeMicroseconds'] AS userMicros,
+              ProfileEvents['OSCPUVirtualTimeMicroseconds'] AS cpuMicros
+            FROM system.query_log WHERE query_id = '$id' AND type = 'QueryFinish'
+            FORMAT JSONEachRow" >>"$OUT/insert.jsonl"
+        done
+        log "inserted $mode, $n columns, into the $target: $repeats times"
+      done
+    done
+  done
+  # A _state of 1,000,000 aggregates over 100 tenants, half of each tenant's with a newer row in a part merges stay off,
+  # and a set index on status. Ids sort as they were inserted, a status holds runs of 2,000 of them and granules are 128
+  # rows, so the index can pass over granules. A newer row moves its aggregate to the next status: the right count reads
+  # it with every older one, which skipping the newer row's granule would not.
+  clickhouse "CREATE TABLE skip_state (tenant_id String, aggregate_id String, version UInt32, status String,
+      INDEX status_set status TYPE set(100) GRANULARITY 1)
+    ENGINE = ReplacingMergeTree(version) ORDER BY (tenant_id, aggregate_id) SETTINGS index_granularity = 128" >/dev/null
+  clickhouse "SYSTEM STOP MERGES skip_state" >/dev/null
+  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', leftPad(toString(number), 7, '0')), 1,
+      concat('s', toString(intDiv(number, 2000) % 50)) FROM numbers(1000000)" >/dev/null
+  clickhouse "INSERT INTO skip_state SELECT concat('t', toString(number % 100)), concat('a', leftPad(toString(number), 7, '0')), 2,
+      concat('s', toString((intDiv(number, 2000) + 1) % 50)) FROM numbers(1000000) WHERE intDiv(number, 100) % 2 = 0" >/dev/null
+  local where="tenant_id = 't7' AND status = 's3'" value
+  local correct
+  correct=$(clickhouse "SELECT count() FROM (SELECT status FROM skip_state FINAL WHERE tenant_id = 't7') WHERE status = 's3'
+    SETTINGS use_skip_indexes = 0")
+  printf '{"correct":%s,"settings":[' "$correct" >"$OUT/skip.json"
+  for value in 0 1; do
+    local explain count read
+    explain=$(clickhouse "EXPLAIN indexes = 1 SELECT count() FROM skip_state FINAL WHERE $where SETTINGS use_skip_indexes_if_final = $value FORMAT JSONEachRow")
+    curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/?query_id=skip-$value" \
+      --data-binary "SELECT count() FROM skip_state FINAL WHERE $where SETTINGS use_skip_indexes_if_final = $value" >"$OUT/skip-$value.count"
+    count=$(tr -d '\n' <"$OUT/skip-$value.count")
+    clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+    read=$(clickhouse "SELECT read_rows FROM system.query_log WHERE query_id = 'skip-$value' AND type = 'QueryFinish'")
+    printf '%s{"useSkipIndexesIfFinal":%s,"count":%s,"readRows":%s,"explain":%s}' "$([ "$value" = 1 ] && echo ,)" \
+      "$value" "$count" "$(echo "$read" | tr -d '\n')" "$(printf '%s' "$explain" | jq -Rs .)" >>"$OUT/skip.json"
+  done
+  printf ']}\n' >>"$OUT/skip.json"
+  printf '{"schema":"wow-e2e-bench/measure/1","measure":"clickhouse-insert","rows":%s,"block":%s,"repeats":%s,"columns":[5,20,50],"server":%s}\n' \
+    "$rows" "$block" "$repeats" "$(clickhouse "SELECT version()" | jq -Rs 'rtrimstr("\n")')" >"$OUT/measure.json"
+  log "results in $OUT"
+}
+
+# The tables the sink keeps of the benchmark's account (context transfer), as ClickHouse names them.
+SINK_TABLES="'transfer_account_state_events', 'transfer_account_state', 'transfer_account_events'"
+
+# The sink's counts (D413's "before"): one node on --backend (postgres) with the ClickHouse sink switched on
+# (wow.clickhouse.sink.enabled), --accounts accounts seeded (1,000 spread the commits over many aggregates, 10 make a few
+# hot ones), then E1 deposits at --rate a second for --seconds, open loop, the load's --distribution (`hot`: a
+# --hot-fraction of them to the first --hot-keys accounts). Once the sink has written every commit (its
+# _state_events rows reach the deposits the load counted, or stop growing for 30 s), ClickHouse's part log and query
+# log give the parts each of the sink's tables got, their rows, and the inserts the sink sent: sink.json, with the
+# load's result.json under load/. measure.json names them.
+measure_sink() {
+  check_java
+  BACKEND=$(opt backend postgres)
+  HEAP=$(opt heap 1g)
+  local accounts rate seconds
+  accounts=$(opt accounts 1000)
+  rate=$(opt rate 200)
+  seconds=$(opt seconds 60)
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-sink-$accounts")
+  mkdir -p "$OUT"
+  trap down EXIT
+  down
+  log "starting $BACKEND and ClickHouse"
+  OPTIONS="${OPTIONS}no-bus=true
+"
+  stores_up "$BACKEND"
+  pin_containers "$BACKEND"
+  clickhouse_up
+  OPTIONS="${OPTIONS}server-args=$(opt server-args "") --wow.transport=none --wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.clickhouse.sink.enabled=true
+"
+  start_node 1
+  await_node 1
+  TARGET_LIST=${TARGETS[0]}
+  log "seeding $accounts accounts"
+  load seed --targets="$TARGET_LIST" --accounts="$accounts" --concurrency=32 | tee "$OUT/seed.log" >&2
+  # The parts and inserts counted from here on are the deposits', not the seeding's.
+  clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+  local since
+  since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
+  log "E1 at $rate/s for ${seconds}s over $accounts accounts"
+  load run --targets="$TARGET_LIST" --accounts="$accounts" --scenario=E1 --rate="$rate" --warm-up=0 \
+    --measure="$seconds" --distribution="$(opt distribution uniform)" --hot-fraction="$(opt hot-fraction 0.5)" \
+    --hot-keys="$(opt hot-keys 1)" --label=sink --out="$OUT/load" | tee "$OUT/load.log" >&2
+  local expected rows last=-1 still=0
+  expected=$(jq '.results.ok + ('"$accounts"')' "$OUT/load/result.json")
+  log "waiting for the sink to write $expected commits"
+  while [ "$still" -lt 30 ]; do
+    rows=$(clickhouse "SELECT count() FROM transfer_account_state_events" 2>/dev/null || echo 0)
+    if [ "$rows" -ge "$expected" ]; then break; fi
+    if [ "$rows" = "$last" ]; then still=$((still + 1)); else still=0; last=$rows; fi
+    sleep 1
+  done
+  clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+  local parts inserts
+  parts=$(clickhouse "SELECT table, count() AS parts, sum(rows) AS rows FROM system.part_log
+      WHERE event_type = 'NewPart' AND table IN ($SINK_TABLES)
+        AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
+      GROUP BY table ORDER BY table FORMAT JSONEachRow" | jq -s .)
+  inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows FROM system.query_log
+      WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
+        AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
+      FORMAT JSONEachRow" | jq -s '.[0]')
+  printf '{"sink":"clickhouse","accounts":%s,"rate":%s,"seconds":%s,"expected":%s,"written":%s,"parts":%s,"inserts":%s}\n' \
+    "$accounts" "$rate" "$seconds" "$expected" "$(clickhouse "SELECT count() FROM transfer_account_state_events")" \
+    "$parts" "$inserts" >"$OUT/sink.json"
+  printf '{"schema":"wow-e2e-bench/measure/1","measure":"sink","sink":"clickhouse","accounts":%s}\n' "$accounts" \
+    >"$OUT/measure.json"
+  log "results in $OUT"
+}
+
+# measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert or sink.
 measure() {
   parse "$@"
   case "$(opt program dataset-access)" in
     dataset-access) measure_dataset ;;
     walk) measure_walk ;;
-    *) log "unknown program $(opt program ""): dataset-access or walk"; exit 2 ;;
+    clickhouse-insert) measure_clickhouse_insert ;;
+    sink) measure_sink ;;
+    *) log "unknown program $(opt program ""): dataset-access, walk, clickhouse-insert or sink"; exit 2 ;;
   esac
 }
