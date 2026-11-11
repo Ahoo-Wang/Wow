@@ -33,13 +33,15 @@ class CaseSetRulesTest {
     }
 
     @Test
-    fun `case set rule should catch a type with neither sentence or both, a nested one included`(@TempDir root: File) {
+    fun `case set rule should catch a type with neither sentence or both, and an enum it cannot read`(
+        @TempDir root: File,
+    ) {
         val spi = ArchitectureRules.SPI
         File(root, "${spi.dir}/api").mkdirs()
-        File(root, "${spi.dir}/api/${spi.name}.api").writeText(
-            listOf("Open", "Wrapped", "Closed", "Neither", "Both", "Holder", "Holder\$Kind", "Holder\$Companion\$Mode")
-                .joinToString("\n") { "public final class me/ahoo/wow/spi/$it {\n}\n" },
-        )
+        val enums = listOf("Wrapped", "Closed", "Neither", "Holder\$Kind", "Holder\$Companion\$Mode", "Inline")
+        val types = listOf("Open", "Both", "Holder").map { "public final class me/ahoo/wow/spi/$it {\n}\n" }
+        val enumTypes = enums.map { "public final class me/ahoo/wow/spi/$it : java/lang/Enum {\n}\n" }
+        File(root, "${spi.dir}/api/${spi.name}.api").writeText((types + enumTypes).joinToString("\n"))
         root.writeSource(
             spi.dir,
             "me/ahoo/wow/spi/Types.kt",
@@ -75,6 +77,9 @@ class CaseSetRulesTest {
                     enum class Mode { A }
                 }
             }
+
+            /** $OPEN */
+            @WowSpi enum class Inline { A }
             """.trimIndent(),
         )
 
@@ -83,6 +88,7 @@ class CaseSetRulesTest {
             "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Types.kt:20: Both: both sentences",
             "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Types.kt:26: Holder.Kind: neither sentence",
             "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Types.kt:29: Holder.Companion.Mode: neither sentence",
+            "${spi.dir}/api/${spi.name}.api: me/ahoo/wow/spi/Inline: declared in the ABI dump, not found in the sources",
         )
     }
 

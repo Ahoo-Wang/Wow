@@ -30,6 +30,11 @@ import java.io.File
  *
  * A type is public when its module's ABI dump (`<module>/api/<module>.api`) declares it, so an `internal` or an
  * `@InternalWowApi` type is left out, as a module without a dump is.
+ *
+ * The types are found by reading the sources line by line, which misses a declaration of an unusual layout (an
+ * annotation on the same line, say). An enum cannot be missed so: the dump marks it as extending `java/lang/Enum`, and
+ * one the sources' reading did not find is a violation of its own. A sealed type has no such mark in the dump, so its
+ * detection rests on the reading of the sources alone.
  */
 object CaseSetRules {
     /** The sentence of an open type. */
@@ -60,10 +65,12 @@ object CaseSetRules {
     private val DECLARATION = Regex("""^(\s*)((?:[a-z]+ )*)(class|interface|object)(?: (\w+))?""")
     private val CASE_SET = Regex("""\b(?:enum|sealed)\b""")
     private val ABI_DECLARED_CLASS = Regex("""^(?:public|protected) [^{]*?\bclass ([\w/$]+)""")
+    private val ABI_ENUM = Regex("""^(?:public|protected) [^{]*?\bclass ([\w/$]+) : java/lang/Enum\b""")
 
     /**
      * The public enums and sealed types of [MODULES], outside [pending], whose KDoc carries neither sentence or both, as
-     * `file:line: Type: why`, and each pending module that has no such type any more (a stale entry).
+     * `file:line: Type: why`; each enum of an ABI dump the sources' reading did not find, as `dump: class: why`; and
+     * each pending module that has neither any more (a stale entry).
      */
     fun violations(repositoryRoot: File, pending: Map<String, String> = PENDING): List<String> {
         val found = MODULES.filter { it.dir !in pending }.flatMap { unmarked(repositoryRoot, it) }
@@ -72,12 +79,18 @@ object CaseSetRules {
     }
 
     private fun unmarked(repositoryRoot: File, module: WowProject): List<String> {
-        val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api").takeIf { it.isFile } ?: return emptyList()
-        val public = dump.readLines().mapNotNull { ABI_DECLARED_CLASS.find(it)?.groupValues?.get(1) }.toSet()
+        val dumpPath = "${module.dir}/api/${module.name}.api"
+        val dump = File(repositoryRoot, dumpPath).takeIf { it.isFile } ?: return emptyList()
+        val dumpLines = dump.readLines()
+        val public = dumpLines.mapNotNull { ABI_DECLARED_CLASS.find(it)?.groupValues?.get(1) }.toSet()
+        val enums = dumpLines.mapNotNull { ABI_ENUM.find(it)?.groupValues?.get(1) }
+        val read = mutableSetOf<String>()
         val root = File(repositoryRoot, "${module.dir}/src/main/kotlin")
-        return root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }.flatMap { file ->
+        val sources = root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }
+        val unmarked = sources.flatMap { file ->
             val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
-            caseSets(file.readLines()).filter { it.jvmName in public }.mapNotNull { type ->
+            val types = caseSets(file.readLines()).onEach { read += it.jvmName }
+            types.filter { it.jvmName in public }.mapNotNull { type ->
                 val open = OPEN in type.kdoc
                 val closed = CLOSED in type.kdoc
                 when {
@@ -87,6 +100,8 @@ object CaseSetRules {
                 }
             }
         }.toList()
+        val unread = (enums - read).map { "$dumpPath: $it: declared in the ABI dump, not found in the sources" }
+        return unmarked + unread
     }
 
     private class CaseSet(val jvmName: String, val name: String, val line: Int, val kdoc: String)
