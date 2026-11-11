@@ -40,6 +40,12 @@ import type { DashboardWidth } from '../../model/index.js';
  * The same goes for the board's own width switched (D31, `boardWidth`): the
  * container is narrower or wider at once, and is measured before that paints
  * rather than a frame after, with the panels spilling out of it meanwhile.
+ *
+ * A new width then lays the panels out at once (`reflowing`). The grid's
+ * stylesheet eases a panel from its old place and size to its new ones over
+ * 200ms, which is what a panel dragged or dropped should do; after a width
+ * change it drew the panels where the old width put them for that long — on
+ * a window narrowed by 160px, up to 150px past the grid and the page (#3721).
  */
 export function useGridWidth(boardWidth: DashboardWidth) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,6 +54,7 @@ export function useGridWidth(boardWidth: DashboardWidth) {
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
+    reflowing(node);
     setWidth(Math.round(contentWidth(node)));
     setMeasured(true);
   }, [boardWidth]);
@@ -64,6 +71,7 @@ export function useGridWidth(boardWidth: DashboardWidth) {
       const entry = entries[0];
       if (!entry || !observing) return;
       const next = Math.round(entry.contentRect.width);
+      reflowing(node);
       flushSync(() => setWidth(next));
     });
     observer.observe(node);
@@ -71,6 +79,20 @@ export function useGridWidth(boardWidth: DashboardWidth) {
     return () => observer.disconnect();
   }, []);
   return { containerRef, width, measured };
+}
+
+/**
+ * Marks the container while the panels take a new width
+ * (`data-grid-reflowing`), so the stylesheet draws them at their new places
+ * without easing there (`styles.css`). The mark is set before the update that
+ * moves them and cleared two frames later: by then the move was drawn, and
+ * putting the easing back moves nothing.
+ */
+function reflowing(node: HTMLElement): void {
+  node.dataset.gridReflowing = '';
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => delete node.dataset.gridReflowing),
+  );
 }
 
 /** The width the grid is laid out at before anything was measured. */

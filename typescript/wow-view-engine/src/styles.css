@@ -3990,6 +3990,16 @@
     @apply fve:bg-primary;
   }
 
+  /*
+   * A new width lays the panels out at once (#3721): upstream eases a panel
+   * from its old place and size, which a drag or a drop wants, but after a
+   * width change that drew the panels past their grid for 200ms
+   * (`useGridWidth` marks the container meanwhile).
+   */
+  .fve-root [data-grid-reflowing] .react-grid-item {
+    transition: none;
+  }
+
   /* Upstream draws the resize handle in translucent black; the theme owns that colour. */
   .fve-root .react-grid-item > .react-resizable-handle::after {
     border-color: var(--muted-foreground);
