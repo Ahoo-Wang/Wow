@@ -111,7 +111,7 @@ class ModelProviderTest {
         assertThrownBy<AmbiguousDependencyException> {
             Dependencies.of(Pricing { 1 }, Pricing { 2 }).get(Pricing::class.java)
         }.hasMessageStartingWith("2 dependencies are ${Pricing::class.java.name} (").hasMessageEndingWith(
-            "and none is primary takes one; qualify it with @Name.",
+            "and none is primary takes one; name it with @DependencyName.",
         )
     }
 

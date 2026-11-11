@@ -185,7 +185,7 @@ fun onCommand(command: Command<SubmitFeedback>): FeedbackSubmitted =
 
 ## 使用领域服务 {#take-domain-services}
 
-命令之后的参数是领域服务，或者 `DecideScope`。服务会成为生成的模型的一个参数，宿主在构建模型时绑定一次：取应用中该类型唯一的 Bean，或者它的 primary Bean。在参数上写 `@Name("…")` 则取这个名字的 Bean，于是同一类型的两个参数可以取两个不同的 Bean。
+命令之后的参数是领域服务，或者 `DecideScope`。服务会成为生成的模型的一个参数，宿主在构建模型时绑定一次：取应用中该类型唯一的 Bean，或者它的 primary Bean。在参数上写 `@DependencyName("…")` 则取这个名字的 Bean，于是同一类型的两个参数可以取两个不同的 Bean。
 
 订单把它的支付策略作为服务接收，并在库存确认后用 `DecideScope` 为自己定时取消：
 

@@ -121,7 +121,7 @@ class MissingDependencyException(
 
 /**
  * Several dependencies are of [type], the [candidates] by their names, and none is the one to take: the [parameter]
- * of [building] names one with a qualifier (`@Name`), or the host marks one primary.
+ * of [building] names one (`@DependencyName`), or the host marks one primary.
  */
 class AmbiguousDependencyException(
     val type: Type,
@@ -131,7 +131,7 @@ class AmbiguousDependencyException(
 ) : IllegalStateException(
     "${candidates.size} dependencies are ${Types.nameOf(type)} (${candidates.joinToString()}) and none is primary" +
         (parameter?.let { ": the parameter $it" }.orEmpty()) + (building?.let { " of $it" }.orEmpty()) +
-        " takes one; qualify it with @Name.",
+        " takes one; name it with @DependencyName.",
 ) {
     /** This ambiguity, of the [parameter] of [building]. */
     fun of(building: String?, parameter: String): AmbiguousDependencyException =

@@ -55,6 +55,7 @@ class SubscriptionBindingTest {
         package sample.shop
 
         import me.ahoo.wow.api.annotation.Blocking
+        import me.ahoo.wow.api.annotation.DependencyName
         import me.ahoo.wow.api.annotation.Name
         import me.ahoo.wow.api.annotation.OnEvent
         import me.ahoo.wow.api.annotation.OnRejected
@@ -79,7 +80,7 @@ class SubscriptionBindingTest {
         val CART = AggregateType("shop", "cart")
 
         @Projection
-        class OrderProjection(private val rows: Rows, @Name("audit") private val audit: Rows) {
+        class OrderProjection(private val rows: Rows, @DependencyName("audit") private val audit: Rows) {
             @OnEvent
             fun onEvent(event: StateEvent<OrderState>) { rows.put("sync", event.state.id) }
 
@@ -199,8 +200,8 @@ class SubscriptionBindingTest {
             "override fun processors(",
             "sample.shop.cartSagaHandlers(dependencies),",
         )
-        // The handlers built from the host's Dependencies, by type and @Name, and from the services themselves,
-        // named as the constructor names them.
+        // The handlers built from the host's Dependencies, by type and @DependencyName, and from the services
+        // themselves, named as the constructor names them.
         generated(compilation, "OrderProjectionSubscriptions.kt")!!.readText().assert().contains(
             "dependencies.get(sample.shop.Rows::class.javaObjectType, null, \"OrderProjection\"),",
             "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\", \"OrderProjection\"),",

@@ -44,8 +44,8 @@ interface ModelProvider {
 
     /**
      * The handlers of the module's `@Projection`, `@Reactor` and `@Saga` processors, which subscribe to
-     * [context]: each processor constructed once, with its constructor's parameters from [dependencies] (qualified by
-     * their `@Name`); a [MissingDependencyException] when one is missing. None by default: the
+     * [context]: each processor constructed once, with its constructor's parameters from [dependencies] (named by
+     * their `@DependencyName`); a [MissingDependencyException] when one is missing. None by default: the
      * compiler overrides it for a module that declares processors.
      */
     fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> = emptyList()

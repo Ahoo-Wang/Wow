@@ -137,7 +137,7 @@ class TypesTest {
             .exceptionOrNull() as AmbiguousDependencyException
         failure.message.assert().isEqualTo(
             "2 dependencies are $catalogName<java.lang.String> (retail, wholesale) and none is primary: the " +
-                "parameter prices of the Cart model takes one; qualify it with @Name.",
+                "parameter prices of the Cart model takes one; name it with @DependencyName.",
         )
         failure.parameter.assert().isEqualTo("prices")
         failure.building.assert().isEqualTo("the Cart model")

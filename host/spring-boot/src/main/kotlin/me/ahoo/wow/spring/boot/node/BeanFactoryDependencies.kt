@@ -30,9 +30,9 @@ import java.lang.reflect.Type
 
 /**
  * The parameters of the generated model factories from Spring's [beanFactory]: a dependency
- * named by a qualifier (`@Name("…")` on the parameter) is the bean of that name, when it is of the type; one without
+ * named by `@DependencyName("…")` on the parameter is the bean of that name, when it is of the type; one without
  * is the only bean of its type, or its primary bean when there are several. Several without a primary are ambiguous:
- * the parameter needs a qualifier. A parameterized type is matched by every type argument, as Spring matches an
+ * the parameter needs a `@DependencyName`. A parameterized type is matched by every type argument, as Spring matches an
  * injection point: `StateViewCache<OrderStateView>` is not `StateViewCache<PaymentStateView>`.
  *
  * The node's own APIs, which a command function calls the read side and other contexts with, are built from the node,
