@@ -62,6 +62,8 @@ Streams an import from 9.x appended carry none: under an access policy, an event
 
 The ClickHouse sink is a subscription too: its tables are derived from the log, and it keeps them exact when a commit reaches it twice ([ClickHouse](./clickhouse#delivered-once-read-once)).
 
+A table the sink did not make in its present shape (its comment does not say the sink's format, it has other columns, or it lacks a computed column) fails the sink's writes, naming it ([Schema management](./clickhouse#schema-management)). It holds nothing the log does not, so drop it and reset the sink's subscription, which fills it again from the log.
+
 ## Parked aggregates
 
 An aggregate a subscription parked is not lost: resuming it reads its stream again from the version it stopped at, and its handler sees every event it missed, in order ([Failures and Retries](../guide/failures#parked-aggregates)).
