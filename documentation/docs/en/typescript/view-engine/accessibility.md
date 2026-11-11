@@ -9,7 +9,7 @@ This page is the accessibility conformance statement of the view engine's interf
 
 | Supports | Partially supports | Does not support | Not applicable |
 | ---: | ---: | ---: | ---: |
-| 41 | 0 | 0 | 14 |
+| 40 | 1 | 0 | 14 |
 
 It is a self-evaluation, not a third-party audit, and screen-reader software has been used only for a spot check: see [How it was evaluated](#how-it-was-evaluated) and [Known gaps](#known-gaps).
 
@@ -90,7 +90,7 @@ Most "not applicable" rows below are for this reason.
 |---|---|---|---|
 | 2.1.1 Keyboard | A | Supports | Every core task can be done with the keyboard alone; chart marks are pointer-only, and the same operations are keyboard-operable in the table layout and on the filter bar |
 | 2.1.2 No Keyboard Trap | A | Supports | Only modal dialogs keep focus, and Esc leaves them |
-| 2.1.4 Character Key Shortcuts | A | Supports | Three single-character keys, `/` (the search box) and J and K (the next and previous record), each active only while the keyboard is inside the view or a record's detail, never in a field |
+| 2.1.4 Character Key Shortcuts | A | Partially supports | Three single-character keys, `/` (the search box) and J and K (the next and previous record), act while the keyboard is inside the view or a record's detail, never in a field; a host cannot turn them off |
 | 2.2.1 Timing Adjustable | A | Not applicable | No time limits |
 | 2.2.2 Pause, Stop, Hide | A | Supports | Auto refresh is switched on by the user and can be switched off at any time |
 | 2.3.1 Three Flashes or Below Threshold | A | Supports | Nothing flashes |
