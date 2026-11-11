@@ -180,7 +180,7 @@ class ServiceNodeStopTest : ServiceNodeFixtures() {
         val drain = 200.milliseconds
         val options = fastNodeOptions().copyWith(
             cluster = fastOptions(drainTimeout = drain),
-            wait = WaitOptions(maxTimeout = 1.seconds),
+            wait = WaitOptions(maxTimeout = 1.seconds, defaultTimeout = 1.seconds),
         )
         val steps = CopyOnWriteArrayList<ServiceNode.Step>()
         val node = node("node-1", model = stuck, options = options, listener = { steps += it })

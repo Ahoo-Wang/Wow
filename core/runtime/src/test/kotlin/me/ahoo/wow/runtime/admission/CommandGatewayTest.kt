@@ -222,10 +222,6 @@ class CommandGatewayTest : CommandGatewayFixtures() {
         gateway.execute(request(wait = WaitPlan.COMMITTED.within(2.seconds)))
         commands.map { it.wait }.assert()
             .containsExactly(WaitPlan.DEFAULT.within(4.seconds), WaitPlan.COMMITTED.within(2.seconds))
-
-        // A default longer than the maximum is capped by it.
-        val capped = gateway(coordinator = coordinator(60.seconds))
-        capped.defaultWaitTimeout(CONTEXT).assert().isEqualTo(30.seconds)
     }
 
     @Test

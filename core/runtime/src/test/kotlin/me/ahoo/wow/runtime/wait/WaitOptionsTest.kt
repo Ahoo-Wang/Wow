@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.wait
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /** The bounds a wait's options hold, and Wow's own copy of them. */
@@ -25,5 +26,16 @@ class WaitOptionsTest {
         assertThrows<IllegalArgumentException> { WaitOptions(maxTimeout = 0.seconds) }
         assertThrows<IllegalArgumentException> { WaitOptions(maxHops = 0) }
         WaitOptions(maxHops = 3).copyWith(maxRegistered = 1).maxHops.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `the default timeout is positive and at most the maximum, which a default above it is refused for`() {
+        assertThrows<IllegalArgumentException> { WaitOptions(defaultTimeout = 0.seconds) }
+        assertThrows<IllegalArgumentException> { WaitOptions(maxTimeout = 5.seconds) }
+            .message.assert().isEqualTo(
+                "The default wait timeout 10s is above the maximum 5s: raise the maximum or lower the default.",
+            )
+        WaitOptions(maxTimeout = 5.seconds, defaultTimeout = 5.seconds).defaultTimeout.assert().isEqualTo(5.seconds)
+        assertThrows<IllegalArgumentException> { WaitOptions().copyWith(defaultTimeout = 2.minutes) }
     }
 }

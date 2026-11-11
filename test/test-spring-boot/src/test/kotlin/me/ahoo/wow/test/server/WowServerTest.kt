@@ -76,7 +76,7 @@ class WowServerTest {
 
     @Test
     fun `the clients should answer with the status, the headers and the JSON body`() {
-        val properties = NAMED + mapOf("wow.wait.max-timeout" to "5s", "wow.subscription.checkpoint-interval" to null)
+        val properties = NAMED + mapOf("wow.wait.max-timeout" to "12s", "wow.subscription.checkpoint-interval" to null)
         wowServer<EmptyApp>("dev", properties = properties)
             .use { server ->
                 val unknown = server.http.post("/shop/order/create", """{"total":1}""", mapOf("X-Test" to "1"))
@@ -90,7 +90,7 @@ class WowServerTest {
                 server.internal.assert().isSameAs(server.internal)
                 // A property the test gives overrides the defaults; a null one leaves the key out.
                 val environment = server.bean<Environment>()
-                environment.getProperty("wow.wait.max-timeout").assert().isEqualTo("5s")
+                environment.getProperty("wow.wait.max-timeout").assert().isEqualTo("12s")
                 environment.getProperty("wow.subscription.checkpoint-interval").assert().isNull()
             }
     }

@@ -775,9 +775,9 @@ How long and how far the commands' waits go.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.wait.default-timeout` | `Duration` | `PT10S` | How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through: at most maxTimeout. |
+| `wow.wait.default-timeout` | `Duration` | `PT10S` | How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. At most `wow.wait.max-timeout`: a node whose default is above it does not start. |
 | `wow.wait.max-hops` | `Integer` | `16` | The most hops of a wait plan, at most WaitOptions.MAX_HOPS_CAP; each saga a chain follows adds two. |
 | `wow.wait.max-registered` | `Integer` | `16384` | The most waits the node holds at once, which bounds their memory: beyond it a command whose plan waits past ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED. |
-| `wow.wait.max-timeout` | `Duration` | `PT1M` | The longest wait; a longer timeout is capped to it, and a node stops within it. |
+| `wow.wait.max-timeout` | `Duration` | `PT1M` | The longest wait; a longer timeout a caller asks for is capped to it, and a node stops within it. |
 | `wow.wait.unknown-contexts` | `UnknownContexts` | `allow` | Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`. |
 

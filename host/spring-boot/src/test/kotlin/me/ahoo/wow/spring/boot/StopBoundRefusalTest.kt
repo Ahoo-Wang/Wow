@@ -47,6 +47,13 @@ class StopBoundRefusalTest {
     }
 
     @Test
+    fun `a wait default above the maximum should be refused naming wow-wait`(output: CapturedOutput) {
+        // The hosts' tests run with a 15 s maximum (wow.wait.max-timeout).
+        val reason = "The default wait timeout 2m is above the maximum 15s: raise the maximum or lower the default."
+        refused("wow.wait.default-timeout" to "2m", output, "wow.wait", reason)
+    }
+
+    @Test
     fun `a drain timeout past the reconcile timeout should be refused naming wow-cluster`(output: CapturedOutput) {
         refused("wow.cluster.drain-timeout" to "5m", output, "wow.cluster", "must be longer than the drain timeout")
     }

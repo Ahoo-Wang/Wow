@@ -306,7 +306,8 @@ When Kubernetes stops a pod, the node first finishes the waits still open, then 
 shutdown:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStopSeconds: 5
-  # The longest wait the public server finishes before it stops (wow.wait.max-timeout).
+  # The longest wait the public server finishes before it stops (wow.wait.max-timeout); at least
+  # wow.wait.default-timeout (10 s unless set), or the node does not start.
   waitMaxTimeoutSeconds: 60
   # How long a hand-off waits for its partition's commands in flight (wow.cluster.drain-timeout).
   drainTimeoutSeconds: 10
