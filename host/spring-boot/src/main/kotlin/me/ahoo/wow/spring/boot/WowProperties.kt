@@ -26,6 +26,11 @@ import me.ahoo.wow.spring.boot.observability.HealthProperties
 import me.ahoo.wow.spring.boot.observability.ObservabilityProperties
 import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.security.CoSecProperties
+import me.ahoo.wow.spring.boot.store.AccessProperties
+import me.ahoo.wow.spring.boot.store.LogProperties
+import me.ahoo.wow.spring.boot.store.MemoryProperties
+import me.ahoo.wow.spring.boot.store.SnapshotProperties
+import me.ahoo.wow.spring.boot.store.StoreProperties
 import me.ahoo.wow.spring.boot.transport.TransportSelection
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.BindException

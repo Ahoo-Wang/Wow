@@ -24,6 +24,7 @@ import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spring.boot.query.QueryIndexesLifecycle
+import me.ahoo.wow.spring.boot.store.HostBackends
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.ReadinessState

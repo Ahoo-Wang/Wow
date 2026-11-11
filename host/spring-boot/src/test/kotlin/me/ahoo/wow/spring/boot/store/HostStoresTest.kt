@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.store
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -45,6 +45,13 @@ import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spring.boot.AggregateProperties
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.BankModels
+import me.ahoo.wow.spring.boot.DecidedCommands
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.memoryStore
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory

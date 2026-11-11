@@ -30,8 +30,8 @@ import me.ahoo.wow.query.store.QueryStoreSettings
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.spi.Ddl
-import me.ahoo.wow.spring.boot.StoreProperties
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.store.StoreProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration

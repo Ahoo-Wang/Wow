@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.config
 
-import me.ahoo.wow.spring.boot.MongoClientAutoConfiguration
+import me.ahoo.wow.spring.boot.store.MongoClientAutoConfiguration
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.properties.bind.Binder

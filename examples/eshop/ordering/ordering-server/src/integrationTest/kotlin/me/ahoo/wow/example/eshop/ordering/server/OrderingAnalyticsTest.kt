@@ -22,7 +22,7 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.spring.boot.HostBackends
+import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll

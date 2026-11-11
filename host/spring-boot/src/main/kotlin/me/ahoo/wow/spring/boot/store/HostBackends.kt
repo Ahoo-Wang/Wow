@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.store
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spring.boot.WowLifecycles
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 

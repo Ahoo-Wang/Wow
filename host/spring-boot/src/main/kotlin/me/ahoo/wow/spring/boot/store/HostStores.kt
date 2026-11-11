@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.store
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -49,6 +49,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.query.MemoryQueries
 import me.ahoo.wow.spring.boot.transport.PortProviders
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory

@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.availability.ApplicationAvailability

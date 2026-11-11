@@ -18,6 +18,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.config.ConnectionDefaultsEnvironmentPostProcessor
 import me.ahoo.wow.spring.boot.observability.HealthGroupsEnvironmentPostProcessor
 import me.ahoo.wow.spring.boot.security.CoSecModeEnvironmentPostProcessor
+import me.ahoo.wow.spring.boot.store.MongoClientAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows

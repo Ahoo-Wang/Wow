@@ -30,9 +30,9 @@ import me.ahoo.wow.spi.transport.TopicTransport
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
-import me.ahoo.wow.spring.boot.BeanStoreResources
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.store.BeanStoreResources
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration

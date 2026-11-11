@@ -60,6 +60,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spring.boot.store.HostBackends
+import me.ahoo.wow.spring.boot.store.MemoryStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.UUID

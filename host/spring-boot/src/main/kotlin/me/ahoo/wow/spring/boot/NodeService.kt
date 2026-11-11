@@ -53,6 +53,7 @@ import me.ahoo.wow.spring.boot.NodeAdmission.Companion.tenants
 import me.ahoo.wow.spring.boot.NodeAdmission.Companion.writePolicies
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.WOW_AGGREGATE_ID_GENERATOR
 import me.ahoo.wow.spring.boot.query.QueryProperties
+import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.transport.PortProviders
 import me.ahoo.wow.spring.boot.transport.ProvidedSinks
 import me.ahoo.wow.spring.boot.transport.TransportNeeds

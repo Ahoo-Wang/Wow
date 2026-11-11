@@ -39,6 +39,9 @@ import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spring.boot.store.HostBackends
+import me.ahoo.wow.spring.boot.store.MemoryStoreProvider
+import me.ahoo.wow.spring.boot.store.StoreProviders
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.store.StoreTypes

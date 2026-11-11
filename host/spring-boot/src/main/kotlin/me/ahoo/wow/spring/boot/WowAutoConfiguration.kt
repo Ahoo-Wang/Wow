@@ -59,6 +59,10 @@ import me.ahoo.wow.spring.boot.http.PeerDiscoveries
 import me.ahoo.wow.spring.boot.observability.ObservabilityAutoConfiguration
 import me.ahoo.wow.spring.boot.query.HostDatasets
 import me.ahoo.wow.spring.boot.query.RetiredQueryPolicies
+import me.ahoo.wow.spring.boot.store.NodeStores
+import me.ahoo.wow.spring.boot.store.ProviderOptionKeys
+import me.ahoo.wow.spring.boot.store.StoreInstances
+import me.ahoo.wow.spring.boot.store.StoreProviders
 import me.ahoo.wow.spring.boot.transport.PortProviders
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor

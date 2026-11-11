@@ -42,10 +42,10 @@ import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
 import me.ahoo.wow.spi.store.facet
 import me.ahoo.wow.spring.boot.BackendsLifecycle
-import me.ahoo.wow.spring.boot.MemoryStore
 import me.ahoo.wow.spring.boot.WowLifecycles
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.AGGREGATE_KEY_FIX
+import me.ahoo.wow.spring.boot.store.MemoryStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.SmartLifecycle

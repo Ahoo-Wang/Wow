@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.store
 
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoPoolGauge
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.springframework.asm.ClassWriter
 import org.springframework.asm.Opcodes
