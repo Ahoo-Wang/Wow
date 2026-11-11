@@ -34,11 +34,14 @@ internal object AdmissionLimits {
     /** The longest id admission takes, in characters. */
     const val MAX_ID_LENGTH: Int = 256
 
-    /** Why an id of a request is too long, or null when none is; [aggregateId] is null before one is known. */
-    fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope): String? =
+    /**
+     * Why an id of a request is too long, or null when none is; [aggregateId] is null before one is known, and the
+     * owner or space [body] transfers to, when given, is checked as [oversizedBody] does.
+     */
+    fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope, body: Any? = null): String? =
         oversized("request id", requestId) ?: oversized("aggregate id", aggregateId)
             ?: oversized("tenant id", tenantId) ?: oversized("owner id", scope.ownerId)
-            ?: oversized("space id", scope.spaceId)
+            ?: oversized("space id", scope.spaceId) ?: body?.let(::oversizedBody)
 
     /** Why the owner or space [body] transfers the aggregate to is too long, or null when it transfers none or fits. */
     fun oversizedBody(body: Any): String? = when (body) {

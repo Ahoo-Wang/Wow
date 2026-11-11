@@ -112,9 +112,7 @@ internal class Transformations(
             )
         }
         val ref = targetType.ref(targetTenant, aggregateId)
-        val oversized = AdmissionLimits.oversized(facts.requestId, aggregateId, targetTenant, scope)
-            ?: AdmissionLimits.oversizedBody(result.body)
-        oversized?.let {
+        AdmissionLimits.oversized(facts.requestId, aggregateId, targetTenant, scope, result.body)?.let {
             facts.ref = ref
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }
