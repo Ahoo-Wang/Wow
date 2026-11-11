@@ -8598,6 +8598,7 @@ export interface ViewHostProps {
     bindings?: readonly ViewBinding[];
     boardsInAddress?: boolean;
     brand?: string;
+    characterKeys?: boolean;
     // (undocumented)
     children: ReactNode;
     colorMode?: HostColorMode;

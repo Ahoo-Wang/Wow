@@ -59,7 +59,7 @@ import { inRowCurrency } from '../kit/currency.js';
 import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';
-import { useCharacterKeys } from '../workbench/ViewEngineProvider.js';
+import { useCharacterKeys } from '../kit/characterKeys.js';
 
 interface RecordDetailProps {
   detail: RecordDetailController;

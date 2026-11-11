@@ -9,7 +9,7 @@ This page is the accessibility conformance statement of the view engine's interf
 
 | Supports | Partially supports | Does not support | Not applicable |
 | ---: | ---: | ---: | ---: |
-| 40 | 1 | 0 | 14 |
+| 41 | 0 | 0 | 14 |
 
 It is a self-evaluation, not a third-party audit, and screen-reader software has been used only for a spot check: see [How it was evaluated](#how-it-was-evaluated) and [Known gaps](#known-gaps).
 
@@ -46,7 +46,7 @@ Most "not applicable" rows below are for this reason.
 
 - Focus is always visible: one indicator for controls, a mark inside the item a menu has under the keyboard, all at 3:1 or more against what surrounds them.
 - No traps: modal dialogs keep focus, and Esc closes them and hands focus back to what opened them.
-- Three single-character keys, and no others: `/` puts the keyboard in the view's search box, and J and K step to the next and the previous record in a record's detail. Each acts only while the keyboard is inside the view or the detail, never in a field, where it is a character; each is said with `aria-keyshortcuts` on the control it reaches. The keys of grips, rows and handles are in their names or descriptions.
+- Three single-character keys, and no others: `/` puts the keyboard in the view's search box, and J and K step to the next and the previous record in a record's detail. Each acts only while the keyboard is inside the view or the detail, never in a field, where it is a character; each is said with `aria-keyshortcuts` on the control it reaches. A host turns all three off with `ViewHost`'s `characterKeys`, and then they are neither answered nor said. The keys of grips, rows and handles are in their names or descriptions.
 - The surface writes its wording's language as `lang`, on itself and on every popup, so Chinese wording on an English page is read as Chinese.
 - Under reduced motion, animations stop; charts follow the setting too.
 
@@ -90,7 +90,7 @@ Most "not applicable" rows below are for this reason.
 |---|---|---|---|
 | 2.1.1 Keyboard | A | Supports | Every core task can be done with the keyboard alone; chart marks are pointer-only, and the same operations are keyboard-operable in the table layout and on the filter bar |
 | 2.1.2 No Keyboard Trap | A | Supports | Only modal dialogs keep focus, and Esc leaves them |
-| 2.1.4 Character Key Shortcuts | A | Partially supports | Three single-character keys, `/` (the search box) and J and K (the next and previous record), act while the keyboard is inside the view or a record's detail, never in a field; a host cannot turn them off |
+| 2.1.4 Character Key Shortcuts | A | Supports | Three single-character keys, `/` (the search box) and J and K (the next and previous record), act while the keyboard is inside the view or a record's detail, never in a field; a host turns them off with `ViewHost`'s `characterKeys` |
 | 2.2.1 Timing Adjustable | A | Not applicable | No time limits |
 | 2.2.2 Pause, Stop, Hide | A | Supports | Auto refresh is switched on by the user and can be switched off at any time |
 | 2.3.1 Three Flashes or Below Threshold | A | Supports | Nothing flashes |

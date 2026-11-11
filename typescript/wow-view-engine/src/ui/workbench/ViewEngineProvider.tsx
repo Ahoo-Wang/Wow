@@ -36,6 +36,10 @@ import {
   type ViewDestination,
   type ViewRouter,
 } from '../../runtime/routes.js';
+import {
+  CharacterKeysContext,
+  useCharacterKeys,
+} from '../kit/characterKeys.js';
 
 /**
  * What a surface finds above it besides the engine (`EngineContext`); see
@@ -51,8 +55,6 @@ interface HostContext {
   router: ViewRouter | undefined;
   /** `ViewHost`'s `boardsInAddress`: boards kept in the search too. */
   boardsInAddress: boolean;
-  /** `ViewHost`'s `characterKeys`: whether 「/」, J and K act. */
-  characterKeys: boolean;
   /**
    * The record open in the address (`?id=`), for every bound resource's
    * record detail that holds none of its own; see `ViewHost`.
@@ -70,7 +72,6 @@ const Context = createContext<HostContext>({
   worded: new Set(),
   router: undefined,
   boardsInAddress: false,
-  characterKeys: true,
   detail: undefined,
   hosted: false,
 });
@@ -154,6 +155,7 @@ export function ViewEngineProvider({
   children,
 }: ViewEngineProviderProps) {
   const outer = useContext(Context);
+  const outerKeys = useCharacterKeys();
   const outerEngine = useContext(EngineContext);
   const engine = own ?? outerEngine;
   const wording = useMergedMessages(messages);
@@ -186,7 +188,6 @@ export function ViewEngineProvider({
           : outer.worded,
       router: router ?? outer.router,
       boardsInAddress: boardsInAddress ?? outer.boardsInAddress,
-      characterKeys: characterKeys ?? outer.characterKeys,
       detail: detail ?? outer.detail,
       hosted: hosted ?? outer.hosted,
     }),
@@ -200,8 +201,6 @@ export function ViewEngineProvider({
       outer.router,
       boardsInAddress,
       outer.boardsInAddress,
-      characterKeys,
-      outer.characterKeys,
       detail,
       outer.detail,
       hosted,
@@ -211,11 +210,13 @@ export function ViewEngineProvider({
   return (
     <EngineContext.Provider value={engine}>
       <Context.Provider value={value}>
-        <StartingWords engine={engine}>
-          <MessagesProvider messages={messages} locale={locale}>
-            {children}
-          </MessagesProvider>
-        </StartingWords>
+        <CharacterKeysContext.Provider value={characterKeys ?? outerKeys}>
+          <StartingWords engine={engine}>
+            <MessagesProvider messages={messages} locale={locale}>
+              {children}
+            </MessagesProvider>
+          </StartingWords>
+        </CharacterKeysContext.Provider>
       </Context.Provider>
     </EngineContext.Provider>
   );
@@ -316,15 +317,6 @@ export function useViewRouter(): ViewRouter | undefined {
 /** Whether the `ViewHost` above keeps boards in the search too. */
 export function useBoardsInAddress(): boolean {
   return useContext(Context).boardsInAddress;
-}
-
-/**
- * Whether the surface's single-character keys act (`ViewHost`'s
- * `characterKeys`): 「/」 to the search box, J and K through a record's
- * detail. Off, they are neither answered nor announced.
- */
-export function useCharacterKeys(): boolean {
-  return useContext(Context).characterKeys;
 }
 
 /** Whether a `ViewHost` is above. */
