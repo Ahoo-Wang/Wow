@@ -38,10 +38,10 @@ class PortProvidersSpiTest {
             development = true,
         )
         config.key.assert().isEqualTo("wow.kafka")
-        config.option("bootstrap-servers").assert().isEqualTo("b:9092")
-        config.option("blank").assert().isNull()
-        config.option("missing").assert().isNull()
-        config.options("properties").assert().isEqualTo(mapOf("linger.ms" to "5"))
+        config.settings.option("bootstrap-servers").assert().isEqualTo("b:9092")
+        config.settings.option("blank").assert().isNull()
+        config.settings.option("missing").assert().isNull()
+        config.settings.options("properties").assert().isEqualTo(mapOf("linger.ms" to "5"))
         config.development.assert().isTrue()
         config.toString().assert().contains("kafka").doesNotContain("b:9092")
         assertThrows<IllegalArgumentException> { TransportConfig.of(" ", "kafka") }
@@ -56,9 +56,9 @@ class PortProvidersSpiTest {
             mapOf("endpoint" to "http://c", "sink.ddl" to "none", "blank" to " "),
         )
         config.key.assert().isEqualTo("wow.clickhouse")
-        config.option("endpoint").assert().isEqualTo("http://c")
-        config.option("blank").assert().isNull()
-        config.options("sink").assert().isEqualTo(mapOf("ddl" to "none"))
+        config.settings.option("endpoint").assert().isEqualTo("http://c")
+        config.settings.option("blank").assert().isNull()
+        config.settings.options("sink").assert().isEqualTo(mapOf("ddl" to "none"))
         config.toString().assert().contains("clickhouse").doesNotContain("http://c")
         assertThrows<IllegalArgumentException> { SinkConfig.of(" ", "clickhouse") }
         assertThrows<IllegalArgumentException> { SinkConfig.of("clickhouse", " ") }
@@ -87,18 +87,19 @@ class PortProvidersSpiTest {
         val labels = ProviderOption.map("labels", "the labels of every acme resource.")
         val settings = mapOf("topics.prefix" to "staging.", "labels.team" to "a", "labels.cost" to "b")
         val transport = TransportConfig.of("acme", "acme", settings)
-        transport.option(TopicTransportOptions.TOPIC_PREFIX).assert().isEqualTo("staging.")
-        transport.option(TopicTransportOptions.PARTITION_REFRESH).assert().isEqualTo(30.seconds)
-        transport.options(labels).assert().isEqualTo(mapOf("team" to "a", "cost" to "b"))
-        transport.optionsRead.assert().containsExactlyInAnyOrder("topics.prefix", "topics.partition-refresh", "labels")
+        transport.settings.option(TopicTransportOptions.TOPIC_PREFIX).assert().isEqualTo("staging.")
+        transport.settings.option(TopicTransportOptions.PARTITION_REFRESH).assert().isEqualTo(30.seconds)
+        transport.settings.options(labels).assert().isEqualTo(mapOf("team" to "a", "cost" to "b"))
+        transport.settings.read.assert()
+            .containsExactlyInAnyOrder("topics.prefix", "topics.partition-refresh", "labels")
         assertThrows<WowConfigurationException> {
             TransportConfig.of("acme", "acme", mapOf("command-intake.enabled" to "maybe"))
-                .option(TopicTransportOptions.COMMAND_INTAKE)
+                .settings.option(TopicTransportOptions.COMMAND_INTAKE)
         }.key.assert().isEqualTo("wow.acme.command-intake.enabled")
         val sink = SinkConfig.of("acme", "acme", settings)
-        sink.options(labels).assert().isEqualTo(mapOf("team" to "a", "cost" to "b"))
-        sink.option(ProviderOption.string("region", "the region.", "eu-1")).assert().isEqualTo("eu-1")
-        sink.optionsRead.assert().containsExactlyInAnyOrder("labels", "region")
+        sink.settings.options(labels).assert().isEqualTo(mapOf("team" to "a", "cost" to "b"))
+        sink.settings.option(ProviderOption.string("region", "the region.", "eu-1")).assert().isEqualTo("eu-1")
+        sink.settings.read.assert().containsExactlyInAnyOrder("labels", "region")
     }
 
     @Test

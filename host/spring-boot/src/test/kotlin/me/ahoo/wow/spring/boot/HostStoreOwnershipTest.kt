@@ -44,7 +44,7 @@ class OwnedStores {
     @Bean
     fun ownedStoreProvider(): StoreProvider = object : AcmeStoreProvider("owned") {
         override fun open(config: StoreConfig): Store {
-            val region = config.option(REGION)
+            val region = config.settings.option(REGION)
             configCheck(region != "nowhere", "${config.key}.region", region, "Name a region.") { "No such region." }
             return OwnedStore(config)
         }

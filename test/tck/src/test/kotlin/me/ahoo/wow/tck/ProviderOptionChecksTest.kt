@@ -48,8 +48,8 @@ class ProviderOptionChecksTest {
         override fun available(config: TransportConfig): Boolean = true
 
         override fun open(config: TransportConfig): TopicTransport {
-            read.forEach { config.option(it) }
-            config.option(TopicTransportOptions.PARTITION_REFRESH)
+            read.forEach { config.settings.option(it) }
+            config.settings.option(TopicTransportOptions.PARTITION_REFRESH)
             return object : TopicTransport {
                 override val producer: TopicProducer get() = error("not used")
                 override val source: PartitionedSource get() = error("not used")
@@ -77,7 +77,7 @@ class ProviderOptionChecksTest {
         override fun available(config: SinkConfig): Boolean = true
 
         override fun open(config: SinkConfig): StreamSinks {
-            read.forEach { config.option(it) }
+            read.forEach { config.settings.option(it) }
             return object : StreamSinks {
                 override val processor: String = "acme-sink"
 

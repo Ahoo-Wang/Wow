@@ -59,6 +59,8 @@ class StoreTckSelfTest : StoreTck() {
     private val empty = object : StoreProvider {
         override val type: String = TYPE
 
+        override fun available(config: StoreConfig): Boolean = false
+
         override fun open(config: StoreConfig): Store = EmptyStore(config)
     }
 

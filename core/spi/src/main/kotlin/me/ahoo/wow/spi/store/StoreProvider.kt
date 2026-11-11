@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.config.ProviderOption
  * taking the place of a provider of its type on the classpath.
  *
  * A provider is stateless: [open] gives each store instance its own [Store], over the resources [StoreConfig.resources]
- * finds (a `DataSource`, a driver's client) and the settings [StoreConfig.options] holds.
+ * finds (a `DataSource`, a driver's client) and the settings [StoreConfig.settings] holds.
  */
 @WowSpi
 interface StoreProvider {
@@ -38,15 +38,17 @@ interface StoreProvider {
     val requirement: String get() = "its resources"
 
     /**
-     * Whether [resources] are enough to open a durable store of this type with no setting of its own: `wow.backend=auto`
-     * takes the one provider that is available (PostgreSQL with a `DataSource`, MongoDB with a `MongoClient`).
+     * Whether [config] is enough to open a durable store of this type: its [StoreConfig.resources], with no setting of
+     * its own, for `wow.backend=auto`, which takes the one provider that is available (PostgreSQL with a `DataSource`,
+     * MongoDB with a `MongoClient`). A store that is never chosen this way, one in memory or one a store names
+     * explicitly, answers false.
      */
-    fun available(resources: StoreResources): Boolean = false
+    fun available(config: StoreConfig): Boolean
 
     /**
-     * Every setting a store of this type reads from its [StoreConfig.options], each read through its option
-     * ([StoreConfig.option]): the host binds `wow.<type>.<key>` for each [ProviderOption.Scope.TYPE] one, and refuses
-     * a store's setting no option declares, naming these.
+     * Every setting a store of this type reads from its [StoreConfig.settings], each read through its option: the host
+     * binds `wow.<type>.<key>` for each [ProviderOption.Scope.TYPE] one, and refuses a store's setting no option
+     * declares, naming these.
      */
     val options: List<ProviderOption<*>> get() = emptyList()
 

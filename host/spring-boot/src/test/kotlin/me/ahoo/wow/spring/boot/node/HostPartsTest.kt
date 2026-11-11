@@ -37,6 +37,7 @@ import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spring.boot.BANK
@@ -95,6 +96,8 @@ class BackendSelectionTest {
         none.reason.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND)
         none.fix.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND_FIX)
         select("memory", postgres = false, mongo = false).assert().isEqualTo("memory")
+        // Memory never claims to back a node by itself: only a named backend or a development opt-in takes it.
+        MemoryStoreProvider().available(StoreConfig.of("default", "memory")).assert().isFalse()
     }
 
     @Test

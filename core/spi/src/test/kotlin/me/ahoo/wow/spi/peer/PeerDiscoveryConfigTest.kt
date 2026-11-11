@@ -27,11 +27,11 @@ class PeerDiscoveryConfigTest {
     fun `a configuration should hand out its settings by name`() {
         val config = PeerDiscoveryConfig.of("consul", mapOf("address" to "http://consul:8500", "blank" to " "))
         config.key.assert().isEqualTo("wow.peer.consul")
-        config.option("address").assert().isEqualTo("http://consul:8500")
-        config.option("blank").assert().isNull()
-        config.option("missing").assert().isNull()
+        config.settings.option("address").assert().isEqualTo("http://consul:8500")
+        config.settings.option("blank").assert().isNull()
+        config.settings.option("missing").assert().isNull()
         config.toString().assert().contains("consul", "address").doesNotContain("8500")
-        PeerDiscoveryConfig.of("dns").options.assert().isEmpty()
+        PeerDiscoveryConfig.of("dns").settings.values.assert().isEmpty()
         assertThrows<IllegalArgumentException> { PeerDiscoveryConfig.of(" ") }
     }
 
@@ -47,16 +47,16 @@ class PeerDiscoveryConfigTest {
         val tags = ProviderOption.map("tags", "the service tags a node must have.")
         val timeout = ProviderOption.int("timeout", "the lookup's timeout in seconds.")
         val config = PeerDiscoveryConfig.of("consul", mapOf("tags.zone" to "a", "timeout" to "x"))
-        val defaulted: String = config.option(address)
+        val defaulted: String = config.settings.option(address)
         defaulted.assert().isEqualTo("http://localhost:8500")
-        config.options(tags).assert().isEqualTo(mapOf("zone" to "a"))
+        config.settings.options(tags).assert().isEqualTo(mapOf("zone" to "a"))
         assertThrows<WowConfigurationException> {
-            config.option(
+            config.settings.option(
                 timeout
             )
         }.key.assert().isEqualTo("wow.peer.consul.timeout")
-        config.optionsRead.assert().containsExactlyInAnyOrder("address", "tags", "timeout")
-        PeerDiscoveryConfig.of("consul").option(timeout).assert().isNull()
+        config.settings.read.assert().containsExactlyInAnyOrder("address", "tags", "timeout")
+        PeerDiscoveryConfig.of("consul").settings.option(timeout).assert().isNull()
     }
 
     @Test

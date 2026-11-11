@@ -17,9 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.ProviderSettings
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreResources
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A Sink of the streams a service publishes: what opens the [Sink]s of one destination,
@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
  * [me.ahoo.wow.spi.store.StoreProvider], and runs one sink subscription per published stream over what it opens.
  *
  * A provider is stateless: [open] gives each configured sink its own [StreamSinks], over the settings
- * [SinkConfig.options] holds and the application's [SinkConfig.resources] (the service's Manifest among them).
+ * [SinkConfig.settings] holds and the application's [SinkConfig.resources] (the service's Manifest among them).
  */
 @WowSpi
 interface SinkProvider {
@@ -40,9 +40,9 @@ interface SinkProvider {
     val requirement: String get() = "its settings"
 
     /**
-     * Every setting it reads from [SinkConfig.options], each read through its option, for the host to bind and check
-     * (`wow.<type>.<key>`). A [ProviderOption.Scope.PER_STORE] option is one the host gives the sink itself, not set
-     * under `wow.<type>` (the ClickHouse Sink's per-aggregate `aggregates.*`).
+     * Every setting it reads from [SinkConfig.settings], each read through its option, for the host to bind and check
+     * (`wow.<type>.<key>`). A [ProviderOption.Scope.INSTANCE] option is in the settings the host gives the sink itself,
+     * never under `wow.<type>` (the ClickHouse Sink's per-aggregate `aggregates.*`).
      */
     val options: List<ProviderOption<*>> get() = emptyList()
 
@@ -70,7 +70,7 @@ interface StreamSinks : AutoCloseable {
 }
 
 /**
- * What a [SinkProvider] opens its sinks from: their [name] and [type], their own settings ([options], each key relative
+ * What a [SinkProvider] opens its sinks from: their [name] and [type], their own settings ([settings], each key relative
  * to the sink's configuration, `endpoint` say), and the application's [resources].
  *
  * A Sink that writes into one of the node's stores, as an event search index written into an Elasticsearch store is,
@@ -84,7 +84,7 @@ interface StreamSinks : AutoCloseable {
 class SinkConfig @InternalWowApi constructor(
     val name: String,
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
     /** The aggregate types this Sink writes, null for the streams the Manifest publishes. */
     val streams: Set<AggregateType>? = null,
@@ -99,41 +99,10 @@ class SinkConfig @InternalWowApi constructor(
     /** The configuration key of the sink's settings, for a provider's failures to name. */
     val key: String get() = "wow.$name"
 
-    private val read: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
+    val settings: ProviderSettings = ProviderSettings(key, options)
 
-    /** The setting [name] of [options], or null when it is not set or blank. */
-    fun option(name: String): String? {
-        read += name
-        return options[name]?.takeIf { it.isNotBlank() }
-    }
-
-    /**
-     * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
-     * value is not one of the option's type.
-     */
-    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
-
-    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
-    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
-
-    private fun <T : Any> setting(option: ProviderOption<T>): T? =
-        option(option.key)?.let { option.parse(it, "$key.${option.key}") }
-
-    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
-    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {
-        read += option.key
-        return options(option.key)
-    }
-
-    /** The settings under [prefix], their keys relative to it. */
-    fun options(prefix: String): Map<String, String> = options.filterKeys { it.startsWith("$prefix.") }
-        .mapKeys { it.key.removePrefix("$prefix.") }
-
-    /** The keys of [options] the sink asked for, so a test can hold them to the options its provider declares. */
-    @InternalWowApi
-    val optionsRead: Set<String> get() = read.toSet()
-
-    override fun toString(): String = "SinkConfig(name=$name, type=$type, options=${options.keys})"
+    override fun toString(): String = "SinkConfig(name=$name, type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

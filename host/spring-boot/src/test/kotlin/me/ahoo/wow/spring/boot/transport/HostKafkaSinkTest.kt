@@ -150,7 +150,7 @@ class HostKafkaSinkTest {
                 topics.partitionRefresh.assert().isEqualTo(5.seconds)
                 // The transport reads the settings it declares under wow.kafka, flattened (finding R5.B-5).
                 val config = context.getBean(SelectedTransport::class.java).config
-                config.options.assert().containsEntry("topics.replication-factor", "3")
+                config.settings.values.assert().containsEntry("topics.replication-factor", "3")
                     .containsEntry("topics.configs.retention.ms", "600000")
                 val options = KafkaTransportProvider.options(config)
                 options.metadataMaxAge.assert().isEqualTo(5.seconds)

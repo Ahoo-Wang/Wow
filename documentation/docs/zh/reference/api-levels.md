@@ -111,6 +111,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.config.ProviderOption` | class | `wow-spi` |
+| `me.ahoo.wow.spi.config.ProviderSettings` | class | `wow-spi` |
 | `me.ahoo.wow.spi.id.GlobalIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |

@@ -110,7 +110,7 @@ abstract class StoreTck {
             config.name,
             config.type,
             config.ddl,
-            config.options,
+            config.settings.values,
             config.polling,
             config.service,
             config.resources,
@@ -161,14 +161,14 @@ abstract class StoreTck {
         val config = StoreConfig.of(
             config().name,
             config().type,
-            options = config().options,
+            options = config().settings.values,
             resources = config().resources
         )
         val provider = provider(config.type)
         provider.open(config)
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
-        config.optionsRead.assert().describedAs("the options the store read").isSubsetOf(declared)
+        config.settings.read.assert().describedAs("the options the store read").isSubsetOf(declared)
     }
 
     @Test

@@ -105,6 +105,9 @@ internal class MemoryStoreProvider(private val memoryQueries: Boolean = false) :
 
     override val requirement: String = "nothing"
 
+    /** Never what `wow.backend=auto` takes: a node in memory loses what it committed when it stops. */
+    override fun available(config: StoreConfig): Boolean = false
+
     override fun open(config: StoreConfig): Store =
         MemoryStore(config, queries = InMemoryQueryStorage().takeIf { memoryQueries }, scansEvents = memoryQueries)
 }

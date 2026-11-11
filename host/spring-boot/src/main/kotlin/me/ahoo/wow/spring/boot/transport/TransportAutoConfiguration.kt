@@ -121,7 +121,7 @@ class TransportAutoConfiguration {
             val observed = TransportConfig.of(
                 config.name,
                 config.type,
-                config.options,
+                config.settings.values,
                 config.resources,
                 config.development,
                 Observer.of(observers.orderedStream().toList()),
@@ -212,12 +212,12 @@ class TransportAutoConfiguration {
  * transport has ([TopicTransportOptions]) the host reads for the node's topics.
  */
 internal class SelectedTransport(val provider: TransportProvider, val config: TransportConfig) {
-    val topicPrefix: String get() = config.option(TopicTransportOptions.TOPIC_PREFIX)
+    val topicPrefix: String get() = config.settings.option(TopicTransportOptions.TOPIC_PREFIX)
 
-    val commandIntake: Boolean get() = config.option(TopicTransportOptions.COMMAND_INTAKE)
+    val commandIntake: Boolean get() = config.settings.option(TopicTransportOptions.COMMAND_INTAKE)
 
-    val partitionRefresh: Duration get() = config.option(TopicTransportOptions.PARTITION_REFRESH)
+    val partitionRefresh: Duration get() = config.settings.option(TopicTransportOptions.PARTITION_REFRESH)
 
     /** The transport's `ddl`, null when it sets none. */
-    val ddl: Ddl? get() = config.option(TopicTransportOptions.DDL)
+    val ddl: Ddl? get() = config.settings.option(TopicTransportOptions.DDL)
 }

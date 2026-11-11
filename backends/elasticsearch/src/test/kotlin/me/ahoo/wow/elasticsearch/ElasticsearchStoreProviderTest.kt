@@ -64,7 +64,8 @@ class ElasticsearchStoreProviderTest {
     @Test
     fun `a store holds snapshots, never a log`() {
         val provider = ElasticsearchStoreProvider()
-        provider.available(StoreResources.of(mapOf("elasticsearch" to restClient))).assert().isFalse()
+        val resources = StoreResources.of(mapOf("elasticsearch" to restClient))
+        provider.available(StoreConfig.of("default", provider.type, resources = resources)).assert().isFalse()
         provider.requirement.assert().contains("Rest5Client")
         val store = provider.open(
             config(mapOf(ElasticsearchStoreProvider.INDEX_PREFIX.key to "Prod-A"))

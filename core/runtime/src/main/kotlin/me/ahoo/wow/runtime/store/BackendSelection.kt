@@ -14,9 +14,11 @@
 package me.ahoo.wow.runtime.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import java.net.InetAddress
@@ -75,7 +77,8 @@ object BackendSelection {
     ): String {
         val type = StoreTypes.of(configured)
         if (type == StoreTypes.AUTO) {
-            val available = providers.values.filter { it.type != StoreTypes.MEMORY && it.available(resources) }
+            val available = providers.values
+                .filter { it.type != StoreTypes.MEMORY && it.available(candidate(it, resources)) }
                 .map(StoreProvider::type)
             configCheck(available.size <= 1, BACKEND, configured, "Name one of them.") {
                 "Several backends can back Wow: ${available.joinToString()}."
@@ -86,7 +89,7 @@ object BackendSelection {
         }
         val provider = StoreTypes.provider(providers, type, BACKEND)
         configCheck(
-            type == StoreTypes.MEMORY || provider.available(resources),
+            type == StoreTypes.MEMORY || provider.available(candidate(provider, resources)),
             BACKEND,
             type,
             "Give it what it needs, or name another backend."
@@ -95,6 +98,10 @@ object BackendSelection {
         }
         return type
     }
+
+    /** The configuration of the default store [provider] would open over [resources], with no setting of its own. */
+    private fun candidate(provider: StoreProvider, resources: StoreResources): StoreConfig =
+        StoreConfig.of(ContextBackends.DEFAULT_STORE, provider.type, resources = resources)
 
     /**
      * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
