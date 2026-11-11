@@ -29,11 +29,11 @@ import me.ahoo.wow.api.schedule.JobEnabled
 import me.ahoo.wow.api.schedule.JobRescheduled
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.RescheduleJob
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.TickJob
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.Partitioner
@@ -103,12 +103,12 @@ class JobState {
  * log partition in the default tenant ([shardRef]): [instanceIds] are a job's instances' ids. It belongs to its tenant
  * (no owner), has no lifecycle commands, and decides:
  *
- * - `wow.schedule.Enable(job, rule?)`: creates the instance or enables it again, with the job's default rule under its
- *   own override (the command's, else the one it kept); unchanged, nothing. It schedules its own `wow.schedule.Tick`
+ * - `wow.schedule.EnableJob(job, rule?)`: creates the instance or enables it again, with the job's default rule under its
+ *   own override (the command's, else the one it kept); unchanged, nothing. It schedules its own `wow.schedule.TickJob`
  *   under the key `tick` by that rule, so the firing loop of the partition's owner sends it each slot.
- * - `wow.schedule.Reschedule(rule?)`: an enabled instance's own override, null to follow the default again.
- * - `wow.schedule.Disable`: cancels the schedule.
- * - `wow.schedule.Tick`, sent by the schedule: commits `wow.Ticked(slot)` when the slot is newer than the last one it
+ * - `wow.schedule.RescheduleJob(rule?)`: an enabled instance's own override, null to follow the default again.
+ * - `wow.schedule.DisableJob`: cancels the schedule.
+ * - `wow.schedule.TickJob`, sent by the schedule: commits `wow.schedule.JobTicked(slot)` when the slot is newer than the last one it
  *   ran, of the same timer or a later one; an older or repeated slot, or a disabled instance, changes nothing. The tick
  *   also reschedules an instance whose rule is no longer its job's default under its override: one that did not
  *   override a part follows a change of the default from its next tick. A tick of a job the node no longer has
@@ -130,10 +130,10 @@ object ScheduleJobModel {
             initial { JobState() }
             lifecycle()
             ownership(Ownership.TENANT)
-            decide<EnableJob>(Creation.ALLOWED, ScheduleJobs.ENABLE) { state, body -> enable(byName, state, body) }
-            decide<RescheduleJob>(name = ScheduleJobs.RESCHEDULE) { state, body -> reschedule(byName, state, body) }
-            decide<DisableJob>(name = ScheduleJobs.DISABLE) { state, _ -> disable(state) }
-            decide<TickJob>(name = ScheduleJobs.TICK) { state, _ -> tick(byName, state) }
+            decide<EnableJob>(Creation.ALLOWED, ScheduleJobs.ENABLE_JOB) { state, body -> enable(byName, state, body) }
+            decide<RescheduleJob>(name = ScheduleJobs.RESCHEDULE_JOB) { state, body -> reschedule(byName, state, body) }
+            decide<DisableJob>(name = ScheduleJobs.DISABLE_JOB) { state, _ -> disable(state) }
+            decide<TickJob>(name = ScheduleJobs.TICK_JOB) { state, _ -> tick(byName, state) }
             evolve<JobEnabled>(ScheduleJobs.JOB_ENABLED) { event ->
                 job = event.job
                 rule = event.rule
@@ -146,7 +146,7 @@ object ScheduleJobModel {
                 override = event.override
             }
             evolve<JobDisabled>(ScheduleJobs.JOB_DISABLED) { enabled = false }
-            evolve<Ticked>(ScheduleJobs.TICKED) { event ->
+            evolve<JobTicked>(ScheduleJobs.JOB_TICKED) { event ->
                 timer = event.timer
                 slot = event.slot
                 due = event.due
@@ -248,7 +248,7 @@ object ScheduleJobModel {
             cancelSchedule(ScheduleJobs.TICK_KEY)
             return Decision.events(JobDisabled())
         }
-        val ticked = Ticked(slot.timer, slot.slot, slot.skipped, slot.due)
+        val ticked = JobTicked(slot.timer, slot.slot, slot.skipped, slot.due)
         val rule = ruleOf(job, state.override)
         if (rule == null || rule == state.rule) {
             return Decision.events(ticked)

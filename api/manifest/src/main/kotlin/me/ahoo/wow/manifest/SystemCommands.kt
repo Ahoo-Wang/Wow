@@ -32,14 +32,18 @@ object SystemCommands {
     /** The lifecycle command routed as `DELETE` of the aggregate ([CommandRoutes.deleteRoute]). */
     const val DELETE_AGGREGATE: String = Lifecycle.DELETE_AGGREGATE
 
-    /** The rebuild of an aggregate type's snapshots, the ids in its body. */
-    const val REBUILD: String = "wow.snapshot.Rebuild"
+    /**
+     * The rebuild of an aggregate type's snapshots, the ids in its body. It equals `SnapshotRebuilds.REBUILD_SNAPSHOT`
+     * of `:spi`, beside the command's class, which `:manifest` does not see; `SchemaIntrospectorTest` of
+     * `:manifest-tools` holds that.
+     */
+    const val REBUILD_SNAPSHOT: String = "wow.snapshot.RebuildSnapshot"
 
     /** The name of a context's built-in job aggregate. */
     internal const val JOB_AGGREGATE: String = ScheduleJobs.AGGREGATE
 
     /** The commands of a context's schedule jobs, each to the job its route's id names. */
-    val JOBS: List<String> = listOf(ScheduleJobs.ENABLE, ScheduleJobs.RESCHEDULE, ScheduleJobs.DISABLE)
+    val JOBS: List<String> = listOf(ScheduleJobs.ENABLE_JOB, ScheduleJobs.RESCHEDULE_JOB, ScheduleJobs.DISABLE_JOB)
 
     /**
      * The lifecycle command [name] (`wow.lifecycle.RestoreAggregate`) of [aggregate] in [context]; of an aggregate
@@ -63,12 +67,12 @@ object SystemCommands {
         return system(name, byId, own)
     }
 
-    /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild`. */
+    /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild-snapshot`. */
     @InternalWowApi
     fun rebuild(context: String, aggregate: String): CommandManifest =
-        system(REBUILD, CommandRoutes.unaddressed(context, aggregate, REBUILD))
+        system(REBUILD_SNAPSHOT, CommandRoutes.unaddressed(context, aggregate, REBUILD_SNAPSHOT))
 
-    /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable`, ... */
+    /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable-job`, ... */
     @InternalWowApi
     fun jobs(context: String): List<CommandManifest> = JOBS.map { system(it, CommandRoutes.jobRoute(context, it)) }
 

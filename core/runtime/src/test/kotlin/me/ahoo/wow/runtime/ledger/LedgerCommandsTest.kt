@@ -223,7 +223,7 @@ class LedgerCommandsTest {
         // A mark of no known spelling is refused, never read as `unknown` as an older reader reads a newer value.
         val maybe = ClusterCodec.mapper.valueToTree<ObjectNode>(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNKNOWN))
             .put("recoverable", "maybe")
-        commands.execute(wire(Ledger.MARK_RECOVERABLE, maybe, X1))!!.code.assert()
+        commands.execute(wire(Ledger.MARK_PARKED_RECOVERABLE, maybe, X1))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         ledger.parked(SubscriptionId("shop", NAME), X1)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.RECOVERABLE))).assert().isNull()
@@ -283,12 +283,12 @@ class LedgerCommandsTest {
         parkAll("x1", start = false)
         commands.execute(wire(Ledger.NAMESPACE + ".Unknown", ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(Ledger.RETRY, ClusterCodec.mapper.createObjectNode()))!!.code
+        commands.execute(wire(Ledger.RETRY_PARKED, ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val blank = ClusterCodec.mapper.valueToTree<JsonNode>(
             RetryParked.of(NAME, X1.type.context, X1.type.name, X1.tenantId, " ")
         )
-        commands.execute(wire(Ledger.RETRY, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        commands.execute(wire(Ledger.RETRY_PARKED, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(skipOf(X1), operator = null)).assert().isNull()
         // The partition is another node's: the skip is left for it.

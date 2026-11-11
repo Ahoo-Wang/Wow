@@ -24,10 +24,10 @@ import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.RescheduleJob
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -59,7 +59,7 @@ import kotlin.time.Duration
  * ```
  *
  * Time stands still at [start] until [advanceTime] moves it; every instance of the specification shares it. A slot
- * runs as the runtime runs it: its instance commits `wow.Ticked`, and the handlers of its job get the tick. Moving past
+ * runs as the runtime runs it: its instance commits `wow.schedule.JobTicked`, and the handlers of its job get the tick. Moving past
  * several slots at once sends only the latest, the others counted as skipped, unless the job's rule catches up.
  * [whenTick] hands a tick over directly, without the job aggregate.
  */
@@ -138,7 +138,7 @@ class ScheduleSpec internal constructor(
 
     /**
      * Enables the instance of [job] in [tenantId] (the default tenant for a SYSTEM or a SHARDED job) by its default
-     * rule under [rule], as `wow.schedule.Enable` does; the instance of [partition] for a SHARDED job. Fails when the
+     * rule under [rule], as `wow.schedule.EnableJob` does; the instance of [partition] for a SHARDED job. Fails when the
      * instance refuses it.
      */
     fun enable(
@@ -193,7 +193,7 @@ class ScheduleSpec internal constructor(
         }
         val ticked = events.flatMap { event ->
             val state = event.state
-            event.events.filterIsInstance<Ticked>().map {
+            event.events.filterIsInstance<JobTicked>().map {
                 ScheduleTick(event.ref.tenantId, state.job!!, it.slot, it.skipped, it.due, state.partition)
             }
         }
@@ -231,8 +231,8 @@ class ScheduleSpec internal constructor(
         val event = stateEvent(
             ref,
             state,
-            Ticked("$ref#${ScheduleJobs.TICK_KEY}@1", tick.slot, tick.skipped, tick.due),
-            commandType = ScheduleJobs.TICK,
+            JobTicked("$ref#${ScheduleJobs.TICK_KEY}@1", tick.slot, tick.skipped, tick.due),
+            commandType = ScheduleJobs.TICK_JOB,
             commitTime = tick.due,
         )
         handed += tick

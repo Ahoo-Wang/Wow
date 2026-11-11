@@ -52,7 +52,7 @@ internal class DerivedRequests {
         )
 
     /**
-     * What tells the next schedule request ([commandType] `wow.schedule.Set` or `wow.schedule.Cancel`) to [ref] of
+     * What tells the next schedule request ([commandType] `wow.schedule.SetSchedule` or `wow.schedule.CancelSchedule`) to [ref] of
      * the schedule [key] from the others: the key, then the request's business [requestId] when it gives one, else its
      * occurrence among the requests of that key, type and target. Requests of two keys never take each other's id,
      * whatever order the handler makes them in.

@@ -49,8 +49,8 @@ class AggregateModelTest {
             CommandType("shop.cart.AddItem", AddItem::class.java, setOf("shop.cart.PutItem")),
             CommandType("shop.cart.DropItem", RemoveItem::class.java),
             CommandType(Lifecycle.DELETE_AGGREGATE, DeleteAggregate::class.java),
-            CommandType(Schedules.SET, SetSchedule::class.java),
-            CommandType(Schedules.CANCEL, CancelSchedule::class.java),
+            CommandType(Schedules.SET_SCHEDULE, SetSchedule::class.java),
+            CommandType(Schedules.CANCEL_SCHEDULE, CancelSchedule::class.java),
         )
         model.commandTypes.forEach { model.decider(it.type).assert().isNotNull() }
     }

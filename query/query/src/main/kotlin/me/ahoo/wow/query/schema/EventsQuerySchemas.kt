@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
  * `events[]` is a union discriminated by `name`: one variant per event of the aggregate (its
  * [variant][QueryFieldDeclaration.variant] the event's name, `<context>.<aggregate>.<Name>`), `{name, revision, body}`
  * with `name` that one name and `body` the event's schema in `$defs`, its `x-wow-*` keywords included, plus the system
- * events `wow.ScheduleSet` and `wow.ScheduleCancelled`, whose bodies are objects of no declared property,
+ * events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`, whose bodies are objects of no declared property,
  * as is the body of an event whose schema `$defs` lacks. An aggregate the Manifest does not hold has one variant of any
  * name and a body of unknown shape. The stream's system fields come from the
  * profile.

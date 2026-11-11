@@ -42,9 +42,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  * decide functions, which read the aggregate's metadata rather than its state, and how their events evolve that
  * metadata. The events leave the user's state as it is unless the model declares an evolve function for them.
  *
- * `wow.schedule.Set` sets the schedule of its key on the aggregate it is sent to, which must exist and must decide the
+ * `wow.schedule.SetSchedule` sets the schedule of its key on the aggregate it is sent to, which must exist and must decide the
  * command type it names: a name it does not know is rejected as [FrameworkCodes.COMMAND_UNHANDLED] when the
- * schedule is set, not found when it fires, which may be months later for a cron. `wow.schedule.Cancel` cancels it, a
+ * schedule is set, not found when it fires, which may be months later for a cron. `wow.schedule.CancelSchedule` cancels it, a
  * no-op when the aggregate keeps no schedule of that key.
  */
 internal object KernelLifecycle {

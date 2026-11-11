@@ -41,8 +41,8 @@ import me.ahoo.wow.test.server.eventually as eventuallyWithin
  * 2. The payment service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`: the ops service
  *    records it on the `parked` aggregate whose id is the entry's, and an operator finds it through the snapshot query
  *    route, filtered by context, status and failure time, and reads its detail.
- * 3. The gateway is back; an operator retries the entry on the ops service, which authorizes it as `wow.ledger.Retry`.
- *    Its saga sends `wow.ledger.Retry` to `wow.eshop-payment.commands`, the payment service retries the saga, the
+ * 3. The gateway is back; an operator retries the entry on the ops service, which authorizes it as `wow.ledger.RetryParked`.
+ *    Its saga sends `wow.ledger.RetryParked` to `wow.eshop-payment.commands`, the payment service retries the saga, the
  *    payment succeeds and pays the order, and the entry, published resolved, shows `RESOLVED` with the outcome
  *    `RETRIED` in the ops view.
  */

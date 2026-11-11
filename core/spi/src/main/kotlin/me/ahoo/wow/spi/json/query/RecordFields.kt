@@ -87,7 +87,7 @@ object EventStreamFields {
 /** The properties of one event of [EventStreamFields.EVENTS]. */
 @InternalWowApi
 object EventFields {
-    /** The event's name, `<context>.<aggregate>.<Name>`, or a system event's (`wow.ScheduleSet`). */
+    /** The event's name, `<context>.<aggregate>.<Name>`, or a system event's (`wow.schedule.ScheduleSet`). */
     const val NAME: String = "name"
 
     /** The revision of the event's schema. */

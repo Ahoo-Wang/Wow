@@ -60,7 +60,7 @@ class OpsAuthorizerTest {
             "ops.parked.Skip" to Skip::class.java,
             "ops.parked.MarkRecoverable" to MarkRecoverable::class.java,
             "ops.parked.ApplyRetrySpec" to ApplyRetrySpec::class.java,
-            Ledger.RETRY to RetryParked::class.java,
+            Ledger.RETRY_PARKED to RetryParked::class.java,
         ).forEach { (name, type) ->
             // Who may act is the operators' authorizer's to say: this one objects to none of them, a viewer's either.
             runBlocking { authorizer.authorize(viewer, action(name, type)) }.assert().isEqualTo(Authorization.Allowed)
@@ -74,10 +74,10 @@ class OpsAuthorizerTest {
     @Test
     fun `the operator role should decide, and name who lacks it`() {
         val role: CommandAuthorizer = OperatorRole()
-        val skip = action(Ledger.SKIP, RetryParked::class.java)
+        val skip = action(Ledger.SKIP_PARKED, RetryParked::class.java)
         runBlocking { role.authorize(operator, skip) }.assert().isEqualTo(Authorization.Allowed)
         (runBlocking { role.authorize(viewer, skip) } as Authorization.Denied).message.assert()
-            .startsWith("victor may not ${Ledger.SKIP}")
+            .startsWith("victor may not ${Ledger.SKIP_PARKED}")
         (runBlocking { role.authorize(Caller.ANONYMOUS, skip) } as Authorization.Denied).message.assert()
             .startsWith("An anonymous caller may not")
     }

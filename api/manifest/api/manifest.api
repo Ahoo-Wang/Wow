@@ -406,7 +406,7 @@ public final class me/ahoo/wow/manifest/SystemCommands {
 	public static final field DELETE_AGGREGATE Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/manifest/SystemCommands;
 	public static final field LIFECYCLE_PREFIX Ljava/lang/String;
-	public static final field REBUILD Ljava/lang/String;
+	public static final field REBUILD_SNAPSHOT Ljava/lang/String;
 	public final fun getJOBS ()Ljava/util/List;
 }
 

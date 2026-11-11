@@ -34,7 +34,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 
 /**
  * The built-in `timers` subscription of one bounded [context]: writes the timers the context's
- * aggregates schedule into its [store], from the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` their
+ * aggregates schedule into its [store], from the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled` their
  * streams commit. The store is a view of the log: this subscription rebuilds it from the beginning of the log under a
  * new name, and a replay writes nothing twice.
  *
@@ -98,7 +98,7 @@ class TimersSubscription(
 
     private fun timerOf(stream: EventStreamRecord, set: ScheduleSet): Timer {
         val timer = ScheduleSlots.timerOf(stream, set, partitions)
-        if (set.commandType != ScheduleJobs.TICK) {
+        if (set.commandType != ScheduleJobs.TICK_JOB) {
             return timer
         }
         val tenantId = stream.ref.tenantId

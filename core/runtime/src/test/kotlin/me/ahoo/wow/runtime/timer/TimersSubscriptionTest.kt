@@ -147,7 +147,8 @@ class TimersSubscriptionTest {
     fun `a job instance's tick is sent as system schedule in its tenant, without the setting command's facts`(): Unit =
         runBlocking {
             val job = ScheduleJobs.typeOf(SHOP).ref("acme", "invoice")
-            val set = ScheduleSet(ScheduleJobs.TICK_KEY, ScheduleRule.Cron("0 0 0 1 * *"), job, ScheduleJobs.TICK, "{}")
+            val rule = ScheduleRule.Cron("0 0 0 1 * *")
+            val set = ScheduleSet(ScheduleJobs.TICK_KEY, rule, job, ScheduleJobs.TICK_JOB, "{}")
             val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copyWith(ref = job)
             timers.subscription.handle(SubscribedEntry(stream, null, stream.events))
             val timer = checkNotNull(store.find(job, ScheduleJobs.TICK_KEY))

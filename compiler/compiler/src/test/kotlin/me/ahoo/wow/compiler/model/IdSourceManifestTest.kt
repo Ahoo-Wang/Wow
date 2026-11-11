@@ -120,7 +120,7 @@ class IdSourceManifestTest {
                 )
             }
         // The snapshot rebuild is not the aggregate's own command: it keeps its route.
-        routes.getValue("wow.snapshot.Rebuild").assert().hasSize(1)
+        routes.getValue("wow.snapshot.RebuildSnapshot").assert().hasSize(1)
     }
 
     @Test

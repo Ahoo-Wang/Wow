@@ -25,7 +25,7 @@ import kotlin.reflect.KClass
  * runs only for the aggregate's commands of that type, and every command it includes must be one.
  *
  * @param include the commands it runs after; empty for every command of the aggregate's command functions. A lifecycle
- *   or schedule command (`DeleteAggregate`, `wow.schedule.Set`) is run after only when included. Each is a command of
+ *   or schedule command (`DeleteAggregate`, `wow.schedule.SetSchedule`) is run after only when included. Each is a command of
  *   the aggregate, or a compile error.
  * @param exclude the commands it does not run after.
  */

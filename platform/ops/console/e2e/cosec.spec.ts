@@ -100,7 +100,7 @@ test("an operator signs in with a CoSec token and retries an entry in its name",
     .poll(async () =>
       (await ledgerCommands(request, context)).map((it) => [it.type, it.id]),
     )
-    .toContainEqual(["wow.ledger.Retry", exhausted.id]);
+    .toContainEqual(["wow.ledger.RetryParked", exhausted.id]);
 
   // Its history names the operator the gateway forwarded.
   await row(page, exhausted)

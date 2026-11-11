@@ -178,7 +178,7 @@ internal class NodePublicPort {
         if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
             logger.info {
                 "No CommandAuthorizer bean: the public port refuses Wow's system commands of its built-in aggregates " +
-                    "(wow.schedule.*, wow.snapshot.Rebuild) with 403 until the application gives one; the jobs, the " +
+                    "(wow.schedule.*, wow.snapshot.RebuildSnapshot) with 403 until the application gives one; the jobs, the " +
                     "sagas and the internal port's calls send them as before."
             }
         }
@@ -229,7 +229,7 @@ internal class NodePublicPort {
         /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
         internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
             context.commands.isNotEmpty() ||
-                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD } }
+                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD_SNAPSHOT } }
         }
 
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */

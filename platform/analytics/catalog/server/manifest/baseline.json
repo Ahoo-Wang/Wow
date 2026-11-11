@@ -122,13 +122,13 @@
         } ],
         "description" : "Switch a dataset back to an earlier version"
       }, {
-        "name" : "wow.snapshot.Rebuild",
+        "name" : "wow.snapshot.RebuildSnapshot",
         "aliases" : [ ],
-        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "schema" : "#/$defs/wow.snapshot.RebuildSnapshot",
         "creation" : "none",
         "routes" : [ {
           "method" : "POST",
-          "path" : "/analytics-catalog/dataset/wow.snapshot.rebuild"
+          "path" : "/analytics-catalog/dataset/wow.snapshot.rebuild-snapshot"
         } ],
         "system" : true
       } ],
@@ -309,13 +309,13 @@
         "internal" : true,
         "description" : "Bring a source up to date with the warehouse"
       }, {
-        "name" : "wow.snapshot.Rebuild",
+        "name" : "wow.snapshot.RebuildSnapshot",
         "aliases" : [ ],
-        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "schema" : "#/$defs/wow.snapshot.RebuildSnapshot",
         "creation" : "none",
         "routes" : [ {
           "method" : "POST",
-          "path" : "/analytics-catalog/source/wow.snapshot.rebuild"
+          "path" : "/analytics-catalog/source/wow.snapshot.rebuild-snapshot"
         } ],
         "system" : true
       } ],
@@ -2108,7 +2108,7 @@
       "required" : [ "stage" ],
       "x-wow-class" : "me.ahoo.wow.api.result.Hop"
     },
-    "wow.snapshot.Rebuild" : {
+    "wow.snapshot.RebuildSnapshot" : {
       "type" : "object",
       "properties" : {
         "ids" : {

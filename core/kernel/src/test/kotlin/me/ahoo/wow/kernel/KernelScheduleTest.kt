@@ -46,9 +46,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Decision D198: a decide function's schedules are the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
+ * Decision D198: a decide function's schedules are the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`
  * committed with its events, in the same stream, or not at all; every aggregate decides the system commands
- * `wow.schedule.Set` and `wow.schedule.Cancel`; the kernel keeps the rules beside the state, and a scheduled command
+ * `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule`; the kernel keeps the rules beside the state, and a scheduled command
  * is not decided before its slot's due time.
  */
 class KernelScheduleTest {
@@ -246,7 +246,7 @@ class KernelScheduleTest {
         send(Place())
         val set = SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.order.CancelOrder", """{"reason":"ping"}""")
         val committed = send(set) as CommandOutcome.Committed
-        committed.stream.commandType.assert().isEqualTo(Schedules.SET)
+        committed.stream.commandType.assert().isEqualTo(Schedules.SET_SCHEDULE)
         committed.stream.decoded().assert()
             .containsExactly(ScheduleSet("ping", set.rule, ref, set.commandType, set.command))
         val cancelled = send(CancelSchedule("ping")) as CommandOutcome.Committed
@@ -254,7 +254,7 @@ class KernelScheduleTest {
         cancelled.schedules.keys.assert().containsExactly("pay-timeout")
         // A key the aggregate does not keep: nothing to cancel.
         send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
-        model.findCommandType(Schedules.SET)?.type.assert().isEqualTo(SetSchedule::class.java)
+        model.findCommandType(Schedules.SET_SCHEDULE)?.type.assert().isEqualTo(SetSchedule::class.java)
     }
 
     @Test
@@ -270,7 +270,8 @@ class KernelScheduleTest {
             .assert().isInstanceOf(CommandOutcome.Rejected::class.java)
         send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
         // A former name, a lifecycle command and a schedule system command are the aggregate's own.
-        listOf("test.order.Abort", Lifecycle.DELETE_AGGREGATE, Schedules.CANCEL).forEachIndexed { index, type ->
+        val types = listOf("test.order.Abort", Lifecycle.DELETE_AGGREGATE, Schedules.CANCEL_SCHEDULE)
+        types.forEachIndexed { index, type ->
             send(SetSchedule("ok-$index", ScheduleRule.At(NOW + 9), type, "{}"))
                 .assert().isInstanceOf(CommandOutcome.Committed::class.java)
         }

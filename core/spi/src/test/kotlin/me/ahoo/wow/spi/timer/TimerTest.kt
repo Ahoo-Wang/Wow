@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 
-/** A timer of decision D198: its rule as Wow's JSON writes it, its slots, and how it is made from `wow.ScheduleSet`. */
+/** A timer of decision D198: its rule as Wow's JSON writes it, its slots, and how it is made from `wow.schedule.ScheduleSet`. */
 class TimerTest {
     private val ref = AggregateType("shop", "order").ref("t", "o-1")
 
@@ -100,7 +100,7 @@ class TimerTest {
             "r",
             "shop.order.Place",
             1_000,
-            listOf(EventRecord("wow.ScheduleSet", 1, "{}")),
+            listOf(EventRecord("wow.schedule.ScheduleSet", 1, "{}")),
             Scope.NONE,
         )
         Timers.of(stream, ScheduleSet("pay", ScheduleRule.After(5), ref, "shop.order.Cancel", "{}"), 4).dueAt.assert()

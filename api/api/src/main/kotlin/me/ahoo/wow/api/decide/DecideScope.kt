@@ -29,7 +29,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * unique within the aggregate's type and tenant unless reserved with [ReservationTenancy.SYSTEM].
  *
  * A decide function may also schedule a command for later: [schedule] and [cancelSchedule] add
- * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
+ * the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled` to the events the command commits, atomically with
  * them, and the runtime sends the command each time it is due. A decision that only schedules commits those events.
  *
  * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
@@ -127,7 +127,7 @@ interface DecideScope {
      * aggregate: scheduling a key again replaces it (a reschedule, or a new rule), and [cancelSchedule] cancels it.
      * Within one decision the last call for a key wins.
      *
-     * The schedule commits with this command's events (as the system event `wow.ScheduleSet`), or not at all. Each
+     * The schedule commits with this command's events (as the system event `wow.schedule.ScheduleSet`), or not at all. Each
      * time it is due the command is sent at least once, not before its time, possibly a little later (after a handover
      * or a backlog), and decided once: its request id is the timer's id and the slot ([ScheduleContext], which the
      * target reads from [Command.schedule]). The target decides it on its state then; a rejection is a normal guard,
@@ -141,7 +141,7 @@ interface DecideScope {
 
     /**
      * Cancels the schedule this aggregate keeps under [key], scheduled by an earlier command or this one (the system
-     * event `wow.ScheduleCancelled`); nothing when there is none. A command already sent is not recalled: its target's state guards it.
+     * event `wow.schedule.ScheduleCancelled`); nothing when there is none. A command already sent is not recalled: its target's state guards it.
      */
     fun cancelSchedule(key: String)
 }

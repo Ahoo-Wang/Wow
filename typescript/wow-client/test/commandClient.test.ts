@@ -245,18 +245,18 @@ describe('CommandClient', () => {
       commands.wait({ command: 'eshop-catalog.product.Unknown', id: 'p1' }),
     ).rejects.toThrow('The Manifest lists no command Unknown');
     await commands.wait({
-      command: 'wow.snapshot.Rebuild',
+      command: 'wow.snapshot.RebuildSnapshot',
       type: PRODUCT,
       body: { ids: ['p1'] },
     });
     await commands.wait({
-      command: 'wow.schedule.Enable',
+      command: 'wow.schedule.EnableJob',
       type: { context: 'eshop-catalog', name: 'schedule' },
       id: 'report',
     });
     expect(requests.slice(1).map(r => `${r.method} ${r.url}`)).toEqual([
-      `POST ${BASE_URL}/eshop-catalog/product/wow.snapshot.rebuild`,
-      `POST ${BASE_URL}/eshop-catalog/wow.schedule/report/enable`,
+      `POST ${BASE_URL}/eshop-catalog/product/wow.snapshot.rebuild-snapshot`,
+      `POST ${BASE_URL}/eshop-catalog/wow.schedule/report/enable-job`,
     ]);
   });
 
@@ -278,11 +278,11 @@ describe('CommandClient', () => {
     // A system command of a context without commands of its own is none.
     await expect(
       commands.wait({
-        command: 'wow.schedule.Enable',
+        command: 'wow.schedule.EnableJob',
         type: { context: 'c', name: 'schedule' },
         id: 'j',
       }),
-    ).rejects.toThrow('The Manifest lists no command wow.schedule.Enable');
+    ).rejects.toThrow('The Manifest lists no command wow.schedule.EnableJob');
     expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
       2,
     );

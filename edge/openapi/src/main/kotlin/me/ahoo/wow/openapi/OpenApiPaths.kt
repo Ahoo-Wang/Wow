@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.nullable
 import me.ahoo.wow.openapi.Json.obj
@@ -169,7 +170,7 @@ internal class OpenApiPaths(
 
     /**
      * The job commands of [context]'s built-in job aggregate ([ContextManifest.commands]), when it has jobs:
-     * `POST /{context}/wow.schedule/{id}/enable`, ..., the id being the job's name.
+     * `POST /{context}/wow.schedule/{id}/enable-job`, ..., the id being the job's name.
      */
     private fun jobRoutes(context: ContextManifest) {
         val tag = "${context.name}.${WowSchemas.JOB_AGGREGATE}"
@@ -224,7 +225,7 @@ internal class OpenApiPaths(
      * its owner's ([own]), to the caller's own aggregate.
      */
     private fun systemDescription(name: String, own: Boolean): String = when {
-        name == WowSchemas.REBUILD ->
+        name == SystemCommands.REBUILD_SNAPSHOT ->
             "Sends `$name`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in " +
                 "the caller's tenant."
 

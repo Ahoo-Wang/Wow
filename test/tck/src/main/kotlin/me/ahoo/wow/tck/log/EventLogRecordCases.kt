@@ -127,16 +127,16 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
     fun `the schedule system events read back as appended, alone or with the events`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         val set = EventRecord(
-            "wow.ScheduleSet",
+            "wow.schedule.ScheduleSet",
             1,
             """{"key":"pay-timeout","rule":{"type":"after","millis":600000},"target":{"type":{"context":"other",""" +
                 """"name":"order"},"tenantId":"tenant","id":"o-1"},"commandType":"other.order.CancelOrder",""" +
                 """"command":"{\"reason\":\"unpaid ü\",\"amount\":2.50}"}""",
         )
-        val cancelled = EventRecord("wow.ScheduleCancelled", 1, """{"key":"remind"}""")
+        val cancelled = EventRecord("wow.schedule.ScheduleCancelled", 1, """{"key":"remind"}""")
         val withEvents = stream("a", 1).let { it.copyWith(events = it.events + set + cancelled) }
         val alone = stream("a", 2)
-            .copyWith(events = listOf(EventRecord("wow.ScheduleCancelled", 1, """{"key":"pay"}""")))
+            .copyWith(events = listOf(EventRecord("wow.schedule.ScheduleCancelled", 1, """{"key":"pay"}""")))
         log.append(withEvents)
         log.append(alone)
         val read = log.read(withEvents.ref).toList()
@@ -146,7 +146,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
         )
         val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
         tailed.map { it.stream.events.map { event -> event.name } }.assert()
-            .containsExactly(withEvents.events.map { it.name }, listOf("wow.ScheduleCancelled"))
+            .containsExactly(withEvents.events.map { it.name }, listOf("wow.schedule.ScheduleCancelled"))
     }
 
     @Test

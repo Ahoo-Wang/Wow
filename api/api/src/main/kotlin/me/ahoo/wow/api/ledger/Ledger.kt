@@ -28,11 +28,11 @@ import me.ahoo.wow.api.naming.Escapes
  *   ([OPS_CONTEXT] by default), through that context's command topic: [RECORD_PARKED] with the [LedgerEntry] as its
  *   member [ENTRY] while the entry is parked, [RECORD_RESOLVED] with the [LedgerResolution] as its member [RESOLUTION]
  *   once it is not. The aggregate's id is [parkedId]: one per service, subscription and parked aggregate.
- * - **Acting**: the ops context sends the system commands [RETRY], [SKIP], [MARK_RECOVERABLE] and [APPLY_RETRY_SPEC]
- *   ([RetryParked], [SkipParked], [MarkParkedRecoverable], [ApplyParkedRetrySpec]) to the command topic of the
- *   context that holds the entry ([LedgerEntry.context]), addressed to [targetOf] that context and the entry's ops id.
- *   The owning service authorizes each as the system command of that name on the parked aggregate, as it does the
- *   same action on its own operator routes, and runs it.
+ * - **Acting**: the ops context sends the system commands [RETRY_PARKED], [SKIP_PARKED],
+ *   [MARK_PARKED_RECOVERABLE] and [APPLY_PARKED_RETRY_SPEC] ([RetryParked], [SkipParked], [MarkParkedRecoverable],
+ *   [ApplyParkedRetrySpec]) to the command topic of the context that holds the entry ([LedgerEntry.context]),
+ *   addressed to [targetOf] that context and the entry's ops id. The owning service authorizes each as the system
+ *   command of that name on the parked aggregate, as it does the same action on its own operator routes, and runs it.
  *
  * Their names sit in the system namespace [NAMESPACE], as the lifecycle commands' do.
  */
@@ -40,10 +40,10 @@ object Ledger {
     /** The namespace of the ledger's system commands. */
     const val NAMESPACE: String = "wow.ledger"
 
-    const val RETRY: String = "$NAMESPACE.Retry"
-    const val SKIP: String = "$NAMESPACE.Skip"
-    const val MARK_RECOVERABLE: String = "$NAMESPACE.MarkRecoverable"
-    const val APPLY_RETRY_SPEC: String = "$NAMESPACE.ApplyRetrySpec"
+    const val RETRY_PARKED: String = "$NAMESPACE.RetryParked"
+    const val SKIP_PARKED: String = "$NAMESPACE.SkipParked"
+    const val MARK_PARKED_RECOVERABLE: String = "$NAMESPACE.MarkParkedRecoverable"
+    const val APPLY_PARKED_RETRY_SPEC: String = "$NAMESPACE.ApplyParkedRetrySpec"
 
     /** The context a service publishes its ledger to unless it is configured otherwise. */
     const val OPS_CONTEXT: String = "ops"
@@ -64,10 +64,10 @@ object Ledger {
     /** The ledger's system commands, by their names. */
     @JvmField
     val COMMANDS: Map<String, Class<out LedgerCommand>> = mapOf(
-        RETRY to RetryParked::class.java,
-        SKIP to SkipParked::class.java,
-        MARK_RECOVERABLE to MarkParkedRecoverable::class.java,
-        APPLY_RETRY_SPEC to ApplyParkedRetrySpec::class.java,
+        RETRY_PARKED to RetryParked::class.java,
+        SKIP_PARKED to SkipParked::class.java,
+        MARK_PARKED_RECOVERABLE to MarkParkedRecoverable::class.java,
+        APPLY_PARKED_RETRY_SPEC to ApplyParkedRetrySpec::class.java,
     )
 
     private val NAMES: Map<Class<*>, String> = COMMANDS.entries.associate { (name, type) -> type to name }
@@ -133,7 +133,7 @@ sealed interface LedgerCommand {
 }
 
 /**
- * Handles the parked aggregate again from where it is parked ([Ledger.RETRY]).
+ * Handles the parked aggregate again from where it is parked ([Ledger.RETRY_PARKED]).
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -188,7 +188,7 @@ class RetryParked @InternalWowApi constructor(
 }
 
 /**
- * Resolves the entry without handling what was parked ([Ledger.SKIP]).
+ * Resolves the entry without handling what was parked ([Ledger.SKIP_PARKED]).
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -241,8 +241,9 @@ class SkipParked @InternalWowApi constructor(
 }
 
 /**
- * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`). On the wire the value is spelled
- * `recoverable`, `unrecoverable` or `unknown` ([me.ahoo.wow.api.wire.WireNames]); any other spelling is refused.
+ * Marks the entry [recoverable] ([Ledger.MARK_PARKED_RECOVERABLE], 9.x `MarkRecoverable`). On the wire the value is
+ * spelled `recoverable`, `unrecoverable` or `unknown` ([me.ahoo.wow.api.wire.WireNames]); any other spelling is
+ * refused.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -287,7 +288,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
 }
 
 /**
- * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
+ * Applies a retry spec to the entry ([Ledger.APPLY_PARKED_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
  * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl]
  * (durations). A member left out keeps the value the entry is retried by now.
  *

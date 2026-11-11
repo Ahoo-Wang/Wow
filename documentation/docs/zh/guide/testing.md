@@ -392,7 +392,7 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec(handlers, start)` 测试，
 
 | 步骤 | 作用 |
 | --- | --- |
-| `enable(job, tenantId, rule)`、`reschedule(job, tenantId, rule)`、`disable(job, tenantId)` | 按默认规则或另一条规则启用任务的一个实例，就像 `wow.schedule.Enable` 那样；覆盖它的规则；停用它。`SHARDED` 任务的实例还要给出它的 `partition`。 |
+| `enable(job, tenantId, rule)`、`reschedule(job, tenantId, rule)`、`disable(job, tenantId)` | 按默认规则或另一条规则启用任务的一个实例，就像 `wow.schedule.EnableJob` 那样；覆盖它的规则；停用它。`SHARDED` 任务的实例还要给出它的 `partition`。 |
 | `advanceTime(duration) { … }` | 推进时间：每个实例运行那时到期的时间槽，它的任务的处理函数收到每次触发。块用 Saga 的断言，一起检查处理函数对所有触发做了什么；没有到期的时间槽时块会失败；没有块时，只有处理函数或任务命令抛出异常才会失败。 |
 | `whenTick(tick) { … }` | 不经任务聚合，直接把一次触发交给它的任务的处理函数。 |
 | `ticks`、`now`、`instanceOf(job, tenantId)` | 至今交出的触发、当前时间，以及一个实例的状态。 |

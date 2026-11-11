@@ -110,7 +110,7 @@ class OpsCoSecTest {
         ops.post("/ops/parked/$id/retry", """{"reason":"The gateway is back."}""", operator).assertOk()
         eventually("the retry sent to shop-retry") { ops.ledgerCommands("shop-retry").isNotEmpty() }
         val retry = ops.ledgerCommands("shop-retry").single()
-        retry.type.assert().isEqualTo(Ledger.RETRY)
+        retry.type.assert().isEqualTo(Ledger.RETRY_PARKED)
         retry.operator!!.id.assert().isEqualTo("alice")
     }
 

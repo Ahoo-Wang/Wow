@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The system command `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates
+ * The system command `wow.snapshot.RebuildSnapshot`: rebuilds from the log the snapshots of the aggregates
  * [ids] of one aggregate type, in the tenant of the instance it is sent to: the aggregate `<context>.snapshot` whose id
  * is the name of that aggregate type. A snapshot written wrong is repaired this way; the rebuild runs in the background,
  * once the request is committed.
@@ -50,7 +50,7 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
 }
 
 /**
- * The system event `wow.SnapshotRebuildRequested`: the snapshots of the aggregates [ids] are to be rebuilt.
+ * The system event `wow.snapshot.SnapshotRebuildRequested`: the snapshots of the aggregates [ids] are to be rebuilt.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -85,19 +85,19 @@ object SnapshotRebuilds {
     /** The component a rebuild runs as: `system:snapshot`. */
     const val COMPONENT: String = "snapshot"
 
-    const val REBUILD: String = "wow.snapshot.Rebuild"
-    const val REBUILD_REQUESTED: String = "wow.SnapshotRebuildRequested"
+    const val REBUILD_SNAPSHOT: String = "wow.snapshot.RebuildSnapshot"
+    const val SNAPSHOT_REBUILD_REQUESTED: String = "wow.snapshot.SnapshotRebuildRequested"
 
     /** The most ids one rebuild request names. */
     const val MAX_IDS: Int = 1_000
 
     /** The system commands, by their names. */
     @JvmField
-    val COMMANDS: Map<String, Class<*>> = mapOf(REBUILD to RebuildSnapshot::class.java)
+    val COMMANDS: Map<String, Class<*>> = mapOf(REBUILD_SNAPSHOT to RebuildSnapshot::class.java)
 
     /** The system events, by their names. */
     @JvmField
-    val EVENTS: Map<String, Class<*>> = mapOf(REBUILD_REQUESTED to SnapshotRebuildRequested::class.java)
+    val EVENTS: Map<String, Class<*>> = mapOf(SNAPSHOT_REBUILD_REQUESTED to SnapshotRebuildRequested::class.java)
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }
 

@@ -64,7 +64,7 @@ The event stream is the fact: the events one command produced, committed by one 
 | `commandId`, `requestId` | The command that produced it and its idempotency key. |
 | `commandType` | The type name of that command. A request id reused with another command type is refused; with the same type, it is a retry. |
 | `commitTime` | When it was committed. |
-| `events` | Each event's `name`, `revision` and `payload`, in order. Schedules set or cancelled are among them, as the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`. |
+| `events` | Each event's `name`, `revision` and `payload`, in order. Schedules set or cancelled are among them, as the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`. |
 | `scope` | The aggregate's owner and space after this commit. |
 | `access` | The aggregate's access attributes, `owner` and `space` among them: those after this commit, then kept current as they change; null for a stream not stamped. |
 | `accessVersion` | The version `access` is of: this commit's own when it was committed with them, a later commit's once that one changed them. Every copy of the attributes, in the log, an index of the streams or a sink's table, keeps the one of the later version; null with `access`. |

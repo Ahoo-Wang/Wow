@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * An aggregate of a context. Its [commands] are those it decides, those [mounted][CommandManifest.mounted] under its
  * routes, and its [system][CommandManifest.system] commands: the lifecycle commands its model handles and the rebuild
  * of its snapshots, named by their full names in the system namespace (`wow.lifecycle.DeleteAggregate`,
- * `wow.snapshot.Rebuild`). Those are the same types for every aggregate, so they are not names within the aggregate
+ * `wow.snapshot.RebuildSnapshot`). Those are the same types for every aggregate, so they are not names within the aggregate
  * and never conflict between aggregates; the body of each is the schema of [Manifest.defs] keyed by that full name
  * ([Manifest.schemaRef] of it), so a client types it like a command's.
  * [queries] are the read models of the aggregate a client queries ([QueryManifest]).

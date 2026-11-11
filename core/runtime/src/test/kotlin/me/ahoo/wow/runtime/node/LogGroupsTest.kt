@@ -202,7 +202,7 @@ class LogGroupsTest {
         }
         stores.default.timers.find(INVOICE.ref(TENANT, "i-3"), DUE).assert().isNull()
         stores.invoices.log.read(INVOICE.ref(TENANT, "i-3")).toList().flatMap { it.events.map { event -> event.name } }
-            .assert().containsExactly("$CONTEXT.invoice.Issued", "wow.ScheduleSet", "$CONTEXT.invoice.Closed")
+            .assert().containsExactly("$CONTEXT.invoice.Issued", "wow.schedule.ScheduleSet", "$CONTEXT.invoice.Closed")
         node.context(CONTEXT).ownership.owned.forEach { partition ->
             node.context(CONTEXT).logGroups.forEach { group ->
                 group.timers!!.runner.partitions.assert().contains(partition)

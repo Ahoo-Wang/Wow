@@ -392,7 +392,7 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`,
 
 | Step | Does |
 | --- | --- |
-| `enable(job, tenantId, rule)`, `reschedule(job, tenantId, rule)`, `disable(job, tenantId)` | Enables an instance of a job by its default rule, or another, as `wow.schedule.Enable` does; overrides its rule; disables it. A `SHARDED` job's instance also takes its `partition`. |
+| `enable(job, tenantId, rule)`, `reschedule(job, tenantId, rule)`, `disable(job, tenantId)` | Enables an instance of a job by its default rule, or another, as `wow.schedule.EnableJob` does; overrides its rule; disables it. A `SHARDED` job's instance also takes its `partition`. |
 | `advanceTime(duration) { … }` | Moves the time on: each instance runs the slots then due, and its job's handlers get each tick. The block checks what they did with all of them together, with a saga's expectations, and fails when no slot was due; without a block, it fails only when a handler or a job command throws. |
 | `whenTick(tick) { … }` | Hands a tick to its job's handlers directly, without the job aggregate. |
 | `ticks`, `now`, `instanceOf(job, tenantId)` | The ticks handed over so far, the time, and an instance's state. |

@@ -10,7 +10,7 @@
 | A dataset's descriptor and queries | `GET` / `POST {base}/wow/dataset/{context}/{dataset}/query` |
 | One aggregate's state, at a version or time, and its trace | `GET {base}/{context}/{aggregate}/{id}/state`, `?version=`, `?at=`, `…/state/trace` |
 
-Ask for JSON (`Accept: application/json`); `list` can stream as server-sent events, which an answer rarely needs. Out of bounds: command routes, `POST …/wow.snapshot.rebuild`, `/wow/ops/…`, anything that writes.
+Ask for JSON (`Accept: application/json`); `list` can stream as server-sent events, which an answer rarely needs. Out of bounds: command routes, `POST …/wow.snapshot.rebuild-snapshot`, `/wow/ops/…`, anything that writes.
 
 ## Reading the descriptor
 

@@ -84,7 +84,7 @@ object CoSecActions {
                     aggregate.commands.filterNot { it.mounted || it.internal }.forEach { command ->
                         command.routes.forEach { route ->
                             val resource = when {
-                                command.name == SnapshotRebuilds.REBUILD ->
+                                command.name == SnapshotRebuilds.REBUILD_SNAPSHOT ->
                                     "${SnapshotRebuilds.AGGREGATE}/${aggregate.name}"
 
                                 CommandRoutes.ID in route.path -> "${aggregate.name}/${CommandRoutes.ID}"
