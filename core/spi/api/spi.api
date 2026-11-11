@@ -76,12 +76,12 @@ public class me/ahoo/wow/spi/config/ProviderOption {
 	public final fun getScope ()Lme/ahoo/wow/spi/config/ProviderOption$Scope;
 	public final fun getType ()Ljava/lang/Class;
 	public final fun getValues ()Ljava/util/List;
-	public fun instance ()Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun int (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun isMap ()Z
 	public static final fun map (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun parse (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+	public fun perInstance ()Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public fun toString ()Ljava/lang/String;
@@ -105,8 +105,8 @@ public final class me/ahoo/wow/spi/config/ProviderOption$Companion {
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Defaulted : me/ahoo/wow/spi/config/ProviderOption {
 	public fun getDefault ()Ljava/lang/Object;
-	public fun instance ()Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
-	public synthetic fun instance ()Lme/ahoo/wow/spi/config/ProviderOption;
+	public fun perInstance ()Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public synthetic fun perInstance ()Lme/ahoo/wow/spi/config/ProviderOption;
 }
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Scope : java/lang/Enum {
@@ -1013,7 +1013,6 @@ public abstract interface class me/ahoo/wow/spi/peer/PeerDiscovery {
 public final class me/ahoo/wow/spi/peer/PeerDiscoveryConfig {
 	public static final field Companion Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig$Companion;
 	public final fun getKey ()Ljava/lang/String;
-	public final fun getOptions ()Ljava/util/Map;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getSettings ()Lme/ahoo/wow/spi/config/ProviderSettings;
 	public final fun getType ()Ljava/lang/String;
@@ -1153,7 +1152,6 @@ public final class me/ahoo/wow/spi/sink/SinkConfig {
 	public static final field Companion Lme/ahoo/wow/spi/sink/SinkConfig$Companion;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
-	public final fun getOptions ()Ljava/util/Map;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getSettings ()Lme/ahoo/wow/spi/config/ProviderSettings;
 	public final fun getStore ()Lme/ahoo/wow/spi/store/Store;
@@ -1442,7 +1440,6 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public final fun getDevelopment ()Z
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
-	public final fun getOptions ()Ljava/util/Map;
 	public final fun getPolling ()Lme/ahoo/wow/spi/log/TailPolling;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getService ()Ljava/lang/String;
@@ -1863,7 +1860,6 @@ public final class me/ahoo/wow/spi/transport/TransportConfig {
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getObserver ()Lme/ahoo/wow/spi/observation/Observer;
-	public final fun getOptions ()Ljava/util/Map;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getSettings ()Lme/ahoo/wow/spi/config/ProviderSettings;
 	public final fun getType ()Ljava/lang/String;

@@ -31,7 +31,7 @@ class PeerDiscoveryConfigTest {
         config.settings.option("blank").assert().isNull()
         config.settings.option("missing").assert().isNull()
         config.toString().assert().contains("consul", "address").doesNotContain("8500")
-        PeerDiscoveryConfig.of("dns").options.assert().isEmpty()
+        PeerDiscoveryConfig.of("dns").settings.values.assert().isEmpty()
         assertThrows<IllegalArgumentException> { PeerDiscoveryConfig.of(" ") }
     }
 

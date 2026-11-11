@@ -161,7 +161,7 @@ abstract class StoreTck {
         val config = StoreConfig.of(
             config().name,
             config().type,
-            options = config().options,
+            options = config().settings.values,
             resources = config().resources
         )
         val provider = provider(config.type)
