@@ -115,7 +115,9 @@ class TimerRunnerRateTest : TimerRunnerFixtures() {
         runner().startPartition(0)
         eventually { status("pay").attempts == 1 }
         status("pay").dueAt.assert().isEqualTo(started + 5_000 + 1_000)
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.size.assert().isEqualTo(1)
     }
 

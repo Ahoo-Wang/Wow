@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.timer
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.subscription.eventually
@@ -44,13 +43,17 @@ class TimerRunnerTest : TimerRunnerFixtures() {
     fun `a timer is sent once it is due, and recorded fired with its outcome`(): Unit = runBlocking {
         store.put(timer("pay", dueIn = 500.milliseconds))
         runner().startPartition(0)
-        delay(50)
+        // A round read it, not due, and left it in the wheel: a timer leaves the wheel only to be sent.
+        rounds(2)
+        runners.single().loaded(0).assert().isEqualTo(1)
         fired.assert().isEmpty()
         clock.advance(500.milliseconds)
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
         status("pay").attempts.assert().isEqualTo(1)
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.assert().containsExactly(timer("pay").id)
     }
 
@@ -62,7 +65,9 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").outcome.assert().isEqualTo(TimerOutcomes.REJECTED)
         clock.advance(10.minutes)
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.size.assert().isEqualTo(1)
         ledger.list(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION)).assert().isEmpty()
     }
@@ -78,7 +83,9 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
         status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
         status("pay").outcome.assert().isEqualTo("java.lang.IllegalStateException: down")
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.size.assert().isEqualTo(1)
         clock.advance(1.seconds)
         eventually { status("pay").attempts == 2 }
@@ -89,7 +96,9 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         val parked = checkNotNull(ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")))
         parked.reason.assert().startsWith(timer("pay").id)
         clock.advance(10.minutes)
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.size.assert().isEqualTo(3)
 
         answers.remove("pay")
@@ -188,15 +197,24 @@ class TimerRunnerTest : TimerRunnerFixtures() {
     @Test
     fun `a timer cancelled after it was loaded is not sent`(): Unit = runBlocking {
         store.put(timer("pay", dueIn = 500.milliseconds))
+        val claims = AtomicInteger()
+        val claiming = object : TimerStore by store {
+            override suspend fun settle(changes: List<TimerChange>): Int {
+                if (changes.any { it.next.status == TimerStatus.FIRING }) {
+                    claims.incrementAndGet()
+                }
+                return store.settle(changes)
+            }
+        }
         // No poll before it is due: the wheel holds the timer as loaded.
-        runner(loop = loop(pollInterval = 1.minutes)).startPartition(0)
+        runner(timers = claiming, loop = loop(pollInterval = 1.minutes)).startPartition(0)
         eventually { runners.single().loaded(0) == 1 }
         store.cancel(order("o-1"), "pay", 2).assert().isTrue()
         clock.advance(500.milliseconds)
         runners.single().partitions.assert().containsExactly(0)
         loops.single().wakeUp()
-        delay(100)
-        // Its claim from the row as loaded failed: it was not sent.
+        // Its claim from the row as loaded failed, and a send whose claim fails ends there: it was not sent.
+        eventually { claims.get() == 1 }
         fired.assert().isEmpty()
         status("pay").status.assert().isEqualTo(TimerStatus.CANCELLED)
     }
@@ -210,7 +228,9 @@ class TimerRunnerTest : TimerRunnerFixtures() {
             listOf(TimerChange(timer, timer.copyWith(status = TimerStatus.FIRING, dueAt = clock.millis() + 1_000)))
         )
         runner().startPartition(0)
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3)
         fired.assert().isEmpty()
         clock.advance(1.seconds)
         eventually { status("pay").status == TimerStatus.FIRED }
@@ -242,14 +262,18 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         val second = runner()
         first.startPartition(0)
         first.partitions.assert().containsExactly(0)
-        delay(50)
+        // A round read it, not due, and left it in the wheel: a timer leaves the wheel only to be sent.
+        rounds(2, loops.first())
+        first.loaded(0).assert().isEqualTo(1)
         fired.assert().isEmpty()
         first.stopPartition(0)
         first.partitions.assert().isEmpty()
         second.startPartition(0)
         clock.advance(200.milliseconds)
         eventually { status("pay").status == TimerStatus.FIRED }
-        delay(50)
+        // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+        // maybe after the next round starts.
+        rounds(3, loops.last())
         fired.assert().containsExactly(timer("pay").id)
         status("other").status.assert().isEqualTo(TimerStatus.PENDING)
     }
