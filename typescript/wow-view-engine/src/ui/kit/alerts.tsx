@@ -75,16 +75,6 @@ export const lineAlertVariants = cva(
     'fve:has-data-[slot=alert-action]:pr-2',
     'fve:[&>[data-slot=alert-action]]:static fve:[&>[data-slot=alert-action]]:flex',
     'fve:[&>[data-slot=alert-action]]:items-center fve:[&>[data-slot=alert-action]]:gap-2',
-    // A control on this line takes no fill of its own in the dark theme.
-    // The tone's text colour was measured against the callout's surface,
-    // and `outline` carries `dark:bg-input/30` — which lightens that
-    // surface under the words until the pair stops reading: #ff6467 over
-    // the blend measured 4.37:1 against 1.4.3's 4.5 (the story
-    // `ErrorCalloutInDarkTheme` is where that was caught). The border and
-    // the hover are the button's own; only the resting fill goes, and it is
-    // written here rather than at each call site because there is one
-    // callout recipe (D16 ruling 8) and this is a fact about it.
-    'fve:dark:[&>[data-slot=alert-action]_button]:bg-transparent',
   ],
   {
     variants: {
