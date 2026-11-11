@@ -15,11 +15,7 @@ package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
@@ -30,30 +26,22 @@ import me.ahoo.wow.example.eshop.catalog.api.product.QuoteLine
 import me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest
 import me.ahoo.wow.example.eshop.catalog.api.product.QuotedLine
 import me.ahoo.wow.test.query.memoryQueries
+import me.ahoo.wow.test.routeCall
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 
-/** The storefront's routes, called as a handler is: with a call of the test's own, over a query side in memory. */
+/** The storefront's routes, called as a handler is: with a call the test DSL builds, over a query side in memory. */
 class StorefrontTest {
-    // region call
-    /** A shopper's call: its reads run on [queries] as the anonymous caller. */
-    private class Call(override val queries: Queries) : RouteCall {
-        override val caller: Caller = Caller.ANONYMOUS
-        override val tenantId: String = caller.tenantId
-        override val scope: Scope = caller.scope
-        override val requestId: String = "r1"
-        override val commands: CommandClient get() = error("The storefront sends no command.")
-    }
-    // endregion
-
     private val model = productModel()
 
     private fun created(price: String, categoryId: String? = "mugs") =
         ProductCreated("Mug $price", BigDecimal(price), "A mug", brandId = "wow", categoryId = categoryId)
 
-    private val call = Call(
-        memoryQueries {
+    // region call
+    /** A shopper's call: its reads run on a query side in memory as the anonymous caller; it sends no command. */
+    private val call = routeCall(
+        queries = memoryQueries {
             snapshot(model, "mug", created("8.50"), ProductPublished)
             snapshot(model, "cup", created("5.00"), ProductPublished)
             snapshot(model, "bowl", created("7.00"), ProductPublished)
@@ -62,6 +50,7 @@ class StorefrontTest {
             snapshot(model, "old", created("2.00"), ProductPublished, ProductDelisted("Out of season"))
         }.of(Caller.ANONYMOUS),
     )
+    // endregion
 
     private val storefront = Storefront()
 

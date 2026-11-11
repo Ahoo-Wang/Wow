@@ -400,6 +400,10 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`,
 
 Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's morning tick.
 
+## Service routes
+
+A service route's handler is tested by calling it, as a decide function is: with a call the test DSL builds, `routeCall(caller, queries, commands, requestId)`. The call acts in its caller's tenant and scope. Left out, the caller is anonymous, the request id is `request-1`, and a handler that reads or sends fails the test, saying what to give. The commands are an `answeringCommandClient { call -> … }`: each request it takes, through `send`, `wait` or `stream` and as whichever caller `of` gave, goes to the lambda and is kept in `calls`. The lambda answers with `call.committed(version)`, `call.rejected(code)` or `call.failed(code)`, which a real client returns or throws. [Test a route](./service-routes#test-a-route) shows the storefront's tests. `RouteCall` and `CommandClient` are Wow's to implement: a test that writes its own needs `@OptIn(InternalWowApi::class)`, and breaks when Wow adds a member.
+
 ## Access policies
 
 An access policy is tested with `accessPolicySpec(model, policy)`: given the aggregate after its events, or in a state and scope, `whenCaller(subject, claims, roles)` checks what that caller may read and change, as the kernel and the queries decide it. [Test a policy](./ownership#test-a-policy) shows one.
