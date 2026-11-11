@@ -29,7 +29,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.state_cache.evictions` | Counter | `wow.context` | 从状态缓存逐出的状态 |
 | `wow.state_cache.invalidations` | Counter | `wow.context` | 因落后于日志而从状态缓存丢弃的状态：分区属主读到了该聚合更新的流，是另一个节点在不持该分区租约时提交的 |
 | `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`wow.capability`：`snapshot-tail-read`（存储在一次往返中读出快照及其后的日志尾部）、`snapshot-rebuild`（快照存储的原地重建）。`wow.reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unsupported`（存储没有这项能力） |
-| `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键：来自追加后内核的确认，或 `reservation` 订阅的确认 |
+| `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键：来自追加后内核的确认，或内置预留订阅的确认 |
 | `wow.node.fatal.errors` | Counter | `wow.kind`, `error.type` | 节点自身工作遇到的 JVM 致命错误（`OutOfMemoryError`、`InternalError`），按遇到它的节点部分：`subscription`、`timer`、`executor`、`ownership`、`membership`、`append-queue`、`ledger`、`node`；以及错误的类。第一个使节点致命：其 liveness 与 readiness 一直为 down，直到进程结束（[致命错误](../operate/observability#fatal-errors)） |
 
 ### 订阅 {#subscriptions}
@@ -84,7 +84,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 
 ## Span {#spans}
 
-tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。准入的父 Span 是当前 Span（若有），即请求的 server span。每个 Span 都以它的 `wow.outcome` 结束，失败会记录在它上面，失败的完整类名为 `error.type`。订阅由它的组和名字共同确定，即 `wow.group` 与 `wow.subscription`：每个上下文都有自己的 `snapshot`。
+tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。准入的父 Span 是当前 Span（若有），即请求的 server span。每个 Span 都以它的 `wow.outcome` 结束，失败会记录在它上面，失败的完整类名为 `error.type`。订阅由它的组和名字共同确定，即 `wow.group` 与 `wow.subscription`：每个上下文都有自己的 `wow.snapshot`。
 
 | Span | 类型 | 属性 |
 | --- | --- | --- |
@@ -114,6 +114,7 @@ tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始
 | --- | --- |
 | `node` | |
 | `stores` | `wow.health.stores.*`：`down-after`、`window` |
+| `secondaryStores` | `wow.health.stores.*`：`down-after`、`window`（不计入就绪） |
 | `ownership` | `wow.health.ownership.*`：`handover-grace` |
 | `topics` | `wow.health.topics.*`：`required` |
 | `subscriptions` | `wow.health.subscriptions.*`：`lag-degraded-at`、`parked-degraded-at` |
