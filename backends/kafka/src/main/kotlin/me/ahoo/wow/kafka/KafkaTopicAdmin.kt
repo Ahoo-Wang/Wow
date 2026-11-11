@@ -50,21 +50,14 @@ import kotlin.time.toJavaDuration
  * closes the admin client, waiting at most [closeTimeout] ([KafkaOptions.CLOSE_TIMEOUT]) for its calls in flight; past
  * it, the client fails them, and a warning says so.
  */
-class KafkaTopicAdmin @InternalWowApi constructor(
+class KafkaTopicAdmin(
     private val admin: Admin,
-    private val replicationFactor: Short?,
-    private val configs: Map<String, String>,
-    private val visibleWithin: Duration,
-    private val dispatcher: CoroutineDispatcher,
-    private val closeTimeout: Duration,
+    private val replicationFactor: Short? = null,
+    private val configs: Map<String, String> = emptyMap(),
+    private val visibleWithin: Duration = DEFAULT_VISIBLE_WITHIN,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val closeTimeout: Duration = KafkaOptions.CLOSE_TIMEOUT,
 ) : TopicAdmin, AutoCloseable {
-    constructor(
-        admin: Admin,
-        replicationFactor: Short? = null,
-        configs: Map<String, String> = emptyMap(),
-        visibleWithin: Duration = DEFAULT_VISIBLE_WITHIN,
-        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    ) : this(admin, replicationFactor, configs, visibleWithin, dispatcher, KafkaOptions.CLOSE_TIMEOUT)
 
     init {
         require(replicationFactor == null || replicationFactor > 0) { "A topic has at least one replica." }
