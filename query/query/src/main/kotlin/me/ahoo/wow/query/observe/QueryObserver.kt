@@ -88,7 +88,10 @@ private class CompositeQueryObserver(private val observers: List<QueryObserver>)
         observers.filter { it.audits }.forEach { it.isolated { onAudit(audit) } }
 }
 
-/** Every observation of [observations]: the first one's context and trace, each one told the outcome and the end. */
+/**
+ * Every observation of [observations]: the first one's context and trace, each one told the outcome and the end. Each
+ * is [guarded][GuardedObservation], so one that fails neither fails the query nor keeps the others from being told.
+ */
 private class CompositeObservation(private val observations: List<Observation>) : Observation {
     override val context: CoroutineContext = observations.first().context
 
@@ -97,6 +100,25 @@ private class CompositeObservation(private val observations: List<Observation>) 
     override fun failed(error: Throwable) = observations.forEach { it.failed(error) }
 
     override fun end() = observations.forEach { it.end() }
+}
+
+/**
+ * The [observation] of [observer], told the outcome, the failure and the end [isolated][isolated] as its other
+ * callbacks are: an observation that throws is logged and fails no query. Its context is read when it is made, inside
+ * the observer's start, so an observation whose context throws counts as one the observer failed to start.
+ */
+private class GuardedObservation(private val observer: QueryObserver, private val observation: Observation) :
+    Observation {
+    override val context: CoroutineContext = observation.context
+
+    override val trace: Map<String, String>
+        get() = observation.trace
+
+    override fun outcome(outcome: ObservedOutcome) = observer.isolated { observation.outcome(outcome) }
+
+    override fun failed(error: Throwable) = observer.isolated { observation.failed(error) }
+
+    override fun end() = observer.isolated { observation.end() }
 }
 
 private val log = KotlinLogging.logger { }
@@ -141,11 +163,17 @@ internal fun QueryObserver.finished(
     }
 }
 
-/** The observation [start] returns, or none when the observer fails to start one: an observer never fails a query. */
+/**
+ * The observation [start] returns, [guarded][GuardedObservation], or none when the observer fails to start one: an
+ * observer never fails a query.
+ */
 @Suppress("TooGenericExceptionCaught")
 internal fun QueryObserver.started(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation =
     try {
-        start(aggregateType, queryType, model)
+        when (val observation = start(aggregateType, queryType, model)) {
+            Observation.NONE, is GuardedObservation, is CompositeObservation -> observation
+            else -> GuardedObservation(this, observation)
+        }
     } catch (failure: VirtualMachineError) {
         throw failure
     } catch (failure: Throwable) {
