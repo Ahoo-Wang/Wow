@@ -313,7 +313,6 @@
     "name" : "wow.http.errors.[<code>].status",
     "type" : "java.lang.Integer",
     "description" : "The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start.",
-    "sourceType" : "me.ahoo.wow.spring.boot.HttpProperties$Error",
-    "defaultValue" : 0
+    "sourceType" : "me.ahoo.wow.spring.boot.HttpProperties$Error"
   } ]
 }
