@@ -28,22 +28,21 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 
 ```ts
 export interface ViewStore {
-  changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   readonly local?: boolean;
   permissions?(definitionId: string): ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
-export interface WriteOptions {
-  requestId: string;
-  signal?: AbortSignal;
+export interface WriteOptions extends ReadOptions {
+  readonly requestId: string;
 }
 ```
 

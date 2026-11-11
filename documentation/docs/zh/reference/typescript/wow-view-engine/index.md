@@ -41,14 +41,14 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 interface ViewStore {
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   // 可选：没有它，视图管理器就没有「设为共享」「设为个人」。
-  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
-  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
   // 只存在本浏览器里的存储设它：引擎随后不共享其中任何视图。
   readonly local?: boolean;

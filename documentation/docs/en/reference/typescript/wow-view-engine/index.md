@@ -41,14 +41,14 @@ Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`,
 interface ViewStore {
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   // Optional: without it the view manager offers no "Make shared" / "Make personal".
-  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
-  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
   // Set by a store kept in this browser alone: the engine then shares none of its views.
   readonly local?: boolean;
