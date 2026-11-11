@@ -271,18 +271,17 @@ export const PinnedPresetReplacesTheOuterOne: Story = {
         const nested = pair.querySelector('[data-where="nested"]')!;
         await expect(resolved(nested), preset).toEqual(resolved(alone));
       }
-      // And the outer preset is really there: a surface under it with no
-      // preset of its own wears porcelain's filled controls.
+      // And the outer preset is really there, giving its controls a fill of
+      // its own, which the surface pinned to neutral inside it does not wear.
       const neutral = canvasElement.querySelector('[data-pair="neutral"]')!;
       const outer = neutral.querySelector('[data-fve-preset="porcelain"]')!;
-      await expect(
-        getComputedStyle(outer).getPropertyValue('--fvp-control').trim(),
-      ).not.toBe('');
+      const given = getComputedStyle(outer).getPropertyValue('--fvp-control');
+      await expect(given.trim()).not.toBe('');
       await expect(
         getComputedStyle(neutral.querySelector('[data-where="nested"]')!)
           .getPropertyValue('--_fve-control')
           .trim(),
-      ).toBe('');
+      ).not.toBe(given.trim());
     } finally {
       release();
     }

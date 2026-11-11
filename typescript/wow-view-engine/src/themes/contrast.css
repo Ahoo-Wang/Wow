@@ -37,7 +37,7 @@
  *   where no checkbox says it, D76), a menu's highlighted item filled with
  *   the primary under its ink (linked, so a brand colour fills it), a toned
  *   badge edged in its full tone, bold titles and bands, and a hovered or
- *   pressed control a clear step darker (black 10% / 18%).
+ *   pressed control a clear step darker (the ink at 10% / 18%).
  * - **The dark control wash** (`bg-input/30`) is what set the dark edge,
  *   ring and quiet grey: on the header band, the selected row and the
  *   sidebar the edge reads 5.25, the ring 5.22 and the quiet grey 7.61.
@@ -164,10 +164,13 @@
   --fvp-dark-row-hover: oklch(0.2 0 0deg);
   --fvp-highlight-link: 100%;
   --fvp-highlight-foreground-link: 100%;
-  --fvp-control-hover: oklch(0 0 0deg / 10%);
-  --fvp-dark-control-hover: oklch(1 0 0deg / 16%);
-  --fvp-control-pressed: oklch(0 0 0deg / 18%);
-  --fvp-dark-control-pressed: oklch(1 0 0deg / 26%);
+  --fvp-state-hover: 10%;
+  --fvp-dark-state-hover: 16%;
+  --fvp-state-pressed: 18%;
+  --fvp-dark-state-pressed: 26%;
+  /* A filled control keeps the edge a control owes here. */
+  --fvp-control-edge: oklch(0.42 0 0deg);
+  --fvp-dark-control-edge: oklch(0.84 0 0deg);
   --fvp-focus-width: 2px;
   --fvp-focus-offset: 2px;
   --fvp-focus-style: solid;

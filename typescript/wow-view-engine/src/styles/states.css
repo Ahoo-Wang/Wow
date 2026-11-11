@@ -142,28 +142,14 @@
      * An outline button on a toolbar — its word or its icon says what it
      * does — in the theme's `control` fill and `control-edge`, as a board
      * filter's chip and a segmented control are (D59 7, what D43 left for
-     * next): porcelain fills it and drops its edge, as a macOS toolbar
-     * does. Unset, the registry's own: `background` edged in `border`, and
-     * in the dark no fill, edged in `input`, said again there. Its hover,
-     * pressed, expanded, focus and invalid states stay the registry's: each
-     * weighs a state beside its class and outweighs this rule.
+     * next): filled, inside a hairline — `secondary` edged in `border`
+     * where a theme says neither. Its hover, pressed, expanded, focus and
+     * invalid states stay the registry's: each weighs a state beside its
+     * class and outweighs this rule.
      */
     .fve\:group\/button:where(.fve\:border-border):where([role='toolbar'] *) {
-      border-color: var(--_fve-control-edge, var(--border));
-      background-color: var(--_fve-control, var(--background));
-    }
-
-    @media not print {
-      .fve\:group\/button:where(.fve\:border-border):where(
-          [role='toolbar'] *
-        ):where(
-          .fve-root[data-theme='dark'] *,
-          .dark .fve-root:not([data-theme='light']) *,
-          .dark .fve-tokens :not(.fve-root, .fve-root *)
-        ) {
-        border-color: var(--_fve-control-edge, var(--input));
-        background-color: var(--_fve-control, transparent);
-      }
+      border-color: var(--_fve-control-edge);
+      background-color: var(--_fve-control);
     }
   }
 }
@@ -206,13 +192,13 @@
 }
 
 /*
- * The segmented control a theme can draw filled rather than outlined
- * (`control`, `control-edge`, `control-thumb` in the token blocks): its
- * items as one filled track, the pressed one a thumb on it. Unset, each
- * falls back to exactly what the registry draws — transparent, edged in
- * `input`, pressed in `muted` — so a theme without the group draws it as
- * before. A board filter's chip, the other control the group reaches, is
- * this package's own (`ControlFrame`) and reads the tokens in its recipe.
+ * The segmented control, filled (`control`, `control-edge`,
+ * `control-thumb` in the token blocks): its items as one filled track, the
+ * pressed one a thumb on it. Where a theme says none of them they are the
+ * stylesheet's own — `secondary` edged in `border`, the thumb in
+ * `background` — and no longer what the registry draws. A board filter's
+ * chip, the other control the group reaches, is this package's own
+ * (`ControlFrame`) and reads the tokens in its recipe.
  *
  * An item is found as the group's child by its variant, not by its slot:
  * an item a tooltip explains is rendered by the tooltip's trigger, which
@@ -230,29 +216,28 @@
   :where(.fve-root, .fve-tokens)
     :where([data-slot='toggle-group'])
     > [data-variant='outline'] {
-    border-color: var(--_fve-control-edge, var(--input));
-    background-color: var(--_fve-control, transparent);
+    border-color: var(--_fve-control-edge);
+    background-color: var(--_fve-control);
   }
 
   :where(.fve-root, .fve-tokens)
     :where([data-slot='toggle-group'])
     > [data-variant='outline'][aria-pressed='true'] {
-    background-color: var(--_fve-control-thumb, var(--muted));
+    background-color: var(--_fve-control-thumb);
   }
 
   /*
    * The thumb sits inside the track: its edge, and a second pixel inside
    * it, are the track's fill, so the pressed item reads as a thumb on the
    * track rather than a hole in it. One attribute and a `:where`, so a
-   * focused item's `border-ring` and halo still win; unset, the edge is the
-   * registry's `input` and the inner pixel transparent.
+   * focused item's `border-ring` and halo still win.
    */
   :where(.fve-root, .fve-tokens)
     :where([data-slot='toggle-group'])
     > [data-variant='outline']:where([aria-pressed='true']) {
-    border-color: var(--_fve-control, var(--input));
+    border-color: var(--_fve-control);
     box-shadow:
-      inset 0 0 0 1px var(--_fve-control, transparent),
+      inset 0 0 0 1px var(--_fve-control),
       var(--_fve-control-thumb-shadow);
   }
 
