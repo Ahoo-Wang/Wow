@@ -131,8 +131,7 @@ interface QueryModels {
      * @throws IllegalArgumentException when no dataset of that name is served to this reader.
      */
     @ExperimentalWowApi
-    fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
-        throw UnsupportedOperationException("QueryModels.datasets is not served by ${javaClass.name}.")
+    fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R>
 }
 
 /**
@@ -226,12 +225,12 @@ interface RowQueries<R : Any> {
      * as the aggregation protocol is.
      */
     @ExperimentalWowApi
-    fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> =
-        throw UnsupportedOperationException("RowQueries.aggregate is not served by ${javaClass.name}.")
+    fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G>
 }
 
-/** The queries of an aggregate's model, its rows typed, with the same queries returning the rows as stored. */
 /**
+ * The queries of an aggregate's model, its rows typed, with the same queries returning the rows as stored.
+ *
  * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
  * application does not give, so members may be added in a minor release.
  */
@@ -293,8 +292,9 @@ interface TenantSnapshotQueries<S : Any> : SnapshotQueries<S> {
     suspend fun state(id: String, minVersion: Int): Snapshot<S>?
 }
 
-/** The events queries of an aggregate type: one row per commit, an [EventStream]. */
 /**
+ * The events queries of an aggregate type: one row per commit, an [EventStream].
+ *
  * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
  * application does not give, so members may be added in a minor release.
  */

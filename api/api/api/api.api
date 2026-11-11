@@ -1086,14 +1086,14 @@ public abstract interface class me/ahoo/wow/api/read/QueryApi {
 }
 
 public abstract interface class me/ahoo/wow/api/read/QueryModels {
-	public fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
+	public abstract fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
 	public abstract fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/EventQueries;
 	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
 	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;
 }
 
 public abstract interface class me/ahoo/wow/api/read/RowQueries {
-	public fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun count (Lme/ahoo/wow/api/query/CountQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cursor (Lme/ahoo/wow/api/query/CursorQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun list (Lme/ahoo/wow/api/query/ListQuery;)Lkotlinx/coroutines/flow/Flow;
