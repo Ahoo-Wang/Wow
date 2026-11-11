@@ -11,7 +11,7 @@ Every public declaration of a published module has one of four levels. The ABI d
 
 | Level | Marker | Promise |
 | --- | --- | --- |
-| Public | none | A 10.x patch release keeps it binary compatible. A 10.x minor release may change it; its release notes name every such change. |
+| Public | none | A 10.0.x patch release keeps it binary compatible. A 10.x minor release keeps it source compatible: a caller's sources compile unchanged and its binaries are rebuilt against it; the release notes name every signature that changed. |
 | Experimental | `@ExperimentalWowApi` | A 10.x minor release may change or remove it. Using it needs `@OptIn(ExperimentalWowApi::class)`, a compiler warning otherwise. |
 | SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |
 | Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. Using it without opting in is a compiler error, and an application does not opt in; the dumps leave it out. |

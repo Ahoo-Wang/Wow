@@ -117,7 +117,7 @@ const WORDS = {
       table: [
         '| Level | Marker | Promise |',
         '| --- | --- | --- |',
-        '| Public | none | A 10.x patch release keeps it binary compatible. A 10.x minor release may change it; its release notes name every such change. |',
+        "| Public | none | A 10.0.x patch release keeps it binary compatible. A 10.x minor release keeps it source compatible: a caller's sources compile unchanged and its binaries are rebuilt against it; the release notes name every signature that changed. |",
         '| Experimental | `@ExperimentalWowApi` | A 10.x minor release may change or remove it. Using it needs `@OptIn(ExperimentalWowApi::class)`, a compiler warning otherwise. |',
         '| SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |',
         "| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. Using it without opting in is a compiler error, and an application does not opt in; the dumps leave it out. |",
@@ -194,7 +194,7 @@ const WORDS = {
       table: [
         '| 级别 | 标记 | 承诺 |',
         '| --- | --- | --- |',
-        '| 公开 | 无 | 10.x 的补丁版本保持二进制兼容。10.x 的次版本可能改动它，并在发布说明中列出每一处。 |',
+        '| 公开 | 无 | 10.0.x 的补丁版本保持二进制兼容。10.x 的次版本保持源码兼容：调用方的源码无须改动即可编译，其二进制针对新版本重新构建；发布说明列出每一处改动的签名。 |',
         '| 实验性 | `@ExperimentalWowApi` | 10.x 的次版本可能改动或移除它。使用时需要 `@OptIn(ExperimentalWowApi::class)`，否则编译器给出警告。 |',
         '| SPI | `@WowSpi` | 后端与传输实现的端口；次版本可能改动它。使用时需要 `@OptIn(WowSpi::class)`，否则编译器给出警告。 |',
         '| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。未选择使用就使用它是编译错误，应用也不选择使用；ABI 转储不包含它。 |',
