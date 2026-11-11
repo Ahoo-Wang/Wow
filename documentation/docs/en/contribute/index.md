@@ -18,7 +18,7 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 | `backends/` | One module per technology: `:postgres`, `:mongo`, `:elasticsearch`, `:clickhouse`, `:kafka` |
 | `edge/` | `:http`, the routes from the Manifest; `:openapi`; `:client`, the typed HTTP clients; `:cosec`; `:observability` |
 | `host/` | `:spring-boot`, the auto-configuration that composes a node |
-| `extensions/` | `:cosid`, `:cocache-api`, `:cocache`, `:models` |
+| `extensions/` | `:cosid`, `:cocache-api`, `:cocache`, `:spring-cloud`, `:models` |
 | `migration/` | `:migrate-data`, which imports 9.x event streams |
 | `test/` | `:test-dsl` (artifact `wow-test`), `:test-query`, `:test-spring-boot`, `:tck` and `:tck-containers`, `:architecture`, the benchmarks, the coverage report |
 | `bom/` | `:bom` (`wow-bom`) and `:wow-dependencies` |

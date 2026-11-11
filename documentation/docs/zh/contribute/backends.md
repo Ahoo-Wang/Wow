@@ -151,13 +151,15 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
    }
    ```
 
-3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。端口是 `@WowSpi`，编译器会对这种选择加入给出警告，所以测试类用 `@OptIn(WowSpi::class)`（或由测试源码集）选择加入，让构建没有警告。PostgreSQL 日志的测试就是一个日志所需的全部，外加三个可选钩子：读取它尾部时所用的快照存储、它一次往返读取两者的方式，以及它拒绝的流：
+3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。端口是 `@WowSpi`，编译器会对这种选择加入给出警告，所以测试类用 `@OptIn(WowSpi::class)`（或由测试源码集）选择加入，让构建没有警告。PostgreSQL 日志的测试就是一个日志所需的全部，外加四个可选钩子：同一上下文的第二次 `createLog` 是否打开同一个存储（保留 `false` 时跳过两个写入者的用例）、读取它尾部时所用的快照存储、它一次往返读取两者的方式，以及它拒绝的流：
 
    <!-- sample: fragment -->
 
    ```kotlin
    class PostgresEventLogTest : EventLogSpec() {
        override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
+
+       override val opensOneStorePerContext: Boolean = true
 
        override fun createSnapshots(context: String): SnapshotStore =
            PostgresSnapshotStore(PostgresFixture.dataSource, context)
@@ -179,11 +181,12 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 | Spec | 制品 | 需实现 | 可选 |
 | --- | --- | --- | --- |
 | `StoreTck` | `wow-tck` | `config()`：后端类型的一个存储 | `provider(type)`、`refused(stream)`、`facets` |
-| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`、`snapshotTailsOf(log, snapshots)`、`refused(stream)` |
+| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `opensOneStorePerContext`、`createSnapshots(context)`、`snapshotTailsOf(log, snapshots)`、`refused(stream)` |
 | `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
 | `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
 | `LeaseStoreSpec` | `wow-tck` | `createStore(clock)`：spec 会拨动时钟 | |
 | `FailureLedgerSpec` | `wow-tck` | `createLedger()` | |
+| `FailureLedgerContextsSpec` | `wow-tck` | `createLedger()` | |
 | `ReservationStoreSpec` | `wow-tck` | `createStore(clock)` | |
 | `TimerStoreSpec` | `wow-tck` | `createStore()` | `context`、`logPartitions` |
 | `SinkSpec` | `wow-tck` | `createSink()`、`written(ref)`：目标处保存的版本 | `aggregateType`、`record(ref, version)`、`visibleWithin`、`provided()` |
@@ -191,8 +194,10 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`、`binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`、`binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`、`createTable(table)` | `semanticDivergences` |
+| `AccessFilterSpec` | `wow-query-tck` | `store(type, records)`、`binding(type)` | |
+| `DatasetAccessSpec` | `wow-query-tck` | `createDatasetBindings()`、`createTable(table)`、`storeAccess(…)` | |
 
-为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，内存后端运行 `StoreTck`、七个存储 spec、`TopicTransportSpec` 和三个查询 spec；PostgreSQL 和 MongoDB 运行七个存储 spec、`QueryBackendSpec` 和 `EventQueryBackendSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec` 和 `DatasetQueryBackendSpec`。
+为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，内存后端运行 `StoreTck`、七个存储 spec 与 `FailureLedgerContextsSpec`、`TopicTransportSpec` 和五个查询 spec；PostgreSQL 和 MongoDB 运行七个存储 spec、`FailureLedgerContextsSpec`、`QueryBackendSpec` 和 `EventQueryBackendSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec`、`DatasetQueryBackendSpec` 和 `DatasetAccessSpec`。
 
 ### 能力与跳过的测试 {#capabilities}
 
@@ -229,6 +234,6 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 - 后端依赖 `:spi`，提供查询时还依赖 `:query`；它从不依赖另一个后端或运行时。`:architecture` 保证这一点，新模块要加入 `ALLOWED_PROJECT_DEPENDENCIES`。
 - 它记录自己创建的每个结构的格式，并拒绝另一种格式的结构，所以节点永远不会写入它不理解的布局。它通过 `Ddl.ensure` 或 `Ddl.apply` 决定一个 `ddl` 模式做什么，所以每种模式在每个存储里含义相同；`:architecture` 保证它的代码不在别处提到某个模式。
 - 它是一个已发布的模块：它保留 ABI 转储、一个链接到站点的 README，并在“运维”下为它的运维人员提供一个页面。
-- 它用 SPI 的类型化异常报告失败，由运行时自己分类；后端不注册失败分类器。无法访问的存储或 broker 是 `StorageUnavailableException` 或 `TransportUnavailableException`，属于系统性失败：订阅暂停并重试，不停放任何东西。它永久拒绝的值是 `StorageRefusedException` 或 `TransportRefusedException`，聚合立即停放。它在调用方的超时处停止的语句是 `StorageTimeoutException`，查询核心将其回答为 `wow.query.timeout`。其他失败保持驱动自己的异常。
+- 它用 SPI 的类型化异常报告失败，由运行时自己分类；后端不为自己存储的失败注册分类器。（PostgreSQL 的 `JdbcFailureClassifier` 只分类应用自己的处理器遇到的原始 JDBC 连接失败。）无法访问的存储或 broker 是 `StorageUnavailableException` 或 `TransportUnavailableException`，属于系统性失败：订阅暂停并重试，不停放任何东西。它永久拒绝的值是 `StorageRefusedException` 或 `TransportRefusedException`，聚合立即停放。它在调用方的超时处停止的语句是 `StorageTimeoutException`，查询核心将其回答为 `wow.query.timeout`。其他失败保持驱动自己的异常。
 
 PostgreSQL 后端 `backends/postgres` 是可以对照其测试阅读的参照。

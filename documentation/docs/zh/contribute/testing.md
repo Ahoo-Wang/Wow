@@ -32,13 +32,13 @@ Wow 的每个改动都附带测试，放在能覆盖改动内容的最窄层次�
 
 ## 契约测试套件 {#the-contract-suites}
 
-后端实现 `:spi` 的端口，它的正确性由契约决定，而不是由它自己的测试决定。TCK 为每个端口提供一个抽象 spec：`:tck` 中的 `EventLogSpec`、`SnapshotStoreSpec`、`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`ReservationStoreSpec`、`TimerStoreSpec`、`SinkSpec` 和 `TopicTransportSpec`，以及 `:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec` 和 `DatasetQueryBackendSpec`。`StoreTck` 对整个存储运行它们，像宿主那样经由提供者打开存储。后端的容器测试为它提供的每种存储类型运行 `StoreTck`，并继承它实现的每个 spec，提供它自己的全新存储：PostgreSQL 和 MongoDB 运行七个存储 spec 以及快照与事件的查询 spec。`:tck-containers` 启动共享的容器，镜像版本固定。[编写后端](./backends)展示怎样做。
+后端实现 `:spi` 的端口，它的正确性由契约决定，而不是由它自己的测试决定。TCK 为每个端口提供一个抽象 spec：`:tck` 中的 `EventLogSpec`、`SnapshotStoreSpec`、`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`ReservationStoreSpec`、`TimerStoreSpec`、`SinkSpec` 和 `TopicTransportSpec`（还有 `FailureLedgerContextsSpec`），以及 `:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec`、`DatasetQueryBackendSpec`、`AccessFilterSpec` 和 `DatasetAccessSpec`。`StoreTck` 对整个存储运行它们，像宿主那样经由提供者打开存储。后端的容器测试为它提供的每种存储类型运行 `StoreTck`，并继承它实现的每个 spec，提供它自己的全新存储：PostgreSQL 和 MongoDB 运行七个存储 spec 以及快照与事件的查询 spec。`:tck-containers` 启动共享的容器，镜像版本固定。[编写后端](./backends)展示怎样做。
 
 ## 文档与脚本 {#documentation-and-scripts}
 
 - 文档的检查在仓库根目录用 Node 运行：`node .github/scripts/docs-samples.mjs` 让每个示例与其源码保持一致，另有 `docs-layout.mjs`、`docs-consistency.mjs` 和 `repo-hygiene.mjs`。
 - `cd documentation && pnpm docs:build` 构建站点，遇到死链时失败。
-- `node --test documentation/test/*.test.mjs` 运行站点的测试，其中包括编译 TypeScript 示例。
+- 先 `pnpm --filter 'documentation^...' build`，再在 `documentation/` 里 `pnpm test`：构建站点与 Storybook，再运行站点的测试（`test/*.test.mjs`），其中包括编译 TypeScript 示例。
 - `pnpm test:ci-scripts` 测试 CI 脚本本身。
 - `pnpm docs:reference` 重新生成来自代码的参考页面；对配置元数据、错误码或注解的改动要提交它的输出。
 

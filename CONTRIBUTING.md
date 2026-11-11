@@ -103,7 +103,7 @@ These checks intentionally do not require comments on every declaration: unneces
 ## Pull Requests
 
 1. Create a focused branch from `main`.
-   Use a recognized prefix when practical: `fix/`, `bugfix/`, `feature/`, `feat/`, `perf/`, `breaking/`, `chore/`, `build/`, `ci/`, or `docs/`. Dependency automation uses `renovate/` and `dependabot/`.
+   Its name is free: the type label comes from the pull request's Conventional Commit title (`.github/scripts/title-label.mjs`). Only dependency automation is recognised by branch, `renovate/` and `dependabot/`.
 2. Keep the change small enough to review and avoid unrelated formatting or refactoring.
 3. Run the narrowest relevant tests, static analysis, build, or documentation checks.
 4. Complete the pull request template, including verification evidence and compatibility risks.

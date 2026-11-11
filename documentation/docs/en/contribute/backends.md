@@ -151,13 +151,15 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
    }
    ```
 
-3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the three optional hooks: the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
+3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the four optional hooks: whether a second `createLog` of one context opens the same store (left `false`, the cases of two writers are skipped), the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
 
    <!-- sample: fragment -->
 
    ```kotlin
    class PostgresEventLogTest : EventLogSpec() {
        override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
+
+       override val opensOneStorePerContext: Boolean = true
 
        override fun createSnapshots(context: String): SnapshotStore =
            PostgresSnapshotStore(PostgresFixture.dataSource, context)
@@ -179,11 +181,12 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 | Spec | Artifact | Implement | Optional |
 | --- | --- | --- | --- |
 | `StoreTck` | `wow-tck` | `config()`: a store of the backend's type | `provider(type)`, `refused(stream)`, `facets` |
-| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`, `snapshotTailsOf(log, snapshots)`, `refused(stream)` |
+| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `opensOneStorePerContext`, `createSnapshots(context)`, `snapshotTailsOf(log, snapshots)`, `refused(stream)` |
 | `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
 | `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
 | `LeaseStoreSpec` | `wow-tck` | `createStore(clock)`: the spec moves the clock | |
 | `FailureLedgerSpec` | `wow-tck` | `createLedger()` | |
+| `FailureLedgerContextsSpec` | `wow-tck` | `createLedger()` | |
 | `ReservationStoreSpec` | `wow-tck` | `createStore(clock)` | |
 | `TimerStoreSpec` | `wow-tck` | `createStore()` | `context`, `logPartitions` |
 | `SinkSpec` | `wow-tck` | `createSink()`, `written(ref)`: the versions the destination holds | `aggregateType`, `record(ref, version)`, `visibleWithin`, `provided()` |
@@ -191,8 +194,10 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`, `binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)` | `semanticDivergences` |
+| `AccessFilterSpec` | `wow-query-tck` | `store(type, records)`, `binding(type)` | |
+| `DatasetAccessSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)`, `storeAccess(…)` | |
 
-Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, the in-memory backend runs `StoreTck`, the seven store specs, `TopicTransportSpec` and the three query specs; PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
+Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, the in-memory backend runs `StoreTck`, the seven store specs with `FailureLedgerContextsSpec`, `TopicTransportSpec` and the five query specs; PostgreSQL and MongoDB run the seven store specs, `FailureLedgerContextsSpec`, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec`, `DatasetQueryBackendSpec` and `DatasetAccessSpec`.
 
 ### Capabilities and skipped tests {#capabilities}
 
@@ -229,6 +234,6 @@ A backend declares what it can do on the ports themselves, and the spec skips, t
 - A backend depends on `:spi`, and on `:query` when it serves queries; it never depends on another backend or on the runtime. `:architecture` holds this, and the new module joins `ALLOWED_PROJECT_DEPENDENCIES`.
 - It records the format of every structure it creates and refuses one of another format, so a node never writes a layout it does not understand. It decides what a `ddl` mode does through `Ddl.ensure` or `Ddl.apply`, so each mode means the same in every store; `:architecture` holds that its code names no mode otherwise.
 - It is a published module: it keeps an ABI dump, a README that links to the site, and a page under Operate for its operators.
-- It reports its failures as the SPI's typed exceptions, which the runtime classifies itself; a backend registers no failure classifier. A store or a broker it cannot reach is a `StorageUnavailableException` or a `TransportUnavailableException`, systemic: a subscription pauses and retries, and parks nothing. A value it refuses for good is a `StorageRefusedException` or a `TransportRefusedException`, on which the aggregate parks at once. A statement it stops at the caller's timeout is a `StorageTimeoutException`, which the query core answers as `wow.query.timeout`. Any other failure stays the driver's own exception.
+- It reports its failures as the SPI's typed exceptions, which the runtime classifies itself; a backend registers no classifier for its own stores' failures. (PostgreSQL's `JdbcFailureClassifier` classifies only the raw JDBC connection failures an application's own handlers meet.) A store or a broker it cannot reach is a `StorageUnavailableException` or a `TransportUnavailableException`, systemic: a subscription pauses and retries, and parks nothing. A value it refuses for good is a `StorageRefusedException` or a `TransportRefusedException`, on which the aggregate parks at once. A statement it stops at the caller's timeout is a `StorageTimeoutException`, which the query core answers as `wow.query.timeout`. Any other failure stays the driver's own exception.
 
 The PostgreSQL backend, `backends/postgres`, is the reference to read alongside its tests.
