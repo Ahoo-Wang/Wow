@@ -201,5 +201,5 @@ export interface MemorySnapshot {
 
 ## The full working version
 
-- Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) keeps its views in a `MemoryViewStore`; the compensation console keeps them on the view store server through [`WowViewStore`](../wow-view-store/).
+- Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) keeps its views in a `MemoryViewStore`; a host with the view store server keeps them there through [`WowViewStore`](../wow-view-store/).
 - Source files: [`store/ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts), [`store/MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts), [`store/localStorageSnapshot.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/localStorageSnapshot.ts), [`model/storeError.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/storeError.ts).

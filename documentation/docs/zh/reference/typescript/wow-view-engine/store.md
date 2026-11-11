@@ -201,5 +201,5 @@ export interface MemorySnapshot {
 
 ## 完整可运行版本
 
-- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)用 `MemoryViewStore` 保存视图；补偿控制台用 [`WowViewStore`](../wow-view-store/) 把视图存在视图存储服务里。
+- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)用 `MemoryViewStore` 保存视图；有视图存储服务的宿主用 [`WowViewStore`](../wow-view-store/) 把视图存在那里。
 - 源文件：[`store/ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts)、[`store/MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts)、[`store/localStorageSnapshot.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/localStorageSnapshot.ts)、[`model/storeError.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/storeError.ts)。
