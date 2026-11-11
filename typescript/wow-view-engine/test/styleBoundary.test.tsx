@@ -495,7 +495,7 @@ describe('the tokens the theme declares', () => {
           .replace(/\( /g, '(')
           .replace(/ \)/g, ')');
       expect(token('--_fve-canvas'), mode).toMatch(
-        /^var\(--fve-(dark-)?canvas, var\(--fvp-(dark-)?canvas, var\(--background\)\)\)$/,
+        /^var\(--fve-(dark-)?canvas, var\(--fvp-(dark-)?canvas, var\(--sidebar\)\)\)$/,
       );
       // The registry card's `ring-foreground/10`, and no shadow.
       expect(token('--_fve-card-edge'), mode).toMatch(
@@ -539,12 +539,12 @@ describe('the tokens the theme declares', () => {
     // (the READMEs' token table; `docs/design/ui/README.md`). The ring
     // follows a host's brand colour only through the bounds a preset gives
     // it, which the brand sweep holds to the preset's lines
-    // (`test/brandInput.test.ts`); unbounded, it stays the tuned grey.
+    // (`test/brandInput.test.ts`); unbounded, it stays the stylesheet's own.
     for (const mode of ['light', 'dark'] as const) {
       for (const token of ['--ring', '--input']) {
         const value = (block(mode).get(token) ?? '').replace(/\s+/g, ' ');
         expect(value, `${mode} ${token}`).toMatch(
-          /^var\( ?--fve-[\w-]+, (var\(--_fve-brand-[\w-]+, )?var\(--fvp-[\w-]+, oklch\(/,
+          /^var\( ?--fve-[\w-]+, (var\( ?--_fve-brand-[\w-]+, )?var\( ?--fvp-[\w-]+, oklch\(/,
         );
         expect(value, `${mode} ${token}`).not.toMatch(
           /var\(--(primary|border|accent|secondary|muted)\b/,

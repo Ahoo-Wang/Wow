@@ -17,7 +17,7 @@
 
 Use Gradle module paths from `settings.gradle.kts`, for example `:api`, `:kernel`, `:runtime`, `:spring-boot`, `:test-dsl` and `:eshop-catalog-domain`. `main` holds 10.x only: the 9.x code (the `wow-*` modules, `test/wow-*`, the compensation, view-store, dataset-registry and analytics services, the 9.x examples and JMH benchmarks) left it early (decisions D244, D262) and lives on `v9`, the 9.x line, and on the side branch `v10-9x-baseline`, the last commit with both; 9.x benchmark baselines and 9.x reference reads come from there. The eShop's services run as its README describes (`./gradlew :eshop-catalog-server:run`, ...).
 
-JavaScript projects share one pnpm workspace rooted at the repository root (`package.json`, `pnpm-workspace.yaml`, one `pnpm-lock.yaml`). Install once from the root; TypeScript packages under `typescript/` follow [typescript/AGENTS.md](typescript/AGENTS.md).
+JavaScript projects share one pnpm workspace rooted at the repository root (`package.json`, `pnpm-workspace.yaml`, one `pnpm-lock.yaml`). Install once from the root; TypeScript packages under `typescript/` follow [typescript/AGENTS.md](typescript/AGENTS.md). Run a JavaScript tool through the workspace (`pnpm exec prettier`, `pnpm exec eslint`), never through `npx`: in a worktree whose packages are not installed yet, `npx` downloads whatever version the registry has, unpinned and unasked, and formats with it.
 
 ```bash
 pnpm install

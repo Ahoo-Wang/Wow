@@ -161,7 +161,7 @@ describe('the reset rule', () => {
     // does neither, so under neutral they are unset and the built-in value.
     expect(porcelain.get(tokenVariable('control'))).toBeDefined();
     expect(neutral.get(tokenVariable('control'))).toBeUndefined();
-    expect(neutral.get(tokenVariable('canvas'))).toBe('var(--background)');
+    expect(neutral.get(tokenVariable('canvas'))).toBe('var(--sidebar)');
   });
 
   it("lets a host's own preset, written without initial, nest as it does alone", () => {

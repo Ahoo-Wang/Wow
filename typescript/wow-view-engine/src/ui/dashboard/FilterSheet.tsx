@@ -74,13 +74,7 @@ export function FilterSheet({
               ? messages.label('label.filters.sheet-set', { count })
               : name}
           </SheetTrigger>
-          <SheetContent
-            side="bottom"
-            data-slot="dashboard-filter-sheet"
-            // Dimmed, not blurred: the panels above are what a value set
-            // here narrows, and a reader looks up to see them change.
-            overlayClassName="fve:supports-backdrop-filter:backdrop-blur-none"
-          >
+          <SheetContent side="bottom" data-slot="dashboard-filter-sheet">
             <SheetHeader>
               <SheetTitle>{name}</SheetTitle>
             </SheetHeader>

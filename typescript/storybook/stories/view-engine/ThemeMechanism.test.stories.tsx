@@ -230,10 +230,11 @@ async function mouseAway(): Promise<void> {
 }
 
 /**
- * 什么都不设：侧栏当前项仍是 `border` 的边与 `shadow-xs`，已选中的选项没有底、
- * 字重与旁边一样，描边按钮悬停时边不变、字是 `foreground`（ui/theme.md「角色：引擎自己的面」）。截图基线逐像素相同是同一件事的像素证据。
+ * 什么都不设：侧栏当前项是选中行的淡色、主色的字，没有边也没有浮起（D94）；
+ * 已选中的选项没有底、字重与旁边一样，描边按钮悬停时边不变、字是
+ * `foreground`（ui/theme.md「角色：引擎自己的面」）。
  */
-export const UnsetMechanismDrawsTheRegistry: Story = {
+export const UnsetMechanismDrawsItsBuiltInValues: Story = {
   ...DisplayWithData,
   args: {
     ...DisplayWithData.args,
@@ -246,10 +247,12 @@ export const UnsetMechanismDrawsTheRegistry: Story = {
     // Its colours carry over from the last story's theme (`transition-all`).
     await settled(() => getComputedStyle(current).backgroundColor);
     const style = getComputedStyle(current);
-    await expect(rgbOf(style.borderTopColor)).toBe(
-      colorOf(surface, '--border'),
+    await expect(rgbOf(style.backgroundColor)).toBe(
+      colorOf(surface, '--_fve-row-selected'),
     );
-    await expect(style.boxShadow).toContain('rgba(0, 0, 0, 0.05) 0px 1px 2px');
+    await expect(rgbOf(style.color)).toBe(colorOf(surface, '--primary'));
+    await expect(style.borderTopColor).toBe('rgba(0, 0, 0, 0)');
+    await expect(style.boxShadow).not.toContain('rgba(0, 0, 0, 0.05)');
 
     const button = await hoveredOutlineButton(canvasElement);
     await expect(rgbOf(getComputedStyle(button).borderTopColor)).toBe(
@@ -374,15 +377,15 @@ export const AzureMarksFollowTheBrandInDark: Story = azureMarks('dark');
  * 引擎自己的三个焦点配方——表格行、卡片、看板面板（正文获焦时画在面板卡片上）
  * ——读主题的 `focus-width`／`focus-offset`（D76）：contrast 下是 2px，卡片与
  * 面板离边 2px；azure 也是 2px，卡片与面板压着自己的边（-1px）；不设时
- * （neutral）仍是 1px 与原来的偏移。卡片与面板的光晕是面上的
- * `focus-halo`（contrast 透明，azure 淡蓝，neutral 是 `ring` 的一半）。
+ * （neutral）是内置的 2px、离边 2px。卡片与面板的光晕是面上的
+ * `focus-halo`（contrast 与 neutral 透明，azure 淡蓝）。
  * 选中行左边的色条（`row-selected-mark`）每一套都画，是面上的主色。
  */
 const FOCUS_MARKS = {
   // Width, a card's (and a panel's) offset.
   contrast: { wide: '2px', card: '2px' },
   azure: { wide: '2px', card: '-1px' },
-  neutral: { wide: '1px', card: '-1px' },
+  neutral: { wide: '2px', card: '2px' },
 } as const;
 
 const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
@@ -473,7 +476,7 @@ const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
 
 export const FocusMarksReadTheThemeInContrast: Story = focusMarks('contrast');
 export const FocusMarksReadTheThemeInAzure: Story = focusMarks('azure');
-export const FocusMarksKeepTheRegistryInNeutral: Story = focusMarks('neutral');
+export const FocusMarksReadTheThemeInNeutral: Story = focusMarks('neutral');
 
 /**
  * 暗色下控件没有自己的淡底（D94）。registry 在暗色里给输入框、勾选框与描边

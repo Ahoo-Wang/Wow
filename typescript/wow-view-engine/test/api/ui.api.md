@@ -7445,7 +7445,7 @@ const TOKENS: readonly [{
     readonly preset: true;
     readonly name: "shadow-lg";
 }, {
-    readonly fallback: "background";
+    readonly fallback: "sidebar";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7502,7 +7502,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "table-header";
 }, {
-    readonly fallback: "foreground";
+    readonly fallback: "quiet-foreground";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7736,7 +7736,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "item-selected-link";
 }, {
-    readonly fallback: "background";
+    readonly fallback: "row-selected";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7746,7 +7746,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "nav-current";
 }, {
-    readonly fallback: "foreground";
+    readonly fallback: "primary";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7756,7 +7756,6 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "nav-current-foreground";
 }, {
-    readonly fallback: "border";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;

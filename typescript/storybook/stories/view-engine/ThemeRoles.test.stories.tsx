@@ -16,8 +16,8 @@
  *
  * - Unset, every role draws its built-in value: the two bands are `muted`, a
  *   selected row the primary at `state-selected`, the header is set at 500,
- *   a focused control has no outline of its own (the registry's edge and
- *   halo), the controls are 32px and 28px tall.
+ *   a focused control wears a 2px outline 2px off its edge and no halo, the
+ *   controls are 32px and 28px tall.
  * - A host's theme that gives a brand colour and sets roles —
  *   `host-theme/acme.css`, a theme written outside the package — moves each
  *   of those surfaces and nothing beside it: a selected row in the tint its
@@ -173,10 +173,10 @@ function buttonHeights(root: HTMLElement, step: 'h-8' | 'h-7'): number[] {
  * 什么都不设的角色画的是它的内置值（ui/theme.md「角色：引擎自己的面」）。
  *
  * neutral 下：表头带与合计带是 `muted`，选中行是主色按 `state-selected` 混进
- * 行的底（不与表头带同色），表头字重 500，聚焦的按钮没有自己的轮廓（仍是
- * registry 的边与光晕），控件高 32px 与 28px。这里量的是计算样式。
+ * 行的底（不与表头带同色），表头字重 500，聚焦的按钮是一道离边 2px 的 2px
+ * 轮廓、没有光晕，控件高 32px 与 28px。这里量的是计算样式。
  */
-export const UnsetRolesDrawTheRegistry: Story = {
+export const UnsetRolesDrawTheirBuiltInValues: Story = {
   ...DisplayWithData,
   args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
@@ -206,12 +206,11 @@ export const UnsetRolesDrawTheRegistry: Story = {
       await expect(height).toBe(32);
 
     await tabTo(columns);
-    await settled(() => getComputedStyle(columns).boxShadow);
-    await expect(getComputedStyle(columns).outlineStyle).toBe('none');
-    // The registry's halo: `ring` at 50%.
-    await expect(shadowColors(getComputedStyle(columns).boxShadow)).toContain(
-      colorOf(surface, '--_fve-focus-halo'),
-    );
+    await settled(() => getComputedStyle(columns).outlineColor);
+    const focused = getComputedStyle(columns);
+    await expect(focused.outlineWidth).toBe('2px');
+    await expect(focused.outlineOffset).toBe('2px');
+    await expect(rgbOf(focused.outlineColor)).toBe(colorOf(surface, '--ring'));
   },
 };
 
@@ -624,7 +623,8 @@ export const DialogScrim: Story = {
       if (stillAnimating(found)) throw new Error('the scrim is fading in');
       return found;
     });
-    await expect(groundOf(scrim)).toBe('rgba(0, 0, 0, 0.10)');
+    await expect(groundOf(scrim)).toBe('rgba(17, 22, 31, 0.32)');
+    await expect(getComputedStyle(scrim).backdropFilter).toBe('none');
     await matchScreenshot(scrim, 'role-scrim');
     await expect(dialog).toBeVisible();
     await userEvent.keyboard('{Escape}');

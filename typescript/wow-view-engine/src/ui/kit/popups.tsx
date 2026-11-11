@@ -266,15 +266,12 @@ export function SheetContent({
   style,
   side = 'right',
   showCloseButton = true,
-  overlayClassName,
   finalFocus,
   ...props
 }: DialogPrimitive.Popup.Props & {
   side?: 'right' | 'bottom';
   /** The registry's close button; left out where the content has its own. */
   showCloseButton?: boolean;
-  /** Classes for the backdrop, beside the root class it always wears. */
-  overlayClassName?: string;
 }) {
   const surface = useSurfaceAttributes();
   const messages = useViewMessages();
@@ -282,7 +279,7 @@ export function SheetContent({
   return (
     <DialogPortal>
       <DialogOverlay
-        className={cn('fve-root', SHEET_OVERLAY_CLASS, overlayClassName)}
+        className={cn('fve-root', SHEET_OVERLAY_CLASS)}
         style={POPUP_LAYER}
         {...surface}
       />
@@ -324,12 +321,10 @@ export function SheetContent({
  * slides out in 200ms, and the backdrop's keyframes ended first and let it
  * snap back to full for the last 80ms — the dim flashed twice on every
  * close. It takes the panel's length here, and its fade holds its last frame
- * (`fill-mode-forwards`) until the panel is gone. It does not blur: a panel
- * is read beside the rows it opened from, as a desktop's inspector is, and a
- * frosted list hid which row that was.
+ * (`fill-mode-forwards`) until the panel is gone. No scrim blurs
+ * (`styles/roles.css`): a panel is read beside the rows it opened from.
  */
-const SHEET_OVERLAY_CLASS =
-  'fve:duration-200 fve:fill-mode-forwards fve:supports-backdrop-filter:backdrop-blur-none';
+const SHEET_OVERLAY_CLASS = 'fve:duration-200 fve:fill-mode-forwards';
 
 /** The registry's sheet recipe for each edge it comes from. */
 const SHEET_POPUP_CLASS = {

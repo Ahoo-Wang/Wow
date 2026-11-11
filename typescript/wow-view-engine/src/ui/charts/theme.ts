@@ -168,17 +168,17 @@ export const CHART_FALLBACK = {
     'rgb(74, 58, 167)',
     'rgb(227, 73, 72)',
   ],
-  foreground: 'rgb(10, 10, 10)',
-  muted: 'rgb(115, 115, 115)',
+  foreground: 'rgb(26, 31, 41)',
+  muted: 'rgb(100, 105, 114)',
   ground: 'rgb(255, 255, 255)',
   ink: { dark: 'rgb(0, 0, 0)', light: 'rgb(255, 255, 255)' },
-  grid: { color: 'rgb(229, 229, 229)', width: 1 },
-  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { color: 'rgb(228, 230, 234)', width: 1 },
+  axis: { color: 'rgb(100, 105, 114)' },
   text: { family: 'sans-serif', size: 12, labelSize: 11 },
   line: { width: 2, areaOpacity: 0.2 },
   bar: { radius: 2, maxWidth: 80 },
   slice: { border: 1 },
-  map: { edge: 'rgb(115, 115, 115)' },
+  map: { edge: 'rgb(100, 105, 114)' },
 } as const satisfies Omit<ChartTheme, 'resolve' | 'key'>;
 
 const FALLBACK = CHART_FALLBACK;
