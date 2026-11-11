@@ -75,7 +75,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | ---------------------------------- | ----------------------------------------------------------------------------- |
 | 已经是 shadcn 应用，有自己的主题   | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设                                 |
 | 没有设计系统，要一个现成的风格     | 上表里最像你产品的那一套                                                      |
-| 后台长得像国内常见的开源组件库     | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"`  |
+| 后台长得像国内常见的开源组件库     | `azure`；仪表盘面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"`  |
 | 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                   |
 | 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)） |
 | 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                       |
@@ -200,11 +200,11 @@ declare const engine: ViewEngine;
 
 | 面的哪一部分 | 角色                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 底与卡片     | `canvas`（看板的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                                |
+| 底与卡片     | `canvas`（仪表盘的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                                |
 | 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-selected-mark`（选中行左边的色条，不设就没有）、`row-hover`、`row-stripe`（不设就关）、`row-divider`（表体行线，不设就是 `border`）、`table-sort-idle`（未排序列的标记在指针设备上显示多少，不设是 1）                                                                                                                                                                                                              |
 | 状态         | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）；`item-selected`、`item-selected-foreground`、`item-selected-weight`（其中已选中的那一项）；`nav-current`、`nav-current-foreground`、`nav-current-edge`、`nav-current-shadow`（视图列表里正在看的那一个）；`control-hover`、`control-pressed`；`outline-hover-edge`、`outline-hover-foreground`（指针下的描边按钮） |
 | 焦点         | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                                                                                                                                                                                                        |
-| 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（看板的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                            |
+| 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（仪表盘的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                            |
 | 圆角         | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox`                                                                                                                                                                                                                                                                                                              |
 | 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground`                                                                                                                                                                                                                                                                                                                                  |
 | 图表         | 见[图表的角色](#图表的角色)                                                                                                                                                                                                                                                                                                                                                                       |
@@ -282,7 +282,7 @@ declare const id: string;
 
 ## 嵌入与弹层
 
-菜单、下拉、气泡、提示与对话框都 portal 到 `<body>`，不在视图所在的那部分页面里。它们带着面解析出的结果——明暗写成 `data-theme`，预设写成 `data-fve-preset`，还有面找到的密度、涨跌约定与图表跟品牌的开关——所以钉住的嵌入，弹层也与它一致。嵌入本身——档位、开关与看板的筛选——见[接入宿主](./host#embeds)。
+菜单、下拉、气泡、提示与对话框都 portal 到 `<body>`，不在视图所在的那部分页面里。它们带着面解析出的结果——明暗写成 `data-theme`，预设写成 `data-fve-preset`，还有面找到的密度、涨跌约定与图表跟品牌的开关——所以钉住的嵌入，弹层也与它一致。嵌入本身——档位、开关与仪表盘的筛选——见[接入宿主](./host#embeds)。
 
 - **用属性切换，不要换样式表。** 图表从 token 读外观，面或祖先上这些属性一变就重读：`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density`、`data-fve-brand-chart` 或 `style`。只换了样式表、没有属性变化时，图表会留在旧颜色上。
 - **设在某个元素上的变量到不了 `<body>`。** 嵌入外面那张卡片上设的 `--fve-*` 能传到嵌入，传不到它的弹层，因为弹层不在卡片里。整页的值写在 `:root` 上；只给一个视图的，用 `tokens` 或 `preset`。
@@ -625,7 +625,7 @@ declare const id: string;
 </div>
 ```
 
-有一个类作为 token 提供：`fve:bg-canvas`，看板的分组底（`canvas`），它没有可映射的 shadcn 名字。承载看板的卡片页用它涂底，页面与看板就是同一张底。它是样式表里唯一公开的类。
+有一个类作为 token 提供：`fve:bg-canvas`，仪表盘的分组底（`canvas`），它没有可映射的 shadcn 名字。承载仪表盘的卡片页用它涂底，页面与仪表盘就是同一张底。它是样式表里唯一公开的类。
 
 ### 什么是公开的
 
