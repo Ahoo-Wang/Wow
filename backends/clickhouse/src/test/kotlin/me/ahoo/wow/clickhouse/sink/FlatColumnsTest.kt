@@ -74,4 +74,17 @@ class FlatColumnsTest {
         FlatColumns.of(null, emptySet()).assert().isEmpty()
         FlatColumns.of(mapOf("type" to "object"), emptySet()).assert().isEmpty()
     }
+
+    @Test
+    fun `a property named as a column the table has should take the prefix while the name is taken`() {
+        val schema = mapOf(
+            "properties" to linkedMapOf(
+                "request_id" to mapOf("type" to "string"),
+                "version" to mapOf("type" to "integer"),
+                "access_region" to mapOf("type" to "string"),
+            ),
+        )
+        FlatColumns.of(schema, setOf("request_id", "version", "state_version", "access_region")).map { it.name }
+            .assert().containsExactly("state_request_id", "state_state_version", "state_access_region")
+    }
 }

@@ -94,7 +94,10 @@ class ClickHouseCatalogTest {
             CatalogReference("state.storeId", "shop", "store"),
         )
         state.eventRevisions.assert().isEqualTo(mapOf("member_registered" to 2))
-        state.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(ClickHouseSinkSchema.STATE_COLUMNS))
+        // The current state's columns as system.columns lists them: the stored ones, then the computed ones.
+        val stateTable = sinks().schemaOf(CatalogFixtures.MEMBER).expected.single { it.name == state.table }
+        state.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(stateTable.all))
+        stateTable.computed.assert().isNotEmpty()
 
         val events = entries.getValue("events")
         events.sensitive.assert().containsExactly(

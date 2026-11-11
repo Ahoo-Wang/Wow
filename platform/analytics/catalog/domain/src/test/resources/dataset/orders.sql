@@ -9,7 +9,7 @@ SELECT
     `o`.`amount` AS `amount`,
     toStartOfMonth(`o`.`placed_at`) AS `month`
 FROM `analytics`.`orders` AS `o`
-LEFT JOIN (SELECT * FROM `analytics`.`shop_member_state` FINAL) AS `m` ON `o`.`tenant` = `m`.`tenant_id` AND `o`.`member_id` = `m`.`id`
+LEFT JOIN (SELECT `id`, `tenant_id`, `state` FROM `analytics`.`shop_member_state` FINAL) AS `m` ON `o`.`tenant` = `m`.`tenant_id` AND `o`.`member_id` = `m`.`id`
 INNER JOIN `analytics`.`regions` AS `r` ON `o`.`region` = `r`.`code`
 WHERE ((`o`.`amount` > 0))
 SETTINGS join_use_nulls = 1

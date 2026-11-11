@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
 
@@ -67,10 +68,13 @@ class ClickHouseSinkSchemaTest {
     fun `the views should fill the current state and the events from the base table`() {
         val ddl = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 1.days), flat, 50).ddl
         ddl.size.assert().isEqualTo(5)
-        // The current state keeps the base table's columns but the events and the headers.
+        // The current state keeps the base table's columns but the events and the headers, then computes the flat ones.
+        val total = ComputedColumn("total", "Decimal(38, 2)", "toDecimal128OrZero(state_numbers['total'], 2)")
         ddl[1].assert().isEqualTo(
             "CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state`\n(\n" +
                 ClickHouseSinkSchema.STATE_COLUMNS.joinToString(",\n") { "    `${it.name}` ${it.type}" } +
+                ",\n    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) " +
+                "COMMENT 'wow:${total.fingerprint}'" +
                 "\n)\nENGINE = ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" +
                 "SETTINGS non_replicated_deduplication_window = 50\nCOMMENT 'wow-sink-format:1'",
         )
@@ -101,7 +105,7 @@ class ClickHouseSinkSchemaTest {
         schema.flatView(FlatLineage(listOf("0a", schema.flatFingerprint))).assert().isEqualTo(
             "CREATE OR REPLACE VIEW `analytics`.`shop_order_state_flat` AS\n" +
                 "SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, " +
-                "`access`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`\n" +
+                "`access`, `total`\n" +
                 "FROM `analytics`.`shop_order_state` FINAL\n" +
                 "COMMENT 'wow-sink-format:1 wow-sink-flat:0a,${schema.flatFingerprint}'",
         )
@@ -151,6 +155,70 @@ class ClickHouseSinkSchemaTest {
         ClickHouseSinkSchema.hasFormat("wow-sink-flat:0a").assert().isFalse()
         ClickHouseSinkSchema.hasFormat("").assert().isFalse()
         ClickHouseSinkSchema.hasFormat(null).assert().isFalse()
+    }
+
+    @Test
+    fun `each declared access attribute should be a typed column computed from access`() {
+        val access = AccessColumns.of(
+            listOf(
+                AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                AccessAttributeManifest("level", AccessAttributeManifest.Type.INTEGER),
+                AccessAttributeManifest("vip", AccessAttributeManifest.Type.BOOLEAN),
+                AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
+            ),
+        )
+        access.map { it.name to it.type }.assert().containsExactly(
+            "access_region" to "Nullable(String)",
+            "access_level" to "Nullable(Int64)",
+            "access_vip" to "Nullable(Bool)",
+            "access_teams" to "Array(String)",
+        )
+        access.last().expression.assert().isEqualTo("JSONExtract(access, 'teams', 'Array(String)')")
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat, accessColumns = access)
+        // The access columns come first, then the flat ones; each says its definition's fingerprint.
+        schema.computed.map { it.name }.assert()
+            .containsExactly("access_region", "access_level", "access_vip", "access_teams", "total")
+        schema.ddl[1].assert().contains(
+            "    `access_region` Nullable(String) MATERIALIZED JSONExtract(access, 'region', 'Nullable(String)') " +
+                "COMMENT 'wow:${access.first().fingerprint}',\n",
+        )
+        access.first().fingerprint.assert().hasSize(16)
+            .isNotEqualTo(ComputedColumn("access_region", "String", access.first().expression).fingerprint)
+    }
+
+    @Test
+    fun `a missing computed column should be added after the one before it`() {
+        val access = AccessColumns.of(listOf(AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING)))
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat, accessColumns = access)
+        schema.addColumns(schema.computed).assert().containsExactly(
+            "ALTER TABLE `default`.`shop_order_state` ADD COLUMN IF NOT EXISTS ${access.single().definition} " +
+                "AFTER `state_numbers`",
+            "ALTER TABLE `default`.`shop_order_state` ADD COLUMN IF NOT EXISTS ${schema.computed.last().definition} " +
+                "AFTER `access_region`",
+        )
+    }
+
+    @Test
+    fun `the current state should be at least its columns, each computed one of its definition`() {
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat)
+        val state = schema.expected.single { it.name == "shop_order_state" }
+        val total = schema.computed.single()
+        val stored = ClickHouseSinkSchema.STATE_COLUMNS
+        val own = ClickHouseColumn("total", total.type, total.comment)
+        state.mismatch(stored + own).assert().isNull()
+        // Another writer's column is no reason.
+        val others = ClickHouseColumn("w", "Int64", "wow:1")
+        state.mismatch(stored + own + others).assert().isNull()
+        state.missing(stored).assert().containsExactly(total)
+        val changed = ClickHouseColumn("total", "Float64", "wow:0123456789abcdef")
+        val problem = state.mismatch(stored + changed)
+        problem.assert().contains("shop_order_state has total Float64 (wow:0123456789abcdef)")
+        problem.assert().contains("which this version computes as Decimal(38, 2)")
+        problem.assert().contains("cannot change a column's definition without rewriting every row")
+        // A stored column of a computed one's name is another stored column.
+        state.mismatch(stored + ClickHouseColumn("total", "Decimal(38, 2)")).assert()
+            .contains("state_numbers Map(String, String), total Decimal(38, 2)], not")
+        state.mismatch(stored.drop(1)).assert().startsWith("shop_order_state has the columns [tenant_id String,")
     }
 
     @Test

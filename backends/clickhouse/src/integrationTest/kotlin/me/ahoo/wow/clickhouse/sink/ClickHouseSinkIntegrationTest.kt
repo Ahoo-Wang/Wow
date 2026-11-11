@@ -18,7 +18,11 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
+import me.ahoo.wow.manifest.AccessAttributeManifest
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
@@ -173,7 +177,11 @@ class ClickHouseSinkIntegrationTest {
             sink.schema.expected.forEach {
                 ClickHouseSinkSchema.hasFormat(statements.comment(database, it.name)).assert().isTrue()
             }
-            statements.columns(database, "shop_order_state").assert().isEqualTo(ClickHouseSinkSchema.STATE_COLUMNS)
+            val state = sink.schema.expected.single { it.name == "shop_order_state" }
+            statements.columns(database, "shop_order_state").assert()
+                .isEqualTo(
+                    state.columns.orEmpty() + state.computed.map { ClickHouseColumn(it.name, it.type, it.comment) },
+                )
         }
 
     @Test
@@ -199,6 +207,85 @@ class ClickHouseSinkIntegrationTest {
             .write(listOf(recordOf()))
         count("shop_order_state_events").assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a property declared later should be added, and computed for the rows written before`(): Unit = runTest {
+        sinks().sinkOf("shop", "order").write(listOf(recordOf(version = 1)))
+        // The state had a weight all along; this version declares it.
+        execute(
+            "ALTER TABLE $database.shop_order_state UPDATE state = replaceOne(state, '{', '{\"weight\":2.5,') " +
+                "WHERE 1 SETTINGS mutations_sync = 1",
+        )
+        val newer = sinksOf(withWeight("number")).sinkOf("shop", "order")
+        newer.prepare()
+        // Added after the stored columns' last, computed from the parts written before it when they are read.
+        row("SELECT weight FROM $database.shop_order_state FINAL").getDouble("weight").assert().isEqualTo(2.5)
+        row("SELECT weight FROM $database.shop_order_state_flat").getDouble("weight").assert().isEqualTo(2.5)
+        execute("ALTER TABLE $database.shop_order_state MATERIALIZE COLUMN weight SETTINGS mutations_sync = 1")
+        row("SELECT weight FROM $database.shop_order_state FINAL").getDouble("weight").assert().isEqualTo(2.5)
+        newer.write(listOf(recordOf(version = 2)))
+        count("shop_order_state FINAL").assert().isEqualTo(1)
+        // An older writer finds a column it does not compute, and writes on.
+        sinks().sinkOf("shop", "order").write(listOf(recordOf(version = 3)))
+        count("shop_order_state_events").assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a computed column of another definition should be refused, and validate name what it would add`(): Unit =
+        runTest {
+            sinksOf(withWeight("number")).sinkOf("shop", "order").prepare()
+            val error = runCatching {
+                sinksOf(withWeight("integer")).sinkOf("shop", "order").prepare()
+            }.exceptionOrNull()
+            error?.message.assert().contains("shop_order_state has weight Float64 (wow:")
+                .contains("which this version computes as Int64")
+            val missing = runCatching {
+                sinksOf(withWeight("number", "height"), Ddl.VALIDATE).sinkOf("shop", "order").prepare()
+            }.exceptionOrNull()
+            missing?.message.assert()
+                .contains("shop_order_state lacks height, which a Sink with ddl=auto adds: ALTER TABLE")
+            ClientStatements(client).columns(database, "shop_order_state").map { it.name }.assert()
+                .doesNotContain("height")
+        }
+
+    @Test
+    fun `each declared access attribute should be computed from the record's access`(): Unit = runTest {
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "order",
+                            state = StateManifest("#/\$defs/OrderState"),
+                            access = listOf(
+                                AccessAttributeManifest("colors", AccessAttributeManifest.Type.STRING, multiple = true),
+                                AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            defs = SinkFixtures.MANIFEST.defs,
+        )
+        sinksOf(manifest).sinkOf("shop", "order").write(listOf(recordOf()))
+        val state = row("SELECT access_colors, access_region FROM $database.shop_order_state FINAL")
+        state.getList<String>("access_colors").assert().containsExactly("blue", "red")
+        state.getObject("access_region").assert().isNull()
+    }
+
+    private fun withWeight(type: String, vararg more: String) = Manifest(
+        contexts = SinkFixtures.MANIFEST.contexts,
+        defs = mapOf(
+            "OrderState" to SinkFixtures.ORDER_STATE_SCHEMA + (
+                "properties" to (SinkFixtures.ORDER_STATE_SCHEMA["properties"] as Map<*, *>) +
+                    ("weight" to mapOf("type" to type)) + more.associateWith { mapOf("type" to "number") }
+                ),
+        ),
+    )
+
+    private fun sinksOf(manifest: Manifest, ddl: Ddl = Ddl.AUTO) =
+        ClickHouseSinks(ClientStatements(client), manifest, ClickHouseSinkOptions(database = database, ddl = ddl))
 
     @Test
     fun `writers of two state schemas should keep the newer flat view, its lineage in its comment`(): Unit = runTest {

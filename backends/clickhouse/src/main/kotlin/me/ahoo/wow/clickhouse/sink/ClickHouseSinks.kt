@@ -84,12 +84,16 @@ class ClickHouseSinks internal constructor(
 
         @Suppress("UNCHECKED_CAST")
         val schema = manifest.defs[Manifest.schemaKey(aggregate.state.schema)] as? Map<String, Any?>
+        val access = AccessColumns.of(aggregate.access)
+        // A flat column takes no name `_state` has already: a stored column's or an access column's.
+        val reserved = STORED_NAMES + access.map { it.name }
         return ClickHouseSinkSchema(
             type = type,
             database = options.database,
             aggregate = options.aggregate(type),
-            flatColumns = FlatColumns.of(schema, FLAT_RESERVED),
+            flatColumns = FlatColumns.of(schema, reserved),
             deduplicationWindow = options.deduplicationWindow,
+            accessColumns = access,
         )
     }
 
@@ -100,6 +104,6 @@ class ClickHouseSinks internal constructor(
         /** The processor name of the ClickHouse Sink's subscriptions: `wow.clickhouse-sink.<aggregate>`. */
         const val PROCESSOR: String = "wow.clickhouse-sink"
 
-        private val FLAT_RESERVED: Set<String> = ClickHouseSinkSchema.FLAT_SYSTEM_COLUMNS.mapTo(HashSet()) { it.name }
+        private val STORED_NAMES: Set<String> = ClickHouseSinkSchema.STATE_COLUMNS.mapTo(HashSet()) { it.name }
     }
 }

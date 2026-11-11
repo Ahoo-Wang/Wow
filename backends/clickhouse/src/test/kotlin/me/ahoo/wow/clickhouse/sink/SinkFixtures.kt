@@ -156,7 +156,8 @@ internal class RecordingStatements : ClickHouseStatements {
     /** Declares every object of [schema] as the Sink expects it, each with the format in its comment. */
     fun create(schema: ClickHouseSinkSchema) {
         schema.expected.forEach {
-            tables["${schema.database}.${it.name}"] = it.columns ?: emptyList()
+            tables["${schema.database}.${it.name}"] =
+                it.columns.orEmpty() + it.computed.map { column -> ClickHouseColumn(column.name, column.type, column.comment) }
             comments.putIfAbsent("${schema.database}.${it.name}", ClickHouseSinkSchema.FORMAT_COMMENT)
         }
     }

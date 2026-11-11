@@ -53,9 +53,9 @@ fun analyticsCatalogClickHouseClient(environment: Environment): Client {
 | 表 | 保存 |
 | --- | --- |
 | `<ctx>_<agg>_state_events` | Sink 插入的基表：每次提交一行，带着它的事件和提交之后的状态。按提交的月份分区，按租户、聚合和版本排序 |
-| `<ctx>_<agg>_state` | 每个聚合的当前状态，由物化视图从基表填充：基表的列，但没有事件与 headers，它们由历史保留 |
+| `<ctx>_<agg>_state` | 每个聚合的当前状态，由物化视图从基表填充：基表的列，但没有事件与 headers，它们由历史保留；以及 ClickHouse 由它们计算的访问列与展平列 |
 | `<ctx>_<agg>_events` | 每个事件一行，由物化视图填充 |
-| `<ctx>_<agg>_state_flat` | 当前状态的一个视图，状态的每个顶层标量都是一个有类型的列，供分析工具使用 |
+| `<ctx>_<agg>_state_flat` | 当前状态的一个视图，带它的展平列：状态的每个顶层标量都是一个有类型的列，供分析工具使用 |
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` 只保留当前状态：Sink 随后直接写 `_state`，也就没有 `_state_events` 和 `_events`。`...history.ttl` 则让历史保留一段时间，而不是永久保留。
 
@@ -144,7 +144,16 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `operator_cross_scope` Bool,
     `state` String,
     `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `state_numbers` Map(String, String),
+    `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
+    `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
+    `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
+    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) COMMENT 'wow:336ba53b0b5c800e',
+    `price` Decimal(38, 0) MATERIALIZED toDecimal128OrZero(state_numbers['price'], 0) COMMENT 'wow:f273feebcfeba26b',
+    `discount` Nullable(Decimal(38, 18)) MATERIALIZED toDecimal128OrNull(state_numbers['discount'], 18) COMMENT 'wow:f41862a517046c64',
+    `rate` Float64 MATERIALIZED JSONExtract(state, 'rate', 'Float64') COMMENT 'wow:7bd9491e8e41a742',
+    `paid` Bool MATERIALIZED JSONExtract(state, 'paid', 'Bool') COMMENT 'wow:9239a7d46de01f6e',
+    `state_version` Int64 MATERIALIZED JSONExtract(state, 'version', 'Int64') COMMENT 'wow:4e0c748d3474d842'
 )
 ENGINE = ReplacingMergeTree(version)
 ORDER BY (tenant_id, aggregate_id)
@@ -188,9 +197,9 @@ ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, `status`, `note`, `quantity`, `total`, `price`, `discount`, `rate`, `paid`, `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
 排序键就是一行的身份：键与先前某行相同的行，在 ClickHouse 合并时替换它。
@@ -224,7 +233,12 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 
 **`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `payload`，以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
 
-**`_state_flat`** 以 `id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `access` 开头，随后是状态 schema 的每个顶层标量属性各一列，顺序与 schema 相同：
+**`_state` 的计算列。** 在存储列之后，`_state` 还有 ClickHouse 在插入一行时由它们计算的列（`MATERIALIZED`）：任何插入都不设置它们，`SELECT *` 也不包含它们，所以要按名字读。每一列的注释记着它的类型与表达式的指纹（`wow:<指纹>`）。它们是：
+
+- **聚合声明的每个访问属性一列**，`access_<name>`，从 `access` 读取：按属性的类型是 `Nullable(String)`、`Nullable(Int64)` 或 `Nullable(Bool)`，多值属性是 `Array(String)`、`Array(Int64)` 或 `Array(Bool)`。没有该属性的行是 `NULL` 或空数组。内置的 `owner` 与 `space` 就是 `owner_id` 与 `space_id`。
+- **状态 schema 的每个顶层标量属性一列展平列**，顺序与 schema 相同，从 `state` 读取（小数从 `state_numbers` 读取）。
+
+**`_state_flat`** 是 `_state FINAL` 的视图：`id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `access`，随后是展平列：
 
 | 属性 | 它的列 |
 | --- | --- |
@@ -234,7 +248,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 | 其他 `number` | `Float64` |
 | `boolean` | `Bool` |
 
-允许 `null` 的属性是 `Nullable`。对象、数组、引用和组合不生成列；用 ClickHouse 的 JSON 函数从 `state` 读取。与九个系统列重名的属性加前缀 `state_`，示例中的 `version` 就是如此。
+允许 `null` 的属性是 `Nullable`。对象、数组、引用和组合不生成列；用 ClickHouse 的 JSON 函数从 `state` 读取。与 `_state` 已有的列（存储列或访问列）重名的属性加前缀 `state_`，加后仍重名就再加，示例中的 `version` 就是如此。
 
 ## 投递一次，读取一次 {#delivered-once-read-once}
 
@@ -252,6 +266,26 @@ Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、
 Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，重置 Sink 的订阅即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
 
 滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图在注释里、格式之后，记住创建它所用的定义的指纹（`wow-sink-format:1 wow-sink-flat:<指纹>,…`），写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
+
+### 状态 schema 变化时 {#when-the-state-schema-changes}
+
+`_state` 至少有写入者期望的计算列、且每一列的指纹相同，才算 Sink 的。写入者不期望的计算列（别的写入者的）保持原样。
+
+- **新增属性或访问属性。** `auto` 在展平视图选取它之前加上它的列：`ALTER TABLE <db>.<ctx>_<agg>_state ADD COLUMN IF NOT EXISTS <列> <类型> MATERIALIZED <表达式> COMMENT 'wow:<指纹>' AFTER <它前面的列>`。这只改元数据：之前写入的 part 在读取时计算，直到合并重写它，而 `_state` 随写入不断合并。要立即在每个 part 里算出来，可执行 `ALTER TABLE <db>.<ctx>_<agg>_state MATERIALIZE COLUMN <列>`，这是一次 mutation，可选。在 `validate` 下，Sink 拒绝写入，并给出添加这些列的语句。旧的写入者遇到自己不计算的列，照常写入。
+- **属性的类型变了**（字段变为可空、小数的标度变了、字符串变成数字）。这一列的定义不同，ClickHouse 不重写每一行就无法修改它：Sink 拒绝写入，指出这一列、它的类型以及这个版本计算的类型。类型变化不能滚动进行：旧的写入者会一直写到被替换；之后删除这些表并重置 Sink 的订阅（[重建数仓](#rebuild-the-warehouse)）。
+- **删除属性。** 它的列保留，每次插入仍然计算，直到你删除它：没有写入者再计算它之后，执行 `ALTER TABLE <db>.<ctx>_<agg>_state DROP COLUMN <列>`。
+- **后来声明的访问属性** 立即有它的列，但每一行保留写入时的属性：聚合最新的一行在它下一次提交之前没有这个属性的值。
+
+在集群上，一列要加到本地表和分布式表上，这两条语句 Sink 自己无法执行：
+
+```sql
+ALTER TABLE `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
+    ADD COLUMN IF NOT EXISTS `weight` Float64 MATERIALIZED JSONExtract(state, 'weight', 'Float64') COMMENT 'wow:<fingerprint>' AFTER `state_version`;
+ALTER TABLE `default`.`shop_order_state` ON CLUSTER '{cluster}'
+    ADD COLUMN IF NOT EXISTS `weight` Float64 MATERIALIZED JSONExtract(state, 'weight', 'Float64') COMMENT 'wow:<fingerprint>' AFTER `state_version`;
+```
+
+`validate` 打印的单机语句带有这一列的指纹，这里用的就是它。
 
 ## 在集群上运行 {#run-it-on-a-cluster}
 
@@ -296,7 +330,7 @@ ORDER BY (tenant_id, aggregate_id, version)
 SETTINGS replicated_deduplication_window = 1000
 COMMENT 'wow-sink-format:1';
 
--- _state has the columns of _state_events but the events and the headers.
+-- _state has the columns of _state_events but the events and the headers, and computes the flat ones.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
 (
     `id` String,
@@ -318,7 +352,16 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `operator_cross_scope` Bool,
     `state` String,
     `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `state_numbers` Map(String, String),
+    `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
+    `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
+    `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
+    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) COMMENT 'wow:336ba53b0b5c800e',
+    `price` Decimal(38, 0) MATERIALIZED toDecimal128OrZero(state_numbers['price'], 0) COMMENT 'wow:f273feebcfeba26b',
+    `discount` Nullable(Decimal(38, 18)) MATERIALIZED toDecimal128OrNull(state_numbers['discount'], 18) COMMENT 'wow:f41862a517046c64',
+    `rate` Float64 MATERIALIZED JSONExtract(state, 'rate', 'Float64') COMMENT 'wow:7bd9491e8e41a742',
+    `paid` Bool MATERIALIZED JSONExtract(state, 'paid', 'Bool') COMMENT 'wow:9239a7d46de01f6e',
+    `state_version` Int64 MATERIALIZED JSONExtract(state, 'version', 'Int64') COMMENT 'wow:4e0c748d3474d842'
 )
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}', version)
 ORDER BY (tenant_id, aggregate_id)
@@ -380,9 +423,9 @@ ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, `status`, `note`, `quantity`, `total`, `price`, `discount`, `rate`, `paid`, `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
 - **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、列不同或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
@@ -397,7 +440,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
   `wow` 是 `wow.clickhouse.username` 中的用户。
 
 - **去重。** `non_replicated_deduplication_window` 对复制表不适用，对应的设置是 `replicated_deduplication_window`；示例把它设为 Sink 的默认值。`wow.clickhouse.sink.deduplication-window` 只设置 Sink 自己创建的表。
-- **展平视图** 就是 Sink 的语句加上 `ON CLUSTER`。它的列来自聚合的状态 schema：要得到另一个聚合的语句，让 Sink 先对一个单机 ClickHouse 创建一次，再读取 `SHOW CREATE VIEW <ctx>_<agg>_state_flat`。
+- **展平视图** 就是 Sink 的语句加上 `ON CLUSTER`。它的列，以及 `_state` 的计算列，来自聚合的状态 schema 与访问属性：要得到另一个聚合的语句，让 Sink 先对一个单机 ClickHouse 创建一次，再读取 `SHOW CREATE TABLE <ctx>_<agg>_state` 与 `SHOW CREATE VIEW <ctx>_<agg>_state_flat`。分布式的 `_state` 通过 `AS` 从 `_state_local` 取得计算列，并按名字从分片读取。
 - **`wow_catalog`** 不在示例中。分析目录读取它，Sink 通过端点所连的节点写入它。没有它时，Sink 记录写入失败并继续；要使用分析目录，就按上面的语句，在 Sink 和分析目录都能访问到的地方创建它。
 
 ## 命令不写入 {#commands-are-not-written}
