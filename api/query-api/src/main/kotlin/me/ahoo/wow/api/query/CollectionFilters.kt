@@ -15,7 +15,10 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-class InFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
+class InFilter @InternalWowApi constructor(override val field: QueryField<*>, values: List<Any?>) : FieldPredicate {
+    /** Its values, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val values: List<Any?> = values.copied()
+
     override val operator: FilterOperator = FilterOperator.IN
 
     override fun withField(field: QueryField<*>): InFilter = InFilter(field, values)
@@ -47,7 +50,10 @@ class InFilter @InternalWowApi constructor(override val field: QueryField<*>, va
     }
 }
 
-class NotInFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
+class NotInFilter @InternalWowApi constructor(override val field: QueryField<*>, values: List<Any?>) : FieldPredicate {
+    /** Its values, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val values: List<Any?> = values.copied()
+
     override val operator: FilterOperator = FilterOperator.NOT_IN
 
     override fun withField(field: QueryField<*>): NotInFilter = NotInFilter(field, values)
@@ -79,7 +85,10 @@ class NotInFilter @InternalWowApi constructor(override val field: QueryField<*>,
     }
 }
 
-class ContainsAllFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
+class ContainsAllFilter @InternalWowApi constructor(override val field: QueryField<*>, values: List<Any?>) : FieldPredicate {
+    /** Its values, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val values: List<Any?> = values.copied()
+
     override val operator: FilterOperator = FilterOperator.CONTAINS_ALL
 
     override fun withField(field: QueryField<*>): ContainsAllFilter = ContainsAllFilter(field, values)

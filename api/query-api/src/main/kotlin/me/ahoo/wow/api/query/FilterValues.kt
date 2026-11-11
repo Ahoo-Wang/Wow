@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import java.util.Collections
+
 /*
  * The values a filter carries are plain JSON values, the shape every JSON library reads and writes, so this module
  * needs none:
@@ -57,3 +59,12 @@ internal fun List<Any?>.requireFilterLiterals(operator: FilterOperator) {
         require(it != null) { "$operator values cannot contain null." }
     }
 }
+
+/**
+ * This list, copied and unmodifiable: a filter keeps no list its caller may change later. A null element is kept, for
+ * the filter's own check to refuse with its message ([java.util.List.copyOf] would throw first, without one).
+ */
+internal fun <T> List<T>.copied(): List<T> = Collections.unmodifiableList(ArrayList(this))
+
+/** This set, copied and unmodifiable, in its order: the order a filter writes it in. */
+internal fun <T> Set<T>.copied(): Set<T> = Collections.unmodifiableSet(LinkedHashSet(this))
