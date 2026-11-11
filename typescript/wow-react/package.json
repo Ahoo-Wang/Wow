@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/wow-react",
   "version": "10.0.0-beta.1",
-  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream. Requires React 19.3 or later.",
+  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream. Requires React 19 or later.",
   "keywords": [
     "wow",
     "wow-react",
