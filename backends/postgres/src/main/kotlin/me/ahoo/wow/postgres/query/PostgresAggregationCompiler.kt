@@ -138,21 +138,21 @@ internal class PostgresAggregationCompiler(
         is AggregationGroup.DateHistogram -> {
             val millis = compiler.epochMillis(group.field).also(present::add)
             val instant = "to_timestamp($millis / 1000.0)"
-            val start = if (region(group.timeZone)) {
+            val start = if (region(group.effectiveTimeZone())) {
                 // Truncated in the zone and kept an instant: the period starts in its own offset, so a repeated
                 // fall-back hour is two buckets and a bucket never starts after its record.
-                "date_trunc('${unit(group.unit)}', $instant, ${zone(parameters, group.timeZone)})"
+                "date_trunc('${unit(group.unit)}', $instant, ${zone(parameters, group.effectiveTimeZone())})"
             } else {
                 // A fixed offset has one offset: the local time round-trips exactly.
-                "(date_trunc('${unit(group.unit)}', $instant AT TIME ZONE ${zone(parameters, group.timeZone)}) " +
-                    "AT TIME ZONE ${zone(parameters, group.timeZone)})"
+                "(date_trunc('${unit(group.unit)}', $instant AT TIME ZONE ${zone(parameters, group.effectiveTimeZone())}) " +
+                    "AT TIME ZONE ${zone(parameters, group.effectiveTimeZone())})"
             }
             "(extract(epoch from $start) * 1000)::bigint"
         }
         is AggregationGroup.DatePart -> {
             val millis = compiler.epochMillis(group.field).also(present::add)
             "extract(${part(group.part)} from (to_timestamp($millis / 1000.0) AT TIME ZONE " +
-                "${zone(parameters, group.timeZone)}))::integer"
+                "${zone(parameters, group.effectiveTimeZone())}))::integer"
         }
     }
 

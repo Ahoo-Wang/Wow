@@ -67,4 +67,4 @@ pnpm 8 及以上和 npm 7 及以上会自己安装缺失的 peer 依赖；Yarn �
 
 Kotlin 的 `Long`、`BigInteger` 或 `BigDecimal` 类型的 Manifest 字段（schema 格式为 `int64`、`bigint` 或 `decimal`），在生成的类型中是 `string`，数字与服务写出时完全相同；线上仍然传输 JSON 数字（[生成客户端](./generate#exact-numbers)）。9.x 生成的是 `number`。
 
-用字面 `projection.include` 路径写成的查询，返回收窄到这些路径的记录；用 `listQuery` 或 `pagedQuery` 构建的查询，或只有排除项的查询，返回完整的记录。不带 `zoneId` 的日历过滤按 UTC 读取它的日期（[读取与查询](./queries#relative-time-and-time-zones)）。
+用字面 `projection.include` 路径写成的查询，返回收窄到这些路径的记录；用 `listQuery` 或 `pagedQuery` 构建的查询，或只有排除项的查询，返回完整的记录。不带 `timeZone` 的日历过滤按 UTC 读取它的日期（[读取与查询](./queries#relative-time-and-time-zones)）。

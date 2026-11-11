@@ -17,11 +17,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 
 class ThisWeekFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
 
-    override fun withField(field: QueryField<*>): ThisWeekFilter = ThisWeekFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): ThisWeekFilter = ThisWeekFilter(field, timeZone)
 
     init {
         validateConfiguration()
@@ -31,17 +31,17 @@ class ThisWeekFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): ThisWeekFilter = ThisWeekFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): ThisWeekFilter = ThisWeekFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ThisWeekFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ThisWeekFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "ThisWeekFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [ThisWeekFilter] of the given values. */
@@ -49,18 +49,18 @@ class ThisWeekFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): ThisWeekFilter = ThisWeekFilter(field, zoneId)
+            timeZone: String? = null,
+        ): ThisWeekFilter = ThisWeekFilter(field, timeZone)
     }
 }
 
 class NextWeekFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
-    override fun withField(field: QueryField<*>): NextWeekFilter = NextWeekFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): NextWeekFilter = NextWeekFilter(field, timeZone)
 
     init {
         validateConfiguration()
@@ -70,17 +70,17 @@ class NextWeekFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): NextWeekFilter = NextWeekFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): NextWeekFilter = NextWeekFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is NextWeekFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "NextWeekFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "NextWeekFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [NextWeekFilter] of the given values. */
@@ -88,18 +88,18 @@ class NextWeekFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): NextWeekFilter = NextWeekFilter(field, zoneId)
+            timeZone: String? = null,
+        ): NextWeekFilter = NextWeekFilter(field, timeZone)
     }
 }
 
 class LastWeekFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
 
-    override fun withField(field: QueryField<*>): LastWeekFilter = LastWeekFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): LastWeekFilter = LastWeekFilter(field, timeZone)
 
     init {
         validateConfiguration()
@@ -109,17 +109,17 @@ class LastWeekFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): LastWeekFilter = LastWeekFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): LastWeekFilter = LastWeekFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is LastWeekFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "LastWeekFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "LastWeekFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [LastWeekFilter] of the given values. */
@@ -127,7 +127,7 @@ class LastWeekFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): LastWeekFilter = LastWeekFilter(field, zoneId)
+            timeZone: String? = null,
+        ): LastWeekFilter = LastWeekFilter(field, timeZone)
     }
 }

@@ -75,7 +75,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 
 - **Error codes** are strings the compiler cannot check: grep for each 9.x code.
 - **Exact numbers.** A `Long`, `BigInteger` or `BigDecimal` field is a `string` in V10's types, read exactly. Code that did arithmetic on a `number` now concatenates strings unless it is fixed.
-- **Time zones.** A relative-time filter without `zoneId` reads its days in UTC, where 9.x used the server's zone: pass `zoneId` where a local day was meant.
+- **Time zones.** A relative-time filter names its zone `timeZone`, where 9.x wrote `zoneId`, which is now refused as an unknown property. Without one it reads its days in UTC, where 9.x used the server's zone: pass `timeZone` where a local day was meant.
 - **Commands whose body names their aggregate.** Such a command has no route with `{id}`: a client that sent it to one gets 404, so send it to the route without `{id}`, the id in its body.
 - **Event names.** 9.x `bodyType` class names become `name` values; saved filters and screens keyed on them change.
 - **Another caller's aggregate.** A command on an aggregate of another owner or space than the caller's is answered `404 wow.aggregate.not-found`, as a read of it is and as a missing aggregate is, so the status no longer tells "not yours" from "not there". Only a creating command that names one is `403 wow.aggregate.forbidden` ([What the kernel checks](../guide/ownership#what-the-kernel-checks)). A client that showed a "not yours" message on 403 shows its "not found" one instead.
@@ -86,7 +86,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 1. The service's V10 Manifest exists and passes its compatibility baseline.
 2. Replace the packages, generate the clients from the Manifest into the same directory, commit `.wow-generator.json`, and delete the 9.x generator configuration and scripts ([Generate a Client](../typescript/generate)).
 3. Run `tsc` and fix each error by the tables above, never with a cast or `any`; then the linter and the application's tests.
-4. Search for what the type check cannot see: 9.x error codes, `bodyType`, 9.x paths in fetches, gateway rules and CoSec policies, relative times without `zoneId`, arithmetic on exact numbers.
+4. Search for what the type check cannot see: 9.x error codes, `bodyType`, 9.x paths in fetches, gateway rules and CoSec policies, relative times without a zone or with 9.x's `zoneId`, arithmetic on exact numbers.
 5. Run the application against the V10 service, in development or staging: a command with its wait, a state read, a query, and a refusal shown to the user.
 
 Kotlin and Java callers of a 9.x service's routes, `wow-apiclient` and `CommandGateway`, move to the `CommandClient` and `QueryApi` clients ([Calling Other Services](../guide/calling-services)).

@@ -1325,7 +1325,7 @@ export type ReferenceSemantic = {
 
 // @public
 export interface RelativeTimeFilterOptions {
-    zoneId?: string;
+    timeZone?: string;
 }
 
 // @public

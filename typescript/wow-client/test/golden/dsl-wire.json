@@ -308,12 +308,12 @@
   "filter.today (zone)": {
     "field": "state.createTime",
     "op": "today",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.today (offset zone)": {
     "field": "state.date",
     "op": "today",
-    "zoneId": "+08:00"
+    "timeZone": "+08:00"
   },
   "filter.beforeToday": {
     "field": "state.createTime",
@@ -324,62 +324,62 @@
     "field": "state.date",
     "op": "before-today",
     "time": "08:30:15",
-    "zoneId": "+08:00"
+    "timeZone": "+08:00"
   },
   "filter.tomorrow": {
     "field": "state.dueTime",
     "op": "tomorrow",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.yesterday": {
     "field": "state.createTime",
     "op": "yesterday",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.thisWeek": {
     "field": "state.createTime",
     "op": "this-week",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.nextWeek": {
     "field": "state.createTime",
     "op": "next-week",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.lastWeek": {
     "field": "state.createTime",
     "op": "last-week",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.thisMonth": {
     "field": "state.createTime",
     "op": "this-month",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.nextMonth": {
     "field": "state.createTime",
     "op": "next-month",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.lastMonth": {
     "field": "state.createTime",
     "op": "last-month",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.thisYear": {
     "field": "state.createTime",
     "op": "this-year",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.nextYear": {
     "field": "state.createTime",
     "op": "next-year",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.lastYear": {
     "field": "state.createTime",
     "op": "last-year",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.recentDays": {
     "days": 7,
@@ -390,13 +390,13 @@
     "days": 30,
     "field": "state.date",
     "op": "recent-days",
-    "zoneId": "+08:00"
+    "timeZone": "+08:00"
   },
   "filter.earlierDays": {
     "days": 7,
     "field": "state.createTime",
     "op": "earlier-days",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.beforeNow": {
     "field": "state.timeoutAt",
@@ -407,13 +407,13 @@
     "field": "state.date",
     "offset": "P1DT2H",
     "op": "before-now",
-    "zoneId": "+08:00"
+    "timeZone": "+08:00"
   },
   "filter.afterNow": {
     "field": "state.createTime",
     "offset": "-PT30M",
     "op": "after-now",
-    "zoneId": "Asia/Shanghai"
+    "timeZone": "Asia/Shanghai"
   },
   "filter.expression": {
     "comparison": "gt",
@@ -548,7 +548,6 @@
   "aggregation.dateHistogram": {
     "alias": "day",
     "field": "state.createTime",
-    "timeZone": "UTC",
     "type": "date-histogram",
     "unit": "day"
   },
@@ -564,7 +563,6 @@
     "alias": "weekday",
     "field": "state.createTime",
     "part": "day-of-week",
-    "timeZone": "UTC",
     "type": "date-part"
   },
   "aggregation.datePart (options)": {

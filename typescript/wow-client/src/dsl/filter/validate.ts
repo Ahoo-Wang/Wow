@@ -74,8 +74,8 @@ export function requireNonEmpty(
   }
 }
 
-function isValidOffsetZone(zoneId: string): boolean {
-  const match = OFFSET_ZONE_PATTERN.exec(zoneId);
+function isValidOffsetZone(timeZone: string): boolean {
+  const match = OFFSET_ZONE_PATTERN.exec(timeZone);
   if (!match) return false;
   const offset = match[1];
   const parts = offset.includes(':')
@@ -92,20 +92,20 @@ function isValidOffsetZone(zoneId: string): boolean {
 }
 
 export function validateRelativeTimeOptions({
-  zoneId,
+  timeZone,
 }: RelativeTimeFilterOptions): RelativeTimeFilterOptions {
-  if (zoneId !== undefined) {
-    if (typeof zoneId !== 'string' || !zoneId.trim()) {
-      throw new TypeError('zoneId cannot be blank.');
+  if (timeZone !== undefined) {
+    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+      throw new TypeError('timeZone cannot be blank.');
     }
     if (
-      OFFSET_ZONE_CANDIDATE_PATTERN.test(zoneId) &&
-      !isValidOffsetZone(zoneId)
+      OFFSET_ZONE_CANDIDATE_PATTERN.test(timeZone) &&
+      !isValidOffsetZone(timeZone)
     ) {
-      throw new TypeError(`zoneId is invalid: [${zoneId}].`);
+      throw new TypeError(`timeZone is invalid: [${timeZone}].`);
     }
   }
-  return zoneId === undefined ? {} : { zoneId };
+  return timeZone === undefined ? {} : { timeZone };
 }
 
 export function validateDays(operator: FilterOperator, days: number): void {

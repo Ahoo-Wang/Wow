@@ -76,13 +76,13 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'today', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'today', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
-   * filter.today('state.createTime', { zoneId: 'Asia/Shanghai' });
+   * filter.today('state.createTime', { timeZone: 'Asia/Shanghai' });
    * ```
    */
   today<FIELDS extends string>(
@@ -98,10 +98,10 @@ export const timeFilters = {
    * @param field - Query field path, e.g. `state.status`.
    * @param time - 24-hour local time: `HH:mm`, `HH:mm:ss` or `HH:mm:ss.S` with
    *   1 to 9 fraction digits.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'before-today', field, time }`, plus `zoneId` when set.
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'before-today', field, time }`, plus `timeZone` when set.
    * @throws TypeError If `time` is not a string in one of the formats above,
-   *   `field` is not a valid query field path, or `zoneId` is blank or an
+   *   `field` is not a valid query field path, or `timeZone` is blank or an
    *   invalid UTC offset.
    * @example
    * ```typescript
@@ -126,9 +126,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'tomorrow', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'tomorrow', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -146,9 +146,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'this-week', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'this-week', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -166,9 +166,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'next-week', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'next-week', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -186,9 +186,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'last-week', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'last-week', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -206,9 +206,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'this-month', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'this-month', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -226,9 +226,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'last-month', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'last-month', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -246,9 +246,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'yesterday', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'yesterday', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -266,9 +266,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'next-month', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'next-month', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -286,9 +286,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'last-year', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'last-year', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -306,13 +306,13 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'this-year', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'this-year', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
-   * filter.thisYear('state.createTime', { zoneId: 'Asia/Shanghai' });
+   * filter.thisYear('state.createTime', { timeZone: 'Asia/Shanghai' });
    * ```
    */
   thisYear<FIELDS extends string>(
@@ -326,9 +326,9 @@ export const timeFilters = {
    * configured time zone.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'next-year', field }`, plus `zoneId` when set.
-   * @throws TypeError If `field` is not a valid query field path, or `zoneId` is
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'next-year', field }`, plus `timeZone` when set.
+   * @throws TypeError If `field` is not a valid query field path, or `timeZone` is
    *   blank or an invalid UTC offset.
    * @example
    * ```typescript
@@ -348,10 +348,10 @@ export const timeFilters = {
    * @param field - Query field path, e.g. `state.status`.
    * @param days - Number of calendar days, including today; an integer from
    *   1 to 2147483647.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'recent-days', field, days }`, plus `zoneId` when set.
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'recent-days', field, days }`, plus `timeZone` when set.
    * @throws TypeError If `days` is not an integer from 1 to 2147483647,
-   *   `field` is not a valid query field path, or `zoneId` is blank or an
+   *   `field` is not a valid query field path, or `timeZone` is blank or an
    *   invalid UTC offset.
    * @example
    * ```typescript
@@ -372,10 +372,10 @@ export const timeFilters = {
    * @param field - Query field path, e.g. `state.status`.
    * @param days - Number of calendar days, including today; an integer from
    *   1 to 2147483647.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'earlier-days', field, days }`, plus `zoneId` when set.
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'earlier-days', field, days }`, plus `timeZone` when set.
    * @throws TypeError If `days` is not an integer from 1 to 2147483647,
-   *   `field` is not a valid query field path, or `zoneId` is blank or an
+   *   `field` is not a valid query field path, or `timeZone` is blank or an
    *   invalid UTC offset.
    * @example
    * ```typescript
@@ -394,7 +394,7 @@ export const timeFilters = {
    * (`field < now + offset`). The server reads its clock once per query,
    * so a saved query never depends on the client's clock, and the moment is
    * encoded the way the query schema says the field stores time: an epoch in
-   * its unit, or text in its pattern, in the zone `zoneId` names.
+   * its unit, or text in its pattern, in the zone `timeZone` names.
    *
    * Needs a Wow server of 9.2.0 or later; an earlier one refuses `BEFORE_NOW`.
    *
@@ -403,10 +403,10 @@ export const timeFilters = {
    *   `java.time.Duration.parse` reads it: days, hours, minutes and seconds,
    *   each optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative
    *   offset looks back. Defaults to `PT0S`, now itself.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'before-now', field, offset }`, plus `zoneId` when set.
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'before-now', field, offset }`, plus `timeZone` when set.
    * @throws TypeError If `offset` is not an ISO-8601 duration in that
-   *   grammar, `field` is not a valid query field path, or `zoneId` is blank
+   *   grammar, `field` is not a valid query field path, or `timeZone` is blank
    *   or an invalid UTC offset.
    * @example
    * ```typescript
@@ -426,7 +426,7 @@ export const timeFilters = {
    * (`field > now + offset`). The server reads its clock once per query,
    * so a saved query never depends on the client's clock, and the moment is
    * encoded the way the query schema says the field stores time: an epoch in
-   * its unit, or text in its pattern, in the zone `zoneId` names.
+   * its unit, or text in its pattern, in the zone `timeZone` names.
    *
    * Needs a Wow server of 9.2.0 or later; an earlier one refuses `AFTER_NOW`.
    *
@@ -435,10 +435,10 @@ export const timeFilters = {
    *   `java.time.Duration.parse` reads it: days, hours, minutes and seconds,
    *   each optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative
    *   offset looks back. Defaults to `PT0S`, now itself.
-   * @param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.
-   * @returns `{ op: 'after-now', field, offset }`, plus `zoneId` when set.
+   * @param options - Optional `timeZone`; see {@link RelativeTimeFilterOptions}.
+   * @returns `{ op: 'after-now', field, offset }`, plus `timeZone` when set.
    * @throws TypeError If `offset` is not an ISO-8601 duration in that
-   *   grammar, `field` is not a valid query field path, or `zoneId` is blank
+   *   grammar, `field` is not a valid query field path, or `timeZone` is blank
    *   or an invalid UTC offset.
    * @example
    * ```typescript

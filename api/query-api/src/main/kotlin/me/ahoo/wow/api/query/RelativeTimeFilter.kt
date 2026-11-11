@@ -15,9 +15,9 @@ package me.ahoo.wow.api.query
 
 import java.time.ZoneId
 
-private fun String?.requireZoneId() {
+private fun String?.requireTimeZone() {
     if (this != null) {
-        require(isNotBlank()) { "zoneId cannot be blank." }
+        require(isNotBlank()) { "timeZone cannot be blank." }
         zoneIdOf(this)
     }
 }
@@ -31,16 +31,20 @@ internal fun zoneIdOf(id: String): ZoneId = try {
 
 /**
  * A window of time relative to the moment a query runs, such as today or the last seven days. Its days are read in
- * [zoneId]; how the window's bounds are written is the field's: the encoding its schema declares
+ * [timeZone]; how the window's bounds are written is the field's: the encoding its schema declares
  * (`@QueryTemporal`), an epoch in its unit or a text in its pattern.
  */
 sealed interface RelativeTimeFilter : FieldPredicate {
-    val zoneId: String?
+    /**
+     * The time zone, an IANA region such as `Asia/Shanghai` or an offset such as `+08:00`; `null`, the default, is
+     * UTC, never the server's own zone.
+     */
+    val timeZone: String?
 
-    /** The zone [zoneId] names; `null` when the filter names none. */
-    fun resolvedZoneId(): ZoneId? = zoneId?.let(::zoneIdOf)
+    /** The zone [timeZone] names; `null` when the filter names none. */
+    fun resolvedTimeZone(): ZoneId? = timeZone?.let(::zoneIdOf)
 }
 
 internal fun RelativeTimeFilter.validateConfiguration() {
-    zoneId.requireZoneId()
+    timeZone.requireTimeZone()
 }

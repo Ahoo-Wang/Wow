@@ -39,7 +39,7 @@ describe('filter', () => {
         filter.eq('state.status', 'PAID'),
         filter.elementMatch('state.items', filter.gt('quantity', 0)),
         filter.search('wow', { fields: ['state.name'] }),
-        filter.today('state.createdAt', { zoneId: 'UTC' }),
+        filter.today('state.createdAt', { timeZone: 'UTC' }),
       ]),
     ).toEqual({
       op: FilterOperator.AND,
@@ -60,7 +60,7 @@ describe('filter', () => {
         {
           op: FilterOperator.TODAY,
           field: 'state.createdAt',
-          zoneId: 'UTC',
+          timeZone: 'UTC',
         },
       ],
     });

@@ -57,7 +57,7 @@ import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
 /**
- * Lowers relative time and derived operators. A relative-time filter that names no `zoneId` reads its days in
+ * Lowers relative time and derived operators. A relative-time filter that names no `timeZone` reads its days in
  * [defaultZoneId], UTC: never the JVM's zone, so nodes in different zones answer a filter alike. Its window's bounds
  * are written as the field stores time, its [Temporal]: the filter carries no encoding of its own.
  */
@@ -89,7 +89,7 @@ class FilterNormalizer(private val defaultZoneId: ZoneId = ZoneOffset.UTC) {
         private val now: Instant,
         private val temporal: Temporal,
     ) {
-        private val zone: ZoneId = filter.resolvedZoneId() ?: defaultZoneId
+        private val zone: ZoneId = filter.resolvedTimeZone() ?: defaultZoneId
         private val today: LocalDate = now.atZone(zone).toLocalDate()
         private val field: QueryField<*> = filter.field
 

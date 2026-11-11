@@ -44,12 +44,12 @@
     "type": "<FIELDS extends string>(from: FIELDS, to: FIELDS, unit: DateDiffUnit) => DateDiffAggregationExpression<FIELDS>"
   },
   "dateHistogram": {
-    "doc": "Groups a time field into calendar buckets.\n`{ type: 'date-histogram', field, unit, alias, timeZone, dense? }`.",
+    "doc": "Groups a time field into calendar buckets.\n`{ type: 'date-histogram', field, unit, alias, timeZone?, dense? }`.",
     "tags": [
       "@param field - The time field (epoch milliseconds) to bucket.",
       "@param alias - The name of the bucket column in the result rows.",
       "@param options.unit - The calendar unit of a bucket.",
-      "@param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.",
+      "@param options.timeZone - The zone buckets are cut in. Sent only when\nset; the server reads none as `UTC`.",
       "@param options.dense - Whether the empty buckets of the range are filled\nin.",
       "@param options.scope - What the field is relative to when the query\nexpands elements: `ROOT` groups the elements by a field of their root\nrecord. Wow 9.9 and later.",
       "@throws TypeError when `unit` is not an `AggregationDateUnit`,\n`timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is\ninvalid.",
@@ -58,12 +58,12 @@
     "type": "<FIELDS extends string>(field: FIELDS, alias: string, { unit, timeZone, dense, scope }: DateHistogramAggregationOptions) => DateHistogramAggregationGroup<FIELDS>"
   },
   "datePart": {
-    "doc": "Groups a time field by one calendar part of each instant, such as the\nweekday or the hour, so records from different days share a bucket.\n`{ type: 'date-part', field, part, alias, timeZone, dense? }`.\n\nThe group's keys in the result rows are integers: `DAY_OF_WEEK` is the\nISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;\n`HOUR_OF_DAY` 0 to 23 on the wall clock of `timeZone`; `MONTH_OF_YEAR`\n1 to 12. With `dense`, every key of that domain comes back, those\nwithout records carrying each metric's empty value; `dense` needs the\ngroup to be the query's only one. Wow 9.2 and later.",
+    "doc": "Groups a time field by one calendar part of each instant, such as the\nweekday or the hour, so records from different days share a bucket.\n`{ type: 'date-part', field, part, alias, timeZone?, dense? }`.\n\nThe group's keys in the result rows are integers: `DAY_OF_WEEK` is the\nISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;\n`HOUR_OF_DAY` 0 to 23 on the wall clock of `timeZone`; `MONTH_OF_YEAR`\n1 to 12. With `dense`, every key of that domain comes back, those\nwithout records carrying each metric's empty value; `dense` needs the\ngroup to be the query's only one. Wow 9.2 and later.",
     "tags": [
       "@param field - The time field (epoch milliseconds) to read the part of.",
       "@param alias - The name of the part column in the result rows.",
       "@param options.part - The calendar part to group by.",
-      "@param options.timeZone - The zone the part is read in. Defaults to\n`UTC`.",
+      "@param options.timeZone - The zone the part is read in. Sent only when\nset; the server reads none as `UTC`.",
       "@param options.dense - Whether every key of the part's domain is\nreturned.",
       "@param options.scope - What the field is relative to when the query\nexpands elements: `ROOT` groups the elements by a field of their root\nrecord. Wow 9.9 and later.",
       "@throws TypeError when `part` is not an `AggregationDatePart`,\n`timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is\ninvalid.",

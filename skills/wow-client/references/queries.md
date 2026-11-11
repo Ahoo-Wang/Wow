@@ -27,7 +27,7 @@ const page = await orders.paged(
   pagedQuery({
     filter: filter.and([
       filter.eq('state.status', 'PAID'),
-      filter.recentDays('state.paidAt', 7, { zoneId: 'Asia/Shanghai' }),
+      filter.recentDays('state.paidAt', 7, { timeZone: 'Asia/Shanghai' }),
     ]),
     sort: [desc('state.paidAt')],
     pagination: { index: 1, size: 20 },
@@ -37,7 +37,7 @@ const page = await orders.paged(
 
 - **Fields:** a snapshot's state is under `state.` (`state.status`); system fields are at the root (`aggregateId`, `tenantId`, `version`, `ownerId`, `spaceId`, `deleted`, `access`, `firstEventTime`, `lastEventTime`, `operator`); `access.<name>` is one of the aggregate's access attributes, typed by the generated `<Aggregate>Access`. A generated client types them (`<Aggregate>StateField`), so a renamed field, or an attribute the aggregate does not declare, is a type error.
 - **Events model:** one record per commit (`aggregateId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `access`, `events[]` of `{name, revision, body}`); `access` holds the aggregate's current access attributes with its `owner` and `space` (`access.owner`), `null` for a stream not stamped yet. A condition on an event's payload is one `filter.elementMatch('events', …)` holding the event's `name` and the payload condition, so both hold for the same event.
-- **Relative time** is resolved by the server, never the browser's clock (`filter.beforeNow`, `afterNow`, `today`, `yesterday`, `thisWeek`, `lastMonth`, `recentDays`, `earlierDays`, `beforeToday`, …: use the one that names the period, `yesterday` for yesterday). Without `zoneId` the server reads calendar days in UTC: pass `zoneId` for the user's day.
+- **Relative time** is resolved by the server, never the browser's clock (`filter.beforeNow`, `afterNow`, `today`, `yesterday`, `thisWeek`, `lastMonth`, `recentDays`, `earlierDays`, `beforeToday`, …: use the one that names the period, `yesterday` for yesterday). Without `timeZone` the server reads calendar days in UTC: pass `timeZone` for the user's day.
 - **Projection:** a query written with a literal `projection: { include: ['state.status', 'aggregateId'] }` answers records typed to those paths (`Projected`); built by a factory or with `exclude` only, it answers whole records.
 - **Totals:** `paged` counts its total `'bounded'` by default (exact up to the server's limit); the query's `total` (`'exact' | 'bounded' | 'none'`) chooses, and the page's `exact` says whether its `total` is exact. An exact total over HTTP is refused unless the service allows it.
 - **Cursor:** `cursor(cursorQuery({ … }))` answers `nextCursor`; pass it back unchanged with the same sort. Prefer it to deep `paged` pages.

@@ -52,8 +52,8 @@ import {
 } from '../src/dsl.js';
 import { canonicalJson } from './fixtures/canonicalJson.js';
 
-const zoned = { zoneId: 'Asia/Shanghai' } as const;
-const offset = { zoneId: '+08:00' } as const;
+const zoned = { timeZone: 'Asia/Shanghai' } as const;
+const offset = { timeZone: '+08:00' } as const;
 const revenue = aggregation.field('state.amount');
 const paid = filter.eq('state.status', 'PAID');
 

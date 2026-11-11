@@ -103,11 +103,11 @@ A filter on time is relative to the service's clock, read once per query, never 
 ```json
 {
   "kind": "list",
-  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "timeZone": "Asia/Shanghai" }
 }
 ```
 
-Calendar filters (`today`, `this-week`, `last-month`, `recent-days` and the others) read their days in the `zoneId` the filter names, and in UTC without one. `before-now` and `after-now` compare with now plus an ISO-8601 offset. [Relative time](../reference/query-language#relative-time) lists them all.
+Calendar filters (`today`, `this-week`, `last-month`, `recent-days` and the others) read their days in the `timeZone` the filter names, and in UTC without one. `before-now` and `after-now` compare with now plus an ISO-8601 offset. [Relative time](../reference/query-language#relative-time) lists them all.
 
 ## What happened, not what is
 

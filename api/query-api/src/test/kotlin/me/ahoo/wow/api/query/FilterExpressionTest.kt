@@ -25,10 +25,10 @@ class FilterExpressionTest {
         val field = QueryField("state.createTime")
 
         assertThrows<IllegalArgumentException> {
-            YesterdayFilter(field, zoneId = "")
+            YesterdayFilter(field, timeZone = "")
         }
         assertThrows<IllegalArgumentException> {
-            NextMonthFilter(field, zoneId = "Not/AZone")
+            NextMonthFilter(field, timeZone = "Not/AZone")
         }
     }
 
@@ -79,8 +79,8 @@ class FilterExpressionTest {
 
         filters.forEach { filter ->
             filter.field.assert().isEqualTo(field)
-            filter.zoneId.assert().isEqualTo("UTC")
-            filter.resolvedZoneId().assert().isEqualTo(java.time.ZoneId.of("UTC"))
+            filter.timeZone.assert().isEqualTo("UTC")
+            filter.resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("UTC"))
         }
     }
 

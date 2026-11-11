@@ -115,7 +115,7 @@ private fun AggregationGroup.Terms.termsKey(admitted: AdmittedQuery<*>, index: I
 
 private fun AggregationGroup.DateHistogram.dateHistogramKey(admitted: AdmittedQuery<*>): Pair<Bson?, Any> {
     val input = dateInput(admitted)
-    val zone = mongoTimeZone(timeZone)
+    val zone = mongoTimeZone(effectiveTimeZone())
     val key = if (unit == AggregationDateUnit.HOUR) {
         wallHourTruncation(input, zone)
     } else {
@@ -139,7 +139,7 @@ private fun AggregationGroup.DatePart.datePartKey(admitted: AdmittedQuery<*>): P
         AggregationDatePart.MONTH_OF_YEAR -> "\$month"
     }
     return Filters.expr(Document("\$ne", listOf(input, null))) to
-        Document(operator, Document("date", input).append("timezone", mongoTimeZone(timeZone)))
+        Document(operator, Document("date", input).append("timezone", mongoTimeZone(effectiveTimeZone())))
 }
 
 /**

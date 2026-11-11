@@ -90,7 +90,7 @@ internal fun AggregationGroup.toSource(
                     dateHistogram.calendarInterval { interval -> interval.time(unit.name.lowercase()) }
                 }
                 // A numeric field refuses any `time_zone`, even `UTC`; without one it buckets in UTC.
-                if (!native) dateHistogram.timeZone(timeZone)
+                if (!native) dateHistogram.timeZone(effectiveTimeZone())
                 dateHistogram.order(sort.direction.toSortOrder())
             }
         }
@@ -138,7 +138,7 @@ private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQue
     val resolved = admitted.field(field)
     val params = mutableMapOf(
         "field" to JsonData.of(admitted.physicalPath(field)),
-        "zone" to JsonData.of(timeZone),
+        "zone" to JsonData.of(effectiveTimeZone()),
         "part" to JsonData.of(part.name),
     )
     val source = when (val temporal = resolved.temporal) {
@@ -203,7 +203,7 @@ private fun AggregationGroup.DateHistogram.dateField(
  * array, a field inside a nested element).
  */
 private fun AggregationGroup.DateHistogram.groupsNatively(admitted: AdmittedQuery<*>): Boolean =
-    admitted.field(field).isNativeEpochMillis() && ZoneId.of(timeZone).isUtc()
+    admitted.field(field).isNativeEpochMillis() && ZoneId.of(effectiveTimeZone()).isUtc()
 
 private fun ZoneId.isUtc(): Boolean = rules.isFixedOffset && rules.getOffset(Instant.EPOCH) == ZoneOffset.UTC
 

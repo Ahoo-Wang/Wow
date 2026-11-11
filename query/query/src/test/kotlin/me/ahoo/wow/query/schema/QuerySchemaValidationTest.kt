@@ -314,7 +314,7 @@ class QuerySchemaValidationTest {
                 "times" to arrayFixture(scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.SECONDS)))
             )
         )
-        val input = TodayFilter(QueryField("times"), zoneId = "UTC")
+        val input = TodayFilter(QueryField("times"), timeZone = "UTC")
         validateQuery(input, schema).assert().isSameAs(input)
         val normalized = QueryResolver(schema, Instant.parse("1970-01-02T12:00:00Z")).filter(input) as AndFilter
         ((normalized.operands[0] as GreaterThanOrEqualFilter).value as Number).toLong().assert().isEqualTo(86_400L)

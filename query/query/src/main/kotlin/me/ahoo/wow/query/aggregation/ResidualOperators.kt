@@ -91,7 +91,7 @@ private fun emptyRow(alias: String, key: Any, emptyMetrics: Map<String, Any?>): 
  */
 internal class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) :
     DenseFill {
-    private val buckets = DateBuckets(group.unit, ZoneId.of(group.timeZone))
+    private val buckets = DateBuckets(group.unit, ZoneId.of(group.effectiveTimeZone()))
     private val emptyMetrics = EmptyAggregationValues.values(metrics)
 
     override fun fill(rows: Flow<ObjectNode>): Flow<ObjectNode> = flow {

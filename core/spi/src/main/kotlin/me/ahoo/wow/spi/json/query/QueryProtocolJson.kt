@@ -51,8 +51,8 @@ import tools.jackson.databind.module.SimpleModule
  *   [WowJson] reads them.
  * - The aggregation hierarchies are discriminated by `type`; an expression without one is a FIELD.
  * - Defaults are written by omission where 9.x omitted them: empty `sort`, projection lists, `elements`, `groupBy`
- *   and window `within`; null `having`, `cursor`, group inputs and scopes, `orderBy`, `frame` and `period`; a false
- *   `dense`; a metric filter that matches everything.
+ *   and window `within`; null `having`, `cursor`, group inputs and scopes, a time group's `timeZone`, `orderBy`,
+ *   `frame` and `period`; a false `dense`; a metric filter that matches everything.
  * - [PagedList] writes `total` (`null` when uncounted), `exact`, then `list`.
  *
  * It is the one copy of the protocol's format: the query engine, the HTTP edge and `wow-client` read

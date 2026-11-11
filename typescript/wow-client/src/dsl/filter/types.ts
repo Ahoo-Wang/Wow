@@ -243,7 +243,7 @@ export interface RelativeTimeFilterOptions {
    * or `-` must be a valid offset within +/-18:00; region IDs are checked by
    * the server only.
    */
-  zoneId?: string;
+  timeZone?: string;
 }
 
 /**

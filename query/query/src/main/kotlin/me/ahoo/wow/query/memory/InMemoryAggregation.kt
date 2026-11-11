@@ -119,13 +119,13 @@ internal class InMemoryAggregation(
             is AggregationGroup.DateHistogram -> filters.instant(group.field, at)
                 ?.let { nodes.numberNode(bucket(it, group)) } ?: UNGROUPED
             is AggregationGroup.DatePart -> filters.instant(group.field, at)
-                ?.let { nodes.numberNode(part(it, group.part, ZoneId.of(group.timeZone))) } ?: UNGROUPED
+                ?.let { nodes.numberNode(part(it, group.part, ZoneId.of(group.effectiveTimeZone()))) } ?: UNGROUPED
         }
     }
 
     /** The bucket of [epochMillis] in [group], by the one rule every backend's buckets follow ([DateBuckets]). */
     private fun bucket(epochMillis: Long, group: AggregationGroup.DateHistogram): Long =
-        buckets.getOrPut(group) { DateBuckets(group.unit, ZoneId.of(group.timeZone)) }.keyOf(epochMillis)
+        buckets.getOrPut(group) { DateBuckets(group.unit, ZoneId.of(group.effectiveTimeZone())) }.keyOf(epochMillis)
 
     private fun part(epochMillis: Long, part: AggregationDatePart, zone: ZoneId): Int {
         val time = Instant.ofEpochMilli(epochMillis).atZone(zone)

@@ -67,4 +67,4 @@ pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn d
 
 A Manifest field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (schema format `int64`, `bigint` or `decimal`) is a `string` in the generated types, with its digits exactly as the service wrote them; the wire still carries JSON numbers ([Generate a Client](./generate#exact-numbers)). 9.x generated `number`.
 
-A query written with literal `projection.include` paths answers records narrowed to those paths; one built with `listQuery` or `pagedQuery`, or with only an exclusion, answers whole records. A calendar filter without a `zoneId` reads its days in UTC ([Read and Query](./queries#relative-time-and-time-zones)).
+A query written with literal `projection.include` paths answers records narrowed to those paths; one built with `listQuery` or `pagedQuery`, or with only an exclusion, answers whole records. A calendar filter without a `timeZone` reads its days in UTC ([Read and Query](./queries#relative-time-and-time-zones)).

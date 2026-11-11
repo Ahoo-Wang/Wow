@@ -37,14 +37,14 @@ describe('filter', () => {
 
   it('sends a zone only, the encoding being the field’s', () => {
     const options = {
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       datePattern: 'yyyy-MM-dd',
       timeUnit: 'seconds',
     } as never;
     expect(filter.today('createdAt', options)).toEqual({
       op: FilterOperator.TODAY,
       field: 'createdAt',
-      zoneId: 'UTC',
+      timeZone: 'UTC',
     });
   });
 
@@ -63,22 +63,22 @@ describe('filter', () => {
     },
     {
       name: 'today at the JVM boundary offset',
-      create: () => filter.today('createdAt', { zoneId: '+18:00' }),
+      create: () => filter.today('createdAt', { timeZone: '+18:00' }),
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
-        zoneId: '+18:00',
+        timeZone: '+18:00',
       },
     },
     {
       name: 'before today',
       create: () =>
-        filter.beforeToday('createdAt', '09:30', { zoneId: 'UTC+05:30' }),
+        filter.beforeToday('createdAt', '09:30', { timeZone: 'UTC+05:30' }),
       expected: {
         op: FilterOperator.BEFORE_TODAY,
         field: 'createdAt',
         time: '09:30',
-        zoneId: 'UTC+05:30',
+        timeZone: 'UTC+05:30',
       },
     },
     {
@@ -158,12 +158,12 @@ describe('filter', () => {
     },
     {
       name: 'after now, looking back',
-      create: () => filter.afterNow('createdAt', '-PT30M', { zoneId: 'UTC' }),
+      create: () => filter.afterNow('createdAt', '-PT30M', { timeZone: 'UTC' }),
       expected: {
         op: FilterOperator.AFTER_NOW,
         field: 'createdAt',
         offset: '-PT30M',
-        zoneId: 'UTC',
+        timeZone: 'UTC',
       },
     },
   ])('builds the $name wire shape', ({ create, expected }) => {
@@ -211,18 +211,18 @@ describe('filter', () => {
 
   it.each(['Z', 'UT', '+5', '+0530', '+05:30:15'])(
     'accepts the JVM zone ID %s',
-    zoneId => {
-      expect(filter.today('createdAt', { zoneId })).toEqual({
+    timeZone => {
+      expect(filter.today('createdAt', { timeZone })).toEqual({
         op: FilterOperator.TODAY,
         field: 'createdAt',
-        zoneId,
+        timeZone,
       });
     },
   );
 
   it('keeps builder-owned fields authoritative over structural options', () => {
     const options = {
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       op: FilterOperator.MATCH_NONE,
       field: 'ignored',
       time: '00:00',
@@ -241,31 +241,31 @@ describe('filter', () => {
 
     calendarFilters.forEach(([op, expression]) => {
       expect(expression).toEqual({
-        zoneId: 'UTC',
+        timeZone: 'UTC',
         op,
         field: 'createdAt',
       });
     });
     expect(filter.beforeToday('createdAt', '09:30', options)).toEqual({
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       op: FilterOperator.BEFORE_TODAY,
       field: 'createdAt',
       time: '09:30',
     });
     expect(filter.recentDays('createdAt', 7, options)).toEqual({
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       op: FilterOperator.RECENT_DAYS,
       field: 'createdAt',
       days: 7,
     });
     expect(filter.earlierDays('createdAt', 30, options)).toEqual({
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       op: FilterOperator.EARLIER_DAYS,
       field: 'createdAt',
       days: 30,
     });
     expect(filter.beforeNow('createdAt', 'PT1H', options)).toEqual({
-      zoneId: 'UTC',
+      timeZone: 'UTC',
       op: FilterOperator.BEFORE_NOW,
       field: 'createdAt',
       offset: 'PT1H',
@@ -273,8 +273,8 @@ describe('filter', () => {
   });
 
   it('rejects malformed zone offsets with a validation error', () => {
-    expect(() => filter.today('createdAt', { zoneId: '+invalid' })).toThrow(
-      'zoneId is invalid: [+invalid].',
+    expect(() => filter.today('createdAt', { timeZone: '+invalid' })).toThrow(
+      'timeZone is invalid: [+invalid].',
     );
   });
 
@@ -305,14 +305,14 @@ describe('filter', () => {
       'days outside the JVM Int range',
       () => filter.recentDays('createdAt', 2_147_483_648),
     ],
-    ['blank zone ID', () => filter.today('createdAt', { zoneId: ' ' })],
+    ['blank zone ID', () => filter.today('createdAt', { timeZone: ' ' })],
     [
       'zone offset outside the JVM range',
-      () => filter.today('createdAt', { zoneId: '+23:59' }),
+      () => filter.today('createdAt', { timeZone: '+23:59' }),
     ],
     [
       'zone offset beyond the JVM boundary minute',
-      () => filter.today('createdAt', { zoneId: '+18:01' }),
+      () => filter.today('createdAt', { timeZone: '+18:01' }),
     ],
   ])('rejects %s', (_name, create) => {
     expect(create).toThrow();

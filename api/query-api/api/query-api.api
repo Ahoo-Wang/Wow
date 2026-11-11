@@ -5,7 +5,7 @@ public final class me/ahoo/wow/api/query/AfterNowFilter : me/ahoo/wow/api/query/
 	public final fun getOffset ()Ljava/lang/String;
 	public final fun getOffsetDuration ()Ljava/time/Duration;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/AfterNowFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/AfterNowFilter;
@@ -187,6 +187,7 @@ public abstract interface class me/ahoo/wow/api/query/AggregationGroup {
 
 public final class me/ahoo/wow/api/query/AggregationGroup$DateHistogram : me/ahoo/wow/api/query/AggregationGroup {
 	public static final field Companion Lme/ahoo/wow/api/query/AggregationGroup$DateHistogram$Companion;
+	public final fun effectiveTimeZone ()Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAlias ()Ljava/lang/String;
 	public final fun getDense ()Z
@@ -212,6 +213,7 @@ public final class me/ahoo/wow/api/query/AggregationGroup$DateHistogram$Companio
 
 public final class me/ahoo/wow/api/query/AggregationGroup$DatePart : me/ahoo/wow/api/query/AggregationGroup {
 	public static final field Companion Lme/ahoo/wow/api/query/AggregationGroup$DatePart$Companion;
+	public final fun effectiveTimeZone ()Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAlias ()Ljava/lang/String;
 	public final fun getDense ()Z
@@ -518,7 +520,7 @@ public final class me/ahoo/wow/api/query/BeforeNowFilter : me/ahoo/wow/api/query
 	public final fun getOffset ()Ljava/lang/String;
 	public final fun getOffsetDuration ()Ljava/time/Duration;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/BeforeNowFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/BeforeNowFilter;
@@ -541,7 +543,7 @@ public final class me/ahoo/wow/api/query/BeforeTodayFilter : me/ahoo/wow/api/que
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
 	public final fun getTime ()Ljava/lang/String;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/BeforeTodayFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/query/BeforeTodayFilter;
@@ -904,7 +906,7 @@ public final class me/ahoo/wow/api/query/EarlierDaysFilter : me/ahoo/wow/api/que
 	public final fun getDays ()I
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;I)Lme/ahoo/wow/api/query/EarlierDaysFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;ILjava/lang/String;)Lme/ahoo/wow/api/query/EarlierDaysFilter;
@@ -1343,7 +1345,7 @@ public final class me/ahoo/wow/api/query/LastMonthFilter : me/ahoo/wow/api/query
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/LastMonthFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/LastMonthFilter;
@@ -1363,7 +1365,7 @@ public final class me/ahoo/wow/api/query/LastWeekFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/LastWeekFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/LastWeekFilter;
@@ -1383,7 +1385,7 @@ public final class me/ahoo/wow/api/query/LastYearFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/LastYearFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/LastYearFilter;
@@ -1480,7 +1482,7 @@ public final class me/ahoo/wow/api/query/NextMonthFilter : me/ahoo/wow/api/query
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/NextMonthFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/NextMonthFilter;
@@ -1500,7 +1502,7 @@ public final class me/ahoo/wow/api/query/NextWeekFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/NextWeekFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/NextWeekFilter;
@@ -1520,7 +1522,7 @@ public final class me/ahoo/wow/api/query/NextYearFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/NextYearFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/NextYearFilter;
@@ -1826,7 +1828,7 @@ public final class me/ahoo/wow/api/query/RecentDaysFilter : me/ahoo/wow/api/quer
 	public final fun getDays ()I
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;I)Lme/ahoo/wow/api/query/RecentDaysFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;ILjava/lang/String;)Lme/ahoo/wow/api/query/RecentDaysFilter;
@@ -1842,8 +1844,8 @@ public final class me/ahoo/wow/api/query/RecentDaysFilter$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/query/RelativeTimeFilter : me/ahoo/wow/api/query/FieldPredicate {
-	public abstract fun getZoneId ()Ljava/lang/String;
-	public fun resolvedZoneId ()Ljava/time/ZoneId;
+	public abstract fun getTimeZone ()Ljava/lang/String;
+	public fun resolvedTimeZone ()Ljava/time/ZoneId;
 }
 
 public abstract interface class me/ahoo/wow/api/query/RewritableFilter {
@@ -2034,7 +2036,7 @@ public final class me/ahoo/wow/api/query/ThisMonthFilter : me/ahoo/wow/api/query
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/ThisMonthFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/ThisMonthFilter;
@@ -2054,7 +2056,7 @@ public final class me/ahoo/wow/api/query/ThisWeekFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/ThisWeekFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/ThisWeekFilter;
@@ -2074,7 +2076,7 @@ public final class me/ahoo/wow/api/query/ThisYearFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/ThisYearFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/ThisYearFilter;
@@ -2094,7 +2096,7 @@ public final class me/ahoo/wow/api/query/TodayFilter : me/ahoo/wow/api/query/Rel
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/TodayFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/TodayFilter;
@@ -2114,7 +2116,7 @@ public final class me/ahoo/wow/api/query/TomorrowFilter : me/ahoo/wow/api/query/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/TomorrowFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/TomorrowFilter;
@@ -2153,7 +2155,7 @@ public final class me/ahoo/wow/api/query/YesterdayFilter : me/ahoo/wow/api/query
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
-	public fun getZoneId ()Ljava/lang/String;
+	public fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/YesterdayFilter;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/YesterdayFilter;

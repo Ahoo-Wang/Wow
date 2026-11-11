@@ -103,11 +103,11 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 ```json
 {
   "kind": "list",
-  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "timeZone": "Asia/Shanghai" }
 }
 ```
 
-日历过滤（`today`、`this-week`、`last-month`、`recent-days` 等）在过滤指明的 `zoneId` 中读取日期，没有指明时用 UTC。`before-now` 和 `after-now` 与现在加上一个 ISO-8601 偏移量比较。[相对时间](../reference/query-language#relative-time)列出了全部过滤。
+日历过滤（`today`、`this-week`、`last-month`、`recent-days` 等）在过滤指明的 `timeZone` 中读取日期，没有指明时用 UTC。`before-now` 和 `after-now` 与现在加上一个 ISO-8601 偏移量比较。[相对时间](../reference/query-language#relative-time)列出了全部过滤。
 
 ## 发生了什么，而不是现在是什么 {#what-happened-not-what-is}
 
