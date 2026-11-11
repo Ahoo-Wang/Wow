@@ -167,6 +167,31 @@ describe('no brand colour', () => {
 });
 
 describe('what a brand colour derives', () => {
+  it('moves the ring with the primary’s bound, where the ring has none of its own', () => {
+    // neutral gives the ring no band, so the ring's is the primary's: a
+    // host that moves the primary's bound alone moves both, and they stay
+    // one colour. The violet is lighter than the light ceiling given here
+    // and deeper than the dark floor.
+    const moved = {
+      '--fve-brand-l-max': '0.42',
+      '--fve-dark-brand-l-min': '0.75',
+    };
+    for (const mode of MODES) {
+      const before = resolveTokens(
+        'neutral',
+        mode,
+        'semantic',
+        brandOf(VIOLET),
+      );
+      const after = resolveTokens('neutral', mode, 'semantic', {
+        ...brandOf(VIOLET),
+        ...moved,
+      });
+      expect(after.get('--primary'), mode).not.toEqual(before.get('--primary'));
+      expect(after.get('--ring'), mode).toEqual(after.get('--primary'));
+    }
+  });
+
   // The focus ring follows the brand in every preset: between the primary's
   // own bounds, or the band a preset gives it.
   it.each(PRESET_NAMES.flatMap(preset => MODES.map(m => [preset, m] as const)))(

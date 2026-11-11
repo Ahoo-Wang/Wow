@@ -60,13 +60,24 @@
  */
 @supports (color: oklch(from red l c h)) {
   :where(.fve-root, .fve-tokens) {
+    /*
+     * The primary's bounds, resolved once: the ring's fall back to them, so
+     * a host or a preset that moves the primary's band moves the ring's
+     * with it.
+     */
+    --_fve-brand-l-min: var(--fve-brand-l-min, var(--fvp-brand-l-min, 0.4));
+    --_fve-brand-l-max: var(--fve-brand-l-max, var(--fvp-brand-l-max, 0.5));
+    --_fve-brand-dark-l-min: var(
+      --fve-dark-brand-l-min,
+      var(--fvp-dark-brand-l-min, 0.68)
+    );
+    --_fve-brand-dark-l-max: var(
+      --fve-dark-brand-l-max,
+      var(--fvp-dark-brand-l-max, 0.8)
+    );
     --_fve-brand-primary: oklch(
       from var(--fve-brand)
-        clamp(
-          var(--fve-brand-l-min, var(--fvp-brand-l-min, 0.4)),
-          l,
-          var(--fve-brand-l-max, var(--fvp-brand-l-max, 0.5))
-        )
+        clamp(var(--_fve-brand-l-min), l, var(--_fve-brand-l-max))
         min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
     );
     --_fve-brand-accent: oklch(
@@ -92,9 +103,15 @@
     --_fve-brand-ring: oklch(
       from var(--fve-brand)
         clamp(
-          var(--fve-brand-ring-l-min, var(--fvp-brand-ring-l-min, 0.4)),
+          var(
+            --fve-brand-ring-l-min,
+            var(--fvp-brand-ring-l-min, var(--_fve-brand-l-min))
+          ),
           l,
-          var(--fve-brand-ring-l-max, var(--fvp-brand-ring-l-max, 0.5))
+          var(
+            --fve-brand-ring-l-max,
+            var(--fvp-brand-ring-l-max, var(--_fve-brand-l-max))
+          )
         )
         min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
     );
@@ -115,11 +132,7 @@
     );
     --_fve-brand-dark-primary: oklch(
       from var(--fve-dark-brand, var(--fve-brand))
-        clamp(
-          var(--fve-dark-brand-l-min, var(--fvp-dark-brand-l-min, 0.68)),
-          l,
-          var(--fve-dark-brand-l-max, var(--fvp-dark-brand-l-max, 0.8))
-        )
+        clamp(var(--_fve-brand-dark-l-min), l, var(--_fve-brand-dark-l-max))
         min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
     );
     --_fve-brand-dark-primary-fill: oklch(
@@ -166,12 +179,12 @@
         clamp(
           var(
             --fve-dark-brand-ring-l-min,
-            var(--fvp-dark-brand-ring-l-min, 0.68)
+            var(--fvp-dark-brand-ring-l-min, var(--_fve-brand-dark-l-min))
           ),
           l,
           var(
             --fve-dark-brand-ring-l-max,
-            var(--fvp-dark-brand-ring-l-max, 0.8)
+            var(--fvp-dark-brand-ring-l-max, var(--_fve-brand-dark-l-max))
           )
         )
         min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h

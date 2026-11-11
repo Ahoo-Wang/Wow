@@ -322,7 +322,7 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
   const duration = (element: Element | null) =>
     [...(element?.classList ?? [])].filter(name => /^duration-\d+$/.test(name));
 
-  it("takes the panel's length, holds its fade until the panel is gone, and does not blur", async () => {
+  it("takes the panel's length and holds its fade until the panel is gone", async () => {
     render(
       <ViewSurface colorMode="light">
         <Dialog defaultOpen>

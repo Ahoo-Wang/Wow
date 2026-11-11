@@ -202,10 +202,10 @@ function layerReference(
 }
 
 /**
- * A value with every `var(--fve-*)` and `var(--fvp-*)` in it replaced by
- * what the host and the preset layer give, innermost first, a fallback taken
- * where neither has one; `undefined` when one is left with nothing, as CSS
- * makes the whole value invalid.
+ * A value with every `var(--fve-*)`, `var(--fvp-*)` and bound the block
+ * resolved (`var(--_fve-brand-*)`) in it replaced by what `given` has for
+ * it, innermost first, a fallback taken where it has none; `undefined` when
+ * one is left with nothing, as CSS makes the whole value invalid.
  */
 function substitute(
   value: string,
@@ -213,7 +213,7 @@ function substitute(
 ): string | undefined {
   const held: string[] = [];
   let text = value;
-  const innermost = /var\((--fv[ep]-[\w-]+)(?:,\s*([^()]*))?\)/;
+  const innermost = /var\((--(?:fv[ep]|_fve-brand)-[\w-]+)(?:,\s*([^()]*))?\)/;
   for (let match = innermost.exec(text); match; match = innermost.exec(text)) {
     const [whole, variable, fallback] = match;
     const set = given(variable);
@@ -450,7 +450,7 @@ export function createResolver({
     const brand = new Map<string, string>();
     for (const [variable, { value, charted }] of brandBlock()) {
       if (charted && !brandChart) continue;
-      const derived = substitute(value, layers);
+      const derived = substitute(value, v => layers(v) ?? brand.get(v));
       if (derived !== undefined) brand.set(variable, derived);
     }
     // The layers in the order a token reads them: the host's variable, the
