@@ -114,6 +114,10 @@ object WowMetrics {
     const val THROTTLED_KIND: String = "throttled"
     const val UNTHROTTLED_KIND: String = "unthrottled"
 
+    /** The kinds of a shared state's rebuild: its replay was longer than a page and met the replay gate, or not. */
+    const val GATED_KIND: String = "gated"
+    const val UNGATED_KIND: String = "ungated"
+
     /** A query's type as its metric and its span name it. */
     val QueryType.tagValue: String get() = name.lowercase()
 
@@ -233,6 +237,26 @@ object WowMetrics {
             "of the aggregate, which another node committed without the partition's lease. Each spares the next " +
             "command a version conflict.",
         tags = listOf(CONTEXT),
+    )
+
+    val SHARED_STATE_REBUILDS: MetricSpec = MetricSpec.counter(
+        "wow.shared_state.rebuilds",
+        "The rebuilds of a shared state a subscription made from the snapshot and the log, its context's views no " +
+            "longer holding it: gated when its replay was longer than a page of the log and met the replay gate, " +
+            "else ungated; ran, or refused by the gate (retried as backpressure).",
+        tags = listOf(CONTEXT, AGGREGATE, KIND, OUTCOME),
+        values = mapOf(
+            KIND to listOf(GATED_KIND, UNGATED_KIND),
+            OUTCOME to ObservedEvent.StateRebuilt.Outcome.entries.map { it.value },
+        ),
+    )
+
+    val SHARED_STATE_REBUILD_WAIT: MetricSpec = MetricSpec.timer(
+        "wow.shared_state.rebuild.wait",
+        "How long a gated rebuild of a shared state waited for the replay gate's permit, by whether it then ran or " +
+            "was refused.",
+        tags = listOf(CONTEXT, AGGREGATE, OUTCOME),
+        values = mapOf(OUTCOME to ObservedEvent.StateRebuilt.Outcome.entries.map { it.value }),
     )
 
     val STORE_FALLBACKS: MetricSpec = MetricSpec.counter(
@@ -432,7 +456,8 @@ object WowMetrics {
     val ALL: List<MetricSpec> = listOf(
         COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
-        STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
+        STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS,
+        RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
         ACCESS_WALKED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, FATAL_ERRORS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,

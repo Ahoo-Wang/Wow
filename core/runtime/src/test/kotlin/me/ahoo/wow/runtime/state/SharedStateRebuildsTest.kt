@@ -46,6 +46,7 @@ import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -53,7 +54,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The rebuilds of the shared states ([SharedStates.rebuild]): one an aggregate at a time across its readers, under
- * the node's [ReplayGate], whatever the rebuild comes to.
+ * the node's [ReplayGate], whatever the rebuild comes to. Each history here is longer than a page of the log
+ * ([PAGE]), so its rebuild meets the gate, which holds it.
  */
 class SharedStateRebuildsTest {
     private class CountingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
@@ -110,31 +112,31 @@ class SharedStateRebuildsTest {
 
     @Test
     fun `the readers that miss one aggregate at once should replay its log once`(): Unit = runBlocking {
-        val streams = commits(5)
-        val first = async { reader(FIRST).read(streams[3]) }
-        val same = async { reader(SECOND).read(streams[3]) }
-        val next = async { reader(THIRD).read(streams[4]) }
+        val streams = commits(PAGE + 5)
+        val first = async { reader(FIRST).read(streams[PAGE + 3]) }
+        val same = async { reader(SECOND).read(streams[PAGE + 3]) }
+        val next = async { reader(THIRD).read(streams[PAGE + 4]) }
         settle()
         views.rebuilds.assert().isEqualTo(1)
 
         gate.held.complete(Unit)
-        first.await().items().assert().hasSize(4)
+        first.await().items().assert().hasSize(PAGE + 4)
         same.await().items().assert().isEqualTo(first.await().items())
         // The reader of the next version evolves the view the rebuild left with the stream in hand.
-        next.await().items().assert().hasSize(5)
+        next.await().items().assert().hasSize(PAGE + 5)
         gate.replays.get().assert().isEqualTo(1)
-        log.streamsRead.assert().isEqualTo(4)
+        log.streamsRead.assert().isEqualTo(PAGE + 4)
         views.rebuilds.assert().isZero()
     }
 
     @Test
     fun `a refused rebuild should fail its reader alone, and one reader that waited should rebuild next`(): Unit =
         runBlocking {
-            val streams = commits(3)
+            val streams = commits(PAGE + 3)
             gate.refusal = StorageBusyException("The log's store runs as many queries as it allows at once.")
-            val first = async { runCatching { reader(FIRST).read(streams[2]) } }
-            val second = async { reader(SECOND).read(streams[2]) }
-            val third = async { reader(THIRD).read(streams[2]) }
+            val first = async { runCatching { reader(FIRST).read(streams[PAGE + 2]) } }
+            val second = async { reader(SECOND).read(streams[PAGE + 2]) }
+            val third = async { reader(THIRD).read(streams[PAGE + 2]) }
             settle()
 
             gate.held.complete(Unit)
@@ -142,33 +144,33 @@ class SharedStateRebuildsTest {
             refused.assert().isInstanceOf(StorageBusyException::class.java)
             // The subscription retries it as backpressure: it spends no attempt and parks nothing.
             RuntimeFailures.DEFAULT.classify(refused!!, null).assert().isEqualTo(FailureClass.BACKPRESSURE)
-            second.await().items().assert().hasSize(3)
-            third.await().items().assert().hasSize(3)
+            second.await().items().assert().hasSize(PAGE + 3)
+            third.await().items().assert().hasSize(PAGE + 3)
             // The refused replay, then the one of the reader next in line; the last read the view it left.
             gate.replays.get().assert().isEqualTo(2)
-            log.streamsRead.assert().isEqualTo(3)
+            log.streamsRead.assert().isEqualTo(PAGE + 3)
             views.rebuilds.assert().isZero()
         }
 
     @Test
     fun `a reader's own timeout should end its wait alone, and a cancelled rebuild should hand the rebuild on`(): Unit =
         runBlocking {
-            val streams = commits(3)
-            val leader = launch { reader(FIRST).read(streams[2]) }
+            val streams = commits(PAGE + 3)
+            val leader = launch { reader(FIRST).read(streams[PAGE + 2]) }
             settle()
 
-            withTimeoutOrNull(WAIT) { reader(SECOND).read(streams[2]) }.assert().isNull()
+            withTimeoutOrNull(WAIT) { reader(SECOND).read(streams[PAGE + 2]) }.assert().isNull()
             views.rebuilds.assert().isEqualTo(1)
             leader.isActive.assert().isTrue()
 
-            val third = async { reader(THIRD).read(streams[2]) }
+            val third = async { reader(THIRD).read(streams[PAGE + 2]) }
             settle()
             // The leader's attempt is cancelled (its own timeout, or its lane stopping): the reader that waited leads.
             leader.cancelAndJoin()
             gate.held.complete(Unit)
-            third.await().items().assert().hasSize(3)
+            third.await().items().assert().hasSize(PAGE + 3)
             gate.replays.get().assert().isEqualTo(2)
-            log.streamsRead.assert().isEqualTo(3)
+            log.streamsRead.assert().isEqualTo(PAGE + 3)
             views.rebuilds.assert().isZero()
         }
 
@@ -213,5 +215,8 @@ class SharedStateRebuildsTest {
         const val BANK = "bank"
         const val SETTLE = 10
         val WAIT = 50.milliseconds
+
+        /** A page of the log: a rebuild that replays more meets the gate. */
+        const val PAGE = VersionPages.SIZE
     }
 }

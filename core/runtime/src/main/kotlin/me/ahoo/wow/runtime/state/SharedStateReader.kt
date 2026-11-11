@@ -41,11 +41,11 @@ import tools.jackson.core.JacksonException
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
  * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
- * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views], under the node's
- * [ReplayGate] ([SharedStates.rebuild]): a reader that misses an aggregate another reader is rebuilding waits for that
- * rebuild, then reads again, so the view it left, at this version or the one before, is evolved rather than the log
- * replayed again. A gate that refuses the replay fails the read as a busy store, which the subscription retries as
- * backpressure.
+ * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views] ([SharedStates.rebuild]):
+ * a reader that misses an aggregate another reader is rebuilding waits for that rebuild, then reads again, so the view
+ * it left, at this version or the one before, is evolved rather than the log replayed again. One that replays more
+ * than a page of the log runs under the node's [ReplayGate]; a gate that refuses it fails the read as a busy store,
+ * which the subscription retries as backpressure. One of a page or less runs at once.
  *
  * A rebuilt state is put back into the views, so the next commit of the aggregate, for this reader or another
  * behind it, evolves it with one stream rather than replaying the log again: a subscription behind the snapshot
@@ -94,20 +94,39 @@ class SharedStateReader(
      */
     private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
         while (true) {
-            views.rebuild(stream.ref) { rebuilt(stream, snapshot) }?.let { return it }
+            // Decided once an attempt: the length the gate is asked about is the replay the rebuild makes.
+            val base = baseOf(stream, snapshot)
+            val streams = stream.version - (base?.version ?: 0)
+            views.rebuild(stream.ref, streams) { rebuilt(stream, base) }?.let { return it }
             held(stream)?.let { return it }
         }
     }
 
-    private suspend fun rebuilt(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
+    /**
+     * The state a rebuild of the state after [stream] evolves with the log's streams after it: the latest view before
+     * it or [snapshot], whichever is later, decoded, so a view or a snapshot that does not decode is no base and the
+     * other, or none, is; null to replay the log from version 1.
+     */
+    private fun baseOf(stream: EventStreamRecord, snapshot: SnapshotRecord?): CachedState? {
+        val model = modelOf(stream.ref.type)
+        val version = stream.version
+        val fitting = snapshot?.takeIf { it.ref == stream.ref && it.version <= version }
+            ?.let { kernel.snapshotState(model, it) }
+        val view = views.floor(stream.ref, version)?.takeIf { fitting == null || it.version >= fitting.version }
+            ?.let { baseOf(model, it) }
+        return view ?: fitting
+    }
+
+    private suspend fun rebuilt(stream: EventStreamRecord, base: CachedState?): SerializedState {
         val ref = stream.ref
         val version = stream.version
         val model = modelOf(ref.type)
-        val usable = snapshot?.takeIf { it.ref == ref && it.version <= version }
-        val base = views.floor(ref, version)?.takeIf { usable == null || it.version >= usable.version }
-        val state = base?.let { view -> baseOf(model, view)?.let { kernel.stateAt(model, ref, version, it) } }
+        val state = if (base != null) {
+            kernel.stateAt(model, ref, version, base)
+        } else {
             // A subscription sees the state of every commit it handles, however long the history: no replay limit.
-            ?: kernel.stateAt(model, ref, version, usable, maxReplay = Int.MAX_VALUE)
+            kernel.stateAt(model, ref, version, maxReplay = Int.MAX_VALUE)
+        }
         checkNotNull(state) { "The log does not hold $ref@$version." }
         return keep(ref, state)
     }

@@ -138,6 +138,31 @@ sealed class ObservedEvent {
     }
 
     /**
+     * A subscription's rebuild of a shared state of [type], once the context's views no longer held it: from the
+     * snapshot store and the log. [gated] when its replay was longer than one page of the log and ran under the node's
+     * replay gate, which held it [waitMillis] for a permit (0 when it was not gated). [outcome] says whether it ran or
+     * the gate refused it, a busy store, which the subscription retries as backpressure.
+     */
+    class StateRebuilt @InternalWowApi constructor(
+        val type: AggregateType,
+        val gated: Boolean,
+        val outcome: Outcome,
+        val waitMillis: Long,
+    ) : ObservedEvent() {
+        override fun fields() =
+            listOf("type" to type, "gated" to gated, "outcome" to outcome, "waitMillis" to waitMillis)
+
+        /** How a rebuild ended at the gate. */
+        enum class Outcome(val value: String) {
+            /** It read the log: at once, or once the gate gave it a permit. */
+            RAN("ran"),
+
+            /** The gate refused it. */
+            REFUSED("refused"),
+        }
+    }
+
+    /**
      * A committed fact of [context] that lost a key it reserved: another owner took the key after the fact's pending
      * reservation expired, so confirming it could not get it back. Logged as an error too; a count to alert on, since
      * the fact now breaks the uniqueness it reserved for.
