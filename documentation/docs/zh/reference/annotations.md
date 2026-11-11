@@ -20,7 +20,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [AfterCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AfterCommand.kt): A function of an `AggregateRoot` that runs after its command functions: it sees the state the command function saw, not yet evolved by its events, and returns events appended after them in the same stream.
 
-- 目标: `FUNCTION`, `ANNOTATION_CLASS`
+- 目标: `FUNCTION`
 - 参数: `include: Array<KClass<*>> = []`, `exclude: Array<KClass<*>> = []`
 
 ## `@AggregateId`
@@ -34,7 +34,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `idSource: AggregateIdSource = AggregateIdSource.ASSIGNED`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
 
 ## `@Alias`
@@ -48,7 +48,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [AllowCreate](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AllowCreate.kt): A command that may also create its aggregate: it is accepted whether or not the aggregate exists.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: 无。
 
 ## `@Blocking`
@@ -62,21 +62,21 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [BoundedContext](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/BoundedContext.kt): The bounded context a domain module belongs to.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: `name: String`, `description: String = ""`
 
 ## `@CreateAggregate`
 
 [CreateAggregate](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/CreateAggregate.kt): A command that creates its aggregate: it is accepted only while the aggregate does not exist yet.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: 无。
 
 ## `@Description`
 
 [Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`, `PROPERTY`, `FIELD`
+- 目标: `CLASS`, `PROPERTY`, `FIELD`
 - 参数: `value: String`
 
 ## `@ErrorCode`
@@ -97,7 +97,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: `aggregate: String`, `transformsTo: Array<KClass<*>> = []`
 
 ## `@Name`
@@ -111,7 +111,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
-- 目标: `FUNCTION`, `ANNOTATION_CLASS`
+- 目标: `FUNCTION`
 - 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `onDeleted: Boolean = false`
 
 ## `@OnCommitted`
@@ -146,7 +146,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [OnSourcing](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt): A sourcing function of an aggregate's state: it applies one event to the state.
 
-- 目标: `FUNCTION`, `ANNOTATION_CLASS`
+- 目标: `FUNCTION`
 - 参数: 无。
 
 ## `@Projection`
@@ -210,14 +210,14 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`, `PROPERTY`, `FIELD`
+- 目标: `CLASS`, `PROPERTY`, `FIELD`
 - 参数: `value: String`
 
 ## `@Unaddressed`
 
 [Unaddressed](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Unaddressed.kt): A command whose request may name no aggregate: a `CommandTransformer` of the service finds the aggregate it acts on, such as one whose id the server derives from the caller and the body.
 
-- 目标: `CLASS`, `ANNOTATION_CLASS`
+- 目标: `CLASS`
 - 参数: 无。
 
 ## `@Upgrade`
