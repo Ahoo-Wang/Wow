@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -70,4 +72,33 @@ class RouteCallsTest {
         val unnamed = answeringCommandClient { it.committed(ref = stock.ref("t1", "new")) }
         unnamed.wait(CommandRequest.of(Reserve("new"), "new")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
+
+    @Test
+    fun `a route call hands over the queries and commands it was given`() {
+        val queries: Queries = mockk()
+        val commands = answeringCommandClient { it.committed() }
+        val call = routeCall(queries = queries, commands = commands)
+        call.queries.assert().isSameAs(queries)
+        call.commands.assert().isSameAs(commands)
+    }
+
+    @Test
+    fun `a call's result takes its ref from the request, else from the test, else says what to give`(): Unit =
+        runBlocking {
+            // No type, or no id: the request names no aggregate.
+            val untyped = CommandCall(mary, CommandRequest.of(Reserve("mug"), "mug"))
+            untyped.ref.assert().isNull()
+            assertThrows<IllegalStateException> { untyped.committed() }
+                .message.assert().contains("give the result its ref")
+            CommandCall(null, CommandRequest.of(Reserve("new"), null, type = stock)).ref.assert().isNull()
+            // A target tenant first, then the caller's, then the default tenant.
+            CommandCall(null, CommandRequest.of(Reserve("mug"), "mug", type = stock)).ref.assert()
+                .isEqualTo(stock.ref(Caller.DEFAULT_TENANT, "mug"))
+            CommandCall(mary, CommandRequest.of(Reserve("mug"), "mug", type = stock, targetTenant = "t2")).ref.assert()
+                .isEqualTo(stock.ref("t2", "mug"))
+            // A request id the request gives is the result's; it reads in a failure message.
+            val given = CommandCall(mary, CommandRequest.of(Reserve("mug"), "mug", type = stock, requestId = "r-9"))
+            given.committed().requestId.assert().isEqualTo("r-9")
+            given.toString().assert().contains("caller=").contains("request=")
+        }
 }
