@@ -30,6 +30,13 @@ class CommandTypeOfTest {
     @MountedCommand(aggregate = "cart")
     data class ImportCart(val id: String)
 
+    @Name("Clear")
+    @MountedCommand(aggregate = "cart")
+    open class ClearCart
+
+    /** A subclass declares neither annotation: the compiler, which reads a class's own annotations, sees none. */
+    class ClearCartNow : ClearCart()
+
     private val cart = AggregateType("shop", "cart")
 
     @Test
@@ -49,5 +56,13 @@ class CommandTypeOfTest {
         misplaced.message.assert().isEqualTo(
             "${ImportCart::class.java.name} is mounted under cart, not under shop.order."
         )
+    }
+
+    @Test
+    fun `a subclass is named and mounted by its own annotations, as the compiler reads them, not its superclass's`() {
+        CommandType.of(cart, ClearCart::class.java).name.assert().isEqualTo("shop.cart.Clear")
+        val order = AggregateType("shop", "order")
+        // Neither @Name nor @MountedCommand is inherited: the subclass is named by its class, under any aggregate.
+        CommandType.of(order, ClearCartNow::class.java).name.assert().isEqualTo("shop.order.ClearCartNow")
     }
 }

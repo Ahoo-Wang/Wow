@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
@@ -52,8 +51,7 @@ import kotlin.reflect.KClass
  * `DeleteAggregate` does. Deciding the same event twice changes nothing more; a command that would change nothing
  * returns `Decision.NoOp`.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class OnCommand(
     val produces: Array<KClass<*>> = [],

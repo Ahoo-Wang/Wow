@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
@@ -31,8 +30,7 @@ import kotlin.reflect.KClass
  * @param transformsTo the commands the transformer turns it into, by their classes, which the Manifest lists as the
  *   command's `transformsTo`, by full type name. Empty, the default, declares none.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.CLASS)
 @MustBeDocumented
 annotation class MountedCommand(
     val aggregate: String,

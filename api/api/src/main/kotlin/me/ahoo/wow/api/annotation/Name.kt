@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * The name of an aggregate, a processor, a command or an event, in place of the one derived
  * from the class's simple name. Commands and events are typed `context.aggregate.Name`.
@@ -30,7 +28,6 @@ import java.lang.annotation.Inherited
  * @param value the name, or the qualifier.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.VALUE_PARAMETER)
-@Inherited
 @MustBeDocumented
 annotation class Name(
     val value: String,

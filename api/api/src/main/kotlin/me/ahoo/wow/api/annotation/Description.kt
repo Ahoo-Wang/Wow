@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * A description of a type or a field, carried into the Manifest and the documentation generated from it.
  *
@@ -22,11 +20,9 @@ import java.lang.annotation.Inherited
  */
 @Target(
     AnnotationTarget.CLASS,
-    AnnotationTarget.ANNOTATION_CLASS,
     AnnotationTarget.PROPERTY,
     AnnotationTarget.FIELD,
 )
-@Inherited
 @MustBeDocumented
 annotation class Description(
     val value: String,
