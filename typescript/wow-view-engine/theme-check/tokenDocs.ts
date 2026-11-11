@@ -494,6 +494,14 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     "A map's boundaries, round every area with a number or without",
     '地图的边界线，有数与没数的区域都描',
   ),
+  'chart-ink-dark': said(
+    'A number written on a light mark: a bar, a segment, a cell',
+    '写在浅色图形上的数：柱、段、格',
+  ),
+  'chart-ink-light': said(
+    'A number written on a deep mark',
+    '写在深色图形上的数',
+  ),
   'chart-tooltip': said("A chart tooltip's ground", '图表提示框的底'),
   'chart-tooltip-foreground': said(
     'The numbers in a chart tooltip',

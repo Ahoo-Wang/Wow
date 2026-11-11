@@ -195,10 +195,10 @@ describe('a stack’s segments (audit)', () => {
   });
 
   it('writes a part in the ink that stands off its segment, with no halo', () => {
-    // A deep blue segment takes the ground's ink; a pale yellow one the
-    // foreground's.
-    expect(a.label.color).toBe(LIGHT.ground);
-    expect(b.label.color).toBe(LIGHT.foreground);
+    // A deep blue segment takes the chart's light ink; a pale yellow one
+    // its dark ink.
+    expect(a.label.color).toBe(LIGHT.ink.light);
+    expect(b.label.color).toBe(LIGHT.ink.dark);
     expect(a.label).not.toHaveProperty('textBorderWidth');
   });
 

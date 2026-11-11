@@ -897,6 +897,10 @@ interface ChartTheme {
         width: number;
     };
     ground: string;
+    ink: {
+        dark: string;
+        light: string;
+    };
     key: string;
     line: {
         width: number;
@@ -8197,6 +8201,26 @@ const TOKENS: readonly [{
     readonly preset: true;
     readonly area: RoleArea;
     readonly name: "chart-map-edge";
+}, {
+    readonly modes: 1;
+    readonly chart: true;
+    readonly tier: "role";
+    readonly kind: "color";
+    readonly block: true;
+    readonly own: true;
+    readonly preset: true;
+    readonly area: RoleArea;
+    readonly name: "chart-ink-dark";
+}, {
+    readonly modes: 1;
+    readonly chart: true;
+    readonly tier: "role";
+    readonly kind: "color";
+    readonly block: true;
+    readonly own: true;
+    readonly preset: true;
+    readonly area: RoleArea;
+    readonly name: "chart-ink-light";
 }, {
     readonly fallback: "popover";
     readonly tier: "role";
