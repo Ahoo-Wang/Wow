@@ -1,6 +1,6 @@
 # 数据权限：访问属性与访问策略
 
-日期：2026-11-02。基线：`origin/main` `647b361116`。状态：已实施（D390，用户 2026-11-02，含历史跟随当前属性；A～H 全部合并，2026-11-08）。上位文档：[安全性统一讨论](2026-10-26-security-review-design.md)、[决策台账](decisions.md)。
+日期：2026-11-02。基线：`origin/main` `647b361116`。状态：已实施（D390，用户 2026-11-02，含历史跟随当前属性；全部合并于 2026-11-08）；本文留作设计依据：要求 R1～R8、设计与不采用的方案。工作包与顺序（原 §7）、留给实现时定的细节（原 §8）已删（见 `2c08f318ea`）；§2 的「现状」与文中的「今天」都指这次设计之前。之后的细化见 D400（导入的历史由 `migrate-data snapshot` 盖章）、D402（访问遍历定速）。上位文档：[安全性统一讨论](2026-10-26-security-review-design.md)、[决策台账](decisions.md)。
 
 ## 1. 起因
 
@@ -132,8 +132,6 @@ Sink 把访问属性写成数仓表的列（取代 `tags` 列）。数据集声�
 
 `ApplyTags`、`TagsApplied`（及其路由、schema 与生成的 TS 客户端方法）、`@Tags`、`AggregateModel.tagsOf`、`StateEvent.tags`、测试 DSL 的 `expectTags`、`AbacQueryPolicy` 与 `AbacQueryOptions`、`wow.query.abac.*`、快照与各类记录里的 `tags` 系统字段（由 `access` 取代）、`EventsMode`（由 4.5 的统一规则取代）、数据集的 `tags` 绑定、`TagsBackfill` 与 `migrate-data backfill-tags`（由盖章订阅取代）。作用域规则的四份拷贝合为访问策略的同一个求值。公开的 `QueryPolicy` SPI 收为内部实现：应用自定义的行级过滤一律写成访问策略，所依据的字段声明为访问属性；平台服务的 `AnalyticsCatalogQueryPolicy` 随之改写。
 
-预发布的数据不保留兼容（与 X-42 同理）：beta 用户日志里已有的 `wow.lifecycle.TagsApplied` 事件，由迁移文档给出处理方法（`@Upgrade` 并入领域事件，或重新导入），框架不再解码它。
-
 ## 5. 9.x 迁移
 
 - 9.x 的 `StateAggregateTagsExtractor` 派生的标签：迁移技能改写为状态上的 `@Access` 属性。
@@ -148,30 +146,3 @@ Sink 把访问属性写成数仓表的列（取代 `tags` 列）。数据集声�
 - **历史按「事件 × 快照」连接判定**：语义即时，但日志与快照可以在不同的存储里，连接一般做不到；退回限定聚合的两段查询，又会失去跨聚合的事件搜索（Q-2 的老问题）。
 - **要求有访问属性的聚合把日志与主快照放在同一个存储**：能连接，但限制了部署，也解决不了 ES 事件索引。
 - **关系型授权（Zanzibar 式的关系图）**：表达力最强，但需要独立的关系存储与一致性协议，超出框架边界，列 10.x 候选。
-
-## 7. 工作包与顺序
-
-影响面（2026-11-02 盘点，`origin/main` `647b361116`）：主代码约 130 个文件、测试约 140 个，横跨 `:api`、编译器、Manifest、内核、运行时、SPI、四个后端、查询、边缘、宿主、`migrate-data`、TypeScript（约 5 个源文件与 40 个生成或金样文件）、7 份 Manifest 基线、约 35 个文档页与 10 个技能文件。风险最高的四处：日志的存储格式（`tags` 在 PostgreSQL、MongoDB、ES、ClickHouse 上各有形状）；线上格式与契约（`StateEventRecord` 的主题信封、`ApplyTags` 的路由与 schema）；内核热路径（每次提交、加载、重放都派生标签；决定前的作用域检查）；快照与查询的性能（访问属性要有索引）。
-
-按文件分工，前一阶段合并后再开下一阶段；同一阶段内的工作包互不碰同一组文件：
-
-| 阶段 | 工作包 | 范围 | 依赖 |
-| --- | --- | --- | --- |
-| 1 | **A. 模型**：`@Access`、编译器的读取与校验、Manifest 的访问属性一节、生成的属性引用、`AggregateModel` 的访问属性派生；删去 `@Tags`、`ApplyTags`、`TagsApplied` 与内核的标签演化；`StateEvent` 与测试 DSL 随之改 | `:api`、`compiler/*`、`api/manifest`、`core/kernel`（模型与演化部分）、`test/test-dsl` | X-53、PA-35（D388）合并之后（都改编译器与 Manifest） |
-| 2 | **B. 策略**：访问策略的 DSL 与求值器（编译为过滤表达式，内存求值共用 X-26 的求值器）、调用者声明、启动校验、读路径统一追加；删去 ABAC、`QueryPolicy` 公开 SPI、`EventsMode`；数据集的访问列；计数缓存 | `query/*`、`host/spring-boot` 的查询装配、`edge/cosec` 的声明来源 | A |
-| 2 | **C. 存储与盖章**：各记录的 `access` 字段、快照的访问属性索引、盖章订阅（取代 `TagsBackfill`）、主题信封、四个后端的过滤编译与映射 | `core/spi`、`backends/*`、`core/runtime` 的快照、Sink、主题条目与盖章订阅 | A |
-| 2 | **D. 契约与客户端**：OpenAPI、TS 客户端与生成器、Manifest 基线、生成的客户端重新生成 | `edge/openapi`、`typescript/*`、各服务的 `manifest/baseline.json`、`src/generated/` | A |
-| 3 | **E. 写侧**：命令在决定前后求值策略、404 与 403、作用域四份拷贝合一 | `core/kernel` 的准入（`KernelAnswers`）、`core/runtime/admission`、`edge/http` 的 `StateHandler` | B |
-| 3 | **F. 迁移**：9.x 标签映射为状态字段、`TagsApplied` 的处理、删去 `backfill-tags`、`compare` 的 `$tags`；迁移技能与文档；以项目 A 验证 | `migration/migrate-data`、`skills/wow-migrate`、迁移文档 | A、C |
-| 3 | **G. 平台与示例**：`AnalyticsCatalogQueryPolicy` 改写为访问策略；平台服务与 eShop 按需声明访问属性与策略 | `platform/*`、`examples/*` | B |
-| 4 | **H. 文档一致性**：各工作包更新各自的页面，最后一遍核对（`guide/ownership`、`queries`、`datasets`、`operate/security`、参考页、技能） | `documentation/docs/**`、`skills/wow-develop` | 全部 |
-
-规模验证：C 合并后在 Actions 上测快照查询与事件查询在策略下的开销（索引是否生效），以及盖章订阅在长历史聚合上的耗时；E 合并后测命令路径的额外开销（应近于零，状态已加载）。
-
-## 8. 实现时与协调者定的细节
-
-- `@Access` 允许的类型与集合的具体范围；对外属性名的命名规则（与上下文名、查询路径的规则一致）。
-- 快照按访问属性建索引的方式：各后端是建单列索引、多键索引，还是由用户声明。
-- 创建、改属性命令的「决定后再查」，对批量提交与热点聚合的开销。
-- 盖章订阅的批量大小、对长历史聚合的开销、积压的指标与告警；ES 事件索引上的改章（今天的 re-sink 路径）。
-- 访问策略在测试 DSL 里的写法。
