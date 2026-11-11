@@ -424,13 +424,8 @@ class Kernel(
      * base), or null when it does not fit [model]: of another aggregate type, written at another state revision or for
      * another state schema, or not decodable. Nothing is read; each call decodes a fresh copy.
      */
-    fun <S : Any> snapshotState(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? {
-        if (snapshot.ref.type != model.type) {
-            return null
-        }
-        val state = codec.fitting(model, snapshot) ?: return null
-        return CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
-    }
+    fun <S : Any> snapshotState(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? =
+        source.stateOf(model, snapshot)
 
     /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
     fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)

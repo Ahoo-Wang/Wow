@@ -63,8 +63,8 @@ internal class StateSourcing(
         observer.observed(ObservedEvent.StateCache(ref.type.context, ObservedEvent.StateCache.Outcome.MISS))
         val read = loading?.let { snapshotTails.read(ref, it, requests.earlier) }
         read?.snapshot?.let { snapshot ->
-            codec.fitting(model, snapshot)?.let { state ->
-                fromSnapshot(model, snapshot, state, read.tail.streams.asFlow())?.let { loaded ->
+            stateOf(model, snapshot)?.let { restored ->
+                fromSnapshot(model, snapshot, restored, read.tail.streams.asFlow())?.let { loaded ->
                     loaded.first = FirstCommit.of(snapshot)
                     return requests.derived(loaded, read.tail) to false
                 }
@@ -93,11 +93,11 @@ internal class StateSourcing(
         committedBy: Long = Long.MAX_VALUE,
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
-        val state = codec.fitting(model, snapshot) ?: return null
+        val restored = stateOf(model, snapshot) ?: return null
         return fromSnapshot(
             model,
             snapshot,
-            state,
+            restored,
             log.read(snapshot.ref, snapshot.version, until),
             committedBy,
             maxReplay
@@ -105,20 +105,32 @@ internal class StateSourcing(
     }
 
     /**
-     * [state], decoded from [snapshot], evolved with [tail], the log's streams of its aggregate from the snapshot's
-     * own version on, or null when the tail does not start with the snapshot's own stream (see the other
+     * The state [snapshot] holds, with the metadata it keeps beside it (its version, scope, deleted mark and schedules),
+     * or null when it does not fit [model]: of another aggregate type, written at another state revision or for another
+     * state schema, or not decodable. Each call decodes a fresh copy; nothing is read. The one place a snapshot becomes
+     * a state, so a field the snapshot gains reaches every path.
+     */
+    internal fun <S : Any> stateOf(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? {
+        if (snapshot.ref.type != model.type) {
+            return null
+        }
+        val state = codec.fitting(model, snapshot) ?: return null
+        return CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
+    }
+
+    /**
+     * [restored], the state [snapshot] holds ([stateOf]), evolved with [tail], the log's streams of its aggregate from
+     * the snapshot's own version on, or null when the tail does not start with the snapshot's own stream (see the other
      * [fromSnapshot]).
      */
     internal suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,
-        state: S,
+        restored: CachedState,
         tail: Flow<EventStreamRecord>,
         committedBy: Long = Long.MAX_VALUE,
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
-        val restored =
-            CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
         var current: CachedState? = null
         var replayed = 0
         tail
