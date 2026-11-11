@@ -2,7 +2,7 @@
 
 日期：2026-11-10。状态：持续维护。上位文档：[路线图](roadmap.md)。
 
-本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D415 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
+本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D416 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
 
 ## 1. 位置
 
@@ -19,17 +19,17 @@
 
 | 会话 | 区域 | 在做 | 其后 |
 | --- | --- | --- | --- |
-| rt-subs-p1 | `core/runtime` | 余下 2 个测试文件的拆分（X-88，11 个已拆 9 个） | #5931 与 X-97：按通道所用的时钟断言等待；把运维操作从工作器移到 `LaneActions`；把靠真实时间等待的测试改为等条件，所有权的测试以 `abort()` 收尾 |
-| kernel-writes-p1 | 内核、PostgreSQL、MongoDB、Kafka、宿主、测试 DSL | detekt 门禁（X-109）的最后一步：两个源集并入 `check`，门禁里不自动改正 | 无排队的事项 |
-| query-bugs | 查询、Elasticsearch、OpenAPI、客户端 | 等基准服务器（#5928） | 索引体积的基准（`IndexFigures`） |
-| p1-sweep-edges | ClickHouse、基准工具 | Elasticsearch 一侧的基准服务器与 `sink-es`（#5928） | D412：`_state` 自有的列与带类型的物化列，删去 `wow_catalog` 的旧列迁移，本模块的构造函数（D415）；D413 的 sink 一侧（成批写入） |
-| view-engine-bugs | 视图引擎 | 余下五个文件的切分（X-88） | `dashboard/` 里另两处手写 `dashboard.shape.invalid` 的地方改用 `shape.ts` |
+| rt-subs-p1 | `core/runtime` | 所有权的测试以 `abort()` 收尾；运行时测试里靠真实时间的等待改为等条件或等事件（X-113） | `HttpSignalSender` 的调优参数归入 Options（D416） |
+| kernel-writes-p1 | 内核、PostgreSQL、MongoDB、Kafka、宿主、测试 DSL | detekt 门禁（X-109）的最后一步：两个源集并入 `check`，门禁里不自动改正 | `MongoEventLog` 与 `PostgresEventLog` 的调优参数归入 Options，删去无效的 `@Suppress("LongParameterList")`（D416） |
+| query-bugs | 查询、Elasticsearch、OpenAPI、客户端 | D412 最后一步所需的 TCK 签名（`storeAccess`）；索引体积的基准（#5940） | 无排队的事项 |
+| p1-sweep-edges | ClickHouse、基准工具 | D412 的最后一步：访问谓词落到 `access_<name>` 列；D413 的 sink 一侧（成批写入） | 无排队的事项 |
+| view-engine-bugs | 视图引擎 | 余下两个文件的切分（X-88，#5941 在审） | `dashboard/` 里另两处手写 `dashboard.shape.invalid` 的地方改用 `shape.ts` |
 
 未派：四个超过 600 行的测试文件（`HostStoresTest.kt`、`HttpCommandClientTest.kt`、`ViewStoreHostSpec.kt`、`AccessWalkBench.kt`）、X-113 的测试存量；Renovate 的 #5571 与 #4902 等它变基后变绿即合并（#5571 唯一的失败已由 #5754 在 `main` 上修好）；6 条 Dependabot 告警都是 `pnpm-lock.yaml` 里开发工具的传递依赖，不进入发布的包，随 #4902 的锁文件更新解决。
 
 ## 3. 距离 GA 还剩
 
-- **代码**：§2 的各项。动存储形态的四个决定里，D411 与 D414（PostgreSQL、MongoDB 的格式号回到 1）已完成；D412 与 D413 的 sink 一侧在做，须在 rc 之前完成。D415 的 34 个次构造函数已处理 33 个，余 ClickHouse 的一个随 D412；X-88、X-109 是结构清理，不改行为。
+- **代码**：§2 的各项。动存储形态的四个决定里，D411 与 D414（PostgreSQL、MongoDB 的格式号回到 1）已完成；D412 余访问谓词的一步，D413 余 sink 一侧，须在 rc 之前完成。D415 的 34 个次构造函数已全部处理；X-88、X-109 与 D416 是结构清理，不改行为。
 - **依赖**：CoCache 8.0.0 与 CosId 5.0.0 已是正式版；CoSec 8 仍是预发布版，`wow-cosec` 在 10.0 标为实验性，不阻塞发版（D374）。
 - **验证**（rc 前）：在 Actions 上重跑 L3、L4；GA 端到端完整跑一次并出报告；夜间运行（`soak`、`ga-e2e`、`mongo-cluster`、全量 `ci.yml`）由协调者每轮查看，2026-11-10 一夜全绿。
 - **文档与 Skill**：rc 前做一次文档与代码的一致性核对（路线图 9.3f）；迁移 Skill 的评测（8a.2）由用户在跑，结果回来后登记；`wow-migrate` 的范围与插件版本见路线图 §6「GA 前」。
@@ -70,5 +70,6 @@
 - 发版：打标签与对外发布须用户确认，alpha、beta、rc 与 GA 的时机由用户决定（D202）。
 - 新增第三方依赖，改发布自动化、安全设置、CI 工作流或 Dependabot、Renovate 的配置须先问用户；不绕过 PR 安全门禁。
 - 负载测试与基准只在 GitHub Actions 上跑，不在本机测；不要 `./gradlew --stop`。
+- **构造函数的调优参数归入 Options，不引入 Builder**（2026-11-10，D416）：协作者留在构造函数里；装配类的协作者分组这次不做。
 - **`wow-cocache` 不考虑迁移**（2026-11-10）：缓存可以重新回源加载，不为它的内容写迁移或升级步骤。
 - 打开的 PR 不超过约 15 个；保持仓库整洁：无孤儿文件、无死链、无名称中的版本特例；v9 真实项目的名称与内部细节不进入仓库。

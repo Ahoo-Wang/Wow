@@ -35,20 +35,19 @@
 | X-81 | P3 | 基准：节点停不下来 | `bench.sh down` 发出停止后，一个 Wow 节点又跑了约 71 s，读已删掉的库，与下一个会话的种子、预热重叠（未影响计时） | harness 等节点真正退出再开下一个会话；查节点为何停机慢 | 待定 |
 | X-82 | P3 | 基准：压测端在途上限 | 开环压测端每个目标最多 2,000 个在途命令，超出记为失败（`generator-overload`），服务端因此被判为没跟上 | 本机测开环上限时提高该上限或用多个压测进程；报告区分压测端饱和与服务端失败 | 待定 |
 | X-84 | P3 | 夜间全量 CI 的覆盖率趋势 | 集成覆盖率一周 82.11% → 80.53%（阈值 1 点），趋势检查自 2026-11-04 起失败（#5441）；2026-11-08 的夜间运行通过，#5441 已由巡检关闭 | 降幅出在哪些模块没有查 | 再失败时查 |
-| X-88 | P2 | 过大的类与文件 | 单个类或文件不超过约 600 行（用户 2026-11-09）。超线文件不得因修复再长；承担逻辑的按职责拆分，每个一个不改行为的 PR | 主源码：除视图引擎余下的切分外全部完成。视图引擎：604～750 行的十八个文件定为十二个切、六个例外，已合并七个切，余 `DashboardPanelCard.tsx`、`ConditionPill.tsx`、`model/chart.ts`、`cartesianPlan.ts`、`viewRuntime.ts`（会话 view-engine-bugs）。记录在案的例外（各为一件事，不得再增长）：`QueryViolation.kt` 1,102；视图引擎的 `useRecordTable.ts` 750、`viewEngine.ts` 735、`EChart.tsx` 734、`DashboardGrid.tsx` 691、`dashboardRuntime.ts` 664、`tokens.ts` 643、`AnalysisTable.tsx` 621、`useAnalysisEditor.ts` 604。测试文件（第二波，只移动）：编译器与契约工具、两个存储的日志测试、迁移工具、查询各片已完成，例外四个（`ManifestTreeTest` 655、`SchemaCompatibilityTest` 615、`SubscriptionManifestTest` 605、`WowContractSourcesFunctionalTest` 602）；`core/runtime` 的 11 个已拆 9 个，其后是把靠真实时间等待的测试改为等条件或等事件、所有权的测试以 `abort()` 收尾（会话 rt-subs-p1）；未派：`HostStoresTest.kt` 611、`HttpCommandClientTest.kt` 613、`skills/wow-migrate` 的 `ViewStoreHostSpec.kt` 991、基准的 `AccessWalkBench.kt` 673。贴近上限、下次改动须先提取：`PartitionOwnership.kt` 597、`CommandGateway.kt` 597、`layout.ts` 595、`HostPartsTest.kt` 590、`SubscriptionWorker.kt` 588（已到上限，再改之前先把运维操作移到 `LaneActions`）、`dashboard/validate.ts` 594、`SubscriptionRuntime.kt` 588、`display.ts` 587、`MongoEventLog.kt` 565、`MappingCheck.kt` 549 | 进行中 |
+| X-88 | P2 | 过大的类与文件 | 单个类或文件不超过约 600 行（用户 2026-11-09）。超线文件不得因修复再长；承担逻辑的按职责拆分，每个一个不改行为的 PR | 主源码：除视图引擎余下的切分外全部完成。视图引擎：604～750 行的十八个文件定为十二个切、六个例外，已合并九个切，余 `ConditionPill.tsx` 与 `cartesianPlan.ts`（#5941；切后仍为 608 行，记为例外）两个（会话 view-engine-bugs）；`viewRuntime.ts` 量过后不切：请求一段要宿主交出至少十个成员，并在 `setState` 之外写运行时状态。记录在案的例外（各为一件事，不得再增长）：`QueryViolation.kt` 1,102；视图引擎的 `useRecordTable.ts` 750、`viewEngine.ts` 735、`EChart.tsx` 734、`DashboardGrid.tsx` 691、`dashboardRuntime.ts` 664、`tokens.ts` 643、`viewRuntime.ts` 727、`AnalysisTable.tsx` 621、`useAnalysisEditor.ts` 604；运行时的 `SubscriptionWorker.kt` 588（运维操作与工作器共用一把锁，提取要把锁与车道零碎地交出去，不提取；必须增长时先把重试的重新处理循环切为 `ParkedReplay`）。测试文件（第二波，只移动）：编译器与契约工具、两个存储的日志测试、迁移工具、查询各片已完成，例外四个（`ManifestTreeTest` 655、`SchemaCompatibilityTest` 615、`SubscriptionManifestTest` 605、`WowContractSourcesFunctionalTest` 602）；`core/runtime` 的 11 个已全部拆完；未派：`HostStoresTest.kt` 611、`HttpCommandClientTest.kt` 613、`skills/wow-migrate` 的 `ViewStoreHostSpec.kt` 991、基准的 `AccessWalkBench.kt` 673。贴近上限、下次改动须先提取：`PartitionOwnership.kt` 597、`CommandGateway.kt` 597、`layout.ts` 595、`HostPartsTest.kt` 590、`dashboard/validate.ts` 594、`SubscriptionRuntime.kt` 588、`display.ts` 587、`MongoEventLog.kt` 565、`MappingCheck.kt` 549 | 进行中 |
 | X-90 | P3 | 未送达的「已解决」记录在重启后丢失 | 发送失败的解决记录留在内存里由每次扫描重发（#5581），节点重启即忘：运维视图继续显示该聚合停放，直到运维在那里操作一次、所属服务答 `NOT_PARKED` 才收敛 | 与 #5561（运维侧保留最新的已解决时间）一起看是否需要运维侧的对账；不在节点侧做持久化的发件箱 | 已登记 |
 | X-91 | P3 | 发布：旧补丁首次迟发时的 npm dist-tag，与并发运行 | 一个旧补丁在更高的补丁之后才第一次发布时，`publish-npm.mjs` 的 `distTag` 仍给它所在线的 dist-tag；发布计划在更新的标签出现之前算出时，结果按旧的标签集。发布流程不会按这种顺序发 | 再现时在 `release-plan.mjs` 里按 #5603 的同一条规则处理 | 已登记 |
 | X-92 | P3 | 访问遍历对从未写入的类型一直轮询 | 遍历每 5 秒按节点查一次某类型是否已有日志存储；声明了却从不写入的聚合类型（包括每个上下文的 `<context>.schedule`）永远查下去。每次是登记表的一次主键读取 | 与遍历的调度一起看能否在类型首次写入时再唤起 | 已登记 |
 | X-93 | P3 | MongoDB 集成测试观察不到读偏好 | 测试用的副本集走直连，驱动一律按 `primaryPreferred` 发，#5641（存储读主节点）因此只有单元测试 | 给集成测试一个非直连的副本集地址，补存储一级的读偏好测试 | 已登记 |
 | X-94 | P3 | 尾部读取在多写节点时的探查频率 | #5622 之后，尾部停在头部时若未关闭的块预留超过一个窗口（同一分区有多个写节点），每次有节奏的轮询多一次探查 | 多写节点的部署可调大 `tailBatch`；与路线图 §6 性能第 22、25 项一起量 | 已登记 |
-| X-97 | P3 | `ClusterTest` 按耗时断言 | 「转发等待不超过命令自己的截止时间」及其连接变体断言 300 毫秒的等待耗时在 250～900 毫秒之间，取决于运行器的速度 | 改为由注入的时钟与截止调度判定，或只断言上界的顺序关系 | 已派（会话 rt-subs-p1，与 #5931 同一个 PR） |
 | X-98 | P3 | OpenAPI 的组件名 | `Box<String>` 与 `Box<String?>` 的组件名为 `…String_` 与 `…String__`，合法且不同，但易看错 | 有服务同时用到两者时，把 `?` 改写成更清楚的记号 | 已登记 |
 | X-99 | P3 | 启用 V10 之后再跑补偿导入 | 导入的条目在 V10 尚未重试之前仍带导入的来源标记，此时重跑 `import` 会把 9.x 的状态重述到运维在 V10 里设的标记或重试规格之上；操作说明已写明启用前跑 `import --final` | 若要拒绝而非只写在文档里：目标节点已启用时 `import` 拒绝执行 | 已登记 |
 | X-100 | P3 | `:migrate-data` 的两处收尾 | `CompensationImporter.kt` 贴近上限（登记时 494 行）。另一处（`MongoNineXEventSource.kt` 里已弃用的 `textNode(String)`）主源码中已不存在 | 下次改动 `CompensationImporter` 先把比较（`CompensationComparison` 与 `importedEntries`，约 120 行）移到自己的文件 | 已登记 |
 | X-106 | P3 | 基准工具 | 组件级套件没有噪声带与自对照；L2 的延迟在存储饱和时不成结论；`bench.yml` 每个 ref 只留一个排队的运行；共用的基准服务器类路径上已有 ClickHouse 存储，与 Axon 的对比读的就是它的启动时间与常驻内存 | `.github/scripts/bench.mjs` 4,725 行与 `bench.sh` 606 行待拆（`measure` 一类已移出，#5891）。改基准工作流属 CI 变更，动手前与用户确认 | 已登记 |
 | X-109 | P3 | detekt 门禁 | detekt 不检查集成测试与测试夹具源集；门禁自己的 detekt 任务就地改写源码 | 集成测试与测试夹具源集纳入 detekt 门禁，门禁默认不自动改正（本地以 `-Pwow.detekt.autoCorrect` 取回）；七个 PR：规则配置、五组模块的清理、最后并入门禁。另记：Gradle 插件所在的独立构建没有 detekt | 进行中：规则配置与五组模块的清理已做，余并入门禁的一步（会话 kernel-writes-p1） |
 | X-110 | P3 | 事件日志拆分的收尾 | 收尾笔记的各项已处理 | 三个未做的候选：两个存储在一次调用的后一部分只捕获各自的存储异常，不属于存储失败的拒绝仍会抛出；给 SPI 增加「未写入、重试可能成功」的追加结果；两个存储的测试夹具各有一份照 TCK 抄的 `stream`，是否由 TCK 开放给后端自己的测试 | 已处理，留三个候选 |
-| X-113 | P3 | 测试里的存量 | 运行时的测试以 `delay(…)` 等待；`compiler/compiler` 的测试包里 22 份相同的 `options` 辅助函数；两处类注释只覆盖类里的一部分测试（`SubscriptionCompatibilityTest`、`ServiceRoleTest`）；`AggregateCompatibilityTest` 的 `byId` 与 `CompatibilityFixtures.ROUTE` 同值；`TypeArgumentsTest` 的 `completed` 每个测试实例都重建；`QueryBulkhead.kt:180` 是否被覆盖取决于线程时序 | `delay(…)` 随 `core/runtime` 的测试拆分处理；其余未排 | 已登记 |
+| X-113 | P3 | 测试里的存量 | 运行时的测试以 `delay(…)` 等待；`compiler/compiler` 的测试包里 22 份相同的 `options` 辅助函数；两处类注释只覆盖类里的一部分测试（`SubscriptionCompatibilityTest`、`ServiceRoleTest`）；`AggregateCompatibilityTest` 的 `byId` 与 `CompatibilityFixtures.ROUTE` 同值；`TypeArgumentsTest` 的 `completed` 每个测试实例都重建；`QueryBulkhead.kt:180` 是否被覆盖取决于线程时序 | 运行时测试里真实时间上的 73 处等待分五类处理（会话 rt-subs-p1）：轮询、等时钟或某一步、闸门后的缺席、「不再发生」四类只改测试；「若干轮后的缺席」25 处逐组件定，没有现成信号可数的不为测试给产品代码加钩子。所有权的测试以 `abort()` 收尾随同一批。其余未排 | 进行中 |
 | X-114 | P3 | 代码与工作流里的注释 | 约 130 处注释以「roadmap <编号>」引用路线图的工作包或 §6 的条目，另有 4 处引用文档方案的 DG-6；这些编号所指的条目做完后已从路线图删去，注释指向的东西不再存在 | 逐处改为说明原因本身，或引用决定编号；随各模块下一次改动或一次专门的清理做 | 已登记 |
 
 ## 4. 第三轮架构审查 R3（2026-10-19，基线 `751c87569d`，只读）
@@ -123,24 +122,20 @@
 
 | issue | 级别 | 位置 | 现象 | 状态 |
 | --- | --- | --- | --- | --- |
-| #5890 | P2 | 视图引擎 | 根上的检索字段列表为空时，收窄把检索框判为不可用；准入、编译与线上格式都把空列表读作没写 | 修复已审（#5920），合并后删去本行 |
-| #5931 | P3 | `edge/http` 的测试 | `InternalStreamsTest` 以墙上时钟量「截止时间加宽限」，而通道在单调时钟上等待，可能差 1 毫秒 | 已派（会话 rt-subs-p1） |
 | #3721 | — | 视图引擎 | 主题一览的故事导航进入时整页横向溢出 | 未排 |
 
 ## 13. 存储结构与索引的性能审查（2026-11-09，基线 `6405a72076`，只读）
 
 四个后端（PostgreSQL、MongoDB、ClickHouse、Elasticsearch）的存储结构与索引按代码只读盘点，没有运行数据库：代价都由代码推出，量级须在 Actions 上测过才作数。结论：写路径的结构是对的，问题集中在读平面与追赶路径。
 
-格式项的决定：D406（PostgreSQL 与 MongoDB，①～④ 已做）、D411（ES-3，已完成）、D412（CH-2、CH-5）、D413（CH-1、ES-1、ES-2）、D414（GA 前各格式号保持为 1，不升格式号）。
+格式项的决定：D406（PostgreSQL 与 MongoDB，①～④ 已做）、D411（ES-3，已完成）、D412（CH-2、CH-5，已完成；余访问谓词落到 `access_<name>` 列的一步）、D413（CH-1、ES-1、ES-2）、D414（GA 前各格式号保持为 1，不升格式号）。
 
-本节共 26 行（一行可含多个编号），10 行已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
+本节共 26 行（一行可含多个编号），12 行已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
 
 | 编号 | 级别 | 后端 | 发现 | 余下 | 格式 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | CH-1、ES-2 | P1、P2 | ClickHouse、Elasticsearch | Sink 的订阅每条记录调用一次写入：ClickHouse 一次 INSERT 在三张表各生成一个 part，Elasticsearch 的事件 Sink 每次提交一个 `_bulk`、一次 translog 落盘 | Sink 的订阅成批交给 Sink；改前改后在 Actions 上量每个 part 的行数与每个 `_bulk` 的文档数。改前（`sink-ch`，run 42925482067）：ClickHouse 每次 INSERT 约 3 个提交，三张表各一个 part | 否 | 进行中（D413：运行时一侧已合并，余 Sink 一侧） |
 | ES-1 | P1（属性常变时） | Elasticsearch | 一次提交改了访问属性，就对整个索引强制刷新一次，再用 `_update_by_query` 重写该聚合此前的全部版本；属性常变时一个聚合一生是平方级 | 随成批：一批一次刷新、一次盖章；文档写明这类属性的代价 | 否 | 进行中（D413，Sink 一侧） |
-| CH-2 | P1 | ClickHouse | 扁平视图 `_state_flat` 在 `_state FINAL` 之上逐列 `JSONExtract`，过滤与排序都落在表达式上：查 20 行的代价等于读出并解析该租户的全部当前状态。与路线图 §6 性能第 23 项同一根因 | `_state` 上带类型的 `MATERIALIZED` 列，视图只选列 | 是 | 进行中（D412，会话 p1-sweep-edges） |
-| CH-5 | P2 | ClickHouse | `_state` 与历史表共用同一组列，带着读当前状态用不到的事件载荷数组与请求头 | `_state` 用自己的列清单 | 是 | 进行中（D412，会话 p1-sweep-edges） |
 | CH-3 | P1 | ClickHouse | 分析目录编译出的数据集视图把每个会合并的来源写成 `(SELECT * FROM t FINAL)`，租户条件只加在主体上；右表能否被下推过滤取决于服务器版本，未验证 | 先在 Actions 上用 `EXPLAIN indexes=1` 看右表的主键条件；不下推就把视图做成带租户参数的，或在来源子查询里显式加租户条件 | 否 | 待测 |
 | ES-4 | P2 | Elasticsearch | 快照写入默认 `wait_for`：每批要等到下一次刷新才返回，最长约 1 秒；命令的 SNAPSHOT 等待是否包含这次写入未能读定 | 非主存储的快照默认不等刷新，需要读己之写的查询再开 | 否（默认值） | 待定 |
 | PG-4、PG-5、PG-13 | P2 | PostgreSQL | 原地更新的表都没有设 `fillfactor`：快照保存只要有一个声明在 `state` 上的索引就失去 HOT；全部分区计数行挤在一个堆页上；检查点与租约同理 | 先量 HOT 比例（`n_tup_hot_upd / n_tup_upd`）与死元组，再定计数表、快照表、检查点表的 `fillfactor`；文档写明每个声明的状态索引都让快照保存多付一份 | 否（存储参数） | 待测 |
