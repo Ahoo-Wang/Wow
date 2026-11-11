@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
+    `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
+    `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
     `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
     `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
@@ -235,7 +237,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 
 **The computed columns of `_state`.** After its stored columns, `_state` has columns ClickHouse computes from them when a row is inserted (`MATERIALIZED`): no insert sets them, and `SELECT *` leaves them out, so name them. Each one's comment keeps a fingerprint of its type and expression (`wow:<fingerprint>`). They are:
 
-- **an access column per access attribute the aggregate declares**, `access_<name>`, read from `access`: `Nullable(String)`, `Nullable(Int64)` or `Nullable(Bool)` by the attribute's type, or `Array(String)`, `Array(Int64)` or `Array(Bool)` for a multiple one. A row without the attribute has `NULL`, or an empty array. The built-in `owner` and `space` are `owner_id` and `space_id`. A dataset bound to the aggregate reads its access policy's restriction from these columns ([Datasets](../guide/datasets)).
+- **an access column per access attribute**, `access_<name>`, read from `access`: the built-in `owner` and `space` first, `Nullable(String)`, then each the aggregate declares, `Nullable(String)`, `Nullable(Int64)` or `Nullable(Bool)` by the attribute's type, or `Array(String)`, `Array(Int64)` or `Array(Bool)` for a multiple one. A row without the attribute has `NULL`, or an empty array. A declared attribute is never named `owner` or `space`, so no two columns share a name. A dataset bound to the aggregate reads its access policy's restriction from these columns ([Datasets](../guide/datasets)).
 - **a flat column for each top-level scalar property of the state schema**, in its order, read from `state` (a decimal from `state_numbers`).
 
 **`_state_flat`** is a view of `_state FINAL`: `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `access`, then the flat columns:
@@ -353,6 +355,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
+    `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
+    `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
     `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
     `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',

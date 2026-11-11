@@ -167,7 +167,10 @@ class ClickHouseSinkSchemaTest {
                 AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
             ),
         )
+        // The built-in owner and space first, strings, then the declared ones.
         access.map { it.name to it.type }.assert().containsExactly(
+            "access_owner" to "Nullable(String)",
+            "access_space" to "Nullable(String)",
             "access_region" to "Nullable(String)",
             "access_level" to "Nullable(Int64)",
             "access_vip" to "Nullable(Bool)",
@@ -177,24 +180,34 @@ class ClickHouseSinkSchemaTest {
         val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat, accessColumns = access)
         // The access columns come first, then the flat ones; each says its definition's fingerprint.
         schema.computed.map { it.name }.assert()
-            .containsExactly("access_region", "access_level", "access_vip", "access_teams", "total")
+            .containsExactly(
+                "access_owner",
+                "access_space",
+                "access_region",
+                "access_level",
+                "access_vip",
+                "access_teams",
+                "total",
+            )
+        val region = access.single { it.name == "access_region" }
         schema.ddl[1].assert().contains(
             "    `access_region` Nullable(String) MATERIALIZED JSONExtract(access, 'region', 'Nullable(String)') " +
-                "COMMENT 'wow:${access.first().fingerprint}',\n",
+                "COMMENT 'wow:${region.fingerprint}',\n",
         )
-        access.first().fingerprint.assert().hasSize(16)
-            .isNotEqualTo(ComputedColumn("access_region", "String", access.first().expression).fingerprint)
+        region.fingerprint.assert().hasSize(16)
+            .isNotEqualTo(ComputedColumn("access_region", "String", region.expression).fingerprint)
     }
 
     @Test
     fun `a missing computed column should be added after the one before it`() {
         val access = AccessColumns.of(listOf(AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING)))
         val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat, accessColumns = access)
+        val alter = "ALTER TABLE `default`.`shop_order_state` ADD COLUMN IF NOT EXISTS"
         schema.addColumns(schema.computed).assert().containsExactly(
-            "ALTER TABLE `default`.`shop_order_state` ADD COLUMN IF NOT EXISTS ${access.single().definition} " +
-                "AFTER `state_numbers`",
-            "ALTER TABLE `default`.`shop_order_state` ADD COLUMN IF NOT EXISTS ${schema.computed.last().definition} " +
-                "AFTER `access_region`",
+            "$alter ${access[0].definition} AFTER `state_numbers`",
+            "$alter ${access[1].definition} AFTER `access_owner`",
+            "$alter ${access[2].definition} AFTER `access_space`",
+            "$alter ${schema.computed.last().definition} AFTER `access_region`",
         )
     }
 

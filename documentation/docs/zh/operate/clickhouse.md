@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
+    `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
+    `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
     `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
     `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
@@ -235,7 +237,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 **`_state` 的计算列。** 在存储列之后，`_state` 还有 ClickHouse 在插入一行时由它们计算的列（`MATERIALIZED`）：任何插入都不设置它们，`SELECT *` 也不包含它们，所以要按名字读。每一列的注释记着它的类型与表达式的指纹（`wow:<指纹>`）。它们是：
 
-- **聚合声明的每个访问属性一列**，`access_<name>`，从 `access` 读取：按属性的类型是 `Nullable(String)`、`Nullable(Int64)` 或 `Nullable(Bool)`，多值属性是 `Array(String)`、`Array(Int64)` 或 `Array(Bool)`。没有该属性的行是 `NULL` 或空数组。内置的 `owner` 与 `space` 就是 `owner_id` 与 `space_id`。绑定到该聚合的数据集按这些列读取其访问策略的限制（[数据集](../guide/datasets)）。
+- **每个访问属性一列**，`access_<name>`，从 `access` 读取：先是内置的 `owner` 与 `space`，`Nullable(String)`，再是聚合声明的每一个，按属性的类型是 `Nullable(String)`、`Nullable(Int64)` 或 `Nullable(Bool)`，多值属性是 `Array(String)`、`Array(Int64)` 或 `Array(Bool)`。没有该属性的行是 `NULL` 或空数组。声明的属性不会叫 `owner` 或 `space`，所以不会有两列同名。绑定到该聚合的数据集按这些列读取其访问策略的限制（[数据集](../guide/datasets)）。
 - **状态 schema 的每个顶层标量属性一列展平列**，顺序与 schema 相同，从 `state` 读取（小数从 `state_numbers` 读取）。
 
 **`_state_flat`** 是 `_state FINAL` 的视图：`id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `access`，随后是展平列：
@@ -353,6 +355,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
+    `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
+    `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
     `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
     `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',

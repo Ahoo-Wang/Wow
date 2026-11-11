@@ -188,7 +188,8 @@ class ClickHouseSinkTest {
             statements.executed.indexOf(alters.last()).assert()
                 .isLessThan(statements.executed.indexOfFirst { it.startsWith("CREATE OR REPLACE VIEW") })
             // The recording server added nothing, so the check after it still finds them missing.
-            error!!.message.assert().contains("shop_order_state lacks status, note, quantity")
+            val lacking = "shop_order_state lacks access_owner, access_space, status, note, quantity"
+            error!!.message.assert().contains(lacking)
         }
 
     @Test
