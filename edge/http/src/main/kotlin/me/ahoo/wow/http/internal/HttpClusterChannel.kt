@@ -276,9 +276,10 @@ class HttpClusterChannel(
     companion object {
         /**
          * The default of the forwards open to one peer at a time: the peer's [InternalHttp.MAX_CONCURRENT_STREAMS] less
-         * the [HttpSignalSender.DEFAULT_CONCURRENCY] the node's signal sender takes on the same connection.
+         * the [HttpSignalSenderOptions.DEFAULT_CONCURRENCY] the node's signal sender takes on the same connection.
          */
-        const val DEFAULT_STREAMS: Int = InternalHttp.MAX_CONCURRENT_STREAMS - HttpSignalSender.DEFAULT_CONCURRENCY
+        const val DEFAULT_STREAMS: Int =
+            InternalHttp.MAX_CONCURRENT_STREAMS - HttpSignalSenderOptions.DEFAULT_CONCURRENCY
 
         private val MIN_STREAM_PAUSE = 1.milliseconds
         private val MAX_STREAM_PAUSE = 50.milliseconds

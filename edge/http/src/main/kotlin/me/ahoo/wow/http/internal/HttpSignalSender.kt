@@ -45,7 +45,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 
 /**
@@ -54,28 +53,29 @@ import kotlin.time.toJavaDuration
  * [me.ahoo.wow.runtime.wait.LocalSignalSender]. A signal is written by [ClusterCodec], as every message between the
  * nodes of a service.
  *
- * [send] never waits: it puts the signal in its origin's queue of [queueCapacity] and returns. Each origin's queue is
- * sent from by at most [concurrency] requests at a time. A request carries what the queue holds then, up to
- * [maxBatch] signals: under a burst, one request per batch instead of one per signal; a lone signal goes
- * as before. An origin that refuses a batch as malformed (HTTP 400: a node of an earlier version reads only single
- * signals) is sent one signal a request from then on.
+ * [send] never waits: it puts the signal in its origin's queue of [HttpSignalSenderOptions.queueCapacity] and returns.
+ * Each origin's queue is sent from by at most [HttpSignalSenderOptions.concurrency] requests at a time. A request
+ * carries what the queue holds then, up to [HttpSignalSenderOptions.maxBatch] signals: under a burst, one request per
+ * batch instead of one per signal; a lone signal goes as before. An origin that refuses a batch as malformed (HTTP 400:
+ * a node of an earlier version reads only single signals) is sent one signal a request from then on.
  *
  * A request is given until the latest deadline of the waits its signals end, as a forward is: a signal
  * is worth delivering while its waiter waits, so an origin slow to take it, its event loops lagging under load, still
  * ends the wait. A fixed limit shorter than the wait dropped such signals, and their waiters answered a committed
  * command as timed out (item 1).
  *
- * Each origin's [concurrency] is its share of the streams of the one connection to the origin, which the node's
- * [HttpClusterChannel] shares ([InternalHttp.MAX_CONCURRENT_STREAMS]): the channel leaves the default to the signals.
+ * Each origin's [HttpSignalSenderOptions.concurrency] is its share of the streams of the one connection to the origin,
+ * which the node's [HttpClusterChannel] shares ([InternalHttp.MAX_CONCURRENT_STREAMS]): the channel leaves the default
+ * to the signals.
  *
  * A request that fails for a while only, its origin's address not resolving or refusing connections yet, its connect
  * timing out, the connection's streams all taken (`too many concurrent streams`: the request was not sent), or the
- * origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again
- * after [retryBackoff], doubled each time up to [MAX_RETRY_BACKOFF], at most [maxAttempts] times in all, and never
- * past the latest deadline of its waits: the signal of a committed command then still ends its wait,
- * where one failure answered it as timed out. The origin deduplicates a signal it took twice, as one sent by two
- * nodes, so a request that reached it and failed after is safe to send again. An origin's definite
- * answer, any other status, is never retried.
+ * origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again after
+ * [HttpSignalSenderOptions.retryBackoff], doubled each time up to [MAX_RETRY_BACKOFF], at most
+ * [HttpSignalSenderOptions.maxAttempts] times in all, and never past the latest deadline of its waits: the signal of a
+ * committed command then still ends its wait, where one failure answered it as timed out. The origin deduplicates a
+ * signal it took twice, as one sent by two nodes, so a request that reached it and failed after is safe to send again.
+ * An origin's definite answer, any other status, is never retried.
  *
  * A signal is dropped when its queue is full, when its wait is over before it is sent ([ObservedEvent.SignalDropped.Reason.EXPIRED]), when its request
  * fails otherwise, or after its last attempt, or outlives its waits, or when the origin answers other than 2xx: a lost
@@ -83,8 +83,8 @@ import kotlin.time.toJavaDuration
  * [ObservedEvent.SignalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
  * after, at DEBUG otherwise: never silent, never a log line per signal of a burst.
  *
- * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
- * accumulate. [close] stops sending; what is queued then is dropped.
+ * An origin's queue goes away after [HttpSignalSenderOptions.idleTimeout] without signals, so the origins of nodes long
+ * gone do not accumulate. [close] stops sending; what is queued then is dropped.
  *
  * Every signal names this node's [service] in `Wow-Service`, whether its origin is a node of this
  * service or of another one, the origin of a wait that crossed into this one: the signal entry takes a signal from a
@@ -93,20 +93,13 @@ import kotlin.time.toJavaDuration
 @InternalWowApi
 class HttpSignalSender(
     private val client: HttpClient = InternalHttp.client(),
-    private val queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
-    private val concurrency: Int = DEFAULT_CONCURRENCY,
-    private val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
     private val service: String? = null,
-    /** The most signals one request carries to an origin. */
-    private val maxBatch: Int = DEFAULT_MAX_BATCH,
     /** Counts the dropped signals by reason. */
     private val observer: Observer = Observer.NONE,
     /** The time the waits' deadlines are read against, in epoch milliseconds. */
     private val clock: () -> Long = System::currentTimeMillis,
-    /** The wait before a failed request is sent again the first time, doubled each time after. */
-    private val retryBackoff: Duration = DEFAULT_RETRY_BACKOFF,
-    /** The most times a request is sent, the first included. */
-    private val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
+    /** Its queues, batches and retries. */
+    private val options: HttpSignalSenderOptions = HttpSignalSenderOptions(),
 ) : SignalSender, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val outboxes = ConcurrentHashMap<String, Outbox>()
@@ -114,15 +107,6 @@ class HttpSignalSender(
 
     @Volatile
     private var closed = false
-
-    init {
-        require(queueCapacity >= 1) { "A signal queue holds at least one signal." }
-        require(concurrency >= 1) { "At least one signal is sent at a time." }
-        require(idleTimeout.isPositive()) { "The idle timeout is positive." }
-        require(maxBatch >= 1) { "A request carries at least one signal." }
-        require(retryBackoff.isPositive()) { "The retry backoff is positive." }
-        require(maxAttempts >= 1) { "A request is sent at least once." }
-    }
 
     /** The signals dropped so far. */
     val dropped: Long get() = drops.get()
@@ -160,8 +144,8 @@ class HttpSignalSender(
 
     /** The queue of one origin and the coroutine that sends from it. */
     private inner class Outbox(val address: String) {
-        val queue = Channel<Pending>(queueCapacity) { drop(address, it.signal, Reason.CLOSED) }
-        private val permits = Semaphore(concurrency)
+        val queue = Channel<Pending>(options.queueCapacity) { drop(address, it.signal, Reason.CLOSED) }
+        private val permits = Semaphore(options.concurrency)
 
         /** Whether the origin refused a batch: it is sent one signal a request. */
         @Volatile
@@ -173,7 +157,7 @@ class HttpSignalSender(
 
         private suspend fun run() {
             while (true) {
-                val pending = withTimeoutOrNull(idleTimeout) { queue.receive() } ?: break
+                val pending = withTimeoutOrNull(options.idleTimeout) { queue.receive() } ?: break
                 dispatch(batch(pending))
             }
             // Idle: leave first, so new signals open a new queue, then send what came in meanwhile.
@@ -188,7 +172,7 @@ class HttpSignalSender(
         private fun batch(first: Pending): List<Pending> {
             val batch = ArrayList<Pending>(1)
             batch += first
-            while (!singles && batch.size < maxBatch) {
+            while (!singles && batch.size < options.maxBatch) {
                 batch += queue.tryReceive().getOrNull() ?: break
             }
             return batch
@@ -267,7 +251,7 @@ class HttpSignalSender(
         detail: String,
     ) {
         val backoff = backoffOf(attempt)
-        if (attempt < maxAttempts && clock() + backoff.inWholeMilliseconds < latest) {
+        if (attempt < options.maxAttempts && clock() + backoff.inWholeMilliseconds < latest) {
             delay(backoff)
             deliver(outbox, live, attempt + 1)
         } else {
@@ -277,7 +261,10 @@ class HttpSignalSender(
 
     /** The wait after [attempt] failed: [retryBackoff], doubled each attempt, at most [MAX_RETRY_BACKOFF]. */
     private fun backoffOf(attempt: Int): Duration =
-        minOf(retryBackoff * (1 shl minOf(attempt - 1, MAX_DOUBLINGS)), maxOf(MAX_RETRY_BACKOFF, retryBackoff))
+        minOf(
+            options.retryBackoff * (1 shl minOf(attempt - 1, MAX_DOUBLINGS)),
+            maxOf(MAX_RETRY_BACKOFF, options.retryBackoff),
+        )
 
     /** What a request came to: the origin's answer, or the failure that left it without one. */
     private sealed interface Sent {
@@ -303,19 +290,8 @@ class HttpSignalSender(
 
     @InternalWowApi
     companion object {
-        const val DEFAULT_QUEUE_CAPACITY: Int = 1_024
-        const val DEFAULT_CONCURRENCY: Int = 16
-        val DEFAULT_IDLE_TIMEOUT: Duration = 1.minutes
-        const val DEFAULT_MAX_BATCH: Int = 64
-
-        /** The wait before a failed request is sent again the first time. */
-        val DEFAULT_RETRY_BACKOFF: Duration = 50.milliseconds
-
         /** The longest wait between two attempts of a request. */
         val MAX_RETRY_BACKOFF: Duration = 800.milliseconds
-
-        /** The most times a request is sent, the first included: 50 + 100 + 200 + 400 ms of backoff in all. */
-        const val DEFAULT_MAX_ATTEMPTS: Int = 5
         private const val MAX_DOUBLINGS = 16
 
         /** The answers of an origin that takes no signal for a while: unavailable, too many requests. */

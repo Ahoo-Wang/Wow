@@ -76,9 +76,9 @@ object InternalHttp {
      * (`SETTINGS_MAX_CONCURRENT_STREAMS`, Netty's default made explicit). The JDK [client] neither queues a request
      * past a peer's limit nor opens another connection for it: it fails the request, unsent, with
      * `IOException: too many concurrent streams` (JDK 21 and 25 alike). So the node's senders on one connection keep
-     * within it between them: its [HttpSignalSender] sends at most [HttpSignalSender.DEFAULT_CONCURRENCY] requests to a
-     * node at a time, and its [HttpClusterChannel] keeps the rest ([HttpClusterChannel.DEFAULT_STREAMS]), a forward
-     * past them waiting for a stream.
+     * within it between them: its [HttpSignalSender] sends at most [HttpSignalSenderOptions.DEFAULT_CONCURRENCY]
+     * requests to a node at a time, and its [HttpClusterChannel] keeps the rest ([HttpClusterChannel.DEFAULT_STREAMS]),
+     * a forward past them waiting for a stream.
      */
     const val MAX_CONCURRENT_STREAMS: Int = 100
 

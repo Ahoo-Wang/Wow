@@ -77,8 +77,8 @@ class InternalStreamsTest {
     private fun server(streams: Int = InternalHttp.MAX_CONCURRENT_STREAMS): InternalServer =
         InternalServer(internalRoutes(owner, { signals += it }), streams = streams).also { servers += it }
 
-    private fun sender(maxBatch: Int = HttpSignalSender.DEFAULT_MAX_BATCH): HttpSignalSender =
-        HttpSignalSender(client, maxBatch = maxBatch).also { senders += it }
+    private fun sender(maxBatch: Int = HttpSignalSenderOptions.DEFAULT_MAX_BATCH): HttpSignalSender =
+        HttpSignalSender(client, options = HttpSignalSenderOptions(maxBatch = maxBatch)).also { senders += it }
 
     @AfterEach
     fun close() {
@@ -203,7 +203,7 @@ class InternalStreamsTest {
         val sender = sender()
         val origin = Origin("node-1", server.address, "bank-service")
         sender.send(origin, WaitSignal(waitId = "w-1", result = committed("c-1")), deadline())
-        delay(HttpSignalSender.DEFAULT_RETRY_BACKOFF * 2)
+        delay(HttpSignalSenderOptions.DEFAULT_RETRY_BACKOFF * 2)
         signals.assert().isEmpty()
         release.complete(Unit)
         eventually { signals.size == 1 }

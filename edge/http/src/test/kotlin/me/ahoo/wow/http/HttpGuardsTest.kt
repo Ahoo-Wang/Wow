@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.wire.ScopeHeader
-import me.ahoo.wow.http.internal.HttpSignalSender
+import me.ahoo.wow.http.internal.HttpSignalSenderOptions
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 
@@ -26,9 +26,12 @@ import kotlin.time.Duration
 class HttpGuardsTest {
     @Test
     fun `a signal sender should refuse settings that cannot send`() {
-        assertThrownBy<IllegalArgumentException> { HttpSignalSender(queueCapacity = 0) }
-        assertThrownBy<IllegalArgumentException> { HttpSignalSender(concurrency = 0) }
-        assertThrownBy<IllegalArgumentException> { HttpSignalSender(idleTimeout = Duration.ZERO) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(queueCapacity = 0) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(concurrency = 0) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(idleTimeout = Duration.ZERO) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(maxBatch = 0) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(retryBackoff = Duration.ZERO) }
+        assertThrownBy<IllegalArgumentException> { HttpSignalSenderOptions(maxAttempts = 0) }
     }
 
     @Test
