@@ -19,9 +19,9 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
-import me.ahoo.wow.spring.boot.PeerDiscoveries
 import me.ahoo.wow.spring.boot.ProviderOptionKeys
 import me.ahoo.wow.spring.boot.StoreProviders
+import me.ahoo.wow.spring.boot.http.PeerDiscoveries
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

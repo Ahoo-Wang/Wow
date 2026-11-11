@@ -36,8 +36,8 @@ import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.PeerTargetProperties
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.http.PeerTargetProperties
 import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.security.SignedInCallerResolver
 import org.springframework.beans.factory.ObjectProvider

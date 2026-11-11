@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication

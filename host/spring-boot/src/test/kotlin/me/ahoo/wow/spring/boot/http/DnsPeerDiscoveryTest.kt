@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -27,6 +27,9 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.NodeModels
+import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir

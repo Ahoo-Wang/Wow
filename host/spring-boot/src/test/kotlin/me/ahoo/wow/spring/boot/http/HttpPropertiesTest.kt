@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.WowConfigurationException

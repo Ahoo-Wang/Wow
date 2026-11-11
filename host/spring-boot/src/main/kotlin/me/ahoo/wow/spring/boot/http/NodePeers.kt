@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
@@ -28,8 +28,12 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.peer.PeerDiscovery
+import me.ahoo.wow.spring.boot.NodeIdentity
 import me.ahoo.wow.spring.boot.NodeModels.Companion.serviceOf
+import me.ahoo.wow.spring.boot.PortProviders
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.PEER_HTTP_CLIENT
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

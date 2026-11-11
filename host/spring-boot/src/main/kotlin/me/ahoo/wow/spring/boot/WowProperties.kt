@@ -18,6 +18,10 @@ import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spring.boot.config.ConfigurationKeys
+import me.ahoo.wow.spring.boot.http.CallerPermitsProperties
+import me.ahoo.wow.spring.boot.http.HttpProperties
+import me.ahoo.wow.spring.boot.http.PeerProperties
+import me.ahoo.wow.spring.boot.http.PeerTargetProperties
 import me.ahoo.wow.spring.boot.observability.HealthProperties
 import me.ahoo.wow.spring.boot.observability.ObservabilityProperties
 import me.ahoo.wow.spring.boot.security.CoSecProperties

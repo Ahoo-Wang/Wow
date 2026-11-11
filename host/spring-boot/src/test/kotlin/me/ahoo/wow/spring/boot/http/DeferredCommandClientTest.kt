@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import io.mockk.coEvery
 import io.mockk.every
@@ -25,6 +25,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.spring.boot.OpenAccount
 import org.junit.jupiter.api.Test
 
 class DeferredCommandClientTest {

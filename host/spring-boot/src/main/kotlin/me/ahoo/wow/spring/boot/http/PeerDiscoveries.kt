@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.http
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.sync.Mutex
@@ -28,6 +28,8 @@ import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
+import me.ahoo.wow.spring.boot.PortProviders
+import me.ahoo.wow.spring.boot.WowProperties
 import java.io.IOException
 import java.net.URI
 import java.nio.file.Files
