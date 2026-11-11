@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.openapi
 
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
@@ -20,6 +20,9 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
+import me.ahoo.wow.spring.boot.Host
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springdoc.core.models.GroupedOpenApi

@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.security
 
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.spring.boot.WowOpenApiSecurity
+import me.ahoo.wow.spring.boot.openapi.WowOpenApiSecurity
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**

@@ -19,6 +19,7 @@ import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spring.boot.openapi.SpringdocAutoConfiguration
 import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration

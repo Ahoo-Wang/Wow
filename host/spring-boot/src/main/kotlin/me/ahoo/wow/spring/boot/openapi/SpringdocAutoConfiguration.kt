@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.openapi
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.swagger.v3.core.util.Json31
@@ -24,6 +24,8 @@ import me.ahoo.wow.http.wowOpenApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springdoc.api.AbstractOpenApiResource
 import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springdoc.core.models.GroupedOpenApi

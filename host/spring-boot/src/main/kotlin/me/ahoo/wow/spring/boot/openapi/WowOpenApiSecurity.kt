@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.openapi
 
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.caller.CallerResolver
