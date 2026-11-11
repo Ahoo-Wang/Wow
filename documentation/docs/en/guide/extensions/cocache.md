@@ -105,7 +105,7 @@ wow:
       - eshop-ordering.order
 ```
 
-Each listed type is written by a sink subscription of its own, `cocache-sink.<aggregate>`, on the owner's state stream. It checkpoints, retries and parks like any subscription ([Handle Failures](../failures)):
+Each listed type is written by a sink subscription of its own, `wow.cocache-sink.<aggregate>`, on the owner's state stream. It checkpoints, retries and parks like any subscription ([Handle Failures](../failures)):
 
 - A commit writes the aggregate's state after it, at the commit's version, and only over an older version. A commit delivered again, a replay, or an old owner beside the new one never takes the cache back.
 - A deleting commit writes a tombstone at its version, which reads as absent and which no older state undoes.
