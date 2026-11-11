@@ -55,27 +55,19 @@ sealed interface DecideFunction<S : Any> {
 
     class Sync<S : Any>(
         override val creation: Creation,
-        override val onDeleted: Boolean,
-        val decide: DecideScope.(S, Any) -> Decision,
+        override val onDeleted: Boolean = false,
         override val produces: Set<Class<*>>? = null,
-    ) : DecideFunction<S> {
-        constructor(creation: Creation, decide: DecideScope.(S, Any) -> Decision) : this(creation, false, decide)
-    }
+        val decide: DecideScope.(S, Any) -> Decision,
+    ) : DecideFunction<S>
 
     /** A suspending decide function; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val creation: Creation,
-        val blocking: Boolean,
-        override val onDeleted: Boolean,
-        val decide: suspend DecideScope.(S, Any) -> Decision,
+        val blocking: Boolean = false,
+        override val onDeleted: Boolean = false,
         override val produces: Set<Class<*>>? = null,
-    ) : DecideFunction<S> {
-        constructor(creation: Creation, blocking: Boolean, decide: suspend DecideScope.(S, Any) -> Decision) :
-            this(creation, blocking, false, decide)
-
-        constructor(creation: Creation, decide: suspend DecideScope.(S, Any) -> Decision) :
-            this(creation, false, false, decide)
-    }
+        val decide: suspend DecideScope.(S, Any) -> Decision,
+    ) : DecideFunction<S>
 }
 
 /**
@@ -93,20 +85,17 @@ sealed interface AfterFunction<S : Any> {
 
     class Sync<S : Any>(
         override val applies: (Class<*>) -> Boolean,
-        val after: DecideScope.(S, Any) -> List<Any>,
         override val produces: Set<Class<*>>? = null,
+        val after: DecideScope.(S, Any) -> List<Any>,
     ) : AfterFunction<S>
 
     /** A suspending after hook; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val applies: (Class<*>) -> Boolean,
-        val blocking: Boolean,
-        val after: suspend DecideScope.(S, Any) -> List<Any>,
+        val blocking: Boolean = false,
         override val produces: Set<Class<*>>? = null,
-    ) : AfterFunction<S> {
-        constructor(applies: (Class<*>) -> Boolean, after: suspend DecideScope.(S, Any) -> List<Any>) :
-            this(applies, false, after)
-    }
+        val after: suspend DecideScope.(S, Any) -> List<Any>,
+    ) : AfterFunction<S>
 }
 
 /**

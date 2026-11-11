@@ -47,7 +47,8 @@ class ExecutionContext @InternalWowApi constructor(
 ) : SubscriptionContext {
     /**
      * The context of the execution [executionId], without queries: a domain module's test calls a projection or a
-     * reactor with it.
+     * reactor with it. It differs from the primary constructor in taking no [ContextQueries], the node's, which is an
+     * internal type the public API cannot name.
      */
     constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
 
@@ -84,7 +85,12 @@ class ExecutionSagaContext @InternalWowApi constructor(
     /** What the handler declares it sends; null for a context built outside its binding. */
     private val sends: SagaSends? = null,
 ) : SagaContext {
-    /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
+    /**
+     * The context of the execution [executionId] of the commit [event], deriving its ids from [ids]: a domain module's
+     * test calls a saga with it. It differs from the primary constructor in taking none of the node's collaborators
+     * ([CommandTypes], [EventCodec], [CommandCalls], [ContextQueries], [SagaSends]), internal types the public API
+     * cannot name.
+     */
     constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
         this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
 

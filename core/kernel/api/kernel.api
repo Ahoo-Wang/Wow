@@ -4,9 +4,8 @@ public abstract interface class me/ahoo/wow/kernel/AfterFunction {
 }
 
 public final class me/ahoo/wow/kernel/AfterFunction$Suspending : me/ahoo/wow/kernel/AfterFunction {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function4;)V
-	public fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;Ljava/util/Set;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;ZLjava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;ZLjava/util/Set;Lkotlin/jvm/functions/Function4;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAfter ()Lkotlin/jvm/functions/Function4;
 	public fun getApplies ()Lkotlin/jvm/functions/Function1;
 	public final fun getBlocking ()Z
@@ -14,8 +13,8 @@ public final class me/ahoo/wow/kernel/AfterFunction$Suspending : me/ahoo/wow/ker
 }
 
 public final class me/ahoo/wow/kernel/AfterFunction$Sync : me/ahoo/wow/kernel/AfterFunction {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Ljava/util/Set;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;Ljava/util/Set;Lkotlin/jvm/functions/Function3;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Ljava/util/Set;Lkotlin/jvm/functions/Function3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAfter ()Lkotlin/jvm/functions/Function3;
 	public fun getApplies ()Lkotlin/jvm/functions/Function1;
 	public fun getProduces ()Ljava/util/Set;
@@ -148,10 +147,8 @@ public abstract interface class me/ahoo/wow/kernel/DecideFunction {
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/kernel/DecideFunction {
-	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function4;)V
-	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function4;)V
-	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLkotlin/jvm/functions/Function4;Ljava/util/Set;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLkotlin/jvm/functions/Function4;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLjava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLjava/util/Set;Lkotlin/jvm/functions/Function4;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBlocking ()Z
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function4;
@@ -160,9 +157,8 @@ public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/ke
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Sync : me/ahoo/wow/kernel/DecideFunction {
-	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function3;)V
-	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function3;Ljava/util/Set;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function3;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLjava/util/Set;Lkotlin/jvm/functions/Function3;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLjava/util/Set;Lkotlin/jvm/functions/Function3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function3;
 	public fun getOnDeleted ()Z

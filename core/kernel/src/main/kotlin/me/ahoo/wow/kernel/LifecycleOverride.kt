@@ -48,17 +48,15 @@ internal object LifecycleOverride {
             is DecideFunction.Sync -> DecideFunction.Sync(
                 decider.creation,
                 decider.onDeleted,
-                { state, body -> checked(type, command, decider.decide(this, state, body)) },
                 decider.produces,
-            )
+            ) { state, body -> checked(type, command, decider.decide(this, state, body)) }
 
             is DecideFunction.Suspending -> DecideFunction.Suspending(
                 decider.creation,
                 decider.blocking,
                 decider.onDeleted,
-                { state, body -> checked(type, command, decider.decide(this, state, body)) },
                 decider.produces,
-            )
+            ) { state, body -> checked(type, command, decider.decide(this, state, body)) }
         }
 
     /**

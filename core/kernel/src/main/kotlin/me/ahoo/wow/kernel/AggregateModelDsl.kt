@@ -98,7 +98,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addDecider(
             C::class.java,
             name,
-            DecideFunction.Sync(creation, onDeleted, decide as DecideScope.(S, Any) -> Decision, produces),
+            DecideFunction.Sync(creation, onDeleted, produces, decide as DecideScope.(S, Any) -> Decision),
         )
     }
 
@@ -118,8 +118,8 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
                 creation,
                 false,
                 onDeleted,
-                decide as suspend DecideScope.(S, Any) -> Decision,
                 produces,
+                decide as suspend DecideScope.(S, Any) -> Decision,
             ),
         )
     }
@@ -154,8 +154,8 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
                 creation,
                 true,
                 onDeleted,
-                decide as suspend DecideScope.(S, Any) -> Decision,
                 produces,
+                decide as suspend DecideScope.(S, Any) -> Decision,
             ),
         )
     }
@@ -198,7 +198,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         produces: Set<Class<*>>? = null,
         after: DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Sync(applies(include, exclude), after, produces)
+        afterFunctions += AfterFunction.Sync(applies(include, exclude), produces, after)
     }
 
     /** A suspending after hook; see [after]. */
@@ -208,7 +208,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         produces: Set<Class<*>>? = null,
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Suspending(applies(include, exclude), false, after, produces)
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), false, produces, after)
     }
 
     /** An after hook that blocks its thread (`@Blocking`): it runs on a virtual thread; see [after]. */
@@ -218,7 +218,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         produces: Set<Class<*>>? = null,
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after, produces)
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, produces, after)
     }
 
     /** Evolves the state by changing it in place: the default, concise form. */
