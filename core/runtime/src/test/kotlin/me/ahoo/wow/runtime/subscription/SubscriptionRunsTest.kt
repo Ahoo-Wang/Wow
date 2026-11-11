@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -384,24 +383,10 @@ class SubscriptionRunsTest {
         }
 
     @Test
-    fun `row 12 - a saga or a reactor cannot batch`() {
-        listOf(FunctionKind.SAGA, FunctionKind.REACT, FunctionKind.SNAPSHOT).forEach { kind ->
-            assertThrows<IllegalArgumentException> {
-                Subscription.batching(
-                    NAME,
-                    SubscriptionFilter("shop"),
-                    16,
-                    kind = kind,
-                    runHandler = { RunHandled(0, null) }
-                ) {}
-            }.message.assert().isEqualTo(
-                "A run answers how many of its entries are done, never a rejection or derived commands: " +
-                    "a $kind subscription cannot batch."
-            )
-        }
+    fun `a run holds at least one entry`() {
         assertThrows<IllegalArgumentException> {
             Subscription.batching(NAME, SubscriptionFilter("shop"), 0, runHandler = { RunHandled(0, null) }) {}
-        }
+        }.message.assert().isEqualTo("A run holds at least one entry, not 0.")
     }
 
     @Test

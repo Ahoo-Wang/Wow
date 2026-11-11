@@ -228,6 +228,9 @@ class Subscription private constructor(
          * together, at most [maxRun], in version order; [handler] handles an entry alone: an operator's retry, a
          * parked retry, and the entry a run failed at. A run answers how many of its entries are done, never a
          * rejection or derived commands, so only a projection batches.
+         *
+         * A run is one attempt within the handler's timeout ([HandlerRetry.timeout], else the host's), so [maxRun] is
+         * sized for a run to fit it: a run that times out costs the timeout, then moves one entry alone.
          */
         internal fun batching(
             name: String,
@@ -236,16 +239,11 @@ class Subscription private constructor(
             startFrom: StartFrom = StartFrom.BEGINNING,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             models: Collection<AggregateModel<*>> = emptyList(),
-            kind: FunctionKind = FunctionKind.PROJECT,
             context: String = filter.context,
             retry: HandlerRetry? = null,
             runHandler: RunHandler,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription {
-            require(kind == FunctionKind.PROJECT) {
-                "A run answers how many of its entries are done, never a rejection or derived commands: " +
-                    "a $kind subscription cannot batch."
-            }
             require(maxRun >= 1) { "A run holds at least one entry, not $maxRun." }
             return Subscription(
                 name,
@@ -253,7 +251,7 @@ class Subscription private constructor(
                 startFrom,
                 decoder,
                 models,
-                kind,
+                FunctionKind.PROJECT,
                 EntryHandler { entry ->
                     handler(entry)
                     HandledEntry.NOTHING
