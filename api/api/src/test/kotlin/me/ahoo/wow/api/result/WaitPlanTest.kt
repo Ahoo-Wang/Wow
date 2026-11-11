@@ -75,6 +75,13 @@ class WaitPlanTest {
     }
 
     @Test
+    fun `an UNKNOWN hop, a newer writer's stage, keeps a subscription or none, never a blank one`() {
+        Hop(Stage.UNKNOWN, "shop", "carts.onPaid").toString().assert().isEqualTo("unknown(shop/carts.onPaid)")
+        Hop(Stage.UNKNOWN).subscription.assert().isNull()
+        assertThrownBy<IllegalArgumentException> { Hop(Stage.UNKNOWN, subscription = " ") }
+    }
+
+    @Test
     fun `a hop prints as the Wow-Wait header spells it`() {
         Hop.accepted().toString().assert().isEqualTo("accepted")
         Hop.accepted("sales").toString().assert().isEqualTo("accepted(sales)")
