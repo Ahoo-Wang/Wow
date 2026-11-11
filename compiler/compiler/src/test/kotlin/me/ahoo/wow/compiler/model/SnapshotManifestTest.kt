@@ -63,7 +63,10 @@ class SnapshotManifestTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val aggregates = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val aggregates = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.associateBy { it.name }
         val ledger = aggregates.getValue("ledger")
         ledger.snapshot.assert().isEqualTo(SnapshotManifest(enabled = false))
@@ -106,7 +109,10 @@ class SnapshotManifestTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val aggregates = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val aggregates = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.associateBy { it.name }
         aggregates.getValue("ledger").snapshot.assert().isEqualTo(SnapshotManifest(stateRevision = 3))
         aggregates.getValue("account").snapshot.assert().isEqualTo(SnapshotManifest())

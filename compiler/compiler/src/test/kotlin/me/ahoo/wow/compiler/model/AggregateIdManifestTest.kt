@@ -17,11 +17,9 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.RouteManifest
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 
 /**
@@ -48,7 +46,7 @@ class AggregateIdManifestTest {
             .filter { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
             .toList()
 
-    private fun read(file: File): Manifest = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+    private fun read(file: File): Manifest = ManifestFragmentFixtures.read(file)
 
     private fun generated(compilation: KotlinCompilation, name: String): String =
         compilation.workingDir.walkTopDown().filter { it.name == name }.single().readText()

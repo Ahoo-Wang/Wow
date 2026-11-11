@@ -23,7 +23,6 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /**
  * Decision D166: the commands an aggregate's decide functions and a saga's handlers schedule, as `@OnCommand(schedules)`
@@ -115,7 +114,7 @@ class ScheduleManifestTest {
         val (compilation, result) = compileModel("generate", options, model, saga)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val context = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java)).contexts.single()
+        val context = ManifestFragmentFixtures.read(file).contexts.single()
         context.aggregates.single().schedules.assert()
             .isEqualTo(listOf("#/\$defs/sample.ReleaseStock", "shop.order.CancelOrder"))
         context.subscriptions.associate { it.name to it.schedules }.assert().isEqualTo(
@@ -194,7 +193,7 @@ class ScheduleManifestTest {
             ),
         )
         val tree = ManifestTree.write(manifest)
-        ManifestTree.read(tree).assert().isEqualTo(manifest)
+        ManifestTree.read(tree, ManifestTree.REFUSE).assert().isEqualTo(manifest)
         @Suppress("UNCHECKED_CAST")
         val aggregates = ((tree["contexts"] as List<Map<String, Any?>>).single()["aggregates"] as List<Map<String, Any?>>)
         aggregates.map { it.containsKey("schedules") }.assert().containsExactly(true, false)

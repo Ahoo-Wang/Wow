@@ -36,6 +36,14 @@ import me.ahoo.wow.api.wire.WireNames
 object ManifestTree {
     private const val DEFS = "\$defs"
 
+    /**
+     * The `warn` of [read] for a Manifest never newer than its reader, as a node's own or a build's output is: it
+     * refuses, an [IllegalArgumentException], what [read] would leave out.
+     */
+    val REFUSE: (String) -> Unit = {
+        throw IllegalArgumentException("$it This Manifest is never newer than its reader, so it is refused.")
+    }
+
     fun write(manifest: Manifest): Map<String, Any?> = obj(
         "format" to manifest.format,
         "requires" to manifest.requires.ifEmpty { null },
@@ -198,11 +206,12 @@ object ManifestTree {
      * attribute `type`, a subscription of an unknown `kind`, function `kind` (a built-in one too), `start`, or job
      * `scope` or `misfire`. Each of them decides behaviour (how a command routes, whom an aggregate is scoped to and
      * who may see it, how a subscription runs), so a reader never guesses it: it reads what it understands and leaves
-     * out what it does not. No enumeration of the format is merely descriptive.
+     * out what it does not. No enumeration of the format is merely descriptive. Each caller says what is done with
+     * what is left out: a peer's Manifest logs it, and one never newer than its reader passes [REFUSE].
      */
-    fun read(tree: Map<*, *>, warn: (String) -> Unit = {}): Manifest {
+    fun read(tree: Map<*, *>, warn: (String) -> Unit): Manifest {
         val root = Node(tree, "manifest", warn)
-        val format = root.int("format")
+        val format = root.exactInt("format")
         require(format == Manifest.FORMAT) {
             "Manifest format $format is not supported; this reader reads format ${Manifest.FORMAT}."
         }
@@ -445,7 +454,7 @@ object ManifestTree {
 
         private fun <E : Enum<E>> known(field: String, value: String, entries: List<E>): E? =
             entries.firstOrNull { WireNames.of(it) == value }
-                ?: null.also { warn("$path.$field: $value is unknown to this reader, which reads it leniently.") }
+                ?: null.also { warn("$path.$field: $value is unknown to this reader.") }
 
         /** The string list [field], or null when it is absent. */
         fun stringsOrNull(field: String): List<String>? = if (has(field)) strings(field) else null
@@ -464,6 +473,16 @@ object ManifestTree {
         fun intOrNull(field: String): Int? = typed<Number>(field, "a number")?.toInt()
         fun doubleOrNull(field: String): Double? = typed<Number>(field, "a number")?.toDouble()
         fun int(field: String): Int = required(field, intOrNull(field))
+
+        /** The number [field] as an Int, refused when it is not a whole number an Int holds (`1.5`, `2^32`). */
+        fun exactInt(field: String): Int {
+            val value = required(field, typed<Number>(field, "a number"))
+            val number = value.toDouble()
+            require(number % 1.0 == 0.0 && number >= Int.MIN_VALUE && number <= Int.MAX_VALUE) {
+                "$path.$field is not a whole number: $value"
+            }
+            return number.toInt()
+        }
         fun booleanOrNull(field: String): Boolean? = typed<Boolean>(field, "a boolean")
         fun objOrNull(field: String): Node? =
             typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field", warn) }

@@ -47,7 +47,10 @@ class InternalCommandTreeTest {
         val json = mapper.writeValueAsString(ManifestTree.write(manifest))
         json.assert().contains("\"internal\":true")
         json.indexOf("\"internal\"").assert().isEqualTo(json.lastIndexOf("\"internal\""))
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
+        ManifestTree.read(
+            mapper.readValue(json, Map::class.java),
+            ManifestTree.REFUSE
+        ).contexts.single().aggregates.single().commands
             .assert().containsExactly(confirm, CommandManifest("Refund", schema = "#/\$defs/R"))
     }
 }

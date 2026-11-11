@@ -17,13 +17,11 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.RouteParameterManifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /**
  * Decision D359: a `@ServiceRoute` function is listed in its context's fragment, with its parameters and the schema
@@ -136,7 +134,7 @@ class ServiceRouteTest {
             ).joinToString("\n"),
         )
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-server.json" }
-        val context = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java)).contexts.single()
+        val context = ManifestFragmentFixtures.read(file).contexts.single()
         context.aggregates.assert().isEmpty()
         context.routes.assert().containsExactly(
             ServiceRouteManifest(
@@ -245,7 +243,7 @@ class ServiceRouteTest {
         result.classLoader.loadClass("sample.NullableScenarioKt").getMethod("run").invoke(null).assert()
             .isEqualTo("[null, Item(id=one)]")
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-server.json" }
-        val routes = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java)).contexts.single().routes
+        val routes = ManifestFragmentFixtures.read(file).contexts.single().routes
             .associateBy { it.name }
         val item = Manifest.refSchema("sample.Item")
         val nullableItem = mapOf("anyOf" to listOf(mapOf("type" to "null"), item))

@@ -35,7 +35,7 @@ class CategoryManifestTest {
     fun `the fragment should list the domain's commands, events and errors`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val context = ManifestTree.read(tree).contexts.single()
+        val context = ManifestTree.read(tree, ManifestTree.REFUSE).contexts.single()
         val aggregate = context.aggregates.single()
         aggregate.ownership.name.assert().isEqualTo("TENANT")
         aggregate.domainCommands.associate { it.name to it.creation.name }.assert().isEqualTo(

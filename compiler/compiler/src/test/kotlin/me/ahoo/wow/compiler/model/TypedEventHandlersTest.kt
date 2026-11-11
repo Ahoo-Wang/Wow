@@ -141,7 +141,7 @@ class TypedEventHandlersTest {
         val (compilation, result) = compileModel("generate", options, model, processors)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val sources = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val sources = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java), ManifestTree.REFUSE)
             .contexts.single().subscriptions.associate { it.name to it.source }
         sources.getValue("OrderSaga.onPlaced").events.assert().containsExactly("OrderPlaced")
         sources.getValue("OrderSaga.onPlaced").aggregates.assert().containsExactly("order")
@@ -303,7 +303,7 @@ class TypedEventHandlersTest {
         val (compilation, result) = compileModelAgainst("generate", options, listOf(billingApi), model, peers)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val sources = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val sources = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java), ManifestTree.REFUSE)
             .contexts.single().subscriptions.associate { it.name to it.source }
         sources.getValue("Ledger.onPaid").events.assert().containsExactly("Settled")
         sources.getValue("Ledger.onPaid").context.assert().isEqualTo("billing")

@@ -82,7 +82,9 @@ class ManifestLoader(
             if (bytes == null) {
                 "is not on the class path"
             } else {
-                return ManifestFragment(source, ManifestTree.read(mapper.readValue(bytes, Map::class.java)))
+                // The node's own fragment is never newer than the node: what a reader would leave out fails the start.
+                val tree = mapper.readValue(bytes, Map::class.java)
+                return ManifestFragment(source, ManifestTree.read(tree, ManifestTree.REFUSE))
             }
         } catch (malformed: JacksonException) {
             "is not JSON: ${malformed.originalMessage}"

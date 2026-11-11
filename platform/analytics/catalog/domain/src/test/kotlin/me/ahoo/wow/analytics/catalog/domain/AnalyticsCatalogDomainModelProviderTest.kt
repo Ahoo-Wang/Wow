@@ -53,7 +53,7 @@ class AnalyticsCatalogDomainModelProviderTest {
     fun `the fragment should declare a tenant's source and dataset without lifecycle, and the catalog's errors`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val context = ManifestTree.read(tree).contexts.single()
+        val context = ManifestTree.read(tree, ManifestTree.REFUSE).contexts.single()
         context.aggregates.map { it.name }.assert()
             .containsExactlyInAnyOrder(AnalyticsCatalogContract.Source.NAME, AnalyticsCatalogContract.Dataset.NAME)
         context.aggregates.forEach {

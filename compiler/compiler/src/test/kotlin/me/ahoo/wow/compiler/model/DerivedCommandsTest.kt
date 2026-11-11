@@ -164,7 +164,10 @@ class DerivedCommandsTest {
         val (compilation, result) = compileModelAgainst("generate", options, listOf(peerApi), model, saga)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val subscriptions = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().subscriptions.associateBy { it.name.substringAfter('.') }
         val payment = listOf(ref("peer.ConfirmPayment"), ref("peer.FailPayment"))
 
@@ -258,7 +261,10 @@ class DerivedCommandsTest {
         val (compilation, result) = compileModelAgainst("generate", options, listOf(peerApi), model, extras)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val subscriptions = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().subscriptions.associateBy { it.name.substringAfter('.') }
         subscriptions.getValue("objects").derives.assert()
             .isEqualTo(listOf(ref("peer.ConfirmPayment"), ref("peer.Refresh")))
@@ -401,7 +407,10 @@ class DerivedCommandsTest {
         val (compilation, result) = compileModelAgainst("generate", options, listOf(peerApi), model, calling)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val subscription = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val subscription = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().subscriptions.single()
         subscription.calls.assert()
             .isEqualTo(listOf(ref("peer.ConfirmPayment"), ref("peer.StockCommand\$Adjust\$Up")))

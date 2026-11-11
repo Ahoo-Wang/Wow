@@ -31,7 +31,7 @@ class ClassPathContractsTest {
     private val mapper = jacksonObjectMapper()
 
     private fun read(loader: ClassLoader): List<ManifestFragment> =
-        ClassPathContracts.load(loader) { bytes -> mapper.readValue(bytes, Map::class.java) }
+        ClassPathContracts.load(loader, ManifestTree.REFUSE) { bytes -> mapper.readValue(bytes, Map::class.java) }
 
     /** A class loader over the fixture directories `contract/<name>/`, each as an api jar would be on a class path. */
     private fun contractsLoader(vararg names: String): ClassLoader = URLClassLoader(

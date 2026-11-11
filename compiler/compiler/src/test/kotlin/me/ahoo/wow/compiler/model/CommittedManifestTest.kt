@@ -141,6 +141,7 @@ class CommittedManifestTest {
 
     private fun fragment(compilation: KotlinCompilation): Manifest = ManifestTree.read(
         jacksonObjectMapper().readValue(generated(compilation, "shop-domain.json")!!, Map::class.java),
+        ManifestTree.REFUSE,
     )
 
     private fun provider(compilation: KotlinCompilation, result: JvmCompilationResult): ModelProvider {

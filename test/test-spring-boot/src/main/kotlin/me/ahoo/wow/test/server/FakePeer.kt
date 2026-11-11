@@ -29,6 +29,7 @@ import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -182,7 +183,9 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
 
         /** The contract on [classLoader] that declares [context]; refused when none does. */
         fun contractOf(context: String, classLoader: ClassLoader): Manifest {
-            val contracts = ClassPathContracts.load(classLoader) { WowJson.mapper.readValue(it, Map::class.java) }
+            val contracts = ClassPathContracts.load(classLoader, ManifestTree.REFUSE) {
+                WowJson.mapper.readValue(it, Map::class.java)
+            }
             return checkNotNull(contracts.map { it.manifest }.firstOrNull { it.contexts.any { it.name == context } }) {
                 "No contract on the class path declares the context $context: the test depends on its api module."
             }

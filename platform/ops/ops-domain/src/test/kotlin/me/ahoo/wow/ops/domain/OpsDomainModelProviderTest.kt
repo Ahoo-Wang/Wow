@@ -44,7 +44,7 @@ class OpsDomainModelProviderTest {
     fun `the fragment should name the records' commands and the members the runtime sends`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val aggregate = ManifestTree.read(tree).contexts.single().aggregates.single()
+        val aggregate = ManifestTree.read(tree, ManifestTree.REFUSE).contexts.single().aggregates.single()
         aggregate.name.assert().isEqualTo(Ledger.PARKED)
         aggregate.commands.map { it.name }.assert().contains(
             Ledger.RECORD_PARKED,

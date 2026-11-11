@@ -46,10 +46,13 @@ class ServiceRouteManifestTest {
         )
         val optional = manifest(route)
         written(optional)["responseOptional"].assert().isEqualTo(true)
-        ManifestTree.read(mapper.readValue(mapper.writeValueAsString(ManifestTree.write(optional)), Map::class.java))
+        ManifestTree.read(
+            mapper.readValue(mapper.writeValueAsString(ManifestTree.write(optional)), Map::class.java),
+            ManifestTree.REFUSE
+        )
             .assert().isEqualTo(optional)
         val required = manifest(route.copyWith(responseOptional = false))
         written(required).keys.assert().doesNotContain("responseOptional")
-        ManifestTree.read(ManifestTree.write(required)).assert().isEqualTo(required)
+        ManifestTree.read(ManifestTree.write(required), ManifestTree.REFUSE).assert().isEqualTo(required)
     }
 }

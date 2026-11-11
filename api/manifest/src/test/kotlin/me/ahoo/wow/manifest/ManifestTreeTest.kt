@@ -27,6 +27,9 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 class ManifestTreeTest {
     private val mapper = jacksonObjectMapper()
 
+    /** A Manifest this reader wrote: never newer than its reader. */
+    private fun read(tree: Map<*, *>): Manifest = ManifestTree.read(tree, ManifestTree.REFUSE)
+
     private val manifest = Manifests.fragment().copyWith(
         service = ServiceInfo("shop-service", "1.0.0"),
         errors = FrameworkErrors.ALL,
@@ -35,7 +38,7 @@ class ManifestTreeTest {
     @Test
     fun `a manifest should come back the same through its JSON text`() {
         val json = mapper.writeValueAsString(ManifestTree.write(manifest))
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
     }
 
     @Test
@@ -55,7 +58,7 @@ class ManifestTreeTest {
         val fragment = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val json = mapper.writeValueAsString(ManifestTree.write(fragment))
         json.assert().contains("\"description\":\"Adds.\"").contains("\"description\":\"Added.\"")
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(fragment)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(fragment)
         val tree = ManifestTree.write(fragment)
         val written = ((tree["contexts"] as List<*>).single() as Map<*, *>)["aggregates"] as List<*>
         val commands = (written.single() as Map<*, *>)["commands"] as List<*>
@@ -91,7 +94,7 @@ class ManifestTreeTest {
         )
         val json = mapper.writeValueAsString(tree)
         json.assert().contains("\"mounted\":true").contains("\"transformsTo\":[\"shop.customer.Register\"]")
-        val commands = ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single()
+        val commands = read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single()
             .commands
         commands.assert().containsExactly(mounted, CommandManifest("Register", schema = "#/\$defs/R"))
         json.indexOf("\"mounted\"").assert().isEqualTo(json.lastIndexOf("\"mounted\""))
@@ -122,7 +125,7 @@ class ManifestTreeTest {
         val json = mapper.writeValueAsString(ManifestTree.write(manifest))
         json.assert().contains("\"idProperty\":\"productId\"")
         json.indexOf("\"idProperty\"").assert().isEqualTo(json.lastIndexOf("\"idProperty\""))
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
+        read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
             .assert().containsExactly(restock, CommandManifest("Count", schema = "#/\$defs/C"))
     }
 
@@ -272,12 +275,12 @@ class ManifestTreeTest {
                     "multiplier" to 1.5,
                 )
             )
-        ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
+        read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
             .subscriptions[0].retry!!.copyWith(recoverable = listOf("sample.Busy")).recoverable.assert()
             .containsExactly("sample.Busy")
         subscriptions[1].containsKey("retry").assert().isFalse()
         val json = mapper.writeValueAsString(tree)
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
     }
 
     @Test
@@ -289,7 +292,7 @@ class ManifestTreeTest {
             .map { it as Map<*, *> }
         aggregates[0].containsKey("idSource").assert().isFalse()
         aggregates[1]["idSource"].assert().isEqualTo("owner")
-        val read = ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java))
+        val read = read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java))
         read.assert().isEqualTo(manifest)
         read.contexts.single().aggregates.map { it.idSource }.assert()
             .containsExactly(AggregateIdSource.ASSIGNED, AggregateIdSource.OWNER)
@@ -333,7 +336,7 @@ class ManifestTreeTest {
         (aggregates[0] as Map<*, *>)["snapshot"].assert().isEqualTo(mapOf("enabled" to true, "stateRevision" to 2))
         (aggregates[1] as Map<*, *>)["snapshot"].assert().isEqualTo(mapOf("enabled" to true))
         val json = mapper.writeValueAsString(tree)
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
         assertThrows<IllegalArgumentException> { SnapshotManifest(stateRevision = 0) }
     }
 
@@ -369,7 +372,7 @@ class ManifestTreeTest {
         )
         subscriptions[1].containsKey("job").assert().isFalse()
         val json = mapper.writeValueAsString(tree)
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
         // A job written with its name and expression only reads with the defaults.
         val minimal = mapOf(
             "name" to "Billing.nightly",
@@ -378,12 +381,8 @@ class ManifestTreeTest {
             "function" to mapOf("kind" to "saga", "context" to "shop", "processor" to "Billing", "name" to "nightly"),
             "job" to mapOf("name" to "nightly", "cron" to "0 0 3 * * *"),
         )
-        val read = ManifestTree.read(
-            mapOf(
-                "format" to Manifest.FORMAT,
-                "contexts" to listOf(mapOf("name" to "shop", "subscriptions" to listOf(minimal)))
-            ),
-        )
+        val shop = mapOf("name" to "shop", "subscriptions" to listOf(minimal))
+        val read = read(mapOf("format" to Manifest.FORMAT, "contexts" to listOf(shop)))
         read.contexts.single().subscriptions.single().job.assert().isEqualTo(JobManifest("nightly", "0 0 3 * * *"))
     }
 
@@ -406,7 +405,7 @@ class ManifestTreeTest {
         val subscription = ((tree["contexts"] as List<*>).single() as Map<*, *>)["subscriptions"] as List<*>
         (subscription.single() as Map<*, *>)["committed"].assert().isEqualTo(listOf("#/\$defs/sales.Refund"))
         val json = mapper.writeValueAsString(tree)
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
     }
 
     @Test
@@ -422,7 +421,7 @@ class ManifestTreeTest {
         val manifest = Manifest(contexts = listOf(ContextManifest("shop", subscriptions = listOf(calling))))
         manifest.schemaRefs.assert().containsExactly("#/\$defs/ordering.SubmitOrder")
         val json = mapper.writeValueAsString(ManifestTree.write(manifest))
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
         calling.toString().assert().contains("calls=[#/\$defs/ordering.SubmitOrder]")
         calling.assert().isNotEqualTo(calling.copyWith(calls = null))
         PeerContracts.contractOf(listOf(manifest)).contexts.single().subscriptions.single().calls.assert()
@@ -433,7 +432,7 @@ class ManifestTreeTest {
     fun `an error without a description should leave it out`() {
         val tree = ManifestTree.write(Manifest(errors = listOf(ErrorManifest("wow.x", 400))))
         tree["errors"].assert().isEqualTo(listOf(mapOf("code" to "wow.x", "status" to 400)))
-        ManifestTree.read(tree).errors.single().description.assert().isNull()
+        read(tree).errors.single().description.assert().isNull()
     }
 
     /** [manifest]'s tree as JSON text, with each of [replacements] made once, read back. */
@@ -483,7 +482,7 @@ class ManifestTreeTest {
     fun `a marker of requires this reader does not understand refuses the Manifest, and none is left out`() {
         ManifestTree.write(manifest).containsKey("requires").assert().isFalse()
         assertThrows<IllegalArgumentException> {
-            ManifestTree.read(ManifestTree.write(manifest) + ("requires" to listOf("routes-v2")))
+            read(ManifestTree.write(manifest) + ("requires" to listOf("routes-v2")))
         }.message.assert().contains("[routes-v2]").contains("does not understand")
         // What a reader understands is read and written back, and a merged Manifest requires what any fragment does.
         val requiring = manifest.copyWith(requires = listOf("routes-v2"))
@@ -495,7 +494,7 @@ class ManifestTreeTest {
     @Test
     fun `reading should refuse another format`() {
         assertThrows<IllegalArgumentException> {
-            ManifestTree.read(ManifestTree.write(manifest) + ("format" to 2))
+            read(ManifestTree.write(manifest) + ("format" to 2))
         }.message.assert().contains("format 2")
     }
 
@@ -503,10 +502,10 @@ class ManifestTreeTest {
     fun `reading should say which field is missing or mistyped`() {
         val tree = ManifestTree.write(manifest)
         val noName = tree + ("contexts" to listOf(mapOf("aggregates" to emptyList<Any>())))
-        assertThrows<IllegalArgumentException> { ManifestTree.read(noName) }
+        assertThrows<IllegalArgumentException> { read(noName) }
             .message.assert().isEqualTo("manifest.contexts[0].name is missing.")
         val badAliases = tree + ("contexts" to listOf(mapOf("name" to "shop", "aggregates" to "cart")))
-        assertThrows<IllegalArgumentException> { ManifestTree.read(badAliases) }
+        assertThrows<IllegalArgumentException> { read(badAliases) }
             .message.assert().contains("manifest.contexts[0].aggregates is not an array")
     }
 
@@ -514,7 +513,7 @@ class ManifestTreeTest {
     fun `reading should refuse a context whose name breaks the rule`() {
         listOf("eshop.catalog", "Shop", "my_shop", "1shop", "-shop", "").forEach { name ->
             val tree = ManifestTree.write(manifest) + ("contexts" to listOf(mapOf("name" to name)))
-            assertThrows<IllegalArgumentException> { ManifestTree.read(tree) }
+            assertThrows<IllegalArgumentException> { read(tree) }
                 .message.assert().startsWith("manifest.contexts[0].name: context name \"$name\" is not valid")
         }
     }
@@ -538,7 +537,7 @@ class ManifestTreeTest {
                 ),
             ),
         )
-        ManifestTree.read(tree).assert().isEqualTo(expected)
+        read(tree).assert().isEqualTo(expected)
         expected.service.assert().isNull()
         expected.errors.assert().isEmpty()
         expected.contexts.single().let { context ->
@@ -583,20 +582,20 @@ class ManifestTreeTest {
                 context + ("aggregates" to listOf(aggregate + ("commands" to listOf(command + ("aliases" to listOf(1)))))),
             )
             )
-        assertThrows<IllegalArgumentException> { ManifestTree.read(badAlias) }
+        assertThrows<IllegalArgumentException> { read(badAlias) }
             .message.assert().isEqualTo("manifest.contexts[0].aggregates[0].commands[0].aliases[0] is not a string: 1")
         val badRoute = tree + (
             "contexts" to listOf(
                 context + ("aggregates" to listOf(aggregate + ("commands" to listOf(command + ("routes" to listOf(mapOf("method" to "POST"))))))),
             )
             )
-        assertThrows<IllegalArgumentException> { ManifestTree.read(badRoute) }
+        assertThrows<IllegalArgumentException> { read(badRoute) }
             .message.assert().isEqualTo("manifest.contexts[0].aggregates[0].commands[0].routes[0].path is missing.")
         val badError = tree + ("errors" to listOf(mapOf("code" to "wow.x", "status" to "400")))
-        assertThrows<IllegalArgumentException> { ManifestTree.read(badError) }
+        assertThrows<IllegalArgumentException> { read(badError) }
             .message.assert().isEqualTo("manifest.errors[0].status is not a number: 400")
         val badContext = tree + ("contexts" to listOf("shop"))
-        assertThrows<IllegalArgumentException> { ManifestTree.read(badContext) }
+        assertThrows<IllegalArgumentException> { read(badContext) }
             .message.assert().isEqualTo("manifest.contexts[0] is not an object: shop")
     }
 
@@ -649,7 +648,7 @@ class ManifestTreeTest {
         val written = ((tree["contexts"] as List<Map<String, Any?>>).single()["routes"] as List<Map<String, Any?>>)
         written[1].keys.assert().containsExactly("name", "route")
         val json = mapper.writeValueAsString(tree)
-        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(withRoutes)
+        read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(withRoutes)
         withRoutes.schemaRefs.assert().contains("#/\$defs/sample.CartState")
         // A parameter read from where this reader knows nothing of leaves its route out, told.
         val warnings = mutableListOf<String>()

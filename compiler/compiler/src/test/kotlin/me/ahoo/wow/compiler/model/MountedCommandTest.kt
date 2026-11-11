@@ -82,7 +82,7 @@ class MountedCommandTest {
         result.classLoader.loadClass("sample.ScenarioKt").getMethod("mounted").invoke(null).assert()
             .isEqualTo("shop.customer.ImportCustomer=ImportCustomer, shop.customer.ProviderCallback=Callback")
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val aggregate = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+        val aggregate = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
             .contexts.single().aggregates.single()
         aggregate.domainCommands.map { it.name }.assert().containsExactly(
             "ImportCustomer",
@@ -191,7 +191,7 @@ class MountedCommandTest {
         val (compilation, result) = compileModel("generate", options, unaddressed)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
-        val commands = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+        val commands = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
             .contexts.single().aggregates.single().commands.associateBy { it.name }
         commands.getValue("Clear").let { clear ->
             clear.creation.assert().isEqualTo(Creation.NONE)

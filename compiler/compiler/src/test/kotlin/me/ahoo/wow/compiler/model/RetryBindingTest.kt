@@ -113,7 +113,10 @@ class RetryBindingTest {
 
         val fragment = compilation.workingDir.walkTopDown()
             .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val subscriptions = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().subscriptions.associateBy { it.name }
         subscriptions.getValue("Notifier.onEvent").retry.assert().isEqualTo(
             RetryManifest(

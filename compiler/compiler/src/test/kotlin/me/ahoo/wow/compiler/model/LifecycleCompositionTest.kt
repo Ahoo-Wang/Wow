@@ -123,7 +123,10 @@ class LifecycleCompositionTest {
             .isEqualTo("deleted=false, deleted=true, wow.aggregate.deleted, deleted=false, deleted=false")
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val aggregate = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val aggregate = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.single()
         aggregate.commands.single { it.name == "Close" }.produces.assert()
             .isEqualTo(listOf("Closed", "wow.lifecycle.AggregateDeleted"))
