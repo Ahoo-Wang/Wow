@@ -246,8 +246,9 @@ class SharedStateReaderTest {
         add("plum", executor = elsewhere)
         log.streamsRead = 0
         reader().read(stream(2)).items().assert().containsExactlyInAnyOrder("snapshot", "pear")
-        // The stream read for the entry, then the snapshot's version and the tail up to the entry.
-        log.streamsRead.assert().isEqualTo(3)
+        // The stream read for the entry, then the tail after the snapshot up to the entry: the log holds the snapshot's
+        // version, since it holds the entry's, so the snapshot's own stream is not read again.
+        log.streamsRead.assert().isEqualTo(2)
         // The rebuilt state is shared: the other reader finds it as a view.
         views.get(ref, 2)!!.items().assert().containsExactlyInAnyOrder("snapshot", "pear")
     }

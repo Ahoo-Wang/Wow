@@ -419,6 +419,19 @@ class Kernel(
     ): CachedState? =
         history.stateAt(model, ref, version, snapshot, maxReplay)
 
+    /**
+     * The state [snapshot] holds, as a base to evolve with the log's streams after it (the [stateAt] that takes a
+     * base), or null when it does not fit [model]: of another aggregate type, written at another state revision or for
+     * another state schema, or not decodable. Nothing is read; each call decodes a fresh copy.
+     */
+    fun <S : Any> snapshotState(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? {
+        if (snapshot.ref.type != model.type) {
+            return null
+        }
+        val state = codec.fitting(model, snapshot) ?: return null
+        return CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
+    }
+
     /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
     fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)
 

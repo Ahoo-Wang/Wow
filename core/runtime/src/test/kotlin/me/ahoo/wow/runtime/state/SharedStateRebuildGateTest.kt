@@ -53,6 +53,14 @@ class SharedStateRebuildGateTest {
             throw StorageBusyException("The log's store runs as many queries as it allows at once.")
     }
 
+    /** A gate that admits every replay, then fails it, as a store that fails the read it was admitted for. */
+    private object FailingGate : ReplayGate {
+        override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
+            read()
+            throw IllegalStateException("The log's store failed the read.")
+        }
+    }
+
     /** A gate that admits every replay, as an idle bulkhead does. */
     private object AdmittingGate : ReplayGate {
         override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T = read()
@@ -123,6 +131,21 @@ class SharedStateRebuildGateTest {
         }
 
     @Test
+    fun `a view that does not decode is no base, and the replay is counted from where the rebuild starts`(): Unit =
+        runBlocking {
+            val streams = commits(PAGE + 1)
+            val views = SharedStates(codec, mapOf(READER to setOf(CART)), gate = RefusingGate, observer = observer)
+            views.put(ref, SerializedState(2, "not a cart"))
+            val reader = SharedStateReader(READER, listOf(cart), kernel, codec, views)
+            // Counted from that view, a page; the rebuild replays from version 1, a page and one stream: the gate's.
+            assertThrownBy<StorageBusyException> { runBlocking { reader.read(streams[PAGE]) } }
+            observed.single().let {
+                it.gated.assert().isTrue()
+                it.outcome.assert().isEqualTo(Outcome.REFUSED)
+            }
+        }
+
+    @Test
     fun `a gated rebuild that runs is observed with its wait for the permit`(): Unit = runBlocking {
         val streams = commits(PAGE + 1)
         reader(AdmittingGate).read(streams[PAGE]).items().assert().hasSize(PAGE + 1)
@@ -131,6 +154,13 @@ class SharedStateRebuildGateTest {
             it.outcome.assert().isEqualTo(Outcome.RAN)
             it.waitMillis.assert().isGreaterThanOrEqualTo(0)
         }
+    }
+
+    @Test
+    fun `a gated rebuild the gate admitted is observed as ran, whatever its read comes to`(): Unit = runBlocking {
+        val streams = commits(PAGE + 1)
+        assertThrownBy<IllegalStateException> { runBlocking { reader(FailingGate).read(streams[PAGE]) } }
+        observed.map { it.gated to it.outcome }.assert().containsExactly(true to Outcome.RAN)
     }
 
     private companion object {

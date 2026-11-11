@@ -94,31 +94,39 @@ class SharedStateReader(
      */
     private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
         while (true) {
-            views.rebuild(stream.ref, streamsOf(stream, snapshot)) { rebuilt(stream, snapshot) }?.let { return it }
+            // Decided once an attempt: the length the gate is asked about is the replay the rebuild makes.
+            val base = baseOf(stream, snapshot)
+            val streams = stream.version - (base?.version ?: 0)
+            views.rebuild(stream.ref, streams) { rebuilt(stream, base) }?.let { return it }
             held(stream)?.let { return it }
         }
     }
 
     /**
-     * How many streams of the log rebuilding the state after [stream] reads: from the nearest base before it, the
-     * latest view or [snapshot], whichever is later, else from version 1.
+     * The state a rebuild of the state after [stream] evolves with the log's streams after it: the latest view before
+     * it or [snapshot], whichever is later, decoded, so a view or a snapshot that does not decode is no base and the
+     * other, or none, is; null to replay the log from version 1.
      */
-    private fun streamsOf(stream: EventStreamRecord, snapshot: SnapshotRecord?): Int {
+    private fun baseOf(stream: EventStreamRecord, snapshot: SnapshotRecord?): CachedState? {
+        val model = modelOf(stream.ref.type)
         val version = stream.version
-        val usable = snapshot?.takeIf { it.ref == stream.ref && it.version <= version }?.version ?: 0
-        val view = views.floor(stream.ref, version)?.version ?: 0
-        return version - maxOf(usable, view)
+        val fitting = snapshot?.takeIf { it.ref == stream.ref && it.version <= version }
+            ?.let { kernel.snapshotState(model, it) }
+        val view = views.floor(stream.ref, version)?.takeIf { fitting == null || it.version >= fitting.version }
+            ?.let { baseOf(model, it) }
+        return view ?: fitting
     }
 
-    private suspend fun rebuilt(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
+    private suspend fun rebuilt(stream: EventStreamRecord, base: CachedState?): SerializedState {
         val ref = stream.ref
         val version = stream.version
         val model = modelOf(ref.type)
-        val usable = snapshot?.takeIf { it.ref == ref && it.version <= version }
-        val base = views.floor(ref, version)?.takeIf { usable == null || it.version >= usable.version }
-        val state = base?.let { view -> baseOf(model, view)?.let { kernel.stateAt(model, ref, version, it) } }
+        val state = if (base != null) {
+            kernel.stateAt(model, ref, version, base)
+        } else {
             // A subscription sees the state of every commit it handles, however long the history: no replay limit.
-            ?: kernel.stateAt(model, ref, version, usable, maxReplay = Int.MAX_VALUE)
+            kernel.stateAt(model, ref, version, maxReplay = Int.MAX_VALUE)
+        }
         checkNotNull(state) { "The log does not hold $ref@$version." }
         return keep(ref, state)
     }
