@@ -41,7 +41,8 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
-import { drawsHorizontal, stackPeaksFound } from '../charts/cartesianPlan.js';
+import { drawsHorizontal } from '../charts/cartesianPlan.js';
+import { stackPeaksFound } from '../charts/cartesianStacks.js';
 import { logScaleFits } from '../../analysis/logScale.js';
 import { Field, FieldDescription } from '../components/field.js';
 import { WaterfallDisplay } from './CompositionOptions.js';
