@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.StateCacheSizing
+import me.ahoo.wow.runtime.access.AccessStamping
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.PeerCommands
@@ -62,6 +63,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
 
@@ -446,7 +448,9 @@ internal class NodeAssembly(
                     context.reservations?.subscription?.id,
                     context.timers?.subscription?.subscription?.id,
                 ) +
-                listOfNotNull(intakes[context]?.subscription?.id)
+                listOfNotNull(intakes[context]?.subscription?.id) +
+                // Every context runs the access stamping.
+                SubscriptionId(context.context, AccessStamping.NAME)
         }
         topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.id } }
         NodeChecks.subscriptionsNamed(node, names, options.subscription)
