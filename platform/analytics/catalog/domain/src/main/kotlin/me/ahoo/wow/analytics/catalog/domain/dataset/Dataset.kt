@@ -182,7 +182,7 @@ class Dataset(private val state: DatasetState) {
      * serving while its view still gives the columns it was published with, and is refused otherwise.
      */
     // Decision: a publication, a revision needed or one cleared, three kinds of event.
-    @Suppress("UnusedParameter", "ReturnCount") // No body; each outcome returns its decision.
+    @Suppress("UnusedParameter") // No body.
     @OnCommand(produces = [DatasetPublished::class, DatasetNeedsRevision::class, DatasetRevisionCleared::class])
     suspend fun onRecompile(
         command: RecompileDataset,

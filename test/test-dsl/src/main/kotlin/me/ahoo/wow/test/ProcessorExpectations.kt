@@ -34,7 +34,6 @@ import kotlin.reflect.KClass
  * the receipt ([whenCommitted]) of a command it derived, in place or in a [fork].
  */
 @WowTestDsl
-@Suppress("TooManyFunctions") // The DSL's expectations.
 class ProcessorExpectations internal constructor(
     /** The handlers called, by subscription name (`processor.function`), in order. */
     val handled: List<String>,

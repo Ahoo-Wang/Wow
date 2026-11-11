@@ -57,7 +57,7 @@ internal class PeerAdmission(
      * call goes to the context that serves the aggregate, not through here. Its plan
      * ([peerPlanProblem]) waits for ACCEPTED, or for the peer's COMMITTED, the default.
      */
-    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     internal suspend fun admitPeer(request: ServerCommandRequest, facts: Facts): Admission {
         val type = facts.type
         val aggregate = peers?.aggregateOf(type)

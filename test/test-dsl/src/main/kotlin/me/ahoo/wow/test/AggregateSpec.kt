@@ -44,7 +44,6 @@ import java.time.Instant
 import kotlin.time.Duration
 
 @WowTestDsl
-@Suppress("TooManyFunctions") // The DSL's verbs.
 class AggregateSpec<S : Any> private constructor(
     private val model: AggregateModel<S>,
     val ref: AggregateRef,

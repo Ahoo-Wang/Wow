@@ -80,7 +80,7 @@ object EnvelopeCodec {
      * may.
      */
     @InternalWowApi
-    @Suppress("TooGenericExceptionCaught", "SwallowedException") // Whatever is no JSON is no envelope.
+    @Suppress("TooGenericExceptionCaught") // Whatever is no JSON is no envelope.
     fun isEnvelope(value: ByteArray): Boolean = try {
         val tree = mapper.readTree(value)
         tree.isObject && tree["format"]?.isIntegralNumber == true && tree["kind"]?.isString == true

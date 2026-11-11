@@ -223,7 +223,7 @@ class WowProperties {
          */
         fun ofOrNull(environment: Environment): WowProperties? = try {
             of(environment)
-        } catch (@Suppress("SwallowedException") refused: BindException) {
+        } catch (refused: BindException) {
             null
         }
 

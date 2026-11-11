@@ -83,7 +83,7 @@ class CronExpression private constructor(
     }
 
     /** The first local time at or after [from] that this expression names, before the year [limitYear]. */
-    @Suppress("CyclomaticComplexMethod", "ReturnCount") // One step per field, coarsest first.
+    @Suppress("CyclomaticComplexMethod") // One step per field, coarsest first.
     private fun nextLocal(from: LocalDateTime, limitYear: Int): LocalDateTime? {
         var time = from
         while (time.year <= limitYear) {

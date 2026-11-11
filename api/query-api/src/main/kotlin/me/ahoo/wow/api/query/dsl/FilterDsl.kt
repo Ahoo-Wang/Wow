@@ -93,7 +93,7 @@ import java.util.concurrent.TimeUnit
  *   a collection, its block naming fields relative to an element. A field under the element's own path, such as a
  *   generated `STATE__ITEMS__PRODUCT_ID` inside `STATE__ITEMS.elementMatch { }`, is read relative to it.
  */
-@Suppress("TooManyFunctions", "LargeClass")
+@Suppress("LargeClass")
 @QueryDslMarker
 class FilterDsl internal constructor(
     private val prefix: String = "",

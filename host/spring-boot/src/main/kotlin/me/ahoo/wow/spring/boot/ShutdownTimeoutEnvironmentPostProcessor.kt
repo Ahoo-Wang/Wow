@@ -43,7 +43,7 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
         val properties = WowProperties.ofOrNull(environment) ?: return
         val bound = try {
             stopBound(properties)
-        } catch (@Suppress("SwallowedException") refused: WowConfigurationException) {
+        } catch (refused: WowConfigurationException) {
             // Left unset: the node's assembly refuses the setting where it always did, once Spring Boot's logging is
             // configured, so the failure analysis reaches the application's own log, not only the console.
             return

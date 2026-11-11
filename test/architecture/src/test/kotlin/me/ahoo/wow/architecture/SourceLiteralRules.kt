@@ -37,7 +37,7 @@ object SourceLiteralRules {
      * The string literals of Kotlin or Java [source], each with the line it starts on: plain and raw strings, a
      * template's expression read as part of its string. Comments and character literals are skipped.
      */
-    @Suppress("CyclomaticComplexMethod", "NestedBlockDepth", "LoopWithTooManyJumpStatements")
+    @Suppress("CyclomaticComplexMethod")
     fun stringLiterals(source: String): List<Pair<Int, String>> {
         val literals = ArrayList<Pair<Int, String>>()
         var line = 1

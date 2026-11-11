@@ -137,7 +137,7 @@ internal class TopicEntries(
     }
 
     /** The state event [message] holds, or null when it holds none this version reads. */
-    @Suppress("TooGenericExceptionCaught", "SwallowedException") // A search passes over what it cannot decode.
+    @Suppress("TooGenericExceptionCaught") // A search passes over what it cannot decode.
     private fun decodedOrNull(message: SourceMessage): StateEventRecord? = try {
         EnvelopeCodec.stateEventOf(message.value)
     } catch (_: Exception) {

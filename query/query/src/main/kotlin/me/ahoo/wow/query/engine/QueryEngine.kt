@@ -135,7 +135,6 @@ class QueryEngine private constructor(
      * application's policies, filters and observers, the count caches and how events are read.
      */
     @InternalWowApi
-    @Suppress("TooManyFunctions") // One setter per input of the engine.
     class Builder(private val manifest: Manifest) {
         private var contexts: Set<String> = manifest.contexts.map { it.name }.toSet()
         private var snapshotBackend: QueryBindings<AggregateType>? = null

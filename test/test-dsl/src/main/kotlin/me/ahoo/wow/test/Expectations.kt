@@ -56,7 +56,6 @@ import kotlin.reflect.KClass
  * [expectResult], or read from [results].
  */
 @WowTestDsl
-@Suppress("TooManyFunctions") // The DSL's expectations.
 class Expectations<S : Any> @InternalWowApi constructor(
     private val model: AggregateModel<S>,
     private val codec: EventCodec,

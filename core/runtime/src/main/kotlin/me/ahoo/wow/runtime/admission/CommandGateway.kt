@@ -436,7 +436,7 @@ class CommandGateway @InternalWowApi constructor(
     private fun closing(facts: Facts): Admission =
         facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
 
-    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     private suspend fun admit(request: ServerCommandRequest, facts: Facts): Admission {
         if (closed) {
             return closing(facts)

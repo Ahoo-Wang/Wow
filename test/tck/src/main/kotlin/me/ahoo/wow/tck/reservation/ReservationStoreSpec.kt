@@ -39,7 +39,6 @@ import kotlin.time.Duration.Companion.seconds
  * every backend passes. A backend's test extends it and supplies a store whose expiry follows [clock] from
  * [createStore].
  */
-@Suppress("TooManyFunctions") // One test per rule of the contract.
 abstract class ReservationStoreSpec {
     /** A store judging expiry by [clock]. Stores may share storage: each test uses namespaces of its own. */
     protected abstract fun createStore(clock: Clock): ReservationStore
