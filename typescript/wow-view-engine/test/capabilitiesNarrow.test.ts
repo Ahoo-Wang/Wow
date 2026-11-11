@@ -33,6 +33,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
+  compileFilter,
+  defineView,
   type DataViewDefinition,
   type FieldDefinition,
   type Issue,
@@ -610,6 +612,61 @@ describe('4.2 search (G15)', () => {
           .definition.fields,
       ),
     ).toBeNull();
+  });
+
+  it('searches the whole model where the box names no fields, written by hand or by defineView', () => {
+    // A model that searches model-wide, by words, in two of its fields.
+    const model = searching({ modes: both, fields: errorFields });
+    const byHand = ordersDefinition({
+      fields: [
+        ...ordersDefinition().fields,
+        { name: 'keyword', label: 'Search', kind: 'search', searchFields: [] },
+      ],
+    });
+    const defined = defineView(model, {
+      id: 'orders',
+      source: 'orders',
+      title: 'Orders',
+      fields: { id: 'Order', keyword: { search: { fields: [] } } },
+    });
+    // `defineView` writes what the author wrote.
+    expect(
+      defined.fields.find(entry => entry.name === 'keyword')?.searchFields,
+    ).toEqual([]);
+
+    for (const definition of [byHand, defined]) {
+      // An empty list names no field, so nothing is narrowed away: the box
+      // stays, as admission, the compiler and the wire read it.
+      const narrowed = narrow(definition, model);
+      expect(codes(narrowed.findings)).not.toContain(
+        'warning capability.search.unavailable',
+      );
+      expect(searchFieldOf(narrowed.definition.fields)?.name).toBe('keyword');
+      // What it sends is a search across the model: `fields: []` is the
+      // client's spelling of "the backend's default search fields".
+      expect(
+        compileFilter(
+          narrowed.definition.fields,
+          {
+            op: 'and',
+            children: [
+              {
+                field: 'keyword',
+                operator: FilterOperator.SEARCH,
+                value: 'late',
+              },
+            ],
+          },
+          builtinFieldKinds,
+          { now: new Date('2026-11-10T00:00:00Z'), timeZone: 'UTC' },
+        ),
+      ).toEqual({
+        op: 'search',
+        query: 'late',
+        fields: [],
+        mode: SearchMode.TERMS,
+      });
+    }
   });
 });
 

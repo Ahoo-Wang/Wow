@@ -467,8 +467,11 @@ function narrowSearch(
     ),
   );
   // An element's search always names its fields (admission holds it to
-  // that); a record's without any looks wherever the model indexes.
-  if (!declared) return scope === undefined ? next : unavailable();
+  // that); a record's without any looks wherever the model indexes. An
+  // empty list names none, as admission, the compiler and the wire read it:
+  // only a list that named something can be narrowed to nothing (#5890).
+  if (!declared || declared.length === 0)
+    return scope === undefined ? next : unavailable();
   const kept = declared.filter(name => search.fields.includes(name));
   if (kept.length === 0) return unavailable();
   const relative = (path: string) =>

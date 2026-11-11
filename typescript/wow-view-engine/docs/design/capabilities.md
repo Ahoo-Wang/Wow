@@ -84,7 +84,8 @@ export interface ViewSource {
 - **检索**（G15）：`search` 种类的字段对照 `record.search`。
   - 没有 `record.search` 时，检索字段不可用。
   - `searchMode` 不在 `search.modes` 里时，换成描述里有的另一种。PHRASE 换 TERMS 仍然是在检索，只是更宽；反过来 TERMS 换 PHRASE 更窄。所以只做 PHRASE→TERMS 这一个方向；定义写 TERMS 而描述只有 PHRASE 时，按不可用处理。换了模式就报一条 note，说明检索按词进行。
-  - `searchFields` 与 `search.fields` 取交集；交集为空时，检索不可用。
+  - 根上的 `searchFields` 没写或为空时，在模型索引的范围里检索，不取交集——准入、编译与线上格式都这样读空列表（#5890）。列了字段的，与 `search.fields` 取交集；交集为空时，检索不可用。（见 test/capabilitiesNarrow.test.ts「searches the whole model where the box names no fields, written by hand or by defineView」）
+  - 限度：根上的 `search.modes` 是不带字段的全模型检索的模式，描述不给根上逐个字段的模式（元素的 `elements[].search.modes` 才是「每个列出的字段都接受的模式」）。所以带 `searchFields` 的根检索也按全模型的模式判断，某个字段只接受 TERMS、全模型却给 PHRASE 时不会降成按词检索（#5890）。
   - **元素里的检索**（N4）：数组的 `elements` 里声明的 `search` 字段对照这个元素的 `elements[].search`，规则同上——没有时不可用（MongoDB 的 `$text` 是整个集合的、不能放进 `$elemMatch`，描述不列），PHRASE→TERMS 同一个方向，`searchFields`（相对元素写）按全路径与 `search.fields` 取交集后写回相对名。`record.search` 不给元素，`elements[].search` 也不给根。不可用时它不在元素匹配的字段拾取里，已保存视图里用到它的条件按 Q2 待修复。没有描述时按定义声明提供。（见 test/elementSearch.test.ts「narrowing an element search to the descriptor」、test/capabilitiesUi.test.tsx「an element's search (N4)」；Storybook「能力/元素内检索」）
 - **组合规则**：
   - `STARTS_WITH_REQUIRES_PREFIX`：条件编辑器对 `STARTS_WITH` 要求非空，并提示区分大小写；
