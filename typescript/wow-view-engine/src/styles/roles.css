@@ -47,10 +47,12 @@
    * surface nor a fill. The control keeps its edge and stands on what is
    * under it. First in the layer, so a theme's own fill (`control`, the
    * rules below and in `states.css`) is laid after it; the registry's
-   * hover and disabled fills weigh a state beside the class and stay. A
-   * ticked box and a chosen radio are named out: the registry writes their
-   * fill under `:where()`, which weighs nothing, so this rule would have
-   * won the tie by order and emptied them.
+   * hover and disabled fills weigh a state beside the class (0,2,0 to this
+   * rule's 0,1,0) and stay, and so does a mixed box's fill, written
+   * `[data-indeterminate]`. A ticked box and a chosen radio are named out:
+   * their fill is the registry's `data-checked` variant, compiled under
+   * `:where()`, which weighs nothing (0,1,0), so this rule would have won
+   * the tie by order and emptied them.
    */
   @media not print {
     .fve\:dark\:bg-input\/30:where(
