@@ -84,8 +84,8 @@ class HttpCommandCaller internal constructor(
 
     /**
      * The caller of the contexts' internal ports [endpoints] finds, as the service named [service], each call answered
-     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command. It takes
-     * what the internal constructor builds: the transport from the endpoints, and the command index from the contracts.
+     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command. It builds
+     * what the internal constructor takes: the transport from the endpoints, and the command index from the contracts.
      */
     constructor(
         endpoints: EndpointResolver,
