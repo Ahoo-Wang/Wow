@@ -51,6 +51,8 @@ interface HostContext {
   router: ViewRouter | undefined;
   /** `ViewHost`'s `boardsInAddress`: boards kept in the search too. */
   boardsInAddress: boolean;
+  /** `ViewHost`'s `characterKeys`: whether 「/」, J and K act. */
+  characterKeys: boolean;
   /**
    * The record open in the address (`?id=`), for every bound resource's
    * record detail that holds none of its own; see `ViewHost`.
@@ -68,6 +70,7 @@ const Context = createContext<HostContext>({
   worded: new Set(),
   router: undefined,
   boardsInAddress: false,
+  characterKeys: true,
   detail: undefined,
   hosted: false,
 });
@@ -113,6 +116,8 @@ interface ViewEngineProviderProps {
   router?: ViewRouter;
   /** Boards kept in the search too; the outer provider's when left out. */
   boardsInAddress?: boolean;
+  /** Whether 「/」, J and K act; the outer provider's when left out. */
+  characterKeys?: boolean;
   /** The record open in the address; the outer provider's when left out. */
   detail?: RecordDetailControl;
   /** Set by `ViewHost`: what is under it has a host above. */
@@ -143,6 +148,7 @@ export function ViewEngineProvider({
   bindings,
   router,
   boardsInAddress,
+  characterKeys,
   detail,
   hosted,
   children,
@@ -180,6 +186,7 @@ export function ViewEngineProvider({
           : outer.worded,
       router: router ?? outer.router,
       boardsInAddress: boardsInAddress ?? outer.boardsInAddress,
+      characterKeys: characterKeys ?? outer.characterKeys,
       detail: detail ?? outer.detail,
       hosted: hosted ?? outer.hosted,
     }),
@@ -193,6 +200,8 @@ export function ViewEngineProvider({
       outer.router,
       boardsInAddress,
       outer.boardsInAddress,
+      characterKeys,
+      outer.characterKeys,
       detail,
       outer.detail,
       hosted,
@@ -307,6 +316,15 @@ export function useViewRouter(): ViewRouter | undefined {
 /** Whether the `ViewHost` above keeps boards in the search too. */
 export function useBoardsInAddress(): boolean {
   return useContext(Context).boardsInAddress;
+}
+
+/**
+ * Whether the surface's single-character keys act (`ViewHost`'s
+ * `characterKeys`): 「/」 to the search box, J and K through a record's
+ * detail. Off, they are neither answered nor announced.
+ */
+export function useCharacterKeys(): boolean {
+  return useContext(Context).characterKeys;
 }
 
 /** Whether a `ViewHost` is above. */

@@ -24,6 +24,7 @@ import { isPlainEnter } from '../filter/enter.js';
 import { IconTooltip } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SEARCH_KEYS, typing, useSurfaceKey } from '../kit/surfaceKeys.js';
+import { useCharacterKeys } from './ViewEngineProvider.js';
 
 /**
  * The view's search, at the end of the applied band — beside the conditions
@@ -45,7 +46,9 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
   const box = useRef<HTMLInputElement>(null);
   // 「/」 puts the keyboard here from anywhere on the surface but a field,
   // where it is a character (R2-100).
+  const characterKeys = useCharacterKeys();
   useSurfaceKey(box, event => {
+    if (!characterKeys) return;
     if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey)
       return;
     if (event.defaultPrevented || typing(event.target)) return;
@@ -59,7 +62,7 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
       </InputGroupAddon>
       <InputGroupInput
         ref={box}
-        aria-keyshortcuts={SEARCH_KEYS}
+        aria-keyshortcuts={characterKeys ? SEARCH_KEYS : undefined}
         // Text with the search role, not `type="search"`: WebKit draws its
         // own ✕ into a search input, beside the one this box carries.
         type="text"

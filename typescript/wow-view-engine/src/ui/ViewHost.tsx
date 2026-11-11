@@ -70,6 +70,16 @@ export interface ViewHostProps {
    */
   boardsInAddress?: boolean;
   /**
+   * Whether the surface's three single-character keys act: 「/」 puts the
+   * keyboard in a view's search box, and J and K step through the records
+   * of a record's detail, each while the keyboard is inside the view or
+   * the detail and never in a field (WCAG 2.1.4). On by default; a host
+   * whose users speak their commands, or whose page has keys of its own,
+   * turns them off, and the surface then neither answers nor announces
+   * them. The outer host's when left out.
+   */
+  characterKeys?: boolean;
+  /**
    * Every way off a board or a view, in the host's own hands instead of the
    * router's: handed resolved through the route of the resource it leads
    * to (`ViewRoute`); a URL, and a resource with no route, as it came.
@@ -129,6 +139,7 @@ export function ViewHost({
   messages,
   router: own,
   boardsInAddress,
+  characterKeys,
   navigate,
   bindings,
   tokenSource,
@@ -160,6 +171,7 @@ export function ViewHost({
       bindings={bindings}
       router={own}
       {...(boardsInAddress === undefined ? {} : { boardsInAddress })}
+      {...(characterKeys === undefined ? {} : { characterKeys })}
       detail={detail}
       hosted
     >

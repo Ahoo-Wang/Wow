@@ -24,7 +24,7 @@ import {
 import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSections } from '../src/record/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench, ViewHost } from '../src/ui/index.js';
 import { useOpenView, useRecordDetail } from '../src/react/index.js';
 import { MemoryViewStore, ViewEngine, type RecordData } from '../src/index.js';
 import {
@@ -73,17 +73,24 @@ function withNote() {
   });
 }
 
-async function open(source = wholeSource()) {
+async function open(source = wholeSource(), characterKeys?: boolean) {
   const engine = new ViewEngine({
     resources: resourcesOf([withNote()], () => source),
     store: new MemoryViewStore({ instances: [mine] }),
   });
-  render(
+  const workbench = (
     <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-    />,
+    />
+  );
+  render(
+    characterKeys === undefined ? (
+      workbench
+    ) : (
+      <ViewHost characterKeys={characterKeys}>{workbench}</ViewHost>
+    ),
   );
   await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
   return { engine, source };
@@ -247,6 +254,28 @@ describe('a record read whole', () => {
     ).toBe('true');
     fireEvent.keyDown(panel, { key: 'j' });
     expect(await heading(`o-${total}`)).toBeTruthy();
+  });
+
+  it('steps by neither K nor J under a host that turns the keys off, and still by its buttons (WCAG 2.1.4)', async () => {
+    await open(wholeSource(), false);
+    fireEvent.click(within(dataRows()[0]!).getAllByRole('cell')[2]!);
+    const panel = await screen.findByRole('dialog');
+    const heading = (name: string) =>
+      within(panel).findByRole('heading', { name });
+    const step = () =>
+      panel.querySelector<HTMLElement>('[data-slot="record-detail-step"]')!;
+    expect(await heading('o-1')).toBeTruthy();
+
+    expect(fireEvent.keyDown(panel, { key: 'j' })).toBe(true);
+    expect(fireEvent.keyDown(panel, { key: 'J' })).toBe(true);
+    expect(await heading('o-1')).toBeTruthy();
+    const next = within(step()).getByRole('button', { name: 'Next record' });
+    expect(next.getAttribute('aria-keyshortcuts')).toBeNull();
+
+    fireEvent.click(next);
+    expect(await heading('o-2')).toBeTruthy();
+    expect(fireEvent.keyDown(panel, { key: 'k' })).toBe(true);
+    expect(await heading('o-2')).toBeTruthy();
   });
 
   it('leaves the keys on something inside the row to that thing', async () => {
