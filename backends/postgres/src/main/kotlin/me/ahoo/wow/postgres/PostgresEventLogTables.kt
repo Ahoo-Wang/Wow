@@ -88,8 +88,12 @@ internal class PostgresEventLogTables(val context: String) {
     val advanceWalk = "UPDATE $REGISTRY SET access_walk = access_walk || ?::jsonb " +
         "WHERE context = ? AND aggregate = ? AND access_walk ->> 'schema' = ?"
 
-    /** Records an aggregate table: context, aggregate, table. An existing record is kept. */
-    val register = "INSERT INTO $REGISTRY (context, aggregate, log_table) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+    /**
+     * Records an aggregate table: context, aggregate, table, and the walk its creation records (null when the log
+     * serves no schema for the aggregate). An existing record is kept, its walk with it.
+     */
+    val register = "INSERT INTO $REGISTRY (context, aggregate, log_table, access_walk) VALUES (?, ?, ?, ?::jsonb) " +
+        "ON CONFLICT DO NOTHING"
 
     /** Who holds a table name: context, aggregate. */
     val holder = "SELECT context, aggregate FROM $REGISTRY WHERE log_table = ?"

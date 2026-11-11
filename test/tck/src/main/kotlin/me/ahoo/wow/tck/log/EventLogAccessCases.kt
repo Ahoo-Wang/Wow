@@ -181,6 +181,29 @@ abstract class EventLogAccessCases internal constructor() : EventLogRecordCases(
         }
 
     @Test
+    fun `a log told its node's schema records the walk completed as it creates a type's store, an existing one kept`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
+            val walks = log as AccessWalks
+            walks.serves(mapOf(type to "region:string"))
+            walks.walk(type).assert().isNull()
+            log.append(stream("a-1", 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            walks.walk(type).assert().isEqualTo(AccessWalk.created("region:string"))
+            // A type it serves no schema for records none.
+            log.append(stream("b-1", 1, aggregate = other))
+            walks.walk(other).assert().isNull()
+            if (opensOneStorePerContext) {
+                // Another node, of another schema, makes sure of the store the first created: the walk stays.
+                val second = createLog()
+                val secondWalks = second as AccessWalks
+                secondWalks.serves(mapOf(type to "teams:string[]"))
+                second.append(stream("a-2", 1))
+                secondWalks.walk(type).assert().isEqualTo(AccessWalk.created("region:string"))
+            }
+        }
+
+    @Test
     fun `a walk is claimed by its schema, once among concurrent claims, and advances while recorded`(): Unit =
         runBlocking {
             val log = createLog()

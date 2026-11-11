@@ -265,17 +265,24 @@ internal class InstanceAppends(
     }
 
     /**
-     * Claims [type]'s access walk as this import's ([IMPORTING]) once its first streams are in, when none is recorded:
-     * a node that saw the store created never takes its streams, which carry no attributes, as its own schema's, and
-     * takes the walk over as any unfinished one, unless the snapshot step stamps them and completes it.
+     * Claims [type]'s access walk as this import's ([IMPORTING]) once its first streams are in, which carry no
+     * attributes: when none is recorded, or in place of one that stamped nothing, such as the walk a node's creation of
+     * the type's store records (a node on standby creates them as it starts). The nodes take the import's walk over as
+     * any unfinished one, unless the snapshot step stamps the history and completes it. A walk that stamped aggregates
+     * is left as it is.
      */
     private suspend fun claimImport(type: AggregateType) {
         if (!importing.add(type)) {
             return
         }
         val walks = logOf(type.context) as? AccessWalks ?: return
-        if (walks.holds(type)) {
-            walks.claim(type, AccessWalk(IMPORTING, emptyMap()), expected = null)
+        if (!walks.holds(type)) {
+            return
+        }
+        val walk = AccessWalk(IMPORTING, emptyMap())
+        if (!walks.claim(type, walk, expected = null)) {
+            walks.walk(type)?.takeIf { it.completed && it.walked == 0L && it.schema != IMPORTING }
+                ?.let { walks.claim(type, walk, expected = it.schema) }
         }
     }
 }

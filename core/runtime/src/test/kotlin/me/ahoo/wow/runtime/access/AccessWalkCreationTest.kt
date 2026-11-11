@@ -26,16 +26,14 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
 
 /**
- * The walk of a type whose store a node saw created: recorded complete when nodes of its schema alone appended to it,
- * walked as any other when a node of another schema served the type meanwhile, an import claimed it, or the node did
- * not see it created; and a type without a store read again after fewer runs each time.
+ * The walk a type's store records when a log its node serves creates it, completed with nothing walked, so neither
+ * this node nor another walks it; a store another writer created is claimed and walked; and a type without a store is
+ * read again after fewer runs each time.
  */
-class UnwrittenTypesTest : AccessWalkingFixtures() {
+class AccessWalkCreationTest : AccessWalkingFixtures() {
     private val schema = AccessSchema.of(model)
-    private val older = "department:integer"
     private val members = "service/office#access"
 
     /** Appends the streams of [ids], each moved to [departments] in turn, as a node of this schema commits them. */
@@ -49,58 +47,68 @@ class UnwrittenTypesTest : AccessWalkingFixtures() {
         }
     }
 
-    private fun heads(log: InMemoryEventLog) = runBlocking {
-        (0 until log.partitions).associateWith { log.head(it) ?: 0L }
-    }
-
     private fun walked() = observed.filterIsInstance<ObservedEvent.AccessStamped>()
 
     @Test
-    fun `a store created while the node ran, by nodes of its schema alone, is recorded walked, its streams not read`(): Unit =
+    fun `a store created by a log this node serves records its walk completed, its streams not read`(): Unit =
         runBlocking {
             val log = InMemoryEventLog()
             val walking = walking(log)
-            walking.enter()
+            walking.serve()
             walking.maintain().assert().isFalse()
-            committed(log, listOf("d-1", "d-2", "d-3"), "sales", "legal")
-            // The run after the first is not due: the type is read again on the third.
-            walking.maintain()
             log.walk(type).assert().isNull()
+            committed(log, listOf("d-1", "d-2", "d-3"), "sales", "legal")
+            log.walk(type).assert().isEqualTo(AccessWalk.created(schema))
+            // The run after the first is not due; the third finds the store and its walk, and claims nothing.
+            walking.maintain()
             walking.maintain().assert().isFalse()
-            log.walk(type).assert().isEqualTo(AccessWalk(schema, heads(log), completed = true))
-            walked().assert().isEmpty()
-            walking.walks().getValue(type).completed.assert().isTrue()
-        }
-
-    @Test
-    fun `a store a node of another schema may have appended to is walked, though it served the type one run only`(): Unit =
-        runBlocking {
-            val log = InMemoryEventLog()
-            val leases = InMemoryLeaseStore()
-            val walking = walking(log, leases)
-            walking.maintain()
-            // A node of an earlier schema serves the type during the run that does not read it, then stops.
-            leases.heartbeat(members, "n-0", "n-0", 30.seconds, setOf("document@${AccessSchema.hashOf(older)}"))
-            walking.maintain()
-            leases.leave(members, "n-0")
-            unstamped(log, listOf("d-1"), "sales")
-            walking.maintain()
-            log.walk(type)!!.let {
-                it.schema.assert().isEqualTo(schema)
-                it.walked.assert().isEqualTo(1)
+            log.walk(type).assert().isEqualTo(AccessWalk.created(schema))
+            walking.walks().getValue(type).let {
                 it.completed.assert().isTrue()
+                it.walked.assert().isZero()
             }
-            history(log, "d-1").assert().containsExactly(access("sales"))
+            walked().assert().isEmpty()
         }
 
     @Test
-    fun `a store that holds a walk once found, an import's, is walked in its place`(): Unit = runBlocking {
+    fun `a second node started on a store the first created claims nothing`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        val leases = InMemoryLeaseStore()
+        walking(log, leases).serve()
+        committed(log, listOf("d-1", "d-2"), "sales")
+        val second = walkingOf(log, leases)
+        second.serve()
+        second.maintain().assert().isFalse()
+        log.walk(type).assert().isEqualTo(AccessWalk.created(schema))
+        second.walks().getValue(type).walked.assert().isZero()
+        walked().assert().isEmpty()
+    }
+
+    @Test
+    fun `a store a log serving no schema created records no walk, and is claimed and walked`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        committed(log, listOf("d-1", "d-2"), "sales")
+        log.walk(type).assert().isNull()
+        val walking = walking(log)
+        walking.serve()
+        walking.maintain().assert().isFalse()
+        log.walk(type)!!.let {
+            it.walked.assert().isEqualTo(2)
+            it.completed.assert().isTrue()
+        }
+        walked().map { it.cause }.assert().containsOnly(ObservedEvent.AccessStamped.Cause.WALK).hasSize(2)
+    }
+
+    @Test
+    fun `a store that holds an import's walk is walked in its place`(): Unit = runBlocking {
         val log = InMemoryEventLog()
         val walking = walking(log)
+        walking.serve()
         walking.maintain()
-        // An import appends the type's first streams, without attributes, and claims its walk; no node serves it.
+        // An import appends the type's first streams, without attributes, and claims its walk in place of the one the
+        // creation recorded; no node serves it.
         unstamped(log, listOf("d-1", "d-2"), "sales")
-        log.claim(type, AccessWalk(AccessWalk.IMPORTING, emptyMap()), expected = null).assert().isTrue()
+        log.claim(type, AccessWalk(AccessWalk.IMPORTING, emptyMap()), expected = schema).assert().isTrue()
         walking.maintain()
         walking.maintain()
         log.walk(type)!!.let {
@@ -109,19 +117,6 @@ class UnwrittenTypesTest : AccessWalkingFixtures() {
             it.completed.assert().isTrue()
         }
         listOf("d-1", "d-2").forEach { history(log, it).assert().containsExactly(access("sales")) }
-    }
-
-    @Test
-    fun `a store that held streams before the node started is walked, whoever appended them`(): Unit = runBlocking {
-        val log = InMemoryEventLog()
-        committed(log, listOf("d-1", "d-2"), "sales")
-        val walking = walking(log)
-        walking.maintain().assert().isFalse()
-        log.walk(type)!!.let {
-            it.walked.assert().isEqualTo(2)
-            it.completed.assert().isTrue()
-        }
-        walked().map { it.cause }.assert().containsOnly(ObservedEvent.AccessStamped.Cause.WALK).hasSize(2)
     }
 
     @Test
@@ -139,7 +134,7 @@ class UnwrittenTypesTest : AccessWalkingFixtures() {
                 walking.maintain()
             }
             reads.assert().containsExactly(1, 3, 6, 11, 20, 37, 54)
-            UnwrittenTypes.MAX_SKIPPED.assert().isEqualTo(16)
+            AbsentTypes.MAX_SKIPPED.assert().isEqualTo(16)
         }
 
     @Test
