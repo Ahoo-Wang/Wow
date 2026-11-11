@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.sink
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
@@ -54,7 +53,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The transport sink over an in-memory transport (design 04 §4, decisions D45, D58, D135): one subscription per published
@@ -222,9 +220,8 @@ class PublishedSinksTest {
         node.start()
         node.place("o-1")
         val position = backends.opened.getValue(SHOP).log.positionOf(ORDER.ref(TENANT, "o-1"), 1)!!
+        // The write's send is held: not acknowledged, so the entry is not complete and its checkpoint not passed.
         eventually { waiting.get() >= 1 }
-        // Well past the checkpoint interval: still not acknowledged, so not passed.
-        delay(100.milliseconds)
         (checkpoint("wow.transport-sink.order", position.partition) ?: 0L).assert().isLessThan(position.sequence)
         gate.complete(Unit)
         eventually { (checkpoint("wow.transport-sink.order", position.partition) ?: 0L) >= position.sequence }

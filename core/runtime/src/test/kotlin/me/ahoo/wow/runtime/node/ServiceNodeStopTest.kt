@@ -18,7 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -148,8 +147,8 @@ class ServiceNodeStopTest : ServiceNodeFixtures() {
         one.context(BANK).coordinator.executing.assert().isEqualTo(1)
 
         val stopping = async(Dispatchers.Default) { one.stop() }
+        // The gateway closed: the stop now joins the execution node-2's held reply keeps running.
         eventually { ServiceNode.Step.GATEWAY_CLOSED in steps }
-        delay(200)
         stopping.isCompleted.assert().isFalse()
         steps.assert().doesNotContain(ServiceNode.Step.EXECUTIONS_ENDED)
 

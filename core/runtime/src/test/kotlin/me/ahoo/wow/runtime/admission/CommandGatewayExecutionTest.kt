@@ -14,9 +14,9 @@
 package me.ahoo.wow.runtime.admission
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -77,9 +77,9 @@ class CommandGatewayExecutionTest : CommandGatewayFixtures() {
         accepted.hop.assert().isEqualTo(Hop.accepted(CONTEXT))
         eventually { decided.contains(accepted.commandId) }
         registry.size.assert().isEqualTo(0)
-        // Closing waits for the detached command, then refuses new requests.
-        val closing = async(Dispatchers.Default) { gateway.close(5.seconds) }
-        delay(100)
+        // Closing waits for the detached command, then refuses new requests. Started at once, it has found the command,
+        // which the gate holds, before the check.
+        val closing = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { gateway.close(5.seconds) }
         closing.isCompleted.assert().isFalse()
         gate.complete(Unit)
         withTimeout(5.seconds) { closing.await() }
@@ -106,14 +106,13 @@ class CommandGatewayExecutionTest : CommandGatewayFixtures() {
         val decide = CompletableDeferred<Unit>().also { hold = it }
         val sending = async(Dispatchers.Default) { gateway.execute(request(wait = WaitPlan.ACCEPTED)) }
         authorizing.await()
-        val closing = async(Dispatchers.Default) { gateway.close(5.seconds) }
-        delay(50)
+        // Started at once, closing waits for the admission under way, which the authorizer holds, before the check.
+        val closing = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { gateway.close(5.seconds) }
         closing.isCompleted.assert().isFalse()
         authorized.complete(Unit)
         val accepted = withTimeout(5.seconds) { sending.await() }
         accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { decided.contains(accepted.commandId) }
-        delay(50)
         closing.isCompleted.assert().isFalse()
         decide.complete(Unit)
         withTimeout(5.seconds) { closing.await() }

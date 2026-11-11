@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.wait
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -52,8 +53,8 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
         val command = placeSlowly(WaitPlan.COMMITTED.within(100.milliseconds))
         coordinator.execute(order, command).hop.assert().isEqualTo(Hop.accepted("shop"))
         coordinator.executing.assert().isEqualTo(1)
-        val joining = async(Dispatchers.Default) { coordinator.join() }
-        delay(100)
+        // Started at once: the join has found the execution, which the decide gate holds, before the check.
+        val joining = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { coordinator.join() }
         joining.isCompleted.assert().isFalse()
 
         decideGate.complete(Unit)
@@ -161,7 +162,6 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
     @Test
     fun `an execution that fails after its wait timed out is only logged`(): Unit = runBlocking {
         val failing = CompletableDeferred<Unit>()
-        val failed = CompletableDeferred<Unit>()
         val broken = WaitCoordinator(
             executor,
             registry,
@@ -170,19 +170,15 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
             origin,
             WaitOptions(),
             router = { _, _, _, _ ->
-                try {
-                    failing.await()
-                    error("The owner is gone.")
-                } finally {
-                    failed.complete(Unit)
-                }
+                failing.await()
+                error("The owner is gone.")
             },
         )
         val result = broken.execute(order, place(wait = WaitPlan.COMMITTED.within(100.milliseconds)))
         result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
         failing.complete(Unit)
-        withTimeout(5.seconds) { failed.await() }
-        delay(100) // The coordinator logs the failure once it reaches it, with nobody to answer.
+        // The execution logs the failure, with nobody to answer, before it ends.
+        withTimeout(5.seconds) { broken.join() }
         // While waited for, the failure is the caller's.
         val failingNow = WaitCoordinator(
             executor,
