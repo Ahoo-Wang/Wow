@@ -2006,7 +2006,7 @@
             },
             "kind" : {
               "type" : "string",
-              "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ],
+              "enum" : [ "command", "project", "react", "saga", "system" ],
               "x-wow-class" : "me.ahoo.wow.api.result.FunctionKind"
             },
             "name" : {

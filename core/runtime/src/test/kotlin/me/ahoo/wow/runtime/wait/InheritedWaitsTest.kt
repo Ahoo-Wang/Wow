@@ -89,7 +89,7 @@ class InheritedWaitsTest {
     private var outcome: suspend () -> CommandOutcome = { CommandOutcome.Committed(stream, LogPosition(0, 1), Any()) }
     private val executor = mockk<Executor> { coEvery { execute(any(), any(), any()) } coAnswers { outcome() } }
     private val directory = mockk<SubscriptionDirectory> {
-        every { kindOf(any(), any()) } returns FunctionKind.SNAPSHOT
+        every { kindOf(any(), any()) } returns FunctionKind.SYSTEM
         coEvery { hasHandled(any(), any()) } returns false
     }
     private val clock = Clock.systemUTC()

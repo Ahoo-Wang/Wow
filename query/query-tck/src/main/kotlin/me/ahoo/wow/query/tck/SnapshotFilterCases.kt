@@ -160,7 +160,7 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
     @Test
     fun `operator system fields filter, sort and read back`() = blocking {
         val alice = Operator("alice", TENANT)
-        val bob = Operator("bob", OTHER_TENANT, crossScope = true)
+        val bob = Operator("bob", OTHER_TENANT, actedElsewhere = true)
         val fixture = given(
             listOf(
                 snapshot("p1", """{"name":"One"}""", operator = alice),
@@ -173,7 +173,8 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
         fixture.ids(EqualFilter(QueryField("firstOperator.id"), "alice")).assert().containsExactlyInAnyOrder("p1", "p2")
         fixture.ids(EqualFilter(QueryField("operator.tenantId"), OTHER_TENANT))
             .assert().containsExactlyInAnyOrder("p2", "p3")
-        fixture.ids(EqualFilter(QueryField("operator.crossScope"), true)).assert().containsExactlyInAnyOrder("p2", "p3")
+        fixture.ids(EqualFilter(QueryField("operator.actedElsewhere"), true))
+            .assert().containsExactlyInAnyOrder("p2", "p3")
         fixture.ids(IsNullFilter(QueryField("operator"))).assert().containsExactly("p4")
         fixture.ids(
             AggregateIdsFilter(listOf("p1", "p2", "p3")),
@@ -187,7 +188,7 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
         )
         record.path("operator").path("id").stringValue().assert().isEqualTo("bob")
         record.path("operator").path("tenantId").stringValue().assert().isEqualTo(OTHER_TENANT)
-        record.path("operator").path("crossScope").booleanValue().assert().isTrue()
+        record.path("operator").path("actedElsewhere").booleanValue().assert().isTrue()
         record.path("firstOperator").path("id").stringValue().assert().isEqualTo("alice")
         val anonymous = checkNotNull(
             fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("p4")), fixture.schema)),

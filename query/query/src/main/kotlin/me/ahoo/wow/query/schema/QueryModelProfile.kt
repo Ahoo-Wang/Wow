@@ -306,7 +306,7 @@ internal fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
         linkedMapOf(
             OperatorFields.ID to scalarProperty(QueryValueType.STRING),
             OperatorFields.TENANT_ID to scalarProperty(QueryValueType.STRING),
-            OperatorFields.CROSS_SCOPE to scalarProperty(QueryValueType.BOOLEAN),
+            OperatorFields.ACTED_ELSEWHERE to scalarProperty(QueryValueType.BOOLEAN),
         ),
     ),
 )

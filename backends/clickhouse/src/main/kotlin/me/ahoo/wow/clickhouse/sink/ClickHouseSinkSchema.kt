@@ -292,7 +292,7 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("headers", "Map(String, String)"),
             ClickHouseColumn("operator_id", "String"),
             ClickHouseColumn("operator_tenant_id", "String"),
-            ClickHouseColumn("operator_cross_scope", "Bool"),
+            ClickHouseColumn("operator_acted_elsewhere", "Bool"),
             ClickHouseColumn("events", "Array(Tuple(name LowCardinality(String), revision UInt32, payload String))"),
             ClickHouseColumn("state", "String"),
             ClickHouseColumn("state_fingerprint", "String"),

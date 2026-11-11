@@ -74,14 +74,14 @@ internal object ElasticsearchSnapshotIndex {
                 "properties": {
                   "id": { "type": "keyword" },
                   "tenantId": { "type": "keyword" },
-                  "crossScope": { "type": "boolean" }
+                  "actedElsewhere": { "type": "boolean" }
                 }
               },
               "firstOperator": {
                 "properties": {
                   "id": { "type": "keyword" },
                   "tenantId": { "type": "keyword" },
-                  "crossScope": { "type": "boolean" }
+                  "actedElsewhere": { "type": "boolean" }
                 }
               },
               "schedules": { "type": "object", "dynamic": true },

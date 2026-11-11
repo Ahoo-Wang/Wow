@@ -279,7 +279,7 @@ internal class PostgresEventLogTables(val context: String) {
 /**
  * The log table of one aggregate type. A stream's facts take one column each, so the log can be queried in place;
  * the scope is two nullable columns and the causation two more, both null or both set. The operator
- * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_cross_scope`, all null for an anonymous
+ * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_acted_elsewhere`, null for an anonymous
  * caller. The schedules are among the events. The aggregate's access attributes are a nullable `jsonb` column,
  * `{name: value | [values]}` in their stored form ([me.ahoo.wow.spi.access.AccessValues]): null for a stream not
  * stamped (imported without them); `access_version` the version they are of, the stream's own when appended with
@@ -314,7 +314,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             transport bytea,
             operator_id text,
             operator_tenant_id text,
-            operator_cross_scope boolean,
+            operator_acted_elsewhere boolean,
             access jsonb,
             access_version integer,
             PRIMARY KEY (partition, sequence),
@@ -346,7 +346,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         )
         INSERT INTO $log (partition, sequence, tenant_id, aggregate_id, version, command_id, request_id,
             command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport,
-            operator_id, operator_tenant_id, operator_cross_scope, access, access_version)
+            operator_id, operator_tenant_id, operator_acted_elsewhere, access, access_version)
         SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::bytea, ?, ?, ?, ?::jsonb, ?
         FROM bump
         RETURNING sequence
@@ -437,7 +437,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         /** The columns a stream is written to besides its position, in the order of its parameters. */
         const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +
-            "operator_tenant_id, operator_cross_scope, access, access_version"
+            "operator_tenant_id, operator_acted_elsewhere, access, access_version"
 
         /** The parameters of one stream in [PostgresEventLogTables.appendGroup]: one per column of [COLUMNS]. */
         const val STREAM_PARAMETERS = 19
@@ -445,6 +445,6 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, operator_id, operator_tenant_id, " +
-            "operator_cross_scope, access, access_version"
+            "operator_acted_elsewhere, access, access_version"
     }
 }

@@ -38,7 +38,7 @@ import java.time.format.DateTimeFormatter
  * | `access` | the access attributes as JSON text, the built-in `owner` and `space` among them ([AccessValues]); empty when the record has none |
  * | `correlation_id`, `causation_id` | the causation, empty when none |
  * | `headers` | as they are; in the history only |
- * | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | the operator; empty and false when none |
+ * | `operator_id`, `operator_tenant_id`, `operator_acted_elsewhere` | the operator; empty and false when none |
  * | `events` | each event's `(name, revision, payload)`, the payload as JSON text; in the history only |
  * | `state`, `state_fingerprint` | the state as JSON text and its schema's fingerprint; empty without the state |
  * | `state_numbers` | the exact text of each top-level number of the state, which `_state_flat` reads decimals from |
@@ -70,7 +70,7 @@ internal object ClickHouseRows {
         }
         put("operator_id", record.operator?.id.orEmpty())
         put("operator_tenant_id", record.operator?.tenantId.orEmpty())
-        put("operator_cross_scope", record.operator?.crossScope ?: false)
+        put("operator_acted_elsewhere", record.operator?.actedElsewhere ?: false)
         if (history) {
             putArray("events").apply {
                 record.events.forEach { event ->

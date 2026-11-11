@@ -62,7 +62,7 @@ class LocalExecutionTest {
         coEvery { execute(any(), any(), any()) } returns CommandOutcome.AlreadyCommitted(stream)
     }
 
-    private fun execution(kind: FunctionKind? = FunctionKind.SNAPSHOT): LocalExecution {
+    private fun execution(kind: FunctionKind? = FunctionKind.SYSTEM): LocalExecution {
         val directory = mockk<SubscriptionDirectory> {
             coEvery { hasHandled(any(), any()) } returns true
             every { kindOf(any(), any()) } returns kind

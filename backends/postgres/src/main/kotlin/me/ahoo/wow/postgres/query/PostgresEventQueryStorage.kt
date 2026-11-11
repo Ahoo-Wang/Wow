@@ -79,7 +79,7 @@ class PostgresEventQueryStorage @JvmOverloads constructor(
 
 /**
  * The fields of a log table (`AggregateLogTable`), by physical name: each system field of a stream its
- * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorCrossScope`, the access
+ * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorActedElsewhere`, the access
  * attributes the nullable `jsonb` column `access`, and the events
  * the one `jsonb` column `events`, each `{name, revision, payload}`.
  */
@@ -96,7 +96,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         EventStreamFields.SPACE_ID to "space_id",
         PostgresEventQueryLayout.OPERATOR_ID to "operator_id",
         PostgresEventQueryLayout.OPERATOR_TENANT_ID to "operator_tenant_id",
-        PostgresEventQueryLayout.OPERATOR_CROSS_SCOPE to "operator_cross_scope",
+        PostgresEventQueryLayout.OPERATOR_ACTED_ELSEWHERE to "operator_acted_elsewhere",
         EventStreamFields.ACCESS to "access",
         EventStreamFields.EVENTS to "events",
     ),
@@ -112,7 +112,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         EventStreamFields.SPACE_ID to PostgresQueryType.TEXT,
         PostgresEventQueryLayout.OPERATOR_ID to PostgresQueryType.TEXT,
         PostgresEventQueryLayout.OPERATOR_TENANT_ID to PostgresQueryType.TEXT,
-        PostgresEventQueryLayout.OPERATOR_CROSS_SCOPE to PostgresQueryType.BOOLEAN,
+        PostgresEventQueryLayout.OPERATOR_ACTED_ELSEWHERE to PostgresQueryType.BOOLEAN,
         EventStreamFields.ACCESS to PostgresQueryType.JSONB,
         EventStreamFields.EVENTS to PostgresQueryType.JSONB,
     ),
@@ -132,13 +132,13 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
 internal object PostgresEventQueryLayout {
     const val OPERATOR_ID: String = "operatorId"
     const val OPERATOR_TENANT_ID: String = "operatorTenantId"
-    const val OPERATOR_CROSS_SCOPE: String = "operatorCrossScope"
+    const val OPERATOR_ACTED_ELSEWHERE: String = "operatorActedElsewhere"
 
     /** The key the log stores an event's body under. */
     const val PAYLOAD: String = "payload"
 
     private const val COLUMNS = "tenant_id, aggregate_id, version, commit_time, command_id, request_id, command_type, " +
-        "owner_id, space_id, operator_id, operator_tenant_id, operator_cross_scope, access"
+        "owner_id, space_id, operator_id, operator_tenant_id, operator_acted_elsewhere, access"
     private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
     /** The log table: by tenant, aggregate and version, its key; the events only read when the projection keeps them. */
@@ -178,7 +178,7 @@ internal object PostgresEventQueryLayout {
             putObject(EventStreamFields.OPERATOR)
                 .put("id", operator)
                 .put("tenantId", row.getString("operator_tenant_id"))
-                .put("crossScope", row.getBoolean("operator_cross_scope"))
+                .put("actedElsewhere", row.getBoolean("operator_acted_elsewhere"))
         }
         val access = row.getString("access")
         if (access == null) {
@@ -201,7 +201,7 @@ internal object PostgresEventQueryLayout {
 /**
  * What a log table proves about an `events` query model, for the table this module creates: each
  * logical path bound to its physical field ([PostgresEventQueryExpressions]): a system field to its column,
- * `operator.id`, `operator.tenantId` and `operator.crossScope` to the operator's columns (`operator` itself to the id,
+ * `operator.id`, `operator.tenantId` and `operator.actedElsewhere` to its columns (`operator` itself to the id,
  * for its presence), and a path below `events[].body` to the stored `payload`. Each path is granted what the snapshot
  * table grants a path of its type ([PostgresSnapshotStorageAdapter.capabilitiesOf]): no full-text search, no sort or
  * aggregation of a multi-valued path, element scopes on `events` and their expansion.
@@ -220,7 +220,7 @@ internal object PostgresEventStorageAdapter : QueryStorageAdapter {
     private val OPERATOR_COLUMNS = mapOf(
         "id" to PostgresEventQueryLayout.OPERATOR_ID,
         "tenantId" to PostgresEventQueryLayout.OPERATOR_TENANT_ID,
-        "crossScope" to PostgresEventQueryLayout.OPERATOR_CROSS_SCOPE,
+        "actedElsewhere" to PostgresEventQueryLayout.OPERATOR_ACTED_ELSEWHERE,
     )
 
     override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts(

@@ -148,7 +148,7 @@ class ProcessorBindingTest {
         (seen[2] as SubscriptionContext).executionId.subscription.assert().isEqualTo("Mail.send")
         (seen[3] as SagaContext).executionId.subscription.assert().isEqualTo("Saga.derive")
         assertThrownBy<IllegalArgumentException> {
-            contextOf(FunctionKind.SNAPSHOT, event.ref.type.context, "snapshot", event)
+            contextOf(FunctionKind.SYSTEM, event.ref.type.context, "snapshot", event)
         }
     }
 

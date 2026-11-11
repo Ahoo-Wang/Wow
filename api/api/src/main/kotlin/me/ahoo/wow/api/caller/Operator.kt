@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - [id] is the opaque id of the authenticated principal ([Caller.subject]); a command nobody sent, one a framework
  *   component issues on its own, names the component as `system:<component>` ([system]).
  * - [tenantId] is the operator's own tenant, which may differ from the aggregate's.
- * - [crossScope] says the operator acted in another tenant or scope than its own, through `Wow-Scope`.
+ * - [actedElsewhere] says the operator acted in another tenant or scope than its own, through `Wow-Scope`.
  *
  * Nothing else about the principal is recorded: no display name (names change and are personal data; a reader
  * resolves the [id] against the identity system), no roles, policies or attributes. The log cannot be changed, so
@@ -33,7 +33,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class Operator @InternalWowApi constructor(val id: String, val tenantId: String, val crossScope: Boolean = false) {
+class Operator @InternalWowApi constructor(val id: String, val tenantId: String, val actedElsewhere: Boolean = false) {
     init {
         require(id.isNotBlank()) { "An operator needs an id." }
         require(tenantId.isNotBlank()) { "An operator needs a tenant." }
@@ -44,9 +44,9 @@ class Operator @InternalWowApi constructor(val id: String, val tenantId: String,
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "Operator(id=$id, tenantId=$tenantId, crossScope=$crossScope)"
+    override fun toString(): String = "Operator(id=$id, tenantId=$tenantId, actedElsewhere=$actedElsewhere)"
 
-    private fun valueFields(): List<Any?> = listOf(id, tenantId, crossScope)
+    private fun valueFields(): List<Any?> = listOf(id, tenantId, actedElsewhere)
 
     companion object {
         /** The prefix of the id of a framework component that issues a command on its own. */
@@ -63,6 +63,7 @@ class Operator @InternalWowApi constructor(val id: String, val tenantId: String,
         /** An Operator of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(id: String, tenantId: String, crossScope: Boolean = false): Operator = Operator(id, tenantId, crossScope)
+        fun of(id: String, tenantId: String, actedElsewhere: Boolean = false): Operator =
+            Operator(id, tenantId, actedElsewhere)
     }
 }

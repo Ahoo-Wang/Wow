@@ -39,7 +39,7 @@ These values appear inside most structures.
 | Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has a null `id` until the server chooses one. `(none)` is never an id: a ref that names it is refused. |
 | Scope | `{"ownerId", "spaceId"}` | Either may be null. On a command, the caller's scope; on a commit or a snapshot, the aggregate's after the commit. |
 | Causation | `{"correlationId", "causationId"}` | `correlationId` is the root command's id; `causationId` is the direct cause, for a saga's command the commit it handled. A command sent directly by a caller has none and is its own root. |
-| Operator | `{"id", "tenantId", "crossScope"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `crossScope` when it acted in another tenant or scope. |
+| Operator | `{"id", "tenantId", "actedElsewhere"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `actedElsewhere` when it acted in another tenant or scope. |
 | Hop | `{"stage", "context", "subscription"}` | `stage` is `accepted`, `committed` or `handled`; `subscription` only for `handled`; the snapshot hop is `handled` with the subscription `wow.snapshot`. |
 
 Times are epoch milliseconds.
@@ -161,7 +161,7 @@ A published state event:
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     }
   },
   "transport": null
@@ -223,7 +223,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     },
     "replyTo": {
       "context": "bank",
@@ -320,7 +320,7 @@ The target of a cross-context command writes a receipt to the sending context's 
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     },
     "scope": {
       "ownerId": "u-42",
@@ -343,7 +343,7 @@ One structure reports the outcome of a command everywhere outside the kernel: th
 | `commandId`, `requestId`, `correlationId` | The command, its idempotency key and the root of its chain. |
 | `ref` | The aggregate. |
 | `hop` | The hop of the wait plan this result reports. |
-| `function` | Who produced it: `{kind, context, processor, name}`. `kind` is `command`, `project`, `react`, `saga`, `snapshot`, `reservation` or `timers`; for a command, `processor` and `name` are the aggregate and the command; for a subscription, its processor and function. |
+| `function` | Who produced it: `{kind, context, processor, name}`. `kind` is `command`, `project`, `react`, `saga` or `system`, the last a built-in subscription of Wow's; for a command, `processor` and `name` are the aggregate and the command; for a subscription, its processor and function (`wow` and `snapshot` for the built-in `wow.snapshot`). |
 | `status` | `succeeded`, `rejected` or `failed`. |
 | `version` | The aggregate's version after the commit, or unchanged when nothing was appended. |
 | `duplicate` | The request had already committed; it was not decided again. |
@@ -397,10 +397,10 @@ A hop that completes sends a signal straight to the internal port of the node th
       "subscription": "wow.snapshot"
     },
     "function": {
-      "kind": "snapshot",
+      "kind": "system",
       "context": "bank",
-      "processor": "wow.snapshot",
-      "name": "wow.snapshot"
+      "processor": "wow",
+      "name": "snapshot"
     },
     "status": "succeeded",
     "version": 2,

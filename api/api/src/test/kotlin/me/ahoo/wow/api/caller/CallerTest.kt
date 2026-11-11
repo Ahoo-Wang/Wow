@@ -39,7 +39,7 @@ class CallerTest {
         )
         caller.toOperator().assert().isEqualTo(Operator("alice", "t1"))
         // Allowed to act elsewhere is not acting elsewhere: only a named target marks the operator.
-        caller.toOperator(actingElsewhere = true).assert().isEqualTo(Operator("alice", "t1", crossScope = true))
+        caller.toOperator(actingElsewhere = true).assert().isEqualTo(Operator("alice", "t1", actedElsewhere = true))
     }
 
     @Test

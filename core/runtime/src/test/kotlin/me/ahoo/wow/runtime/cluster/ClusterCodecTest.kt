@@ -77,7 +77,7 @@ class ClusterCodecTest {
         scope = Scope("owner-1", "space-1"),
         headers = mapOf("app" to "web"),
         causation = Causation("root", "bank.account/t1/acc-0@2"),
-        operator = Operator("alice", "t0", crossScope = true),
+        operator = Operator("alice", "t0", actedElsewhere = true),
     )
     private val wait = WaitContext(
         "w-1",

@@ -197,7 +197,7 @@ abstract class SnapshotSubscriptionFixtures {
 
     protected companion object {
         val ALICE = Operator("alice", "t")
-        val BOB = Operator("bob", "home", crossScope = true)
+        val BOB = Operator("bob", "home", actedElsewhere = true)
     }
 
     /** A command of any [body], a lifecycle one included, to counter [id]. */

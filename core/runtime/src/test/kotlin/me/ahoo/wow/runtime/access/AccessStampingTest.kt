@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -82,6 +83,11 @@ class AccessStampingTest {
     }
 
     private fun history(log: Recording) = runBlocking { log.log.read(ref).toList().map { it.access } }
+
+    @Test
+    fun `the stamping runs as a built-in subscription`() {
+        stamping(Recording()).subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
+    }
 
     @Test
     fun `a commit that changed the attributes stamps them over the history, one that changed none stamps nothing`() {

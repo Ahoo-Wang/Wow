@@ -221,7 +221,7 @@ class ReservationSubscriptionTest {
         confirming.subscription.name.assert().isEqualTo("wow.reservation")
         confirming.subscription.filter.context.assert().isEqualTo("shop")
         confirming.subscription.filter.aggregates.assert().isEmpty()
-        confirming.subscription.kind.assert().isEqualTo(FunctionKind.RESERVATION)
+        confirming.subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
     }
 
     @Test

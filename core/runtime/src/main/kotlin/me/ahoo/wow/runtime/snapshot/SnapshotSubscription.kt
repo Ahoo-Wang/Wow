@@ -122,7 +122,7 @@ class SnapshotSubscription(
     val subscription: Subscription = Subscription.coalescing(
         name,
         SubscriptionFilter(context, this.models.keys.mapTo(LinkedHashSet()) { it.name }),
-        FunctionKind.SNAPSHOT,
+        FunctionKind.SYSTEM,
         EntryDecoder.stateEvents(reader, decodeEvents = false),
         answers = { type -> Hop.SNAPSHOT_SUBSCRIPTION.takeIf { answers(type) } },
         handler = ::write,

@@ -20,10 +20,10 @@
       "subscription": "wow.snapshot"
     },
     "function": {
-      "kind": "snapshot",
+      "kind": "system",
       "context": "bank",
-      "processor": "wow.snapshot",
-      "name": "wow.snapshot"
+      "processor": "wow",
+      "name": "snapshot"
     },
     "status": "succeeded",
     "version": 2,

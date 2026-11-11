@@ -129,7 +129,7 @@ abstract class WaitCoordinatorFixtures {
     /** The entries the snapshot subscription has reached [snapshotGate] with, held or since let through. */
     protected val snapshotHeld = AtomicInteger()
 
-    protected val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
+    protected val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SYSTEM) {
         snapshotGate?.let { gate ->
             snapshotHeld.incrementAndGet()
             gate.await()

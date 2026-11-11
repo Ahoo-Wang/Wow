@@ -42,7 +42,7 @@ class SnapshotPropertiesTest {
 
     @Test
     fun `the operator properties are the model's operator fields`() {
-        val operatorFields = listOf(OperatorFields.ID, OperatorFields.TENANT_ID, OperatorFields.CROSS_SCOPE)
+        val operatorFields = listOf(OperatorFields.ID, OperatorFields.TENANT_ID, OperatorFields.ACTED_ELSEWHERE)
         val expected = listOf(SnapshotFields.OPERATOR, SnapshotFields.FIRST_OPERATOR).flatMap { operator ->
             operatorFields.map { QueryField("$operator.$it") }
         }

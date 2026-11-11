@@ -114,7 +114,7 @@ class CommandGatewayTest : CommandGatewayFixtures() {
                 .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             operators.assert().containsExactly(
                 Operator("alice", TENANT),
-                Operator("admin", "ops", crossScope = true),
+                Operator("admin", "ops", actedElsewhere = true),
                 Operator("admin", "ops"),
                 null,
             )

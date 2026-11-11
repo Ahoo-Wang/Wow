@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:8efcbbea1f0d5d9f56bbaca0bd6d4fb2d1b7d8d67f0b8c98061f0fdc25b53319",
+  "version" : "sha256:67e27804e0a2af66006a6e1e3a3113b8533f7166a1a3a9d029dd1ee548f832ab",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -159,7 +159,7 @@
     },
     "aliases" : [ ]
   }, {
-    "path" : "firstOperator.crossScope",
+    "path" : "firstOperator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -278,7 +278,7 @@
     },
     "aliases" : [ ]
   }, {
-    "path" : "operator.crossScope",
+    "path" : "operator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,

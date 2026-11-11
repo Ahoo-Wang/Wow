@@ -73,7 +73,7 @@ fun Snapshot<JsonNode>.toRecord(): ObjectNode = WowJson.mapper.createObjectNode(
     set(SnapshotFields.STATE, state)
 }
 
-/** This operator as a record's operator field: `{id, tenantId, crossScope}`, or JSON null when absent. */
+/** This operator as a record's operator field: `{id, tenantId, actedElsewhere}`, or JSON null when absent. */
 @InternalWowApi
 fun Operator?.toRecordValue(): JsonNode = if (this == null) {
     WowJson.mapper.nullNode()
@@ -81,7 +81,7 @@ fun Operator?.toRecordValue(): JsonNode = if (this == null) {
     WowJson.mapper.createObjectNode()
         .put(OperatorFields.ID, id)
         .put(OperatorFields.TENANT_ID, tenantId)
-        .put(OperatorFields.CROSS_SCOPE, crossScope)
+        .put(OperatorFields.ACTED_ELSEWHERE, actedElsewhere)
 }
 
 /**
@@ -131,6 +131,6 @@ private fun JsonNode.operator(field: String): Operator? {
     return Operator.of(
         operator.text(OperatorFields.ID),
         operator.text(OperatorFields.TENANT_ID),
-        operator.get(OperatorFields.CROSS_SCOPE)?.asBoolean() ?: false,
+        operator.get(OperatorFields.ACTED_ELSEWHERE)?.asBoolean() ?: false,
     )
 }

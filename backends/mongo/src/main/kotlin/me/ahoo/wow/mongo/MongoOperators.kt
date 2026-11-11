@@ -22,29 +22,29 @@ import org.bson.BsonValue
 import org.bson.Document
 
 /**
- * An operator as the MongoDB stores keep it: the sub-document `{id, tenantId, crossScope}`, the shape
+ * An operator as the MongoDB stores keep it: the sub-document `{id, tenantId, actedElsewhere}`, the shape
  * of the snapshot query record's `operator` field, so a snapshot query reads `operator.id` where it is stored. The
  * log, the snapshots and the timers write it alike.
  */
 internal object MongoOperators {
     const val ID = "id"
     const val TENANT_ID = "tenantId"
-    const val CROSS_SCOPE = "crossScope"
+    const val ACTED_ELSEWHERE = "actedElsewhere"
 
     /** [operator] as its sub-document; null for none. */
     fun document(operator: Operator?): Document? = operator?.let {
-        Document(ID, it.id).append(TENANT_ID, it.tenantId).append(CROSS_SCOPE, it.crossScope)
+        Document(ID, it.id).append(TENANT_ID, it.tenantId).append(ACTED_ELSEWHERE, it.actedElsewhere)
     }
 
     /** [operator] as its BSON sub-document; BSON null for none. */
     fun bson(operator: Operator?): BsonValue = operator?.let {
         BsonDocument(ID, BsonString(it.id))
             .append(TENANT_ID, BsonString(it.tenantId))
-            .append(CROSS_SCOPE, BsonBoolean.valueOf(it.crossScope))
+            .append(ACTED_ELSEWHERE, BsonBoolean.valueOf(it.actedElsewhere))
     } ?: BsonNull.VALUE
 
     /** The operator [document] holds; null for none. */
     fun of(document: Document?): Operator? = document?.let {
-        Operator(it.getString(ID), it.getString(TENANT_ID), it.getBoolean(CROSS_SCOPE, false))
+        Operator(it.getString(ID), it.getString(TENANT_ID), it.getBoolean(ACTED_ELSEWHERE, false))
     }
 }

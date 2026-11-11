@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  * whose version is [FORMAT] and is recorded per table. The key leads with the tenant, so a query within
  * one tenant scans one key range. The scope is two nullable columns, the owner and the space, which the query side
  * filters on. The operator and the first operator are nullable `jsonb` objects, `{id, tenantId,
- * crossScope}`, which the query side reads as the system fields `operator` and `firstOperator`; the schedules
+ * actedElsewhere}`, which the query side reads as the system fields `operator` and `firstOperator`; the schedules
  * a nullable `jsonb` object of each rule by its key, null when the aggregate keeps none. The state
  * revision is an integer; the stale version, null unless the row is marked stale, the version up to which a rebuild
  * must rewrite it.

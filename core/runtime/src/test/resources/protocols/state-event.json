@@ -48,7 +48,7 @@
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     }
   },
   "transport": null

@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:d402ce2cb891f26b5f6abac70c883c3dfb08153c15a11183a5e6699e455aa0be",
+  "version" : "sha256:ade2827b4c354fc90f790a05d8fb3361575307217deb2e93adc8c65bc59778ee",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -174,7 +174,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "firstOperator.crossScope",
+    "path" : "firstOperator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -293,7 +293,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "operator.crossScope",
+    "path" : "operator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -984,7 +984,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:c34e0b80b4fe418024ba3a8e68a28c6358c77b567f90b1d70f54e16cb2ff5e88",
+  "version" : "sha256:483abcad824244df60f0af4a2fb974589edc351c88b36fd5b920a9cd5c4c8bbb",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -1143,7 +1143,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "firstOperator.crossScope",
+    "path" : "firstOperator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -1262,7 +1262,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "operator.crossScope",
+    "path" : "operator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,

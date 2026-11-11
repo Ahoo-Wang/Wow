@@ -1925,12 +1925,12 @@ public class me/ahoo/wow/api/query/SnapshotProperties {
 	public final field DELETED Lme/ahoo/wow/api/query/QueryField;
 	public final field FIRST_EVENT_TIME Lme/ahoo/wow/api/query/QueryField;
 	public final field FIRST_OPERATOR Lme/ahoo/wow/api/query/QueryField;
-	public final field FIRST_OPERATOR__CROSS_SCOPE Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_OPERATOR__ACTED_ELSEWHERE Lme/ahoo/wow/api/query/QueryField;
 	public final field FIRST_OPERATOR__ID Lme/ahoo/wow/api/query/QueryField;
 	public final field FIRST_OPERATOR__TENANT_ID Lme/ahoo/wow/api/query/QueryField;
 	public final field LAST_EVENT_TIME Lme/ahoo/wow/api/query/QueryField;
 	public final field OPERATOR Lme/ahoo/wow/api/query/QueryField;
-	public final field OPERATOR__CROSS_SCOPE Lme/ahoo/wow/api/query/QueryField;
+	public final field OPERATOR__ACTED_ELSEWHERE Lme/ahoo/wow/api/query/QueryField;
 	public final field OPERATOR__ID Lme/ahoo/wow/api/query/QueryField;
 	public final field OPERATOR__TENANT_ID Lme/ahoo/wow/api/query/QueryField;
 	public final field OWNER_ID Lme/ahoo/wow/api/query/QueryField;

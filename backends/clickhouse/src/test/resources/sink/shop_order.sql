@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
@@ -120,7 +120,7 @@ SETTINGS non_replicated_deduplication_window = 1000
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_acted_elsewhere, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 

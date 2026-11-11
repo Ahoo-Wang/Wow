@@ -91,7 +91,7 @@ class WaitAnswerTest {
     @Volatile
     private var snapshotGate: CompletableDeferred<Unit>? = null
 
-    private val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
+    private val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SYSTEM) {
         snapshotGate?.await()
     }
     private val runtime = SubscriptionRuntime(
@@ -131,7 +131,7 @@ class WaitAnswerTest {
     fun `the default wait answers the results the decide function put, from the commit`(): Unit = runBlocking {
         val result = coordinator.execute(order, command(Place(3)))
         result.hop.assert().isEqualTo(Hop.snapshot("shop"))
-        result.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+        result.function.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         result.results.assert().isEqualTo(mapOf(ITEMS to 3))
     }
 

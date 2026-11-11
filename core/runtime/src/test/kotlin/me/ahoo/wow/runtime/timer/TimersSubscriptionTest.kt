@@ -78,7 +78,7 @@ class TimersSubscriptionTest {
     @Test
     fun `the subscription is the built-in timers one, and takes streams that only schedule`() {
         timers.subscription.name.assert().isEqualTo(Hop.TIMERS_SUBSCRIPTION)
-        timers.subscription.kind.assert().isEqualTo(FunctionKind.TIMERS)
+        timers.subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         val onlySchedules = stream(1, put("pay", ScheduleRule.At(5)))
         timers.subscription.takes(onlySchedules).assert().isTrue()
         // An application's subscription passes it over.

@@ -118,12 +118,12 @@ class WowSchemasTest {
         private const val REF = """{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"}"""
         private const val STATE = """{"tenantId":"t","aggregateId":"i","version":1,"ownerId":"o","spaceId":"s",
             "deleted":false,"access":{"region":"east","teams":["a","b"]},"firstEventTime":1,"lastEventTime":2,
-            "operator":{"id":"o","tenantId":"t","crossScope":false},"firstOperator":null,
+            "operator":{"id":"o","tenantId":"t","actedElsewhere":false},"firstOperator":null,
             "schedules":{"remind":{"type":"at","epochMillis":5}},"state":{}}"""
         private const val TRACE = """{"ref":$REF,"commits":[{"version":1,"commitTime":2,"commandId":"c",
             "requestId":"r","commandType":"t","events":[{"name":"e","revision":1,"body":{}}],
             "scope":{"ownerId":null,"spaceId":null},"deleted":false,"access":{},"state":{},
-            "operator":{"id":"o","tenantId":"t","crossScope":false}}]}"""
+            "operator":{"id":"o","tenantId":"t","actedElsewhere":false}}]}"""
         private const val STREAM_ACCESS = """{"owner":"o","space":null,"region":"east"}"""
         private const val STREAM = """{"aggregateId":"i","tenantId":"t","version":1,"commitTime":2,"commandId":"c",
             "requestId":"r","commandType":"t","ownerId":"o","spaceId":null,"operator":null,

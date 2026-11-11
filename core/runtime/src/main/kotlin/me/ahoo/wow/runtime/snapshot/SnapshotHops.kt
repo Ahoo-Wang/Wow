@@ -32,7 +32,7 @@ internal class SnapshotHops(
 ) : SubscriptionDirectory by runtime {
     override fun kindOf(context: String, subscription: String): FunctionKind? =
         if (subscription == Hop.SNAPSHOT_SUBSCRIPTION && context == this.context) {
-            FunctionKind.SNAPSHOT.takeIf { types.isNotEmpty() }
+            FunctionKind.SYSTEM.takeIf { types.isNotEmpty() }
         } else {
             runtime.kindOf(context, subscription)
         }

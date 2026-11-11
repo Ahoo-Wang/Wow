@@ -444,7 +444,7 @@ public final class me/ahoo/wow/api/caller/Operator {
 	public static final field Companion Lme/ahoo/wow/api/caller/Operator$Companion;
 	public static final field SYSTEM_PREFIX Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCrossScope ()Z
+	public final fun getActedElsewhere ()Z
 	public final fun getId ()Ljava/lang/String;
 	public final fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
@@ -1295,10 +1295,8 @@ public final class me/ahoo/wow/api/result/FunctionKind : java/lang/Enum {
 	public static final field COMMAND Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field PROJECT Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field REACT Lme/ahoo/wow/api/result/FunctionKind;
-	public static final field RESERVATION Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field SAGA Lme/ahoo/wow/api/result/FunctionKind;
-	public static final field SNAPSHOT Lme/ahoo/wow/api/result/FunctionKind;
-	public static final field TIMERS Lme/ahoo/wow/api/result/FunctionKind;
+	public static final field SYSTEM Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field UNKNOWN Lme/ahoo/wow/api/result/FunctionKind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/result/FunctionKind;
