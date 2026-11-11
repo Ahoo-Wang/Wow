@@ -107,7 +107,7 @@ class FirstReconcileHoldTest {
             val reads = Job()
             ownership.start(reads)
             ownership.owned.assert().hasSize(PARTITIONS)
-            delay(SETTLE_MILLIS)
+            // Checked at once: each partition opens its reads only once the job completes.
             handled.assert().isEmpty()
             reads.complete()
             eventually { handled.size == ENTRIES }
@@ -123,7 +123,8 @@ class FirstReconcileHoldTest {
             val starting = launch { ownership.start() }
             try {
                 eventually { ownership.owned.size == PARTITIONS - 1 }
-                delay(SETTLE_MILLIS)
+                // Checked at once: the partitions started open their reads once the first reconcile ends, the stuck one
+                // started or its timeout past.
                 handled.assert().isEmpty()
 
                 // Past the reconcile timeout, the partitions started read their backlogs; the stuck one still starts.
@@ -179,7 +180,6 @@ class FirstReconcileHoldTest {
         const val ENTRIES = 200
         const val STUCK = 5
         const val START_MILLIS = 50L
-        const val SETTLE_MILLIS = 300L
         val GROUP = LeaseGroup("shop-service", "shop")
     }
 }
