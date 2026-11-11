@@ -42,7 +42,7 @@ class LocalSignalSenderTest {
     fun `a signal for another service's node of the same id goes to the remote sender`(): Unit = runBlocking {
         // Review R2.1-6: node ids are unique within a service only.
         val sent = CopyOnWriteArrayList<String>()
-        val sender = LocalSignalSender("node-1", "payment", WaitRegistry()) { origin, signal, _ ->
+        val sender = LocalSignalSender("node-1", WaitRegistry(), "payment") { origin, signal, _ ->
             sent += "${origin.service}/${origin.node}:${signal.waitId}"
         }
         sender.send(Origin("node-1", "10.0.0.1:9090", "order"), WaitSignal(waitId = "w-7", result = result), DEADLINE)

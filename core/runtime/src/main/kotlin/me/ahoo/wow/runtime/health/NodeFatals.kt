@@ -49,15 +49,13 @@ import kotlin.coroutines.EmptyCoroutineContext
  * no handler of their own.
  */
 @InternalWowApi
-class NodeFatals private constructor(
+class NodeFatals(
     val node: String,
-    private val observer: Observer,
-    private val clock: Clock,
-    /** Whether it keeps what it records: false for [NONE] alone. */
-    private val keeps: Boolean,
+    private val observer: Observer = Observer.NONE,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
-    constructor(node: String, observer: Observer = Observer.NONE, clock: Clock = Clock.systemUTC()) :
-        this(node, observer, clock, keeps = true)
+    /** Whether it keeps what it records: false for [NONE] alone. */
+    private val keeps: Boolean get() = this !== NONE
 
     /** The errors recorded, each once: a [Throwable] is compared by identity. */
     private val seen: MutableMap<Throwable, Boolean> = Collections.synchronizedMap(WeakHashMap())
@@ -173,7 +171,7 @@ class NodeFatals private constructor(
     @InternalWowApi
     companion object {
         /** Records nothing: each error is logged, and the scopes get no handler. */
-        val NONE: NodeFatals = NodeFatals("", Observer.NONE, Clock.systemUTC(), keeps = false)
+        val NONE: NodeFatals = NodeFatals("")
 
         /**
          * Whether [error] is fatal to a node: a [VirtualMachineError] but a [StackOverflowError], which fails the work

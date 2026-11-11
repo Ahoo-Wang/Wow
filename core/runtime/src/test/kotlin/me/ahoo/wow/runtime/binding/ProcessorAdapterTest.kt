@@ -168,7 +168,7 @@ class ProcessorAdapterTest {
     @Test
     fun `a rejected derived command should say what was rejected`() {
         val command = Command("c-1", "r-1", CART.ref(TENANT, "alice"), "x")
-        val failure = DerivedCommandRejectedException(command, Rejection(FORBIDDEN, "No."))
+        val failure = DerivedCommandRejectedException(listOf(command to Rejection(FORBIDDEN, "No.")))
         failure.message.assert().isEqualTo(
             "The derived command c-1 on shop.cart/t/alice was rejected: cart.forbidden No."
         )

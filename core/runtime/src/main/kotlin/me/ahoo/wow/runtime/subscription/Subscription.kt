@@ -102,6 +102,11 @@ class Subscription private constructor(
      */
     private val answers: ((AggregateType) -> String?)? = null,
 ) {
+    /**
+     * With a [handler] that reports nothing of what it did: a saga, which reports what it derived, is made with [saga].
+     * The private constructor takes an [EntryHandler] that reports it, and the modes only the runtime's own
+     * subscriptions take.
+     */
     constructor(
         name: String,
         filter: SubscriptionFilter,

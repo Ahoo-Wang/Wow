@@ -53,18 +53,12 @@ fun interface SignalSender {
  * other service's waits.
  */
 @InternalWowApi
-class LocalSignalSender private constructor(
-    private val registry: WaitRegistry,
+class LocalSignalSender(
     private val node: String,
-    private val service: String?,
-    private val remote: SignalSender,
+    private val registry: WaitRegistry,
+    private val service: String? = null,
+    private val remote: SignalSender = DROP,
 ) : SignalSender {
-    /** The sender of [node] of [service]. */
-    constructor(node: String, service: String, registry: WaitRegistry, remote: SignalSender = DROP) :
-        this(registry, node, service, remote)
-
-    /** The sender of [node], whichever service a signal's origin names. */
-    constructor(node: String, registry: WaitRegistry, remote: SignalSender = DROP) : this(registry, node, null, remote)
     override suspend fun send(origin: Origin, signal: WaitSignal, deadline: Long) {
         if (origin.node == node && (service == null || origin.service == service)) {
             registry.signal(signal)

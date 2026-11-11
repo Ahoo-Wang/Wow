@@ -292,7 +292,7 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
     val registry = WaitRegistry()
     private val client = InternalHttp.client()
     val sender = HttpSignalSender(client)
-    private val signals = LocalSignalSender(name, registry, sender)
+    private val signals = LocalSignalSender(name, registry, remote = sender)
     private val endpoint: ClusterChannelHandler by lazy {
         ForwardEndpoint(coordinator, listOf(model), listOf(ownership))
     }
