@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The REST routes of a command, and the names they reserve.
@@ -79,6 +80,7 @@ object CommandRoutes {
      * `http-request`, `AddItemV2` → `add-item-v2`, `add_item` → `add-item`. Dots are kept, so a system name keeps
      * its namespace: `wow.lifecycle.RestoreAggregate` → `wow.lifecycle.restore-aggregate`.
      */
+    @InternalWowApi
     fun segment(name: String): String =
         name.replace(ACRONYM_END, "$1-$2")
             .replace(WORD_END, "$1-$2")
@@ -90,6 +92,7 @@ object CommandRoutes {
      * [unaddressed] when a request may name no aggregate, which a transformer finds (a mounted or `@Unaddressed`
      * command).
      */
+    @InternalWowApi
     fun of(
         context: String,
         aggregate: String,
@@ -106,22 +109,27 @@ object CommandRoutes {
     }
 
     /** The path of the command [name] of [aggregate] in [context] to the aggregate of the path's id. */
+    @InternalWowApi
     fun byIdPath(context: String, aggregate: String, name: String): String =
         "/$context/$aggregate/$ID/${segment(name)}"
 
     /** The route of [routes] to an aggregate by its id (a path with [ID]) when [byId], else one that names no id. */
+    @InternalWowApi
     fun routeOf(routes: List<RouteManifest>, byId: Boolean): RouteManifest? =
         routes.firstOrNull { (ID in it.path) == byId }
 
     /** The path of [route] to the aggregate of [encodedId], already encoded as a path segment; the route's own without. */
+    @InternalWowApi
     fun pathOf(route: RouteManifest, encodedId: String?): String =
         if (encodedId == null) route.path else route.path.replace(ID, encodedId)
 
     /** The route of the command [name] of [aggregate] in [context] that names no aggregate id. */
+    @InternalWowApi
     fun unaddressed(context: String, aggregate: String, name: String): RouteManifest =
         RouteManifest(POST, "/$context/$aggregate/${segment(name)}")
 
     /** The route of `wow.lifecycle.DeleteAggregate` to an aggregate of [aggregate] in [context]: `DELETE` its path. */
+    @InternalWowApi
     fun deleteRoute(context: String, aggregate: String): RouteManifest =
         RouteManifest(DELETE, "/$context/$aggregate/$ID")
 
@@ -129,6 +137,7 @@ object CommandRoutes {
      * The route of `wow.lifecycle.DeleteAggregate` to the caller's own aggregate of [aggregate] in [context], one whose
      * id is its owner's: `DELETE /{context}/{aggregate}`.
      */
+    @InternalWowApi
     fun ownDeleteRoute(context: String, aggregate: String): RouteManifest =
         RouteManifest(DELETE, "/$context/$aggregate")
 
@@ -136,6 +145,7 @@ object CommandRoutes {
      * The route of the schedule job command [name] (`wow.schedule.Enable`) of [context], to the job the path's id
      * names: `POST /{context}/wow.schedule/{id}/enable`.
      */
+    @InternalWowApi
     fun jobRoute(context: String, name: String): RouteManifest =
         RouteManifest(POST, "/$context/$JOBS/$ID/${segment(name.substringAfterLast('.'))}")
 

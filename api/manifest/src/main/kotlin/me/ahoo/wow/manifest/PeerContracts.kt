@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The peer contracts of a context: what another service needs to know of a context to send it
  * commands, read its published streams and follow a wait chain through it, carried by the jar of the context's api
@@ -45,6 +47,7 @@ object PeerContracts {
      * false)`): its state stays a reference whose definition is `{"type": "object"}`, an object of
      * undisclosed structure, unless a command or an event of the contract refers to the same class.
      */
+    @InternalWowApi
     fun contractOf(fragments: List<Manifest>, service: String? = null): Manifest {
         val contexts = fragments.flatMap { it.contexts }.sortedBy { it.name }.map(::contractOf)
         val defs = fragments.fold(emptyMap<String, Any?>()) { all, fragment -> all + fragment.defs }
@@ -125,6 +128,7 @@ object PeerContracts {
      * @throws IllegalStateException when two aggregates share a state, or two states would have one view name: a
      *   view is of one aggregate.
      */
+    @InternalWowApi
     fun viewsOf(context: ContextManifest, defs: Map<String, Any?>): Map<String, String> {
         val withheld = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
         val viewed = context.aggregates.filter { aggregate ->
@@ -153,6 +157,7 @@ object PeerContracts {
     }
 
     /** [contract] with each state's [StateManifest.view] set ([viewsOf]), as an api module's jar carries it. */
+    @InternalWowApi
     fun withViews(contract: Manifest): Manifest = contract.copyWith(
         contexts = contract.contexts.map { context ->
             val views = viewsOf(context, contract.defs)
@@ -165,6 +170,7 @@ object PeerContracts {
     )
 
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
+    @InternalWowApi
     fun packageOf(classes: List<String>): String {
         val packages = classes.map { it.substringBeforeLast('.', "").split('.').filter(String::isNotEmpty) }
         val common = packages.reduceOrNull { shared, next ->
@@ -181,6 +187,7 @@ object PeerContracts {
         (schema as? Map<*, *>)?.get("properties") as? Map<*, *> ?: emptyMap<String, Any?>()
 
     /** The binary names of the classes of [context]'s commands and events, the classes its api module holds. */
+    @InternalWowApi
     fun classesOf(context: ContextManifest): List<String> = context.aggregates.flatMap { aggregate ->
         aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema }
     }.filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey).distinct()
@@ -193,6 +200,7 @@ object PeerContracts {
      *
      * @throws IllegalStateException listing every problem.
      */
+    @InternalWowApi
     fun assemble(owner: String, contracts: List<ManifestFragment>, owns: (String) -> Boolean): Manifest? {
         val problems = mutableListOf<String>()
         val kept = contracts.flatMap { contract ->
@@ -254,6 +262,7 @@ object PeerContracts {
      *
      * What is left still has its [conflicts]: two contracts that declare one context.
      */
+    @InternalWowApi
     fun outside(served: Collection<String>, contracts: List<ManifestFragment>): List<ManifestFragment> {
         val own = served.toSet()
         return contracts.mapNotNull { contract ->
@@ -267,6 +276,7 @@ object PeerContracts {
     }
 
     /** Every context two of the [contracts] declare: a context is one api module's. */
+    @InternalWowApi
     fun conflicts(contracts: List<ManifestFragment>): List<String> =
         contracts.flatMap { contract -> contract.manifest.contexts.map { it.name to contract.source } }
             .groupBy({ it.first }, { it.second })

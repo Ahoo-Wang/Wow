@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
 
@@ -44,6 +45,7 @@ object SystemCommands {
      * The lifecycle command [name] (`wow.lifecycle.RestoreAggregate`) of [aggregate] in [context]; of an aggregate
      * whose id is its owner's ([owned]), also by no id, the caller's own.
      */
+    @InternalWowApi
     fun lifecycle(context: String, aggregate: String, name: String, owned: Boolean = false): CommandManifest {
         val byId = if (name == DELETE_AGGREGATE) {
             CommandRoutes.deleteRoute(context, aggregate)
@@ -62,10 +64,12 @@ object SystemCommands {
     }
 
     /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild`. */
+    @InternalWowApi
     fun rebuild(context: String, aggregate: String): CommandManifest =
         system(REBUILD, CommandRoutes.unaddressed(context, aggregate, REBUILD))
 
     /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable`, ... */
+    @InternalWowApi
     fun jobs(context: String): List<CommandManifest> = JOBS.map { system(it, CommandRoutes.jobRoute(context, it)) }
 
     private fun system(name: String, vararg routes: RouteManifest): CommandManifest =

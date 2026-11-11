@@ -75,18 +75,8 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 	public static final field POST Ljava/lang/String;
 	public static final field RESERVED_CONTEXT Ljava/lang/String;
 	public static final field SYSTEM_SEGMENT_PREFIX Ljava/lang/String;
-	public final fun byIdPath (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-	public final fun deleteRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun getRESERVED_SEGMENTS ()Ljava/util/Set;
 	public final fun isReserved (Ljava/lang/String;)Z
-	public final fun jobRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Creation;Z)Ljava/util/List;
-	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Creation;ZILjava/lang/Object;)Ljava/util/List;
-	public final fun ownDeleteRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
-	public final fun pathOf (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;)Ljava/lang/String;
-	public final fun routeOf (Ljava/util/List;Z)Lme/ahoo/wow/manifest/RouteManifest;
-	public final fun segment (Ljava/lang/String;)Ljava/lang/String;
-	public final fun unaddressed (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 }
 
 public final class me/ahoo/wow/manifest/ContextManifest {
@@ -194,14 +184,8 @@ public final class me/ahoo/wow/manifest/Manifest {
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
-	public final fun arraySchema (Ljava/util/Map;Z)Ljava/util/Map;
-	public static synthetic fun arraySchema$default (Lme/ahoo/wow/manifest/Manifest$Companion;Ljava/util/Map;ZILjava/lang/Object;)Ljava/util/Map;
 	public final fun isSchemaRef (Ljava/lang/String;)Z
-	public final fun nullableSchema (Ljava/util/Map;)Ljava/util/Map;
-	public final fun refSchema (Ljava/lang/String;)Ljava/util/Map;
-	public final fun refsOf (Ljava/util/Map;)Ljava/util/List;
 	public final fun schemaKey (Ljava/lang/String;)Ljava/lang/String;
-	public final fun schemaRef (Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/IllegalStateException {
@@ -244,15 +228,6 @@ public final class me/ahoo/wow/manifest/ManifestTree {
 public final class me/ahoo/wow/manifest/PeerContracts {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/PeerContracts;
 	public static final field RESOURCE Ljava/lang/String;
-	public final fun assemble (Ljava/lang/String;Ljava/util/List;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
-	public final fun classesOf (Lme/ahoo/wow/manifest/ContextManifest;)Ljava/util/List;
-	public final fun conflicts (Ljava/util/List;)Ljava/util/List;
-	public final fun contractOf (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/manifest/Manifest;
-	public static synthetic fun contractOf$default (Lme/ahoo/wow/manifest/PeerContracts;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
-	public final fun outside (Ljava/util/Collection;Ljava/util/List;)Ljava/util/List;
-	public final fun packageOf (Ljava/util/List;)Ljava/lang/String;
-	public final fun viewsOf (Lme/ahoo/wow/manifest/ContextManifest;Ljava/util/Map;)Ljava/util/Map;
-	public final fun withViews (Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/PublishedManifest {
@@ -291,8 +266,6 @@ public final class me/ahoo/wow/manifest/QueryRoutes {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/QueryRoutes;
 	public static final field SEGMENT Ljava/lang/String;
 	public static final field SNAPSHOT Ljava/lang/String;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
-	public final fun queries (Ljava/lang/String;Ljava/lang/String;Z)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/manifest/RetryManifest {
@@ -435,9 +408,5 @@ public final class me/ahoo/wow/manifest/SystemCommands {
 	public static final field LIFECYCLE_PREFIX Ljava/lang/String;
 	public static final field REBUILD Ljava/lang/String;
 	public final fun getJOBS ()Ljava/util/List;
-	public final fun jobs (Ljava/lang/String;)Ljava/util/List;
-	public final fun lifecycle (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/manifest/CommandManifest;
-	public static synthetic fun lifecycle$default (Lme/ahoo/wow/manifest/SystemCommands;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/CommandManifest;
-	public final fun rebuild (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 
