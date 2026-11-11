@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.config
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.ProviderOption
@@ -19,6 +19,10 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
+import me.ahoo.wow.spring.boot.PeerDiscoveries
+import me.ahoo.wow.spring.boot.ProviderOptionKeys
+import me.ahoo.wow.spring.boot.StoreProviders
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.core.env.SystemEnvironmentPropertySource

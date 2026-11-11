@@ -22,6 +22,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith

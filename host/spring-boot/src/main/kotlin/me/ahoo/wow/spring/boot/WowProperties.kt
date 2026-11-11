@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.boot.context.properties.bind.Binder

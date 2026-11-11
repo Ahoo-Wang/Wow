@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 
 /**
  * CoSec's settings (wow-cosec), which the host's CoSec configuration reads from here alone, their one reader and

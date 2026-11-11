@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

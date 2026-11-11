@@ -21,6 +21,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.core.env.Environment
 

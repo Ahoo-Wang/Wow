@@ -19,6 +19,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.transport.TransportProvider
+import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import java.util.ServiceLoader

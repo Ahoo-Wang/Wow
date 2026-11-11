@@ -41,6 +41,7 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
 import me.ahoo.wow.spi.store.facet
+import me.ahoo.wow.spring.boot.config.AGGREGATE_KEY_FIX
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.SmartLifecycle

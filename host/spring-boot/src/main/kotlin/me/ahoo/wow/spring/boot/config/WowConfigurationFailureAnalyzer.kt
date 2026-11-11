@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.config
 
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.springframework.boot.diagnostics.AbstractFailureAnalyzer

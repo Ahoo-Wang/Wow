@@ -18,6 +18,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spring.boot.config.SingleSeams
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean

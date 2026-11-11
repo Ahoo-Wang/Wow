@@ -49,6 +49,9 @@ import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportProvider
+import me.ahoo.wow.spring.boot.config.ConfigurationKeys
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.config.SingleSeams
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
