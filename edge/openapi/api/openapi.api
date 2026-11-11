@@ -12,8 +12,8 @@ public final class me/ahoo/wow/openapi/OpenApiOptions {
 	public static final field Companion Lme/ahoo/wow/openapi/OpenApiOptions$Companion;
 	public static final field DEFAULT_TITLE Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDatasets ()Z
 	public final fun getErrorStatuses ()Ljava/util/Map;
