@@ -48,7 +48,7 @@ M0～M8 的工作包除 8a.2 外均已完成，明细见 git 历史（压缩前�
 
 M0～M8 已完成，M9 余 rc 与 GA。缺陷审计的 issue 已全部修复并关闭。rc 之前要完成的：
 
-- 存储形态的三个决定落地，均在进行中：D411（Elasticsearch 只给标了 `@QueryText` 的字段建全文索引）、D412（ClickHouse 的 `_state` 用自己的列与带类型的物化列）、D413（Sink 的订阅成批交给 Sink）。GA 前各格式号保持 1（D414）。
+- 存储形态的决定落地：D412（ClickHouse 的 `_state` 用自己的列与带类型的物化列）与 D413（Sink 的订阅成批交给 Sink；运行时一侧已合并，余 Sink 一侧）在进行中。D411 已完成；GA 前各格式号保持 1（D414），PostgreSQL 与 MongoDB 已改回 1。
 - 在 GitHub Actions 上重跑 L3、L4 基准（§6 性能第 19 项）。
 - GA 端到端完整跑一次并出报告（9.3g）。
 - 文档与代码的一致性核对（9.3f）。
