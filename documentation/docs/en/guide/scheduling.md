@@ -16,7 +16,7 @@ Some things should happen later: an order that cancels itself if it is not paid 
 | --- | --- |
 | `ScheduleRule.at(instant)` | At an instant |
 | `ScheduleRule.after(duration)` | After a delay counted from the commit that sets it |
-| `ScheduleRule.cron(expression, zone, misfire)` | Each time a cron expression matches, six fields or a macro such as `@daily`, read in `zone` (UTC by default) |
+| `ScheduleRule.cron(expression, timeZone, misfire)` | Each time a cron expression matches, six fields or a macro such as `@daily`, read in `timeZone` (UTC by default) |
 
 A schedule belongs to an aggregate, under a key. Setting the key again replaces it, and cancelling it removes it.
 
@@ -103,8 +103,8 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | --- | --- |
 | `name` | The job's name, unique in its context: letters, digits, `_` and `-` |
 | `cron` | Six fields, as Spring's `CronExpression` reads them: `0 0 6 * * *` is 06:00 every day. A macro such as `@daily` is read too |
-| `zone` | The zone `cron` is read in, UTC by default |
-| `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.EnableJob` in that tenant; the host never starts one, and each tenant may override the rule, its zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
+| `timeZone` | The time zone `cron` is read in, UTC by default |
+| `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.EnableJob` in that tenant; the host never starts one, and each tenant may override the rule, its time zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
 | `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. Its `due` is that slot's own time, a time the expression names, and `wow.timers.expires-after` judges it late from that time; beyond 100,000 missed slots `skipped` is an estimate. `CATCH_UP`: each missed slot runs |
 
 The host configures a job under `wow.schedules.<name>`, and only there, without a new build:
@@ -118,7 +118,7 @@ wow:
         max-attempts: 3
 ```
 
-- `cron`, `zone` and `misfire` override the annotation's rule.
+- `cron`, `time-zone` and `misfire` override the annotation's rule.
 - `enabled: false` disables a `SYSTEM` or `SHARDED` job's instances, at every startup.
 - `retry.*` and `parked.*` are the retries of the job's subscription, over its handler's `@Retry` and `wow.subscription.*` ([Failures and Retries](./failures#give-a-handler-its-own-budget)). A job's subscription configured under `wow.subscriptions` instead, or settings for a job no handler runs, stop the node at startup.
 

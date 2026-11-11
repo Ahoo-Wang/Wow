@@ -2708,7 +2708,7 @@
       }
     },
     {
-      "pattern": "schedules.{key}.zone",
+      "pattern": "schedules.{key}.timeZone",
       "types": [
         "string"
       ],

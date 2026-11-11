@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:e4cd32536c6dc88799ca6b5d51205c6f965b1e3fd5cf10a1cf67f5127e99f480",
+  "version" : "sha256:9b8a1a61bca1c78eb8e2f0054b6175b5ee5a46979ebeb2cdbb0f0445724c0699",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -1245,7 +1245,7 @@
       "inMetricFilter" : true
     }
   }, {
-    "pattern" : "schedules.{key}.type",
+    "pattern" : "schedules.{key}.timeZone",
     "types" : [ "string" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -1268,7 +1268,7 @@
       "inMetricFilter" : true
     }
   }, {
-    "pattern" : "schedules.{key}.zone",
+    "pattern" : "schedules.{key}.type",
     "types" : [ "string" ],
     "kind" : "scalar",
     "nullable" : false,

@@ -326,7 +326,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnSchedule
 	public abstract fun misfire ()Lme/ahoo/wow/api/schedule/Misfire;
 	public abstract fun name ()Ljava/lang/String;
 	public abstract fun scope ()Lme/ahoo/wow/api/schedule/JobScope;
-	public abstract fun zone ()Ljava/lang/String;
+	public abstract fun timeZone ()Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnSourcing : java/lang/annotation/Annotation {
@@ -1527,7 +1527,7 @@ public final class me/ahoo/wow/api/schedule/JobRule {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCron ()Ljava/lang/String;
 	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
-	public final fun getZone ()Ljava/lang/String;
+	public final fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/api/schedule/JobRule;
 	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/schedule/JobRule;
@@ -1707,7 +1707,7 @@ public final class me/ahoo/wow/api/schedule/ScheduleRule$Cron : me/ahoo/wow/api/
 	public fun firstDue (J)Ljava/lang/Long;
 	public final fun getExpression ()Ljava/lang/String;
 	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
-	public final fun getZone ()Ljava/lang/String;
+	public final fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;

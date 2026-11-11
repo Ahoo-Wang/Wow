@@ -101,7 +101,7 @@ class ScheduleJobRuntimeTest {
     fun `the host's options override the parts of a job's rule they set`() {
         val configured = ScheduleJobRuntime.configured(
             mapOf("shop" to listOf(job)),
-            mapOf("nightly" to JobOptions(zone = "Asia/Tokyo", misfire = Misfire.CATCH_UP)),
+            mapOf("nightly" to JobOptions(timeZone = "Asia/Tokyo", misfire = Misfire.CATCH_UP)),
         )
         configured.getValue("shop").single().rule.assert()
             .isEqualTo(ScheduleRule.Cron("0 0 3 * * *", "Asia/Tokyo", Misfire.CATCH_UP))

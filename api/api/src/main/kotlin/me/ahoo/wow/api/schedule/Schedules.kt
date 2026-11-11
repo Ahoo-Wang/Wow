@@ -95,7 +95,7 @@ sealed interface ScheduleRule {
     }
 
     /**
-     * Due at each time [expression] names, in the time zone [zone] (UTC by default), six fields as Spring's
+     * Due at each time [expression] names, read in [timeZone], six fields as Spring's
      * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says.
      * The runtime evaluates it: the first slot is the first time after the commit that sets it, and each next one the
      * first time after the slot before it.
@@ -104,12 +104,16 @@ sealed interface ScheduleRule {
      */
     class Cron @InternalWowApi constructor(
         val expression: String,
-        val zone: String = UTC,
+        /**
+         * The time zone, an IANA region such as `Asia/Shanghai` or an offset such as `+08:00`; UTC by default, never
+         * the server's own zone.
+         */
+        val timeZone: String = UTC,
         val misfire: Misfire = Misfire.COALESCE,
     ) : ScheduleRule {
         init {
             require(expression.isNotBlank()) { "A cron rule needs an expression." }
-            require(zone.isNotBlank()) { "A cron rule needs a time zone." }
+            require(timeZone.isNotBlank()) { "A cron rule needs a time zone." }
         }
 
         override fun firstDue(commitTime: Long): Long? = null
@@ -118,25 +122,25 @@ sealed interface ScheduleRule {
         @InternalWowApi
         fun copyWith(
             expression: String = this.expression,
-            zone: String = this.zone,
+            timeZone: String = this.timeZone,
             misfire: Misfire = this.misfire,
-        ): Cron = Cron(expression, zone, misfire)
+        ): Cron = Cron(expression, timeZone, misfire)
 
         override fun equals(other: Any?): Boolean =
             this === other || other is Cron && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "Cron(expression=$expression, zone=$zone, misfire=$misfire)"
+        override fun toString(): String = "Cron(expression=$expression, timeZone=$timeZone, misfire=$misfire)"
 
-        private fun valueFields(): List<Any?> = listOf(expression, zone, misfire)
+        private fun valueFields(): List<Any?> = listOf(expression, timeZone, misfire)
 
         companion object {
             /** A Cron of the given fields; parameters added later come last, with a default. */
             @JvmStatic
             @JvmOverloads
-            fun of(expression: String, zone: String = UTC, misfire: Misfire = Misfire.COALESCE): Cron =
-                Cron(expression, zone, misfire)
+            fun of(expression: String, timeZone: String = UTC, misfire: Misfire = Misfire.COALESCE): Cron =
+                Cron(expression, timeZone, misfire)
         }
     }
 
@@ -157,10 +161,10 @@ sealed interface ScheduleRule {
         @JvmStatic
         fun after(after: Duration): ScheduleRule = After(after.inWholeMilliseconds)
 
-        /** Due by the cron [expression] in [zone]; see [Cron]. */
+        /** Due by the cron [expression] in [timeZone]; see [Cron]. */
         @JvmStatic
-        fun cron(expression: String, zone: String = UTC, misfire: Misfire = Misfire.COALESCE): ScheduleRule =
-            Cron(expression, zone, misfire)
+        fun cron(expression: String, timeZone: String = UTC, misfire: Misfire = Misfire.COALESCE): ScheduleRule =
+            Cron(expression, timeZone, misfire)
     }
 }
 

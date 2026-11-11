@@ -145,7 +145,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `job`: 对象; 缺省或取默认值时省略
   - `name`
   - `cron`
-  - `zone`
+  - `timeZone`
   - `scope`
   - `misfire`
 

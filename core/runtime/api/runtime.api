@@ -721,7 +721,7 @@ public final class me/ahoo/wow/runtime/schedule/JobOptions {
 	public final fun getParked ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun getRetry ()Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/JobRule;
-	public final fun getZone ()Ljava/lang/String;
+	public final fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

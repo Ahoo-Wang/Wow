@@ -201,10 +201,10 @@ fun SubscriptionManifest.copyWith(
 fun JobManifest.copyWith(
     name: String = this.name,
     cron: String = this.cron,
-    zone: String = this.zone,
+    timeZone: String = this.timeZone,
     scope: JobScope = this.scope,
     misfire: Misfire = this.misfire,
-): JobManifest = JobManifest(name, cron, zone, scope, misfire)
+): JobManifest = JobManifest(name, cron, timeZone, scope, misfire)
 
 @InternalWowApi
 fun RetryManifest.copyWith(

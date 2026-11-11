@@ -39,7 +39,7 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * The host's settings of a job, `wow.schedules.<job>.*`, the only place a job is configured: its rule ([cron],
- * [zone], [misfire]), each part null to keep the annotation's; [enabled] false disables a [JobScope.SYSTEM] or a
+ * [timeZone], [misfire]), each part null to keep the annotation's; [enabled] false disables a [JobScope.SYSTEM] or a
  * [JobScope.SHARDED] job's instances at startup (a [JobScope.TENANT] job's instances are each tenant's to enable or
  * disable); and the in-process [retry] and the [parked] retries of the subscriptions that run it, null to keep the
  * handler's `@Retry` and the global parked retries.
@@ -49,14 +49,14 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
  */
 class JobOptions @InternalWowApi constructor(
     val cron: String? = null,
-    val zone: String? = null,
+    val timeZone: String? = null,
     val misfire: Misfire? = null,
     val enabled: Boolean = true,
     val retry: HandlerRetry? = null,
     val parked: ParkedRetrySpec? = null,
 ) {
     /** The parts it overrides, as a rule over the annotation's. */
-    val rule: JobRule get() = JobRule(cron, zone, misfire)
+    val rule: JobRule get() = JobRule(cron, timeZone, misfire)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is JobOptions && valueFields() == other.valueFields()
@@ -64,9 +64,9 @@ class JobOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "JobOptions(cron=$cron, zone=$zone, misfire=$misfire, enabled=$enabled, retry=$retry, parked=$parked)"
+        "JobOptions(cron=$cron, timeZone=$timeZone, misfire=$misfire, enabled=$enabled, retry=$retry, parked=$parked)"
 
-    private fun valueFields(): List<Any?> = listOf(cron, zone, misfire, enabled, retry, parked)
+    private fun valueFields(): List<Any?> = listOf(cron, timeZone, misfire, enabled, retry, parked)
 }
 
 /**

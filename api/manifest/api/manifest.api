@@ -161,7 +161,7 @@ public final class me/ahoo/wow/manifest/JobManifest {
 	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/api/schedule/JobScope;
-	public final fun getZone ()Ljava/lang/String;
+	public final fun getTimeZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

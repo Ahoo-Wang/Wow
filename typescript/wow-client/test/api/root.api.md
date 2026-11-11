@@ -1264,7 +1264,7 @@ export interface JobManifest {
     readonly name: string;
     readonly scope: 'system' | 'tenant' | 'sharded' | (string & {});
     // (undocumented)
-    readonly zone: string;
+    readonly timeZone: string;
 }
 
 // @public

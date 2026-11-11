@@ -16,7 +16,7 @@ outline: deep
 | --- | --- |
 | `ScheduleRule.at(instant)` | 在某个时刻 |
 | `ScheduleRule.after(duration)` | 从设置它的那次提交起，经过一段延迟之后 |
-| `ScheduleRule.cron(expression, zone, misfire)` | 每次与一个 cron 表达式匹配时，六个字段或 `@daily` 这样的宏，按 `zone` 读取（默认 UTC） |
+| `ScheduleRule.cron(expression, timeZone, misfire)` | 每次与一个 cron 表达式匹配时，六个字段或 `@daily` 这样的宏，按 `timeZone` 读取（默认 UTC） |
 
 定时属于一个聚合，挂在一个键下。再次设置这个键会替换它，取消则删除它。
 
@@ -103,7 +103,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | --- | --- |
 | `name` | 任务的名字，在它的上下文中唯一：字母、数字、`_` 和 `-` |
 | `cron` | 六个字段，按 Spring 的 `CronExpression` 读取：`0 0 6 * * *` 是每天 06:00。也接受 `@daily` 这样的宏 |
-| `zone` | 读取 `cron` 所用的时区，默认 UTC |
+| `timeZone` | 读取 `cron` 所用的时区，默认 UTC |
 | `scope` | `SYSTEM`（默认）：一个实例，在默认租户中，宿主在启动时启用。`TENANT`：每个租户一个实例，由该租户中的系统命令 `wow.schedule.EnableJob` 创建；宿主从不启动它，每个租户都可以覆盖规则、时区和 misfire。`SHARDED`：每个日志分区一个实例，在默认租户中，宿主在启动时启用，由分区的属主为它自己分区的聚合运行，每个时间槽各触发一次，并设置 `tick.partition` |
 | `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。它的 `due` 是该时间槽自己的时间，是表达式指定的时间，`wow.timers.expires-after` 也从这个时间判断它是否迟到；错过超过 100,000 个时间槽时，`skipped` 是估算值。`CATCH_UP`：每个错过的时间槽都运行 |
 
@@ -118,7 +118,7 @@ wow:
         max-attempts: 3
 ```
 
-- `cron`、`zone` 和 `misfire` 覆盖注解的规则。
+- `cron`、`time-zone` 和 `misfire` 覆盖注解的规则。
 - `enabled: false` 在每次启动时停用 `SYSTEM` 或 `SHARDED` 任务的实例。
 - `retry.*` 和 `parked.*` 是任务订阅的重试，覆盖处理函数的 `@Retry` 和 `wow.subscription.*`（[失败与重试](./failures#give-a-handler-its-own-budget)）。任务的订阅改写在 `wow.subscriptions` 下，或者为没有处理函数运行的任务写设置，都会使节点在启动时停止。
 

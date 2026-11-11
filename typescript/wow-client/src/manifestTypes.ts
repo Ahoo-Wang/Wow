@@ -223,7 +223,7 @@ export interface RetryManifest {
 export interface JobManifest {
   readonly name: string;
   readonly cron: string;
-  readonly zone: string;
+  readonly timeZone: string;
   /** Who the job runs for. */
   readonly scope: 'system' | 'tenant' | 'sharded' | (string & {});
   /** What the job does with the slots it missed. */

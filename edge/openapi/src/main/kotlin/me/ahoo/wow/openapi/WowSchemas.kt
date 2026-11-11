@@ -91,7 +91,7 @@ internal object WowSchemas {
         get() = objectSchema(
             mapOf(
                 "expression" to type("string", nullable = true),
-                "zone" to type("string", nullable = true),
+                "timeZone" to type("string", nullable = true),
                 "misfire" to obj("type" to listOf("string", "null"), "enum" to listOf("coalesce", "catch-up", null)),
             ),
             description = "An instance's own rule of a job; each part that is null follows the job's default.",

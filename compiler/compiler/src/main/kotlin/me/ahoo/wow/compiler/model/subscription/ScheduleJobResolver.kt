@@ -58,7 +58,7 @@ internal object ScheduleJobResolver {
     private const val CRON_FIELDS = 6
     private const val NAME = "name"
     private const val CRON = "cron"
-    private const val ZONE = "zone"
+    private const val TIME_ZONE = "timeZone"
     private const val SCOPE = "scope"
     private const val MISFIRE = "misfire"
     private const val SAGA = "SAGA"
@@ -107,7 +107,7 @@ internal object ScheduleJobResolver {
             JobBinding(
                 name = it.string(NAME),
                 cron = it.string(CRON),
-                zone = it.string(ZONE),
+                timeZone = it.string(TIME_ZONE),
                 scope = it.enumName(SCOPE),
                 misfire = it.enumName(MISFIRE),
             )
@@ -175,9 +175,9 @@ internal object ScheduleJobResolver {
             )
         }
         try {
-            ZoneId.of(job.zone)
+            ZoneId.of(job.timeZone)
         } catch (_: DateTimeException) {
-            add("$where runs in the time zone \"${job.zone}\", which is not one")
+            add("$where runs in the time zone \"${job.timeZone}\", which is not one")
         }
     }
 
@@ -189,10 +189,10 @@ internal object ScheduleJobResolver {
 internal data class JobBinding(
     val name: String,
     val cron: String,
-    val zone: String,
+    val timeZone: String,
     val scope: String,
     val misfire: String,
 ) {
     /** The job as the Manifest lists it, its scope and misfire the annotation's constants. */
-    fun manifest(): JobManifest = JobManifest(name, cron, zone, JobScope.valueOf(scope), Misfire.valueOf(misfire))
+    fun manifest(): JobManifest = JobManifest(name, cron, timeZone, JobScope.valueOf(scope), Misfire.valueOf(misfire))
 }

@@ -58,7 +58,7 @@ outline: deep
 | `access` | object | 它声明的访问属性；`access.<name>` 指明其中一个，类型按 Manifest 的声明 |
 | `firstEventTime`、`lastEventTime` | integer | 它第一个和最后一个事件的时间，纪元毫秒 |
 | `operator`、`firstOperator` | object 或 `null` | 谁发送了最后一条和第一条命令：`{id, tenantId, actedElsewhere}`；匿名调用方为 `null`。按 `operator.id` 过滤 |
-| `schedules` | object | 它保有的调度，按键存放每条规则：`type`（`at`、`after` 或 `cron`），以及 `epochMillis`、`millis`，或 `expression`、`zone` 和 `misfire`；`schedules.<key>` 指明其中一条 |
+| `schedules` | object | 它保有的调度，按键存放每条规则：`type`（`at`、`after` 或 `cron`），以及 `epochMillis`、`millis`，或 `expression`、`timeZone` 和 `misfire`；`schedules.<key>` 指明其中一条 |
 | `state.*` | 由状态 schema 决定 | 状态，按补全后的 Manifest 片段中的状态 schema 描述 |
 
 模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。字段的 `aliases`（能力描述列出它们）是查询可以用来指明它的其他路径，例如它改名之前的名字；它们只用于输入：响应总是把每个字段放在它的规范 `path` 下。
