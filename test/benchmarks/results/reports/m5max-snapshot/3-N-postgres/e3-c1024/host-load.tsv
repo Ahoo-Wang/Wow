@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793695052	27.51	24.95	18.33	24	sysmond 8, WindowServer 2, Stats 2	cosec-redis 0.26%	20	0		
-1793695064	27.52	25.00	18.43	12	sysmond 4, Activity Monitor 1, bluetoothd 1	cosec-redis 0.26%	1378	13		
-1793695076	26.46	24.88	18.50	17	Stats 5, sysmond 4, Activity Monitor 2	cosec-redis 0.17%	1419	15		
-1793695088	31.27	25.95	18.95	15	Stats 5, WindowServer 4, AppleCentauriAlpha 2	cosec-redis 0.19%	1015	9		
-1793695101	25.42	24.92	18.71	12	sysmond 4, WindowServer 2, AppleCentauriAlpha 1	cosec-redis 0.39%	1418	13		
-1793695113	28.83	25.67	19.04	21	WeChat 3, sysmond 2, mdworker_shared 2	cosec-redis 0.41%	1441	13		
-1793695125	32.72	26.77	19.56	15	Stats 4, configd 2, WindowServer 2	cosec-redis 0.19%	819	7		
+1794382866	33.44	25.48	19.69	18	sysmond 5, Stats 5, configd 3	chprobe 2.20%	52	0	0.0	
+1794382878	31.02	25.20	19.66	3	Stats 1, configd 1, claude 0	chprobe 33.84%	1476	14	0.1	
+1794382890	32.98	25.91	20.01	5	sysmond 3, Stats 0, configd 0	chprobe 1.74%	1471	13	0.1	
+1794382903	30.75	25.68	20.00	5	sysmond 3, claude 1, bash 0	chprobe 2.15%	1204	10	0.1	
+1794382915	38.26	27.58	20.77	5	Stats 1, configd 1, dasd 1	chprobe 5.55%	807	9	0.0	
+1794382928	34.10	27.03	20.66	13	Stats 5, sysmond 4, configd 1	chprobe 1.77%	1319	14	0.1	
+1794382941	28.82	26.22	20.48	2	claude 0, airportd 0, AppleCentauriAlpha 0	chprobe 1.77%	1297	11	0.1	

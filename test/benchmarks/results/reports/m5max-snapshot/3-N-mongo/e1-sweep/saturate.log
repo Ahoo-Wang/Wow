@@ -1,13 +1,13 @@
-1793695209 [settle] 1s: node-1 0.01, node-2 0.02, node-3 0.01
-1793695210 [settle] 2s: node-1 0.02, node-2 0.01, node-3 0.02
-1793695211 [settle] 3s: node-1 0.23, node-2 0.03, node-3 0.01
-1793695211 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1793695252 [saturate] E1: concurrency=1 throughput=324.6/s p50=2ms errors={}
-1793695292 [saturate] E1: concurrency=4 throughput=996.8/s p50=2ms errors={}
-1793695332 [saturate] E1: concurrency=16 throughput=3360.2/s p50=4ms errors={}
-1793695372 [saturate] E1: concurrency=64 throughput=6832.8/s p50=8ms errors={}
-1793695412 [saturate] E1: concurrency=256 throughput=12318.5/s p50=19ms errors={}
-1793695452 [saturate] E1: concurrency=1024 throughput=15341.3/s p50=51ms errors={}
-1793695493 [saturate] E1: concurrency=4096 throughput=6580.8/s p50=202ms errors={}
-1793695493 [saturate] saturation: 15341.3/s at concurrency 1024
-1793695494 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e1-sweep
+1794386083 [settle] 1s: node-1 0.02, node-2 0.03, node-3 0.02
+1794386084 [settle] 2s: node-1 0.02, node-2 0.04, node-3 0.02
+1794386085 [settle] 3s: node-1 0.02, node-2 0.02, node-3 0.03
+1794386085 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794386126 [saturate] E1: concurrency=1 throughput=317.6/s p50=2ms errors={}
+1794386166 [saturate] E1: concurrency=4 throughput=1325.8/s p50=2ms errors={}
+1794386206 [saturate] E1: concurrency=16 throughput=2484.9/s p50=5ms errors={}
+1794386246 [saturate] E1: concurrency=64 throughput=7114.4/s p50=7ms errors={}
+1794386286 [saturate] E1: concurrency=256 throughput=12128.7/s p50=19ms errors={}
+1794386326 [saturate] E1: concurrency=1024 throughput=14778.8/s p50=52ms errors={}
+1794386367 [saturate] E1: concurrency=4096 throughput=6998.7/s p50=183ms errors={}
+1794386367 [saturate] saturation: 14778.8/s at concurrency 1024
+1794386367 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e1-sweep

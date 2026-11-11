@@ -1,17 +1,17 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793691952	26.29	17.35	11.61	18	sysmond 12, bash 2, Stats 1	cosec-redis 0.19%	117	0	0.0	
-1793691964	21.37	16.69	11.48	142	deleted 63, cloudd 17, WindowServer 10	cosec-redis 0.17%	219	0	0.0	
-1793691976	18.16	16.16	11.35	32	Stats 10, WindowServer 6, sysmond 6	cosec-redis 0.20%	113	0	0.0	
-1793691988	14.50	15.45	11.18	38	sysmond 8, Stats 6, WindowServer 5	cosec-redis 0.25%	91	0	0.0	
-1793692001	12.34	14.96	11.05	7	Stats 2, Activity Monitor 1, WindowServer 1	cosec-redis 0.20%	72	0	0.0	
-1793692013	10.75	14.53	10.95	4	Stats 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 0	cosec-redis 0.23%	65	0	0.0	
-1793692025	9.38	14.04	10.83	30	sysmond 15, Activity Monitor 8, ContextStoreAgent 2	cosec-redis 0.25%	124	0	0.0	
-1793692037	8.10	13.61	10.72	26	Stats 11, WindowServer 6, configd 4	cosec-redis 0.23%	122	0	0.0	
-1793692049	6.59	13.01	10.55	21	WindowServer 4, Stats 4, claude 3	cosec-redis 0.28%	81	0	0.0	
-1793692062	5.73	12.62	10.44	12	wifianalyticsd 2, AppleCentauriAlpha 2, Stats 2	cosec-redis 0.18%	67	0	0.0	
-1793692074	4.75	12.06	10.28	4	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 0	cosec-redis 0.27%	74	0	0.0	
-1793692086	4.02	11.66	10.16	36	Stats 11, WindowServer 7, sysmond 5	cosec-redis 0.26%	83	0	0.0	
-1793692098	6.74	11.98	10.29	13	Stats 4, WindowServer 2, configd 2	cosec-redis 0.16%	1169	84	0.0	
-1793692111	6.79	11.73	10.23	10	claude 4, WindowServer 1, Stats 1	cosec-redis 0.16%	1169	31	0.1	
-1793692123	6.79	11.57	10.19	19	Stats 5, sysmond 4, configd 2	cosec-redis 0.14%	1120	23	0.0	
-1793692135	7.06	11.40	10.15	14	WindowServer 2, Stats 2, Shadowrocket 2	cosec-redis 0.16%	1025	14	0.0	
+1794379536	19.95	15.31	9.71	87	WindowServer 46, Claude Helper 11, sysmond 8	chprobe 2.03%	253	0	0.0	
+1794379549	15.82	14.62	9.56	110	WindowServer 54, corespotlightd 12, Claude Helper 10	chprobe 9.03%	196	0	0.0	
+1794379561	14.00	14.27	9.49	91	WindowServer 56, Claude Helper 14, Claude Helper (Renderer) 6	chprobe 3.45%	177	0	0.0	
+1794379573	13.50	14.15	9.50	107	WindowServer 53, Claude Helper 12, sysmond 6	chprobe 2.01%	267	0	0.0	
+1794379585	10.89	13.54	9.37	114	WindowServer 55, claude 19, Claude Helper 10	chprobe 31.72%	215	0	0.0	
+1794379598	10.78	13.42	9.37	102	WindowServer 52, Claude Helper 14, Claude Helper (Renderer) 7	chprobe 1.82%	125	0	0.0	
+1794379610	8.90	12.88	9.25	118	WindowServer 50, Claude Helper (Renderer) 19, Claude Helper 14	chprobe 8.90%	165	0	0.0	
+1794379622	9.51	12.87	9.29	146	WindowServer 55, Claude Helper (Renderer) 21, Claude Helper 16	chprobe 25.95%	186	0	0.1	
+1794379634	8.09	12.39	9.18	103	WindowServer 51, Claude Helper 13, claude 11	chprobe 2.41%	198	0	0.0	
+1794379647	7.40	12.09	9.11	135	WindowServer 53, claude 21, Claude Helper 17	chprobe 4.55%	286	0	1.9	
+1794379659	6.56	11.68	9.02	118	WindowServer 52, Claude Helper 23, Claude Helper (Renderer) 10	chprobe 3.77%	190	0	0.1	
+1794379671	5.94	11.38	8.94	101	WindowServer 50, Claude Helper 22, Claude Helper (Renderer) 7	chprobe 3.27%	163	0	0.1	
+1794379683	5.35	11.07	8.86	107	WindowServer 51, Claude Helper 18, corespotlightd 9	chprobe 2.18%	270	2	0.0	
+1794379695	7.51	11.26	8.96	102	WindowServer 52, claude 17, Claude Helper 15	chprobe 1.98%	1157	28	0.1	
+1794379708	10.04	11.69	9.14	102	WindowServer 53, Claude Helper (Renderer) 18, Claude Helper 14	chprobe 24.32%	1193	28	0.0	
+1794379720	9.59	11.51	9.12	112	WindowServer 52, claude 21, Claude Helper (Renderer) 17	chprobe 1.98%	1196	26	0.1	

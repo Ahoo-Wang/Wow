@@ -1,0 +1,25 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794387223	6.64	12.77	16.33	89	WindowServer 38, Claude Helper 12, Stats 8		122	0	0.1	
+1794387235	6.16	12.47	16.18	192	git 65, WindowServer 36, Claude Helper (Renderer) 25		153	2	0.0	
+1794387247	7.39	12.43	16.10	65	WindowServer 29, Claude Helper 10, Claude Helper (Renderer) 7		334	4	0.0	
+1794387260	7.89	12.36	16.03	61	WindowServer 29, Claude Helper 10, Claude Helper (Renderer) 7		449	4	0.0	
+1794387272	8.59	12.30	15.94	106	WindowServer 36, Claude Helper (Renderer) 17, Claude Helper 13		318	6	0.0	
+1794387284	8.05	12.06	15.82	110	WindowServer 30, git 17, Claude Helper (Renderer) 16		294	3	0.0	
+1794387296	8.60	11.99	15.73	70	WindowServer 28, Claude Helper 11, Claude Helper (Renderer) 6		346	8	0.0	
+1794387308	8.96	11.95	15.67	54	WindowServer 29, Claude Helper 11, Claude Helper (Renderer) 6		530	11	0.1	
+1794387321	9.02	11.87	15.60	68	WindowServer 30, Claude Helper (Renderer) 16, Claude Helper 12		546	10	0.0	
+1794387333	9.45	11.81	15.51	188	Claude Helper (Renderer) 72, WindowServer 38, Claude Helper 17		537	11	0.0	
+1794387345	9.75	11.80	15.46	61	WindowServer 29, Claude Helper 11, Claude Helper (Renderer) 5		677	15	0.3	
+1794387357	16.85	13.28	15.93	56	WindowServer 30, Claude Helper 10, Claude Helper (Renderer) 5		808	16	0.1	
+1794387370	17.43	13.50	15.97	250	git 83, git 80, WindowServer 33		777	17	0.1	
+1794387382	16.10	13.40	15.89	89	Claude Helper (Renderer) 32, WindowServer 30, Claude Helper 9		628	14	0.0	
+1794387394	14.66	13.17	15.78	59	WindowServer 32, Claude Helper 9, Claude Helper (Renderer) 4		622	14	0.0	
+1794387406	13.75	13.02	15.68	53	WindowServer 31, Claude Helper 9, Claude Helper (Renderer) 4		683	15	0.0	
+1794387418	14.68	13.25	15.73	48	WindowServer 30, Claude Helper 9, Claude Helper (Renderer) 4		574	13	0.0	
+1794387431	13.21	12.98	15.60	57	WindowServer 30, Claude Helper 10, Claude Helper (Renderer) 5		564	12	0.0	
+1794387443	14.92	13.34	15.69	86	WindowServer 32, Claude Helper 13, Claude Helper (Renderer) 11		679	10	0.0	
+1794387455	13.62	13.12	15.58	58	WindowServer 31, Claude Helper 10, Claude Helper (Renderer) 5		811	19	0.1	
+1794387467	12.31	12.86	15.45	114	WindowServer 36, git 24, java 24		1253	41	0.2	
+1794387480	14.88	13.39	15.60	121	git 51, WindowServer 35, Claude Helper 10		1256	40	0.1	
+1794387492	16.54	13.84	15.73	81	WindowServer 35, Claude Helper 10, grep 6		1297	40	0.1	
+1794387504	17.19	14.08	15.79	171	git 60, ugrep 43, WindowServer 35		1223	40	0.1	

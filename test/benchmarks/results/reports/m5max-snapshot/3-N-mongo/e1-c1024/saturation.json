@@ -6,20 +6,23 @@
     "accounts": 100000
   },
   "targets": ["http://127.0.0.1:18080", "http://127.0.0.1:18081", "http://127.0.0.1:18082"],
-  "saturationThroughput": 14395.6,
+  "saturationThroughput": 15269.0,
   "saturationConcurrency": 1024,
-  "generatorCores": 1.2890546914579648,
+  "generatorCores": 1.2145259847000545,
   "availableProcessors": 18,
   "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
   "steps": [
     {
       "concurrency": 1024,
-      "throughput": 14395.6,
-      "ok": 863736,
+      "seconds": 60,
+      "throughput": 15269.0,
+      "ok": 916140,
       "errors": {},
-      "p50Ms": 53.503,
-      "p99Ms": 216.063,
-      "generatorCores": 1.2890546914579648
+      "p50Ms": 50.175,
+      "p99Ms": 203.775,
+      "generatorCores": 1.2145259847000545,
+      "sentOk": 1142405,
+      "sentFailed": 0
     }
   ],
   "meta": {
@@ -27,12 +30,14 @@
     "nodes": "3",
     "heap": "1g",
     "gc": "G1",
-    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
     "stores": "kafka mongo",
+    "storeWriteIops": "",
     "primed": "true",
-    "primeSeconds": "11",
-    "settleSeconds": "4",
+    "primeSeconds": "12",
+    "settleSeconds": "6",
     "accounts": "100000",
-    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/20261103-003859-run-mongo-n3-saturation"
+    "session": "/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/20261111-003332-run-mongo-n3-saturation"
   }
 }

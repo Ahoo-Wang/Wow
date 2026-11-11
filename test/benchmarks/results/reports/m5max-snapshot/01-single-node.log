@@ -1,26 +1,23 @@
-[2026-11-02 23:27:51] up 1-S-postgres (attempt 1): --backend=postgres --accounts=100000 --heap=1g
-[2026-11-02 23:28:44] sweep 1-S-postgres/e1-sweep
-[2026-11-02 23:33:29] 1-S-postgres/e1-sweep, attempt 1: void or disturbed: 16 clients: the allowed JVMs used up to 0.25 cores
-[2026-11-02 23:33:29] waiting for a quiet host
-[2026-11-02 23:34:42] running it again; the attempt is in e1-sweep.void-1
-[2026-11-02 23:39:27] sweep 1-S-postgres/e1-top
-[2026-11-02 23:40:53] e1: Peak 32,303.0/s at 4,096 clients: the step at 8,192 clients failed 2.1% of its commands.
-[2026-11-02 23:40:53] sweep 1-S-postgres/e1-zipf-sweep
-[2026-11-02 23:45:52] sweep 1-S-postgres/e1-zipf-top
-[2026-11-02 23:49:03] e1-zipf: Peak 19,754.8/s at 4,096 clients: the step at 4,096 clients failed 13.5% of its commands.
-[2026-11-02 23:49:03] sweep 1-S-postgres/e1-hot-sweep
-[2026-11-02 23:55:57] sweep 1-S-postgres/e1-hot-top
-[2026-11-02 23:56:42] e1-hot: Peak ≥ 24,142.2/s at 4,096 clients: the step at 4,096 clients failed 49.0% of its commands, which ends a sweep; its 24,142.2/s still passed the 12,351.4/s below it by more than the band.
-[2026-11-02 23:56:42] sweep 1-S-postgres/e3-sweep
-[2026-11-03 00:01:47] up 1-S-mongo (attempt 1): --backend=mongo --accounts=100000 --heap=1g
-[2026-11-03 00:02:31] sweep 1-S-mongo/e1-sweep
-[2026-11-03 00:07:16] sweep 1-S-mongo/e1-top
-[2026-11-03 00:08:42] e1: Peak 22,886.7/s at 4,096 clients: the step at 8,192 clients failed 8.3% (56,003 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (4,096 clients passed the 19,580.4/s below them by more than the band).
-[2026-11-03 00:08:42] sweep 1-S-mongo/e1-zipf-sweep
-[2026-11-03 00:13:40] sweep 1-S-mongo/e1-zipf-top
-[2026-11-03 00:14:35] e1-zipf: Peak 3,898.2/s at 256 clients: the step at 4,096 clients failed 13.3% (32,028 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak.
-[2026-11-03 00:14:35] sweep 1-S-mongo/e1-hot-sweep
-[2026-11-03 00:19:23] sweep 1-S-mongo/e1-hot-top
-[2026-11-03 00:20:10] e1-hot: Peak 1,634.7/s at 1,024 clients: the step at 4,096 clients failed 57.7% (656,829 × 429 wow.command.busy, 1,890 × 504 wow.wait.timeout), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (1,024 clients passed the 1,558.3/s below them by more than the band).
-[2026-11-03 00:20:10] sweep 1-S-mongo/e3-sweep
-[2026-11-03 00:25:15] single node done
+[2026-11-10 22:33:48] up 1-S-postgres (attempt 1): --backend=postgres --accounts=100000 --heap=1g
+[2026-11-10 22:34:41] sweep 1-S-postgres/e1-sweep
+[2026-11-10 22:39:25] sweep 1-S-postgres/e1-top
+[2026-11-10 22:40:51] e1: Peak 33,938.5/s at 4,096 clients: 8,192 clients answered 18,695.6/s, -44.9% on the best step below it, within the band or a fall.
+[2026-11-10 22:40:51] sweep 1-S-postgres/e1-zipf-sweep
+[2026-11-10 22:45:36] sweep 1-S-postgres/e1-zipf-top
+[2026-11-10 22:48:47] e1-zipf: Peak 16,139.1/s at 1,024 clients: the step at 4,096 clients failed 13.0% (85,597 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (1,024 clients passed the 15,417.2/s below them by more than the band).
+[2026-11-10 22:48:47] sweep 1-S-postgres/e1-hot-sweep
+[2026-11-10 22:54:53] sweep 1-S-postgres/e1-hot-top
+[2026-11-10 22:55:38] e1-hot: Peak 9,431.6/s at 256 clients: the step at 4,096 clients failed 48.0% (527,870 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak.
+[2026-11-10 22:55:38] sweep 1-S-postgres/e3-sweep
+[2026-11-10 23:00:59] up 1-S-mongo (attempt 1): --backend=mongo --accounts=100000 --heap=1g
+[2026-11-10 23:01:43] sweep 1-S-mongo/e1-sweep
+[2026-11-10 23:06:28] sweep 1-S-mongo/e1-top
+[2026-11-10 23:07:53] e1: Peak 21,458.6/s at 4,096 clients: the step at 8,192 clients failed 4.3% (23,949 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (4,096 clients passed the 17,946.6/s below them by more than the band).
+[2026-11-10 23:07:53] sweep 1-S-mongo/e1-zipf-sweep
+[2026-11-10 23:12:39] sweep 1-S-mongo/e1-zipf-top
+[2026-11-10 23:14:34] e1-zipf: Peak 14,536.9/s at 1,024 clients: the step at 4,096 clients failed 13.1% (73,997 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (1,024 clients passed the 12,643.0/s below them by more than the band).
+[2026-11-10 23:14:34] sweep 1-S-mongo/e1-hot-sweep
+[2026-11-10 23:20:41] sweep 1-S-mongo/e1-hot-top
+[2026-11-10 23:21:26] e1-hot: Peak 8,984.5/s at 1,024 clients: the step at 4,096 clients failed 49.5% (530,249 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (1,024 clients passed the 8,079.4/s below them by more than the band).
+[2026-11-10 23:21:26] sweep 1-S-mongo/e3-sweep
+[2026-11-10 23:26:33] single node done

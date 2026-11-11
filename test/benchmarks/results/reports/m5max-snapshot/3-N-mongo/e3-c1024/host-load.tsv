@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793695869	38.90	27.80	22.44	20	sysmond 11, Activity Monitor 2, bash 1	cosec-redis 0.22%	42	0		
-1793695881	41.58	28.88	22.91	34	sysmond 8, Stats 6, Activity Monitor 4	cosec-redis 0.42%	1360	9		
-1793695893	35.96	28.10	22.70	7	Stats 2, WindowServer 1, configd 1	cosec-redis 0.23%	1349	10		
-1793695906	36.02	28.56	22.97	48	WindowServer 13, Claude 8, Claude Helper (Renderer) 4	cosec-redis 0.18%	1421	9		
-1793695918	32.06	27.97	22.82	25	sysmond 17, Activity Monitor 3, zed 1	cosec-redis 0.18%	1271	10		
-1793695930	36.19	29.02	23.29	16	Stats 4, sysmond 3, WindowServer 2	cosec-redis 0.16%	1332	9		
-1793695943	37.84	29.64	23.57	12	sysmond 4, WindowServer 2, zed 1	cosec-redis 0.20%	1339	9		
+1794386776	22.36	24.03	19.48	95	WindowServer 39, Claude Helper (Renderer) 13, Stats 8		148	0	0.0	
+1794386788	23.40	24.18	19.58	66	WindowServer 38, Claude Helper 12, Claude Helper (Renderer) 4		1436	9	0.1	
+1794386800	26.90	24.89	19.89	109	WindowServer 43, Claude Helper (Renderer) 18, Claude Helper 14		1449	8	0.1	
+1794386813	38.58	27.51	20.90	66	WindowServer 38, Claude Helper 13, Claude Helper (Renderer) 5		1398	9	0.1	
+1794386825	42.63	28.81	21.45	72	WindowServer 40, Claude Helper 13, Stats 6		1340	9	0.1	
+1794386837	44.50	29.83	21.94	82	WindowServer 40, Claude Helper 15, Claude Helper (Renderer) 5		1347	9	0.1	
+1794386849	40.00	29.34	21.85	121	Claude Helper (Renderer) 52, WindowServer 39, Claude Helper 18		1358	10	0.1	

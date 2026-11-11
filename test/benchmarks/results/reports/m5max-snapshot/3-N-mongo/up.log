@@ -5,14 +5,14 @@
  Network wow-e2e-bench_default Created 
  Container wow-e2e-bench-mongo Creating 
  Container wow-e2e-bench-kafka Creating 
- Container wow-e2e-bench-kafka Created 
  Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Created 
  Container wow-e2e-bench-kafka Starting 
  Container wow-e2e-bench-mongo Starting 
  Container wow-e2e-bench-mongo Started 
  Container wow-e2e-bench-kafka Started 
- Container wow-e2e-bench-mongo Waiting 
  Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
  Container wow-e2e-bench-mongo Healthy 
  Container wow-e2e-bench-kafka Healthy 
 [bench] starting node 1 on mongo
@@ -20,18 +20,18 @@
 [bench] starting node 3 on mongo
 [bench] nodes up; settling 15s
 [bench] seeding 100000 accounts
-[seed] 100000 accounts in 23.7s, 0 retried, 0 failed
+[seed] 100000 accounts in 24.1s, 0 retried, 0 failed
 [bench] checking every scenario once
-[check] E1: ok (34.2 ms)
-[check] E2: ok (25.4 ms)
-[check] E3: ok (23.0 ms)
-[check] E1-large: ok (5.6 ms)
-[check] E4-state: ok (2.3 ms)
-[check] E4-list: ok (53.7 ms)
+[check] E1: ok (38.6 ms)
+[check] E2: ok (29.4 ms)
+[check] E3: ok (22.9 ms)
+[check] E1-large: ok (8.1 ms)
+[check] E4-state: ok (2.0 ms)
+[check] E4-list: ok (56.6 ms)
 [bench] priming 100000 accounts
-[prime] 100000 accounts in 10.6s, 0 failed
-[settle] 1s: node-1 0.01, node-2 0.01, node-3 0.02
-[settle] 2s: node-1 0.03, node-2 0.03, node-3 0.02
-[settle] 3s: node-1 0.02, node-2 0.02, node-3 0.02
+[prime] 100000 accounts in 11.3s, 0 failed
+[settle] 1s: node-1 0.04, node-2 0.04, node-3 0.03
+[settle] 2s: node-1 0.02, node-2 0.01, node-3 0.02
+[settle] 3s: node-1 0.04, node-2 0.02, node-3 0.02
 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-[bench] session up: backend=mongo;nodes=3;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[bench] session up: backend=mongo;nodes=3;accounts=100000;heap=1g;install=;args=;java=;bus=false; measure with --reuse, stop with bench.sh down

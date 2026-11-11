@@ -1,5 +1,5 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793692557	13.76	9.25	9.09	14	sysmond 5, bash 2, symptomsd 1	cosec-redis 0.17%	79	0	0.0	
-1793692569	16.59	10.07	9.39	62	mdworker_shared 8, Claude 7, mdworker_shared 7	cosec-redis 0.16%	1448	56	0.0	
-1793692582	17.54	10.49	9.55	9	sysmond 3, Stats 1, WindowServer 1	cosec-redis 0.17%	1303	54	0.1	
-1793692594	18.79	11.12	9.79	15	sysmond 5, Activity Monitor 2, claude 1	cosec-redis 0.23%	1536	45	0.0	
+1794380093	13.00	10.17	9.07	392	fseventsd 100, git 85, git 83	chprobe 2.38%	164	0	0.0	
+1794380106	16.49	11.03	9.39	94	WindowServer 51, Claude Helper (Renderer) 21, Claude Helper 12	chprobe 1.91%	1318	42	0.0	
+1794380118	16.82	11.28	9.50	83	WindowServer 52, Claude Helper 10, node 6	chprobe 9.12%	1350	41	0.0	
+1794380131	19.16	12.03	9.79	80	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 11	chprobe 2.09%	1315	47	0.0	
