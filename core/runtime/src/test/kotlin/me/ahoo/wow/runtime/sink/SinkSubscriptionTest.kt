@@ -276,11 +276,14 @@ class SinkSubscriptionTest {
             ).subscription
     }
 
-    /** Versions 1 and 3 price the order; version 2 holds a retired event only, so it has no record. */
-    private suspend fun runOf(subscription: Subscription): List<RunEntry> {
+    /**
+     * Versions 1 and 3 price the order; version 2 holds a retired event only, so it has no record, unless [second]
+     * gives its events.
+     */
+    private suspend fun runOf(subscription: Subscription, second: List<EventRecord>? = null): List<RunEntry> {
         val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
         val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
-        listOf(listOf(priced), listOf(discounted), listOf(priced)).forEachIndexed { index, events ->
+        listOf(listOf(priced), second ?: listOf(discounted), listOf(priced)).forEachIndexed { index, events ->
             val version = index + 1
             val stream = EventStreamRecord(
                 ref = ref,
@@ -321,6 +324,31 @@ class SinkSubscriptionTest {
         handled.done.assert().isEqualTo(2)
         handled.failure!!.message.assert().isEqualTo("v3")
         sink.writes.assert().containsExactly(listOf(1, 3), listOf(1), listOf(3))
+    }
+
+    @Test
+    fun `an entry whose record cannot be built fails there, after the records before it are written`(): Unit =
+        runBlocking {
+            val sink = Batching()
+            val subscription = sink.subscription()
+            // The second entry's record cannot be built: its event is of a name the model does not know.
+            val run = runOf(subscription, second = listOf(EventRecord("shop.order.Unknown", 1, "{}")))
+            val handled = subscription.runHandler!!(run)
+            handled.done.assert().isEqualTo(1)
+            handled.failure.assert().isNotNull()
+            sink.writes.assert().containsExactly(listOf(1))
+        }
+
+    @Test
+    fun `a fatal error of the sink is thrown by the run, not answered`(): Unit = runBlocking {
+        val sink = object : Sink {
+            override val maxBatch: Int = MAX_BATCH
+
+            override suspend fun write(records: List<StateEventRecord>): Unit = throw OutOfMemoryError("test")
+        }
+        val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
+        val subscription = SinkSubscription(NAME, type, sink, reader).subscription
+        assertThrows<OutOfMemoryError> { runBlocking { subscription.runHandler!!(runOf(subscription)) } }
     }
 
     @Test

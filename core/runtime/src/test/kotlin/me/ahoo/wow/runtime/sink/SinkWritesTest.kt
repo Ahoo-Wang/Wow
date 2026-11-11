@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 
@@ -150,6 +151,70 @@ class SinkWritesTest {
         sink.failAll = kotlinx.coroutines.CancellationException("the sink's own")
         val written = SinkWrites(sink, 8).write(run("a", 1))
         written.failure.assert().isInstanceOf(IllegalStateException::class.java)
+    }
+
+    @Test
+    fun `a batch holds at least one record`() {
+        assertThrows<IllegalArgumentException> { SinkWrites(sink, 0) }
+    }
+
+    @Test
+    fun `a waiting run cancelled leaves the queue, and is not written`(): Unit = runBlocking {
+        val writes = SinkWrites(sink, 8)
+        val gate = CompletableDeferred<Unit>().also { sink.gate = it }
+        val first = async { writes.write(run("a", 1)) }
+        eventually { sink.writes.size == 1 }
+        val waiting = async { writes.write(run("b", 1)) }
+        eventually { writes.waiting == 1 }
+        waiting.cancelAndJoin()
+        writes.waiting.assert().isEqualTo(0)
+        sink.gate = null
+        gate.complete(Unit)
+        first.await().done.assert().isEqualTo(1)
+        sink.writes.assert().containsExactly(listOf("a@1"))
+    }
+
+    @Test
+    fun `a run written alone that meets an unavailable sink fails with it, not record by record`(): Unit =
+        runBlocking {
+            val writes = CopyOnWriteArrayList<List<String>>()
+            val gate = CompletableDeferred<Unit>()
+            val sink = Sink { records ->
+                val names = records.map { "${it.ref.id}@${it.version}" }
+                writes += names
+                if (names == listOf("a@1")) gate.await()
+                require(!(names.any { it.startsWith("b") } && names.any { it.startsWith("c") })) { "refused together" }
+                if (names.all { it.startsWith("b") }) throw StorageUnavailableException("down")
+            }
+            val sinkWrites = SinkWrites(sink, 8)
+            val first = async { sinkWrites.write(run("a", 1)) }
+            eventually { writes.size == 1 }
+            val together = listOf(run("b", 1, 2), run("c", 1)).map { async { sinkWrites.write(it) } }
+            eventually { sinkWrites.waiting == 2 }
+            gate.complete(Unit)
+            first.await().done.assert().isEqualTo(1)
+            val (b, c) = together.awaitAll()
+            b.done.assert().isEqualTo(0)
+            b.failure.assert().isInstanceOf(StorageUnavailableException::class.java)
+            c.done.assert().isEqualTo(1)
+            writes.assert().containsExactly(
+                listOf("a@1"),
+                listOf("b@1", "b@2", "c@1"),
+                listOf("b@1", "b@2"),
+                listOf("c@1"),
+            )
+        }
+
+    @Test
+    fun `a fatal error fails every run of the batch, alone or together`(): Unit = runBlocking {
+        sink.failAll = OutOfMemoryError("test")
+        val writes = SinkWrites(sink, 8)
+        val written = listOf(run("a", 1), run("b", 1)).map { async { writes.write(it) } }.awaitAll()
+        written.forEach {
+            it.done.assert().isEqualTo(0)
+            it.failure.assert().isInstanceOf(OutOfMemoryError::class.java)
+        }
+        sink.writes.size.assert().isEqualTo(1)
     }
 
     @Test
