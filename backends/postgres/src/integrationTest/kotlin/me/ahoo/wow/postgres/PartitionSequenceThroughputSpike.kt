@@ -61,7 +61,12 @@ class PartitionSequenceThroughputSpike {
             Scenario("64 partitions, 32 writers", partitions = 64, writers = 32, ownerSerialized = false),
             Scenario("64 partitions, 128 writers", partitions = 64, writers = 128, ownerSerialized = false),
             Scenario("64 partitions, 128 writers", partitions = 64, writers = 128, ownerSerialized = false, types = 5),
-            Scenario("64 partitions, 128 writers, owner-serialized", partitions = 64, writers = 128, ownerSerialized = true),
+            Scenario(
+                "64 partitions, 128 writers, owner-serialized",
+                partitions = 64,
+                writers = 128,
+                ownerSerialized = true
+            ),
             Scenario(
                 "64 partitions, 128 writers, owner-serialized",
                 partitions = 64,
@@ -147,7 +152,9 @@ class PartitionSequenceThroughputSpike {
             }
         }
 
-        runBlocking(Dispatchers.Default) { repeat(scenario.writers) { launch { append(WARMUP / scenario.writers, null) } } }
+        runBlocking(Dispatchers.Default) {
+            repeat(scenario.writers) { launch { append(WARMUP / scenario.writers, null) } }
+        }
         val latencies = LongArray(MEASURED)
         val started = System.nanoTime()
         runBlocking(Dispatchers.Default) {
@@ -201,7 +208,12 @@ class PartitionSequenceThroughputSpike {
             log.tail(0).first { ++seen == total }
         }
         val seconds = (System.nanoTime() - started) / NANOS_PER_SECOND
-        return TailResult(typeCount, latencies[latencies.size / 2], latencies[(latencies.size * 99) / 100], total / seconds)
+        return TailResult(
+            typeCount,
+            latencies[latencies.size / 2],
+            latencies[(latencies.size * 99) / 100],
+            total / seconds
+        )
     }
 
     /** The database's own ceiling: one autocommitted insert of the same row, with no counter and no version check. */

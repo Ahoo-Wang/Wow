@@ -98,7 +98,6 @@ class PostgresNonAutoCommitTest {
 
         override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(dataSource, context)
 
-
         override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
 
             (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
@@ -208,7 +207,11 @@ class PostgresNonAutoCommitTest {
                     } catch (failure: InvocationTargetException) {
                         throw failure.targetException
                     }
-                    if (method.name == "getConnection") recording(Connection::class.java, result as Connection) else result
+                    if (method.name == "getConnection") {
+                        recording(Connection::class.java, result as Connection)
+                    } else {
+                        result
+                    }
                 },
             ),
         )

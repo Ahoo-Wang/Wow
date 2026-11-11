@@ -93,7 +93,8 @@ class BoundConnectionTest {
     @Test
     fun `a first execute carries the bound and tells a result set from an update count`() {
         val (answers, trips) = transaction { bound ->
-            val query = bound.prepareStatement("SELECT 1").use { it.execute() to it.resultSet.use { rows -> rows.next() } }
+            val query = bound.prepareStatement("SELECT 1")
+                .use { it.execute() to it.resultSet.use { rows -> rows.next() } }
             val update = bound.createStatement().use { it.execute("UPDATE $table SET v = v WHERE id < 0") to it.updateCount }
             listOf(query, update)
         }
@@ -175,7 +176,9 @@ class BoundConnectionTest {
     @Test
     fun `a query whose statement returns no rows fails as plain JDBC does`() {
         assertThrownBy<SQLException> {
-            transaction { bound -> bound.prepareStatement("UPDATE $table SET v = v WHERE id < 0").use { it.executeQuery() } }
+            transaction { bound ->
+                bound.prepareStatement("UPDATE $table SET v = v WHERE id < 0").use { it.executeQuery() }
+            }
         }.actual().message.assert().isEqualTo("No results were returned by the query.")
     }
 
@@ -388,7 +391,8 @@ class BoundConnectionTest {
                     "SET LOCAL idle_in_transaction_session_timeout = 6000",
             )
             PostgresTimeouts.transactionBound(connection, 500, true).assert().isSameAs(query)
-            PostgresTimeouts.transactionBound(connection, 600, true)!!.alone.assert().contains("statement_timeout = 600")
+            PostgresTimeouts.transactionBound(connection, 600, true)!!.alone
+                .assert().contains("statement_timeout = 600")
             PostgresTimeouts.transactionBound(connection, 500, false)!!.alone.assert().doesNotContain("READ ONLY")
             connection.setNetworkTimeout(PostgresTimeouts.DIRECT, 4_000)
             PostgresTimeouts.transactionBound(connection, null, false)!!.alone.assert().contains("lock_timeout = 3000")

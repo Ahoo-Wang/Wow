@@ -158,7 +158,9 @@ class PostgresSnapshotKeysetTest {
             }
             val schema = QueryFixtures.schema(type, PostgresSnapshotStorageAdapter)
             val declared = QueryIndexDeclaration("amount", listOf("state.amount"))
-            storage.manageIndexes(PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(declared))))
+            storage.manageIndexes(
+                PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(declared)))
+            )
             val table = storage.table(type.name)
             // Every tenth snapshot has no amount: tenant t1's are i = 10, 40, ..., 89 980 (i % 30 == 10).
             seed(table, nulls = true)
@@ -217,7 +219,8 @@ class PostgresSnapshotKeysetTest {
                 throw failure.targetException
             }
         } as Connection
-        return Proxy.newProxyInstance(DataSource::class.java.classLoader, arrayOf(DataSource::class.java)) { _, method, args ->
+        val interfaces = arrayOf(DataSource::class.java)
+        return Proxy.newProxyInstance(DataSource::class.java.classLoader, interfaces) { _, method, args ->
             try {
                 val result = method.invoke(source, *(args ?: emptyArray()))
                 if (result is Connection) connection(result) else result

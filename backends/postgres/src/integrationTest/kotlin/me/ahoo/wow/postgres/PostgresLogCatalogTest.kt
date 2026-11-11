@@ -174,13 +174,15 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
         val outcomes = ConcurrentLinkedQueue<AppendOutcome>()
         val writing = AtomicBoolean(true)
         coroutineScope {
-            (0 until WRITERS).forEach { writer ->
+            for (writer in 0 until WRITERS) {
                 val log = PostgresFixture.log(PARTITIONS, context)
                 launch(Dispatchers.IO) {
                     var version = 0
                     while (writing.get()) {
                         version++
-                        val refs = (1..GROUP).map { (if (it % 2 == writer % 2) order else cart).ref("tenant", "w$writer-$it") }
+                        val refs = (1..GROUP).map {
+                            (if (it % 2 == writer % 2) order else cart).ref("tenant", "w$writer-$it")
+                        }
                         refs.groupBy { Partitioner.partitionOf(it, PARTITIONS) }.values.forEach { inPartition ->
                             val appends = inPartition.map { stream(it.id, version, aggregate = it.type) to null }
                             outcomes += if (writer == 0) appends.map { (stream) -> log.append(stream) } else log.appendAll(appends)

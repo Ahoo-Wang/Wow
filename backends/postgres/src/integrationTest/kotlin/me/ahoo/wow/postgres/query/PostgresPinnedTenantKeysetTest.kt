@@ -63,7 +63,9 @@ class PostgresPinnedTenantKeysetTest {
         }
         val schema = QueryFixtures.schema(type, PostgresSnapshotStorageAdapter)
         val declared = QueryIndexDeclaration("status", listOf("state.status"))
-        storage.manageIndexes(PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(declared))))
+        storage.manageIndexes(
+            PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(declared)))
+        )
         val table = storage.table(type.name)
         // Five statuses, every tenth snapshot without one: 6 000 of each status in tenant t1 (i % 3 == 1).
         statement(
@@ -111,7 +113,7 @@ class PostgresPinnedTenantKeysetTest {
     fun `an events page seeks to its position in the version key under a pinned tenant`(): Unit = runBlocking {
         val type = type()
         val log = PostgresFixture.log(PARTITIONS, type.context, listOf(type.name))
-        (0 until STREAMS).chunked(BATCH).forEach { chunk ->
+        for (chunk in (0 until STREAMS).chunked(BATCH)) {
             log.appendAll(
                 chunk.map { n ->
                     EventStreamRecord(
@@ -133,7 +135,9 @@ class PostgresPinnedTenantKeysetTest {
             contexts = listOf(
                 ContextManifest(
                     type.context,
-                    aggregates = listOf(AggregateManifest(type.name, state = StateManifest(Manifest.schemaRef("it.S")))),
+                    aggregates = listOf(
+                        AggregateManifest(type.name, state = StateManifest(Manifest.schemaRef("it.S")))
+                    ),
                 ),
             ),
             defs = mapOf("it.S" to mapOf("type" to "object")),
