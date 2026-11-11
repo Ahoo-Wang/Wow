@@ -207,7 +207,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   canvas: {
     role: {
       en: "The grouped ground a board and a host's card-laid page stand on (the token class `fve:bg-canvas`)",
-      zh: '分组底：看板与宿主按卡片排的页面站在它上面（token 类 `fve:bg-canvas`）',
+      zh: '分组底：仪表盘与宿主按卡片排的页面站在它上面（token 类 `fve:bg-canvas`）',
     },
   },
   content: {
@@ -219,7 +219,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   'card-edge': {
     role: {
       en: 'The ring round a card: a board panel, a record card',
-      zh: '卡片的一圈边：看板面板、记录卡片',
+      zh: '卡片的一圈边：仪表盘面板、记录卡片',
     },
     light: { en: '`foreground` at 10%', zh: '`foreground` 的 10%' },
   },
@@ -373,7 +373,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   'filter-height': {
     role: {
       en: "A board filter chip's height, its controls filling it",
-      zh: '看板筛选芯片的高度，里面的控件填满它',
+      zh: '仪表盘筛选芯片的高度，里面的控件填满它',
     },
     light: {
       en: 'unset: its controls and padding',
