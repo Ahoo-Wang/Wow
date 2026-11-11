@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.binding
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -157,7 +158,9 @@ class StandbyNodeTest {
             // The tail imports 9.x's orders meanwhile; nothing handles them on standby.
             imported("o-9x-1")
             imported("o-9x-2")
-            // Checked at once: on standby no partition reads, until the activation.
+            // A time, not an event: nothing runs on standby, so nothing comes before a read that should not have
+            // started. A check at once passes without the hold.
+            delay(SETTLE_MILLIS)
             handled.assert().isEmpty()
 
             val activated = node.activate("operator-1", "cut-over")
@@ -223,5 +226,6 @@ class StandbyNodeTest {
 
     private companion object {
         const val PARTITIONS = 4
+        const val SETTLE_MILLIS = 500L
     }
 }

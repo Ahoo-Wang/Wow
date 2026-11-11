@@ -18,6 +18,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -127,8 +128,9 @@ class HungContextJoinTest {
             val starting = launch { node.start() }
             try {
                 eventually { node.context(SHOP).ownership.owned.size == PARTITIONS }
-                // Checked at once: the partitions open their reads once every context has joined, or the reconcile
-                // timeout passed.
+                // A time, not an event: nothing is read while the reads are held, so nothing comes before a read that
+                // should not have started. A check at once passes without the hold.
+                delay(SETTLE_MILLIS)
                 projected.assert().isEmpty()
 
                 eventually(timeout = 5.seconds) { projected.size == CARTS }
@@ -172,6 +174,7 @@ class HungContextJoinTest {
         const val BACK = "back"
         const val PARTITIONS = 4
         const val CARTS = 100
+        const val SETTLE_MILLIS = 300L
         val BOUND: Duration = 1.seconds
     }
 }
