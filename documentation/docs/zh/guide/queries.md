@@ -128,7 +128,7 @@ var status: ProductStatus = ProductStatus.DRAFT
 | `@QueryDecimal`、`@QueryMoney` | 定点小数；某种货币的金额 |
 | `@QueryDuration` | 以某种单位计量的一段时长 |
 | `@QueryReference` | 另一个聚合的 ID |
-| `@QueryAlias` | 查询可以用于这个字段的其他路径，例如它改名之前的名字 |
+| `@QueryAlias` | 查询可以用于这个字段的其他路径，例如它改名之前的名字；只用于输入，响应把字段放在它自己的路径下 |
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
