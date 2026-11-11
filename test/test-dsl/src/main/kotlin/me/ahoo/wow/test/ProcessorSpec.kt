@@ -125,19 +125,20 @@ fun committedReceipt(
  * projection or reactor writes to are the test's own, shared by the forks.
  */
 @WowTestDsl
-class ProcessorSpec private constructor(
+class ProcessorSpec internal constructor(
     val handlers: List<ProcessorBinding<*>>,
     /** The kind of the processor's handlers: a saga's, a projection's or a reactor's. */
     internal val kind: FunctionKind,
-    origin: ProcessorSpec?,
+    /** The specification a fork copies ([fork]); null for a new specification. */
+    origin: ProcessorSpec? = null,
     /** Where the steps report when the specification is a tree of tests ([sagaSpecTests]); null otherwise. */
-    private val tree: TestTree?,
+    private val tree: TestTree? = null,
 ) {
+    /**
+     * A specification of [handlers], of the [kind] given. It differs from the primary constructor in taking no fork
+     * origin and no test tree, which is an internal type a public constructor cannot take.
+     */
     constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind) : this(handlers, kind, null, null)
-
-    /** A specification that reports to [tree] ([sagaSpecTests]), when there is one. */
-    internal constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind, tree: TestTree?) :
-        this(handlers, kind, null, tree)
 
     /**
      * Assigns a command whose ref a handler leaves out its aggregate type, as the service would:

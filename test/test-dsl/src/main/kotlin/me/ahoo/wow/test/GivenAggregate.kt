@@ -48,7 +48,10 @@ class GivenAggregate<S : Any> private constructor(
     /** The scope its commits leave it in. */
     val scope: Scope,
 ) {
-    /** The aggregate [ref] of [model] at the state and version its [history] leaves it in, one commit per event. */
+    /**
+     * The aggregate [ref] of [model] at the state and version its [history] leaves it in, one commit per event. It
+     * differs from the primary constructor in taking the history's events, of which it makes the commits.
+     */
     @InternalWowApi
     constructor(model: AggregateModel<S>, ref: AggregateRef, history: List<Any>, scope: Scope) :
         this(

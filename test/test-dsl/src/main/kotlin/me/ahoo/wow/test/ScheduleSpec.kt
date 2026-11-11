@@ -96,11 +96,15 @@ class ScheduleSpec internal constructor(
     /** Where the steps report when the specification is a tree of tests ([scheduleSpecTests]); null otherwise. */
     private val tree: TestTree?,
 ) {
+    /**
+     * A specification of [handlers]' jobs, its clock at [start], over [partitions]. It differs from the primary
+     * constructor in taking no test tree, which is an internal type a public constructor cannot take.
+     */
     constructor(handlers: List<ProcessorBinding<*>>, start: Instant = DEFAULT_START, partitions: Int = 1) :
         this(handlers, start, partitions, null)
 
     private val jobs: Map<String, ScheduleJob> = handlers.mapNotNull { it.job }.associateBy { it.name }
-    private val processor = ProcessorSpec(handlers, FunctionKind.SAGA, tree)
+    private val processor = ProcessorSpec(handlers, FunctionKind.SAGA, tree = tree)
 
     /** The bounded context the handlers' jobs run in, as the compiler that generated their bindings named it. */
     private val context: String = handlers.mapNotNull { it.context }.distinct().let { contexts ->
