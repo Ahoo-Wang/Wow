@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
-import me.ahoo.wow.spring.boot.PortProviders.Companion.configured
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 
 /**
  * The node's options from these properties: [routing] and the [topicRouted] types as [CommandRoutings] resolved them,

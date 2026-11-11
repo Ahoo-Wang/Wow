@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.transport
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome

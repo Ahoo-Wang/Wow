@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.transport
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -24,6 +24,10 @@ import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.AggregateProperties
+import me.ahoo.wow.spring.boot.BeanStoreResources
+import me.ahoo.wow.spring.boot.HostBackends
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.query.HostEventStores
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory

@@ -38,11 +38,11 @@ import me.ahoo.wow.spring.boot.AcmeStoreProvider
 import me.ahoo.wow.spring.boot.AggregateProperties
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
-import me.ahoo.wow.spring.boot.PortProviders
-import me.ahoo.wow.spring.boot.ProvidedSinks
-import me.ahoo.wow.spring.boot.SinkAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.startHost
+import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProvidedSinks
+import me.ahoo.wow.spring.boot.transport.SinkAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean

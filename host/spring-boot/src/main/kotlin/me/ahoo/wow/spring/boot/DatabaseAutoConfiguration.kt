@@ -20,6 +20,7 @@ import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.mongo.MongoPoolGauge
+import me.ahoo.wow.spring.boot.transport.PortProviders
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass

@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.spi.config.WowConfigurationException
-import me.ahoo.wow.spring.boot.PortProviders.Companion.configured
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.properties.bind.Binder

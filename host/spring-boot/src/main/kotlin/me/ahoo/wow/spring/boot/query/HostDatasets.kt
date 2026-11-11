@@ -25,7 +25,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.StoreResources
-import me.ahoo.wow.spring.boot.PortProviders
+import me.ahoo.wow.spring.boot.transport.PortProviders
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import java.nio.file.Path
 import java.util.ServiceLoader

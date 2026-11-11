@@ -53,6 +53,9 @@ import me.ahoo.wow.spring.boot.NodeAdmission.Companion.tenants
 import me.ahoo.wow.spring.boot.NodeAdmission.Companion.writePolicies
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.WOW_AGGREGATE_ID_GENERATOR
 import me.ahoo.wow.spring.boot.query.QueryProperties
+import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProvidedSinks
+import me.ahoo.wow.spring.boot.transport.TransportNeeds
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory

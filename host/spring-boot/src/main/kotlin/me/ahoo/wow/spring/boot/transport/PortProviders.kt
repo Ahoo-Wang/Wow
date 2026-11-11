@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.transport
 
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
+import me.ahoo.wow.spring.boot.StoreProviders
 import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder

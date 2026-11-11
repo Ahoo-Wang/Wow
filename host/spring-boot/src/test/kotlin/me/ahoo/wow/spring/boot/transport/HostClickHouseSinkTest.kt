@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.transport
 
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
@@ -24,6 +24,11 @@ import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.NodeIdentity
+import me.ahoo.wow.spring.boot.WowModels
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
