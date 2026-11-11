@@ -96,9 +96,6 @@ function moved(
     .sort();
 }
 
-/** A preset that bounds its focus ring, so the ring follows the brand. */
-const RING = new Set(['azure', 'porcelain', 'contrast']);
-
 /**
  * A preset and a mode that bound the primary fill, so it follows the brand
  * (D76): porcelain's dark, where the fill is a step deeper than the primary.
@@ -113,7 +110,6 @@ const derivedOn = (preset: string, mode: Mode) =>
   DERIVED.filter(
     variable =>
       variable !== '--chart-1' &&
-      (variable !== '--ring' || RING.has(preset)) &&
       (variable !== '--_fve-primary-fill' || FILL.has(`${preset} ${mode}`)),
   );
 
@@ -171,8 +167,8 @@ describe('no brand colour', () => {
 });
 
 describe('what a brand colour derives', () => {
-  // A preset that bounds its focus ring lets it follow the brand; one whose
-  // ring is a grey tuned to 3:1 on every ground does not.
+  // The focus ring follows the brand in every preset: between the primary's
+  // own bounds, or the band a preset gives it.
   it.each(PRESET_NAMES.flatMap(preset => MODES.map(m => [preset, m] as const)))(
     'is what the registry says, on %s, %s',
     (preset, mode) => {

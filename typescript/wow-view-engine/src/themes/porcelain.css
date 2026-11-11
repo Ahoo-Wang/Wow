@@ -204,6 +204,10 @@
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   --fvp-nav-current: oklch(0.905 0.0068 286.27deg);
   --fvp-dark-nav-current: oklch(0.4 0.0036 286.2deg);
+  /* On a grey bar the words stay the sidebar's own ink: the stylesheet's
+     current view is a tint with primary words, which read 4.19:1 here. */
+  --fvp-nav-current-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fvp-dark-nav-current-foreground: oklch(0.9707 0.0027 286.35deg);
   --fvp-canvas: oklch(0.95 0.0027 286.3deg);
   --fvp-dark-canvas: oklch(0.2273 0.0038 286.092deg);
   --fvp-card-edge: oklch(0.9233 0.0067 286.267deg);
@@ -214,13 +218,6 @@
     0 1px 2px 0 oklch(0 0 0deg / 30%), inset 0 0 0 0.5px oklch(1 0 0deg / 8%);
   --fvp-control: oklch(0.5692 0.0152 285.906deg / 12%);
   --fvp-dark-control: oklch(0.3492 0.0034 286.221deg);
-  /*
-   * A hovered or a pressed control is the ink mixed into a fill that is
-   * already grey: at the stylesheet's 3% and 7% each step is under the 0.02
-   * in OKLab a reader sees (0.0196; `test/stateSteps.test.ts`).
-   */
-  --fvp-state-hover: 4%;
-  --fvp-state-pressed: 8%;
   --fvp-control-edge: oklch(0.9233 0.0067 286.267deg);
   --fvp-dark-control-edge: oklch(1 0 0deg / 15%);
   --fvp-control-thumb: oklch(1 0 0deg);

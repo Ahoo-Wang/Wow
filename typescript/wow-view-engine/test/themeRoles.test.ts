@@ -68,7 +68,6 @@ const UNSET = new Set([
   'control',
   'control-edge',
   'control-thumb',
-  'focus-width',
   // No lower bound on a bar's width: as narrow as the plot makes it.
   'chart-bar-min-width',
   // The item's own weight, the registry's edge of each mode, and a chip as
@@ -92,9 +91,9 @@ const BUILT_IN: Readonly<
   // The states' strengths, larger on a dark ground, and what is mixed by
   // them: a row and a control under the pointer, a pressed control, a
   // selected row.
-  'state-hover': { light: '3%', dark: '6%' },
-  'state-pressed': { light: '7%', dark: '12%' },
-  'state-selected': { light: '7%', dark: '12%' },
+  'state-hover': { light: '4%', dark: '6%' },
+  'state-pressed': { light: '8%', dark: '12%' },
+  'state-selected': { light: '12%', dark: '14%' },
   'row-selected':
     'color-mix(in oklab, var(--primary) var(--_fve-state-selected), var(--_fve-content))',
   'control-hover':
@@ -103,15 +102,20 @@ const BUILT_IN: Readonly<
     'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), var(--_fve-control, transparent))',
   'card-edge': 'color-mix(in oklab, var(--foreground) 10%, transparent)',
   'card-shadow': '0 0 #0000',
-  scrim: 'oklch(0 0 0deg / 10%)',
+  scrim: {
+    light: 'oklch(0.2 0.02 262deg / 32%)',
+    dark: 'oklch(0 0 0deg / 55%)',
+  },
   'table-header-divider': 'transparent',
   'item-selected': 'transparent',
-  'nav-current-shadow': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  'nav-current-edge': 'transparent',
+  'nav-current-shadow': '0 0 #0000',
   'row-hover':
     'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-content))',
-  'focus-offset': '0px',
+  'focus-width': '2px',
+  'focus-offset': '2px',
   'focus-style': 'solid',
-  'focus-halo': 'color-mix(in oklab, var(--ring) 50%, transparent)',
+  'focus-halo': 'transparent',
   'control-thumb-shadow': '0 0 #0000',
   'control-height': '2rem',
   'control-height-sm': '1.75rem',

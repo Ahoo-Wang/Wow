@@ -55,7 +55,7 @@ export const FOCUS_ROW = cn(
   'fve:outline-none',
   'fve:focus-visible:*:bg-row-hover',
   // The ring, then the halo every control here wears (`--_fve-focus-halo`,
-  // the registry's `ring-ring/50` unset), written out: Tailwind reads class
+  // none unless a theme draws one), written out: Tailwind reads class
   // names, not code, so each is spelled whole. `focus-width` is read with
   // the registry's 1px behind it, and the halo is 2px beyond the edge.
   'fve:focus-visible:*:shadow-[inset_0_var(--_fve-focus-width,1px)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)*-1)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)_+_2px)_0_var(--_fve-focus-halo),inset_0_calc((var(--_fve-focus-width,1px)_+_2px)*-1)_0_var(--_fve-focus-halo)]',
@@ -65,17 +65,16 @@ export const FOCUS_ROW = cn(
 
 /**
  * The mark on a card the keyboard is on — the one every control wears: a
- * `--ring` edge at full strength, `focus-width` wide (1px unset), drawn on
- * the card's own edge (the outline pulled inside it by its own width, as
- * `Button`'s border is) unless the theme's `focus-offset` stands it off,
- * and the 3px halo outside (`--_fve-focus-halo`, `ring` at half strength
- * unset, as on every control), which takes
- * the place of the card's own faint ring while it is focused. The
- * halo alone measured 1.77:1 on the light page and 2.15:1 on the dark one
- * (phase 5, 5A; `FocusMarks*`).
+ * `--ring` edge at full strength, `focus-width` wide, `focus-offset` from
+ * the card's edge (a theme may pull it onto the edge with a negative
+ * offset, as azure does), and the theme's halo outside it
+ * (`--_fve-focus-halo`, none unless a theme draws one), which takes the
+ * place of the card's own faint ring while it is focused. A halo alone
+ * measured 1.77:1 on the light page and 2.15:1 on the dark one (phase 5,
+ * 5A; `FocusMarks*`), which is why the edge is the mark.
  */
 export const FOCUS_CARD = cn(
-  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-[length:var(--_fve-focus-width,1px)] fve:focus-visible:outline-offset-[var(--fve-focus-offset,var(--fvp-focus-offset,calc(var(--_fve-focus-width,1px)*-1)))] fve:focus-visible:outline-ring',
+  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-[length:var(--_fve-focus-width,1px)] fve:focus-visible:outline-offset-[var(--_fve-focus-offset)] fve:focus-visible:outline-ring',
   'fve:focus-visible:ring-[3px] fve:focus-visible:ring-(color:--_fve-focus-halo)',
 );
 
@@ -90,7 +89,7 @@ export const FOCUS_CARD = cn(
  * its own outline, and its padding keeps the mark off every word.
  */
 export const FOCUS_PANEL = cn(
-  'fve:has-[[data-panel-body]:focus-visible]:outline-solid fve:has-[[data-panel-body]:focus-visible]:outline-[length:var(--_fve-focus-width,1px)] fve:has-[[data-panel-body]:focus-visible]:outline-offset-[var(--fve-focus-offset,var(--fvp-focus-offset,calc(var(--_fve-focus-width,1px)*-1)))] fve:has-[[data-panel-body]:focus-visible]:outline-ring',
+  'fve:has-[[data-panel-body]:focus-visible]:outline-solid fve:has-[[data-panel-body]:focus-visible]:outline-[length:var(--_fve-focus-width,1px)] fve:has-[[data-panel-body]:focus-visible]:outline-offset-[var(--_fve-focus-offset)] fve:has-[[data-panel-body]:focus-visible]:outline-ring',
   'fve:has-[[data-panel-body]:focus-visible]:ring-[3px] fve:has-[[data-panel-body]:focus-visible]:ring-(color:--_fve-focus-halo)',
 );
 

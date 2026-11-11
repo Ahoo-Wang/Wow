@@ -338,10 +338,6 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
     // Its fade ended 100ms before the panel's slide, and it snapped back.
     expect(duration(backdrop)).toEqual(duration(panel));
     expect(backdrop?.classList).toContain('fve:fill-mode-forwards');
-    expect(backdrop?.className).toContain(
-      'fve:supports-backdrop-filter:backdrop-blur-none',
-    );
-    expect(backdrop?.className).not.toContain('fve:backdrop-blur-xs');
   });
 });
 

@@ -87,6 +87,10 @@
   --fvp-ring: oklch(0.38 0.23 264deg);
   --fvp-radius: 0.25rem;
   --fvp-dark-background: oklch(0 0 0deg);
+  /* A board stands on the page, white and black: the sidebar's grey under
+     it would take contrast from every word on it. */
+  --fvp-canvas: oklch(1 0 0deg);
+  --fvp-dark-canvas: oklch(0 0 0deg);
   --fvp-dark-foreground: oklch(1 0 0deg);
   --fvp-dark-card: oklch(0 0 0deg);
   --fvp-dark-card-foreground: oklch(1 0 0deg);
