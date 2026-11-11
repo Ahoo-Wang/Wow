@@ -45,7 +45,7 @@ enum class EnvelopeKind {
 }
 
 /**
- * A message of a Kafka topic: `{format, kind, id, type, payload, transport}`.
+ * A message of a transport's topic: `{format, kind, id, type, payload, transport}`.
  *
  * - [format] is the envelope's format version. A field added with a default does not change it; a
  *   reader refuses a format it does not know, which only a major version brings.
@@ -104,7 +104,7 @@ class Envelope @InternalWowApi constructor(
     }
 }
 
-/** The headers of a Kafka message, each repeating a field of its [Envelope]. */
+/** The headers of a topic's message, each repeating a field of its [Envelope]. */
 object EnvelopeHeaders {
     /** [Envelope.format], as a decimal number. */
     const val FORMAT: String = "wow-format"
