@@ -5917,7 +5917,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.datasets.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5938,7 +5938,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5960,7 +5960,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.dataset-query.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6164,7 +6164,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "eshop-catalog.command.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.\n`wow.aggregate.forbidden`: The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6175,7 +6175,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
       },
       "eshop-catalog.command.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist, or is outside the caller's reach.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6320,7 +6320,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.command.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.\n`wow.aggregate.forbidden`: The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6331,7 +6331,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
       },
       "wow.command.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist, or is outside the caller's reach.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6444,7 +6444,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.state.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6466,7 +6466,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.state.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6477,7 +6477,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.state.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist, or is outside the caller's reach.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6536,7 +6536,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6558,7 +6558,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.query.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
