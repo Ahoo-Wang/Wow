@@ -35,7 +35,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
 | `wow-redis`、`wow-bi`、`wow-apiclient`、`wow-compensation-*` | 已移除：没有 Redis 后端，改用 ClickHouse Sink、`CommandClient` 和 `QueryApi` 客户端、每个节点的失败台账 |
-| `wow-cocache` | V10 的 `wow-cocache`：由拥有聚合的上下文为每个聚合类型写一份共享缓存，读者注入 `StateViewCache<V>`；读者自建的索引缓存与关联缓存没有对应物 |
+| `wow-cocache` | V10 的 `wow-cocache`：由拥有聚合的上下文为每个聚合类型写一份共享缓存，读者注入 `StateViewCache<V>`；读者自建的索引缓存与关联缓存没有对应物；V10 不读也不写 9.x 服务的缓存留在 Redis 中的 key（默认为 `cocache:<缓存名>:<聚合 ID>`，V10 的 key 是 `cocache:wow.<context>.<aggregate>:<tenantId>/<id>`），这些 key 可以删除 |
 | 返回 `Mono` 或 `Flux` 的处理函数 | `suspend` 函数，或通过 `wow-reactor` 使用 Reactor |
 
 这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。

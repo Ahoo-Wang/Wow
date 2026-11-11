@@ -35,7 +35,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `Pagination.offset()` as an `Int` | A `Long` |
 | `wow-test` (`AggregateSpec`) | `wow-test`, with the functional `aggregateSpec` and `sagaSpec` |
 | `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
-| `wow-cocache` | `wow-cocache` of V10: the owning context writes one shared cache per aggregate type, and readers inject `StateViewCache<V>`; a reader's own index and join caches have no counterpart |
+| `wow-cocache` | `wow-cocache` of V10: the owning context writes one shared cache per aggregate type, and readers inject `StateViewCache<V>`; a reader's own index and join caches have no counterpart; V10 reads and writes none of the keys a 9.x service's caches left in Redis (`cocache:<cache name>:<aggregate id>` by default, where V10's are `cocache:wow.<context>.<aggregate>:<tenantId>/<id>`), so they may be deleted |
 | Handlers returning `Mono` or `Flux` | `suspend` functions, or Reactor through `wow-reactor` |
 
 The plugins need Gradle 9 or later and the Kotlin JVM plugin 2.3 or later: upgrade a Gradle 8 wrapper first. KSP reads whole source directories and ignores a source set's `exclude`, so a migration that compiles part of a domain at a time syncs those files into a directory of their own.

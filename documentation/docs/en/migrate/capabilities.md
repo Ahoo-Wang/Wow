@@ -207,7 +207,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | 9.x capability | In V10 | Notes |
 | --- | --- | --- |
 | `wow-models` | Kept | — |
-| `wow-cocache` | Replaced | One shared cache per aggregate type, written by the context that owns it and read as `StateViewCache`; a reader's own index and join caches have no counterpart. |
+| `wow-cocache` | Replaced | One shared cache per aggregate type, written by the context that owns it and read as `StateViewCache`; a reader's own index and join caches have no counterpart. V10 reads and writes none of the keys a 9.x service's caches left in Redis (`cocache:<cache name>:<aggregate id>` by default, where V10's are `cocache:wow.<context>.<aggregate>:<tenantId>/<id>`), so they may be deleted. |
 | `wow-apiclient` | Replaced | Typed command and query clients that run in-process for the service's own contexts and over HTTP for others. See [Between contexts](../concepts/cross-context#typed-clients). |
 | CosId | Kept | Through `wow-cosid` on CosId 5, for aggregate ids: segment generators move to CosId 5's configuration, and their state with CosId's migration tool. |
 | Spring integration and starter features | Replaced | One Spring Boot host module, wiring each backend by classpath. |
