@@ -85,9 +85,10 @@ class ClickHouseSinkProvider : SinkProvider {
         @JvmField
         val DDL: ProviderOption<Ddl> = ProviderOption.enumeration(
             "ddl",
-            "how the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing " +
-                "and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl " +
-                "when not set.",
+            "how the Sink manages its tables: auto creates what is missing, _state's computed columns included, " +
+                "then validates; validate creates nothing and refuses a table that is missing, is not of the Sink's " +
+                "format (its comment's wow-sink-format:1), has other columns or lacks a computed column; none " +
+                "creates and checks nothing. wow.ddl when not set.",
             Ddl::class.java,
         )
 

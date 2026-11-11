@@ -29,7 +29,7 @@
 | X-35 | P2 | Kotlin 的 ABI 转储 | 全部参数有默认值、主构造器标 `@InternalWowApi` 的类，干净编译下生成的无参构造器可能丢掉该标记，转储多出一个公开的 `<init>()`；增量编译保留标记，故本地通过而 CI 失败 | 无待办。内部改用该类的 `@InternalWowApi copyWith`；转储中出现意外的公开无参构造器时先疑此因 | 已绕开（#5227），记作已知现象 |
 | X-55 | P2 | 内部 HTTP/2 客户端的流上限 | 同机三节点、并发 1,024 时内部端口报 `too many concurrent streams`，RST 帧上限关闭内部连接，等待信号被丢、转发失败。修复已合并（#5340），Actions 4 核 runner 上三节点 E1 并发 1,024 为 0 错误、0 降级 | 三节点 E1、E3 的确认复跑（原定本机，后改在 Actions 上做） | 部分：确认复跑未做 |
 | X-67 | P3 | 过载降级之后 E3 第一步的等待 | E1 过载（转发降级为非属主执行）之后，E3 第一步（并发 1）出现约 2.6 s 的等待；#5340 之后 E1 并发 1,024 不再降级，触发概率很低 | 下一个本机窗口用分阶段计时，对比 X-60 的两个修复「F1（#5337）、F2（#5357）都开」与「只开 F1」 | 待查（本机窗口） |
-| X-69 | P2 | PostgreSQL 单节点 E1 过峰值后吞吐下降 | M5 Max 快照（#5366）：E1 均匀在 4,096 个客户端为 32,303.0/s，8,192 个时降到 20,823.6/s（−35.5%），只有 2.1% 被 429 拒绝；全机 CPU 反而下降，像在等待。推测是 JDK 21 上 JDBC 的虚拟线程被钉住（D368），未证实 | 在 JDK 25 上（D393）以 `bench.sh run` 测 4,096 与 8,192 个客户端，记下节点、GC、PostgreSQL 各自的占用与线程转储 | 待查（本机窗口） |
+| X-69 | P2 | PostgreSQL 单节点 E1 过峰值后吞吐下降 | M5 Max 快照（#5366）：E1 均匀在 4,096 个客户端为 32,303.0/s，8,192 个时降到 20,823.6/s（−35.5%），只有 2.1% 被 429 拒绝；全机 CPU 反而下降，像在等待。2026-11-11 的快照在 JDK 25 上现象仍在（4,096 个 33,939/s，8,192 个 18,696/s，−44.9%，0.53% 失败），「JDK 21 上虚拟线程被钉住」的推测因此不成立 | 在 4,096 与 8,192 个客户端各取节点、GC、PostgreSQL 的占用与线程转储，看在等什么 | 待查（本机窗口） |
 | X-72 | P2 | 与 Axon 的对比（PostgreSQL） | 同速率下延迟不稳一项已修（#5420，D398）。余下的差距：每命令 WAL 约为 Axon 的 2 倍，每事件存储 626 对 480 字节，启动 7–11 s 对 4 s，常驻 400 对 290 MB | 三项改进，未排 | 部分 |
 | X-78 | P3 | 迁移演练的 kind 一臂 | 9.x 在快照保存前确认命令、保存失败即丢弃，kind 一臂经 NodePort 的连接被重置时触发；检查已改为计数并说明，不再判失败（#5437） | kind 上哪一跳重置连接 | 待查 |
 | X-81 | P3 | 基准：节点停不下来 | `bench.sh down` 发出停止后，一个 Wow 节点又跑了约 71 s，读已删掉的库，与下一个会话的种子、预热重叠（未影响计时） | harness 等节点真正退出再开下一个会话；查节点为何停机慢 | 待定 |
@@ -136,3 +136,42 @@ rc 前的完整一次：2026-11-11 在 `a7c372ad3e` 上，PostgreSQL 与 MongoDB
 | 其余 | P3 | 各后端 | PG-6（访问遍历重写它盖章的每一行日志，遍历后建议 VACUUM）、PG-14（只存取不查询的列用了 jsonb）、MG-12（冲突路径与遍历多取了字段）、MG-13、CH-8（偏移不设上限、带总数时扫两遍）、CH-10、ES-5（新增映射字段无限速地重写全索引）、ES-6（事件索引单主分片、无滚动）、ES-7（包含与后缀匹配是前导通配符）、ES-9 | 逐项排期；ES-5 加限速与分片并行，ES-6、ES-7 写进运维与查询文档 | 多数否 | 已登记 |
 
 须实测才能定的：有多个候选计划时计划器的选择（PG-8、MG-7）、Sink 订阅的并发（决定 CH-1、ES-1、ES-2 的批次）、ClickHouse 的版本对 JOIN 下推与 `FINAL` 下跳数索引的处理（CH-2、CH-3）。
+
+## 14. api 与 core 的深度架构审查（2026-11-11，基线 `6de85af3c5`，只读）
+
+用户要求在 GA 前深度审查 `api/*` 与 `core/*`（459 个主源码文件）：公开面、SPI、线上格式与热路径，按内聚、耦合、性能、扩展、伸缩、可用、易用与精炼逐模块看，重点是 GA 之后再改即为破坏性变更的地方。两遍共 77 项发现，没有 P0；GA 前要定或要改的 48 项。写路径的结论是内核与执行器没有随聚合历史增长的开销。第二遍补读了第一遍没读到的文件、逐条核实了线索，并按 D418 查了 GA 后会破坏源码的地方；`runtime/admission` 的其余部分、`runtime/call`、`runtime/client`、`LogGroupRouter`、`kernel/memory` 在第三遍里读。每项的全文在审查报告里，分诊在协调者的分诊记录里，本表只留仍未了结的。
+
+定为不改的三项：API-8（`CommandRequest` 的 Builder 与 `timeout`：D337，用户 2026-11-11 确认保留）、SPI-4（发布的记录在 10.0 保持 JSON 树，D269 ④ 以此了结；SPI 一级可在次版本变）、KER-1 的问题（命令无论历史多长都服务，读才受 `max-replay` 限制）。
+
+| 编号 | 级别 | 位置 | 现象 | 余下 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| EVO-1 | P1 | `api/`、`core/` 的 135 处 KDoc（61 个文件） | 记录的演进规则写「以后可加字段，新参数放最后并带默认值」；这样加字段会改变 `of$default` 的签名，只保证源码兼容。用户已定 D418：10.0.x 二进制兼容，10.x 源码兼容，所以这 135 句成立，不改 | API Levels 的措辞随 D418 改（参考页生成器的 WORDS，中英）；审查第二遍列出契约 jar 与生成代码所调用的入口，这些入口在次版本里加重载而不加参数，清单写进 `AGENTS.md` | 已定（D418），余措辞与清单 |
+| QRY-1、QRY-2 | P2 | `api/query-api` 的 16 个相对时间过滤 | 各带 `datePattern`、`dateFormatter`、`timeUnit`：准入拒绝前两个，对 `timeUnit` 不报错地改写；`timeUnit` 是 JDK 枚举，大写上线 | 只留 `zoneId`；工厂、DSL、线上格式、TS 构建器同改 | 已派（query-bugs） |
+| QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐 | 已派（query-bugs） |
+| MAN-1 | P2 | `api/manifest` | Manifest 自留一份编程模型的词汇（`Creation`、`Ownership`、`AggregateIdSource`、`FunctionKind`、40 个错误码常量）；D294 的理由（`:manifest` 不依赖 `:api`）自 D366 ② 起不成立；`JobManifest.scope`、`misfire` 是任意字符串 | 改用 `:api` 的枚举与 `FrameworkCodes`，双向对照测试删去 | 已派（kernel-writes-p1） |
+| MAN-2、MAN-4 | P2、P3 | `ManifestTree.read` | 读到不认识的枚举值即丢掉整条命令、聚合或订阅，提示默认进空函数，五个调用方都用默认；`format` 为 `1.5` 时按 1 读 | `warn` 不设默认：节点自己的 Manifest 启动即失败，对端的记日志；非整数的 `format` 拒绝 | 已派（kernel-writes-p1） |
+| MAN-3 | P2 | `api/manifest` 的构建侧辅助 | 契约的装配、打包、冲突检测是公开 API，只有 Wow 自己的工具用 | 标 `@InternalWowApi`；`CommandRoutes` 的路径规则另定 | 已派（kernel-writes-p1） |
+| SPI-1、API-1 | P2 | 失败台账 | 「不可恢复」有三种说法，其一由自由文本 `reason` 的前缀推出；`MarkParkedRecoverable.recoverable` 是 `String`，文档写的拼法运行时拒绝 | 「来源已不持有、只能跳过」成为有类型的字段并单独存储；台账的线上词汇移到 `:api` | 已派（rt-subs-p1） |
+| SPI-2 | P2 | `EventLog.appendAll` | 入参是 `List<Pair<EventStreamRecord, ByteArray?>>`，热路径上唯一不能再加字段的 SPI 签名 | 换成以 `of` 构造的小记录，不增加分配 | 已派（kernel-writes-p1） |
+| SPI-3、SPI-6 | P2、P3 | `TimerStore` | `due` 对所有分区共用一个上限，一个分区的积压会挤掉别处已到期的定时器；`settle` 只返回个数；版本在定时器端口是 `Long`，别处是 `Int` | 按分区限量；`settle` 返回写入了哪些；版本改 `Int`；TCK 同改 | 已派（rt-subs-p1） |
+| SPI-5 | P3 | `core/spi` 的选项读取 | 存储、Sink、传输各写了一份相同的读取代码且已分叉，`Scope.PER_STORE` 三处含义不同 | 一个类型、一个含义 | 已派（rt-subs-p1） |
+| API-2、API-6 | P2、P3 | 系统类型名 | 日志里的系统事件名与命令名有三种拼法（`wow.lifecycle.AggregateDeleted`、`wow.ScheduleSet`、`wow.Ticked`）；七个系统类型是 `data object`，永远加不了字段 | 一条规则 `wow.<namespace>.<ClassName>`；改成带 `of()` 的类 | 已派（kernel-writes-p1），先交新旧名对照 |
+| API-3 | P2 | `ExecutionId` | 只含订阅名、不含上下文；它的文本是交给外部系统的幂等键，同一服务的两个上下文里同名的处理器会得到同一个键 | 带上上下文，不再是 `data class` | 已派（kernel-writes-p1） |
+| API-4 | P2 | 十四个聚合侧注解 | 仍带 `@Inherited` 与 `ANNOTATION_CLASS`，编译器不认而运行时的反射认，子类上两者不一致（D372 S18 已在订阅侧去掉） | 去掉，并以测试证明两者一致 | 已派（kernel-writes-p1） |
+| API-5 | P2 | `DecideScope`、`SubscriptionContext`、`SagaContext`、`StateEvent`、`CommandClient`、`QueryModels`、`RowQueries` | 没有写明用户能否实现；稳定接口上有实验性的抽象成员 | 定为「Wow 实现、用户调用」并写进 KDoc；实验性成员给默认实现或移到子接口 | 已派（kernel-writes-p1） |
+| API-7、API-9、API-10 | P3 | `api/api` | 两个作用域里同一动作两种叫法；调度的命令在存储的事件里是字符串里的 JSON；五处小的内聚问题 | 各按报告修；API-9 先核对序列化 | 已派（kernel-writes-p1） |
+| RT-1、RT-8 | P3 | `core/runtime` | 两个宿主装配类型是公开的；`SnapshotSubscription` 的容量从不跟随 `wow.shared-states.capacity`（恒为 4,096） | 标 `@InternalWowApi`；容量接上配置并加测试 | 已派（rt-subs-p1） |
+| RT-2、RT-3 | P2 | 访问遍历、快照重建 | 一个读不出的聚合让遍历或重建永远停在同一处：游标整页之后才前进，没有跳过、台账或指标，查询一直答 `rebuilding` | 记下该聚合后继续（台账或计数加跳过表）。不改形态 | 已登记；有会话空出时 GA 前修 |
+| RT-4 | P2 | 停放重试 | 重试一个仍在提交的停放聚合时把其后的全部流读进内存（`toList()`） | 并入路线图 §6 性能第 22 项 | 已登记 |
+| NAM-1 | P3 | 存储与线上的时间字段名 | 毫秒时间戳的字段有的以 `Time` 结尾、有的以 `At` 结尾；`firstEventTime` 等沿自 9.x | 协调者建议不改；GA 是最后一次可以免费改 | 待定（用户） |
+| SRC-1 | P1 | 公开的枚举与密封类型 | D418 把给用户穷尽匹配的类型加分支算作源码破坏；`api/` 里没有一个类型写明可以加分支，照此查询协议整个 10.x 加不了稳定的过滤 | D418 ⑥ 已定：KDoc 写明可加分支的为开放、其余封闭；各类型加上这句话，`:architecture` 的规则把守 | 已派（kernel-writes-p1、query-bugs、rt-subs-p1） |
+| KER-3、KER-4 | P2、P3 | 决定函数发出的请求、Saga 的调度与取消 | 请求按命令 ID 生成键，而网关给每次到达新的命令 ID：第一次尝试调了对端却没提交时，调用方重试会让对端的命令执行两次；Saga 的调度与取消靠先后顺序区分 | 按聚合引用与请求 ID 生成键（D407 的编码）；调度与取消按它们的键 | 已派（kernel-writes-p1），排在改名之前 |
+| API-12 | P2 | `ownerAndSpace` 的默认值 | 默认按属主比较，租户所有的聚合不记属主，属主级的调用方因此一律被拒（失败时偏严） | 由 Wow 构造的 `AccessScope` 带上聚合的所有权，参数删去 | 已派（query-bugs） |
+| SRC-2、SRC-3 | P2、P3 | `CommandValidator`、`MaskStrategy` | 用户实现的单方法接口，参数在 11.0 之前改不了：校验器拿不到调用方与租户，掩码只看得到值 | 各改为接收一个可以加字段的参数对象 | 已派（rt-subs-p1、query-bugs） |
+| SRC-6、SRC-7 | P2、P3 | `Operator.crossScope`、`FunctionKind` | `crossScope` 在调用方上是权限、在操作者上是事实，后者存进每条流；`FunctionKind` 把「函数是什么」和「是哪个内置订阅」混在一起 | 操作者的改名 `actedElsewhere`；内置订阅共用一种，名字说明是哪个 | 已派（kernel-writes-p1），先交新旧名对照 |
+| SPI-8、SPI-10 | P2 | 失败台账的修订 | 台账对七种修订穷尽匹配，新增一种时旧台账没有分支；运维的标记、重试规格或请求作用于当时在那里的任何一次停放 | `ApplyRetrySpec` 改走通用路径（读、`amended`、按版本条件写），各存储以 `else` 收尾并写进 `amend` 的 KDoc；SPI-10 已登记 | SPI-8 已派（rt-subs-p1，随 SPI-1） |
+| OBS-1、API-11 | P2、P3 | 观察者、等待的跳 | 只有一个观察者时没有隔离，它抛异常命令即失败；带订阅名的跳读到未知阶段会抛异常，宽容读取的承诺有洞 | 各一处小修加测试 | OBS-1 已在本地修好（rt-subs-p1）；API-11 已派（kernel-writes-p1） |
+| SRC-4、SRC-5、SPI-9、KER-6、KER-9、RT-19～RT-21 | P3 | 各处 | 六个只有本模块实现的接口没有封闭；四个 SPI 枚举没有标记；SPI 里一处 `java.time.Duration`；永不触发的 cron 被接受；两个没人用的 `HandlerRetry.of`；`ServiceNode.start` 的重载与装配类型的可见性；`WaitOptions` 接受超过上限的默认超时 | 各按报告修 | 已派 |
+| RT-9 | P2 | `wow.access` | 对每条提交要前一条流：缓存（每上下文 10 万个聚合）里没有就读一次日志；订阅是 beta.1 之后加的，是 MongoDB 延迟信号的线索 | 等基准的语句计数；修法：内核在追加的条目上标明属性有没有变 | 待测 |
+| RT-10～RT-15 | P2 | 运行时内部 | 补盖章绕过重放闸门读历史；被取消的启动不停掉已启动的部分；启动的第一次调和没有卡死检测；RT-13：卡在调和里的节点退出成员表后仍续租并接收（中等把握，rt-subs-p1 先读清楚）；一个运行时的交接串行；每次计数查询为不运行的分区各读一个检查点 | 不改形态；有会话空出时修 | 已登记 |
+| 其余 | P3 | 各处 | RT-5（后台循环只捕获 `Exception`，遇 `Error` 即止而健康检查仍为 UP）、RT-6（一次重建请求按快照目标各重放一遍日志）、RT-7（每条等待的命令分配五个很少用到的集合）、KER-2、SPI-7、DOC-1（几处不再相符的文字，随 KDoc 的 PR 改） | 逐项排期 | 已登记 |

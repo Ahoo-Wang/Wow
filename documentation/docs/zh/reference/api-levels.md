@@ -50,6 +50,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.api.query.RunningFunction` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.windowFunction` | val | `wow-query-api` |
 | `me.ahoo.wow.api.query.ExpressionFilter` | class | `wow-query-api` |
+| `me.ahoo.wow.api.query.FilterOperator.EXPRESSION` | enum entry | `wow-query-api` |
 | `me.ahoo.wow.api.query.HavingExpression` | interface | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.AggregationQueryDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.DerivedExpressionDsl` | class | `wow-query-api` |

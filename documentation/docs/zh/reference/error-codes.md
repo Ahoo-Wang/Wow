@@ -60,4 +60,54 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 
 | 代码 | 分组 |
 | --- | --- |
+| `invalid-json` | Reading and decoding the request body. |
+| `body-not-object` | Reading and decoding the request body. |
+| `empty-body` | Reading and decoding the request body. |
+| `unknown-property` | Reading and decoding the request body. |
+| `unknown-type` | Reading and decoding the request body. |
+| `unknown-value` | Reading and decoding the request body. |
+| `invalid-value` | Reading and decoding the request body. |
+| `invalid-request` | Reading and decoding the request body. |
+| `cursor-sort-duplicate` | Reading and decoding the request body. |
+| `cursor-sort-too-many` | Reading and decoding the request body. |
+| `invalid-cursor` | Reading and decoding the request body. |
+| `stream-not-resumable` | Reading and decoding the request body. |
+| `size-out-of-range` | The entry budget and gates (errorCode IllegalArgument). |
+| `filter-too-large` | The entry budget and gates (errorCode IllegalArgument). |
+| `expensive-operator-disabled` | The entry budget and gates (errorCode IllegalArgument). |
+| `count-requires-filter` | The entry budget and gates (errorCode IllegalArgument). |
+| `residual-groups-exceeded` | The entry budget and gates (errorCode IllegalArgument). |
+| `too-many-groups` | The entry budget and gates (errorCode IllegalArgument). |
+| `explicit-entry-required` | The entry budget and gates (errorCode IllegalArgument). |
+| `replay-too-long` | A state point read (GET …/{id}/state?version=\|at=, …/state/trace). |
+| `unknown-field` | Admission against the query model. |
+| `unsupported-capability` | Admission against the query model. |
+| `element-scope-required` | Admission against the query model. |
+| `value-mismatch` | Admission against the query model. |
+| `not-collection` | Admission against the query model. |
+| `not-single-string` | Admission against the query model. |
+| `model-search-unsupported` | Admission against the query model. |
+| `cursor-not-allowed` | Admission against the query model. |
+| `protected-aggregation` | Admission against the query model. |
+| `protected-comparison` | Admission against the query model. |
+| `missing-key-requires-string` | Admission against the query model. |
+| `any-requires-single-value` | Admission against the query model. |
+| `incomplete-projection` | Admission against the query model. |
+| `metric-filter-search` | Admission against the query model. |
+| `metric-filter-element-match` | Admission against the query model. |
+| `metric-filter-array-field` | Admission against the query model. |
+| `not-projectable` | Admission against the query model. |
+| `event-projection-type-required` | Admission against the query model. |
+| `temporal-representation-required` | Admission against the query model. |
+| `temporal-configuration-conflict` | Admission against the query model. |
+| `parallel-array-sort` | Admission against the query model. |
+| `array-equality` | Admission against the query model. |
+| `first-last-requires-single-value` | Admission against the query model. |
+| `first-last-requires-order-by` | Admission against the query model. |
+| `temporal-aggregation-unsupported` | Admission against the query model. |
+| `sort-too-many` | Admission against the query model. |
+| `sort-field-duplicate` | Admission against the query model. |
+| `identity-undefined` | Admission against the query model. |
+| `storage-unsupported` | Admission against the query model. |
+| `previous-unshiftable` | Admission against the query model. |
 
