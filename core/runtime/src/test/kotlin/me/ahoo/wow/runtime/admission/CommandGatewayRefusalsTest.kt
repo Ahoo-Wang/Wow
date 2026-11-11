@@ -19,6 +19,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.TransformedFrom
@@ -155,10 +158,41 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         val space = Caller(TENANT, Scope("eve", long), subject = "eve")
         gateway.execute(request(caller = space)).error!!.message.assert()
             .isEqualTo("The space id is at most 256 characters; this one has 257.")
+        val owner = Caller(TENANT, Scope(long, "home"), subject = "eve")
+        gateway.execute(request(caller = owner)).error!!.message.assert()
+            .isEqualTo("The owner id is at most 256 characters; this one has 257.")
         decided.assert().isEmpty()
         val longest = "y".repeat(AdmissionLimits.MAX_ID_LENGTH)
         gateway.execute(request(requestId = longest, aggregateId = longest, wait = WaitPlan.COMMITTED)).status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a request's ids are checked before the creation lookup reads the store for its request id`(): Unit =
+        runBlocking {
+            val looked = CopyOnWriteArrayList<String>()
+            val committed = CommittedRequests { _, _, requestId ->
+                looked += requestId
+                null
+            }
+            val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+            gateway(committed = committed).execute(request(aggregateId = null, requestId = long))
+                .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+            looked.assert().isEmpty()
+        }
+
+    @Test
+    fun `the owner or space a lifecycle command transfers to is held to the ids' length`(): Unit = runBlocking {
+        val long = "o".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+        val transfer = gateway().execute(request(command = Lifecycle.TRANSFER_OWNER, body = """{"ownerId":"$long"}"""))
+        transfer.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        transfer.error!!.message.assert().isEqualTo("The owner id is at most 256 characters; this one has 257.")
+        AdmissionLimits.oversizedBody(TransferOwner(long)).assert()
+            .isEqualTo("The owner id is at most 256 characters; this one has 257.")
+        AdmissionLimits.oversizedBody(TransferSpace(long)).assert()
+            .isEqualTo("The space id is at most 256 characters; this one has 257.")
+        AdmissionLimits.oversizedBody(TransferOwner("o".repeat(AdmissionLimits.MAX_ID_LENGTH))).assert().isNull()
+        AdmissionLimits.oversizedBody(AddItem("apple")).assert().isNull()
     }
 
     @Test
