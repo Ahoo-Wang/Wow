@@ -30,7 +30,7 @@ Every Wow 10 decision is recorded once, in `decisions.md`, under a number, `D6` 
 
 ## The review ledger
 
-`reviews.md` is the one record of what reviews found and is still open. Each finding has a number, a severity (P0 to P3), its place in the code, what happens and when, what is left to do and a status: recorded, in progress, on hold, to be measured, or partly done with what remains. A finding is recorded before it is assigned, and a fix's pull request names its number. A finding that is dealt with (fixed, decided against, or moved to the roadmap's 10.x list) leaves the ledger; git keeps what it said.
+`reviews.md` is the one record of what reviews found and is still open. Each finding has a number, a severity (P0 to P3), its place in the code, what happens and when, what is left to do and a status: recorded, to be decided, to be measured, to be investigated, in progress, on hold, or partly done with what remains. A finding is recorded before it is assigned, and a fix's pull request names its number. A finding that is dealt with (fixed, decided against, or moved to the roadmap's 10.x list) leaves the ledger; git keeps what it said.
 
 ## When a change needs a record
 
