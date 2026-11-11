@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.Ddl
@@ -31,7 +32,7 @@ class MongoStoreDdlTest {
     @Test
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = MongoLogFixture.newContext("ddl")
-        val validating = MongoEventLog(client, database, context, 2, ddl = Ddl.VALIDATE)
+        val validating = MongoEventLog(client, database, context, 2, options = MongoEventLogOptions(ddl = Ddl.VALIDATE))
         assertThrows<IllegalStateException> { validating.createSchema() }.message.assert()
             .contains("does not exist, and the store only validates its schema")
 

@@ -32,11 +32,8 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
-import me.ahoo.wow.mongo.MongoSharding
-import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
-import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessWalk
@@ -56,7 +53,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -111,11 +107,12 @@ import kotlin.time.Duration.Companion.seconds
  * decimals are `Decimal128`, exact ([ExactBson]); an append whose payload holds a number MongoDB cannot store exactly
  * is refused with an [IllegalArgumentException].
  *
- * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
- * that finds none doubles the wait, up to `maxPollInterval` (1 s). A commit this log makes wakes the partition's
- * tails at once, and a poll it woke that finds the partition caught up keeps the backoff, so a commit costs one read
- * of the tail; an entry another node appends is read within `maxPollInterval`. A change stream could wake the tails
- * of every node; it is not used, the backoff keeping an idle cluster cheap without a cursor per partition and node.
+ * **Polling**. A tail polls every [MongoEventLogOptions.pollInterval] (50 ms by default) while it finds entries;
+ * each poll that finds none doubles the wait, up to [MongoEventLogOptions.maxPollInterval] (1 s). A commit this log
+ * makes wakes the partition's tails at once, and a poll it woke that finds the partition caught up keeps the backoff,
+ * so a commit costs one read of the tail; an entry another node appends is read within the longest interval. A change
+ * stream could wake the tails of every node; it is not used, the backoff keeping an idle cluster cheap without a
+ * cursor per partition and node.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -126,32 +123,23 @@ class MongoEventLog(
     private val context: String,
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    pollInterval: Duration = DEFAULT_POLL_INTERVAL,
-    tailBatch: Int = DEFAULT_TAIL_BATCH,
-    maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
-    /** How the store's collections and indexes are managed: created when missing by default. */
-    private val ddl: Ddl = Ddl.AUTO,
-    /**
-     * How long an append's insert may take: a server that does not answer fails it, so a command
-     * appending during an outage is answered before its wait ends, as unknown. Below the default wait timeout.
-     */
-    appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
-    /** Whether the log shards its aggregate collections on a sharded cluster. */
-    sharding: MongoSharding = MongoSharding.AUTO,
-    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
-    operationTimeout: Duration = MongoTimeouts.OPERATION,
+    /** Its settings: how its tails poll, how long its calls may take, how it manages and shards its collections. */
+    options: MongoEventLogOptions = MongoEventLogOptions(),
 ) : EventLog,
     AccessWalks {
     /** Validates the partition count first: a log of another count is refused when it is built. */
-    private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
+    private val pacer =
+        TailPacer(Partitioner.requirePartitions(partitions), options.pollInterval, options.maxPollInterval)
 
-    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
+    private val ddl = options.ddl
+
+    private val database = MongoDatabases.of(client, databaseName, options.operationTimeout)
 
     /**
      * Whether this log shards its collections: asked of the server once, as the log is built when its port opens,
      * so a server that cannot answer fails the start, and no first write waits on the round trip under a lock.
      */
-    private val sharded: Boolean = sharding.shards(client, ddl)
+    private val sharded: Boolean = options.sharding.shards(client, ddl)
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
 
@@ -164,7 +152,7 @@ class MongoEventLog(
 
     /** The registry the access walks are claimed in and read from: majority writes and reads, as the counters'. */
     private val walks: MongoCollection<Document> = committedRegistry.withWriteConcern(WriteConcern.MAJORITY)
-    private val appendMillis = appendTimeout.inWholeMilliseconds
+    private val appendMillis = options.appendTimeout.inWholeMilliseconds
 
     private val sequencer =
         MongoSequencer(
@@ -185,8 +173,15 @@ class MongoEventLog(
     private val documents = MongoLogDocuments(context)
 
     /** The reads of the partitions' tails. */
-    private val tailReads =
-        MongoTailReads(committedCounters, collections, sequencer, documents, tailBatch, committedRegistry, context)
+    private val tailReads = MongoTailReads(
+        committedCounters,
+        collections,
+        sequencer,
+        documents,
+        options.tailBatch,
+        committedRegistry,
+        context,
+    )
 
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
@@ -439,10 +434,6 @@ class MongoEventLog(
             return run to next
         }
 
-        val DEFAULT_POLL_INTERVAL = 50.milliseconds
-        val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
-        const val DEFAULT_TAIL_BATCH = 500
-
         /** The registry of aggregate collections, shared by the logs of every context. */
         const val REGISTRY = "wow_log_aggregate"
         const val PREFIX = "wow_log"
@@ -458,9 +449,6 @@ class MongoEventLog(
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
-
-        /** How long an append's insert may take by default: below the default wait timeout of 10 seconds. */
-        val DEFAULT_APPEND_TIMEOUT: Duration = 5.seconds
 
         /** The sequences one reservation of a partition's counter gives a node. */
         const val BLOCK = 256L

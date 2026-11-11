@@ -21,6 +21,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
@@ -57,7 +58,9 @@ class MongoStoreShardingTest {
 
     /** Each store of a context, built with [sharding] and [ddl]. */
     private val stores: List<(MongoSharding, Ddl) -> Any> = listOf(
-        { sharding, ddl -> MongoEventLog(client, DATABASE, CONTEXT, 2, ddl = ddl, sharding = sharding) },
+        { sharding, ddl ->
+            MongoEventLog(client, DATABASE, CONTEXT, 2, options = MongoEventLogOptions(ddl = ddl, sharding = sharding))
+        },
         { sharding, ddl -> MongoSnapshotStore(client, DATABASE, CONTEXT, ddl = ddl, sharding = sharding) },
         { sharding, ddl -> MongoTimerStore(client, DATABASE, CONTEXT, 2, ddl = ddl, sharding = sharding) },
         { sharding, ddl -> MongoReservationStore(client, DATABASE, ddl = ddl, sharding = sharding) },

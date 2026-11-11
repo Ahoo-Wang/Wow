@@ -58,8 +58,7 @@ class MongoEventLogTest : EventLogSpec() {
             MongoLogFixture.DATABASE,
             context,
             1,
-            pollInterval = 1.milliseconds,
-            maxPollInterval = 1.hours,
+            options = MongoEventLogOptions(pollInterval = 1.milliseconds, maxPollInterval = 1.hours),
         ).also { it.createSchema() }
         val type = AggregateType(context, "order")
         log.append(stream("a", 1, aggregate = type))
