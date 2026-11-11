@@ -25,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.observation.ObservedEvent
 import org.junit.jupiter.api.Test
@@ -73,11 +74,7 @@ class HandoffGapTest : HandoffLogFixtures() {
             // The tail takes the first and waits: the appends complete all the same.
             withTimeout(10.seconds) { repeat(10) { log.append(next(refs[it % refs.size])) } }
             gate.complete(Unit)
-            withTimeout(10.seconds) {
-                while (seen.size < 10) {
-                    delay(1)
-                }
-            }
+            eventually { seen.size >= 10 }
             job.cancelAndJoin()
 
             seen.assert().isEqualTo((1L..10L).toList())

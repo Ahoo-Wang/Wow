@@ -31,6 +31,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -376,7 +377,7 @@ class PartitionAppendQueueTest {
             }
             val behind = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { queue.append(stream(sameLane, 1)) }
             // The other partitions' groups are handed to the committer; partition 0's next waits for its first.
-            withTimeout(5.seconds) { while (queue.queued != 1) delay(1) }
+            eventually(5.seconds) { queue.queued == 1 }
             log.release.complete(Unit)
             (listOf(held, behind) + others).forEach {
                 it.await().assert().isInstanceOf(
@@ -462,7 +463,7 @@ class PartitionAppendQueueTest {
         val others = (1 until PARTITIONS).map { partition ->
             async(Dispatchers.Default) { queue.append(stream(refIn(partition), 1)) }
         }
-        withTimeout(5.seconds) { while (queue.queued != 0) delay(1) }
+        eventually(5.seconds) { queue.queued == 0 }
         log.release.complete(Unit)
         (listOf(held) + others).forEach { it.await().assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         log.batches.all { it.size <= 2 }.assert().isTrue()
