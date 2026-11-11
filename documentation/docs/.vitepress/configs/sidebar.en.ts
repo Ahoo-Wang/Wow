@@ -117,7 +117,6 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Configuration', link: 'configuration'},
             {text: 'Programmatic API', link: 'programmatic-api'},
             {text: 'Generated Output and Regeneration', link: 'generated-output'},
-            {text: 'Wow Aggregate Discovery', link: 'wow-discovery'},
             {text: 'Symbol Index', link: 'symbols'},
         ],
     },

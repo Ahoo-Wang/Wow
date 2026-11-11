@@ -5,23 +5,44 @@ description: 'Generated output and regeneration — @ahoo-wang/wow-generator'
 
 # Generated output and regeneration
 
-Generation produces TypeScript source, not a standalone HTTP implementation. Compile decorator classes with `experimentalDecorators: true`; install the packages imported by the actual output.
+Generation produces TypeScript source, not a standalone HTTP implementation: install the packages the actual output imports.
 
+## How the input is read
+
+The input is read as a Wow Manifest when it is one: a document with a numeric `format` and a `contexts` array, and no `openapi` or `swagger` key, as a service answers it at `GET /wow/manifest` or as a project commits it as a baseline. Anything else must be an OpenAPI 3 document.
+
+- **From a Manifest**, the generator writes the typed clients on `@ahoo-wang/wow-client`, one directory per bounded context: its commands, queries, state and service routes.
+- **From an OpenAPI document**, it writes the document's models (`types.ts`) and one decorator API client per tag (`*ApiClient.ts`), and nothing else: no command, query or state client, whatever the document's paths. Compile them with `experimentalDecorators: true`.
 
 <!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 ## Output families
 
+### From a Manifest
+
+For each bounded context, a directory named after it:
+
+| Output | Holds |
+| --- | --- |
+| `contract.ts` | `<Context>Contract`: the context's name, its context-level error codes and its aggregates, each with its error codes; the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops |
+| `manifest.ts` | `<Context>Manifest`, a `RoutingManifest`: the routes of the context's commands and lifecycle commands and of its service routes, and the property of the body that names the aggregate of a command whose body does (`idProperty`), with no schema. The command clients send by it |
+| `client.ts` | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients; its service routes (`routes`) when it has any |
+| `routes.ts` | `<Context>Routes`: a method per service route, on `ServiceRoutes` of `@ahoo-wang/wow-client/routes`; written only when the Manifest lists service routes |
+| `textNumbers.ts` | Where a recursive type holds exact numbers, marked once; written only when one does |
+| `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name; a name two classes share, or one the generated modules already bind, is qualified by the class's package |
+| `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`, the aggregate's descriptor; `<Aggregate>StateField`, the `state.*` fields a query names; `<Aggregate>Access`, its access attributes; `<Aggregate>Event`, the union of its events |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each answering each hop, and the lifecycle commands the aggregate lists, sending through its `client`, a `CommandClient` over the context's `manifest.ts` |
+| `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
+| `index.ts` | Recursive exports for the .ts files of this run and nonempty subdirectories |
+| `.wow-generator.json` | Version 1 ownership manifest with SHA-256 hashes of generated .ts files |
+
+### From an OpenAPI document
+
 | Output                    | Generation rules                                                                                                                         |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `types.ts`                | Component schemas grouped by schema-name namespace; model types/enums and imported Wow types                                             |
-| `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags; wow/Actuator/Wow aggregate tags excluded. Named after the class, camelCase like every generated file: `cartApiClient.ts` |
-| `commandClient.ts`        | Resolved aggregate command paths, body aliases (`AddCartItemCommand`; none for a body already named `…Command`), regular and stream command clients, each sending through its `client`, a `CommandClient` over the context's `manifest.ts` |
-| `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
-| `contract.ts`             | The context's `<Context>Contract` (its name, context-level error codes and aggregates with their error codes), the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops |
-| `manifest.ts`             | `<Context>Manifest`, a `RoutingManifest`: each aggregate's commands and lifecycle commands with their routes, no schema; the command clients send by it |
-| `client.ts`               | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients |
+| `types.ts`                | Component schemas grouped by schema-name namespace; model types and enums                                                               |
+| `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags. Named after the class, camelCase like every generated file: `cartApiClient.ts` |
 | `index.ts`                | Recursive exports for the .ts files of this run and nonempty subdirectories                                                              |
-| `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files; an older `.fetcher-generator.json` is read once and replaced    |
+| `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files                                                                 |
 
 ## Source conventions
 
@@ -33,9 +54,9 @@ A name that two sibling modules both export, such as a model of the same name in
 
 Model doc comments carry a summary: title, description, schema key, format, default, example and constraints. A model of an object also lists the properties its schema requires (`- required: a, b`, or `- required: (none)`), since every generated property is declared without `?`. A nullable value written as `anyOf: [{type: null}, X]` is documented from `X`, so a nullable integer keeps its `format`. `--schema-docs full` (option `schemaDocs: 'full'`) also embeds the complete JSON schema.
 
-## Methods
+## API client methods
 
-The method name is, in order: `apiClients[tag].methodNames[operationId]` from the [configuration](./configuration), the operation's `x-fetcher-method` extension, or the last dot-separated segment of the operationId, camel-cased:
+An OpenAPI document's API clients name their methods, in order: `apiClients[tag].methodNames[operationId]` from the [configuration](./configuration), the operation's `x-fetcher-method` extension, or the last dot-separated segment of the operationId, camel-cased:
 
 | operationId                  | Method           |
 | ---------------------------- | ---------------- |
@@ -76,43 +97,64 @@ The return type comes from the success response: `200`, else the lowest other 2x
 
 ## Names and schemas
 
-- Names become identifiers: parameter `item-id` → `itemId`, schema `Page«User»` → `PageUser`, `1stThing` → `_1stThing`, command `pay-order` → `PAY_ORDER` and `payOrder`. `*/` inside descriptions is escaped.
+- Names become identifiers: parameter `item-id` → `itemId`, schema `Page«User»` → `PageUser`, `1stThing` → `_1stThing`, a Manifest's command `PayOrder` → `payOrder`. `*/` inside descriptions is escaped.
 - A type name keeps each part of the schema name that starts with an upper-case letter and holds no separator as written, acronyms included: `MCPListTools` stays `MCPListTools`, `OpenAIFile` stays `OpenAIFile`. A part with a separator or a lower-case start is pascal-cased (`order_item` → `OrderItem`). Method names, enum members and endpoint constants keep their own rules.
 - Two schemas that normalise to the same model fail with exit code 4. Enum values that normalise alike get distinct members. Tags that name the same client generate a numbered class (`User2ApiClient`) with a warning.
 - A `$ref` that points at nothing fails with exit code 4, listing the references.
 - `{ nullable: true, allOf: [{ $ref }] }` admits `null`. A `oneOf` with a discriminator narrows each branch by the discriminator property. A map of its own type generates an interface with an index signature. Models named `Record` or `Response` are imported under an alias so they do not shadow the globals.
-- An empty command or event body is `Record<string, never>`.
-- A command's body type is declared as `<Body>Command` (`AddCartItemCommand = CommandBody<AddCartItem>`), so a name never repeats `Command`: a body already named `MountedCommand` gets no alias, and its methods take `CommandBody<MountedCommand>`. A command type that would take the name of a model of the aggregate's package or of another command's body (commands `Foo` and `FooCommand`) fails with exit code 4, naming both schemas; rename one of them.
-- Command methods take the path variables Wow's interceptor does not fill as positional parameters in the order the path holds them: `/cart/{id}/{customerId}` gives `(id, customerId, …)`.
-
-Wow query schemas map to `@ahoo-wang/wow-client` types. A `wow.api.query.ListQuery` or `PagedQuery` schema with a `filter` property (Wow 8.11 and later) maps to `FilterListQuery` or `FilterPagedQuery` from the root entry. `wow.api.query.Condition`, `ConditionOptions`, and `Operator`, and a `ListQuery` or `PagedQuery` schema without `filter` (Wow 8.10), map to the deprecated types of `@ahoo-wang/wow-client/legacy`, which is removed in v10.
+- A Manifest's empty command or event body is `Record<string, unknown>`.
 
 ## Runtime setup
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
-Create the generated client with its ApiMetadata constructor, typically `{ fetcher }`. Configure the Fetcher baseURL for the target server; generation does not call the generated API.
+`@ahoo-wang/fetcher-eventstream` is `@ahoo-wang/wow-client`'s peer, for the `…Stream` methods. An OpenAPI document's API clients also import `@ahoo-wang/fetcher-decorator`.
 
-Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor, and takes wow-client's `COMMAND_STREAM_ENDPOINT` (`@api('', COMMAND_STREAM_ENDPOINT)`): it asks for `text/event-stream` and errors the stream with a `WowError` when the server sends an error event, as `CommandClient.sendAndWaitStream` does. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
+A context's clients are built together by its `<Context>Client`, from `WowClientOptions`. `fetcher` sends the requests (the default fetcher when absent), with the host's interceptors (authentication, say), and `basePath` is a path put before every route, such as a gateway's prefix. Generation does not call the services. The eShop basket's:
 
-<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted; the V10 rewrite of this page uses the Manifest clients -->
+<!-- typecheck: file=generated/eshop-basket/client.ts -->
+
+<!-- sample: examples/eshop/web/src/generated/basket/eshop-basket/client.ts -->
+
 ```ts
-import { Fetcher } from '@ahoo-wang/fetcher';
-import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';
+// Code generated by wow-generator. DO NOT EDIT.
 
-const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
-const commands = new CartCommandClient({ fetcher, basePath: '' });
-const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
-  fetcher,
-  contextAlias: '',
-});
+import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
+import { BasketCommandClient } from './basket/commandClient.js';
+import { BasketEventQueryClient, BasketSnapshotQueryClient, BasketStateClient } from './basket/queryClient.js';
+import { EshopBasketManifest } from './manifest.js';
+
+/** The clients of `eshop-basket`: its command client, and per aggregate its command, query and state clients. */
+export class EshopBasketClient {
+  /** Sends any command of the service, by its Manifest's routes: `send`, `wait` and `stream`. */
+  readonly commands: CommandClient;
+
+  /** The clients of `eshop-basket.basket`. */
+  readonly basket: {
+    readonly commands: BasketCommandClient;
+    readonly snapshots: BasketSnapshotQueryClient;
+    readonly events: BasketEventQueryClient;
+    readonly state: BasketStateClient;
+  };
+
+  /** @param options - How the service is reached */
+  constructor(options?: WowClientOptions) {
+    this.commands = new CommandClient(options, { manifest: EshopBasketManifest });
+    this.basket = {
+      commands: new BasketCommandClient(options),
+      snapshots: new BasketSnapshotQueryClient(options),
+      events: new BasketEventQueryClient(options),
+      state: new BasketStateClient(options),
+    };
+  }
+}
 ```
 
-The query client factory's `aggregateName` is the aggregate's route segment read from its snapshot routes, for example `sales-order` for the aggregate `order` declared with `@AggregateRoute(resourceName = "sales-order")`. Its fields type argument is `` `${OrderAggregatedFields}` ``, the string values of the field enum: an enum member and the matching string both compile, a misspelt field does not. Code that annotates a query as `ListQuery` or `FilterListQuery`, whose fields default to `string`, names the fields type: `` ListQuery<`${CartAggregatedFields}`> ``. See [declarative endpoints](https://fetcher.ahoo.me/reference/decorator/services-and-endpoints).
+The eShop web UI builds the clients of its five contexts on one fetcher of the page's origin, whose routes each start with `/eshop-<context>/` (`examples/eshop/web/src/shop/clients.ts`).
 
 ## Ownership and failures
 
@@ -128,7 +170,7 @@ A manifest the run cannot read fails it with exit code 5 before anything is writ
 
 [typescript/wow-generator/src/emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts)
 
-[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/wow-generator/src/emitters/queryClients.ts)
+[typescript/wow-generator/src/emitters/manifest/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-generator/src/emitters/manifest)
 
 [typescript/wow-generator/src/analysis/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/models.ts)
 

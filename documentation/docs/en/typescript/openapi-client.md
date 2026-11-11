@@ -132,7 +132,7 @@ Edit the source document and rerun the same command. Review changed models, meth
 
 Missing methods usually require checking tags and operation IDs, and the warnings of the run name the operations it skipped (`--strict` fails on them); missing return types require checking the success response (`200`, else the lowest other 2xx) and its media type. The method name comes from the operationId (`getItem`); see [method names](../reference/typescript/wow-generator/generated-output#methods). A schema compiler is not a server validator. No runtime resource is allocated by this caller until it is invoked; the JSON response is consumed on success.
 
-See [CLI options](../reference/typescript/wow-generator/cli), [output and regeneration](../reference/typescript/wow-generator/generated-output), [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations), and the distinct [Wow discovery rules](../reference/typescript/wow-generator/wow-discovery).
+See [CLI options](../reference/typescript/wow-generator/cli), [output and regeneration](../reference/typescript/wow-generator/generated-output), and [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations).
 
 [analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts) decides and [emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts) writes the ordinary clients.
 

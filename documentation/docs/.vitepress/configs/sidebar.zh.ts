@@ -121,7 +121,6 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '配置', link: 'configuration'},
             {text: '程序化 API', link: 'programmatic-api'},
             {text: '生成产物与重新生成', link: 'generated-output'},
-            {text: 'Wow 聚合识别', link: 'wow-discovery'},
             {text: '符号索引', link: 'symbols'},
         ],
     },
