@@ -31,8 +31,9 @@ import java.util.ServiceLoader
 import kotlin.time.Duration
 
 /**
- * How a handler's failures are classified, by the runtime's subscriptions and by the test DSL alike: a handler's own
- * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first, of the failure itself or, for an
+ * How a handler's failures are classified, by the runtime's subscriptions and by the test DSL alike: the kernel's own
+ * failures first ([KernelFailures]), of the failure or any of its causes, whatever the handler's lists say; then a
+ * handler's own `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]), of the failure itself or, for an
  * [UnreadableEventException], of what the kernel could not read; then, for the failure and each of its causes
  * in turn, each of [classifiers] in order, the first class one gives deciding; [FailureClass.RECOVERABLE] when none
  * does. [of] orders them: the application's, then the modules' found on the classpath ([MODULES]), then the caller's
@@ -45,6 +46,8 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
     fun classify(failure: Throwable, retry: HandlerRetry?): FailureClass {
         // An event the kernel could not read classifies as what it could not read (its cause).
         val subject = (failure as? UnreadableEventException)?.cause ?: failure
+        // The kernel's own failures are no handler's: a list naming IllegalStateException would retry them.
+        causes(failure).firstNotNullOfOrNull(KernelFailures::classify)?.let { return it }
         retry?.classify(subject)?.let { return it }
         causes(failure).forEach { cause ->
             classifiers.forEach { classifier -> classifier.classify(cause)?.let { return it } }
@@ -112,11 +115,7 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   commands its own executors refused as busy.
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
  *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
- *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
- *   same way every time, or that derives what is no derived request ([InvalidDerivedRequestException]: no command
- *   request, or one with a wait or a timeout); a Wow API the handler used in a way it cannot serve ([Misuse]: a read
- *   of a state class no aggregate has, a command to a context no peer describes), the code's mistake, which fails the
- *   same way every time; and a failure a handler says no retry changes ([UnrecoverableHandlingException]).
+ *   failure a handler says no retry changes ([UnrecoverableHandlingException]). The kernel's own are [KernelFailures]'.
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -140,12 +139,30 @@ internal object BuiltInFailures : FailureClassifier {
         }
         is StorageRefusedException,
         is TransportRefusedException,
-        is UndeclaredSendException,
-        is InvalidDerivedRequestException,
-        is Misuse,
         is UnrecoverableHandlingException,
         -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException, is TransportUnavailableException -> FailureClass.SYSTEMIC
+        else -> null
+    }
+}
+
+/**
+ * The kernel's own failures, classified before a handler's `@Retry` lists ([FailureClassification.classify]): several
+ * extend [IllegalStateException], so a list naming it would turn the code's mistake into retries, or a timeout into a
+ * park.
+ *
+ * - [FailureClass.UNRECOVERABLE], the code's mistake, which fails the same way every time: a saga's handler that sends
+ *   a command its `@Sends` does not declare ([UndeclaredSendException]), or that derives what is no derived request
+ *   ([InvalidDerivedRequestException]: no command request, or one with a wait or a timeout); a Wow API the handler
+ *   used in a way it cannot serve ([Misuse]: a read of a state class no aggregate has, a command to a context no peer
+ *   describes).
+ * - [FailureClass.RECOVERABLE], an attempt that ran past its budget's timeout ([HandlerTimeoutException]): a failed
+ *   attempt like any other, retried within the budget.
+ */
+internal object KernelFailures {
+    fun classify(failure: Throwable): FailureClass? = when (failure) {
+        is UndeclaredSendException, is InvalidDerivedRequestException, is Misuse -> FailureClass.UNRECOVERABLE
+        is HandlerTimeoutException -> FailureClass.RECOVERABLE
         else -> null
     }
 }
