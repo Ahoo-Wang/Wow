@@ -175,6 +175,7 @@ The context's `routes` in the Manifest list each route ([Manifest reference](../
 | `responseOptional` | `true` when the answer may be absent (`204` for `null`) |
 | `errors` | The codes the route refuses with |
 | `description` | The function's KDoc |
+| `deprecated` | `true` when the function is `@Deprecated` |
 
 The compatibility check compares a route with its baseline by name ([The Manifest and Compatibility](./manifest)):
 

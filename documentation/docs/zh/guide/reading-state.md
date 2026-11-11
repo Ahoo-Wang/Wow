@@ -46,11 +46,11 @@ ID 即所有者 ID 的聚合的每种读取，包括 `?version=`、`?at=`、`?mi
 
 ## 重放有上限 {#replaying-is-bounded}
 
-只有最新的状态保存在快照里。读取较旧的版本、某个时刻或轨迹，要从日志的第一个版本开始重建它回答的状态，因为快照已在它之后。这样的读取在聚合日志存储的查询舱壁下运行（满了时返回 `429 wow.query.busy`），并且最多重放 `wow.query.state.max-replay` 次提交，默认 10,000：更远的状态返回 `400 wow.query.invalid`，violation 为 `replay-too-long`。轨迹默认每页返回 100 次提交，最多 1,000 次。在重放任何东西之前，先对最新状态检查调用方。
+只有最新的状态保存在快照里。读取较旧的版本、某个时刻或轨迹，要从日志的第一个版本开始重建它回答的状态，因为快照已在它之后。这样的读取，以及从日志读出的最新状态（在第一个快照之前，或为 `?minVersion=` 追上落后的快照时），在聚合日志存储的查询舱壁下运行（满了时返回 `429 wow.query.busy`），并且最多重放 `wow.query.state.max-replay` 次提交，默认 10,000：更远的状态返回 `400 wow.query.invalid`，violation 为 `replay-too-long`。轨迹默认每页返回 100 次提交，最多 1,000 次。在重放任何东西之前，先对最新状态检查调用方。
 
 - **为什么有上限。** 否则一次对长寿聚合旧状态的读取，就会在提供它的节点上重放它的全部历史。
 - **何时调高。** 需要读取长历史中很早状态的部署（例如查看某个聚合第一万个版本的审计视图），调高 `wow.query.state.max-replay`；每次这样的读取最多付出那么多次提交的代价。
-- **它不限制什么。** 事件：一个聚合的事件历史无论多长，都经事件查询分页读取（[查询事件流](./event-queries)）。受限的只有较旧版本或某个时刻的状态，以及带有每次提交之后状态的轨迹。
+- **它不限制什么。** 事件：一个聚合的事件历史无论多长，都经事件查询分页读取（[查询事件流](./event-queries)）。受限的只有重放日志的读取：较旧版本或某个时刻的状态、带有每次提交之后状态的轨迹，以及从日志读出的最新状态。
 
 ## 在 Kotlin 中 {#in-kotlin}
 
@@ -79,7 +79,7 @@ basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-
 - `snapshots<OrderStateView>()` 读取另一个上下文的聚合，状态解码为它 api 生成的视图（`<State>View`，状态的字段；自由结构的内容为 `ObjectNode`）；`snapshots<ProductState>()` 读取本服务的类型，状态解码为这个类。`snapshots(type)` 按名字读取一个类型，状态为 JSON。
 - 类型化的读取读整个状态。投影字段的查询用 `dynamic<ObjectNode>()`（或 `Map`，或投影字段组成的类）读取它的行：投影会去掉视图要求的字段。
 - 对调用方不能看到的状态，`state(id)` 返回 `null`，与不存在的状态一样。`state(id, minVersion)` 用于写后即可查，版本没有及时达到时抛出 `MinVersionNotReachedException`。
-- `trusted()` 以受信任的代码读取：不受任何租户、所有者或空间限制，读取调用方的策略（例如角色检查）也不适用。把它用于系统任务，绝不要用于有调用方的请求。
+- `trusted()` 在节点的 `NodeQueryApi` 上（宿主 Bean 的类型；客户端的 `QueryApi` 没有它），以受信任的代码读取：不受任何租户、所有者或空间限制，读取调用方的策略（例如角色检查）也不适用。把它用于系统任务，绝不要用于有调用方的请求。
 - 列在 `wow.peers` 下的对端，用同样的调用经 HTTP 读取（[调用其他服务](./calling-services#configure-a-peer-over-http)）。
 - 在 Saga、投影或反应器中，`context.queries` 读取正在处理的这次提交所在的整个租户：不受所有者、空间、属性或角色限制。
 
