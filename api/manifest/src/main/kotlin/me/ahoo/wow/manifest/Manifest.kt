@@ -100,12 +100,14 @@ class Manifest @InternalWowApi constructor(
         private const val DEFS_PREFIX = "#/\$defs/"
 
         /** The reference to the schema [key] of `$defs`. */
+        @InternalWowApi
         fun schemaRef(key: String): String = DEFS_PREFIX + key
 
         /** Whether [ref] is a reference into `$defs` ([schemaRef]): a command named by its class, say. */
         fun isSchemaRef(ref: String): Boolean = ref.startsWith(DEFS_PREFIX)
 
         /** The `$defs` references an inline [schema] holds, its own, its items' and its alternatives', in order. */
+        @InternalWowApi
         fun refsOf(schema: Map<String, Any?>): List<String> = buildList {
             (schema[REF] as? String)?.let(::add)
             @Suppress("UNCHECKED_CAST")
@@ -115,9 +117,11 @@ class Manifest @InternalWowApi constructor(
         }
 
         /** The inline schema of a reference to the schema [key] of `$defs`. */
+        @InternalWowApi
         fun refSchema(key: String): Map<String, Any?> = mapOf(REF to schemaRef(key))
 
         /** The inline schema of an array of [items], of distinct values when [unique]. */
+        @InternalWowApi
         fun arraySchema(items: Map<String, Any?>, unique: Boolean = false): Map<String, Any?> = buildMap {
             put(TYPE, "array")
             put(ITEMS, items)
@@ -128,6 +132,7 @@ class Manifest @InternalWowApi constructor(
          * The inline schema of a value of [schema] or `null`, as the completed schemas write a nullable value: `null`
          * among its types, or, for a schema of no type such as a reference, a `null` alternative beside it.
          */
+        @InternalWowApi
         fun nullableSchema(schema: Map<String, Any?>): Map<String, Any?> = when (val type = schema[TYPE]) {
             null -> mapOf(ANY_OF to listOf(mapOf(TYPE to NULL), schema))
             is List<*> -> if (NULL in type) schema else schema + (TYPE to type + NULL)

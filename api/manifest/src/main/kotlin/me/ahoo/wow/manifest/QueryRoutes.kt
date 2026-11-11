@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The routes of an aggregate's query models.
  *
@@ -33,6 +35,7 @@ object QueryRoutes {
     const val EVENTS: String = "events"
 
     /** The query route of [model] of [aggregate] in [context], then the route of its capability descriptor. */
+    @InternalWowApi
     fun of(context: String, aggregate: String, model: String): List<RouteManifest> {
         val path = "/$context/$aggregate/$model/$SEGMENT"
         return listOf(RouteManifest(CommandRoutes.POST, path), RouteManifest(GET, path))
@@ -41,6 +44,7 @@ object QueryRoutes {
     /**
      * The query models of [aggregate] in [context]: [SNAPSHOT] when its [snapshots] are enabled, and [EVENTS] always.
      */
+    @InternalWowApi
     fun queries(context: String, aggregate: String, snapshots: Boolean): List<QueryManifest> =
         listOfNotNull(SNAPSHOT.takeIf { snapshots }, EVENTS).map { QueryManifest(it, of(context, aggregate, it)) }
 }
