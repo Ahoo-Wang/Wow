@@ -45,21 +45,27 @@ import kotlin.time.Duration
 
 @WowTestDsl
 @Suppress("TooManyFunctions") // The DSL's verbs.
-class AggregateSpec<S : Any> internal constructor(
+class AggregateSpec<S : Any> private constructor(
     private val model: AggregateModel<S>,
     val ref: AggregateRef,
     private val start: Instant,
-    /** What a fork starts from ([fork]); null for a new specification. */
-    origin: Snapshot? = null,
+    origin: Snapshot?,
     /** Where the steps report when the specification is a tree of tests ([aggregateSpecTests]); null otherwise. */
-    private val tree: TestTree? = null,
+    private val tree: TestTree?,
 ) {
     /**
      * A specification of [model]'s aggregate [ref], its clock at [start]. It differs from the primary constructor in
-     * taking no fork origin and no test tree: both are internal types, which a public constructor cannot take.
+     * taking no fork origin, a private type, and no test tree, an internal one: a public constructor can take neither.
      */
     constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant = DEFAULT_START) :
         this(model, ref, start, null, null)
+
+    /**
+     * A specification that reports to [tree] ([aggregateSpecTests]). It differs from the primary constructor in taking
+     * no fork origin, a private type an internal constructor cannot take: only a fork starts from one.
+     */
+    internal constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant, tree: TestTree) :
+        this(model, ref, start, null, tree)
 
     private val codec = EventCodec()
     private val log = GivenStateLog(InMemoryEventLog(partitions = 1))
@@ -512,7 +518,7 @@ class AggregateSpec<S : Any> internal constructor(
     }
 
     /** The state [givenState] started the aggregate in: its JSON, read anew for each use, as states are mutable. */
-    internal data class GivenState(val text: String, val version: Int, val scope: Scope)
+    private data class GivenState(val text: String, val version: Int, val scope: Scope)
 
     private fun GivenState.fresh(): CachedState = CachedState(codec.decodeState(model, text), version, scope)
 
@@ -534,7 +540,7 @@ class AggregateSpec<S : Any> internal constructor(
      * appended, and the given state under them, the writes its timers and reservations took, the ids and the time,
      * the commands sent so far ([sequence]) and the refs marked before it. It is not changed after it is taken.
      */
-    internal class Snapshot(
+    private class Snapshot(
         val log: List<LogEntry>,
         val offset: Int,
         val given: GivenState?,
