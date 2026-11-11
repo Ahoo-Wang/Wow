@@ -1579,7 +1579,7 @@
   }, {
     "name" : "wow.wait.default-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through: at most maxTimeout.",
+    "description" : "How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. At most `wow.wait.max-timeout`: a node whose default is above it does not start.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.WaitProperties",
     "defaultValue" : "PT10S"
   }, {
@@ -1597,7 +1597,7 @@
   }, {
     "name" : "wow.wait.max-timeout",
     "type" : "java.time.Duration",
-    "description" : "The longest wait; a longer timeout is capped to it, and a node stops within it.",
+    "description" : "The longest wait; a longer timeout a caller asks for is capped to it, and a node stops within it.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.WaitProperties",
     "defaultValue" : "PT1M"
   }, {
