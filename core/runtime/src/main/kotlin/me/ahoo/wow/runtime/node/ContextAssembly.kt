@@ -175,7 +175,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val readers = stateReaders(context, models, snaps.readers, application)
         val views = SharedStates(codec, readers, options.sharedStates, gate = wiring.replayGate)
-        val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
+        val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch, options.sharedStates.capacity)
         val reservations = reserved?.let { ReservationSubscription(context, it, observer) }
         val firing = LateFirer()
         val group = LeaseGroup(service, context)

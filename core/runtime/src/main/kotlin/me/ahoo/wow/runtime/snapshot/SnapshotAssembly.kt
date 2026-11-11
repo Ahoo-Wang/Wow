@@ -47,11 +47,11 @@ internal class SnapshotAssembly(
     val readers: Map<String, Set<AggregateType>> =
         stores.entries.associate { (store, types) -> targets!!.subscriptionOf(store) to types }
 
-    /** The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time. */
-    fun subscriptions(
-        views: SharedStates,
-        writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
-    ): List<SnapshotSubscription> =
+    /**
+     * The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time and
+     * remembering what it wrote of at most [capacity] aggregates, the shared states' own capacity.
+     */
+    fun subscriptions(views: SharedStates, writeBatch: Int, capacity: Int): List<SnapshotSubscription> =
         stores.map { (store, types) ->
             SnapshotSubscription(
                 context,
@@ -61,6 +61,7 @@ internal class SnapshotAssembly(
                 log,
                 codec,
                 views,
+                capacity,
                 name = targets.subscriptionOf(store),
                 answers = { type -> targets.placementOf(type).primary == store },
                 writeBatch = writeBatch,
