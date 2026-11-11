@@ -150,6 +150,19 @@ class WowJsonTest {
         assertThrows<JacksonException> { WowJson.mapper.readValue<Stage>("\"delivered\"") }
     }
 
+    @Test
+    fun `a newer writer's stage that names a subscription reads as UNKNOWN with it, not as a refused hop`() {
+        val newer = """{"format":1,"commandId":"c","requestId":"r","correlationId":"c",
+            "ref":{"type":{"context":"shop","name":"cart"},"tenantId":"t","id":"c-1"},
+            "hop":{"stage":"delivered","context":"shop","subscription":"carts.onPaid"},
+            "function":{"kind":"saga","context":"shop","processor":"carts","name":"onPaid"},
+            "status":"succeeded","version":1,"signalTime":1}"""
+        val hop = WowJson.readerBuilder().build().readValue<CommandResult>(newer).hop
+        hop.stage.assert().isEqualTo(Stage.UNKNOWN)
+        hop.subscription.assert().isEqualTo("carts.onPaid")
+        hop.context.assert().isEqualTo("shop")
+    }
+
     /** A domain's own enumeration, which Wow never respells. */
     enum class Colour { DEEP_RED, Green }
 
