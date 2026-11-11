@@ -24,7 +24,11 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
+import me.ahoo.wow.api.lifecycle.AggregateDeleted
+import me.ahoo.wow.api.lifecycle.AggregateRestored
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.SpaceTransferred
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
@@ -32,7 +36,9 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
+import me.ahoo.wow.api.schedule.JobDisabled
 import me.ahoo.wow.api.schedule.JobEnabled
 import me.ahoo.wow.api.schedule.JobRescheduled
 import me.ahoo.wow.api.schedule.JobRule
@@ -44,6 +50,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.api.schedule.TickJob
 import me.ahoo.wow.api.schedule.Ticked
 import org.junit.jupiter.api.Test
 
@@ -136,5 +143,25 @@ class PlainValuesTest {
         (value == other).assert().isFalse()
         (value == value.javaClass.simpleName).assert().isFalse()
         value.toString().assert().startsWith("${value.javaClass.simpleName}(").isEqualTo(same.toString())
+    }
+
+    @Test
+    fun `a system type without fields is equal to every other of its kind, and to nothing else`() {
+        val kinds: List<() -> Any> = listOf(
+            DeleteAggregate::of,
+            RestoreAggregate::of,
+            AggregateDeleted::of,
+            AggregateRestored::of,
+            DisableJob::of,
+            TickJob::of,
+            JobDisabled::of,
+        )
+        kinds.forEach { make ->
+            val one = make()
+            one.assert().isEqualTo(one).isEqualTo(make()).isNotEqualTo(Any()).isNotEqualTo(null)
+            one.hashCode().assert().isEqualTo(make().hashCode())
+            one.toString().assert().isEqualTo(one.javaClass.simpleName)
+        }
+        kinds.map { it() }.toSet().assert().hasSize(kinds.size)
     }
 }
