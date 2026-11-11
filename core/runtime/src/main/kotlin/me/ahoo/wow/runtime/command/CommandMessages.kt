@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.command
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
@@ -48,6 +49,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * Bodies and payloads are read and written with the cluster channel's lenient mapper ([ClusterCodec]): unknown fields
  * are ignored, and numbers keep their exact value.
  */
+@InternalWowApi
 object CommandMessages {
     private val mapper = ClusterCodec.mapper
 

@@ -121,6 +121,7 @@ class LedgerPublishing @InternalWowApi constructor(
  * nothing is sent and the entries stay in the ledger; once it can, a [scan] at once publishes them all. Each change is
  * logged once.
  */
+@InternalWowApi
 class LedgerPublisher internal constructor(
     private val service: String,
     private val options: LedgerPublishing,
@@ -408,6 +409,7 @@ class LedgerPublisher internal constructor(
         return "${Ledger.NAMESPACE}:" + bytes.joinToString("") { "%02x".format(it) }
     }
 
+    @InternalWowApi
     companion object {
         /** The operator of the records: the ledger, a framework component. */
         @JvmField

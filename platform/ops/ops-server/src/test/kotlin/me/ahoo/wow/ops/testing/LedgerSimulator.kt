@@ -47,6 +47,7 @@ import java.util.UUID
  * [resolve] send `ops.parked.RecordParked` and `RecordResolved` to `wow.ops.commands` as a service's ledger does
  * (`wow.ops.publish.enabled`), and [ledgerCommands] reads what the ops saga sent back to an owning context.
  */
+@OptIn(InternalWowApi::class) // A service's command sender, ledger operator and receipts, as its node wires them.
 class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
     private val sender = CommandSender(ContractDirectory(manifest), SourceTopics.of(topics, producer = topics))
 
@@ -86,7 +87,6 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
      * Refuses [command], a ledger command the ops saga sent, with [code] and [message], as the owning service's intake
      * does (decision D226): the receipt of its rejection goes back to `wow.<replyTo.context>.receipts`.
      */
-    @OptIn(InternalWowApi::class) // A receipt as the owning service's intake writes it.
     suspend fun refuse(command: CommandWire, code: String, message: String) {
         val replyTo = checkNotNull(command.replyTo) { "${command.type} ${command.id} asks for no receipt." }
         val rejected = CommandReceipt.Rejected<Any>(

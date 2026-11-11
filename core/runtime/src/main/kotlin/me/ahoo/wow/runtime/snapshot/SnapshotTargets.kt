@@ -64,6 +64,7 @@ class SnapshotPlacement @InternalWowApi constructor(
  * adding a target to a type, switching its primary or dropping a target moves no checkpoint. The `snapshot` hop of a
  * wait is the primary target's subscription of the command's aggregate type.
  */
+@InternalWowApi
 class SnapshotTargets(
     val default: String,
     val stores: Map<String, SnapshotStore>,
@@ -111,6 +112,7 @@ class SnapshotTargets(
         return byStore
     }
 
+    @InternalWowApi
     companion object {
         /** The one snapshot [store] of a context, named [name]: every type's only target. */
         @JvmStatic
