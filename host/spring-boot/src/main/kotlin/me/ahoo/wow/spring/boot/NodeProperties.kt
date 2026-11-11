@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.http.internal.HttpSignalSender
+import me.ahoo.wow.http.internal.HttpSignalSenderOptions
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_INTERNAL_PORT
@@ -77,7 +77,7 @@ class InternalProperties {
      * The wait signals queued per origin node before they are dropped, so a slow or unreachable node cannot
      * hold the sender's memory.
      */
-    var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
+    var signalQueueCapacity: Int = HttpSignalSenderOptions.DEFAULT_QUEUE_CAPACITY
 }
 
 /**

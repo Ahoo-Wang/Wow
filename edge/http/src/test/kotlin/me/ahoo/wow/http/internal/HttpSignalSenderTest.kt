@@ -52,15 +52,17 @@ class HttpSignalSenderTest {
     private val senders = CopyOnWriteArrayList<HttpSignalSender>()
 
     private fun sender(
-        queueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY,
-        concurrency: Int = HttpSignalSender.DEFAULT_CONCURRENCY,
-        idle: Duration = HttpSignalSender.DEFAULT_IDLE_TIMEOUT,
-        maxBatch: Int = HttpSignalSender.DEFAULT_MAX_BATCH,
+        queueCapacity: Int = HttpSignalSenderOptions.DEFAULT_QUEUE_CAPACITY,
+        concurrency: Int = HttpSignalSenderOptions.DEFAULT_CONCURRENCY,
+        idle: Duration = HttpSignalSenderOptions.DEFAULT_IDLE_TIMEOUT,
+        maxBatch: Int = HttpSignalSenderOptions.DEFAULT_MAX_BATCH,
     ) = HttpSignalSender(
-        queueCapacity = queueCapacity,
-        concurrency = concurrency,
-        idleTimeout = idle,
-        maxBatch = maxBatch,
+        options = HttpSignalSenderOptions(
+            queueCapacity = queueCapacity,
+            concurrency = concurrency,
+            idleTimeout = idle,
+            maxBatch = maxBatch,
+        ),
     )
         .also { senders += it }
 
@@ -330,7 +332,8 @@ class HttpSignalSenderTest {
                 }
             },
         ).use { origin ->
-            val sender = HttpSignalSender(retryBackoff = 10.milliseconds).also { senders += it }
+            val sender = HttpSignalSender(options = HttpSignalSenderOptions(retryBackoff = 10.milliseconds))
+                .also { senders += it }
             sender.send(origin(origin.address), signal(1), deadline())
             eventually { landed.size == 2 }
             landed.assert().containsExactly(signal(1), signal(1))
@@ -344,7 +347,10 @@ class HttpSignalSenderTest {
     fun `a refused connection is tried again until the origin is up`(): Unit = runBlocking {
         // A node being replaced: its port refuses connections, then the new one takes the signal.
         val port = withRefusingPort { it }
-        val sender = HttpSignalSender(retryBackoff = 100.milliseconds, maxAttempts = 10).also { senders += it }
+        val sender = HttpSignalSender(
+            options = HttpSignalSenderOptions(retryBackoff = 100.milliseconds, maxAttempts = 10),
+        )
+            .also { senders += it }
         sender.send(origin("127.0.0.1:$port"), signal(1), deadline())
         delay(150)
         InternalServer(internalRoutes(refusing, { received += it }), port = port).use {
@@ -375,7 +381,10 @@ class HttpSignalSenderTest {
                 }
             },
         ).use { origin ->
-            val sender = HttpSignalSender(observer = observer, retryBackoff = 10.milliseconds, maxAttempts = 3)
+            val sender = HttpSignalSender(
+                observer = observer,
+                options = HttpSignalSenderOptions(retryBackoff = 10.milliseconds, maxAttempts = 3),
+            )
                 .also { senders += it }
             sender.send(origin(origin.address), signal(1), deadline())
             eventually { sender.dropped == 1L }
@@ -400,7 +409,10 @@ class HttpSignalSenderTest {
     @Test
     fun `a failing request is never sent again past its wait's deadline`(): Unit = runBlocking {
         withRefusingPort { gone ->
-            val sender = HttpSignalSender(retryBackoff = 100.milliseconds, maxAttempts = 100).also { senders += it }
+            val sender = HttpSignalSender(
+                options = HttpSignalSenderOptions(retryBackoff = 100.milliseconds, maxAttempts = 100),
+            )
+                .also { senders += it }
             val elapsed = measureTimeMillis {
                 sender.send(origin("127.0.0.1:$gone"), signal(1), deadline(500.milliseconds))
                 eventually { sender.dropped == 1L }

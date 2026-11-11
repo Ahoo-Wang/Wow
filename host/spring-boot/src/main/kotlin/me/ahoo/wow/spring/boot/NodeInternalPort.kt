@@ -20,6 +20,7 @@ import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
+import me.ahoo.wow.http.internal.HttpSignalSenderOptions
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.internal.InternalPortSettings
@@ -77,9 +78,9 @@ internal class NodeInternalPort {
         observers: ObjectProvider<Observer>,
     ): SignalSender = HttpSignalSender(
         client,
-        queueCapacity = properties.internal.signalQueueCapacity,
         service = identity.service,
         observer = Observer.of(observers.orderedStream().toList()),
+        options = HttpSignalSenderOptions(queueCapacity = properties.internal.signalQueueCapacity),
     )
 
     @Bean
