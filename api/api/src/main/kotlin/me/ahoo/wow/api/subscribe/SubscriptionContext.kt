@@ -42,7 +42,9 @@ class ExecutionId @InternalWowApi constructor(
     val version: Int,
 ) {
     init {
-        require(context.isNotBlank() && '.' !in context) { "An execution names its context, which holds no dot." }
+        require(context.isNotBlank() && context.none { it in CONTEXT_RESERVED }) {
+            "An execution names its context, which holds no '.', ':' or '%': $context"
+        }
         require(subscription.isNotBlank()) { "An execution names its subscription." }
         require(version >= 1) { "A committed version starts at 1." }
     }
@@ -54,8 +56,9 @@ class ExecutionId @InternalWowApi constructor(
 
     /**
      * `context.subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`: the
-     * context, which holds no dot, the subscription with its `%` and `:` percent-escaped and the ref as its own text
-     * writes it ([Escapes]), so no two executions share a text, even of two contexts' subscriptions of one name.
+     * context, which holds no `.`, `:` or `%`, the subscription with its `%` and `:` percent-escaped and the ref as its
+     * own text writes it ([Escapes]), so no two executions share a text, even of two contexts' subscriptions of one
+     * name.
      */
     override fun toString(): String = "$context.${Escapes.escaped(subscription, "%:")}:$ref@$version"
 
@@ -71,6 +74,9 @@ class ExecutionId @InternalWowApi constructor(
     ): ExecutionId = ExecutionId(context, subscription, ref, version)
 
     companion object {
+        /** What a context never holds, so the text's first `.` ends it: a bounded context's name holds none of them. */
+        private const val CONTEXT_RESERVED = ".:%"
+
         /** An ExecutionId of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         fun of(context: String, subscription: String, ref: AggregateRef, version: Int): ExecutionId =

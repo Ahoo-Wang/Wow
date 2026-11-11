@@ -94,10 +94,11 @@ internal class ProcessorHandling(
                 }
             }
             // As the runtime does: the handler sends only what it declares (@Sends).
-            // A specification runs the processor in the context of the aggregate whose events it is given.
+            // The handler's own context when its binding names one (a job's), as the runtime runs it there; else the
+            // context of the aggregate whose events the specification is given.
             val context = contextOf(
                 handler.kind,
-                event.ref.type.context,
+                handler.context ?: event.ref.type.context,
                 handler.name,
                 event,
                 SequentialIds(),

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.subscribe.ExecutionId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * The identity texts of decision D408: one escaping rule, a ref's text that reads back as the ref, and texts that
@@ -116,5 +117,9 @@ class IdentityTextTest {
         billing.assert().isNotEqualTo(shipping)
         billing.toString().assert().isEqualTo("billing.Audit.onPlaced:shop.order/t/o-1@2")
         shipping.toString().assert().isNotEqualTo(billing.toString())
+        // A context that held a '.', ':' or '%' could make two texts one: it is refused, as no bounded context holds one.
+        listOf("bill.ing", "bill:ing", "bill%3Aing", " ").forEach { context ->
+            assertThrows<IllegalArgumentException> { ExecutionId(context, "Audit.onPlaced", ref, 2) }
+        }
     }
 }
