@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.runtime.access
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
@@ -30,6 +32,7 @@ import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -127,6 +130,9 @@ class AccessWalkRunsTest : AccessWalkingFixtures() {
         unstamped(log, listOf("d-1"), "sales")
         val leases = InMemoryLeaseStore()
         var broken = false
+        val logger = LoggerFactory.getLogger(AccessWalking::class.java) as Logger
+        val warnings = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(warnings)
         val walking = AccessWalking(
             "office",
             "service/office",
@@ -141,7 +147,9 @@ class AccessWalkRunsTest : AccessWalkingFixtures() {
         broken = true
         val scope = CoroutineScope(Dispatchers.Default)
         walking.start(scope)
-        delay(100)
+        // Two runs failed, each logged once it ended: the second ran after the first.
+        eventually { synchronized(warnings) { warnings.list.count { "they run again" in it.formattedMessage } } >= 2 }
+        logger.detachAppender(warnings)
         log.walk(type).assert().isNull()
         broken = false
         eventually(5.seconds) { log.walk(type)?.completed == true }

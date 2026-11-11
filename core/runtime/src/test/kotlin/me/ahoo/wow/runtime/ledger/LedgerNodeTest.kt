@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.ledger
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -224,7 +223,11 @@ class LedgerNodeTest {
                 }
                 // Any other command on its topic is not the node's to take.
                 to.send(Command("c-other", "r-other", ITEM.ref(TENANT, "i-o"), Reserve(1)))
-                delay(200)
+                // Every command on the topic read and done with, c-other among them: a message's position is its
+                // offset + 1, so the watermarks sum to the topic's count.
+                val sent = broker.messages(COMMANDS).size.toLong()
+                val intake = checkNotNull(publisher.context(STOCK).intake)
+                eventually { intake.positions().sumOf { it.watermark } == sent }
                 items.decided.assert().doesNotContain("c-other")
             } finally {
                 publisher.stop()

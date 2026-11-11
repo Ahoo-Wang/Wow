@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
@@ -73,11 +72,14 @@ class ParkedRetriesTest {
 
     private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, claimTtl = 1.seconds)
 
+    /** The reads of the due entries the runtimes' scans made: each scan reads them at least once. */
+    private val scans = AtomicInteger()
+
     private fun runtime(spec: ParkedRetrySpec = this.spec, ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
-        ledger,
+        scanned(ledger),
         listOf(subscription),
         testOptions(maxAttempts = 1).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 5.milliseconds)),
         clock,
@@ -95,9 +97,26 @@ class ParkedRetriesTest {
         eventually { parked() != null && attempts.get() == 1 }
     }
 
-    /** Waits a few scans, then asserts x's version 2 was attempted [expected] times in all. */
+    /** [ledger], its reads of the due entries counted in [scans]. */
+    private fun scanned(ledger: FailureLedger): FailureLedger = object : FailureLedger by ledger {
+        override suspend fun due(
+            subscription: SubscriptionId,
+            partitions: Collection<Int>,
+            now: Long,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<ParkedAggregate> = ledger.due(subscription, partitions, now, after, limit).also {
+            scans.incrementAndGet()
+        }
+    }
+
+    /**
+     * Waits three more scans, then asserts x's version 2 was attempted [expected] times in all. Three, not two: a retry
+     * a scan hands to the worker runs in its own coroutine, maybe after the next scan starts.
+     */
     private suspend fun attemptedAfterScans(expected: Int) {
-        delay(60)
+        val from = scans.get()
+        eventually { scans.get() >= from + 3 }
         attempts.get().assert().isEqualTo(expected)
     }
 
