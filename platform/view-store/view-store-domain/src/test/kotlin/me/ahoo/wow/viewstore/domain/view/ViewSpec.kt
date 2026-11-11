@@ -255,13 +255,13 @@ class ViewSpec {
         whenCommand(SaveView(recordConfig()), caller = user(ALICE)) {
             expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
-        whenCommand(DeleteAggregate, caller = nobody(SYSTEM, app = null)) { expectEvents(AggregateDeleted) }
+        whenCommand(DeleteAggregate.of(), caller = nobody(SYSTEM, app = null)) { expectEvents(AggregateDeleted.of()) }
     }
 
     @Test
     fun `a deleted view should take no command`() = viewSpec {
         created(ALICE)
-        whenCommand(DeleteAggregate, caller = user(ALICE, app = null)) { expectEvents(AggregateDeleted) }
+        whenCommand(DeleteAggregate.of(), caller = user(ALICE, app = null)) { expectEvents(AggregateDeleted.of()) }
         whenCommand(RenameView("Again")) {
             expectRejected(FrameworkCodes.AGGREGATE_DELETED)
         }

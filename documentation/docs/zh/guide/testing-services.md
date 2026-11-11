@@ -100,7 +100,7 @@ fun `the typed clients should send commands and read states as the caller`() {
 ```
 
 - `wait` 回答命令的等待计划最终的结果，等待计划可以一直等到 Saga 链尾。拒绝，无论来自聚合还是来自准入（无效或未知的命令、被禁止的调用者），是带错误码的 `CommandRejectedException`；其他问题是 `WowProblemException`。
-- 系统命令也一样按类发送，发往请求指名的聚合类型：生命周期命令（`CommandRequest.of(DeleteAggregate, id, type = …)`）、快照重建（`RebuildSnapshot.of(ids)`）、作业命令（`DisableJob`，按作业名发往 `<context>.schedule`）。
+- 系统命令也一样按类发送，发往请求指名的聚合类型：生命周期命令（`CommandRequest.of(DeleteAggregate.of(), id, type = …)`）、快照重建（`RebuildSnapshot.of(ids)`）、作业命令（`DisableJob`，按作业名发往 `<context>.schedule`）。
 - 以其他方式认证调用者的服务器（在 CoSec 之后，或有应用自己的 `CallerResolver`）接受它读取的凭据：`commands(caller, credential)` 与 `queries(caller, credential)`，用一个把调用者写成那台服务器所读请求头的 `UserCredential`。
 - 等待计划看不到的东西，例如到期触发的定时命令、另一个服务收到的调用，测试用 `eventually("what") { condition }` 轮询，默认每 100 毫秒一次，最多 20 秒。条件抛出异常（包括断言失败）视为尚未成立；失败时说明哪件事没有达到，附上给出的 `detail`（例如各服务的输出），并以条件最后一次的失败为原因。
 - `server.http` 留给线上契约本身：路由的形状、请求头、problem 的成员。请求可以像类型化客户端那样指名调用者（`server.http.post(path, json, caller = alice)`，写成开发身份头）。`Answer.problem` 把 `application/problem+json` 的回答读成类型化的 `Problem`：它的状态、错误码和违规项，被拒命令的结果，聚合的版本，以及重试能做什么；`Answer.result` 读出命令的结果，无论成功还是 problem 里的。

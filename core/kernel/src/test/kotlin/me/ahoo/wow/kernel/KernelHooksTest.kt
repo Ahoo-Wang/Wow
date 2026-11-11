@@ -123,7 +123,7 @@ class KernelHooksTest {
         }
         val log = InMemoryEventLog()
         Kernel(log).execute(hooked, open())
-        val outcome = Kernel(log).execute(hooked, command(DeleteAggregate)) as CommandOutcome.Committed
+        val outcome = Kernel(log).execute(hooked, command(DeleteAggregate.of())) as CommandOutcome.Committed
         outcome.stream.events.map { it.name }
             .assert().containsExactly("wow.lifecycle.AggregateDeleted", "test.counter.Audited")
         log.read(ref).toList().first().events.map { it.name }

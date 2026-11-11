@@ -852,24 +852,39 @@ public final class me/ahoo/wow/api/ledger/SkipParked$Companion {
 }
 
 public final class me/ahoo/wow/api/lifecycle/AggregateDeleted {
-	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/AggregateDeleted;
+	public static final field Companion Lme/ahoo/wow/api/lifecycle/AggregateDeleted$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/lifecycle/AggregateDeleted;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/AggregateDeleted$Companion {
+	public final fun of ()Lme/ahoo/wow/api/lifecycle/AggregateDeleted;
 }
 
 public final class me/ahoo/wow/api/lifecycle/AggregateRestored {
-	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/AggregateRestored;
+	public static final field Companion Lme/ahoo/wow/api/lifecycle/AggregateRestored$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/lifecycle/AggregateRestored;
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/api/lifecycle/AggregateRestored$Companion {
+	public final fun of ()Lme/ahoo/wow/api/lifecycle/AggregateRestored;
+}
+
 public final class me/ahoo/wow/api/lifecycle/DeleteAggregate {
-	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/DeleteAggregate;
+	public static final field Companion Lme/ahoo/wow/api/lifecycle/DeleteAggregate$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/lifecycle/DeleteAggregate;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/DeleteAggregate$Companion {
+	public final fun of ()Lme/ahoo/wow/api/lifecycle/DeleteAggregate;
 }
 
 public final class me/ahoo/wow/api/lifecycle/Lifecycle {
@@ -902,10 +917,15 @@ public final class me/ahoo/wow/api/lifecycle/OwnerTransferred$Companion {
 }
 
 public final class me/ahoo/wow/api/lifecycle/RestoreAggregate {
-	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/RestoreAggregate;
+	public static final field Companion Lme/ahoo/wow/api/lifecycle/RestoreAggregate$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/lifecycle/RestoreAggregate;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/RestoreAggregate$Companion {
+	public final fun of ()Lme/ahoo/wow/api/lifecycle/RestoreAggregate;
 }
 
 public final class me/ahoo/wow/api/lifecycle/SpaceTransferred {
@@ -1436,10 +1456,15 @@ public final class me/ahoo/wow/api/schedule/CancelSchedule$Companion {
 }
 
 public final class me/ahoo/wow/api/schedule/DisableJob {
-	public static final field INSTANCE Lme/ahoo/wow/api/schedule/DisableJob;
+	public static final field Companion Lme/ahoo/wow/api/schedule/DisableJob$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/schedule/DisableJob;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/schedule/DisableJob$Companion {
+	public final fun of ()Lme/ahoo/wow/api/schedule/DisableJob;
 }
 
 public final class me/ahoo/wow/api/schedule/EnableJob {
@@ -1463,10 +1488,15 @@ public final class me/ahoo/wow/api/schedule/EnableJob$Companion {
 }
 
 public final class me/ahoo/wow/api/schedule/JobDisabled {
-	public static final field INSTANCE Lme/ahoo/wow/api/schedule/JobDisabled;
+	public static final field Companion Lme/ahoo/wow/api/schedule/JobDisabled$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/schedule/JobDisabled;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/schedule/JobDisabled$Companion {
+	public final fun of ()Lme/ahoo/wow/api/schedule/JobDisabled;
 }
 
 public final class me/ahoo/wow/api/schedule/JobEnabled {
@@ -1761,10 +1791,15 @@ public final class me/ahoo/wow/api/schedule/SetSchedule$Companion {
 }
 
 public final class me/ahoo/wow/api/schedule/TickJob {
-	public static final field INSTANCE Lme/ahoo/wow/api/schedule/TickJob;
+	public static final field Companion Lme/ahoo/wow/api/schedule/TickJob$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/schedule/TickJob;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/schedule/TickJob$Companion {
+	public final fun of ()Lme/ahoo/wow/api/schedule/TickJob;
 }
 
 public final class me/ahoo/wow/api/schedule/Ticked {

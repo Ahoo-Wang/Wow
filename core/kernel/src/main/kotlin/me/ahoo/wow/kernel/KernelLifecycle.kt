@@ -113,8 +113,8 @@ internal object KernelLifecycle {
             )
         }
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }
-        DeleteAggregate -> Decision.events(AggregateDeleted)
-        RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored) else Decision.NoOp
+        is DeleteAggregate -> Decision.events(AggregateDeleted.of())
+        is RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored.of()) else Decision.NoOp
         is TransferOwner -> changeOrNoOp(loaded.scope.ownerId == body.ownerId) { OwnerTransferred(body.ownerId) }
         is TransferSpace -> changeOrNoOp(loaded.scope.spaceId == body.spaceId) { SpaceTransferred(body.spaceId) }
         else -> throw IllegalArgumentException("${body.javaClass.name} is not a lifecycle command.")
@@ -123,10 +123,10 @@ internal object KernelLifecycle {
     /** [metadata] after [event]: only the lifecycle and schedule events change it. */
     fun evolve(metadata: Metadata, event: Any): Metadata = when (event) {
         // Deleting cancels the aggregate's schedules; restoring does not bring them back.
-        AggregateDeleted -> metadata.copy(deleted = true, schedules = emptyMap())
+        is AggregateDeleted -> metadata.copy(deleted = true, schedules = emptyMap())
         is ScheduleSet -> metadata.copy(schedules = metadata.schedules - event.key + (event.key to event.rule))
         is ScheduleCancelled -> metadata.copy(schedules = metadata.schedules - event.key)
-        AggregateRestored -> metadata.copy(deleted = false)
+        is AggregateRestored -> metadata.copy(deleted = false)
         is OwnerTransferred -> metadata.copy(scope = metadata.scope.copy(ownerId = event.ownerId))
         is SpaceTransferred -> metadata.copy(scope = metadata.scope.copy(spaceId = event.spaceId))
         else -> metadata

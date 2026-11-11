@@ -83,13 +83,13 @@ class KernelLifecycleTest {
     fun `deleting appends AggregateDeleted, and the aggregate then refuses every command but restore`(): Unit =
         runTest {
             created()
-            val deleted = send(DeleteAggregate).committed()
+            val deleted = send(DeleteAggregate.of()).committed()
             deleted.stream.events.map { it.name }.assert().containsExactly(Lifecycle.AGGREGATE_DELETED)
             deleted.stream.scope.assert().isEqualTo(owned)
             head().deleted.assert().isTrue()
 
             send(AddItem("apple", 1)).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
-            send(DeleteAggregate).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
+            send(DeleteAggregate.of()).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             send(TransferOwner("bob")).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             send(CreateCart("again")).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             log.read(ref).toList().size.assert().isEqualTo(2)
@@ -98,9 +98,9 @@ class KernelLifecycleTest {
     @Test
     fun `restoring takes the deletion back, and restoring an aggregate not deleted changes nothing`(): Unit = runTest {
         created()
-        send(RestoreAggregate).assert().isEqualTo(CommandOutcome.Unchanged(1))
-        send(DeleteAggregate)
-        val restored = send(RestoreAggregate).committed()
+        send(RestoreAggregate.of()).assert().isEqualTo(CommandOutcome.Unchanged(1))
+        send(DeleteAggregate.of())
+        val restored = send(RestoreAggregate.of()).committed()
         restored.stream.events.map { it.name }.assert().containsExactly(Lifecycle.AGGREGATE_RESTORED)
         head().deleted.assert().isFalse()
         send(AddItem("apple", 1)).committed().stream.version.assert().isEqualTo(4)
@@ -108,8 +108,8 @@ class KernelLifecycleTest {
 
     @Test
     fun `a lifecycle command needs the aggregate to exist`(): Unit = runTest {
-        send(DeleteAggregate).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
-        send(RestoreAggregate).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(DeleteAggregate.of()).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(RestoreAggregate.of()).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(TransferOwner("bob")).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
@@ -140,9 +140,9 @@ class KernelLifecycleTest {
     fun `a committed outcome carries the deleted mark after its stream`(): Unit = runTest {
         val created = created().committed()
         created.deleted.assert().isFalse()
-        val deleted = send(DeleteAggregate).committed()
+        val deleted = send(DeleteAggregate.of()).committed()
         deleted.deleted.assert().isTrue()
-        val restored = send(RestoreAggregate).committed()
+        val restored = send(RestoreAggregate.of()).committed()
         restored.deleted.assert().isFalse()
     }
 
@@ -173,14 +173,14 @@ class KernelLifecycleTest {
                 deleted = atSnapshot.deleted,
             ),
         )
-        send(DeleteAggregate)
+        send(DeleteAggregate.of())
 
         val fromSnapshot = Kernel(log, codec, snapshots = snapshots)
         send(
             AddItem("apple", 1),
             kernel = fromSnapshot
         ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
-        val restored = send(RestoreAggregate, kernel = fromSnapshot).committed()
+        val restored = send(RestoreAggregate.of(), kernel = fromSnapshot).committed()
         restored.stream.scope.assert().isEqualTo(Scope("bob", "space-a"))
         val cache = RecordingCache()
         Kernel(log, codec, states = cache, snapshots = snapshots).execute(
@@ -194,7 +194,7 @@ class KernelLifecycleTest {
     @Test
     fun `a deleted snapshot at the log's head refuses commands`(): Unit = runTest {
         created()
-        send(DeleteAggregate)
+        send(DeleteAggregate.of())
         val deleted = head()
         snapshots.save(
             codec.snapshotOf(
@@ -216,9 +216,12 @@ class KernelLifecycleTest {
     @Test
     fun `a duplicate lifecycle command is answered with its committed stream, not decided again`(): Unit = runTest {
         created()
-        val first = send(DeleteAggregate, requestId = "delete-1").committed()
-        send(DeleteAggregate, requestId = "delete-1").assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
-        val reused = send(RestoreAggregate, requestId = "delete-1")
+        val first = send(DeleteAggregate.of(), requestId = "delete-1").committed()
+        send(
+            DeleteAggregate.of(),
+            requestId = "delete-1"
+        ).assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
+        val reused = send(RestoreAggregate.of(), requestId = "delete-1")
         reused.rejection().assert().isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
         // Deduplication comes before the deleted mark: a retry of the creation is still answered.
         val retried = send(CreateCart("ahoo"), owned, requestId = "r-1")
@@ -229,11 +232,11 @@ class KernelLifecycleTest {
     fun `a model can enable only some lifecycle commands, and still reads the events of the others`(): Unit = runTest {
         created()
         send(TransferOwner("bob"))
-        send(DeleteAggregate)
+        send(DeleteAggregate.of())
         val restricted = cartModel(lifecycle = arrayOf(TransferOwner::class.java))
         restricted.lifecycleCommands.assert().containsExactly(TransferOwner::class.java)
         restricted.findCommandType(Lifecycle.DELETE_AGGREGATE).assert().isNull()
-        send(RestoreAggregate, model = restricted).rejection().assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+        send(RestoreAggregate.of(), model = restricted).rejection().assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         kernel.stateAt(restricted, ref, 3)!!.deleted.assert().isTrue()
         cartModel(lifecycle = emptyArray()).lifecycleCommands.assert().isEmpty()
     }
@@ -245,7 +248,7 @@ class KernelLifecycleTest {
             decide<CreateCart>(Creation.REQUIRED) { _, command -> Decision.events(CartCreated(command.owner)) }
             decide<DeleteAggregate> { state, _ ->
                 if (state.items.isEmpty()) {
-                    Decision.events(AggregateDeleted)
+                    Decision.events(AggregateDeleted.of())
                 } else {
                     Decision.reject("cart.not-empty", "A cart with items is not deleted.")
                 }
@@ -259,11 +262,11 @@ class KernelLifecycleTest {
         overriding.eventType(AggregateDeleted::class.java).name.assert().isEqualTo(Lifecycle.AGGREGATE_DELETED)
         send(CreateCart("ahoo"), owned, model = overriding)
         send(AddItem("apple", 1), model = overriding)
-        send(DeleteAggregate, model = overriding).rejection().assert().isEqualTo("cart.not-empty")
+        send(DeleteAggregate.of(), model = overriding).rejection().assert().isEqualTo("cart.not-empty")
         // The kernel still keeps the deleted mark when the model's own decide function deletes.
         val other = cartModel.type.ref("tenant", "cart-2")
         kernel.execute(overriding, Command("c-o1", "r-o1", other, CreateCart("x")))
-        kernel.execute(overriding, Command("c-o2", "r-o2", other, DeleteAggregate)).committed()
+        kernel.execute(overriding, Command("c-o2", "r-o2", other, DeleteAggregate.of())).committed()
         kernel.execute(overriding, Command("c-o3", "r-o3", other, AddItem("apple", 1)))
             .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
     }
@@ -299,8 +302,8 @@ class KernelLifecycleTest {
     @Test
     fun `the lifecycle types round-trip through the codec`() {
         listOf(
-            AggregateDeleted,
-            AggregateRestored,
+            AggregateDeleted.of(),
+            AggregateRestored.of(),
             OwnerTransferred("bob"),
             SpaceTransferred("space-b"),
         ).forEach { event ->
@@ -309,7 +312,7 @@ class KernelLifecycleTest {
         val mapper = JsonMapper.builder()
             .addModule(KotlinModule.Builder().build())
             .build()
-        listOf(DeleteAggregate, RestoreAggregate, TransferOwner("bob"), TransferSpace("s"))
+        listOf(DeleteAggregate.of(), RestoreAggregate.of(), TransferOwner("bob"), TransferSpace("s"))
             .forEach { command ->
                 mapper.readValue(mapper.writeValueAsString(command), command.javaClass).assert().isEqualTo(command)
             }

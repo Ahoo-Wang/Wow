@@ -52,7 +52,7 @@ internal fun admissible(
         version > 0 && !reach.writes(loaded) ->
             if (decider.creation == Creation.NONE && !reach.reads(loaded)) notFound(command) else forbidden(command)
 
-        loaded.deleted && !decider.onDeleted && command.body != RestoreAggregate ->
+        loaded.deleted && !decider.onDeleted && command.body !is RestoreAggregate ->
             rejected(FrameworkCodes.AGGREGATE_DELETED, "${command.ref} is deleted.")
 
         version > 0 && decider.creation == Creation.REQUIRED ->

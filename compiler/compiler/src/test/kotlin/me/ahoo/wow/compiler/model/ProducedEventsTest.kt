@@ -262,7 +262,7 @@ class ProducedEventsTest {
                 listOf(Create("cart-1"), Bump(2), Bump(0)).forEachIndexed { index, body ->
                     kernel.execute(model, Command("c" + index, "r" + index, ref, body))
                 }
-                val outcome = kernel.execute(model, Command("c9", "r9", ref, DeleteAggregate)) as CommandOutcome.Committed
+                val outcome = kernel.execute(model, Command("c9", "r9", ref, DeleteAggregate.of())) as CommandOutcome.Committed
                 (outcome.state as CartState).log.toString()
             }
             """.trimIndent(),

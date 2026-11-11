@@ -19,13 +19,43 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * Marks the aggregate deleted ([AggregateDeleted]). A deleted aggregate refuses every command but [RestoreAggregate];
  * its events stay in the log.
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @Description("Marks the aggregate deleted; its events stay in the log.")
-data object DeleteAggregate
+class DeleteAggregate @InternalWowApi constructor() {
+    override fun equals(other: Any?): Boolean = this === other || other is DeleteAggregate
 
-/** Takes back the deletion of a deleted aggregate ([AggregateRestored]). */
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "DeleteAggregate"
+
+    companion object {
+        /** A DeleteAggregate; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(): DeleteAggregate = DeleteAggregate()
+    }
+}
+
+/**
+ * Takes back the deletion of a deleted aggregate ([AggregateRestored]).
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ */
 @Description("Takes back the deletion of a deleted aggregate.")
-data object RestoreAggregate
+class RestoreAggregate @InternalWowApi constructor() {
+    override fun equals(other: Any?): Boolean = this === other || other is RestoreAggregate
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "RestoreAggregate"
+
+    companion object {
+        /** A RestoreAggregate; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(): RestoreAggregate = RestoreAggregate()
+    }
+}
 
 /** Gives the aggregate to the owner [ownerId], the owner part of its scope; see [OwnerTransferred]. */
 @Description("Gives the aggregate to the owner ownerId.")

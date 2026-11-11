@@ -169,7 +169,7 @@ class ScheduleJobsNodeTest {
         // An unknown job is refused.
         node.send(ScheduleJobModel.refOf(SHOP, "report", "acme"), EnableJob("missing")).status.assert()
             .isEqualTo(CommandResult.Status.REJECTED)
-        node.send(globex, DisableJob).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        node.send(globex, DisableJob.of()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { node.tickTimer(globex)?.status == TimerStatus.CANCELLED }
     }
 
@@ -315,7 +315,14 @@ class ScheduleJobsNodeTest {
         val model = checkNotNull(sender.registry.find(ScheduleJobs.typeOf(SHOP)))
         val slot = ScheduleContext(timer.id, ScheduleJobs.TICK_KEY, 1, System.currentTimeMillis(), 0)
         val tick =
-            Command(timer.requestId, timer.requestId, ref, TickJob, headers = slot.headers(), wait = WaitPlan.COMMITTED)
+            Command(
+                timer.requestId,
+                timer.requestId,
+                ref,
+                TickJob.of(),
+                headers = slot.headers(),
+                wait = WaitPlan.COMMITTED
+            )
         sender.context(SHOP).coordinator.execute(model, tick).status.assert()
             .isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { sender.tickTimer(ref)?.status == TimerStatus.CANCELLED }

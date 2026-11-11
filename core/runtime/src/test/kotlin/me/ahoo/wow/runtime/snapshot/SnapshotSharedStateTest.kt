@@ -93,7 +93,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
         runtime.stop()
         // The view is recorded as the deletion commits, before the stopped runtime reads the entry.
-        val deleted = executor.execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
+        val deleted = executor.execute(counter, command("a", DeleteAggregate.of())) as CommandOutcome.Committed
         snapshots.views.get(ref("a"), 2)!!.deleted.assert().isTrue()
         log.reads.clear()
         val loads = store.loads.get()
@@ -115,7 +115,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
         log.reads.assert().containsExactly(2)
 
-        val restored = executor.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
+        val restored = executor.execute(counter, command("a", RestoreAggregate.of())) as CommandOutcome.Committed
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
         store.load(ref("a"))!!.deleted.assert().isFalse()
         val added = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
@@ -131,7 +131,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         // A subscription that has written nothing yet, as after a restart: its views are recorded before it runs.
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val deleted = Executor(kernel, views = other.views)
-            .execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
+            .execute(counter, command("a", DeleteAggregate.of())) as CommandOutcome.Committed
         deleted.first.assert().isNotNull()
         log.reads.clear()
         val loads = store.loads.get()
@@ -178,7 +178,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         // Commands run outside the executor that records views: as on another node, or before an ownership change.
         val elsewhere = Executor(kernel)
         elsewhere.execute(counter, command("a", Add(), scope = Scope("alice", "space-a")))
-        listOf(TransferOwner("bob"), DeleteAggregate).forEach {
+        listOf(TransferOwner("bob"), DeleteAggregate.of()).forEach {
             elsewhere.execute(counter, command("a", it)).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         }
         // No snapshot is stored yet: the log is replayed.
@@ -197,7 +197,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         log.reads.assert().containsExactly(3)
 
         // The restore is written from the stored snapshot evolved with the log's tail.
-        val restored = elsewhere.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
+        val restored = elsewhere.execute(counter, command("a", RestoreAggregate.of())) as CommandOutcome.Committed
         log.reads.clear()
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 3) }, other)

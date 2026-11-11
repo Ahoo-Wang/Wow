@@ -81,7 +81,7 @@ class AfterHookParametersTest {
             val model = cartModel("shop")
             val kernel = Kernel(InMemoryEventLog())
             val ref = model.type.ref("tenant", "cart-1")
-            listOf(Create("cart-1"), Add("apple"), Remove("apple"), DeleteAggregate).mapIndexed { index, body ->
+            listOf(Create("cart-1"), Add("apple"), Remove("apple"), DeleteAggregate.of()).mapIndexed { index, body ->
                 when (val outcome = kernel.execute(model, Command("c" + index, "r" + index, ref, body))) {
                     is CommandOutcome.Committed -> outcome.stream.events.joinToString("+") {
                         it.name.substringAfterLast('.') + (if (it.name.endsWith("Audited")) it.payload else "")

@@ -165,11 +165,11 @@ class KernelScopeTest {
             .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), owned, expectedVersion = 7)
             .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_VERSION_MISMATCH)
-        send(DeleteAggregate, owned).committed()
+        send(DeleteAggregate.of(), owned).committed()
         send(AddItem("apple", 1), stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
-        send(RestoreAggregate, stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(RestoreAggregate.of(), stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
-        send(RestoreAggregate, owned).committed()
+        send(RestoreAggregate.of(), owned).committed()
         versions().assert().containsExactly(1, 2, 3)
     }
 

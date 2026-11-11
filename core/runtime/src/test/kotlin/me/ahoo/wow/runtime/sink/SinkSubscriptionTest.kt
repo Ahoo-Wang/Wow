@@ -223,7 +223,7 @@ class SinkSubscriptionTest {
     fun `a stream published without its state should still carry the deleted mark`(): Unit = runBlocking {
         val sink = sink(includeState = false)
         handle(sink, commit(SetPrice(BigDecimal.ONE)))
-        handle(sink, commit(DeleteAggregate))
+        handle(sink, commit(DeleteAggregate.of()))
         written.map { it.state }.assert().containsOnlyNulls()
         written.map { it.version }.assert().containsExactly(1, 2)
         written[0].deleted.assert().isFalse()

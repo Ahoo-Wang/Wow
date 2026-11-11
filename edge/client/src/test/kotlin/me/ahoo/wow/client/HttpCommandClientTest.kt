@@ -145,7 +145,7 @@ class HttpCommandClientTest {
             roots.map { it.operator!!.crossScope }.assert().containsExactly(false, false, true)
             caught<Misuse.Argument> { runBlocking { client().wait("no command of a contract") } }
                 .message.assert().contains("decided by no aggregate")
-            caught<Misuse.Argument> { runBlocking { client().wait(DeleteAggregate, "a b") } }
+            caught<Misuse.Argument> { runBlocking { client().wait(DeleteAggregate.of(), "a b") } }
                 .message.assert().contains("lifecycle command")
         }
 

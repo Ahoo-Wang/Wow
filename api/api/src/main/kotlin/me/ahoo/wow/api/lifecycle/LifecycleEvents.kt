@@ -15,11 +15,43 @@ package me.ahoo.wow.api.lifecycle
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** The aggregate was deleted ([DeleteAggregate]). */
-data object AggregateDeleted
+/**
+ * The aggregate was deleted ([DeleteAggregate]).
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ */
+class AggregateDeleted @InternalWowApi constructor() {
+    override fun equals(other: Any?): Boolean = this === other || other is AggregateDeleted
 
-/** The aggregate's deletion was taken back ([RestoreAggregate]). */
-data object AggregateRestored
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "AggregateDeleted"
+
+    companion object {
+        /** A AggregateDeleted; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(): AggregateDeleted = AggregateDeleted()
+    }
+}
+
+/**
+ * The aggregate's deletion was taken back ([RestoreAggregate]).
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ */
+class AggregateRestored @InternalWowApi constructor() {
+    override fun equals(other: Any?): Boolean = this === other || other is AggregateRestored
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "AggregateRestored"
+
+    companion object {
+        /** A AggregateRestored; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(): AggregateRestored = AggregateRestored()
+    }
+}
 
 /**
  * The aggregate now belongs to the owner [ownerId] ([TransferOwner]).

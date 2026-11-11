@@ -290,7 +290,7 @@ class KernelScheduleTest {
         state.schedules.assert().isEqualTo(
             mapOf("pay-timeout" to ScheduleRule.After(1_800_000), "remind" to ScheduleRule.At(NOW + 101)),
         )
-        val deleted = send(DeleteAggregate) as CommandOutcome.Committed
+        val deleted = send(DeleteAggregate.of()) as CommandOutcome.Committed
         deleted.schedules.assert().isEmpty()
         // The rules come back with a snapshot of them.
         val snapshot = codec.snapshotOf(
