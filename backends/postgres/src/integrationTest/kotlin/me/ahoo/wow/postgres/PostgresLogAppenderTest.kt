@@ -160,7 +160,8 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val outcomes = log.appendAll((firsts + second + next).map { it to null })
             outcomes.assert().isEqualTo((1L..STATEMENT_STREAMS + 2L).map { committed(it) })
             // Each stream of a group statement binds one `?::boolean`: the statements hold 1,001 streams, then 1.
-            val groups = prepared.filter { it.startsWith(GROUP_STATEMENT) }.map { sql -> sql.split("?::boolean").size - 1 }
+            val groups = prepared.filter { it.startsWith(GROUP_STATEMENT) }
+                .map { sql -> sql.split("?::boolean").size - 1 }
             groups.assert().isEqualTo(listOf(STATEMENT_STREAMS + 1, 1))
             log.read(second.ref).toList().map { it.version }.assert().isEqualTo(listOf(1, 2))
         }
@@ -346,7 +347,9 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val outcomes = log.appendAll(group)
             outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
             outcomes.filterIndexed { index, _ -> index != 1 }.assert().allMatch { it is AppendOutcome.Committed }
-            (0 until ACROSS).filter { it != 1 }.forEach { partition -> log.head(partition).assert().isEqualTo(1L) }
+            for (partition in (0 until ACROSS).filter { it != 1 }) {
+                log.head(partition).assert().isEqualTo(1L)
+            }
         }
 
     @Test
@@ -366,7 +369,9 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             log.head(2).assert().isNull()
             // A group holds the streams of this log's context alone.
             val elsewhere = stream("x", 1, aggregate = AggregateType(PostgresFixture.newContext(), "order"))
-            assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group.take(1) + (elsewhere to null)) } }
+            assertThrownBy<IllegalArgumentException> {
+                runBlocking { log.appendAll(group.take(1) + (elsewhere to null)) }
+            }
         }
 
     @Test
@@ -407,10 +412,10 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                 }
             }
             val outcomes = ConcurrentLinkedQueue<AppendOutcome>()
-            (0 until ROUNDS).forEach { round ->
+            for (round in 0 until ROUNDS) {
                 // Both groups of a round start together.
                 coroutineScope {
-                    (0..1).forEach { partition ->
+                    for (partition in 0..1) {
                         val requests = (0 until REQUESTS).map { "round-$round-request-$it" }
                         val ordered = if (partition == 0) requests else requests.reversed()
                         val group = types.let { if (partition == 0) it else it.reversed() }.flatMap { type ->

@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.postgres
 
-import kotlinx.coroutines.runBlocking
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
@@ -93,7 +93,9 @@ class PostgresTimeoutsTest {
             timed.connection.use { connection ->
                 val started = TimeSource.Monotonic.markNow()
                 val failure = assertThrownBy<SQLException> {
-                    inTransaction(connection) { bound -> bound.createStatement().use { it.execute("SELECT pg_sleep(10)") } }
+                    inTransaction(connection) { bound ->
+                        bound.createStatement().use { it.execute("SELECT pg_sleep(10)") }
+                    }
                 }.actual()
                 // The server's statement_timeout (2 s) stops it before the socket times out (3 s).
                 failure.sqlState.assert().isEqualTo(QUERY_CANCELED)
@@ -178,8 +180,12 @@ class PostgresTimeoutsTest {
         "idle_in_transaction_session_timeout",
     ).map { name -> show(connection, name) }
 
-    private fun show(connection: Connection, name: String): String =
-        connection.createStatement().use { it.executeQuery("SHOW $name").use { rows -> rows.next(); rows.getString(1) } }
+    private fun show(connection: Connection, name: String): String = connection.createStatement().use { statement ->
+        statement.executeQuery("SHOW $name").use { rows ->
+            rows.next()
+            rows.getString(1)
+        }
+    }
 
     private fun pid(connection: Connection): Int = connection.createStatement().use { statement ->
         statement.executeQuery("SELECT pg_backend_pid()").use { rows ->

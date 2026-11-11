@@ -77,7 +77,10 @@ class PostgresEventQueryIndexesTest {
     /** Stream `n`, the first of its aggregate, of an owner and a space among a hundred; every fiftieth not stamped. */
     private fun stream(n: Int): EventStreamRecord {
         val scope = Scope("u-${n % OWNERS}", "s-${n % OWNERS}")
-        val access = AccessValues.ofStream(mapOf("region" to "R${n % REGIONS}", "teams" to listOf("K${n % REGIONS}")), scope)
+        val access = AccessValues.ofStream(
+            mapOf("region" to "R${n % REGIONS}", "teams" to listOf("K${n % REGIONS}")),
+            scope
+        )
         return EventStreamRecord(
             ref = type.ref(if (n % 2 == 0) "t3" else "t4", "o-$n"),
             version = 1,
@@ -95,7 +98,9 @@ class PostgresEventQueryIndexesTest {
     fun `the access indexes of a log are created as ddl says and serve the queries under a policy`(): Unit =
         runBlocking {
             val log = PostgresFixture.log(PARTITIONS, type.context, listOf(type.name))
-            (0 until ROWS).chunked(BATCH).forEach { chunk -> log.appendAll(chunk.map { stream(it) to null }) }
+            for (chunk in (0 until ROWS).chunked(BATCH)) {
+                log.appendAll(chunk.map { stream(it) to null })
+            }
             val table = PostgresEventLogTables(type.context).aggregate(type.name).log
             val binding = PostgresEventQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!
             val schema = QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
@@ -116,7 +121,10 @@ class PostgresEventQueryIndexesTest {
                 connection.createStatement().use { it.execute("ANALYZE $table") }
             }
 
-            val (region, teams, owner, space) = names
+            val region = names[0]
+            val teams = names[1]
+            val owner = names[2]
+            val space = names[3]
             val compiler = PostgresSnapshotSqlCompiler(table, PostgresEventQueryLayout.EVENTS)
             fun scoped(filter: FilterExpression): FilterExpression = AndFilter(listOf(TenantIdFilter("t3"), filter))
             fun list(filter: FilterExpression): String =

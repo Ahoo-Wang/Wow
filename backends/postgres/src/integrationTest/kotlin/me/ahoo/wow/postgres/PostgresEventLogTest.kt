@@ -38,7 +38,8 @@ class PostgresEventLogTest : EventLogSpec() {
 
     override val opensOneStorePerContext: Boolean = true
 
-    override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+    override fun createSnapshots(context: String): SnapshotStore =
+        PostgresSnapshotStore(PostgresFixture.dataSource, context)
 
     override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
 
@@ -76,7 +77,7 @@ class PostgresEventLogTest : EventLogSpec() {
                 }
             }
             val mark = counted.begin()
-            (2..COMMITS + 1).forEach { version ->
+            for (version in 2..COMMITS + 1) {
                 log.append(stream("a", version, aggregate = type))
                 withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)
             }

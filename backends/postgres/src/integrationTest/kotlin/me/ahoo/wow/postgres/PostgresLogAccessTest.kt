@@ -56,7 +56,8 @@ class PostgresLogAccessTest : PostgresLogFixtures() {
             // The tail reads across the registered tables: the type's is not among them.
             registered(context).assert().containsExactly("order")
 
-            log.append(stream("s-1", 1, aggregate = snapshot)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream("s-1", 1, aggregate = snapshot))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
             exists(table(context, "snapshot")).assert().isTrue()
             registered(context).assert().containsExactly("order", "snapshot")
             // Another node finds it through the registry, and claims its walk beside it.

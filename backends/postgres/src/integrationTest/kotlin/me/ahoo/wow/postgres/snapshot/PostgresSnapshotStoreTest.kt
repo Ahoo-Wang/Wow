@@ -26,7 +26,6 @@ import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.PostgresStoreProvider
-import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.CoveredSnapshots
@@ -77,7 +76,10 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         store.load(order.ref)?.version.assert().isEqualTo(1)
         store.load(cart.ref)?.version.assert().isEqualTo(2)
         PostgresSnapshotTables(context, "Order-Item").base.assert().isEqualTo(table(context, "order_item"))
-        PostgresSnapshotTables("c".repeat(40), "a".repeat(40)).base.length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
+        PostgresSnapshotTables(
+            "c".repeat(40),
+            "a".repeat(40)
+        ).base.length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
     }
 
     @Test
@@ -95,7 +97,10 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         val store = PostgresSnapshotStore(counted.dataSource, context)
         val order = AggregateType(context, "order")
         val cart = AggregateType(context, "cart")
-        fun of(type: AggregateType, id: String, version: Int) = snapshot(id, version).copyWith(ref = type.ref("tenant", id))
+        fun of(type: AggregateType, id: String, version: Int) = snapshot(
+            id,
+            version
+        ).copyWith(ref = type.ref("tenant", id))
         store.save(of(order, "warm", 1)).assert().isTrue()
         store.save(of(cart, "warm", 1)).assert().isTrue()
         val batch = (1..BATCH).map { of(order, "o$it", 1) }

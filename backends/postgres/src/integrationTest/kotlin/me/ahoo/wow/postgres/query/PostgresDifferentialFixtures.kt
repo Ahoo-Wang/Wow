@@ -67,7 +67,10 @@ internal abstract class PostgresDifferentialFixtures {
             var token: String? = null
             do {
                 val page = backend.cursor(
-                    QueryAdmission.Trusted.cursor(CursorQuery(filter, sort = sort, size = size, cursor = token), schema),
+                    QueryAdmission.Trusted.cursor(
+                        CursorQuery(filter, sort = sort, size = size, cursor = token),
+                        schema
+                    ),
                 )
                 pages += page.list.map { it.path("aggregateId").stringValue() }
                 token = page.nextCursor

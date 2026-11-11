@@ -55,7 +55,6 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
-import me.ahoo.wow.query.backend.cursor
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.math.BigDecimal
@@ -86,7 +85,9 @@ internal class PostgresDifferentialQueryTest : PostgresDifferentialFixtures() {
         same("cursor by flag and amount") {
             cursorIds(listOf(Sort(field("flag"), Sort.Direction.ASC), Sort(AMOUNT, Sort.Direction.DESC)), 1, ACTIVE)
         },
-        same("cursor by lastEventTime") { cursorIds(listOf(Sort(QueryField("lastEventTime"), Sort.Direction.DESC)), 2) },
+        same("cursor by lastEventTime") {
+            cursorIds(listOf(Sort(QueryField("lastEventTime"), Sort.Direction.DESC)), 2)
+        },
         same("cursor by version") { cursorIds(listOf(Sort(QueryField("version"), Sort.Direction.ASC)), 3) },
     )
 
@@ -98,7 +99,13 @@ internal class PostgresDifferentialQueryTest : PostgresDifferentialFixtures() {
         Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.keywords"))),
     ).mapIndexed { index, projection ->
         same("projection $index") {
-            rows(ListQuery(MatchAllFilter, projection = projection, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))))
+            rows(
+                ListQuery(
+                    MatchAllFilter,
+                    projection = projection,
+                    sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+                )
+            )
                 .map { it.toMap() }
         }
     }

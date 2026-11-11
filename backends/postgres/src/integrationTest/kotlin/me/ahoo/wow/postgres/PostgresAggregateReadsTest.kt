@@ -106,7 +106,9 @@ class PostgresAggregateReadsTest : PostgresLogFixtures() {
         val context = PostgresFixture.newContext()
         val type = AggregateType(context, "order")
         val writer = PostgresFixture.log(1, context)
-        (1..3).forEach { writer.append(stream("a", it, aggregate = type)) }
+        for (version in 1..3) {
+            writer.append(stream("a", version, aggregate = type))
+        }
         val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
         val snapshots = PostgresSnapshotStore(counted.dataSource, context)
         val ref = type.ref("tenant", "a")
@@ -140,12 +142,15 @@ class PostgresAggregateReadsTest : PostgresLogFixtures() {
         val context = PostgresFixture.newContext()
         val type = AggregateType(context, "order")
         val log = PostgresFixture.log(1, context)
-        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        for (version in 1..3) {
+            log.append(stream("a", version, aggregate = type))
+        }
         val ref = type.ref("tenant", "a")
         val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
         store.save(snapshot(ref, 2))
         PostgresFixture.dataSource.connection.use { connection ->
-            connection.createStatement().use { it.execute("DROP TABLE ${PostgresSnapshotTables(context, "order").snapshot}") }
+            val snapshots = PostgresSnapshotTables(context, "order").snapshot
+            connection.createStatement().use { it.execute("DROP TABLE $snapshots") }
         }
         // The snapshot store still believes its table is there: the one statement fails, and says so (finding R5.B-16).
         runCatching { log.snapshotTailsWith(store).readWithSnapshot(ref, 1) }.exceptionOrNull().assert().isNotNull()
@@ -156,15 +161,18 @@ class PostgresAggregateReadsTest : PostgresLogFixtures() {
         // X-80: a replay from version 1 once held a hot aggregate's whole history; now it holds a page.
         val prepared = ConcurrentLinkedQueue<String>()
         val context = PostgresFixture.newContext()
-        val log = PostgresEventLog(preparing(PostgresFixture.dataSource, prepared), context, 1).also { it.createSchema() }
+        val log = PostgresEventLog(preparing(PostgresFixture.dataSource, prepared), context, 1)
+            .also { it.createSchema() }
         val type = AggregateType(context, "account")
         val long = type.ref("tenant", "long")
         val count = 2 * VersionPages.SIZE + 3
-        (1..count).chunked(GROUP_OF_STREAMS).forEach { versions ->
+        for (versions in (1..count).chunked(GROUP_OF_STREAMS)) {
             log.appendAll(versions.map { stream(long, it) to null })
         }
         val short = type.ref("tenant", "short")
-        (1..SHORT).forEach { log.append(stream(short, it)) }
+        for (version in 1..SHORT) {
+            log.append(stream(short, version))
+        }
         fun pages(read: suspend () -> Int): Pair<Int, Map<Boolean, Int>> {
             prepared.clear()
             val size = runBlocking { read() }
@@ -178,7 +186,8 @@ class PostgresAggregateReadsTest : PostgresLogFixtures() {
         pages { log.read(short).toList().size }.assert().isEqualTo(SHORT to mapOf(false to 1))
         pages { log.readEntries(short).toList().size }.assert().isEqualTo(SHORT to mapOf(true to 1))
         // A page that reaches the end of the range asked for is the last.
-        pages { log.read(long, 1, VersionPages.SIZE).toList().size }.assert().isEqualTo(VersionPages.SIZE to mapOf(false to 1))
+        pages { log.read(long, 1, VersionPages.SIZE).toList().size }
+            .assert().isEqualTo(VersionPages.SIZE to mapOf(false to 1))
         pages { log.read(long).take(1).toList().size }.assert().isEqualTo(1 to mapOf(false to 1))
     }
 

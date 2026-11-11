@@ -70,7 +70,12 @@ class PostgresSchemaLockTest {
             val started = TimeSource.Monotonic.markNow()
             val failure = assertThrows<IllegalStateException> {
                 dataSource.connection.use { connection ->
-                    PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT), wait) {
+                    PostgresFormat.schema(
+                        connection,
+                        Ddl.AUTO,
+                        listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                        wait
+                    ) {
                         PostgresSchema.execute(connection, tables.ddl())
                     }
                 }
@@ -155,7 +160,12 @@ class PostgresSchemaLockTest {
                 val wait = PostgresSchema.LockWait(timeout = 200.milliseconds, attempts = 2, backoff = 50.milliseconds)
                 val failure = assertThrows<IllegalStateException> {
                     dataSource.connection.use { connection ->
-                        PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT), wait) {
+                        PostgresFormat.schema(
+                            connection,
+                            Ddl.AUTO,
+                            listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                            wait
+                        ) {
                             PostgresSchema.execute(connection, tables.ddl())
                         }
                     }
