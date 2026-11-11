@@ -42,7 +42,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [Alias](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Alias.kt): Former names of a command or event type.
 
 - Targets: `CLASS`
-- Parameters: None.
+- Parameters: `vararg value: String`
 
 ## `@AllowCreate`
 
@@ -198,6 +198,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `FUNCTION`
 - Parameters: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
 - Guide: [Service Routes](../guide/service-routes)
+
+## `@RouteQuery`
+
+[RouteQuery](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ServiceRoute.kt): A parameter of a `ServiceRoute` bound to the query parameter of its name, or `name`: optional when the parameter is nullable, required otherwise.
+
+- Targets: `VALUE_PARAMETER`
+- Parameters: `name: String = ""`
 
 ## `@Summary`
 

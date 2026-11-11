@@ -8,8 +8,10 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   annotationOf,
+  annotationsOf,
   annotationsPage,
   configurationGroups,
+  defaultCell,
   firstSentence,
   frameworkErrors,
   javaType,
@@ -113,20 +115,43 @@ test('the framework codes are read from the error catalog snapshot, with their r
   ]);
 });
 
-test('the query codes take the first sentence of their group’s comment', () => {
+test('the query codes, kebab-case as the source writes them, take the first sentence of their group’s comment', () => {
   const source = `object QueryErrorCodes {
     // Reading the body; BindingError.name is the path.
-    const val INVALID_JSON = "INVALID_JSON"
-    const val EMPTY_BODY = "EMPTY_BODY"
+    const val INVALID_JSON = "invalid-json"
+    const val EMPTY_BODY = "empty-body"
 
     // Admission against the model. More.
-    const val UNKNOWN_FIELD = "UNKNOWN_FIELD"
+    const val UNKNOWN_FIELD = "unknown-field"
 }`;
   assert.deepEqual(queryErrorCodes(source), [
-    { code: 'INVALID_JSON', group: 'Reading the body.' },
-    { code: 'EMPTY_BODY', group: 'Reading the body.' },
-    { code: 'UNKNOWN_FIELD', group: 'Admission against the model.' },
+    { code: 'invalid-json', group: 'Reading the body.' },
+    { code: 'empty-body', group: 'Reading the body.' },
+    { code: 'unknown-field', group: 'Admission against the model.' },
   ]);
+});
+
+test('a key its description calls required shows that, not the placeholder value of its property', () => {
+  assert.equal(
+    defaultCell(
+      {
+        defaultValue: 0,
+        description:
+          'The status, 400 to 599: required, an entry without it refuses the start.',
+      },
+      'required',
+    ),
+    'required',
+  );
+  assert.equal(
+    defaultCell({ defaultValue: 0, description: 'The status.' }, 'required'),
+    '`0`',
+  );
+  assert.equal(
+    defaultCell({ defaultValue: '', description: 'A name.' }, 'required'),
+    '`""`',
+  );
+  assert.equal(defaultCell({ description: 'No default.' }, 'required'), '');
 });
 
 test('an annotation gives its summary, targets and parameters, multi-line defaults included', () => {
@@ -170,6 +195,53 @@ annotation class AggregateRoot(
     [],
   );
   assert.equal(annotationOf('class NotAnAnnotation'), undefined);
+});
+
+test('every annotation of a file is read, its parameters on one line or several, a vararg one included', () => {
+  const annotations = annotationsOf(`package a
+
+/** Former names. */
+@Target(AnnotationTarget.CLASS)
+annotation class Alias(
+    vararg val value: String
+)
+
+/** A route. */
+@Target(AnnotationTarget.FUNCTION)
+annotation class ServiceRoute(
+    val path: String,
+)
+
+/** A query parameter of a route. */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class RouteQuery(val name: String = "")
+`);
+  assert.deepEqual(annotations, [
+    {
+      name: 'Alias',
+      summary: 'Former names.',
+      targets: ['CLASS'],
+      parameters: [
+        { name: 'value', type: 'String', vararg: true, default: undefined },
+      ],
+    },
+    {
+      name: 'ServiceRoute',
+      summary: 'A route.',
+      targets: ['FUNCTION'],
+      parameters: [{ name: 'path', type: 'String', default: undefined }],
+    },
+    {
+      name: 'RouteQuery',
+      summary: 'A query parameter of a route.',
+      targets: ['VALUE_PARAMETER'],
+      parameters: [{ name: 'name', type: 'String', default: '""' }],
+    },
+  ]);
+  const page = annotationsPage('en', [
+    { file: 'Alias.kt', annotation: annotations[0] },
+  ]);
+  assert.match(page, /- Parameters: `vararg value: String`/);
 });
 
 test('an annotation the guide explains links its page, in each locale', () => {
@@ -299,6 +371,20 @@ class Plain {
     @WowSpi
     val size: Int = 0
 }
+
+enum class Operator {
+    EQ,
+
+    /** Experimental with its filter. */
+    @WowSpi
+    EXPRESSION,
+    NE,
+}
+
+internal enum class Hidden {
+    @WowSpi
+    SECRET,
+}
 `;
   assert.deepEqual(markedDeclarations(source, 'WowSpi'), [
     { name: 'me.ahoo.wow.q.Backend', kind: 'interface' },
@@ -306,6 +392,7 @@ class Plain {
     { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
     { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
     { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Operator.EXPRESSION', kind: 'enum entry' },
   ]);
 });
 

@@ -50,6 +50,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.api.query.RunningFunction` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.windowFunction` | val | `wow-query-api` |
 | `me.ahoo.wow.api.query.ExpressionFilter` | class | `wow-query-api` |
+| `me.ahoo.wow.api.query.FilterOperator.EXPRESSION` | enum entry | `wow-query-api` |
 | `me.ahoo.wow.api.query.HavingExpression` | interface | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.AggregationQueryDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.DerivedExpressionDsl` | class | `wow-query-api` |
