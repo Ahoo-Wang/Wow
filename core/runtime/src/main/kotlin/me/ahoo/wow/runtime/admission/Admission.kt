@@ -18,6 +18,8 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
@@ -134,16 +136,81 @@ internal suspend fun CommandAuthorizer.authorize(
     authorize(request.caller, action) as? Authorization.Denied
 
 /**
- * Validates a decoded and transformed command body of [type][CommandType]: the violations it finds, none
- * when it is valid. Any violation refuses the command with [FrameworkCodes.COMMAND_INVALID], listing them all.
+ * Validates a command that is decoded and transformed and not yet decided ([CommandCandidate]): the violations it
+ * finds, none when it is valid. Any violation refuses the command with [FrameworkCodes.COMMAND_INVALID], listing them
+ * all. The gateway asks it of an admitted command, and so of a command from a peer, a saga's derived command, a
+ * command taken from a topic and a timer's.
  */
 fun interface CommandValidator {
-    fun validate(type: CommandType, body: Any): List<Violation>
+    fun validate(command: CommandCandidate): List<Violation>
 }
 
 /**
- * The violations every one of these validators finds in [body] of [type], together: the gateway's check of an admitted
- * command, which a saga's derived command and a command taken from a topic go through too.
+ * A command as a [CommandValidator] sees it: decoded and transformed, not yet decided. Fields may be added: construct
+ * it with [of]; the constructor is internal to Wow.
+ *
+ * - [body], of [type], sent to [ref], the target aggregate (its tenant and its id with it), in [scope].
+ * - [operator] is who the command records as acting, whatever it came through, and what its event stream records;
+ *   null for an anonymous caller's command.
+ * - [caller] is the request's caller, with its claims, when the command carries one: a command a request admitted,
+ *   here, on a peer or through a command topic; null for a saga's derived command, a timer's and an older writer's.
  */
-internal fun List<CommandValidator>.violationsOf(type: CommandType, body: Any): List<Violation> =
-    flatMap { it.validate(type, body) }
+class CommandCandidate @InternalWowApi constructor(
+    val type: CommandType,
+    val body: Any,
+    val ref: AggregateRef,
+    val scope: Scope,
+    val operator: Operator?,
+    val caller: Caller?,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandCandidate && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandCandidate(type=$type, body=$body, ref=$ref, scope=$scope, operator=$operator, caller=$caller)"
+
+    private fun valueFields(): List<Any?> = listOf(type, body, ref, scope, operator, caller)
+
+    /** This CommandCandidate with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        type: CommandType = this.type,
+        body: Any = this.body,
+        ref: AggregateRef = this.ref,
+        scope: Scope = this.scope,
+        operator: Operator? = this.operator,
+        caller: Caller? = this.caller,
+    ): CommandCandidate = CommandCandidate(type, body, ref, scope, operator, caller)
+
+    companion object {
+        /** A CommandCandidate of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(
+            type: CommandType,
+            body: Any,
+            ref: AggregateRef,
+            scope: Scope,
+            operator: Operator?,
+            caller: Caller?,
+        ): CommandCandidate = CommandCandidate(type, body, ref, scope, operator, caller)
+    }
+}
+
+/**
+ * The violations every one of these validators finds in the command [candidate] builds, together, the command built
+ * once and only when there is a validator: the gateway's check of an admitted command, which a command from a peer, a
+ * saga's derived command, a command taken from a topic and a timer's go through too.
+ */
+internal inline fun List<CommandValidator>.violationsOf(candidate: () -> CommandCandidate): List<Violation> {
+    if (isEmpty()) {
+        return emptyList()
+    }
+    val command = candidate()
+    return flatMap { it.validate(command) }
+}
+
+/** [command], of [type], as a validator sees it: its target, scope, operator and the caller it carries, if any. */
+internal fun candidateOf(type: CommandType, command: Command<*>): CommandCandidate =
+    CommandCandidate(type, command.body, command.ref, command.scope, command.operator, command.caller)

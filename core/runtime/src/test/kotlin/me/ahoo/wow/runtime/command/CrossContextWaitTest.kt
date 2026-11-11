@@ -372,7 +372,8 @@ class CrossContextWaitTest {
     fun `a command a saga derived that the other context's validators refuse should be rejected as invalid`(): Unit =
         runBlocking {
             // The stock node's admission validators, as Bean Validation's constraints would be: at most 5 a reservation.
-            val atMostFive = CommandValidator { _, body ->
+            val atMostFive = CommandValidator { command ->
+                val body = command.body
                 if (body is Reserve && body.quantity > MAX_RESERVED) {
                     listOf(Violation("quantity", "max", "must be at most $MAX_RESERVED"))
                 } else {

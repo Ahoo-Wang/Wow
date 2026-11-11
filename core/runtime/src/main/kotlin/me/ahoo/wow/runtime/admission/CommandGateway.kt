@@ -547,7 +547,12 @@ class CommandGateway @InternalWowApi constructor(
             }
         }
         // 6. Validation.
-        val violations = validators.violationsOf(command.type, command.body)
+        val operator = if (call != null) call.operator else origin.operator
+        // A call's command is derived: the access policies trust it, and it carries no caller.
+        val caller = if (call == null) actingCaller(request.caller, facts.ref, scope) else null
+        val violations = validators.violationsOf {
+            CommandCandidate(command.type, command.body, facts.ref, scope, operator, caller)
+        }
         if (violations.isNotEmpty()) {
             return facts.refuse(
                 FrameworkCodes.COMMAND_INVALID,
@@ -571,10 +576,9 @@ class CommandGateway @InternalWowApi constructor(
             scope = scope,
             headers = command.headers,
             causation = call?.causation,
-            operator = if (call != null) call.operator else origin.operator,
+            operator = operator,
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
-            // A call's command is derived: the access policies trust it, and it carries no caller.
-            caller = if (call == null) actingCaller(request.caller, facts.ref, scope) else null,
+            caller = caller,
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
     }

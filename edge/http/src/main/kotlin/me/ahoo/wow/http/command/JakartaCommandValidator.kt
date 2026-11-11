@@ -18,7 +18,7 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
-import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.runtime.admission.CommandCandidate
 import me.ahoo.wow.runtime.admission.CommandValidator
 
 /**
@@ -33,8 +33,8 @@ import me.ahoo.wow.runtime.admission.CommandValidator
  */
 @InternalWowApi
 class JakartaCommandValidator(private val validator: Validator) : CommandValidator {
-    override fun validate(type: CommandType, body: Any): List<Violation> =
-        validator.validate(body).map(::violationOf).sortedWith(compareBy({ it.path }, { it.code }))
+    override fun validate(command: CommandCandidate): List<Violation> =
+        validator.validate(command.body).map(::violationOf).sortedWith(compareBy({ it.path }, { it.code }))
 
     /**
      * The Jakarta contract gives every violation a path, a descriptor with its annotation, and a message; its code is the
