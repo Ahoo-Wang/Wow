@@ -2178,6 +2178,45 @@
       "aliases": []
     },
     {
+      "path": "state.skipOnly",
+      "types": [
+        "boolean"
+      ],
+      "kind": "scalar",
+      "nullable": false,
+      "project": true,
+      "filter": {
+        "operators": [
+          "eq",
+          "ne",
+          "in",
+          "not-in",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": false,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "aliases": []
+    },
+    {
       "path": "state.status",
       "types": [
         "string"

@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionManifest
@@ -21,7 +22,6 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner

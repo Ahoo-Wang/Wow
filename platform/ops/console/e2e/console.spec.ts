@@ -81,7 +81,8 @@ test.beforeAll(async ({ request }) => {
     "pay-3",
     "unrecoverable",
     2,
-    "wow.subscription.unrecoverable: offset 7 is no longer retained",
+    "Partition 0 of payments no longer retains offset 7; it starts at 9.",
+    true,
   );
   for (const entry of [exhausted, scheduled, unrecoverable])
     await listed(request, entry);
@@ -144,7 +145,7 @@ test("the overview counts the entries and clusters them by what failed", async (
   await expect(
     clusters
       .getByRole("row")
-      .filter({ hasText: "wow.subscription.unrecoverable" }),
+      .filter({ hasText: "skip-only" }),
   ).toContainText("1");
   for (const panel of [
     "Parked over time, by status",

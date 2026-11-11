@@ -16,6 +16,8 @@ package me.ahoo.wow.spi.ledger
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -61,19 +63,19 @@ import kotlin.time.Duration.Companion.minutes
 interface FailureLedger {
     /**
      * Parks [entry]'s aggregate for its subscription. When the aggregate is already parked, the entry with the
-     * earlier from version is kept (on a tie, the one already there), its partition and from position with it; an
-     * entry replaced this way keeps its retry state, takes the next revision and is no longer scheduled; a new one
-     * takes [entry]'s retry state, at revision 0.
+     * earlier from version is kept (on a tie, the one already there), its partition, from position and
+     * [ParkedAggregate.skipOnly] with it; an entry replaced this way keeps its retry state, takes the next revision
+     * and is no longer scheduled; a new one takes [entry]'s retry state, at revision 0.
      *
      * @return true when the ledger changed: the aggregate was not parked, or is now parked from an earlier version.
      */
     suspend fun park(entry: ParkedAggregate): Boolean
 
     /**
-     * Replaces where the entry parking [entry]'s aggregate stands (its partition, from version and position), why
-     * (its reason) and when (its failure time) with [entry]'s, while the aggregate is parked in partition [from]; it
-     * never parks one that is not. It keeps the entry's retry state, gives it the next revision and clears its
-     * schedule. Its callers:
+     * Replaces where the entry parking [entry]'s aggregate stands (its partition, from version and position, and
+     * [ParkedAggregate.skipOnly]), why (its reason) and when (its failure time) with [entry]'s, while the aggregate is
+     * parked in partition [from]; it never parks one that is not. It keeps the entry's retry state, gives it the next
+     * revision and clears its schedule. Its callers:
      *
      * - **The worker that retried the aggregate**, in the partition it read the entry in ([from], the entry's own
      *   partition by default): a retry that handled the aggregate's streams up to a version and failed again there
@@ -160,6 +162,11 @@ interface FailureLedger {
      * both read it (an owner handing its partition off and the next one) only one claims or takes it, and nothing
      * written since the read is covered.
      *
+     * A ledger names the amendments it has a statement of its own for and applies every other one by its generic path,
+     * [amendByRevision]: it reads the entry, applies the amendment ([amended]) and writes the result conditioned on
+     * the revision it read. Its `when` over [ParkedAmendment] ends in `else`, so an amendment a later version adds
+     * reaches a ledger built before it, and is applied as the reference semantics say.
+     *
      * @return the amended entry; null when the aggregate is not parked or the amendment's condition does not hold.
      */
     suspend fun amend(subscription: SubscriptionId, ref: AggregateRef, amendment: ParkedAmendment): ParkedAggregate?
@@ -180,8 +187,10 @@ interface FailureLedger {
  * which reads an aggregate's streams by version. A topic of commands or receipts (–) commits
  * nothing, so its subscription parks at [fromVersion] 1 and goes by [fromPosition] alone.
  *
- * An entry whose source no longer retains [fromPosition] cannot be retried, only skipped: the runtime marks it
- * [unrecoverable] by its [reason], which then starts with [UNRECOVERABLE].
+ * [skipOnly] is set when the source no longer holds what the entry is parked from: its [fromPosition] is not retained
+ * any more, or the aggregate's records are now in another partition. Such an entry is never retried, automatically or
+ * by an operator, whatever it is marked ([recoverable]): it can only be skipped. [reason] is then the text that says
+ * why, nothing more.
  *
  * Its long-horizon retry state: the owner of the aggregate's partition retries the entry automatically
  * by a [ParkedRetrySpec] ([retrySpec] when an operator applied one, else the subscription's), [retries] times so far,
@@ -208,6 +217,7 @@ class ParkedAggregate @InternalWowApi constructor(
     val reason: String,
     val failedAt: Long,
     val fromPosition: Long? = null,
+    val skipOnly: Boolean = false,
     val retries: Int = 0,
     val retryAt: Long? = null,
     val retrySpec: ParkedRetrySpec? = null,
@@ -224,18 +234,15 @@ class ParkedAggregate @InternalWowApi constructor(
         require(revision >= 0) { "A ledger revision is never negative." }
     }
 
-    /** Whether the source no longer retains [fromPosition]: the entry can only be skipped. */
-    val unrecoverable: Boolean get() = reason.startsWith(UNRECOVERABLE)
-
     /** Whether [spec]'s retries are spent: the entry is not retried automatically any more (9.x: not retryable). */
     fun exhausted(spec: ParkedRetrySpec): Boolean = retries >= spec.maxRetries
 
     /**
-     * Whether the entry is retried automatically under [spec]: its source still holds it, no operator marked it
+     * Whether the entry is retried automatically under [spec]: it is not [skipOnly], no operator marked it
      * unrecoverable, and [spec]'s retries are not spent.
      */
     fun retryable(spec: ParkedRetrySpec): Boolean =
-        !unrecoverable && recoverable != Recoverable.UNRECOVERABLE && !exhausted(spec)
+        !skipOnly && recoverable != Recoverable.UNRECOVERABLE && !exhausted(spec)
 
     /**
      * When the next automatic retry under [spec] is due (epoch milliseconds), as 9.x computes it: [spec]'s minimum
@@ -262,6 +269,7 @@ class ParkedAggregate @InternalWowApi constructor(
         reason: String = this.reason,
         failedAt: Long = this.failedAt,
         fromPosition: Long? = this.fromPosition,
+        skipOnly: Boolean = this.skipOnly,
         retries: Int = this.retries,
         retryAt: Long? = this.retryAt,
         retrySpec: ParkedRetrySpec? = this.retrySpec,
@@ -278,6 +286,7 @@ class ParkedAggregate @InternalWowApi constructor(
             reason,
             failedAt,
             fromPosition,
+            skipOnly,
             retries,
             retryAt,
             retrySpec,
@@ -294,9 +303,9 @@ class ParkedAggregate @InternalWowApi constructor(
 
     override fun toString(): String =
         "ParkedAggregate(subscription=$subscription, ref=$ref, partition=$partition, fromVersion=$fromVersion, " +
-            "reason=$reason, failedAt=$failedAt, fromPosition=$fromPosition, retries=$retries, retryAt=$retryAt, " +
-            "retrySpec=$retrySpec, recoverable=$recoverable, request=$request, nextAttemptAt=$nextAttemptAt, " +
-            "revision=$revision)"
+            "reason=$reason, failedAt=$failedAt, fromPosition=$fromPosition, skipOnly=$skipOnly, retries=$retries, " +
+            "retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, request=$request, " +
+            "nextAttemptAt=$nextAttemptAt, revision=$revision)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
@@ -306,6 +315,7 @@ class ParkedAggregate @InternalWowApi constructor(
         reason,
         failedAt,
         fromPosition,
+        skipOnly,
         retries,
         retryAt,
         retrySpec,
@@ -316,9 +326,6 @@ class ParkedAggregate @InternalWowApi constructor(
     )
 
     companion object {
-        /** The start of the [reason] of an entry that can no longer be retried, only skipped. */
-        const val UNRECOVERABLE: String = "wow.subscription.unrecoverable"
-
         /** The [nextAttemptAt] of an entry that is not retried automatically: never due until it changes. */
         const val NEVER: Long = Long.MAX_VALUE
 
@@ -339,6 +346,7 @@ class ParkedAggregate @InternalWowApi constructor(
             reason: String,
             failedAt: Long,
             fromPosition: Long? = null,
+            skipOnly: Boolean = false,
             retries: Int = 0,
             retryAt: Long? = null,
             retrySpec: ParkedRetrySpec? = null,
@@ -355,6 +363,7 @@ class ParkedAggregate @InternalWowApi constructor(
                 reason,
                 failedAt,
                 fromPosition,
+                skipOnly,
                 retries,
                 retryAt,
                 retrySpec,
@@ -434,30 +443,6 @@ class ParkedRetrySpec @InternalWowApi constructor(
     }
 }
 
-/** What an operator marked a parked entry (9.x `RecoverableType`); only [UNRECOVERABLE] stops its automatic retries. */
-enum class Recoverable {
-    /** Nobody said: retried automatically. */
-    UNKNOWN,
-
-    /** Retried automatically. */
-    RECOVERABLE,
-
-    /** Not retried automatically; an operator can still retry or skip it. */
-    UNRECOVERABLE,
-}
-
-/**
- * An operator's request on a parked entry, left in the ledger by a node that does not own the entry's partition:
- * the owner takes it ([ParkedAmendment.TakeRequest]) and runs it.
- */
-enum class LedgerRequest {
-    /** Handle the aggregate again from where it is parked. */
-    RETRY,
-
-    /** Resolve the entry without handling what was parked. */
-    SKIP,
-}
-
 /**
  * This entry with [amendment] applied at the next revision, or null when the amendment names a revision read that the
  * entry is no longer at: the reference semantics of [FailureLedger.amend], for a backend that changes the entry in
@@ -499,9 +484,35 @@ fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
 }
 
 /**
- * This entry where [entry] parks the aggregate (its partition, from version and position) and why (its reason and
- * failure time), with this entry's retry state, at the next revision and no longer scheduled: the reference semantics
- * of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
+ * [FailureLedger.amend]'s generic path, for an amendment a ledger has no statement of its own for: reads the entry
+ * ([read]), applies [amendment] to it ([amended]) and stores the result ([replace]) only while the stored entry is
+ * still at the revision read. A write that finds another revision lost to a writer that changed the entry since the
+ * read: the entry is read again and the amendment applied to what that writer left, so no write is lost, and the loop
+ * ends, each turn it takes being another writer's progress.
+ *
+ * [replace] stores the amended entry while the stored one is at the revision it is given, and says whether it did.
+ *
+ * @return the amended entry; null when the aggregate is not parked, or the amendment names a revision read that the
+ * entry is no longer at.
+ */
+suspend fun amendByRevision(
+    amendment: ParkedAmendment,
+    read: suspend () -> ParkedAggregate?,
+    replace: suspend (amended: ParkedAggregate, revision: Long) -> Boolean,
+): ParkedAggregate? {
+    while (true) {
+        val entry = read() ?: return null
+        val amended = entry.amended(amendment) ?: return null
+        if (replace(amended, entry.revision)) {
+            return amended
+        }
+    }
+}
+
+/**
+ * This entry where [entry] parks the aggregate (its partition, from version and position, and whether it can only be
+ * skipped) and why (its reason and failure time), with this entry's retry state, at the next revision and no longer
+ * scheduled: the reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
  */
 fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith(
     partition = entry.partition,
@@ -509,6 +520,7 @@ fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith
     reason = entry.reason,
     failedAt = entry.failedAt,
     fromPosition = entry.fromPosition,
+    skipOnly = entry.skipOnly,
     nextAttemptAt = null,
     revision = revision + 1,
 )

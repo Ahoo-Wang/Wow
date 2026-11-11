@@ -35,6 +35,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
             reason text NOT NULL,
             failed_at bigint NOT NULL,
             from_position bigint,
+            skip_only boolean NOT NULL DEFAULT false,
             $RETRY_COLUMNS,
             PRIMARY KEY ($KEY)
         )
@@ -58,22 +59,22 @@ internal class PostgresFailureLedgerTables(val name: String) {
      * concurrent parks keep the earliest. Returns a row only when the ledger changed.
      */
     val park = """
-        INSERT INTO $table AS parked ($KEY, partition, from_version, reason, failed_at, from_position, $RETRY_STATE)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO $table AS parked ($KEY, $PLACE, $RETRY_STATE)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET partition = excluded.partition, from_version = excluded.from_version, reason = excluded.reason,
-            failed_at = excluded.failed_at, from_position = excluded.from_position, $UNSCHEDULED,
-            revision = parked.revision + 1
+            failed_at = excluded.failed_at, from_position = excluded.from_position, skip_only = excluded.skip_only,
+            $UNSCHEDULED, revision = parked.revision + 1
         WHERE excluded.from_version < parked.from_version
         RETURNING from_version
     """.trimIndent()
 
     /**
-     * Replaces the parked entry's partition, from version, reason, time and position, only while it is parked in the
-     * partition given last, at the next revision and unscheduled.
+     * Replaces the parked entry's partition, from version, reason, time, position and whether it can only be skipped,
+     * only while it is parked in the partition given last, at the next revision and unscheduled.
      */
-    val repark = "UPDATE $table SET partition = ?, from_version = ?, reason = ?, failed_at = ?, from_position = ?, " +
-        "$UNSCHEDULED, $NEXT_REVISION WHERE $MATCH AND partition = ?"
+    val repark = "UPDATE $table SET ($PLACE) = (?, ?, ?, ?, ?, ?), $UNSCHEDULED, $NEXT_REVISION " +
+        "WHERE $MATCH AND partition = ?"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
@@ -111,12 +112,6 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
 
-    val applyRetrySpec = """
-        UPDATE $table SET retry_max_retries = ?, retry_initial_backoff_millis = ?, retry_claim_ttl_millis = ?,
-            $UNSCHEDULED, $NEXT_REVISION
-        WHERE $MATCH RETURNING *
-    """.trimIndent()
-
     val request = "UPDATE $table SET request = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
 
     /** Schedules the next attempt: the time, then the key, then the revision read. */
@@ -132,6 +127,13 @@ internal class PostgresFailureLedgerTables(val name: String) {
         WHERE $MATCH AND revision = ? RETURNING *
     """.trimIndent()
 
+    /**
+     * Replaces the whole entry while it is at the revision read, an amendment's generic path: where it is parked and
+     * why, its retry state and its revision, then the key, then the revision read.
+     */
+    val replace = "UPDATE $table SET ($PLACE, $RETRY_STATE, revision) = " +
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE $MATCH AND revision = ?"
+
     /** Takes a request: the key, then the revision read. */
     val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
 
@@ -140,7 +142,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
          * The layout version of the table: an entry is keyed by service and by its subscription's context and name
          * (`subscription_context`, `subscription`), in the key and both indexes; it holds its partition, its next
          * attempt and its revision; an applied spec's claim TTL is `retry_claim_ttl_millis`, an operator's request to
-         * retry `RETRY`.
+         * retry `RETRY`; `skip_only` is whether the source no longer holds what the entry is parked from.
          */
         const val FORMAT = 1
 
@@ -161,6 +163,9 @@ internal class PostgresFailureLedgerTables(val name: String) {
             next_attempt_at bigint,
             revision bigint NOT NULL DEFAULT 0
         """.trimIndent()
+
+        /** Where an entry is parked and why: its partition, from version, reason, time, position, and `skip_only`. */
+        private const val PLACE = "partition, from_version, reason, failed_at, from_position, skip_only"
         private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
             "retry_claim_ttl_millis, recoverable, request, next_attempt_at"
         private const val DUE = "partition = ANY (?) AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"

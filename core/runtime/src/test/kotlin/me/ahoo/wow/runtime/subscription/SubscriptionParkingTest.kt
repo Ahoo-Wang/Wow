@@ -366,8 +366,9 @@ class SubscriptionParkingTest {
             val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
             val rehomed = parked.copyWith(
                 partition = (parked.partition + 1) % all.size,
-                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                reason = "the topic gained partitions",
                 fromPosition = null,
+                skipOnly = true,
             )
             ledger.repark(rehomed, from = parked.partition).assert().isTrue()
             runtime.skip("parking", cart("x")).assert().isFalse()
@@ -409,8 +410,9 @@ class SubscriptionParkingTest {
             val elsewhere = (parked.partition + 1) % all.size
             val rehomed = parked.copyWith(
                 partition = elsewhere,
-                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                reason = "the topic gained partitions",
                 fromPosition = null,
+                skipOnly = true,
             )
             ledger.repark(rehomed, from = parked.partition).assert().isTrue()
             rehomed

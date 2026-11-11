@@ -33,7 +33,8 @@ class LedgerCommandsJavaTest {
         assertThat(retry).isEqualTo(RetryParked.of("OrderSaga.onPlaced", ref));
         assertThat(retry.toRef()).isEqualTo(ref);
         assertThat(SkipParked.of("s", ref, 1L).getAggregate()).isEqualTo("order");
-        assertThat(MarkParkedRecoverable.of("s", ref, "RECOVERABLE").getRecoverable()).isEqualTo("RECOVERABLE");
+        assertThat(MarkParkedRecoverable.of("s", ref, Recoverable.RECOVERABLE).getRecoverable())
+            .isEqualTo(Recoverable.RECOVERABLE);
         assertThat(ApplyParkedRetrySpec.of("s", ref).getInitialBackoff()).isNull();
         assertThat(ApplyParkedRetrySpec.of("s", ref, 3).getMaxRetries()).isEqualTo(3);
     }

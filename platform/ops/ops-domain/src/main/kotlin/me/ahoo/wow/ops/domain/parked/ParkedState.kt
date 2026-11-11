@@ -50,13 +50,17 @@ class ParkedState {
         private set
     var fromPosition: Long? = null
         private set
+
+    /** Whether the source no longer holds what the entry is parked from: it is never retried, only skipped. */
+    var skipOnly: Boolean = false
+        private set
     var reason: String = ""
         private set
 
     /**
      * The type of the failure [reason] records: what it names before its first `": "`, the exception's class as the
-     * runtime parks an aggregate with it (`<class>: <message>`), or `wow.subscription.unrecoverable` for an entry its
-     * source no longer holds; the whole reason when it names none.
+     * runtime parks an aggregate with it (`<class>: <message>`), the whole reason when it names none; [SKIP_ONLY] for
+     * an entry that is [skipOnly], whose reason says why its source no longer holds it and names no failure.
      */
     var errorType: String = ""
         private set
@@ -116,15 +120,15 @@ class ParkedState {
 
     /** Whether [record] says what this state holds already, whenever it was published. */
     fun holds(record: ParkedEntry): Boolean = !resolved && heldFields(record) == listOf(
-        service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
-        retrySpec, recoverable, request, status, nextRetryAt,
+        service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
+        retryAt, retrySpec, recoverable, request, status, nextRetryAt,
     )
 
     /** The fields of [record] this state keeps, in the order [holds] compares them; it never builds an entry. */
     private fun heldFields(record: ParkedEntry): List<Any?> = with(record) {
         listOf(
-            service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
-            retrySpec, recoverable, request, status, nextRetryAt,
+            service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
+            retryAt, retrySpec, recoverable, request, status, nextRetryAt,
         )
     }
 
@@ -136,8 +140,9 @@ class ParkedState {
         aggregate = entry.aggregate
         fromVersion = entry.fromVersion
         fromPosition = entry.fromPosition
+        skipOnly = entry.skipOnly
         reason = entry.reason
-        errorType = errorTypeOf(entry.reason)
+        errorType = if (entry.skipOnly) SKIP_ONLY else errorTypeOf(entry.reason)
         failedAt = entry.failedAt
         retries = entry.retries
         retryAt = entry.retryAt
@@ -199,6 +204,9 @@ class ParkedState {
     companion object {
         /** The type of the failure [reason] records; see [errorType]. */
         fun errorTypeOf(reason: String): String = reason.substringBefore(": ").trim()
+
+        /** The [errorType] of an entry that is [skipOnly]. */
+        const val SKIP_ONLY: String = "skip-only"
 
         const val RETRY: String = "retry"
         const val SKIP: String = "skip"

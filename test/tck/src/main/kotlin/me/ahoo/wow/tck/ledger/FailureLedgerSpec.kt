@@ -21,12 +21,13 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -82,10 +83,11 @@ abstract class FailureLedgerSpec {
             val earlier = entry(ref("a"), 2).copyWith(fromPosition = Long.MAX_VALUE)
             ledger.park(earlier).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier.at(1))
-            val unrecoverable = earlier.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: gone", fromPosition = 0)
-            ledger.repark(unrecoverable).assert().isTrue()
-            ledger.parked(subscription, ref("a")).assert().isEqualTo(unrecoverable.at(2))
-            ledger.parked(subscription, ref("a"))!!.unrecoverable.assert().isTrue()
+            val skipOnly = earlier.copyWith(reason = "gone", fromPosition = 0, skipOnly = true)
+            ledger.repark(skipOnly).assert().isTrue()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(skipOnly.at(2))
+            ledger.parked(subscription, ref("a"))!!.skipOnly.assert().isTrue()
+            // A repark writes skipOnly as it writes the position: back to false here.
             val withoutPosition = earlier.copyWith(fromPosition = null)
             ledger.repark(withoutPosition).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
@@ -141,8 +143,8 @@ abstract class FailureLedgerSpec {
     fun `a repark or a worker's resolve from the partition an entry left writes nothing`(): Unit = runBlocking {
         // #5481: the old owner's retry ends after the new owner re-homed the entry.
         ledger.park(entry(ref("a"), 3, partition = 0))
-        val rehomed = entry(ref("a"), 3, reason = "${ParkedAggregate.UNRECOVERABLE}: moved", partition = 1)
-            .copyWith(fromPosition = null)
+        val rehomed = entry(ref("a"), 3, reason = "moved", partition = 1)
+            .copyWith(fromPosition = null, skipOnly = true)
         ledger.repark(rehomed, from = 0).assert().isTrue()
         // Read in partition 0 before the move: neither its repark nor its resolve applies.
         ledger.repark(entry(ref("a"), 5, reason = "failed again", partition = 0)).assert().isFalse()
@@ -150,7 +152,7 @@ abstract class FailureLedgerSpec {
         ledger.resolve(subscription, ref("a"), 0).assert().isNull()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(rehomed.copyWith(revision = 1))
         // In the partition it is parked in now, both apply; an operator's resolve applies wherever it is.
-        ledger.repark(rehomed.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: still moved")).assert().isTrue()
+        ledger.repark(rehomed.copyWith(reason = "still moved")).assert().isTrue()
         ledger.resolve(subscription, ref("a"), 1)!!.partition.assert().isEqualTo(1)
         ledger.park(entry(ref("b"), 1, partition = 4))
         ledger.resolve(subscription, ref("b"), 5).assert().isNull()
@@ -462,6 +464,31 @@ abstract class FailureLedgerSpec {
         val revision = 3L + Recoverable.entries.size
         ledger.parked(subscription, ref("a")).assert()
             .isEqualTo(entry(ref("a"), 1).copyWith(recoverable = Recoverable.UNRECOVERABLE, revision = revision))
+    }
+
+    @Test
+    fun `an entry that can only be skipped is parked so and stays so through every amendment`(): Unit = runBlocking {
+        var expected = entry(ref("a"), 1).copyWith(skipOnly = true)
+        ledger.park(expected)
+        (operatorAmendments() + ParkedAmendment.ClaimRetry(operatorAmendments().size.toLong(), FAILED_AT)).forEach {
+            expected = checkNotNull(expected.amended(it))
+            ledger.amend(subscription, ref("a"), it).assert().isEqualTo(expected)
+        }
+        ledger.parked(subscription, ref("a"))!!.skipOnly.assert().isTrue()
+    }
+
+    @Test
+    fun `concurrent retry specs all land, a revision each, the one applied last stored`(): Unit = runBlocking {
+        // Applied by the generic path (FailureLedger.amend): a write that lost to another reads the entry again.
+        ledger.park(entry(ref("a"), 1))
+        val applied = coroutineScope {
+            (1..CONCURRENT_PARKS).map { retries ->
+                val spec = ParkedAmendment.ApplyRetrySpec(SPEC.copyWith(maxRetries = retries))
+                async(Dispatchers.Default) { ledger.amend(subscription, ref("a"), spec) }
+            }.awaitAll()
+        }.map { checkNotNull(it) }
+        applied.map { it.revision }.assert().containsExactlyInAnyOrderElementsOf(1L..CONCURRENT_PARKS)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(applied.maxBy { it.revision })
     }
 
     @Test

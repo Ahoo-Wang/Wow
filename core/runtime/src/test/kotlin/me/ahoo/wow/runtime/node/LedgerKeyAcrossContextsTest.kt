@@ -323,7 +323,7 @@ class LedgerKeyAcrossContextsTest {
             val parked = ledger.parked(SALES_BOARD, ref)!!
             parked.partition.assert().isEqualTo(Partitioner.partitionOf(ref, LOG_PARTITIONS))
             parked.reason.assert().isEqualTo(reason)
-            parked.unrecoverable.assert().isFalse()
+            parked.skipOnly.assert().isFalse()
             node.parked.retry(SALES_BOARD, ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
             salesSeen.assert().containsExactly(ref.id to 1)
         }

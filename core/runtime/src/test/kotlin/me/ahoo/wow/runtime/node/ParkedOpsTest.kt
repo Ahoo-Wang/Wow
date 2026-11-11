@@ -17,6 +17,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -29,10 +31,8 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicBoolean
@@ -116,7 +116,7 @@ class ParkedOpsTest {
         ops.applyRetrySpec(ID, cart("x1"), null)!!.spec.assert().isEqualTo(spec)
         ops.markRecoverable(ID, cart("absent"), Recoverable.RECOVERABLE).assert().isNull()
         ops.applyRetrySpec(ID, cart("absent"), none).assert().isNull()
-        ledger.park(ParkedAggregate(ID, cart("gone"), 0, 1, "${ParkedAggregate.UNRECOVERABLE}: gone", 0))
+        ledger.park(ParkedAggregate(ID, cart("gone"), 0, 1, "gone", 0, skipOnly = true))
         ops.get(ID, cart("gone"))!!.status.assert().isEqualTo(ParkedView.Status.UNRECOVERABLE)
     }
 

@@ -94,7 +94,7 @@ class ParkedAtStartTest {
             start.parkedIn(subscription, listOf(1)).assert().isEqualTo(mapOf(1 to mapOf(moved to 3L)))
             val rehomed = ledger.parked(SubscriptionId(ORDER.context, NAME), moved)!!
             rehomed.partition.assert().isEqualTo(1)
-            rehomed.unrecoverable.assert().isTrue()
+            rehomed.skipOnly.assert().isTrue()
             rehomed.reason.assert().contains("partition 0 from offset 7", "partition 1")
             rehomed.fromPosition.assert().isNull()
             // Started again in this run: the entry is in its partition's due listing now; the ledger is not listed again.

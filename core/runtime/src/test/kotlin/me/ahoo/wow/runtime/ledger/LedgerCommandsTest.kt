@@ -22,7 +22,11 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -42,15 +46,12 @@ import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerEntry
-import me.ahoo.wow.spi.ledger.LedgerRequest
-import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.hours
@@ -217,11 +218,15 @@ class LedgerCommandsTest {
     @Test
     fun `an entry is marked and given a spec, each published as it now stands`(): Unit = runBlocking {
         parkAll("x1", start = false)
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "unrecoverable"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNRECOVERABLE))).assert().isNull()
         lastRecord()["status"].asString().assert().isEqualTo("unrecoverable")
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "maybe")))!!.code.assert()
+        // A mark of no known spelling is refused, never read as `unknown` as an older reader reads a newer value.
+        val maybe = ClusterCodec.mapper.valueToTree<ObjectNode>(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNKNOWN))
+            .put("recoverable", "maybe")
+        commands.execute(wire(Ledger.MARK_RECOVERABLE, maybe, X1))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
+        ledger.parked(SubscriptionId("shop", NAME), X1)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.RECOVERABLE))).assert().isNull()
         ledger.parked(
             SubscriptionId("shop", NAME),
             cart("x1")
@@ -241,7 +246,7 @@ class LedgerCommandsTest {
 
         val absent = cart("absent")
         sent.clear()
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, absent, "recoverable"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, absent, Recoverable.RECOVERABLE))).assert().isNull()
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, absent, maxRetries = 1))).assert().isNull()
         sent.map { it.record["outcome"].asString() }.assert().containsExactly(
             LedgerResolution.NOT_PARKED,
@@ -294,7 +299,7 @@ class LedgerCommandsTest {
     fun `a node that does not publish its ledger still runs the commands`(): Unit = runBlocking {
         parkAll("x1", "x2", start = false)
         val quiet = LedgerCommands(ops)
-        quiet.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
+        quiet.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.RECOVERABLE))).assert().isNull()
         quiet.execute(wire(skipOf(X1))).assert().isNull()
         ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         sent.assert().isEmpty()

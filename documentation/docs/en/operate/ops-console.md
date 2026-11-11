@@ -36,7 +36,7 @@ Each entry in the ops service is one parked aggregate of one subscription, with 
 | --- | --- |
 | `scheduled` | Parked; the owning service will retry it automatically, with backoff. |
 | `exhausted` | Its automatic retries are spent; it waits for an operator. |
-| `unrecoverable` | Marked as not worth retrying automatically, or its source no longer holds what it is parked at, so it can only be skipped. |
+| `unrecoverable` | Marked as not worth retrying automatically, or skip-only (`skipOnly`): its source no longer holds what it is parked at, so it is never retried, only skipped, whatever it is marked. A skip-only entry's error type is `skip-only`. |
 | `resolved` | No longer parked: retried successfully, or skipped. Only the ops service shows it; the owning service has no entry left. Its `failedAt` is the latest parking resolved, which may be one whose record never reached the ops service; a record of that parking or an earlier one arriving late does not reopen it, a later parking does. |
 
 ## Deploy it

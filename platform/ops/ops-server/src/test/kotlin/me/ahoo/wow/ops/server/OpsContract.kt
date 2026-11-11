@@ -21,6 +21,7 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -216,7 +217,7 @@ abstract class OpsContract {
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
         WowJson.mapper.treeToValue(sent.getValue(Ledger.MARK_RECOVERABLE).body, MarkParkedRecoverable::class.java)
-            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), "unrecoverable"))
+            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), Recoverable.UNRECOVERABLE))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
             .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)

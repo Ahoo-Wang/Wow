@@ -22,6 +22,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
@@ -116,8 +117,8 @@ class PlainValuesTest {
         valueSemantics({ RetryParked.of("Saga.on", parked) }, RetryParked.of("Saga.other", parked))
         valueSemantics({ SkipParked.of("Saga.on", parked, 1) }, SkipParked.of("Saga.other", parked, 1))
         valueSemantics(
-            { MarkParkedRecoverable.of("Saga.on", parked, "recoverable") },
-            MarkParkedRecoverable.of("Saga.on", parked, "unrecoverable"),
+            { MarkParkedRecoverable.of("Saga.on", parked, Recoverable.RECOVERABLE) },
+            MarkParkedRecoverable.of("Saga.on", parked, Recoverable.UNRECOVERABLE),
         )
         valueSemantics(
             { ApplyParkedRetrySpec.of("Saga.on", parked) },

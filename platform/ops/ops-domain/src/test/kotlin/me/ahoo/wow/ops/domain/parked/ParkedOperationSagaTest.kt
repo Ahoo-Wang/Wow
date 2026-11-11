@@ -16,6 +16,7 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -74,7 +75,11 @@ class ParkedOperationSagaTest {
         recorded()
         whenEvent(MarkRecoverableRequested("recoverable"), by = MarkRecoverable::class) {
             expectCommand(
-                MarkParkedRecoverable.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), "recoverable"),
+                MarkParkedRecoverable.of(
+                    ParkedSpec.SUBSCRIPTION,
+                    ParkedSpec.AGGREGATE.toRef(),
+                    Recoverable.RECOVERABLE,
+                ),
                 to = target
             )
         }

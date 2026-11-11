@@ -17,9 +17,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.subscription.eventually
-import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -189,7 +190,7 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             val parked = ledger.parked(BOARD_ID, order(parkedId))!!
             parked.fromVersion.assert().isEqualTo(2)
             parked.fromPosition.assert().isEqualTo(offsetOf(parkedId, 2))
-            parked.unrecoverable.assert().isFalse()
+            parked.skipOnly.assert().isFalse()
             // The other aggregate of the partition goes on; the parked one's later records wait.
             eventually { handled.versionsOf(otherId) == listOf(1) }
             handled.versionsOf(parkedId).assert().containsExactly(1)
@@ -230,12 +231,16 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             failing = null
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.unrecoverable.assert().isTrue()
-            parked.reason.assert().startsWith(ParkedAggregate.UNRECOVERABLE)
+            parked.skipOnly.assert().isTrue()
+            // The reason is the text alone: the field says it can only be skipped.
+            parked.reason.assert().startsWith("Partition ").contains("no longer retains offset $position")
             parked.fromVersion.assert().isEqualTo(2)
             parked.fromPosition.assert().isEqualTo(position)
-            // Marked once: a retry no longer tries.
+            // Marked once: a retry no longer tries, whatever an operator marks the entry; the entry stays as it is.
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
+            val marked = ledger.amend(BOARD_ID, order("o-1"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
+            ledger.parked(BOARD_ID, order("o-1")).assert().isEqualTo(marked)
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
             topics.publish(orderRecord("o-1", 4))

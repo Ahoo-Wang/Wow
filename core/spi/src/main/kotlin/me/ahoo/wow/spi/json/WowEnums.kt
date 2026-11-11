@@ -15,6 +15,8 @@ package me.ahoo.wow.spi.json
 
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -39,8 +41,6 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.wire.WireNames
-import me.ahoo.wow.spi.ledger.LedgerRequest
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.transport.EnvelopeKind
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser

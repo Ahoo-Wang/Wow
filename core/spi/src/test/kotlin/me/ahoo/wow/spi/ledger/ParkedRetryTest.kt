@@ -16,6 +16,8 @@ package me.ahoo.wow.spi.ledger
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
@@ -94,7 +96,9 @@ class ParkedRetryTest {
         spent.nextRetryAt(spec).assert().isNull()
         entry.copyWith(recoverable = Recoverable.UNRECOVERABLE).nextRetryAt(spec).assert().isNull()
         entry.copyWith(recoverable = Recoverable.RECOVERABLE).nextRetryAt(spec).assert().isNotNull()
-        entry.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: gone").retryable(spec).assert().isFalse()
+        entry.copyWith(skipOnly = true).retryable(spec).assert().isFalse()
+        // An operator's mark does not make an entry its source no longer holds retryable.
+        entry.copyWith(skipOnly = true, recoverable = Recoverable.RECOVERABLE).nextRetryAt(spec).assert().isNull()
         entry.nextRetryAt(spec.copyWith(maxRetries = 0)).assert().isNull()
     }
 

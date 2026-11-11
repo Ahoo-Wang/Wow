@@ -21,10 +21,12 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
@@ -66,8 +68,17 @@ class ParkedOperationSaga {
                 id,
                 requested.failedAt ?: state.failedAt
             )
-            is MarkRecoverableRequested ->
-                MarkParkedRecoverable.of(subscription, owner, name, tenantId, id, requested.recoverable)
+            // Its value was checked when the operator asked ([Parked]): one of the mark's wire names.
+            is MarkRecoverableRequested -> MarkParkedRecoverable.of(
+                subscription,
+                owner,
+                name,
+                tenantId,
+                id,
+                checkNotNull(WireNames.entryOf<Recoverable>(requested.recoverable)) {
+                    "Not a recoverable: '${requested.recoverable}'."
+                },
+            )
             is ApplyRetrySpecRequested -> ApplyParkedRetrySpec.of(
                 subscription,
                 owner,
