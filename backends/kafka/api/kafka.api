@@ -21,9 +21,8 @@ public final class me/ahoo/wow/kafka/KafkaOptions$Companion {
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/PartitionedSource {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaPartitionedSource$Companion;
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
 	public final fun getOffsetGaps ()J
@@ -43,8 +42,8 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicAdmin {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaTopicAdmin$Companion;
 	public static final field MIN_INSYNC_REPLICAS Ljava/lang/String;
-	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun create (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun durability (Ljava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -59,8 +58,8 @@ public final class me/ahoo/wow/kafka/KafkaTopicAdmin$Companion {
 
 public final class me/ahoo/wow/kafka/KafkaTopicProducer : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicProducer {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaTopicProducer$Companion;
-	public fun <init> (Lorg/apache/kafka/clients/producer/Producer;Lkotlinx/coroutines/CoroutineDispatcher;)V
-	public synthetic fun <init> (Lorg/apache/kafka/clients/producer/Producer;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lorg/apache/kafka/clients/producer/Producer;Lkotlinx/coroutines/CoroutineDispatcher;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lorg/apache/kafka/clients/producer/Producer;Lkotlinx/coroutines/CoroutineDispatcher;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun send (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }

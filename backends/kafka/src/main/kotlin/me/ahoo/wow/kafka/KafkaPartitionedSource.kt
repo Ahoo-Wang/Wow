@@ -23,7 +23,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionOffsets
@@ -67,20 +66,15 @@ import kotlin.time.toJavaDuration
  * metadata call in flight is woken out of its wait, so the consumer closes under its lock once the call ends. The other
  * reads close their own. Every call after [close] is refused, and opens nothing.
  */
-class KafkaPartitionedSource @InternalWowApi constructor(
+class KafkaPartitionedSource(
     private val consumers: (String) -> Consumer<String, ByteArray>,
-    private val pollTimeout: Duration,
-    private val dispatcher: CoroutineDispatcher,
+    private val pollTimeout: Duration = KafkaOptions.DEFAULT_POLL_TIMEOUT,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** What a read does when its partition does not hold the offset it is to read from. */
-    val offsetGap: OffsetGapPolicy,
+    val offsetGap: OffsetGapPolicy = OffsetGapPolicy.FAIL,
     /** The node's observer, told of every offset gap a read meets. */
     observer: Observer = Observer.NONE,
 ) : PartitionedSource, AutoCloseable {
-    constructor(
-        consumers: (String) -> Consumer<String, ByteArray>,
-        pollTimeout: Duration = KafkaOptions.DEFAULT_POLL_TIMEOUT,
-        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    ) : this(consumers, pollTimeout, dispatcher, OffsetGapPolicy.FAIL)
 
     private val gaps = OffsetGaps(offsetGap, observer)
 

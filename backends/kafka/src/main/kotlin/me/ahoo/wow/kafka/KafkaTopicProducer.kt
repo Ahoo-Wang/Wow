@@ -17,7 +17,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -44,15 +43,11 @@ import kotlin.time.toJavaDuration
  * ([KafkaOptions.CLOSE_TIMEOUT]); past it, the producer fails the records it has not delivered, and a warning says so.
  * Their senders had not had them acknowledged, so they send them again.
  */
-class KafkaTopicProducer @InternalWowApi constructor(
+class KafkaTopicProducer(
     private val producer: Producer<String, ByteArray>,
-    private val dispatcher: CoroutineDispatcher,
-    private val closeTimeout: Duration,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val closeTimeout: Duration = KafkaOptions.CLOSE_TIMEOUT,
 ) : TopicProducer, AutoCloseable {
-    constructor(
-        producer: Producer<String, ByteArray>,
-        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    ) : this(producer, dispatcher, KafkaOptions.CLOSE_TIMEOUT)
 
     override suspend fun send(topic: String, messages: List<TopicMessage>) {
         if (messages.isEmpty()) {
