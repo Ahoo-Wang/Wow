@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -89,7 +88,8 @@ class SubscriptionHoldTest {
                 checkpoints.savesOf(NAME).assert().containsExactly(0L)
                 checkpoints.savesOf("other").assert().containsExactly(0L)
 
-                delay(SETTLE_MILLIS)
+                // Checked at once: the partition opens its reads only once the job completes, and a scan with no
+                // partition reading reads no parked entry.
                 handled.size.assert().isZero()
                 seen.size.assert().isZero()
                 // The scans leave the held partition's parked entries alone, and its lag counts what waits.
@@ -131,7 +131,7 @@ class SubscriptionHoldTest {
                 withTimeout(5.seconds) { runtime.startPartition(1) }
                 runtime.partitions.assert().containsExactly(1)
                 eventually { handled.size == 1 }
-                delay(SETTLE_MILLIS)
+                // Checked at once: partition 0 is reading its held checkpoints, which the three calls wait for.
                 first.isActive.assert().isTrue()
                 second.isActive.assert().isTrue()
                 stop.isActive.assert().isTrue()
@@ -216,6 +216,5 @@ class SubscriptionHoldTest {
     private companion object {
         val ID = SubscriptionId("shop", NAME)
         const val NAME = "projector"
-        const val SETTLE_MILLIS = 200L
     }
 }

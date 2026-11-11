@@ -311,7 +311,8 @@ class LedgerNodeTest {
             val blind = nodeOver(SourceTopics(broker, PREFIX, broker))
             blind.start()
             try {
-                delay(100)
+                // Checked at once: without the topics' admin, the ops topic is never found, so the publisher never
+                // opens.
                 checkNotNull(blind.ledgerPublisher).open.assert().isFalse()
             } finally {
                 blind.stop()

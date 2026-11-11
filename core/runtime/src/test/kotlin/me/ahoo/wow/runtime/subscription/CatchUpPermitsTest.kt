@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.test.asserts.assert
@@ -72,8 +71,8 @@ class CatchUpPermitsTest {
                 runtime.startPartition(0)
                 eventually { permits.availablePermits == 0 }
                 runtime.startPartition(1)
-                delay(SETTLE_MILLIS)
-                // Partition 1 stands at its checkpoint while partition 0 holds the permit.
+                // Partition 1 stands at its checkpoint while partition 0 holds the permit, checked at once: behind its
+                // head, it opens its reads only with a permit.
                 handled.size.assert().isZero()
                 runtime.positions().single { it.partition == 1 }.watermark.assert().isZero()
 
@@ -120,6 +119,5 @@ class CatchUpPermitsTest {
 
     private companion object {
         const val ENTRIES = 6
-        const val SETTLE_MILLIS = 300L
     }
 }

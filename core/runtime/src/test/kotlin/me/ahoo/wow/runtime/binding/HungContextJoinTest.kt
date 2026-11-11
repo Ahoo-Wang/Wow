@@ -128,6 +128,8 @@ class HungContextJoinTest {
             val starting = launch { node.start() }
             try {
                 eventually { node.context(SHOP).ownership.owned.size == PARTITIONS }
+                // A time, not an event: nothing is read while the reads are held, so nothing comes before a read that
+                // should not have started. A check at once passes without the hold.
                 delay(SETTLE_MILLIS)
                 projected.assert().isEmpty()
 

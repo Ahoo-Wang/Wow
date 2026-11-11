@@ -158,6 +158,8 @@ class StandbyNodeTest {
             // The tail imports 9.x's orders meanwhile; nothing handles them on standby.
             imported("o-9x-1")
             imported("o-9x-2")
+            // A time, not an event: nothing runs on standby, so nothing comes before a read that should not have
+            // started. A check at once passes without the hold.
             delay(SETTLE_MILLIS)
             handled.assert().isEmpty()
 
