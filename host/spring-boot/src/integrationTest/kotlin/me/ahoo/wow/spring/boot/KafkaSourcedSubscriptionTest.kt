@@ -33,9 +33,9 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -64,7 +64,9 @@ import kotlin.time.Duration.Companion.seconds
 class KafkaSourcedSubscriptionTest {
     private val kafka = WowContainers.newKafka().also { it.start() }
     private val options = KafkaOptions(kafka.bootstrapServers)
-    private val admin = Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers))
+    private val admin = Admin.create(
+        mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+    )
     private val producer = KafkaTopicProducer.create(options)
     private val topics = AtomicInteger()
     private val started = CopyOnWriteArrayList<Pair<TopicSubscriptions, KafkaPartitionedSource>>()
@@ -130,7 +132,11 @@ class KafkaSourcedSubscriptionTest {
             options = SubscriptionOptions(
                 retry = RetryPolicy(maxAttempts = 2, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
                 checkpointInterval = 20.milliseconds,
-                readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 10.milliseconds, maxBackoff = 100.milliseconds),
+                readRetry = RetryPolicy(
+                    maxAttempts = 1,
+                    initialBackoff = 10.milliseconds,
+                    maxBackoff = 100.milliseconds
+                ),
             ),
             cluster = CLUSTER,
             partitionRefresh = partitionRefresh,

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.api.client.CommandRequest
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
@@ -24,9 +23,9 @@ import com.mongodb.event.CommandStartedEvent
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -137,7 +136,6 @@ class MongoSagaStateHostTest {
     private val plain: MongoClient = MongoClients.create(mongo.replicaSetUrl)
     private val reads = host.context.getBean(MongoReads::class.java)
     private val transfers = host.context.getBean(TransferSagaConfiguration.Transfers::class.java)
-    private val account = AggregateType(BANK, "account")
     private val caller = Caller(Caller.DEFAULT_TENANT, Scope(ownerId = "dave"))
 
     @AfterAll

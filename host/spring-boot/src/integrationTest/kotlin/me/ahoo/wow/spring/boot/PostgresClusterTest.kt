@@ -121,7 +121,9 @@ class PostgresClusterTest {
     @Test
     fun `the internal port should speak h2c`() {
         val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
-        val request = HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.SIGNALS_PATH))
+        val request = HttpRequest.newBuilder(
+            InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.SIGNALS_PATH)
+        )
             .header("Content-Type", InternalHttp.JSON)
             .header(WowHeaders.SERVICE, "bank-service")
             .POST(HttpRequest.BodyPublishers.ofString("{}"))
@@ -135,7 +137,9 @@ class PostgresClusterTest {
     fun `the cluster channel should refuse a forward of another service, or of none`() {
         val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
         fun forward(service: String?): Int {
-            val request = HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.FORWARD_PATH))
+            val request = HttpRequest.newBuilder(
+                InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.FORWARD_PATH)
+            )
                 .header("Content-Type", InternalHttp.JSON)
                 .apply { service?.let { header(WowHeaders.SERVICE, it) } }
                 .POST(HttpRequest.BodyPublishers.ofString("{}"))

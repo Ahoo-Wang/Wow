@@ -150,7 +150,11 @@ class ConfigurationMetadata(
      * [storesMap], each option a provider of [stores] declares, which a store sets beside the host's keys
      * (`wow.stores.<name>.data-source`). The configuration reference lists them below their maps.
      */
-    fun mapsDocument(maps: List<MapKeys>, storesMap: String? = null, stores: List<ProviderOptions> = emptyList()): String {
+    fun mapsDocument(
+        maps: List<MapKeys>,
+        storesMap: String? = null,
+        stores: List<ProviderOptions> = emptyList()
+    ): String {
         val docs = KDocIndex(sources)
         val properties = ArrayList<Map<String, Any?>>()
         maps.forEach { map ->

@@ -74,14 +74,15 @@ class MixedStoresTest {
     private fun Host.sealed(type: String, id: String): Boolean =
         state(type, id).takeIf { it.status == 200 }?.body?.get("state")?.get("sealed")?.asBoolean() == true
 
-    private fun pgCount(sql: String): Long = first.context.getBean(DataSource::class.java).connection.use { connection ->
-        connection.createStatement().use { statement ->
-            statement.executeQuery(sql).use { rows ->
-                rows.next()
-                rows.getLong(1)
+    private fun pgCount(sql: String): Long =
+        first.context.getBean(DataSource::class.java).connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery(sql).use { rows ->
+                    rows.next()
+                    rows.getLong(1)
+                }
             }
         }
-    }
 
     private fun mongoCount(collection: String, filter: org.bson.conversions.Bson = Filters.empty()): Long =
         first.context.getBean(MongoClient::class.java).getDatabase(DATABASE).getCollection(collection)
@@ -107,7 +108,10 @@ class MixedStoresTest {
         mongoCount("wow_timer__treasury__ledger", Filters.eq("status", "FIRED")).assert().isEqualTo(1)
         // Each group's partition sequence starts on its own: the first entry of each log is at 1.
         val ledgerPartition = Partitioner.partitionOf(LEDGER.ref(Caller.DEFAULT_TENANT, "l-1"), PARTITIONS)
-        mongoCount("wow_log__treasury__ledger", Filters.and(Filters.eq("partition", ledgerPartition), Filters.eq("sequence", 1L)))
+        mongoCount(
+            "wow_log__treasury__ledger",
+            Filters.and(Filters.eq("partition", ledgerPartition), Filters.eq("sequence", 1L))
+        )
             .assert().isEqualTo(1)
         eventually { hosts.flatMap { it.ledgerbook() }.containsAll(listOf("vault:v-1@2", "ledger:l-1@2")) }
         eventually {

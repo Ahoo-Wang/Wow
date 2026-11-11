@@ -41,7 +41,7 @@ class PostgresResumableStreamTest {
         "spring.datasource.url" to postgres.jdbcUrl,
         "spring.datasource.username" to postgres.username,
         "spring.datasource.password" to postgres.password,
-            "spring.datasource.hikari.maximum-pool-size" to 8,
+        "spring.datasource.hikari.maximum-pool-size" to 8,
         // Two records a chunk, so every stream below crosses chunk boundaries.
         "wow.query.stream.chunk-size" to 2,
         *properties,
@@ -84,7 +84,8 @@ class PostgresResumableStreamTest {
             .collectList()
             .block(Duration.ofSeconds(30))!!
 
-    private fun owners(events: List<Event>) = events.filter { it.event == "row" }.map { it.data["state"]["owner"].asString() }
+    private fun owners(events: List<Event>) =
+        events.filter { it.event == "row" }.map { it.data["state"]["owner"].asString() }
 
     private val expected = (1..ACCOUNTS).map { "$owner-$it" }
 

@@ -112,7 +112,11 @@ class PostgresHandoffTest {
             // The tail has read its head: whatever is appended next is handed over to it.
             delay(500)
             refs.map { ref ->
-                launch(Dispatchers.Default) { (1..ROUNDS).forEach { log.append(stream(ref, it), null).committed() } }
+                launch(Dispatchers.Default) {
+                    for (round in 1..ROUNDS) {
+                        log.append(stream(ref, round), null).committed()
+                    }
+                }
             }.joinAll()
             withTimeout(30.seconds) { tail.join() }
 
