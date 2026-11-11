@@ -69,9 +69,14 @@ class StepOutTest {
     @Test
     fun `an ownership that stepped out before it started does not start`(): Unit = runTest(timeout = 1.minutes) {
         val ownership = ownership(FATAL, InMemoryLeaseStore(virtualClock()))
-        ownership.stepOut(BOUND)
-        runCatching { ownership.start() }.exceptionOrNull()?.message.assert().contains("stepped out")
-        ownership.isRunning.assert().isFalse()
+        try {
+            ownership.stepOut(BOUND)
+            runCatching { ownership.start() }.exceptionOrNull()?.message.assert().contains("stepped out")
+            ownership.isRunning.assert().isFalse()
+        } finally {
+            // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+            ownership.abort()
+        }
     }
 
     @Test
@@ -110,14 +115,21 @@ class StepOutTest {
             // The first heartbeat of the fatal node's join does not answer until released.
             val joining = HangingHeartbeat(store)
             val fatal = ownership(FATAL, joining)
-            val starting = async { runCatching { fatal.start() } }
-            delay(1.seconds)
+            try {
+                val starting = async { runCatching { fatal.start() } }
+                delay(1.seconds)
 
-            fatal.stepOut(BOUND)
-            joining.release.complete(Unit)
-            starting.await().exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
-            fatal.isRunning.assert().isFalse()
-            members(store).assert().isEmpty()
+                fatal.stepOut(BOUND)
+                joining.release.complete(Unit)
+                starting.await().exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+                fatal.isRunning.assert().isFalse()
+                members(store).assert().isEmpty()
+            } finally {
+                // A start still waiting on the heartbeat holds the lifecycle: released first, so the abort can take it.
+                joining.release.complete(Unit)
+                // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+                fatal.abort()
+            }
         }
 
     private fun TestScope.ownership(node: String, leases: LeaseStore) = PartitionOwnership(

@@ -75,6 +75,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
+/*
+ * A test that starts a PartitionOwnership on the test's scheduler (runTest, StandardTestDispatcher(testScheduler))
+ * ends with ownership.abort() in a finally, or with a stop() there that waits on nothing the test may leave hanging.
+ * An ownership left running keeps its loops on the scheduler, and runTest then waits for them until its timeout
+ * instead of failing with what went wrong; abort() is nothing once a stop has run.
+ */
+
 data class Deposit(val amount: Int = 1)
 data class Deposited(val amount: Int)
 
