@@ -41,16 +41,11 @@ import java.util.Collections
  * The context of a projection's or a reactor's handler for one execution; its [queries] are [contextQueries]' of the
  * commit's tenant.
  */
-class ExecutionContext @InternalWowApi constructor(
+class ExecutionContext(
     override val executionId: ExecutionId,
-    private val contextQueries: ContextQueries,
+    /** The queries of the node's contexts; none by default, as a domain module's test calls a handler. */
+    private val contextQueries: ContextQueries = ContextQueries.NONE,
 ) : SubscriptionContext {
-    /**
-     * The context of the execution [executionId], without queries: a domain module's test calls a projection or a
-     * reactor with it.
-     */
-    constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
-
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
     override fun toString(): String = "ExecutionContext(executionId=$executionId)"
@@ -73,21 +68,17 @@ class ExecutionContext @InternalWowApi constructor(
  * Its synchronous [call]s go through [calls]: the node's client of the other contexts' command
  * gateways, an answer in a domain module's test. Its [queries] are [contextQueries]' of the commit's tenant.
  */
-class ExecutionSagaContext @InternalWowApi constructor(
+class ExecutionSagaContext(
     override val executionId: ExecutionId,
     private val event: StateEvent<*>,
-    override val ids: Ids,
-    private val commandTypes: CommandTypes,
+    override val ids: Ids = IdGenerators.DEFAULT,
+    private val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
     private val contextQueries: ContextQueries = ContextQueries.NONE,
     /** What the handler declares it sends; null for a context built outside its binding. */
     private val sends: SagaSends? = null,
 ) : SagaContext {
-    /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
-    constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
-        this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
-
     init {
         require(event.ref == executionId.ref && event.version == executionId.version) {
             "Execution $executionId is not of the commit ${event.id}."
