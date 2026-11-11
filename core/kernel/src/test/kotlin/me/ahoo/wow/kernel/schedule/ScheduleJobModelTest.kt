@@ -263,7 +263,7 @@ class ScheduleJobModelTest {
         committed.stream.events.map { codec.decode(model, it) }.assert().containsExactly(
             JobTicked(timer, 1, 0, 900),
             JobRescheduled(rule, shanghai),
-            ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK, "{}"),
+            ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK_JOB, "{}"),
         )
         // A node without the job disables the instance on its next tick.
         val next = Command("c-3", "r-3", ref, TickJob(), headers = ScheduleContext(timer, "tick", 2, 950).headers())

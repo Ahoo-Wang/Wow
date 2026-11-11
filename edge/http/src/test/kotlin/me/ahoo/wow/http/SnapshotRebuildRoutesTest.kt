@@ -99,7 +99,7 @@ class SnapshotRebuildRoutesTest {
         val unlisted = rebuild(CallPermits(emptyMap()))
         unlisted.status.assert().isEqualTo(403)
         unlisted.body!!["code"].asString().assert().isEqualTo(CallPermits.COMMAND_FORBIDDEN)
-        val listed = rebuild(CallPermits(mapOf("ops-service" to listOf(SnapshotRebuilds.REBUILD))))
+        val listed = rebuild(CallPermits(mapOf("ops-service" to listOf(SnapshotRebuilds.REBUILD_SNAPSHOT))))
         listed.status.assert().withFailMessage { listed.body.toString() }.isEqualTo(200)
         listed.body!!["ref"]["id"].asString().assert().isEqualTo("cart")
     }
@@ -113,7 +113,7 @@ class SnapshotRebuildRoutesTest {
                         aggregates = context.aggregates.map { aggregate ->
                             aggregate.copyWith(
                                 snapshot = SnapshotManifest(false),
-                                commands = aggregate.commands.filterNot { it.name == SnapshotRebuilds.REBUILD },
+                                commands = aggregate.commands.filterNot { it.name == SnapshotRebuilds.REBUILD_SNAPSHOT },
                             )
                         },
                     )

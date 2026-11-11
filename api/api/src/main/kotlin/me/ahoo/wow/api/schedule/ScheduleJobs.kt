@@ -295,28 +295,28 @@ object ScheduleJobs {
     /** The name of the built-in aggregate that keeps a context's jobs: `<context>.schedule`. */
     const val AGGREGATE: String = "schedule"
 
-    /** The key of an instance's own schedule, which sends it [TICK]. */
+    /** The key of an instance's own schedule, which sends it [TICK_JOB]. */
     const val TICK_KEY: String = "tick"
 
     /** The component the commands of a job run as: `system:schedule`. */
     const val COMPONENT: String = "schedule"
 
-    const val ENABLE: String = "wow.schedule.EnableJob"
-    const val RESCHEDULE: String = "wow.schedule.RescheduleJob"
-    const val DISABLE: String = "wow.schedule.DisableJob"
-    const val TICK: String = "wow.schedule.TickJob"
+    const val ENABLE_JOB: String = "wow.schedule.EnableJob"
+    const val RESCHEDULE_JOB: String = "wow.schedule.RescheduleJob"
+    const val DISABLE_JOB: String = "wow.schedule.DisableJob"
+    const val TICK_JOB: String = "wow.schedule.TickJob"
     const val JOB_ENABLED: String = "wow.schedule.JobEnabled"
     const val JOB_RESCHEDULED: String = "wow.schedule.JobRescheduled"
     const val JOB_DISABLED: String = "wow.schedule.JobDisabled"
-    const val TICKED: String = "wow.schedule.JobTicked"
+    const val JOB_TICKED: String = "wow.schedule.JobTicked"
 
     /** The job system commands, by their names. */
     @JvmField
     val COMMANDS: Map<String, Class<*>> = mapOf(
-        ENABLE to EnableJob::class.java,
-        RESCHEDULE to RescheduleJob::class.java,
-        DISABLE to DisableJob::class.java,
-        TICK to TickJob::class.java,
+        ENABLE_JOB to EnableJob::class.java,
+        RESCHEDULE_JOB to RescheduleJob::class.java,
+        DISABLE_JOB to DisableJob::class.java,
+        TICK_JOB to TickJob::class.java,
     )
 
     /** The job system events, by their names. */
@@ -325,7 +325,7 @@ object ScheduleJobs {
         JOB_ENABLED to JobEnabled::class.java,
         JOB_RESCHEDULED to JobRescheduled::class.java,
         JOB_DISABLED to JobDisabled::class.java,
-        TICKED to JobTicked::class.java,
+        JOB_TICKED to JobTicked::class.java,
     )
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }

@@ -130,10 +130,10 @@ object ScheduleJobModel {
             initial { JobState() }
             lifecycle()
             ownership(Ownership.TENANT)
-            decide<EnableJob>(Creation.ALLOWED, ScheduleJobs.ENABLE) { state, body -> enable(byName, state, body) }
-            decide<RescheduleJob>(name = ScheduleJobs.RESCHEDULE) { state, body -> reschedule(byName, state, body) }
-            decide<DisableJob>(name = ScheduleJobs.DISABLE) { state, _ -> disable(state) }
-            decide<TickJob>(name = ScheduleJobs.TICK) { state, _ -> tick(byName, state) }
+            decide<EnableJob>(Creation.ALLOWED, ScheduleJobs.ENABLE_JOB) { state, body -> enable(byName, state, body) }
+            decide<RescheduleJob>(name = ScheduleJobs.RESCHEDULE_JOB) { state, body -> reschedule(byName, state, body) }
+            decide<DisableJob>(name = ScheduleJobs.DISABLE_JOB) { state, _ -> disable(state) }
+            decide<TickJob>(name = ScheduleJobs.TICK_JOB) { state, _ -> tick(byName, state) }
             evolve<JobEnabled>(ScheduleJobs.JOB_ENABLED) { event ->
                 job = event.job
                 rule = event.rule
@@ -146,7 +146,7 @@ object ScheduleJobModel {
                 override = event.override
             }
             evolve<JobDisabled>(ScheduleJobs.JOB_DISABLED) { enabled = false }
-            evolve<JobTicked>(ScheduleJobs.TICKED) { event ->
+            evolve<JobTicked>(ScheduleJobs.JOB_TICKED) { event ->
                 timer = event.timer
                 slot = event.slot
                 due = event.due

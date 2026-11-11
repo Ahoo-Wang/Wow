@@ -229,7 +229,7 @@ internal class NodePublicPort {
         /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
         internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
             context.commands.isNotEmpty() ||
-                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD } }
+                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD_SNAPSHOT } }
         }
 
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */

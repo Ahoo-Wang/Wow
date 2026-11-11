@@ -52,7 +52,7 @@ object SnapshotRebuildModel {
             initial { RebuildState() }
             lifecycle()
             ownership(Ownership.TENANT)
-            decide<RebuildSnapshot>(Creation.ALLOWED, SnapshotRebuilds.REBUILD) { _, body ->
+            decide<RebuildSnapshot>(Creation.ALLOWED, SnapshotRebuilds.REBUILD_SNAPSHOT) { _, body ->
                 val aggregate = command.ref.id
                 if (aggregate in aggregates) {
                     Decision.events(SnapshotRebuildRequested(body.ids.distinct()))
@@ -65,6 +65,6 @@ object SnapshotRebuildModel {
                     )
                 }
             }
-            evolve<SnapshotRebuildRequested>(SnapshotRebuilds.REBUILD_REQUESTED) { requests++ }
+            evolve<SnapshotRebuildRequested>(SnapshotRebuilds.SNAPSHOT_REBUILD_REQUESTED) { requests++ }
         }
 }

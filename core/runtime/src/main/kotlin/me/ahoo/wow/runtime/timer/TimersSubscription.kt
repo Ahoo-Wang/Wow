@@ -98,7 +98,7 @@ class TimersSubscription(
 
     private fun timerOf(stream: EventStreamRecord, set: ScheduleSet): Timer {
         val timer = ScheduleSlots.timerOf(stream, set, partitions)
-        if (set.commandType != ScheduleJobs.TICK) {
+        if (set.commandType != ScheduleJobs.TICK_JOB) {
             return timer
         }
         val tenantId = stream.ref.tenantId

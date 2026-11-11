@@ -388,14 +388,17 @@ class ScheduleContext @InternalWowApi constructor(
 
 /** The names of the schedule system commands and events. */
 object Schedules {
-    const val SET: String = "wow.schedule.SetSchedule"
-    const val CANCEL: String = "wow.schedule.CancelSchedule"
+    const val SET_SCHEDULE: String = "wow.schedule.SetSchedule"
+    const val CANCEL_SCHEDULE: String = "wow.schedule.CancelSchedule"
     const val SCHEDULE_SET: String = "wow.schedule.ScheduleSet"
     const val SCHEDULE_CANCELLED: String = "wow.schedule.ScheduleCancelled"
 
     /** The schedule system commands, by their names. */
     @JvmField
-    val COMMANDS: Map<String, Class<*>> = mapOf(SET to SetSchedule::class.java, CANCEL to CancelSchedule::class.java)
+    val COMMANDS: Map<String, Class<*>> = mapOf(
+        SET_SCHEDULE to SetSchedule::class.java,
+        CANCEL_SCHEDULE to CancelSchedule::class.java,
+    )
 
     /** The schedule system events, by their names. */
     @JvmField

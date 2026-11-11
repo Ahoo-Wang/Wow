@@ -38,9 +38,9 @@ class CallPermitsTest {
             Lifecycle.RESTORE_AGGREGATE,
             Lifecycle.TRANSFER_OWNER,
             Lifecycle.TRANSFER_SPACE,
-            SnapshotRebuilds.REBUILD,
-            ScheduleJobs.ENABLE,
-            ScheduleJobs.DISABLE,
+            SnapshotRebuilds.REBUILD_SNAPSHOT,
+            ScheduleJobs.ENABLE_JOB,
+            ScheduleJobs.DISABLE_JOB,
         ).forEach { permits.allows(basket, it).assert().describedAs(it).isFalse() }
         permits.refusal(basket, "shop", "cart", Lifecycle.DELETE_AGGREGATE)!!.assert()
             .contains("shop.cart.wow.lifecycle.DeleteAggregate")
@@ -57,11 +57,12 @@ class CallPermitsTest {
         exact.allows(basket, "AddItem").assert().isTrue()
         val all = CallPermits(mapOf("basket-service" to listOf(" wow.lifecycle.* ")))
         all.allows(basket, Lifecycle.TRANSFER_OWNER).assert().isTrue()
-        all.allows(basket, SnapshotRebuilds.REBUILD).assert().isFalse()
+        all.allows(basket, SnapshotRebuilds.REBUILD_SNAPSHOT).assert().isFalse()
         val qualified = CallPermits(mapOf("basket-service" to listOf("shop.cart.wow.lifecycle.TransferSpace")))
         qualified.allows(basket, Lifecycle.TRANSFER_SPACE).assert().isTrue()
         qualified.refusal(basket, "shop", "order", Lifecycle.TRANSFER_SPACE).assert().isNotNull()
-        CallPermits(mapOf("basket-service" to listOf("*.wow.*"))).allows(basket, ScheduleJobs.ENABLE).assert().isTrue()
+        val namespace = CallPermits(mapOf("basket-service" to listOf("*.wow.*")))
+        namespace.allows(basket, ScheduleJobs.ENABLE_JOB).assert().isTrue()
     }
 
     @Test

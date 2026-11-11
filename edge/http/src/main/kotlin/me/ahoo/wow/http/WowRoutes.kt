@@ -448,7 +448,7 @@ private fun systemTarget(
     name: String,
     byId: Boolean = true
 ): CommandTarget = when {
-    name == SnapshotRebuilds.REBUILD -> CommandTarget(
+    name == SnapshotRebuilds.REBUILD_SNAPSHOT -> CommandTarget(
         context,
         SnapshotRebuilds.AGGREGATE,
         name,

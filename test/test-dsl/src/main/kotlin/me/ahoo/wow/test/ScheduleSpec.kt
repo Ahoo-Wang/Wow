@@ -232,7 +232,7 @@ class ScheduleSpec internal constructor(
             ref,
             state,
             JobTicked("$ref#${ScheduleJobs.TICK_KEY}@1", tick.slot, tick.skipped, tick.due),
-            commandType = ScheduleJobs.TICK,
+            commandType = ScheduleJobs.TICK_JOB,
             commitTime = tick.due,
         )
         handed += tick

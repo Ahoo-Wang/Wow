@@ -85,19 +85,19 @@ object SnapshotRebuilds {
     /** The component a rebuild runs as: `system:snapshot`. */
     const val COMPONENT: String = "snapshot"
 
-    const val REBUILD: String = "wow.snapshot.RebuildSnapshot"
-    const val REBUILD_REQUESTED: String = "wow.snapshot.SnapshotRebuildRequested"
+    const val REBUILD_SNAPSHOT: String = "wow.snapshot.RebuildSnapshot"
+    const val SNAPSHOT_REBUILD_REQUESTED: String = "wow.snapshot.SnapshotRebuildRequested"
 
     /** The most ids one rebuild request names. */
     const val MAX_IDS: Int = 1_000
 
     /** The system commands, by their names. */
     @JvmField
-    val COMMANDS: Map<String, Class<*>> = mapOf(REBUILD to RebuildSnapshot::class.java)
+    val COMMANDS: Map<String, Class<*>> = mapOf(REBUILD_SNAPSHOT to RebuildSnapshot::class.java)
 
     /** The system events, by their names. */
     @JvmField
-    val EVENTS: Map<String, Class<*>> = mapOf(REBUILD_REQUESTED to SnapshotRebuildRequested::class.java)
+    val EVENTS: Map<String, Class<*>> = mapOf(SNAPSHOT_REBUILD_REQUESTED to SnapshotRebuildRequested::class.java)
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }
 

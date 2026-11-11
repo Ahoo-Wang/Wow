@@ -217,7 +217,7 @@ class OpenApiPathsTest {
                         aggregates = context.aggregates.map { aggregate ->
                             aggregate.copyWith(
                                 snapshot = SnapshotManifest(false),
-                                commands = aggregate.commands.filterNot { it.name == WowSchemas.REBUILD },
+                                commands = aggregate.commands.filterNot { it.name == SystemCommands.REBUILD_SNAPSHOT },
                             )
                         },
                     )

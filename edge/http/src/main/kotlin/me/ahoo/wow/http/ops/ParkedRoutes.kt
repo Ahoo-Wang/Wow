@@ -155,10 +155,10 @@ object OpsPaths {
  */
 @ExperimentalWowApi
 internal object OpsCommands {
-    const val RETRY: String = Ledger.RETRY
-    const val SKIP: String = Ledger.SKIP
-    const val MARK_RECOVERABLE: String = Ledger.MARK_RECOVERABLE
-    const val APPLY_RETRY_SPEC: String = Ledger.APPLY_RETRY_SPEC
+    const val RETRY: String = Ledger.RETRY_PARKED
+    const val SKIP: String = Ledger.SKIP_PARKED
+    const val MARK_RECOVERABLE: String = Ledger.MARK_PARKED_RECOVERABLE
+    const val APPLY_RETRY_SPEC: String = Ledger.APPLY_PARKED_RETRY_SPEC
 
     /** The type of a read: no command runs, so its class is the view a read answers. */
     private val READ_TYPE = CommandType(OpsPaths.READ, ParkedView::class.java)

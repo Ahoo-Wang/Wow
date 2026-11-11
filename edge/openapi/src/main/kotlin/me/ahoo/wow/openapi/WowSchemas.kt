@@ -17,6 +17,7 @@ import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.ManifestSchema
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.map
 import me.ahoo.wow.openapi.Json.nullable
@@ -101,7 +102,7 @@ internal object WowSchemas {
      * lifecycle command (keyed by its name) describes it in place of the framework.
      */
     val SYSTEM_COMMANDS: Set<String>
-        get() = LIFECYCLE.keys + JOB_COMMANDS.keys + REBUILD
+        get() = LIFECYCLE.keys + JOB_COMMANDS.keys + SystemCommands.REBUILD_SNAPSHOT
 
     private val ACCESS: Map<String, Any?>
         get() = map(ACCESS_VALUE)
@@ -146,9 +147,6 @@ internal object WowSchemas {
     private val INTEGER: Map<String, Any?> get() = type("integer")
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
-    /** The snapshot rebuild command, by its full name. */
-    const val REBUILD: String = "wow.snapshot.RebuildSnapshot"
-
     private val REBUILD_COMMAND: Map<String, Any?>
         get() = objectSchema(
             mapOf("ids" to obj("type" to "array", "items" to STRING, "minItems" to 1, "maxItems" to 1_000)),
@@ -159,7 +157,7 @@ internal object WowSchemas {
 
     /** Every framework schema, by name. */
     fun all(): Map<String, Any?> = commandSchemas() + readSchemas() + querySchemas() + LIFECYCLE + JOB_COMMANDS +
-        ("wow.JobRule" to JOB_RULE) + (REBUILD to REBUILD_COMMAND)
+        ("wow.JobRule" to JOB_RULE) + (SystemCommands.REBUILD_SNAPSHOT to REBUILD_COMMAND)
 
     /** The command result and the problem, with what they hold. */
     private fun commandSchemas(): Map<String, Any?> = linkedMapOf(

@@ -96,9 +96,14 @@ class ParkedOperationSagaTest {
         val parked = recorded()
         whenEvent(RetryRequested(), by = Retry::class) {
             val retry = commands.single()
-            whenRejected(retry, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga.", commandType = Ledger.RETRY) {
+            whenRejected(
+                retry,
+                FrameworkCodes.AUTH_FORBIDDEN,
+                "Not from the ops saga.",
+                commandType = Ledger.RETRY_PARKED,
+            ) {
                 expectCommand(
-                    RecordActionRefused(Ledger.RETRY, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga."),
+                    RecordActionRefused(Ledger.RETRY_PARKED, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga."),
                     to = parked.ref,
                 )
             }

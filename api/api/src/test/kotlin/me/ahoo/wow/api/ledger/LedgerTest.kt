@@ -30,10 +30,10 @@ class LedgerTest {
         Ledger.nameOf(ApplyParkedRetrySpec::class.java).assert().isEqualTo("wow.ledger.ApplyParkedRetrySpec")
         Ledger.nameOf(String::class.java).assert().isNull()
         Ledger.COMMANDS.keys.assert().containsExactly(
-            Ledger.RETRY,
-            Ledger.SKIP,
-            Ledger.MARK_RECOVERABLE,
-            Ledger.APPLY_RETRY_SPEC,
+            Ledger.RETRY_PARKED,
+            Ledger.SKIP_PARKED,
+            Ledger.MARK_PARKED_RECOVERABLE,
+            Ledger.APPLY_PARKED_RETRY_SPEC,
         )
     }
 

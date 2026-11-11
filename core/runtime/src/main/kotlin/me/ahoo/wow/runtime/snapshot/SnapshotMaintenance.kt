@@ -283,7 +283,7 @@ class SnapshotMaintenance(
     private suspend fun rebuildRequested(entry: SubscribedEntry) {
         val stream = entry.stream
         val type = AggregateType(context, stream.ref.id)
-        stream.events.filter { it.name == SnapshotRebuilds.REBUILD_REQUESTED }
+        stream.events.filter { it.name == SnapshotRebuilds.SNAPSHOT_REBUILD_REQUESTED }
             .flatMap { json.readValue(it.payload, SnapshotRebuildRequested::class.java).ids }
             .distinct()
             .forEach { rebuild(type.ref(stream.ref.tenantId, it)) }

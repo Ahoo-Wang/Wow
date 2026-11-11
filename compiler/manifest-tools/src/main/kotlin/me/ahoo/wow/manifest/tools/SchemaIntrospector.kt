@@ -498,7 +498,7 @@ internal class SchemaIntrospector(
 
         /** The body classes of the system commands, by their full names. */
         val SYSTEM_BODIES: Map<String, Class<*>> = Lifecycle.COMMANDS + ScheduleJobs.COMMANDS +
-            mapOf(SnapshotRebuilds.REBUILD to RebuildSnapshot::class.java)
+            mapOf(SnapshotRebuilds.REBUILD_SNAPSHOT to RebuildSnapshot::class.java)
 
         private fun kotlinProperty(field: FieldScope) =
             if (field.declaringType.erasedType.isAnnotationPresent(Metadata::class.java)) {

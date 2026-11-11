@@ -100,7 +100,7 @@ class ScheduleJobBindingTest {
         version = 1,
         commandId = "c-1",
         requestId = "r-1",
-        commandType = ScheduleJobs.TICK,
+        commandType = ScheduleJobs.TICK_JOB,
         commitTime = 0,
         events = listOf(JobTicked("$ref#tick@1", slot, 0, 0)),
         state = JobState().apply { this.job = job },

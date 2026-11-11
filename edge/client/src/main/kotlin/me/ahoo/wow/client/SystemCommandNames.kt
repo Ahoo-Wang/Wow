@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  */
 internal object SystemCommandNames {
     private val NAMES: Map<Class<*>, String> = (Lifecycle.COMMANDS + ScheduleJobs.COMMANDS)
-        .entries.associate { (name, type) -> type to name } + (RebuildSnapshot::class.java to SnapshotRebuilds.REBUILD)
+        .entries.associate { (name, type) -> type to name } + (RebuildSnapshot::class.java to SnapshotRebuilds.REBUILD_SNAPSHOT)
 
     /** The system name of [type], a system command's class; null for any other class. */
     fun of(type: Class<*>): String? = NAMES[type]

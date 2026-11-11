@@ -758,19 +758,19 @@ public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion {
 }
 
 public final class me/ahoo/wow/api/ledger/Ledger {
-	public static final field APPLY_RETRY_SPEC Ljava/lang/String;
+	public static final field APPLY_PARKED_RETRY_SPEC Ljava/lang/String;
 	public static final field COMMANDS Ljava/util/Map;
 	public static final field ENTRY Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/api/ledger/Ledger;
-	public static final field MARK_RECOVERABLE Ljava/lang/String;
+	public static final field MARK_PARKED_RECOVERABLE Ljava/lang/String;
 	public static final field NAMESPACE Ljava/lang/String;
 	public static final field OPS_CONTEXT Ljava/lang/String;
 	public static final field PARKED Ljava/lang/String;
 	public static final field RECORD_PARKED Ljava/lang/String;
 	public static final field RECORD_RESOLVED Ljava/lang/String;
 	public static final field RESOLUTION Ljava/lang/String;
-	public static final field RETRY Ljava/lang/String;
-	public static final field SKIP Ljava/lang/String;
+	public static final field RETRY_PARKED Ljava/lang/String;
+	public static final field SKIP_PARKED Ljava/lang/String;
 	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
 	public static final fun parkedId (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
 	public static final fun targetOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
@@ -1642,16 +1642,16 @@ public final class me/ahoo/wow/api/schedule/ScheduleJobs {
 	public static final field AGGREGATE Ljava/lang/String;
 	public static final field COMMANDS Ljava/util/Map;
 	public static final field COMPONENT Ljava/lang/String;
-	public static final field DISABLE Ljava/lang/String;
-	public static final field ENABLE Ljava/lang/String;
+	public static final field DISABLE_JOB Ljava/lang/String;
+	public static final field ENABLE_JOB Ljava/lang/String;
 	public static final field EVENTS Ljava/util/Map;
 	public static final field INSTANCE Lme/ahoo/wow/api/schedule/ScheduleJobs;
 	public static final field JOB_DISABLED Ljava/lang/String;
 	public static final field JOB_ENABLED Ljava/lang/String;
 	public static final field JOB_RESCHEDULED Ljava/lang/String;
-	public static final field RESCHEDULE Ljava/lang/String;
-	public static final field TICK Ljava/lang/String;
-	public static final field TICKED Ljava/lang/String;
+	public static final field JOB_TICKED Ljava/lang/String;
+	public static final field RESCHEDULE_JOB Ljava/lang/String;
+	public static final field TICK_JOB Ljava/lang/String;
 	public static final field TICK_KEY Ljava/lang/String;
 	public static final fun isJobName (Ljava/lang/String;)Z
 	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
@@ -1767,13 +1767,13 @@ public final class me/ahoo/wow/api/schedule/ScheduleTick$Companion {
 }
 
 public final class me/ahoo/wow/api/schedule/Schedules {
-	public static final field CANCEL Ljava/lang/String;
+	public static final field CANCEL_SCHEDULE Ljava/lang/String;
 	public static final field COMMANDS Ljava/util/Map;
 	public static final field EVENTS Ljava/util/Map;
 	public static final field INSTANCE Lme/ahoo/wow/api/schedule/Schedules;
 	public static final field SCHEDULE_CANCELLED Ljava/lang/String;
 	public static final field SCHEDULE_SET Ljava/lang/String;
-	public static final field SET Ljava/lang/String;
+	public static final field SET_SCHEDULE Ljava/lang/String;
 	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
 }
 

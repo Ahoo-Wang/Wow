@@ -314,7 +314,7 @@ abstract class SnapshotRebuildSpec {
             ServerCommandRequest(
                 context = context,
                 aggregate = SnapshotRebuilds.AGGREGATE,
-                command = SnapshotRebuilds.REBUILD,
+                command = SnapshotRebuilds.REBUILD_SNAPSHOT,
                 body = CommandBody.of(ids.joinToString(",", """{"ids":[""", "]}") { "\"$it\"" }),
                 caller = Caller(TENANT),
                 aggregateId = aggregate,
