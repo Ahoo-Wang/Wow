@@ -66,6 +66,19 @@ class CommandIndexTest {
     }
 
     @Test
+    fun `a command two Manifests list keeps the first one's schema, as it keeps its routes`() {
+        fun manifest(schema: String, path: String): Manifest {
+            val refresh = CommandManifest("Refresh", schema = schema, routes = listOf(RouteManifest("POST", path)))
+            val peer = ContextManifest("peer", aggregates = listOf(aggregate("alpha", listOf(refresh))))
+            return Manifest(contexts = listOf(peer))
+        }
+        val other = Manifest.schemaRef("other.Refresh")
+        val both = CommandIndex(listOf(manifest(schema, "/first"), manifest(other, "/second")))
+        both.schemaOf("peer.alpha.Refresh").assert().isEqualTo(schema)
+        both.routeOf("peer.alpha.Refresh", byId = false)?.path.assert().isEqualTo("/first")
+    }
+
+    @Test
     fun `an aggregate that decides none of a class names no command of it`() {
         index.commandTypeOf("peer.gamma", Refresh::class.java).assert().isNull()
         index.commandTypeOf("peer.alpha", String::class.java).assert().isNull()

@@ -54,7 +54,7 @@ class CommandIndex(manifests: List<Manifest>) {
                         }
                         if (command.internal) internalCommands += type
                         commandsBySchema.getOrPut(command.schema, ::LinkedHashMap).putIfAbsent(target, type)
-                        schemasByCommand[type] = command.schema
+                        schemasByCommand.putIfAbsent(type, command.schema)
                     }
                 }
                 // The context's schedule job commands, each to the job its route's id names.
