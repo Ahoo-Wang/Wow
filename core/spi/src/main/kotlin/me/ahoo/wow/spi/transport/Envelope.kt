@@ -21,6 +21,9 @@ import tools.jackson.databind.JsonNode
 /**
  * What an [Envelope] carries, by its [wire] name ([WireNames]), the `kind` of the value and the `wow-kind` header:
  * `STATE_EVENT` is `state-event`.
+ *
+ * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
+ * [of] gives null for a name this version does not know.
  */
 enum class EnvelopeKind {
     /** A [me.ahoo.wow.spi.state.StateEventRecord]: `id` is `ref@version`, `type` the aggregate type. */

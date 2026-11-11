@@ -24,6 +24,9 @@ import kotlin.time.Duration
 /**
  * When a schedule is due: [At] an instant, [After] a delay counted from the commit that sets it, or
  * by a [Cron] expression. A schedule is an aggregate's, under a key: set again, it is replaced; cancelled, it is gone.
+ *
+ * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
+ * [firstDue] answers for any kind.
  */
 sealed interface ScheduleRule {
     /**
