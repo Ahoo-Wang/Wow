@@ -155,8 +155,8 @@ private class QueryShapeWriter {
             is ContainsFilter -> token(filter.stringComparison.name)
             is StartsWithFilter -> token(filter.stringComparison.name)
             is EndsWithFilter -> token(filter.stringComparison.name)
-            // BEFORE_TODAY's time, the day counts and the offsets are values: only the target is shape.
-            is RelativeTimeFilter -> token(filter.timeUnit.name)
+            // Its zone, BEFORE_TODAY's time, the day counts and the offsets are values: only the field is shape.
+            is RelativeTimeFilter -> Unit
             is ExpressionFilter -> {
                 expression(filter.expression)
                 token(filter.comparison.name)

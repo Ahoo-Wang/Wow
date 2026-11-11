@@ -87,7 +87,6 @@ import tools.jackson.databind.jsontype.impl.AsPropertyTypeDeserializer
 import tools.jackson.databind.jsontype.impl.StdTypeResolverBuilder
 import tools.jackson.databind.node.TreeTraversingParser
 import java.time.Duration
-import java.time.format.DateTimeFormatter
 
 internal const val OP = "op"
 private const val OPERATOR = "operator"
@@ -175,12 +174,6 @@ internal interface FilterExpressionMixin {
 internal interface DeletionFilterMixin {
     @get:JsonProperty("state")
     val deletionState: DeletionState
-}
-
-/** A formatter given in process is never written. */
-internal interface RelativeTimeFilterMixin {
-    @get:JsonIgnore
-    val dateFormatter: DateTimeFormatter?
 }
 
 /** The offset parsed from `offset`; derived, never written. */

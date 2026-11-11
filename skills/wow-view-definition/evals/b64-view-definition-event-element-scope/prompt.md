@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:704cac015ec89e818e2e8bfc2eca6538ed662a63aafbf3f4f34c40a2587a7ae0",
+  "version" : "sha256:c67e31946b47bb973613ff62f50c7ab2aca8eecbf8423451f331fa46ae1af899",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -188,7 +188,7 @@ Files from the user's project, shown inline:
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "project" : true,
     "filter" : {

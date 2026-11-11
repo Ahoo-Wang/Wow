@@ -1336,6 +1336,7 @@ export interface MemorySourceOptions {
     now?: () => Date;
     remember?: boolean;
     timeField?: string;
+    timeUnits?: Readonly<Record<string, TimeUnit>>;
 }
 
 // @public

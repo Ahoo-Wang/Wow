@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:f074b5cbf6f4aa4223ab4e7d8312d2e917d053cce1d6157535a8f2d6d0fd6aae",
+  "version" : "sha256:38a6b9463ba72994209023dd24a4b58c97ce3c22471a18f4ba83711a7f592eb0",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -122,7 +122,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "project" : true,
     "filter" : {
@@ -241,7 +241,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "project" : true,
     "filter" : {
@@ -569,7 +569,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "SECONDS"
+      "timeUnit" : "seconds"
     },
     "project" : true,
     "filter" : {
@@ -975,7 +975,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "duration",
-      "timeUnit" : "SECONDS"
+      "timeUnit" : "seconds"
     },
     "project" : true,
     "filter" : {
@@ -1151,7 +1151,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists", "today", "before-today", "tomorrow", "this-week", "next-week", "last-week", "this-month", "last-month", "recent-days", "earlier-days", "yesterday", "next-month", "last-year", "this-year", "next-year", "before-now", "after-now" ]
@@ -1201,7 +1201,7 @@
     "nullable" : false,
     "semantic" : {
       "type" : "duration",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]

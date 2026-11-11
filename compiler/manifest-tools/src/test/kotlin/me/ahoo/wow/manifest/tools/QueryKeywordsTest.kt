@@ -162,14 +162,14 @@ class QueryKeywordsTest {
                     mapOf(
                         "type" to listOf("integer", "null"),
                         "format" to "int64",
-                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                        "x-wow-temporal" to mapOf("unit" to "milliseconds"),
                     ),
                 )
                 item["startDate"].assert().isEqualTo(
                     mapOf(
                         "type" to "integer",
                         "format" to "int64",
-                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                        "x-wow-temporal" to mapOf("unit" to "milliseconds"),
                     ),
                 )
             }
@@ -196,8 +196,8 @@ class QueryKeywordsTest {
         }
         defs.assert().isEqualTo(snapshot)
         val properties = (defs.getValue(SemanticMapsState::class.java.name) as Map<*, *>)["properties"] as Map<*, *>
-        val temporal = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
-        val duration = "x-wow-duration" to mapOf("unit" to "SECONDS")
+        val temporal = "x-wow-temporal" to mapOf("unit" to "milliseconds")
+        val duration = "x-wow-duration" to mapOf("unit" to "seconds")
         val long = mapOf("type" to "integer", "format" to "int64")
         val nullableLong = mapOf("type" to listOf("integer", "null"), "format" to "int64")
         mapOf(
@@ -222,8 +222,8 @@ class QueryKeywordsTest {
 
         fun part(rule: String, name: String) =
             ((properties[rule] as Map<*, *>)["properties"] as Map<*, *>)[name] as Map<*, *>
-        part("at", "epochMillis")["x-wow-temporal"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
-        part("after", "millis")["x-wow-duration"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
+        part("at", "epochMillis")["x-wow-temporal"].assert().isEqualTo(mapOf("unit" to "milliseconds"))
+        part("after", "millis")["x-wow-duration"].assert().isEqualTo(mapOf("unit" to "milliseconds"))
     }
 
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)

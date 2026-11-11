@@ -1198,7 +1198,6 @@ export const QueryErrorCodes: Readonly<{
     readonly NOT_PROJECTABLE: "not-projectable";
     readonly EVENT_PROJECTION_TYPE_REQUIRED: "event-projection-type-required";
     readonly TEMPORAL_REPRESENTATION_REQUIRED: "temporal-representation-required";
-    readonly TEMPORAL_CONFIGURATION_CONFLICT: "temporal-configuration-conflict";
     readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
     readonly ARRAY_EQUALITY: "array-equality";
     readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "first-last-requires-single-value";
@@ -1326,8 +1325,6 @@ export type ReferenceSemantic = {
 
 // @public
 export interface RelativeTimeFilterOptions {
-    datePattern?: string;
-    timeUnit?: TimeUnit;
     zoneId?: string;
 }
 
@@ -1480,19 +1477,19 @@ const timeFilters: {
 // @public
 export enum TimeUnit {
     // (undocumented)
-    DAYS = "DAYS",
+    DAYS = "days",
     // (undocumented)
-    HOURS = "HOURS",
+    HOURS = "hours",
     // (undocumented)
-    MICROSECONDS = "MICROSECONDS",
+    MICROSECONDS = "microseconds",
     // (undocumented)
-    MILLISECONDS = "MILLISECONDS",
+    MILLISECONDS = "milliseconds",
     // (undocumented)
-    MINUTES = "MINUTES",
+    MINUTES = "minutes",
     // (undocumented)
-    NANOSECONDS = "NANOSECONDS",
+    NANOSECONDS = "nanoseconds",
     // (undocumented)
-    SECONDS = "SECONDS"
+    SECONDS = "seconds"
 }
 
 // @public

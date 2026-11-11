@@ -54,7 +54,6 @@ import tools.jackson.core.JacksonException
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Duration
-import java.time.format.DateTimeFormatter
 
 /** The JSON half of 9.x `FilterExpressionTest`, with the legacy `Condition` cases turned into rejections. */
 class FilterExpressionJsonTest {
@@ -66,32 +65,19 @@ class FilterExpressionJsonTest {
     fun `new relative calendar filters should round trip through the common contract`() {
         val field = QueryField("state.createTime")
         val filters = listOf<RelativeTimeFilter>(
-            YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
-            NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
-            LastYearFilter(field, "UTC", "yyyy-MM-dd"),
-            ThisYearFilter(field, "UTC", "yyyy-MM-dd"),
-            NextYearFilter(field, "UTC", "yyyy-MM-dd"),
+            YesterdayFilter(field, "UTC"),
+            NextMonthFilter(field, "UTC"),
+            LastYearFilter(field, "UTC"),
+            ThisYearFilter(field, "UTC"),
+            NextYearFilter(field, "UTC"),
         )
 
         filters.forEach { filter ->
-            val json = mapper.writeValueAsString(filter)
-            json.contains("dateFormatter").assert().isFalse()
-            read(json).assert().isEqualTo(filter)
+            read(mapper.writeValueAsString(filter)).assert().isEqualTo(filter)
         }
-
-        val runtimeFilter: RelativeTimeFilter = YesterdayFilter(
-            field = field,
-            dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
+        mapper.writeValueAsString(YesterdayFilter(field)).assert().isEqualTo(
+            """{"field":"state.createTime","zoneId":null,"op":"yesterday"}""",
         )
-        mapper.writeValueAsString(runtimeFilter).assert().isEqualTo(
-            """{"field":"state.createTime","zoneId":null,"datePattern":null,"timeUnit":"MILLISECONDS","op":"yesterday"}""",
-        )
-    }
-
-    @Test
-    fun `a dateFormatter in JSON should be ignored`() {
-        read("""{"op":"today","field":"state.createTime","dateFormatter":"ISO_LOCAL_DATE"}""")
-            .assert().isEqualTo(TodayFilter(QueryField("state.createTime")))
     }
 
     @Test
@@ -292,19 +278,13 @@ class FilterExpressionJsonTest {
     }
 
     @Test
-    fun `should round trip relative time date pattern without exposing formatter`() {
-        val expression: FilterExpression = TodayFilter(
-            QueryField("state.createTime"),
-            zoneId = "UTC",
-            datePattern = "yyyy-MM-dd HH:mm:ss",
-        )
+    fun `should round trip a relative time filter's zone`() {
+        val expression: FilterExpression = TodayFilter(QueryField("state.createTime"), zoneId = "UTC")
 
-        val json = mapper.writeValueAsString(expression)
-        val decoded = read(json) as TodayFilter
+        val decoded = read(mapper.writeValueAsString(expression)) as TodayFilter
 
-        json.contains("dateFormatter").assert().isFalse()
-        decoded.datePattern.assert().isEqualTo("yyyy-MM-dd HH:mm:ss")
-        decoded.resolvedDateFormatter().assert().isNotNull()
+        decoded.assert().isEqualTo(expression)
+        decoded.zoneId.assert().isEqualTo("UTC")
     }
 
     @Test

@@ -463,25 +463,28 @@ class ManifestQuerySchemaSourceTest {
                     ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display"),
                     ManifestQueryKeywords.MASK to mapOf("strategy" to REDACT, "keepPrefix" to 1),
                 ),
-                mapOf("type" to "string", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "SECONDS")),
+                mapOf("type" to "string", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "seconds")),
                 mapOf("type" to "integer", ManifestQueryKeywords.TEMPORAL to mapOf("pattern" to "yyyy")),
                 mapOf(
                     "type" to "integer",
-                    ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "SECONDS", "pattern" to "yyyy")
+                    ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "seconds", "pattern" to "yyyy")
                 ),
-                mapOf("type" to "object", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "SECONDS")),
+                mapOf("type" to "object", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "seconds")),
                 mapOf("type" to "number", ManifestQueryKeywords.DECIMAL to mapOf("scale" to 99)),
                 mapOf("type" to "number", ManifestQueryKeywords.DECIMAL to emptyMap<String, Any?>()),
                 mapOf("type" to "number", ManifestQueryKeywords.MONEY to mapOf("currency" to "XYZ")),
                 mapOf("type" to "number", ManifestQueryKeywords.MONEY to mapOf("currencyField" to "currency")),
                 mapOf("type" to "integer", ManifestQueryKeywords.DURATION to mapOf("unit" to "AGES")),
+                // A unit is its lower-case word; the JDK's name is not one.
+                mapOf("type" to "integer", ManifestQueryKeywords.DURATION to mapOf("unit" to "SECONDS")),
+                mapOf("type" to "integer", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "MILLISECONDS")),
                 mapOf("type" to "object", ManifestQueryKeywords.REFERENCE to mapOf("aggregateName" to "member")),
                 mapOf("type" to "string", ManifestQueryKeywords.REFERENCE to emptyMap<String, Any?>()),
                 mapOf("type" to "string", ManifestQueryKeywords.ALIAS to listOf("not a path")),
                 mapOf(
                     "type" to "number",
                     ManifestQueryKeywords.DECIMAL to mapOf("scale" to 2),
-                    ManifestQueryKeywords.DURATION to mapOf("unit" to "SECONDS"),
+                    ManifestQueryKeywords.DURATION to mapOf("unit" to "seconds"),
                 ),
                 mapOf("type" to "string", "x" to 1, "\$ref" to "https://example.com/schema"),
                 mapOf("\$ref" to "#/\$defs/Missing"),

@@ -245,9 +245,9 @@ class SchemaCompatibilityTest {
             ),
             row(
                 "query semantics changed",
-                STRING + ("x-wow-temporal" to mapOf("unit" to "SECONDS")),
+                STRING + ("x-wow-temporal" to mapOf("unit" to "seconds")),
                 STRING,
-                "BREAKING s: x-wow-temporal changed from {unit=SECONDS} to null",
+                "BREAKING s: x-wow-temporal changed from {unit=seconds} to null",
             ),
             row(
                 "annotations ignored",

@@ -555,7 +555,6 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.storage-unsupported` | 服务端的存储运行不了这条查询：{reason} |
 | `runtime.query.failed.stream-not-resumable` | 按这个顺序没法一直读到底；换一种排序，或者少读一些记录。 |
 | `runtime.query.failed.temporal-aggregation-unsupported` | 「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。 |
-| `runtime.query.failed.temporal-configuration-conflict` | 「{field}」上的相对时间与这个字段记时间的方式不一致：{reason} |
 | `runtime.query.failed.temporal-representation-required` | 「{field}」存的不是已知的日期或时间，不能按相对时间筛选。 |
 | `runtime.query.failed.too-many-groups` | 这份汇总的分组超出了能显示的数量，又没有排序来决定显示哪些；请设置排序，或调大显示数量。 |
 | `runtime.query.failed.unknown-field` | 服务端不认识字段「{field}」。视图可能比数据新；去掉用到它的条件、列或维度。 |

@@ -867,7 +867,7 @@
           "type" : "integer",
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "fromPosition" : {
@@ -882,7 +882,7 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "outcome" : {
@@ -895,7 +895,7 @@
           "type" : "integer",
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "recoverable" : {
@@ -924,7 +924,7 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "retries" : {
@@ -935,7 +935,7 @@
           "type" : [ "integer", "null" ],
           "format" : "int64",
           "x-wow-temporal" : {
-            "unit" : "MILLISECONDS"
+            "unit" : "milliseconds"
           }
         },
         "retrySpec" : {

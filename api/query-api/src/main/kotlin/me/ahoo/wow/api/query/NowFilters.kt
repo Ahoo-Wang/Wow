@@ -15,27 +15,15 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Duration
-import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 class RecentDaysFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val days: Int,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.RECENT_DAYS
 
-    override fun withField(field: QueryField<*>): RecentDaysFilter = RecentDaysFilter(
-        field,
-        days,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): RecentDaysFilter = RecentDaysFilter(field, days, zoneId)
 
     init {
         require(days >= 1) { "RECENT_DAYS days must be greater than zero." }
@@ -48,19 +36,16 @@ class RecentDaysFilter @InternalWowApi constructor(
         field: QueryField<*> = this.field,
         days: Int = this.days,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): RecentDaysFilter = RecentDaysFilter(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+    ): RecentDaysFilter = RecentDaysFilter(field, days, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is RecentDaysFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "RecentDaysFilter(field=$field, days=$days, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "RecentDaysFilter(field=$field, days=$days, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, days, zoneId)
 
     companion object {
         /** A [RecentDaysFilter] of the given values. */
@@ -70,10 +55,7 @@ class RecentDaysFilter @InternalWowApi constructor(
             field: QueryField<*>,
             days: Int,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): RecentDaysFilter = RecentDaysFilter(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+        ): RecentDaysFilter = RecentDaysFilter(field, days, zoneId)
     }
 }
 
@@ -81,20 +63,10 @@ class EarlierDaysFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val days: Int,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.EARLIER_DAYS
 
-    override fun withField(field: QueryField<*>): EarlierDaysFilter = EarlierDaysFilter(
-        field,
-        days,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): EarlierDaysFilter = EarlierDaysFilter(field, days, zoneId)
 
     init {
         require(days >= 1) { "EARLIER_DAYS days must be greater than zero." }
@@ -107,19 +79,16 @@ class EarlierDaysFilter @InternalWowApi constructor(
         field: QueryField<*> = this.field,
         days: Int = this.days,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): EarlierDaysFilter = EarlierDaysFilter(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+    ): EarlierDaysFilter = EarlierDaysFilter(field, days, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is EarlierDaysFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "EarlierDaysFilter(field=$field, days=$days, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "EarlierDaysFilter(field=$field, days=$days, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, days, zoneId)
 
     companion object {
         /** A [EarlierDaysFilter] of the given values. */
@@ -129,10 +98,7 @@ class EarlierDaysFilter @InternalWowApi constructor(
             field: QueryField<*>,
             days: Int,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): EarlierDaysFilter = EarlierDaysFilter(field, days, zoneId, datePattern, dateFormatter, timeUnit)
+        ): EarlierDaysFilter = EarlierDaysFilter(field, days, zoneId)
     }
 }
 
@@ -152,20 +118,10 @@ class BeforeNowFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val offset: String = ZERO_OFFSET,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_NOW
 
-    override fun withField(field: QueryField<*>): BeforeNowFilter = BeforeNowFilter(
-        field,
-        offset,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): BeforeNowFilter = BeforeNowFilter(field, offset, zoneId)
 
     val offsetDuration: Duration = offset.requireOffset(operator)
 
@@ -179,19 +135,16 @@ class BeforeNowFilter @InternalWowApi constructor(
         field: QueryField<*> = this.field,
         offset: String = this.offset,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): BeforeNowFilter = BeforeNowFilter(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+    ): BeforeNowFilter = BeforeNowFilter(field, offset, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is BeforeNowFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "BeforeNowFilter(field=$field, offset=$offset, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "BeforeNowFilter(field=$field, offset=$offset, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, offset, zoneId)
 
     companion object {
         /** A [BeforeNowFilter] of the given values. */
@@ -201,10 +154,7 @@ class BeforeNowFilter @InternalWowApi constructor(
             field: QueryField<*>,
             offset: String = ZERO_OFFSET,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): BeforeNowFilter = BeforeNowFilter(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+        ): BeforeNowFilter = BeforeNowFilter(field, offset, zoneId)
     }
 }
 
@@ -213,20 +163,10 @@ class AfterNowFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val offset: String = ZERO_OFFSET,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.AFTER_NOW
 
-    override fun withField(field: QueryField<*>): AfterNowFilter = AfterNowFilter(
-        field,
-        offset,
-        zoneId,
-        datePattern,
-        dateFormatter,
-        timeUnit
-    )
+    override fun withField(field: QueryField<*>): AfterNowFilter = AfterNowFilter(field, offset, zoneId)
 
     val offsetDuration: Duration = offset.requireOffset(operator)
 
@@ -240,19 +180,16 @@ class AfterNowFilter @InternalWowApi constructor(
         field: QueryField<*> = this.field,
         offset: String = this.offset,
         zoneId: String? = this.zoneId,
-        datePattern: String? = this.datePattern,
-        dateFormatter: DateTimeFormatter? = this.dateFormatter,
-        timeUnit: TimeUnit = this.timeUnit,
-    ): AfterNowFilter = AfterNowFilter(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+    ): AfterNowFilter = AfterNowFilter(field, offset, zoneId)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is AfterNowFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "AfterNowFilter(field=$field, offset=$offset, zoneId=$zoneId, datePattern=$datePattern, dateFormatter=$dateFormatter, timeUnit=$timeUnit)"
+    override fun toString(): String = "AfterNowFilter(field=$field, offset=$offset, zoneId=$zoneId)"
 
-    private fun valueFields(): List<Any?> = listOf(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+    private fun valueFields(): List<Any?> = listOf(field, offset, zoneId)
 
     companion object {
         /** A [AfterNowFilter] of the given values. */
@@ -262,9 +199,6 @@ class AfterNowFilter @InternalWowApi constructor(
             field: QueryField<*>,
             offset: String = ZERO_OFFSET,
             zoneId: String? = null,
-            datePattern: String? = null,
-            dateFormatter: DateTimeFormatter? = null,
-            timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-        ): AfterNowFilter = AfterNowFilter(field, offset, zoneId, datePattern, dateFormatter, timeUnit)
+        ): AfterNowFilter = AfterNowFilter(field, offset, zoneId)
     }
 }

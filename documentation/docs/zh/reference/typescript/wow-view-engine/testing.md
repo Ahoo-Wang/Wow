@@ -137,6 +137,7 @@ export declare class ActionRefusedError extends Error {
 | `now` | 服务端的时钟，一个答出 `Date` 的函数，`BEFORE_NOW` 与 `AFTER_NOW` 拿它比较；不写时取当前时间；测试把它钉在数据围绕的那一刻，让「晚于现在」每次运行都答一样 |
 | `timeField` | 每份文档都以 epoch 毫秒持有的时间列，像 Wow 快照的 `firstEventTime`。文档按它排序，筛选顶层 AND 里对它的范围先用二分查找截出来——给大数据集 |
 | `remember` | 按查询记住重复的聚合答案，每个调用方拿自己的副本。只用于从不变化的文档；缺省关，所以改了文档的测试在下一次回答里就看到改动 |
+| `timeUnits` | 文档里不以 epoch 毫秒持有的时间字段各自的单位，按路径给出，照服务端查询 schema 的声明：`BEFORE_NOW` 与 `AFTER_NOW` 按它计算那一刻，与服务端一致，因为筛选本身不带单位 |
 
 `matches(document, filter, options?)` 问一份文档是否匹配一个筛选，读法与 `memorySource` 相同——测试拿自己的条件（比如旧页面用的那个）和视图匹配的结果比较。与来源不同，它对删除不作假设：没有 `DELETION` 条件时，已删除的文档也是候选。
 
@@ -147,6 +148,7 @@ export interface MemorySourceOptions {
   now?: () => Date;
   remember?: boolean;
   timeField?: string;
+  timeUnits?: Readonly<Record<string, TimeUnit>>;
 }
 
 export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => Date }): boolean;

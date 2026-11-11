@@ -53,10 +53,10 @@ import kotlin.reflect.KType
  * | `x-wow-sensitive` | `{"level": "display" \| "confidential"}` | `@Sensitive` on the property, on an annotation class it carries, or on its value type |
  * | `x-wow-mask` | `{"keepPrefix": n, "keepSuffix": n}` or `{"strategy": "<binary class name>"}` | `@Sensitive.mask`; always next to `x-wow-sensitive` |
  * | `x-wow-alias` | `["state.oldName", …]` | `@QueryAlias` |
- * | `x-wow-temporal` | `{"unit": "<TimeUnit>"}` (epoch) or `{"pattern": "<DateTimeFormatter pattern>"}` | `@QueryTemporal` |
+ * | `x-wow-temporal` | `{"unit": "milliseconds"}` (epoch; a `TimeUnit` in lower case) or `{"pattern": "<DateTimeFormatter pattern>"}` | `@QueryTemporal` |
  * | `x-wow-decimal` | `{"scale": n}` | `@QueryDecimal` |
  * | `x-wow-money` | `{"currency": "CNY", "scale"?: n}` or `{"currencyField": "currency", "scale"?: n}` | `@QueryMoney` |
- * | `x-wow-duration` | `{"unit": "<TimeUnit>"}` | `@QueryDuration` |
+ * | `x-wow-duration` | `{"unit": "seconds"}` (a `TimeUnit` in lower case) | `@QueryDuration` |
  * | `x-wow-reference` | `{"aggregateName": "member", "contextName"?: "shop"}` | `@QueryReference` |
  * | `x-wow-text` | `{}` | `@QueryText`: prose searched by words; not a semantic type |
  *
@@ -145,7 +145,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
             is QueryTemporal -> {
                 val temporal = attributes.putObject(QueryKeywords.TEMPORAL_KEYWORD)
                 if (annotation.pattern.isEmpty()) {
-                    temporal.put("unit", annotation.unit.name)
+                    temporal.put("unit", annotation.unit.name.lowercase())
                 } else {
                     check(annotation.unit == TimeUnit.MILLISECONDS) {
                         "@QueryTemporal on $field declares either a unit or a pattern, not both."
@@ -161,7 +161,10 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
                 annotation.scale.takeIf { it >= 0 }?.let { put("scale", it) }
             }
 
-            is QueryDuration -> attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", annotation.unit.name)
+            is QueryDuration -> {
+                val unit = annotation.unit.name.lowercase()
+                attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", unit)
+            }
             is QueryReference -> attributes.putObject(QueryKeywords.REFERENCE_KEYWORD).apply {
                 put("aggregateName", annotation.aggregateName)
                 annotation.contextName.takeIf { it.isNotEmpty() }?.let { put("contextName", it) }

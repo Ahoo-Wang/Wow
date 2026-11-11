@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAccessor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -58,10 +59,14 @@ sealed interface Temporal : QuerySemanticType {
     class Formatted @InternalWowApi constructor(
         val pattern: String,
     ) : Temporal {
-        init {
+        /** The formatter of [pattern], built once with the field's schema rather than per query. */
+        private val formatter: DateTimeFormatter = run {
             require(pattern.isNotBlank()) { "Temporal pattern cannot be blank." }
             DateTimeFormatter.ofPattern(pattern)
         }
+
+        /** [moment] written in [pattern]. */
+        internal fun format(moment: TemporalAccessor): String = formatter.format(moment)
 
         override fun equals(other: Any?): Boolean =
             this === other || other is Formatted && valueFields() == other.valueFields()

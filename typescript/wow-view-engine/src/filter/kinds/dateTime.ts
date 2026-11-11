@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  filter,
-  TimeUnit,
-  type FilterExpression,
-} from '@ahoo-wang/wow-client/dsl';
+import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import dayjs from 'dayjs';
 import {
   temporalOf,
@@ -365,22 +361,17 @@ function isNowOperator(operator: FilterOperatorName): boolean {
 }
 
 /**
- * `BEFORE_NOW` / `AFTER_NOW` on this field, the service's clock encoded the
- * way the field keeps its time: a count of seconds is said so, anything else
- * is Wow's default of milliseconds (a store's own date type takes none).
+ * `BEFORE_NOW` / `AFTER_NOW` on this field. The service encodes its clock the
+ * way the field keeps its time, which its query schema declares: the filter
+ * carries no unit.
  */
 function compileNow(
   field: FieldDefinition,
   operator: FilterOperatorName,
 ): FilterExpression {
-  const temporal = temporalOf(field);
-  const options =
-    temporal.type === 'epoch' && temporal.timeUnit === TimeUnits.SECONDS
-      ? { timeUnit: TimeUnit.SECONDS }
-      : {};
   return operator === FilterOperators.BEFORE_NOW
-    ? filter.beforeNow(field.name, undefined, options)
-    : filter.afterNow(field.name, undefined, options);
+    ? filter.beforeNow(field.name)
+    : filter.afterNow(field.name);
 }
 
 /** "before now" / "after now": the operator is the condition. */

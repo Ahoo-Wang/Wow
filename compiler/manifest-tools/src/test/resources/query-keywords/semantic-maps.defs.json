@@ -9,7 +9,7 @@
           "format" : "int64"
         },
         "x-wow-temporal" : {
-          "unit" : "MILLISECONDS"
+          "unit" : "milliseconds"
         }
       },
       "pauses" : {
@@ -19,7 +19,7 @@
           "format" : "int64"
         },
         "x-wow-duration" : {
-          "unit" : "SECONDS"
+          "unit" : "seconds"
         }
       },
       "reminders" : {
@@ -29,7 +29,7 @@
           "format" : "int64"
         },
         "x-wow-temporal" : {
-          "unit" : "MILLISECONDS"
+          "unit" : "milliseconds"
         }
       },
       "timeouts" : {
@@ -39,7 +39,7 @@
           "format" : "int64"
         },
         "x-wow-duration" : {
-          "unit" : "SECONDS"
+          "unit" : "seconds"
         }
       }
     },

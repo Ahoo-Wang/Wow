@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SortCapable
 import me.ahoo.wow.spi.json.WowJson
@@ -76,7 +75,6 @@ private class QueryJsonModule : SimpleModule(MODULE_NAME) {
         addDeserializer(QueryField::class.java, QueryFieldReader())
         setMixInAnnotation(FilterExpression::class.java, FilterExpressionMixin::class.java)
         setMixInAnnotation(DeletionFilter::class.java, DeletionFilterMixin::class.java)
-        setMixInAnnotation(RelativeTimeFilter::class.java, RelativeTimeFilterMixin::class.java)
         setMixInAnnotation(BeforeNowFilter::class.java, RelativeNowFilterMixin::class.java)
         setMixInAnnotation(AfterNowFilter::class.java, RelativeNowFilterMixin::class.java)
         registerSubtypes(*filterSubtypes().toTypedArray())

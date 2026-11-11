@@ -242,14 +242,14 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
 
   it('names a time semantic by its unit, milliseconds where it names none', () => {
     expect(semanticText({ type: QuerySemanticTypes.TEMPORAL_EPOCH })).toBe(
-      'epoch MILLISECONDS',
+      'epoch milliseconds',
     );
     expect(
       semanticText({
         type: QuerySemanticTypes.TEMPORAL_EPOCH,
         timeUnit: TimeUnit.SECONDS,
       }),
-    ).toBe('epoch SECONDS');
+    ).toBe('epoch seconds');
     expect(
       semanticText({
         type: QuerySemanticTypes.TEMPORAL_FORMATTED,
@@ -293,7 +293,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
       )?.params,
     ).toEqual({
       field: 'placedAt',
-      declared: 'epoch MILLISECONDS',
+      declared: 'epoch milliseconds',
       described: 'money CNY scale 2',
     });
   });

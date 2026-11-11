@@ -331,11 +331,9 @@ class QueryResolverTest {
     }
 
     @Test
-    fun `relative time needs the field to store time, as the filter says`() {
+    fun `relative time needs the field to store time`() {
         rejection { count(TodayFilter(QueryField("count"))) }
             .assert().isEqualTo(QueryViolation.TemporalRepresentationRequired(QueryField("count")))
-        rejection { count(TodayFilter(QueryField("at"), datePattern = "yyyy-MM-dd")) }
-            .assert().isEqualTo(QueryViolation.TemporalConfigurationConflict(QueryField("at")))
         val today = count(TodayFilter(QueryField("at"), "UTC")) as AndFilter
         (today.operands.first() as GreaterThanOrEqualFilter).value.assert().isInstanceOf(Number::class.java)
     }

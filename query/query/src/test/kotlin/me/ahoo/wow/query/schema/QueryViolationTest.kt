@@ -88,10 +88,6 @@ class QueryViolationTest {
             QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
             "Relative-time field requires a known temporal representation.",
         ),
-        QueryViolation.TemporalConfigurationConflict(field) to Row(
-            QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
-            "Relative-time configuration conflicts with its value definition.",
-        ),
         QueryViolation.TemporalAggregationUnsupported(field) to Row(
             QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED,
             "Field [state.name] must store a date or an epoch to be aggregated by time.",

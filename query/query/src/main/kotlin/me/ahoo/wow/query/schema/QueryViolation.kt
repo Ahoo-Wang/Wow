@@ -435,29 +435,6 @@ sealed interface QueryViolation {
         }
     }
 
-    class TemporalConfigurationConflict @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
-        override val code: String
-            get() = QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT
-
-        override val message: String
-            get() = "Relative-time configuration conflicts with its value definition."
-
-        override fun equals(other: Any?): Boolean =
-            this === other || other is TemporalConfigurationConflict && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String = "TemporalConfigurationConflict(field=$field)"
-
-        private fun valueFields(): List<Any?> = listOf(field)
-
-        companion object {
-            /** A [TemporalConfigurationConflict] of the given values. */
-            @JvmStatic
-            fun of(field: QueryField<*>): TemporalConfigurationConflict = TemporalConfigurationConflict(field)
-        }
-    }
-
     /**
      * A date group or date difference names a field whose values do not store instants as a date or an epoch, so
      * no backend can read them as instants.

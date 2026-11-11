@@ -55,7 +55,7 @@ export const serverRules: ConformanceRule[] = [
     wow: 'Temporal pattern cannot be blank.',
     source: 'wow-api schema/QueryTemporal.kt',
     serverOnly:
-      'A schema-declared temporal pattern. A filter carries `datePattern`, which is checked at build time above.',
+      'A schema-declared temporal pattern. A filter carries no pattern of its own: the server writes its bounds in the field’s.',
   },
   {
     wow: 'Aggregation metric filters do not support search filters.',

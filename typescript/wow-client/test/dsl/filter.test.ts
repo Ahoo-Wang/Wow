@@ -23,7 +23,6 @@ import {
   filter,
   FilterOperator,
   SearchMode,
-  TimeUnit,
   type QueryField,
 } from '../../src/dsl.js';
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -61,7 +60,6 @@ describe('filter', () => {
         {
           op: FilterOperator.TODAY,
           field: 'state.createdAt',
-          timeUnit: TimeUnit.MILLISECONDS,
           zoneId: 'UTC',
         },
       ],

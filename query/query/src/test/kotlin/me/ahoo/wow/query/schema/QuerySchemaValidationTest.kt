@@ -46,7 +46,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 class QuerySchemaValidationTest {
@@ -321,11 +320,10 @@ class QuerySchemaValidationTest {
         ((normalized.operands[0] as GreaterThanOrEqualFilter).value as Number).toLong().assert().isEqualTo(86_400L)
         ((normalized.operands[1] as LessThanFilter).value as Number).toLong().assert().isEqualTo(172_800L)
         (normalized.operands[0] as GreaterThanOrEqualFilter).field.assert().isEqualTo(QueryField("times"))
-        input.timeUnit.assert().isEqualTo(TimeUnit.MILLISECONDS)
     }
 
     @Test
-    fun `relative time rejects missing conflicting and opaque representations`() {
+    fun `relative time rejects missing and opaque representations`() {
         val epoch = scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.SECONDS))
         val formatted = scalarFixture(temporal = Temporal.Formatted("yyyy-MM-dd"))
         val mixed = QueryValueSchema(
@@ -335,12 +333,9 @@ class QuerySchemaValidationTest {
         val schema = boundSchemaFixture(
             objectFixture("epoch" to epoch, "formatted" to formatted, "plain" to scalarFixture(), "mixed" to mixed)
         )
-        validateQuery(TodayFilter(QueryField("formatted"), datePattern = "yyyy-MM-dd"), schema)
         validateQuery(TodayFilter(QueryField("formatted")), schema)
+        validateQuery(TodayFilter(QueryField("epoch")), schema)
         listOf(
-            TodayFilter(QueryField("epoch"), datePattern = "yyyy-MM-dd"),
-            TodayFilter(QueryField("formatted"), datePattern = "yyyy/MM/dd"),
-            TodayFilter(QueryField("formatted"), dateFormatter = DateTimeFormatter.ISO_DATE),
             TodayFilter(QueryField("plain")),
             TodayFilter(QueryField("mixed")),
             TodayFilter(QueryField("missing")),

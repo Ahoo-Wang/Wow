@@ -153,7 +153,10 @@ describe('memorySource: filters and readings', () => {
       { id: 'soon', timeoutAt: NOW + HOUR, inSeconds: (NOW + HOUR) / 1000 },
       { id: 'never' },
     ];
-    const source = memoryRecords(rows, { now: () => new Date(NOW) });
+    const source = memoryRecords(rows, {
+      now: () => new Date(NOW),
+      timeUnits: { inSeconds: TimeUnit.SECONDS },
+    });
     const ids = async (
       op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW,
       rest: Record<string, unknown> = {},
@@ -164,7 +167,6 @@ describe('memorySource: filters and readings', () => {
             op,
             field: 'timeoutAt',
             offset: 'PT0S',
-            timeUnit: TimeUnit.MILLISECONDS,
             ...rest,
           } as FilterExpression,
         })
@@ -187,13 +189,22 @@ describe('memorySource: filters and readings', () => {
       ).resolves.toEqual([]);
     });
 
-    it('encodes the moment in the field’s time unit', async () => {
+    it('encodes the moment in the unit the source keeps the field in', async () => {
       await expect(
-        ids(FilterOperator.AFTER_NOW, {
-          field: 'inSeconds',
-          timeUnit: TimeUnit.SECONDS,
-        }),
+        ids(FilterOperator.AFTER_NOW, { field: 'inSeconds' }),
       ).resolves.toEqual(['soon']);
+    });
+
+    it('reads the current time when no clock is given', () => {
+      const overdue = {
+        op: FilterOperator.BEFORE_NOW,
+        field: 'timeoutAt',
+        offset: 'PT0S',
+      } as FilterExpression;
+      expect(matches({ timeoutAt: 0 }, overdue)).toBe(true);
+      expect(matches({ timeoutAt: Number.MAX_SAFE_INTEGER }, overdue)).toBe(
+        false,
+      );
     });
 
     it('lowers the clock in a metric’s own filter too', async () => {

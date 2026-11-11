@@ -14,8 +14,7 @@
 // Internal: not re-exported by filter/index.ts. The argument checks the
 // filter builders share.
 import { constantName } from '../constantName.js';
-import { validateDatePattern } from './datePattern.js';
-import { StringComparison, TimeUnit, type FilterOperator } from './operator.js';
+import { StringComparison, type FilterOperator } from './operator.js';
 import type { FilterLiteral, RelativeTimeFilterOptions } from './types.js';
 
 const LOCAL_TIME_PATTERN =
@@ -94,11 +93,7 @@ function isValidOffsetZone(zoneId: string): boolean {
 
 export function validateRelativeTimeOptions({
   zoneId,
-  datePattern,
-  timeUnit = TimeUnit.MILLISECONDS,
-}: RelativeTimeFilterOptions): RelativeTimeFilterOptions & {
-  timeUnit: TimeUnit;
-} {
+}: RelativeTimeFilterOptions): RelativeTimeFilterOptions {
   if (zoneId !== undefined) {
     if (typeof zoneId !== 'string' || !zoneId.trim()) {
       throw new TypeError('zoneId cannot be blank.');
@@ -110,17 +105,7 @@ export function validateRelativeTimeOptions({
       throw new TypeError(`zoneId is invalid: [${zoneId}].`);
     }
   }
-  if (datePattern !== undefined) {
-    validateDatePattern(datePattern);
-  }
-  if (!Object.values(TimeUnit).includes(timeUnit)) {
-    throw new TypeError(`timeUnit is invalid: [${String(timeUnit)}].`);
-  }
-  return {
-    ...(zoneId === undefined ? {} : { zoneId }),
-    ...(datePattern === undefined ? {} : { datePattern }),
-    timeUnit,
-  };
+  return zoneId === undefined ? {} : { zoneId };
 }
 
 export function validateDays(operator: FilterOperator, days: number): void {

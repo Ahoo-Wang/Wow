@@ -35,7 +35,8 @@ type Filter = FilterExpression | ElementFilterExpression;
  * screen used, to compare with what a view matched. Unlike a source, it
  * assumes nothing about deletion: without a `DELETION` condition a deleted
  * document is a candidate too. `now` is the clock `BEFORE_NOW` and
- * `AFTER_NOW` compare against, read once (the current time by default).
+ * `AFTER_NOW` compare against, read once (the current time by default),
+ * every time counted in epoch milliseconds.
  */
 export function matches(
   document: RecordData,
@@ -241,10 +242,15 @@ export function criteria(filter: Filter): AnyObject {
  * A query with every `BEFORE_NOW` / `AFTER_NOW` in it — at the root, in a
  * logical or element match, in a metric's or an element's filter — lowered
  * the way Wow's `FilterNormalizer` lowers them: to `LT` / `GT` against
- * `now + offset`, encoded as the field keeps its time. The clock is read
- * once, and only when the query holds one.
+ * `now + offset`, encoded as the field keeps its time: in the unit
+ * `timeUnits` names for it, milliseconds otherwise. The clock is read once,
+ * and only when the query holds one.
  */
-export function atNow<Q>(query: Q, clock: () => Date = () => new Date()): Q {
+export function atNow<Q>(
+  query: Q,
+  clock: () => Date = () => new Date(),
+  timeUnits: FieldTimeUnits = {},
+): Q {
   let now: number | undefined;
   const lower = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(lower);
@@ -253,7 +259,7 @@ export function atNow<Q>(query: Q, clock: () => Date = () => new Date()): Q {
     const op = (node as { op?: unknown }).op;
     if (op === FilterOperator.BEFORE_NOW || op === FilterOperator.AFTER_NOW) {
       now ??= clock().getTime();
-      return nowComparison(node as NowFilter, now);
+      return nowComparison(node as NowFilter, now, timeUnits);
     }
     return Object.fromEntries(
       Object.entries(node).map(([key, value]) => [key, lower(value)]),
@@ -274,17 +280,24 @@ const PER_MILLISECOND: Record<TimeUnit, number> = {
 };
 
 /**
- * `field < now + offset` or `field > now + offset`, strictly, the moment
- * counted in the filter's `timeUnit` and truncated as `TimeUnit.convert`
- * truncates it. A record without the field matches neither.
+ * The unit each time field a document holds as an epoch number counts in, by
+ * its path, for a field not kept in milliseconds: what the service's query
+ * schema declares (`@QueryTemporal`), which a filter does not carry.
  */
-function nowComparison(filter: NowFilter, now: number): FilterExpression {
-  if (filter.datePattern !== undefined)
-    throw new Error(
-      'The memory source keeps times as epoch numbers, not as formatted text.',
-    );
+type FieldTimeUnits = Readonly<Record<string, TimeUnit>>;
+
+/**
+ * `field < now + offset` or `field > now + offset`, strictly, the moment
+ * counted in the field's unit and truncated as `TimeUnit.convert` truncates
+ * it. A record without the field matches neither.
+ */
+function nowComparison(
+  filter: NowFilter,
+  now: number,
+  timeUnits: FieldTimeUnits,
+): FilterExpression {
   const moment = now + durationMs(filter.offset ?? 'PT0S');
-  const unit = filter.timeUnit ?? TimeUnit.MILLISECONDS;
+  const unit = timeUnits[filter.field] ?? TimeUnit.MILLISECONDS;
   return {
     op:
       filter.op === FilterOperator.BEFORE_NOW

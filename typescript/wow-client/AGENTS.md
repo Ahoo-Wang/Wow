@@ -44,14 +44,6 @@ writes from `WireNames`. An enumeration declared here goes in both tests'
 lists. Regenerate the fixture from the repository root, never edit it:
 `./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow-test.snapshot.update=true`.
 
-**Date patterns.** `datePattern` is checked against `java.time`'s pattern
-grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
-3,700 patterns to the server's entry and writes which the JVM accepts to
-`test/fixtures/java-date-patterns.json`; `test/dsl/datePattern.test.ts` holds
-this package to the file entry by entry. To change the corpus, edit the
-Kotlin test and regenerate from the repository root with
-`./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow-test.snapshot.update=true`.
-
 ## Project Structure
 
 ```
@@ -74,7 +66,7 @@ src/
     field.ts, deletionState.ts, sort.ts, projection.ts, pagination.ts, cursorQuery.ts,
     queryable.ts, documents.ts, queryErrorCodes.ts
     descriptor.ts, fieldDescriptor.ts, semanticTypes.ts — The query capability descriptor: the model's, a field's, a field's semantics
-    filter/       — `filter.*` (builders.ts, composed of its groups: metadataFilters.ts, logicalFilters.ts, fieldFilters.ts, searchFilter.ts, timeFilters.ts, expressionFilter.ts), FilterExpression and its operators; (internal) validate.ts, datePattern.ts, scope.ts
+    filter/       — `filter.*` (builders.ts, composed of its groups: metadataFilters.ts, logicalFilters.ts, fieldFilters.ts, searchFilter.ts, timeFilters.ts, expressionFilter.ts), FilterExpression and its operators; (internal) validate.ts, scope.ts
     aggregation/  — `aggregation.*` (builders.ts, composed of the builders of each part), `aggregation.having.*`, `aggregation.derived(…)`; by part of the query, each with its types, options, input checks and builders: groups.ts, metrics.ts, derived.ts, having.ts; types.ts: elements, expressions, the query and its limits, whose builders are in builders.ts; (internal) admit.ts, aliases.ts, sort.ts
 scripts/
   verify-package.mjs — Run by the build: entries resolve and export what test/surface/ lists, /dsl loads no fetcher package, the root entry tree-shakes, each entry under its gzip ceiling

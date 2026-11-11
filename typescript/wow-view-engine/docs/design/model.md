@@ -86,7 +86,7 @@ export type FieldCellId =
 
 // Wow 查询 schema 的 semanticType，照 Wow 的名字写：TEMPORAL_EPOCH → epoch，TEMPORAL_DATE → date
 export type FieldTemporal =
-  | { type: 'epoch'; timeUnit?: 'MILLISECONDS' | 'SECONDS' } // 整数；缺省毫秒，与 Wow 的缺省一致
+  | { type: 'epoch'; timeUnit?: 'milliseconds' | 'seconds' } // 整数；缺省毫秒，与 Wow 的缺省一致
   | { type: 'date' }; // 存储自己的日期类型，查询里写 ISO 8601 文本
 
 export interface FieldOption {
@@ -189,7 +189,7 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 
 `defineView(descriptor, spec)`（`src/runtime/define/`）从随定义提交的描述符快照建一份普通的 `DataViewDefinition`，按 [host-integration.md](host-integration.md) 第 3 节的合并表：描述符给上限，宿主在其内选、命名、收窄。H1 定下方案没写到的几处：
 
-- **种类从值类型与语义读**：有枚举或宿主写了 `options` 是 `enum`，`TEMPORAL_EPOCH`／`TEMPORAL_FORMATTED` 是 `datetime`，`TEMPORAL_DATE` 是 `date`，布尔、整数／小数、字符串各归其类；时间的存法也照抄：`TEMPORAL_DATE` 写 `temporal: { type: 'date' }`，以秒计的 `TEMPORAL_EPOCH` 写 `{ type: 'epoch', timeUnit: 'SECONDS' }`，毫秒是缺省、不写（从前没有抄，带日期列的数据集一律被 `capability.field.temporal-mismatch` 拒绝，由分析服务的演示发现）；写了 `elements` 是 `elementMatch`；动态键下的路径（`state.tags.{key}`）读匹配那条模式的 `types`；说不出的（对象、联合类型）要宿主写 `kind`，否则 `definition.field.kind-unknown`。
+- **种类从值类型与语义读**：有枚举或宿主写了 `options` 是 `enum`，`TEMPORAL_EPOCH`／`TEMPORAL_FORMATTED` 是 `datetime`，`TEMPORAL_DATE` 是 `date`，布尔、整数／小数、字符串各归其类；时间的存法也照抄：`TEMPORAL_DATE` 写 `temporal: { type: 'date' }`，以秒计的 `TEMPORAL_EPOCH` 写 `{ type: 'epoch', timeUnit: 'seconds' }`，毫秒是缺省、不写（从前没有抄，带日期列的数据集一律被 `capability.field.temporal-mismatch` 拒绝，由分析服务的演示发现）；写了 `elements` 是 `elementMatch`；动态键下的路径（`state.tags.{key}`）读匹配那条模式的 `types`；说不出的（对象、联合类型）要宿主写 `kind`，否则 `definition.field.kind-unknown`。
 - **事实取快照，能力不烤进去**（D67 修订，用户 2026-09-28）：描述符里路径、种类、枚举值、语义、敏感级别、元素结构是模型的事实，取自提交的快照，写错是准入错误；算子、排序、聚合、搜索、上限是存储的能力——同一个模型在 MongoDB 与 Elasticsearch 上不同（元素里的搜索只有 ES 有）。所以宿主没收窄的能力**留给数据源**：定义带着快照的能力（没有描述符的源——9.2 以前的服务、非 Wow 源、不带 `describe` 的测试替身——照它跑，与今天一样），同时在 `described.open` 记下哪些是留给源的（`OpenCapabilities`：没关排序的字段；分析的计划——哪些字段参与、宿主各收窄了什么）；按源的描述符收窄时（`narrowDefinition`，唯一读描述符的地方）先 `reopened`（`src/capabilities/open.ts`）：开着的排序按该源能否排序重填，分析按计划在该源的描述符上重算（宿主写了的是子集、没写的取该源给的），然后照常收窄。于是 N5「描述有、定义没写的，不自动加」只对 `defineView` 定义留给源的那几项放宽；手写的定义没有 `open`，语义一字不变；内核与 `/ui` 不知道描述符。宿主的收窄超出快照是 **warning** 不是 error（`definition.field.operator-wider`／`sort-wider`／`summary-wider`／`analysis-wider`、`definition.analysis.wider`、`definition.record.paging-wider`）——换一个存储可能就有；实际生效的是它与运行时描述符的交集。（见 test/defineViewOpen.test.ts：同一份按 Mongo 快照建的定义，在带元素搜索的 ES 式源上给出搜索、多出的排序与分组，在 Mongo 式源上没有）
 - **算子不抄**：宿主不写 `operators` 就用种类的缺省，运行时照 N5 按当下的描述符切；写了就是子集。排序缺省按描述符（按分页方式看 `paged` 或 `cursor`），`sortable: false` 关掉；带 `more.remote` 的 `reference` 缺省不排——服务端只能按 id 排，读者看到的是名称——写 `sortable: true` 才按 id 排（D354 ⑤）；条目字段不缺省排序——它不是记录的次序。汇总只按宿主写的（选择），须在路径的函数里。
 - **类别的值**：宿主列出的在前、按它的次序与措辞，`false` 隐藏，其余按描述的 `description`（再退回值本身）排在后；宿主写了描述没有的值是错误。描述符没有枚举而宿主写了 `options`，那就是宿主自己的闭合列表。
@@ -570,7 +570,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 ## 时间字段怎样存
 
-一条日期条件存的是意图（"今天"、"9 月 1 日到 30 日"），发出去的却必须是存储比得了的那个值，而同样是一刻，Wow 的查询 schema 有三种存法（`me.ahoo.wow.api.query.schema.Temporal`）：`TEMPORAL_EPOCH(timeUnit)` 存整数，`TEMPORAL_DATE` 存存储自己的日期类型、查询里写 ISO 8601，`TEMPORAL_FORMATTED(pattern)` 存按格式写的字符串。字段用 `temporal` 声明它是哪一种，照 Wow 的名字写，从 schema 抄过来就对：`{ type: 'epoch', timeUnit: 'MILLISECONDS' }`、`{ type: 'date' }`。`TEMPORAL_FORMATTED` 没有建模——还没有哪份定义用到它，而按错的格式写出的边会被当文本比较、悄悄匹配错的行。编译怎样照它写见 [kernels.md#求出来的那一刻按字段的存法发出](kernels.md#求出来的那一刻按字段的存法发出)。
+一条日期条件存的是意图（"今天"、"9 月 1 日到 30 日"），发出去的却必须是存储比得了的那个值，而同样是一刻，Wow 的查询 schema 有三种存法（`me.ahoo.wow.api.query.schema.Temporal`）：`TEMPORAL_EPOCH(timeUnit)` 存整数，`TEMPORAL_DATE` 存存储自己的日期类型、查询里写 ISO 8601，`TEMPORAL_FORMATTED(pattern)` 存按格式写的字符串。字段用 `temporal` 声明它是哪一种，照 Wow 的名字写，从 schema 抄过来就对：`{ type: 'epoch', timeUnit: 'milliseconds' }`、`{ type: 'date' }`。`TEMPORAL_FORMATTED` 没有建模——还没有哪份定义用到它，而按错的格式写出的边会被当文本比较、悄悄匹配错的行。编译怎样照它写见 [kernels.md#求出来的那一刻按字段的存法发出](kernels.md#求出来的那一刻按字段的存法发出)。
 
 **不声明时是纪元毫秒**（`DEFAULT_TEMPORAL`，`temporalOf(field)` 是唯一的读法）。引擎的对象是 Wow 数据：快照里的每一个时间——`eventTime`、`firstEventTime`、聚合上 `@QueryTemporal` 标注的 long——都是毫秒，Wow 自己的 `timeUnit` 缺省也是毫秒；照一份 Wow schema 写定义的人不该为了正确而在每个时间字段上多记一个成员。反过来的缺省（ISO 文本）只照顾了故事与测试的夹具，而它在真实服务上的代价是**每一条日期条件都被 400 拒绝**。存成原生日期的那一种由它自己说出来：故事里订单与运单的时间存成 ISO 文本，所以它们的字段写着 `temporal: { type: 'date' }`。两种错法都响亮：Wow 的 schema 校验对类型不符的值一律报 `Filter value does not match`，不会静默地少返回。
 

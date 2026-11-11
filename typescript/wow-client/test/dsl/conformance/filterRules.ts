@@ -130,21 +130,6 @@ export const filterRules: ConformanceRule[] = [
     violate: () => filter.today('a', { zoneId: '  ' }),
   },
   {
-    wow: 'datePattern cannot be blank.',
-    source: 'wow-api RelativeTimeFilters.kt toDateFormatter',
-    violate: () => filter.thisWeek('a', { datePattern: '  ' }),
-  },
-  {
-    // Stands for the whole of parsePattern's grammar, which
-    // test/dsl/datePattern.test.ts holds entry by entry to a corpus the JVM
-    // judged (fixtures/java-date-patterns.json).
-    wow: 'Unknown pattern letter: $cur',
-    source:
-      'java.time DateTimeFormatterBuilder.parsePattern, from wow-api RelativeTimeFilters.kt toDateFormatter',
-    violate: () => filter.thisWeek('a', { datePattern: 'jj' }),
-    throws: 'datePattern is invalid: [jj].',
-  },
-  {
     wow: 'Unknown time-zone ID: $zoneId',
     source:
       'java.time ZoneRulesProvider.getProvider, from wow-api RelativeTimeFilters.kt requireZoneId',

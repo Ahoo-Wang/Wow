@@ -3519,7 +3519,6 @@ export const en: {
     readonly "runtime.query.failed.not-projectable": "{field} cannot be shown as a column of this data.";
     readonly "runtime.query.failed.event-projection-type-required": "An event's payload cannot be shown without its type; keep the event type column.";
     readonly "runtime.query.failed.temporal-representation-required": "{field} is not stored as a known date or time, so a relative time cannot be asked of it.";
-    readonly "runtime.query.failed.temporal-configuration-conflict": "The relative time on {field} does not agree with how the field keeps its time: {reason}";
     readonly "runtime.query.failed.parallel-array-sort": "{field} and another list field in the sort cannot be sorted by together; keep one of them.";
     readonly "runtime.query.failed.array-equality": "{field} cannot be compared with a whole list here; match its items instead.";
     readonly "runtime.query.failed.first-last-requires-single-value": "“First value” and “Last value” need a field that holds a single value; {field} may hold several.";

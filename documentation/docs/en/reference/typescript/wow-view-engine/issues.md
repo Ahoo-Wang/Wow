@@ -555,7 +555,6 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.storage-unsupported` | The service's storage cannot run this: {reason} |
 | `runtime.query.failed.stream-not-resumable` | This data cannot be read to its end in this order; sort it another way or read fewer records. |
 | `runtime.query.failed.temporal-aggregation-unsupported` | {field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time. |
-| `runtime.query.failed.temporal-configuration-conflict` | The relative time on {field} does not agree with how the field keeps its time: {reason} |
 | `runtime.query.failed.temporal-representation-required` | {field} is not stored as a known date or time, so a relative time cannot be asked of it. |
 | `runtime.query.failed.too-many-groups` | This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit. |
 | `runtime.query.failed.unknown-field` | The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it. |

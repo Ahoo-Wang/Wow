@@ -31,7 +31,7 @@ A body is one JSON object: `kind` names the operation, the other properties are 
 
 A property the kind does not have is 400 `wow.query.malformed` with the violation code `unknown-property`; a body without `kind` or with another value is `invalid-value` or `unknown-value`.
 
-Every word the protocol defines is lowercase kebab-case: `kind`, `op`, `type`, `direction`, `total`, `mode`, `unit` and the other enumerated properties, the error and violation codes, and the descriptor's values (`"not-in"`, `"date-histogram"`, `"unknown-field"`, `"snapshot"`). Only that spelling is read: `"NOT_IN"` is `unknown-type`. A custom query model or value type a backend registers follows the same rule, and one that does not is refused when the service starts, with the lowercase spelling in the message. Three kinds of value keep their own spelling, because the protocol does not define them: your domain's values (`"PUBLISHED"` below is the product's status), zone ids and ISO-8601 durations (`Asia/Shanghai`, `PT30M`), and `timeUnit`, which takes the JDK's `TimeUnit` names.
+Every word the protocol defines is lowercase kebab-case: `kind`, `op`, `type`, `direction`, `total`, `mode`, `unit` and the other enumerated properties, the error and violation codes, and the descriptor's values (`"not-in"`, `"date-histogram"`, `"unknown-field"`, `"snapshot"`). Only that spelling is read: `"NOT_IN"` is `unknown-type`. A custom query model or value type a backend registers follows the same rule, and one that does not is refused when the service starts, with the lowercase spelling in the message. Two kinds of value keep their own spelling, because the protocol does not define them: your domain's values (`"PUBLISHED"` below is the product's status), and zone ids and ISO-8601 durations (`Asia/Shanghai`, `PT30M`). A time unit in the descriptor is a JDK `TimeUnit` name in lowercase (`"milliseconds"`).
 
 ## Across tenants
 
@@ -167,7 +167,7 @@ The products without a brand:
 
 ### Relative time
 
-Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone), `datePattern` (a `DateTimeFormatter` pattern, for a field stored as a formatted string) and `timeUnit` (`MILLISECONDS`, the default, or another JDK `TimeUnit` name, for a field stored as an epoch number).
+Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone). The filter carries no encoding: the server writes the window's bounds as the field keeps time, which its model declares (`@QueryTemporal`), an epoch in its unit or text in its pattern.
 
 | `op` | Further properties | Matches |
 | --- | --- | --- |

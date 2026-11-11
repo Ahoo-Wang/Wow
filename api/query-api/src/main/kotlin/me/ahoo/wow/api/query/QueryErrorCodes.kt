@@ -66,7 +66,6 @@ object QueryErrorCodes {
     const val NOT_PROJECTABLE = "not-projectable"
     const val EVENT_PROJECTION_TYPE_REQUIRED = "event-projection-type-required"
     const val TEMPORAL_REPRESENTATION_REQUIRED = "temporal-representation-required"
-    const val TEMPORAL_CONFIGURATION_CONFLICT = "temporal-configuration-conflict"
     const val PARALLEL_ARRAY_SORT = "parallel-array-sort"
     const val ARRAY_EQUALITY = "array-equality"
     const val FIRST_LAST_REQUIRES_SINGLE_VALUE = "first-last-requires-single-value"

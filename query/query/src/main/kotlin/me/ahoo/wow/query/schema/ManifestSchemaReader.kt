@@ -22,7 +22,6 @@ import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.resolve.jsonValue
 import tools.jackson.databind.JsonNode
-import java.util.concurrent.TimeUnit
 
 /**
  * The `x-wow-*` keywords of a Manifest property schema (#4332, `QueryKeywords` of `manifest-tools`), each the 1:1
@@ -360,7 +359,7 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
         val pattern = temporal["pattern"] as? String
         declared(ManifestQueryKeywords.TEMPORAL) {
             require((unit == null) != (pattern == null)) { "declares either a unit or a pattern, not both" }
-            if (pattern != null) Temporal.Formatted(pattern) else Temporal.Epoch(TimeUnit.valueOf(unit!!))
+            if (pattern != null) Temporal.Formatted(pattern) else Temporal.Epoch(timeUnitOf(unit!!))
         }
     }
 
@@ -379,7 +378,7 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
     }
 
     fun duration(): TimeSpan? = keyword(ManifestQueryKeywords.DURATION)?.let { duration ->
-        declared(ManifestQueryKeywords.DURATION) { TimeSpan(TimeUnit.valueOf(duration["unit"] as String)) }
+        declared(ManifestQueryKeywords.DURATION) { TimeSpan(timeUnitOf(duration["unit"] as String)) }
     }
 
     fun reference(contextName: String): Reference? = keyword(ManifestQueryKeywords.REFERENCE)?.let { reference ->

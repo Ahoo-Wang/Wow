@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.EarlierDaysFilter
-import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -44,197 +43,119 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.query.schema.Temporal
-import me.ahoo.wow.query.schema.withTemporal
 import me.ahoo.wow.query.spec.Lowering
 import me.ahoo.wow.query.spec.spec
-import java.time.Clock
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
+import java.time.ZonedDateTime
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
 /**
  * Lowers relative time and derived operators. A relative-time filter that names no `zoneId` reads its days in
- * [defaultZoneId], UTC: never the JVM's zone, so nodes in different zones answer a filter alike.
+ * [defaultZoneId], UTC: never the JVM's zone, so nodes in different zones answer a filter alike. Its window's bounds
+ * are written as the field stores time, its [Temporal]: the filter carries no encoding of its own.
  */
 @InternalWowApi
-class FilterNormalizer(
-    private val clock: Clock = Clock.systemUTC(),
-    private val defaultZoneId: ZoneId = ZoneOffset.UTC,
-) {
-    /**
-     * Normalizes [expression] without a schema, at the clock's current moment: relative time lowers to a range in its
-     * own configuration, derived operators lower and logical nodes simplify. An admitted query is normalized by
-     * admission's resolution pass instead, which lowers relative time as each field stores it.
-     */
-    fun normalize(expression: FilterExpression): FilterExpression = normalize(expression, clock.instant())
-
-    private fun normalize(input: FilterExpression, now: Instant): FilterExpression = when (input) {
-        is AndFilter -> simplifyAnd(input.operands.map { normalize(it, now) })
-        is OrFilter -> simplifyOr(input.operands.map { normalize(it, now) })
-        is NorFilter -> simplifyNor(input.operands.map { normalize(it, now) })
-        is ElementMatchFilter -> ElementMatchFilter(input.field, normalize(input.predicate, now))
-        else -> lower(input, now, null)
-    }
-
+class FilterNormalizer(private val defaultZoneId: ZoneId = ZoneOffset.UTC) {
     /**
      * Lowers one predicate to the operators backends implement, as its operator's
      * [lowering][me.ahoo.wow.query.spec.FilterOperatorSpec.lowering] states: a rewrite (`EQ`/`NE` of `null` to
      * `IS_NULL`/`IS_NOT_NULL`, the empty-string predicates to equality), or relative time to a range at [now], encoded
-     * as [temporal] (the field's encoding, when known) stores time. Admission calls this with the encoding it
-     * resolved, so lowering never looks a field up again.
+     * as [temporal], the field's encoding, stores time. Admission calls this with the encoding it resolved, so
+     * lowering never looks a field up again; a relative-time filter is admitted only on a field that keeps time.
      */
     internal fun lower(expression: FilterExpression, now: Instant, temporal: Temporal?): FilterExpression =
         when (val lowering = expression.spec.lowering) {
             null -> expression
             is Lowering.Rewrite -> lowering.lower(expression)
-            Lowering.RelativeTime -> (expression as RelativeTimeFilter).let { relative ->
-                relativeTime(temporal?.let(relative::withTemporal) ?: relative, now)
+            Lowering.RelativeTime -> {
+                val relative = expression as RelativeTimeFilter
+                val resolved = checkNotNull(temporal) {
+                    "Admission resolves the temporal of a relative-time filter on [${relative.field.path}]."
+                }
+                Window(relative, now, resolved).lower()
             }
         }
 
-    @Suppress("CyclomaticComplexMethod") // Exhaustive public relative-time operators share one captured clock instant.
-    private fun relativeTime(expression: RelativeTimeFilter, now: Instant): FilterExpression = when (expression) {
-        is YesterdayFilter -> expression.dayRange(now, -1)
-        is TodayFilter -> expression.dayRange(now, 0)
-        is TomorrowFilter -> expression.dayRange(now, 1)
-        is LastWeekFilter -> expression.weekRange(now, -1)
-        is ThisWeekFilter -> expression.weekRange(now, 0)
-        is NextWeekFilter -> expression.weekRange(now, 1)
-        is LastMonthFilter -> expression.monthRange(now, -1)
-        is ThisMonthFilter -> expression.monthRange(now, 0)
-        is NextMonthFilter -> expression.monthRange(now, 1)
-        is LastYearFilter -> expression.yearRange(now, -1)
-        is ThisYearFilter -> expression.yearRange(now, 0)
-        is NextYearFilter -> expression.yearRange(now, 1)
-        is BeforeNowFilter -> LessThanFilter(expression.field, expression.momentNode(now + expression.offsetDuration))
-        is AfterNowFilter -> GreaterThanFilter(expression.field, expression.momentNode(now + expression.offsetDuration))
-        is BeforeTodayFilter -> LessThanFilter(
-            expression.field,
-            instantNode(
-                today(now, expression).atTime(LocalTime.parse(expression.time)),
-                expression.zone(),
-                expression.resolvedDateFormatter(),
-                expression.timeUnit,
+    /** The window of [filter] at [now], its bounds written as [temporal] stores time. */
+    private inner class Window(
+        private val filter: RelativeTimeFilter,
+        private val now: Instant,
+        private val temporal: Temporal,
+    ) {
+        private val zone: ZoneId = filter.resolvedZoneId() ?: defaultZoneId
+        private val today: LocalDate = now.atZone(zone).toLocalDate()
+        private val field: QueryField<*> = filter.field
+
+        @Suppress("CyclomaticComplexMethod") // Exhaustive public relative-time operators share one captured instant.
+        fun lower(): FilterExpression = when (filter) {
+            is YesterdayFilter -> days(-1, 1)
+            is TodayFilter -> days(0, 1)
+            is TomorrowFilter -> days(1, 1)
+            is LastWeekFilter -> weeks(-1)
+            is ThisWeekFilter -> weeks(0)
+            is NextWeekFilter -> weeks(1)
+            is LastMonthFilter -> months(-1)
+            is ThisMonthFilter -> months(0)
+            is NextMonthFilter -> months(1)
+            is LastYearFilter -> years(-1)
+            is ThisYearFilter -> years(0)
+            is NextYearFilter -> years(1)
+            is BeforeNowFilter -> LessThanFilter(field, moment(now + filter.offsetDuration))
+            is AfterNowFilter -> GreaterThanFilter(field, moment(now + filter.offsetDuration))
+            is BeforeTodayFilter -> LessThanFilter(field, at(today.atTime(LocalTime.parse(filter.time))))
+            is RecentDaysFilter -> days(1L - filter.days, filter.days.toLong())
+            is EarlierDaysFilter -> LessThanFilter(field, at(today.minusDays(filter.days.toLong() - 1).atStartOfDay()))
+        }
+
+        /** The [count] days from today plus [offset]. */
+        private fun days(offset: Long, count: Long): FilterExpression =
+            range(today.plusDays(offset), today.plusDays(offset + count))
+
+        private fun weeks(offset: Long): FilterExpression {
+            val start = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(offset)
+            return range(start, start.plusWeeks(1))
+        }
+
+        private fun months(offset: Long): FilterExpression {
+            val start = today.withDayOfMonth(1).plusMonths(offset)
+            return range(start, start.plusMonths(1))
+        }
+
+        private fun years(offset: Long): FilterExpression {
+            val start = today.withDayOfYear(1).plusYears(offset)
+            return range(start, start.plusYears(1))
+        }
+
+        private fun range(start: LocalDate, end: LocalDate): FilterExpression = AndFilter(
+            listOf(
+                GreaterThanOrEqualFilter(field, at(start.atStartOfDay())),
+                LessThanFilter(field, at(end.atStartOfDay())),
             ),
         )
-        is RecentDaysFilter -> {
-            val today = today(now, expression)
-            range(
-                expression.field,
-                today.minusDays(expression.days.toLong() - 1).atStartOfDay(),
-                today.plusDays(1).atStartOfDay(),
-                expression.zone(),
-                expression.resolvedDateFormatter(),
-                expression.timeUnit,
-            )
+
+        private fun at(dateTime: LocalDateTime): Any = encoded(dateTime.atZone(zone))
+
+        private fun moment(moment: Instant): Any = encoded(moment.atZone(zone))
+
+        /** [moment] as the field stores time: an epoch in its unit (a date, in milliseconds), or text in its pattern. */
+        private fun encoded(moment: ZonedDateTime): Any = when (temporal) {
+            is Temporal.Epoch -> epoch(moment.toInstant(), temporal.timeUnit)
+            is Temporal.Formatted -> temporal.format(moment)
+            Temporal.Date -> epoch(moment.toInstant(), TimeUnit.MILLISECONDS)
         }
 
-        is EarlierDaysFilter -> {
-            val end = today(now, expression).minusDays(expression.days.toLong() - 1).atStartOfDay()
-            LessThanFilter(
-                expression.field,
-                instantNode(end, expression.zone(), expression.resolvedDateFormatter(), expression.timeUnit),
-            )
-        }
-    }
-
-    private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =
-        range(
-            field,
-            today(now, this).plusDays(offset).atStartOfDay(),
-            today(now, this).plusDays(offset + 1).atStartOfDay(),
-            zone(),
-            resolvedDateFormatter(),
-            timeUnit,
-        )
-
-    private fun RelativeTimeFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, this), offset, zone(), resolvedDateFormatter(), timeUnit)
-
-    private fun RelativeTimeFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, this), offset, zone(), resolvedDateFormatter(), timeUnit)
-
-    private fun RelativeTimeFilter.yearRange(now: Instant, offset: Long): FilterExpression {
-        val start = today(now, this).withDayOfYear(1).plusYears(offset)
-        return range(
-            field,
-            start.atStartOfDay(),
-            start.plusYears(1).atStartOfDay(),
-            zone(),
-            resolvedDateFormatter(),
-            timeUnit,
+        private fun epoch(instant: Instant, unit: TimeUnit): Long = Math.addExact(
+            unit.convert(instant.epochSecond, TimeUnit.SECONDS),
+            unit.convert(instant.nano.toLong(), TimeUnit.NANOSECONDS),
         )
     }
-
-    private fun weekRange(
-        field: QueryField<*>,
-        today: LocalDate,
-        offset: Long,
-        zoneId: ZoneId,
-        dateFormatter: DateTimeFormatter?,
-        timeUnit: TimeUnit,
-    ): FilterExpression {
-        val start = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(offset)
-        return range(field, start.atStartOfDay(), start.plusWeeks(1).atStartOfDay(), zoneId, dateFormatter, timeUnit)
-    }
-
-    private fun monthRange(
-        field: QueryField<*>,
-        today: LocalDate,
-        offset: Long,
-        zoneId: ZoneId,
-        dateFormatter: DateTimeFormatter?,
-        timeUnit: TimeUnit,
-    ): FilterExpression {
-        val start = today.withDayOfMonth(1).plusMonths(offset)
-        return range(field, start.atStartOfDay(), start.plusMonths(1).atStartOfDay(), zoneId, dateFormatter, timeUnit)
-    }
-
-    private fun range(
-        field: QueryField<*>,
-        start: java.time.LocalDateTime,
-        end: java.time.LocalDateTime,
-        zoneId: ZoneId,
-        dateFormatter: DateTimeFormatter?,
-        timeUnit: TimeUnit,
-    ): FilterExpression = AndFilter(
-        listOf(
-            GreaterThanOrEqualFilter(field, instantNode(start, zoneId, dateFormatter, timeUnit)),
-            LessThanFilter(field, instantNode(end, zoneId, dateFormatter, timeUnit)),
-        ),
-    )
-
-    private fun instantNode(
-        dateTime: java.time.LocalDateTime,
-        zoneId: ZoneId,
-        dateFormatter: DateTimeFormatter?,
-        timeUnit: TimeUnit,
-    ) = instantNode(dateTime.atZone(zoneId), dateFormatter, timeUnit)
-
-    private fun instantNode(
-        moment: java.time.ZonedDateTime,
-        dateFormatter: DateTimeFormatter?,
-        timeUnit: TimeUnit,
-    ): Any = dateFormatter?.format(moment) ?: moment.toInstant().let {
-        Math.addExact(
-            timeUnit.convert(it.epochSecond, TimeUnit.SECONDS),
-            timeUnit.convert(it.nano.toLong(), TimeUnit.NANOSECONDS),
-        )
-    }
-
-    private fun RelativeTimeFilter.zone(): ZoneId = resolvedZoneId() ?: defaultZoneId
-
-    private fun today(now: Instant, filter: RelativeTimeFilter): LocalDate = now.atZone(filter.zone()).toLocalDate()
-
-    /** A moment encoded like the field: epoch in its time unit, or formatted in its zone. */
-    private fun RelativeTimeFilter.momentNode(moment: Instant) =
-        instantNode(moment.atZone(zone()), resolvedDateFormatter(), timeUnit)
 
     private fun FilterExpression.isConstant(): Boolean = this === MatchAllFilter || this === MatchNoneFilter
 

@@ -1694,8 +1694,6 @@ export interface RefusedResult<R = Record<string, unknown>> extends Omit<Command
 
 // @public
 interface RelativeTimeFilterOptions {
-    datePattern?: string;
-    timeUnit?: TimeUnit;
     zoneId?: string;
 }
 
@@ -2163,19 +2161,19 @@ export interface TextNumbersOr {
 // @public
 enum TimeUnit {
     // (undocumented)
-    DAYS = "DAYS",
+    DAYS = "days",
     // (undocumented)
-    HOURS = "HOURS",
+    HOURS = "hours",
     // (undocumented)
-    MICROSECONDS = "MICROSECONDS",
+    MICROSECONDS = "microseconds",
     // (undocumented)
-    MILLISECONDS = "MILLISECONDS",
+    MILLISECONDS = "milliseconds",
     // (undocumented)
-    MINUTES = "MINUTES",
+    MINUTES = "minutes",
     // (undocumented)
-    NANOSECONDS = "NANOSECONDS",
+    NANOSECONDS = "nanoseconds",
     // (undocumented)
-    SECONDS = "SECONDS"
+    SECONDS = "seconds"
 }
 
 // @public
