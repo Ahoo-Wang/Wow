@@ -100,7 +100,7 @@ class PlainValuesTest {
         valueSemantics({ ScheduleCancelled.of("pay") }, ScheduleCancelled.of("ship"))
         valueSemantics({ ScheduleContext.of("t", "pay", 1, 2) }, ScheduleContext.of("t", "pay", 2, 2, 1))
         valueSemantics({ JobRule.of() }, JobRule.of("0 0 4 * * *"))
-        valueSemantics({ EnableJob.of("nightly") }, EnableJob.of("nightly", JobRule.of(zone = "UTC"), 1))
+        valueSemantics({ EnableJob.of("nightly") }, EnableJob.of("nightly", JobRule.of(timeZone = "UTC"), 1))
         valueSemantics({ RescheduleJob.of() }, RescheduleJob.of(JobRule.of(misfire = Misfire.CATCH_UP)))
         valueSemantics({ JobEnabled.of("nightly", cron) }, JobEnabled.of("nightly", cron, JobRule.of(), 0))
         valueSemantics({ JobRescheduled.of(cron) }, JobRescheduled.of(cron, JobRule.of()))

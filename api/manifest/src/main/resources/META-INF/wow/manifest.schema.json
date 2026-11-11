@@ -610,7 +610,7 @@
     "Job" : {
       "type" : "object",
       "description" : "The scheduled job a subscription runs.",
-      "required" : [ "name", "cron", "zone", "scope", "misfire" ],
+      "required" : [ "name", "cron", "timeZone", "scope", "misfire" ],
       "properties" : {
         "name" : {
           "type" : "string"
@@ -618,7 +618,7 @@
         "cron" : {
           "type" : "string"
         },
-        "zone" : {
+        "timeZone" : {
           "type" : "string"
         },
         "scope" : {

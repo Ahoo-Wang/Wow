@@ -23,8 +23,8 @@ import tools.jackson.databind.JsonNode
  * What an [Envelope] carries, by its [wire] name ([WireNames]), the `kind` of the value and the `wow-kind` header:
  * `STATE_EVENT` is `state-event`.
  *
- * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
- * [of] gives null for a name this version does not know.
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. Each new kind is read by
+ * every node before one writes it, and [of] gives null for a name this version does not know.
  */
 @WowSpi
 enum class EnvelopeKind {

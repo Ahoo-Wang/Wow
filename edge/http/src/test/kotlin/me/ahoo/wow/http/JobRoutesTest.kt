@@ -43,7 +43,7 @@ class JobRoutesTest {
 
     /** The three job commands of `report`: each route's path and body. */
     private val commands = listOf(
-        "/shop/wow.schedule/report/enable-job" to """{"job":"report","rule":{"zone":"Asia/Shanghai"}}""",
+        "/shop/wow.schedule/report/enable-job" to """{"job":"report","rule":{"timeZone":"Asia/Shanghai"}}""",
         "/shop/wow.schedule/report/reschedule-job" to """{"rule":null}""",
         "/shop/wow.schedule/report/disable-job" to "{}",
     )

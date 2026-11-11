@@ -20,6 +20,8 @@ import me.ahoo.wow.api.annotation.WowSpi
  * timers, reservations, leases, checkpoints and the failure ledger, with their format records), the query
  * indexes the Manifest declares, the Kafka topics and the ClickHouse tables. One setting, `wow.ddl`, overridden by
  * `wow.stores.<store>.ddl`, `wow.kafka.ddl` and `wow.clickhouse.ddl`; each mode means the same everywhere.
+ *
+ * No case is added within 10.x, so a `when` over it may name every case.
  */
 enum class Ddl {
     /** Creates what is missing, then checks the format of what exists: the default. */

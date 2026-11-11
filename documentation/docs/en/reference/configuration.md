@@ -593,7 +593,7 @@ Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job
 | `wow.schedules.<name>.retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
 | `wow.schedules.<name>.retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
 | `wow.schedules.<name>.retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
-| `wow.schedules.<name>.zone` | `String` |  | The time zone its cron is read in, over its annotation's. |
+| `wow.schedules.<name>.time-zone` | `String` |  | The time zone its cron is read in, over its annotation's. |
 
 ## `wow.shared-states`
 

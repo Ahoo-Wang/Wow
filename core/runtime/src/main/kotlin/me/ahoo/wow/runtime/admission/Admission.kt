@@ -60,7 +60,11 @@ class CommandAction @InternalWowApi constructor(
     }
 }
 
-/** An authorizer's answer: [Allowed], or [Denied] with a [Denied.code] and a [Denied.message]. */
+/**
+ * An authorizer's answer: [Allowed], or [Denied] with a [Denied.code] and a [Denied.message].
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 sealed interface Authorization {
     data object Allowed : Authorization
 

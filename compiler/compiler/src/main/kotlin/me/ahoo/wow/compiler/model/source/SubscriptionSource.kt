@@ -225,7 +225,7 @@ internal object SubscriptionSource {
         val arguments = if (handler.context) "tick, context" else "tick"
         val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        val rule = "$SCHEDULE.ScheduleRule.Cron.of(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
+        val rule = "$SCHEDULE.ScheduleRule.Cron.of(\"${escape(job.cron)}\", \"${escape(job.timeZone)}\", " +
             "$SCHEDULE.Misfire.${job.misfire})"
         val definition = "$KERNEL.schedule.ScheduleJob.of(\"${escape(job.name)}\", $rule, " +
             "$SCHEDULE.JobScope.${job.scope})"

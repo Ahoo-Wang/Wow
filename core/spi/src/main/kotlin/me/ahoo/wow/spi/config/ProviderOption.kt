@@ -48,7 +48,11 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         require(description.isNotBlank()) { "Option [$key] needs a description." }
     }
 
-    /** Where an option may be set. */
+    /**
+     * Where an option may be set.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Scope {
         /** For every instance of the provider's type (`wow.<type>.<key>`), and each instance over that. */
         TYPE,

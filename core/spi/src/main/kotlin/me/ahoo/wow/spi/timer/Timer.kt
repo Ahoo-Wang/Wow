@@ -231,8 +231,10 @@ class Timer @InternalWowApi constructor(
 }
 
 /**
- * Where a [Timer] is. Statuses may be added, each read by every node before one writes it, so a `when` over them keeps
- * an `else` branch.
+ * Where a [Timer] is.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. Each new status is read by
+ * every node before one writes it.
  */
 @WowSpi
 enum class TimerStatus {

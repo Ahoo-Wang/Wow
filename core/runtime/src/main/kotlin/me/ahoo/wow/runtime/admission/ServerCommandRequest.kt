@@ -210,6 +210,8 @@ class ServerCommandRequest @InternalWowApi constructor(
 /**
  * The body of a [ServerCommandRequest]: JSON [Bytes] as received, a JSON [Tree] already parsed, or the command object itself
  * ([Value]).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface CommandBody {
     /** A JSON document as received; decoding it is admission's job, so a malformed one is answered as such. */
