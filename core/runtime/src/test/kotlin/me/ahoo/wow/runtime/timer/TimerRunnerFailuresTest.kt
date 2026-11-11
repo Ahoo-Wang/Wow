@@ -135,7 +135,7 @@ class TimerRunnerFailuresTest : TimerRunnerFixtures() {
             val fatals = NodeFatals("node-1")
             val overflowing = AtomicBoolean(true)
             val claiming = object : TimerStore by store {
-                override suspend fun settle(changes: List<TimerChange>): Int {
+                override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
                     if (overflowing.compareAndSet(true, false)) throw StackOverflowError()
                     return store.settle(changes)
                 }

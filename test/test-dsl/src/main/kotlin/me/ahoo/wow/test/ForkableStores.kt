@@ -52,17 +52,17 @@ internal class ForkableTimerStore(writes: List<TimerWrite> = emptyList()) : Time
 
     override suspend fun put(timer: Timer): Boolean = write { it.put(timer) }
 
-    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean =
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Int): Boolean =
         write { it.cancel(owner, key, version) }
 
-    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = write { it.cancelAll(owner, version) }
+    override suspend fun cancelAll(owner: AggregateRef, version: Int): Int = write { it.cancelAll(owner, version) }
 
-    override suspend fun settle(changes: List<TimerChange>): Int = write { it.settle(changes) }
+    override suspend fun settle(changes: List<TimerChange>): List<Boolean> = write { it.settle(changes) }
 
     override suspend fun find(owner: AggregateRef, key: String): Timer? = store.find(owner, key)
 
-    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> =
-        store.due(partitions, until, limit)
+    override suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer> =
+        store.due(partitions, until, perPartition)
 
     override suspend fun parked(target: AggregateRef): List<Timer> = store.parked(target)
 }

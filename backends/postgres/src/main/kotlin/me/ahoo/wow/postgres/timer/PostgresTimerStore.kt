@@ -137,7 +137,7 @@ class PostgresTimerStore(
             put.setOwner(1, timer.owner)
             put.setString(3, timer.key)
             put.setString(4, timer.id)
-            put.setLong(5, timer.version)
+            put.setInt(5, timer.version)
             put.setInt(6, timer.partition)
             put.setString(7, json.writeValueAsString(timer.rule))
             put.setLong(8, timer.slot)
@@ -159,21 +159,21 @@ class PostgresTimerStore(
         }
     }
 
-    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = jdbc { connection ->
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Int): Boolean = jdbc { connection ->
         connection.prepareStatement(tableOf(connection, owner.type).cancel).use { cancel ->
-            cancel.setLong(1, version)
+            cancel.setInt(1, version)
             cancel.setOwner(2, owner)
             cancel.setString(4, key)
-            cancel.setLong(5, version)
+            cancel.setInt(5, version)
             cancel.executeUpdate() == 1
         }
     }
 
-    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = jdbc { connection ->
+    override suspend fun cancelAll(owner: AggregateRef, version: Int): Int = jdbc { connection ->
         connection.prepareStatement(tableOf(connection, owner.type).cancelAll).use { cancel ->
-            cancel.setLong(1, version)
+            cancel.setInt(1, version)
             cancel.setOwner(2, owner)
-            cancel.setLong(4, version)
+            cancel.setInt(4, version)
             cancel.executeUpdate()
         }
     }
@@ -186,30 +186,34 @@ class PostgresTimerStore(
         }
     }
 
-    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
-        require(limit >= 1) { "A page holds at least one timer." }
+    override suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer> {
+        require(perPartition >= 1) { "A page holds at least one timer of each partition." }
         if (partitions.isEmpty()) {
             return emptyList()
         }
         return jdbc { connection ->
-            unioned(connection, tables::due, limit) { query, index ->
+            unioned(connection, tables::due, perPartition) { query, index ->
                 query.setArray(index, connection.createArrayOf("integer", partitions.toTypedArray()))
                 query.setLong(index + 1, until)
-                query.setInt(index + 2, limit)
+                query.setInt(index + 2, perPartition)
                 index + DUE_PARAMETERS
             }
         }
     }
 
-    /** One batch of conditional updates per table: one round trip for every change of a type. */
-    override suspend fun settle(changes: List<TimerChange>): Int {
+    /**
+     * One batch of conditional updates per table: one round trip for every change of a type, each statement's update
+     * count saying whether its change was written.
+     */
+    override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
         if (changes.isEmpty()) {
-            return 0
+            return emptyList()
         }
-        return jdbc { connection ->
-            changes.groupBy { it.loaded.owner.type }.entries.sumOf { (type, ofType) ->
+        val written = BooleanArray(changes.size)
+        jdbc { connection ->
+            changes.withIndex().groupBy { it.value.loaded.owner.type }.forEach { (type, ofType) ->
                 connection.prepareStatement(tableOf(connection, type).settle).use { settle ->
-                    ofType.forEach { change ->
+                    ofType.forEach { (_, change) ->
                         val loaded = change.loaded
                         val next = change.next
                         settle.setString(1, next.status.name)
@@ -229,10 +233,11 @@ class PostgresTimerStore(
                         settle.setLong(16, loaded.dueAt)
                         settle.addBatch()
                     }
-                    settle.executeBatch().sum()
+                    settle.executeBatch().forEachIndexed { at, count -> written[ofType[at].index] = count > 0 }
                 }
             }
         }
+        return written.toList()
     }
 
     override suspend fun parked(target: AggregateRef): List<Timer> = jdbc { connection ->
@@ -306,7 +311,7 @@ class PostgresTimerStore(
         owner = AggregateType(ownerContext, aggregate)
             .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
         key = row.getString("key"),
-        version = row.getLong("version"),
+        version = row.getInt("version"),
         partition = row.getInt("partition"),
         rule = json.readValue(row.getString("rule"), ScheduleRule::class.java),
         slot = row.getLong("slot"),

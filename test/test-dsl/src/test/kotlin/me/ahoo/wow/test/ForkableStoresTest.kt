@@ -31,7 +31,7 @@ class ForkableStoresTest {
     private val owner = AggregateType("bank", "account").ref("tenant", "a")
     private val other = AggregateType("bank", "account").ref("tenant", "b")
 
-    private fun timer(key: String, dueAt: Long, version: Long = 1) = Timer(
+    private fun timer(key: String, dueAt: Long, version: Int = 1) = Timer(
         id = "$owner#$key",
         owner = owner,
         key = key,

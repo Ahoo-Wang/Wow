@@ -102,7 +102,7 @@ class RecordValuesTest {
         id = "t-1",
         owner = ref,
         key = "pay",
-        version = 1L,
+        version = 1,
         partition = 0,
         rule = ScheduleRule.At.of(3L),
         dueAt = 3L,

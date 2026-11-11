@@ -34,7 +34,7 @@ import me.ahoo.wow.spi.log.Partitioner
  * - [id] is `ref#key@version`, its names escaped, the schedule as the owner's stream at [version] set it
  *   ([Timers.idOf]); the command of each slot is sent with the request id `id#slot` ([requestId]), so sending it again
  *   is deduplicated by its target.
- * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]), compared field by field, never
+ * - [owner] and [key] name the schedule: the aggregate that set it, compared field by field, never
  *   by its joined name, so two aggregates whose tenant and id join alike keep their timers apart;
  *   [version] orders the owner's changes ([TimerStore]).
  * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
@@ -61,7 +61,7 @@ class Timer @InternalWowApi constructor(
     val id: String,
     val owner: AggregateRef,
     val key: String,
-    val version: Long,
+    val version: Int,
     val partition: Int,
     val rule: ScheduleRule,
     val dueAt: Long,
@@ -104,7 +104,7 @@ class Timer @InternalWowApi constructor(
         id: String = this.id,
         owner: AggregateRef = this.owner,
         key: String = this.key,
-        version: Long = this.version,
+        version: Int = this.version,
         partition: Int = this.partition,
         rule: ScheduleRule = this.rule,
         dueAt: Long = this.dueAt,
@@ -187,7 +187,7 @@ class Timer @InternalWowApi constructor(
             id: String,
             owner: AggregateRef,
             key: String,
-            version: Long,
+            version: Int,
             partition: Int,
             rule: ScheduleRule,
             dueAt: Long,
@@ -292,10 +292,6 @@ object Timers {
 
     private const val RESERVED = "%/#@"
 
-    /** The owner of an aggregate's timers: the aggregate. */
-    @JvmStatic
-    fun ownerOf(ref: AggregateRef): AggregateRef = ref
-
     /**
      * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says
      * counted from the commit; a rule the runtime evaluates (cron) is [NOT_EVALUATED] here, and the runtime gives it
@@ -305,9 +301,9 @@ object Timers {
     @JvmStatic
     fun of(stream: EventStreamRecord, set: ScheduleSet, partitions: Int): Timer = Timer(
         id = idOf(stream.ref, set.key, stream.version),
-        owner = ownerOf(stream.ref),
+        owner = stream.ref,
         key = set.key,
-        version = stream.version.toLong(),
+        version = stream.version,
         partition = Partitioner.partitionOf(stream.ref, partitions),
         rule = set.rule,
         dueAt = set.rule.firstDue(stream.commitTime) ?: NOT_EVALUATED,

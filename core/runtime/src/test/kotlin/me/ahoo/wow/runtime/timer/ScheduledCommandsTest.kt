@@ -57,7 +57,6 @@ import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -131,7 +130,7 @@ class ScheduledCommandsTest {
         context(SHOP).backends.log.read(order(id)).toList()
 
     private suspend fun ServiceNode.timer(owner: AggregateRef, key: String): Timer? =
-        context(SHOP).backends.timers!!.find(Timers.ownerOf(owner), key)
+        context(SHOP).backends.timers!!.find(owner, key)
 
     private fun List<EventStreamRecord>.eventNames(): List<String> = flatMap { stream -> stream.events.map { it.name } }
 
@@ -436,7 +435,7 @@ class ScheduledCommandsTest {
         @Volatile
         private var lost = false
 
-        override suspend fun settle(changes: List<TimerChange>): Int {
+        override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
             if (!lost && changes.any { it.next.status == TimerStatus.FIRED }) {
                 lost = true
                 throw IllegalStateException("The node crashed before recording the outcome.")

@@ -22,7 +22,8 @@ import me.ahoo.wow.api.annotation.WowSpi
  * replaying it, never the source of truth. Each aggregate type's timers are kept apart, with its log,
  * and each timer is in its owner's partition ([Timer.partition]). The built-in `timers` subscription writes them from the system events
  * `wow.ScheduleSet` and `wow.ScheduleCancelled` the aggregates commit. The node's firing loop reads the timers [due]
- * in the partitions it owns, one query for all of them, sends their commands and records each outcome with [settle].
+ * in the partitions it owns, a bounded number of each partition in one query for all of them, sends their commands
+ * and records each outcome with [settle], which says which of its changes were written.
  *
  * - **Key**: a timer is unique by its owner and key ([Timer.owner], [Timer.key]), the owner compared field by field
  *   (its type, tenant and id); its [Timer.id] changes with each reschedule, so a write of the same
@@ -56,7 +57,7 @@ interface TimerStore {
      *
      * @return true when a timer was cancelled.
      */
-    suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean
+    suspend fun cancel(owner: AggregateRef, key: String, version: Int): Boolean
 
     /**
      * Cancels every PENDING (or FIRING, or PARKED) timer of [owner] held at [version] or earlier: the owner aggregate
@@ -64,26 +65,32 @@ interface TimerStore {
      *
      * @return how many timers were cancelled.
      */
-    suspend fun cancelAll(owner: AggregateRef, version: Long): Int
+    suspend fun cancelAll(owner: AggregateRef, version: Int): Int
 
     /** The timer [owner] keeps under [key], in whatever status, or null. */
     suspend fun find(owner: AggregateRef, key: String): Timer?
 
     /**
-     * Up to [limit] PENDING timers of any of [partitions] due at or before [until] (epoch milliseconds), and FIRING ones
-     * whose claim lapses by then (a FIRING timer's [Timer.dueAt] is its claim's deadline), earliest first; ties by id.
-     * One query for every partition the caller owns.
+     * The timers of [partitions] due by [until] (epoch milliseconds): PENDING timers due at or before it, and FIRING
+     * ones whose claim lapses by then (a FIRING timer's [Timer.dueAt] is its claim's deadline). Up to [perPartition] of
+     * each partition, its earliest first, ties by id; the result is in that order across the partitions. So a backlog
+     * in one partition never keeps another partition's due timers out of the read. One query for every partition the
+     * caller owns, where the backend allows it.
      */
-    suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer>
+    suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer>
 
     /**
      * Writes each change's [TimerChange.next] status, slot, slot's due time, skipped slots, due time, attempts and
      * outcome, when the store still holds its [TimerChange.loaded] timer as loaded (same id, status, slot, slot's due
      * time, attempts and due time); in as few round trips as the backend allows.
      *
-     * @return how many changes were written.
+     * @return for each change, in the order of [changes], whether the store holds its [TimerChange.next] after the call.
+     * For a single change that is exactly whether this call wrote it, so a claim, one change, learns whether it won.
+     * For several, when two writers act on the same timers at once, a backend that cannot tell its writes apart may
+     * report another writer's identical change (the same outcome, recorded once), and leave out one this call wrote
+     * that another replaced before it looked; that one is claimed or settled again, never sent twice.
      */
-    suspend fun settle(changes: List<TimerChange>): Int
+    suspend fun settle(changes: List<TimerChange>): List<Boolean>
 
     /** The PARKED timers whose target is [target], earliest due first. */
     suspend fun parked(target: AggregateRef): List<Timer>

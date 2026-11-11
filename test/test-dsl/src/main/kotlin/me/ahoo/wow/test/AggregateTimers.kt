@@ -28,7 +28,6 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
-import me.ahoo.wow.spi.timer.Timers
 
 /**
  * The commands the aggregate [ref] of an [AggregateSpec] schedules for itself, kept as the runtime keeps them:
@@ -47,7 +46,7 @@ internal class AggregateTimers<S : Any>(
     val writes: List<TimerWrite> get() = timers.writes
 
     /** The timer [key] of the aggregate, in whatever status. */
-    fun find(key: String): Timer? = runBlocking { timers.find(Timers.ownerOf(ref), key) }
+    fun find(key: String): Timer? = runBlocking { timers.find(ref, key) }
 
     /**
      * Sends the aggregate each command it scheduled for itself that is due by [by], earliest first, with [execute],
@@ -89,14 +88,14 @@ internal class AggregateTimers<S : Any>(
     /** Applies the schedules [outcome] committed to the aggregate's timers, as the `timers` subscription would. */
     suspend fun record(outcome: CommandOutcome) {
         val stream = (outcome as? CommandOutcome.Committed)?.stream ?: return
-        val owner = Timers.ownerOf(stream.ref)
+        val owner = stream.ref
         if (stream.events.any { it.name == Lifecycle.AGGREGATE_DELETED }) {
-            timers.cancelAll(owner, stream.version.toLong())
+            timers.cancelAll(owner, stream.version)
         }
         stream.events.filter { it.name in Schedules.EVENTS }.forEach { record ->
             when (val event = codec.decode(model, record)) {
                 is ScheduleSet -> timers.put(ScheduleSlots.timerOf(stream, event, PARTITIONS))
-                is ScheduleCancelled -> timers.cancel(owner, event.key, stream.version.toLong())
+                is ScheduleCancelled -> timers.cancel(owner, event.key, stream.version)
             }
         }
     }

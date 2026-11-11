@@ -38,13 +38,13 @@ class InMemoryTimerStore : TimerStore {
         true
     }
 
-    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = lock.withLock {
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Int): Boolean = lock.withLock {
         val held = timers[owner to key]?.takeIf { it.cancellable(version) } ?: return false
         timers[owner to key] = held.cancelled(version)
         true
     }
 
-    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = lock.withLock {
+    override suspend fun cancelAll(owner: AggregateRef, version: Int): Int = lock.withLock {
         val cancelled = timers.filter { (key, timer) -> key.first == owner && timer.cancellable(version) }
         cancelled.forEach { (key, timer) -> timers[key] = timer.cancelled(version) }
         cancelled.size
@@ -52,22 +52,24 @@ class InMemoryTimerStore : TimerStore {
 
     override suspend fun find(owner: AggregateRef, key: String): Timer? = lock.withLock { timers[owner to key] }
 
-    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
-        require(limit >= 1) { "A page holds at least one timer." }
+    override suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer> {
+        require(perPartition >= 1) { "A page holds at least one timer of each partition." }
         return lock.withLock {
             timers.values
                 .filter { it.partition in partitions && it.status in DUE_STATUSES && it.dueAt <= until }
+                .groupBy { it.partition }
+                .values
+                .flatMap { it.sortedWith(DUE_ORDER).take(perPartition) }
                 .sortedWith(DUE_ORDER)
-                .take(limit)
         }
     }
 
-    override suspend fun settle(changes: List<TimerChange>): Int = lock.withLock {
-        changes.count { change ->
+    override suspend fun settle(changes: List<TimerChange>): List<Boolean> = lock.withLock {
+        changes.map { change ->
             val loaded = change.loaded
             val next = change.next
             val key = loaded.owner to loaded.key
-            val held = timers[key]?.takeIf { it.isAsLoaded(loaded) } ?: return@count false
+            val held = timers[key]?.takeIf { it.isAsLoaded(loaded) } ?: return@map false
             timers[key] = held.copyWith(
                 status = next.status,
                 slot = next.slot,
@@ -90,10 +92,10 @@ class InMemoryTimerStore : TimerStore {
         val DUE_STATUSES = setOf(TimerStatus.PENDING, TimerStatus.FIRING)
         val CANCELLABLE = setOf(TimerStatus.PENDING, TimerStatus.FIRING, TimerStatus.PARKED)
 
-        fun Timer.cancellable(version: Long): Boolean =
+        fun Timer.cancellable(version: Int): Boolean =
             status in CANCELLABLE && this.version <= version
 
-        fun Timer.cancelled(version: Long): Timer = copyWith(status = TimerStatus.CANCELLED, version = version)
+        fun Timer.cancelled(version: Int): Timer = copyWith(status = TimerStatus.CANCELLED, version = version)
 
         /** Whether this, the timer held, is still [loaded] as it was loaded. */
         fun Timer.isAsLoaded(loaded: Timer): Boolean =

@@ -70,7 +70,7 @@ abstract class TimerStoreSpec {
 
     private fun timer(
         key: String = "pay",
-        version: Long = 1,
+        version: Int = 1,
         dueAt: Long = DUE,
         owner: AggregateRef = this.owner,
         target: AggregateRef = this.target,
@@ -93,7 +93,7 @@ abstract class TimerStoreSpec {
         scope = Scope("alice", "space-a"),
     )
 
-    private suspend fun settle(loaded: Timer, next: Timer): Boolean = store.settle(listOf(TimerChange(loaded, next))) == 1
+    private suspend fun settle(loaded: Timer, next: Timer) = store.settle(listOf(TimerChange(loaded, next))).single()
 
     private fun Timer.fired(outcome: String = TimerOutcomes.COMMITTED) =
         copyWith(status = TimerStatus.FIRED, attempts = attempts + 1, outcome = outcome)
@@ -145,7 +145,7 @@ abstract class TimerStoreSpec {
     }
 
     @Test
-    fun `due timers of every partition asked come earliest first, within the limit`(): Unit = runBlocking {
+    fun `due timers of every partition asked come earliest first, within each partition's limit`(): Unit = runBlocking {
         val second = ownerOutside(setOf(partition))
         val third = ownerOutside(setOf(partition, partitionOf(second)))
         val elsewhereOwner = ownerOutside(setOf(partition, partitionOf(second), partitionOf(third)))
@@ -157,7 +157,7 @@ abstract class TimerStoreSpec {
         listOf(late, early, middle, thirdTimer, elsewhere).forEach { store.put(it) }
         val asked = setOf(partition, partitionOf(second), partitionOf(third))
         store.due(asked, DUE + 10, LIMIT).assert().containsExactly(early, middle, thirdTimer, late)
-        store.due(asked, DUE + 10, 2).assert().containsExactly(early, middle)
+        store.due(asked, DUE + 10, 1).assert().containsExactly(early, middle, thirdTimer)
         store.due(asked, DUE + 1, LIMIT).assert().containsExactly(early, middle)
         store.due(setOf(partitionOf(second)), DUE + 10, LIMIT).assert().containsExactly(middle)
         store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(early, late)
@@ -193,8 +193,9 @@ abstract class TimerStoreSpec {
         store.find(sameId, "pay").assert().isNull()
         store.cancelAll(sameId, 9).assert().isZero()
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
-        store.settle(listOf(TimerChange(order, order.fired()), TimerChange(invoiced, invoiced.fired())))
-            .assert().isEqualTo(2)
+        val stale = TimerChange(shipped.copyWith(attempts = 5), shipped.fired())
+        store.settle(listOf(TimerChange(order, order.fired()), stale, TimerChange(invoiced, invoiced.fired())))
+            .assert().containsExactly(true, false, true)
         store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(shipped)
         // A target's parked timers are found whichever type owns them.
         val parked = shipped.copyWith(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
@@ -322,7 +323,7 @@ abstract class TimerStoreSpec {
         settle(retried, retried.fired()).assert().isFalse()
         store.find(owner, "pay").assert().isEqualTo(rescheduled)
         settle(timer(key = "missing"), timer(key = "missing").fired()).assert().isFalse()
-        store.settle(emptyList()).assert().isZero()
+        store.settle(emptyList()).assert().isEmpty()
     }
 
     @Test
@@ -465,7 +466,7 @@ abstract class TimerStoreSpec {
         coroutineScope {
             (1..CONTENDERS).map { async(Dispatchers.Default) { store.settle(listOf(TimerChange(timer, claimed))) } }
                 .awaitAll()
-        }.sum().assert().isEqualTo(1)
+        }.flatten().count { it }.assert().isEqualTo(1)
         store.find(owner, "pay").assert().isEqualTo(claimed)
         // Claimed, it is not due before its claim's deadline.
         store.due(partitions, DUE + CLAIM - 1, LIMIT).assert().isEmpty()
@@ -511,15 +512,26 @@ abstract class TimerStoreSpec {
         val written = store.settle(
             listOf(
                 TimerChange(first, first.fired()),
-                TimerChange(second, second.fired(TimerOutcomes.REJECTED)),
                 TimerChange(stale, stale.fired()),
+                TimerChange(second, second.fired(TimerOutcomes.REJECTED)),
             ),
         )
-        written.assert().isEqualTo(2)
+        written.assert().containsExactly(true, false, true)
         store.find(owner, "first").assert().isEqualTo(first.fired())
         store.find(owner, "second").assert().isEqualTo(second.fired(TimerOutcomes.REJECTED))
         store.find(owner, "stale")?.status.assert().isEqualTo(TimerStatus.PENDING)
     }
+
+    @Test
+    fun `of a batch two writers changed at once, each change reported is held`(): Unit =
+        runBlocking {
+            val (first, second) = listOf(timer(key = "first"), timer(key = "second")).onEach { store.put(it) }
+            settle(second, second.fired()).assert().isTrue() // Another writer, before, to the very next asked here.
+            store.settle(listOf(TimerChange(first, first.fired()), TimerChange(second, second.fired())))
+                .zip(listOf(first, second)).filter { it.first }
+                .forEach { (_, timer) -> store.find(owner, timer.key).assert().isEqualTo(timer.fired()) }
+            store.find(owner, "first").assert().isEqualTo(first.fired())
+        }
 
     @Test
     fun `two writers of one loaded timer change it once`(): Unit = runBlocking {
@@ -534,7 +546,7 @@ abstract class TimerStoreSpec {
                 }
             }.awaitAll()
         }
-        written.sum().assert().isEqualTo(1)
+        written.flatten().count { it }.assert().isEqualTo(1)
     }
 
     @Test
@@ -562,10 +574,10 @@ abstract class TimerStoreSpec {
     fun `concurrent puts of one key keep the latest version`(): Unit = runBlocking {
         coroutineScope {
             (1..CONTENDERS).map { version ->
-                async(Dispatchers.Default) { store.put(timer(version = version.toLong(), dueAt = DUE + version)) }
+                async(Dispatchers.Default) { store.put(timer(version = version, dueAt = DUE + version)) }
             }.awaitAll()
         }
-        store.find(owner, "pay")?.version.assert().isEqualTo(CONTENDERS.toLong())
+        store.find(owner, "pay")?.version.assert().isEqualTo(CONTENDERS)
         store.due(partitions, DUE + CONTENDERS, LIMIT).map { it.id }.assert().containsExactly("$owner#pay@$CONTENDERS")
     }
 
