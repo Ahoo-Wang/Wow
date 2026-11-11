@@ -26,6 +26,8 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
 import me.ahoo.wow.runtime.subscription.Appender
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.readSnapshotTailApart
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -169,6 +171,17 @@ class StoreActivityTest {
         activity.failingSince.assert().isNotEqualTo(StoreActivity.NONE)
         activity.lastError.assert().isEqualTo("StorageUnavailableException")
     }
+
+    @Test
+    fun `a tracked log that walks should pass on the schemas its node serves, so its stores record their walks`(): Unit =
+        runBlocking {
+            val memory = InMemoryEventLog(2)
+            val tracked = trackedLog(memory, StoreActivity(StoreActivity.LOG, "bank"))
+            val ref = me.ahoo.wow.runtime.subscription.cart("c-1")
+            (tracked as AccessWalks).serve(mapOf(ref.type to "region:string"))
+            Appender(tracked).append("c-1")
+            memory.walk(ref.type).assert().isEqualTo(AccessWalk.created("region:string"))
+        }
 
     @Test
     fun `a tracked lease store should record every call, any failure an outage`(): Unit = runBlocking {

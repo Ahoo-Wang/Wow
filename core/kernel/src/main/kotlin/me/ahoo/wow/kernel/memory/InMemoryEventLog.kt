@@ -54,8 +54,15 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
-    /** The walk of each type, as [claim] and [advance] recorded it. */
+    /** The walk of each type, as [claim] and [advance] recorded it, or its first append ([serve]). */
     private val walks = HashMap<AggregateType, AccessWalk>()
+
+    /** The types the log holds a stream of: their stores exist. */
+    private val held = HashSet<AggregateType>()
+
+    /** The access schema the node serves for each type, recorded as its walk by the type's first append. */
+    @Volatile
+    private var served: Map<AggregateType, String> = emptyMap()
 
     /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
@@ -77,6 +84,9 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
             return AppendOutcome.Conflict(current)
         }
         aggregate += stream
+        if (held.add(stream.ref.type)) {
+            served[stream.ref.type]?.let { walks.putIfAbsent(stream.ref.type, AccessWalk.created(it)) }
+        }
         requests.getOrPut(request) { ArrayList() } += stream
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val log = entries[partition]
@@ -117,12 +127,16 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     }
 
     /** Whether a stream of [type] was appended: the store of a type's history is its streams. */
-    override suspend fun holds(type: AggregateType): Boolean = lock.withLock { streams.keys.any { it.type == type } }
+    override suspend fun holds(type: AggregateType): Boolean = lock.withLock { type in held }
+
+    override fun serve(schemas: Map<AggregateType, String>) {
+        served = schemas
+    }
 
     override suspend fun walk(type: AggregateType): AccessWalk? = lock.withLock { walks[type] }
 
     override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = lock.withLock {
-        if (streams.keys.none { it.type == type } || walks[type]?.schema != expected) {
+        if (type !in held || walks[type]?.schema != expected) {
             return@withLock false
         }
         walks[type] = walk

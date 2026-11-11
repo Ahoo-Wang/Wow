@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.postgresql.util.PSQLException
 import java.sql.Connection
@@ -35,6 +36,10 @@ internal class PostgresLogCatalog(
 ) {
     /** The aggregate tables whose creation and registration this log has made sure of. */
     private val ensured = EnsuredOnce<String, AggregateLogTable>()
+
+    /** The access schema the node serves for each aggregate, recorded as its walk when its table is created. */
+    @Volatile
+    var served: Map<String, String> = emptyMap()
 
     /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -115,6 +120,8 @@ internal class PostgresLogCatalog(
                 register.setString(1, context)
                 register.setString(2, table.aggregate)
                 register.setString(3, table.base)
+                val created = served[table.aggregate]?.let { PostgresAccessWalks.textOf(AccessWalk.created(it)) }
+                register.setString(4, created)
                 register.executeUpdate()
             }
             val holder = connection.prepareStatement(tables.holder).use { query ->

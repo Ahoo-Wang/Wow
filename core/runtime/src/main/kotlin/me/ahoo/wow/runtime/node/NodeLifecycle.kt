@@ -269,7 +269,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     /**
      * Makes the node a member of each context's access walks before it joins the lease groups and so accepts commands:
-     * a walk records a store created meanwhile as its own schema's alone only while no member serves another.
+     * a node of another schema reads it among them before it appends.
      */
     private suspend fun enterWalks() = contexts.values.forEach { it.accessWalking?.enter() }
 

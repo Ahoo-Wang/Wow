@@ -247,6 +247,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             context, group, node, models, kernel, logs::get, backends.leases, options.access, snapshots, { address },
             observer, wiring.replayGate,
         )
+        // Before any lifecycle starts, so before a store is created: a store created from now on records its walk.
+        walking.serve()
         return AccessStamping(context, models, kernel, { logs[it] as? AccessStamps }, options.access, walking, observer)
     }
 

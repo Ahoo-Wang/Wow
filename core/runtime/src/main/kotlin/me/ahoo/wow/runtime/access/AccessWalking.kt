@@ -73,7 +73,10 @@ fun interface AccessSnapshots {
  *   for its schema of each type): a rolling deployment that changes the schema starts the walk once the last node of
  *   the old one stopped, so the walk reaches what that node wrote. A walk of this node's schema, once completed, is
  *   not read again. A type whose log holds no store of its history yet ([AccessWalks.holds]) is not claimed, and its
- *   store is not created: the first run after its first append claims it.
+ *   store is not created. The step that creates it records the walk completed for this node's schema, which the
+ *   node's assembly tells each log ([serve]), since every stream it then holds was committed with its attributes; a
+ *   store another writer created (an import, a tool) records none, and the first run after its first append claims
+ *   its walk.
  * - **The walk**: the node that holds the type's walk lease (`<group>#access-walk/<aggregate>`) pages its aggregates
  *   ([AccessWalks.aggregates], at most [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with
  *   its current attributes ([stampCurrent]), one aggregate after another, each in statements of its own. After each
@@ -135,8 +138,14 @@ class AccessWalking(
     /** The pace of each type's walk on this node. */
     private val paces = ConcurrentHashMap<AggregateType, WalkPace>()
 
-    /** The types this node found without a store, and whether a store created since is this schema's alone. */
-    private val unwritten = UnwrittenTypes()
+    /** The types this node found without a store, read again after fewer runs each time. */
+    private val absent = AbsentTypes()
+
+    /**
+     * The types whose walk of this node's schema is completed with nothing walked, that a run saw a member of another
+     * schema serve: the first run that sees none re-claims their walk ([claims]).
+     */
+    private val crossed = ConcurrentHashMap.newKeySet<AggregateType>()
 
     @Volatile
     private var loop: Job? = null
@@ -269,8 +278,18 @@ class AccessWalking(
     }
 
     /**
-     * Makes this node a member of the context's walks before it accepts commands, so that a store it appends to is
-     * never taken as another schema's alone ([UnwrittenTypes]); its runs keep it one.
+     * Tells each type's log the access schema this node serves for it ([AccessWalks.serve]), before the log creates
+     * any of their stores: a store it creates then records its walk completed. The node's assembly calls it.
+     */
+    fun serve() {
+        schemas.keys.groupBy { checkNotNull(walksOf(it)) }.forEach { (walks, types) ->
+            walks.serve(types.associateWith { schemas.getValue(it) })
+        }
+    }
+
+    /**
+     * Makes this node a member of the context's walks before it accepts commands, so a node of another schema reads
+     * it among them ([claim]) before it appends; its runs keep it one.
      */
     suspend fun enter() = heartbeat()
 
@@ -281,7 +300,13 @@ class AccessWalking(
         }
     }
 
-    /** Reads the walk of each type, claiming it for this node's schema as the class says. */
+    /**
+     * Reads the walk of each type, claiming it for this node's schema as the class says. A walk of this node's schema
+     * completed with nothing walked, such as the one a store's creation records, is not final while a member of another
+     * schema serves the type: that node may append streams of its schema's attributes. Once a run has seen one, the
+     * first run that sees none re-claims the walk over the log's heads, so it reaches them. It rests on a node of this
+     * schema that saw the other and is still up once it is gone, which a rolling deployment gives.
+     */
     private suspend fun claims() {
         var served: Set<String>? = null
 
@@ -291,67 +316,65 @@ class AccessWalking(
             return groups.any { it.startsWith("${type.name}@") && it != servedOf(type, schema) }
         }
         schemas.forEach { (type, schema) ->
-            if (walked[type]?.let { it.schema == schema && it.completed } != true) {
-                claim(type, schema) { mixed(type, schema) }
+            val walk = walked[type]
+            when {
+                walk == null || walk.schema != schema || !walk.completed -> claim(type, schema)
+                walk.walked != 0L -> Unit
+                mixed(type, schema) -> crossed += type
+                crossed.remove(type) -> reclaim(type, schema)
             }
         }
     }
 
     /**
-     * Reads the walk of [type], claiming it for [schema] as the class says; [mixed] reads whether a member of the walks
-     * serves [type] under another schema.
+     * Claims the walk of [type] for [schema] again over the log's heads, while the log still records it completed with
+     * nothing walked; else takes the one recorded, which another node of [schema] claimed again already.
      */
-    private suspend fun claim(type: AggregateType, schema: String, mixed: suspend () -> Boolean) {
+    private suspend fun reclaim(type: AggregateType, schema: String) {
         val walks = checkNotNull(walksOf(type))
-        if (type in unwritten) {
-            unwritten.seen(type, mixed())
+        val recorded = walks.walk(type)
+        if (recorded != null && recorded.stampedNothing(schema)) {
+            record(type, walks, schema, expected = schema)
+        } else {
+            recorded?.let { walked[type] = it }
         }
+    }
+
+    /** Whether this walk is [schema]'s, completed with nothing walked, as a store's creation records it. */
+    private fun AccessWalk.stampedNothing(schema: String): Boolean = this.schema == schema && completed && walked == 0L
+
+    /** Reads the walk of [type], claiming it for [schema] as the class says. */
+    private suspend fun claim(type: AggregateType, schema: String) {
+        val walks = checkNotNull(walksOf(type))
         // A type without a store of its history has nothing to walk, and its store is its first append's to create:
-        // the first run due after it claims the walk, with heads that reach it.
-        if (!unwritten.due(type)) {
+        // the first run due after it claims the walk, with heads that reach it, unless the creation recorded it.
+        if (!absent.due(type)) {
             return
         }
         if (!walks.holds(type)) {
-            unwritten.absent(type, mixed())
+            absent.absent(type)
             return
         }
-        val created = type in unwritten && unwritten.created(type)
+        absent.found(type)
         val recorded = walks.walk(type)
         // Another schema's walk stays while a node of it is left.
         if (recorded != null && (recorded.schema == schema || hasMembers(type, recorded.schema))) {
             walked[type] = recorded
             return
         }
-        // A store this node saw created holds its schema's streams alone, unless a walk is recorded (an import's).
-        record(type, walks, schema, recorded?.schema, fresh = created && recorded == null)
+        record(type, walks, schema, recorded?.schema)
     }
 
-    /**
-     * Claims the walk of [type] for [schema] in place of [expected]'s, up to the log's heads: completed when the log is
-     * empty, or [fresh], a store this node saw created by its own schema alone.
-     */
-    private suspend fun record(
-        type: AggregateType,
-        walks: AccessWalks,
-        schema: String,
-        expected: String?,
-        fresh: Boolean,
-    ) {
+    /** Claims the walk of [type] for [schema] in place of [expected]'s, up to the log's heads: completed when empty. */
+    private suspend fun record(type: AggregateType, walks: AccessWalks, schema: String, expected: String?) {
         val heads = headsOf(type)
-        val walk = AccessWalk(schema, heads, completed = fresh || heads.values.all { it == 0L })
+        val walk = AccessWalk(schema, heads, completed = heads.values.all { it == 0L })
         if (!walks.claim(type, walk, expected)) {
             walks.walk(type)?.let { walked[type] = it }
             return
         }
         walked[type] = walk
-        logger.info {
-            if (fresh) {
-                "The access walk of $type is recorded complete for the schema [$schema]: its store was created " +
-                    "while this node ran, by nodes of that schema alone."
-            } else {
-                "The access walk of $type is claimed for the schema [$schema], up to the heads $heads."
-            }
-        }
+        logger.info { "The access walk of $type is claimed for the schema [$schema], up to the heads $heads." }
     }
 
     /**

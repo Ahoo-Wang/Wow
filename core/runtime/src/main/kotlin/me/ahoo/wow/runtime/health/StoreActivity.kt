@@ -305,6 +305,9 @@ private class TrackedWalksLog<L>(
         walked: Long,
         completed: Boolean,
     ): Boolean = activity.call(::unavailable) { walks.advance(type, schema, cursor, walked, completed) }
+
+    // Told once at assembly, before any call: nothing to track.
+    override fun serve(schemas: Map<AggregateType, String>) = walks.serve(schemas)
 }
 
 private class TrackedLeaseStore(val leases: LeaseStore, val activity: StoreActivity) : LeaseStore {

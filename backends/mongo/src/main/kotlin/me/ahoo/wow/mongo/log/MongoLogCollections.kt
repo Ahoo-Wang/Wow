@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.isDuplicateKey
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_WALK
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CONTEXT
@@ -43,6 +44,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION_KEY
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.bson.BsonType
 import org.bson.Document
@@ -84,6 +86,10 @@ internal class MongoLogCollections(
 ) {
     /** The aggregate collections whose creation and registration this log has made sure of, each once. */
     private val ensured = EnsuredOnce<String, AggregateCollection>()
+
+    /** The access schema the node serves for each aggregate, recorded as its walk when its collection is registered. */
+    @Volatile
+    var served: Map<String, String> = emptyMap()
 
     /** The aggregate collections of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -154,7 +160,10 @@ internal class MongoLogCollections(
             return collection
         }
         try {
-            registry.insertOne(Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate))
+            val registered = Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate)
+            // The walk its creation records: kept with the document, so a collection registered before keeps its own.
+            served[aggregate]?.let { registered.append(ACCESS_WALK, MongoLogAccess.documentOf(AccessWalk.created(it))) }
+            registry.insertOne(registered)
         } catch (failure: MongoWriteException) {
             if (!failure.isDuplicateKey()) {
                 throw failure

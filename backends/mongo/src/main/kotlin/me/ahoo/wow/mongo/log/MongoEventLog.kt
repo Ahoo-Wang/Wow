@@ -314,6 +314,10 @@ class MongoEventLog(
         completed: Boolean,
     ): Boolean = logAccess.advance(type, schema, cursor, walked, completed)
 
+    override fun serve(schemas: Map<AggregateType, String>) {
+        collections.served = schemas.filterKeys { it.context == context }.mapKeys { (type, _) -> type.name }
+    }
+
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         aggregateReads.readTail(ref, fromVersion, earlier)
 

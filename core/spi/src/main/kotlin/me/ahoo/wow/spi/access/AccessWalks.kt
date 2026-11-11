@@ -27,7 +27,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * by schema ([claim]), so concurrent claims leave one walk.
  *
  * None of these creates the store of a type's history (its collection, its table): a type the log holds none of
- * ([holds]) has nothing to walk, and its first append creates its store as it would without walks.
+ * ([holds]) has nothing to walk, and its first append creates its store as it would without walks. The step that
+ * creates it records the walk completed for the schema the log [serve] for the type, if any.
  */
 @InternalWowApi
 interface AccessWalks : AccessStamps {
@@ -58,6 +59,21 @@ interface AccessWalks : AccessStamps {
      * whether it is [completed]; returns false, recording nothing, when the recorded walk is of another schema.
      */
     suspend fun advance(type: AggregateType, schema: String, cursor: String?, walked: Long, completed: Boolean): Boolean
+
+    /**
+     * Tells the log the access schema its node serves for each type of [schemas], before it creates any of their
+     * stores: the step that creates a type's store, an append or a table made up front, records the type's walk
+     * completed for that schema in the same write ([AccessWalk.created]). Every stream a store this version created
+     * holds was committed with its attributes, so there is nothing to walk. A store that exists keeps its walk, and a
+     * log no node told (an importer's, a tool's) records none: its types' walks are claimed as before. Without this
+     * call a log records none.
+     *
+     * A store created during a rolling deployment that changes the type's access schema is walked once the other
+     * version's nodes are gone: a node whose walk was recorded so, and that saw a node of another schema serve the type,
+     * claims the walk again over the log's heads then. It rests on a node of the schema that stays that saw the other
+     * and is still up once it is gone, which a rolling deployment gives.
+     */
+    fun serve(schemas: Map<AggregateType, String>)
 }
 
 /** A page of a type's aggregates ([AccessWalks.aggregates]), and the cursor of the next one; null after the last. */
@@ -105,5 +121,11 @@ data class AccessWalk(
          * step stamps the history and completes the walk in its place.
          */
         const val IMPORTING: String = "wow.import"
+
+        /**
+         * The walk the creation of a type's store records for [schema], the one its log [AccessWalks.serve]:
+         * completed, with nothing walked and no heads.
+         */
+        fun created(schema: String): AccessWalk = AccessWalk(schema, emptyMap(), completed = true)
     }
 }
