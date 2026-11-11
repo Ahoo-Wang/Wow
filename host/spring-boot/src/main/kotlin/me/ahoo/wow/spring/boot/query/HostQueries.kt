@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
@@ -41,6 +41,10 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
 import me.ahoo.wow.spi.store.facet
+import me.ahoo.wow.spring.boot.BackendsLifecycle
+import me.ahoo.wow.spring.boot.MemoryStore
+import me.ahoo.wow.spring.boot.WowLifecycles
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.AGGREGATE_KEY_FIX
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton

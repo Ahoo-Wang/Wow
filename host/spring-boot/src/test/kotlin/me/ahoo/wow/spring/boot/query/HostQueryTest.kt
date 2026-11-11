@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import io.mockk.every
 import io.mockk.mockk
@@ -45,9 +45,21 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spring.boot.Account
+import me.ahoo.wow.spring.boot.AccountOpened
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.Deposited
+import me.ahoo.wow.spring.boot.HostBackends
 import me.ahoo.wow.spring.boot.HostQueryFixtures.ACCOUNT
 import me.ahoo.wow.spring.boot.HostQueryFixtures.eventually
 import me.ahoo.wow.spring.boot.HostQueryFixtures.openAccount
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.MemorySnapshotQueries
+import me.ahoo.wow.spring.boot.MemoryStore
+import me.ahoo.wow.spring.boot.ScannedEvents
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.memoryStore
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

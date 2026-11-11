@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
@@ -30,6 +30,8 @@ import me.ahoo.wow.query.store.QueryStoreSettings
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spring.boot.StoreProperties
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration

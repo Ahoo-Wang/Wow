@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spring.boot.query.EventQueryBackend
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration

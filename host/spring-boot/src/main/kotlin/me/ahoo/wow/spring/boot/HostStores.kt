@@ -49,6 +49,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spring.boot.query.MemoryQueries
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.config.NamedBeanHolder
 import java.time.Clock

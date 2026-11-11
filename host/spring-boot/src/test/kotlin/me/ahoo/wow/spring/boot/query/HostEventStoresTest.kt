@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -33,6 +33,16 @@ import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.AcmeStore
+import me.ahoo.wow.spring.boot.AcmeStoreProvider
+import me.ahoo.wow.spring.boot.AggregateProperties
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.PortProviders
+import me.ahoo.wow.spring.boot.ProvidedSinks
+import me.ahoo.wow.spring.boot.SinkAutoConfiguration
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean

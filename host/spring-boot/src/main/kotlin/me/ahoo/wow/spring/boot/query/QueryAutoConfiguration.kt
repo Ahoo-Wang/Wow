@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessPolicy
@@ -57,6 +57,13 @@ import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.store.facet
+import me.ahoo.wow.spring.boot.BeanStoreResources
+import me.ahoo.wow.spring.boot.HostBackends
+import me.ahoo.wow.spring.boot.PortProviders
+import me.ahoo.wow.spring.boot.QueryStreamsLifecycle
+import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.WowModels
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration

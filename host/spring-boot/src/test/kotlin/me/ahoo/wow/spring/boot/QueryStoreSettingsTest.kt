@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spring.boot.query.QueryProperties
+import me.ahoo.wow.spring.boot.query.storeSettings
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds

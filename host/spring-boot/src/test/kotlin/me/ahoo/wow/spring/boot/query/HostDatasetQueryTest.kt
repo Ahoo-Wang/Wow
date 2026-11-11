@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -30,6 +30,9 @@ import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir

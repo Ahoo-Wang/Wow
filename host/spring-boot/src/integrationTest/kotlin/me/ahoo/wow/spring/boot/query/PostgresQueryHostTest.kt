@@ -11,13 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.QueryOutcomes
+import me.ahoo.wow.spring.boot.assertCountCache
+import me.ahoo.wow.spring.boot.assertHandoff
+import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

@@ -21,6 +21,7 @@ import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spring.boot.query.SearchStore
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.query.HostEventStores
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration

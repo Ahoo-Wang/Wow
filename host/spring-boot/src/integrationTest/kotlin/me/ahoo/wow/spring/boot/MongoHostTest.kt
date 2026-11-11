@@ -19,6 +19,7 @@ import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
+import me.ahoo.wow.spring.boot.query.QueryIndexesLifecycle
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

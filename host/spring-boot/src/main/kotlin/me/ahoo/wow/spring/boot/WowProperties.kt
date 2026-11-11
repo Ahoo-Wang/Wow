@@ -24,6 +24,7 @@ import me.ahoo.wow.spring.boot.http.PeerProperties
 import me.ahoo.wow.spring.boot.http.PeerTargetProperties
 import me.ahoo.wow.spring.boot.observability.HealthProperties
 import me.ahoo.wow.spring.boot.observability.ObservabilityProperties
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.security.CoSecProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.BindException

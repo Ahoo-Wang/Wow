@@ -36,12 +36,12 @@ import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configCheck
-import me.ahoo.wow.spring.boot.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.RoutesScope
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowModels
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

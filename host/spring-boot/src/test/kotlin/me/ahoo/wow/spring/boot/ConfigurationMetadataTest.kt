@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import me.ahoo.wow.spring.boot.http.DnsPeerDiscovery
 import me.ahoo.wow.spring.boot.observability.ObservabilityProperties
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import java.util.ServiceLoader

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.spi.config.configCheck

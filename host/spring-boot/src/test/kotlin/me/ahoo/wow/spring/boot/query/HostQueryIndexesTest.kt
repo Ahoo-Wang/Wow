@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import io.mockk.every
 import kotlinx.coroutines.runBlocking
@@ -34,6 +34,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostQueryFixtures.ACCOUNT
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

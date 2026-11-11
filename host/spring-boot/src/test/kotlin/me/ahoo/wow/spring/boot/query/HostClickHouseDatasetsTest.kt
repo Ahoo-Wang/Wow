@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert

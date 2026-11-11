@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -25,6 +25,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.PortProviders
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import java.nio.file.Path
 import java.util.ServiceLoader

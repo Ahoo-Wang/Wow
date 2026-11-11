@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.spi.tenant.TenantPolicy
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import org.junit.jupiter.api.Test
 
 /** `wow.query.allow-cross-tenant` (decision D254 ⑦) and the query tenant of a cross-tenant caller. */

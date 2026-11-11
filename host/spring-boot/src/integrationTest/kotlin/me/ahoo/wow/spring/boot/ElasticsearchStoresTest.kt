@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spring.boot.query.SnapshotQueryBackend
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.params.ParameterizedTest
