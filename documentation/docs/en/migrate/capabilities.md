@@ -105,7 +105,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Where a subscription starts | Kept | New in V10: declared on the handler or configured. |
 | Periodic jobs in an external scheduler (Simba, `@Scheduled`) | Replaced | `@OnSchedule` jobs of a saga, on cron rules, with no external lock. A job that waits for each command's outcome before the next stays outside and sends through the command client. See [Scheduled Commands](../guide/scheduling). |
 | Processor filters, interceptors, `@Order` | Dropped | — |
-| Skipping Kafka messages that do not decode | 10.x | V10 parks them. |
+| Skipping Kafka messages that do not decode | 10.x | V10 parks the aggregate a record's key names, and passes over a record whose key names none. |
 | Reading other aggregates' state or querying in a handler | Replaced | The typed query API, available to handlers. |
 
 ## Queries

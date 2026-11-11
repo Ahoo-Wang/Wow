@@ -23,7 +23,7 @@ Choose by the rehearsal's measured import time against the stop the business acc
 | Offline | 136.7 s | The full import 43.1 s, compare 25.1 s, snapshots 44.1 s, start of both services 18.0 s |
 | Online | 102.8 s | The final pass 19.7 s, compare 27.8 s, snapshots 47.1 s, activation of both services 1.8 s |
 
-These were measured before `snapshot` stamped the imported history: the access walk then stamped the imported orders, 220 s after the offline start and 214 s after the activation. `snapshot` now stamps it, so the stamps are part of the snapshot times and nothing waits for a walk ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
+`snapshot` also stamps the imported history with its access attributes ([The access attributes](./data#_7-the-access-attributes)), inside the write stop: time it in your rehearsal; the table above was measured before it did. The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
 
 ## Inventory before any write
 

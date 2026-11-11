@@ -16,7 +16,7 @@ There are two ways to cut over:
 | Steps | Import, compare, snapshots, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and activation |
 | Use it when | The service can stop writing for as long as a full import takes | A full import takes longer than the service can stop writing |
 
-The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 243.4 seconds, of which the full import took 98.2; the online path stopped them for 159.5 seconds, of which its final pass took 15.2 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
+The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 136.7 seconds, of which the full import took 43.1; the online path stopped them for 102.8 seconds, of which its final pass took 19.7 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
 
 ## What moves, and what does not
 
