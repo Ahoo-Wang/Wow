@@ -44,7 +44,9 @@ data class FlatColumn(val name: String, val type: String, val expression: String
  * ClickHouse's JSON functions parse numbers as `Float64` (`12.30` becomes `12.3`, 27 digits become `1.23e26`).
  *
  * A property named as a column `_state` already has, a stored one or an access column ([reserved]), gets the prefix
- * `state_`, again while the name is still taken: `version` is `state_version`.
+ * `state_`, again while the name is still taken, by those, by a column named before it, or by another property's own
+ * name: `version` is `state_version`, and `id` beside a property named `state_id` is `state_state_id`. So no two
+ * columns share a name, whatever the properties' order.
  */
 internal object FlatColumns {
     /** The scale of a decimal that declares none and whose currency, if it is a money, is another field. */
@@ -53,12 +55,22 @@ internal object FlatColumns {
 
     fun of(schema: Map<String, Any?>?, reserved: Set<String>): List<FlatColumn> {
         val properties = schema?.get("properties") as? Map<*, *> ?: return emptyList()
-        return properties.mapNotNull { (name, property) ->
-            if (name !is String || property !is Map<*, *>) null else columnOf(name, property, reserved)
+        val columns = properties.mapNotNull { (name, property) ->
+            if (name !is String || property !is Map<*, *>) null else columnOf(name, property)
+        }
+        val own = columns.mapTo(HashSet()) { it.property }
+        val taken = HashSet(reserved)
+        return columns.map { column ->
+            var name = column.property
+            while (name in taken || name != column.property && name in own) {
+                name = "state_$name"
+            }
+            taken += name
+            column.copy(name = name)
         }
     }
 
-    private fun columnOf(name: String, property: Map<*, *>, reserved: Set<String>): FlatColumn? {
+    private fun columnOf(name: String, property: Map<*, *>): FlatColumn? {
         val types = typesOf(property["type"]) ?: return null
         val nullable = "null" in types
         val scalar = (types - "null").singleOrNull() ?: return null
@@ -72,11 +84,7 @@ internal object FlatColumns {
             "boolean" -> extracted(key, "Bool", nullable)
             else -> return null
         }
-        var column = name
-        while (column in reserved) {
-            column = "state_$column"
-        }
-        return FlatColumn(column, nullableOf(base, nullable), expression, name)
+        return FlatColumn(name, nullableOf(base, nullable), expression, name)
     }
 
     private fun typesOf(type: Any?): List<String>? = when (type) {
