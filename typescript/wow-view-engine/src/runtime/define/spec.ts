@@ -117,7 +117,8 @@ export interface FieldSpec {
   elementTitle?: string;
   /**
    * A search box rather than a path: the key is a handle, `fields` the
-   * paths it searches, each one the descriptor has.
+   * paths it searches, each one the descriptor has. None named, it looks
+   * wherever the model indexes.
    */
   search?: { fields: string[]; mode?: SearchModeName };
   /** Anything else a field may say of itself, as written by hand. */
