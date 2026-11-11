@@ -42,9 +42,7 @@ class PostgresTailReadsTest : PostgresLogFixtures() {
             PostgresFixture.dataSource,
             context,
             1,
-            pollInterval = 1.hours,
-            tailBatch = BATCH,
-            maxPollInterval = 1.hours,
+            options = PostgresEventLogOptions(pollInterval = 1.hours, maxPollInterval = 1.hours, tailBatch = BATCH),
         ).also {
             it.createSchema()
             it.createTable(type.name)
