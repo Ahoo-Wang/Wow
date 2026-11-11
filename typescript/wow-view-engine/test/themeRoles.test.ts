@@ -61,15 +61,13 @@ const LINKS = (TOKENS as readonly TokenEntry[]).filter(entry => entry.link);
 /**
  * The roles with no built-in value: unset, the rule that applies each
  * carries what every control was drawn with, because they were never one
- * value (a fill, an edge, a hover), or — the outline's width — the
- * registry's `outline-none`.
+ * value (a fill, an edge), or — the outline's width — the registry's
+ * `outline-none`.
  */
 const UNSET = new Set([
   'control',
   'control-edge',
   'control-thumb',
-  'control-hover',
-  'control-pressed',
   'focus-width',
   // No lower bound on a bar's width: as narrow as the plot makes it.
   'chart-bar-min-width',
@@ -78,9 +76,6 @@ const UNSET = new Set([
   'item-selected-weight',
   'outline-hover-edge',
   'filter-height',
-  // No mark on a selected row but its colour, unless a theme draws one
-  // (D76).
-  'row-selected-mark',
   // Links: unset, a role is not linked.
   ...(TOKENS as readonly TokenEntry[]).flatMap(entry =>
     entry.link ? [entry.name] : [],
@@ -91,14 +86,29 @@ const UNSET = new Set([
  * What the rest are unset, where that is not another token (`fallback`):
  * the value each surface was drawn with before its role existed.
  */
-const BUILT_IN: Readonly<Record<string, string>> = {
+const BUILT_IN: Readonly<
+  Record<string, string | Readonly<Record<Mode, string>>>
+> = {
+  // The states' strengths, larger on a dark ground, and what is mixed by
+  // them: a row and a control under the pointer, a pressed control, a
+  // selected row.
+  'state-hover': { light: '3%', dark: '6%' },
+  'state-pressed': { light: '7%', dark: '12%' },
+  'state-selected': { light: '7%', dark: '12%' },
+  'row-selected':
+    'color-mix(in oklab, var(--primary) var(--_fve-state-selected), var(--_fve-content))',
+  'control-hover':
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-control, transparent))',
+  'control-pressed':
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), var(--_fve-control, transparent))',
   'card-edge': 'color-mix(in oklab, var(--foreground) 10%, transparent)',
   'card-shadow': '0 0 #0000',
   scrim: 'oklch(0 0 0deg / 10%)',
   'table-header-divider': 'transparent',
   'item-selected': 'transparent',
   'nav-current-shadow': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-  'row-hover': 'color-mix(in oklab, var(--muted) 50%, var(--background))',
+  'row-hover':
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-content))',
   'focus-offset': '0px',
   'focus-style': 'solid',
   'focus-halo': 'color-mix(in oklab, var(--ring) 50%, transparent)',
@@ -187,7 +197,10 @@ describe.each(ROLES.map(entry => [entry.name, entry] as const))(
         return;
       }
       if (entry.fallback === undefined) {
-        expect(text.get(variable)).toBe(BUILT_IN[name]);
+        const builtIn = BUILT_IN[name];
+        expect(text.get(variable)).toBe(
+          typeof builtIn === 'string' ? builtIn : builtIn[mode],
+        );
         return;
       }
       const other = tokenVariable(entry.fallback);
@@ -251,26 +264,43 @@ describe('each role is painted with', () => {
   // a chart's — read back off the chart's element (`CHART_TOKENS`, which
   // `test/chartTheme.test.tsx` holds to what `readChartTheme` reads).
   const reads = new Set<string>();
+  /** What a role's own declaration in a token block reads, by the role. */
+  const mixes = new Map<string, Set<string>>();
   postcss.parse(stylesSource()).walkDecls(decl => {
+    const read = [...decl.value.matchAll(/--_fve-[\w-]+/g)].map(
+      ([name]) => name,
+    );
     if (decl.prop.startsWith('--_fve-')) {
       const rule = decl.parent;
       const selector =
         rule?.type === 'rule' ? rule.selector.replace(/\s+/g, ' ') : '';
       // A token block declares the roles; it does not paint with them.
-      if (/^\.fve-root, \.fve-tokens$|^\.dark \.fve-root/.test(selector))
+      if (/^\.fve-root, \.fve-tokens$|^\.dark \.fve-root/.test(selector)) {
+        const mixed = mixes.get(decl.prop) ?? new Set<string>();
+        for (const name of read) mixed.add(name);
+        mixes.set(decl.prop, mixed);
         return;
+      }
     }
-    for (const match of decl.value.matchAll(/--_fve-[\w-]+/g))
-      reads.add(match[0]);
+    for (const name of read) reads.add(name);
   });
   const recipes = uiSources();
+  const painted = (variable: string) =>
+    reads.has(variable) ||
+    recipes.includes(variable) ||
+    CHART_TOKENS.includes(variable);
+  // A state's strength is a share, not a colour: nothing paints with it but
+  // the state roles whose built-in values mix it, so it is read where one of
+  // those is.
+  const strength = (name: string) =>
+    ROLES.some(role => role.name === name && role.area === 'state') &&
+    name.startsWith('state-');
 
   it.each(ROLES.map(({ name }) => name))('%s', name => {
     const variable = tokenVariable(name);
-    const read =
-      reads.has(variable) ||
-      recipes.includes(variable) ||
-      CHART_TOKENS.includes(variable);
+    const read = strength(name)
+      ? [...mixes].some(([role, mixed]) => mixed.has(variable) && painted(role))
+      : painted(variable);
     expect(read, `${variable} is declared and never read`).toBe(true);
   });
 });

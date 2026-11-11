@@ -310,6 +310,23 @@ describe('each check fires on what it names', () => {
       'mine/light: table-header-foreground text on header band 1.24:1 < 4.5:1',
     );
   });
+
+  it('measures the states at the strength a host gives them', () => {
+    // A selected row that takes a third of the primary no longer holds a
+    // checkbox's edge off it.
+    const messages = check(':root { --fve-state-selected: 33%; }').map(
+      ({ message }) => message,
+    );
+    expect(messages).toContainEqual(
+      expect.stringMatching(/^neutral\/light: input edge on selected row /),
+    );
+  });
+
+  it('says so when a strength is not a percentage', () => {
+    expect(
+      check(':root { --fve-state-hover: 0.03; }').map(({ message }) => message),
+    ).toContain('neutral/light: state-hover is 0.03, not a percentage');
+  });
 });
 
 describe('the command', () => {

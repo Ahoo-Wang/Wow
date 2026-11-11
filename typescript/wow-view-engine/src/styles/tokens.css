@@ -189,12 +189,12 @@
    * The record table's own two colours, which used to be written out at the
    * call site in `record/columns.ts`.
    *
-   * `row-hover` is the registry's `bg-muted/50` made opaque. A pinned cell
-   * takes its colour from the row (`bg-inherit`), and over a scrolling
-   * table what sits under a pinned cell is the column it is holding the
-   * place of — a wash let that column's text show through the moment the
-   * pointer arrived. The same shade mixed in rather than laid over is
-   * opaque, and being a token it moves with a host's `--fve-muted`.
+   * `row-hover` is the ink at the hover strength (`state-hover`) mixed into
+   * the rows' ground, not laid over it. A pinned cell takes its colour from
+   * the row (`bg-inherit`), and over a scrolling table what sits under a
+   * pinned cell is the column it is holding the place of — a wash let that
+   * column's text show through the moment the pointer arrived. It was half
+   * of `muted`, 1.04:1 off a white ground: a step most screens do not show.
    *
    * `quiet-foreground` is the quiet half of a summary row — the scope, and
    * each function's name. It dims the foreground rather than reaching for
@@ -208,7 +208,11 @@
     --fve-row-hover,
     var(
       --fvp-row-hover,
-      color-mix(in oklab, var(--muted) 50%, var(--background))
+      color-mix(
+        in oklab,
+        var(--foreground) var(--_fve-state-hover),
+        var(--_fve-content)
+      )
     )
   );
   --_fve-quiet-foreground: var(
@@ -510,9 +514,24 @@
     var(--fvp-table-sort-idle, 1)
   );
   --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
+  /*
+   * A selected row is the primary at the selected strength
+   * (`state-selected`) mixed into the rows' ground. It was `muted`, the
+   * header band's own grey: a selected first row read as part of the header.
+   */
   --_fve-row-selected: var(
     --fve-row-selected,
-    var(--_fve-brand-row-selected, var(--fvp-row-selected, var(--muted)))
+    var(
+      --_fve-brand-row-selected,
+      var(
+        --fvp-row-selected,
+        color-mix(
+          in oklab,
+          var(--primary) var(--_fve-state-selected),
+          var(--_fve-content)
+        )
+      )
+    )
   );
   --_fve-row-selected-foreground: var(
     --fve-row-selected-foreground,
@@ -521,12 +540,15 @@
   /*
    * A bar down a selected row's left edge (`row-selected-mark`), so the
    * selection is said by more than its colour where no checkbox says it
-   * (WCAG 1.4.1) — none unset: the value is invalid and the rule that
-   * draws it paints nothing. A link can draw it in the primary.
+   * (WCAG 1.4.1): a pressed analysis group has none. The primary, in every
+   * theme that does not say otherwise.
    */
   --_fve-row-selected-mark: var(
     --fve-row-selected-mark,
-    var(--_fve-link-row-selected-mark, var(--fvp-row-selected-mark))
+    var(
+      --_fve-link-row-selected-mark,
+      var(--fvp-row-selected-mark, var(--primary))
+    )
   );
   --_fve-row-selected-mark-link: var(
     --fve-row-selected-mark-link,
@@ -549,9 +571,10 @@
    * `shadow-xs`). An outline button under the pointer keeps its edge and
    * takes `foreground` unless `outline-hover-edge` and
    * `outline-hover-foreground` say otherwise. `control-hover` and
-   * `control-pressed` have no built-in value: unset, each control keeps
-   * the fill it was drawn with (its rule below carries it), because they
-   * were never one value.
+   * `control-pressed` are the ink at the hover and the pressed strength
+   * (the `state-*` numbers below) mixed into the control's own fill, so a
+   * filled control keeps its fill under the pointer; with no fill, into
+   * nothing, over whatever the control stands on.
    *
    * A role that is another token of the surface — a highlight in the
    * primary fill, the view on screen in a selected row's tint — says so by
@@ -617,10 +640,44 @@
     --fve-nav-current-foreground-link,
     var(--fvp-nav-current-foreground-link)
   );
-  --_fve-control-hover: var(--fve-control-hover, var(--fvp-control-hover));
+  /*
+   * How strongly a state shows (`state-*`): the share of the ink a thing
+   * under the pointer and a pressed one take, and the share of the primary
+   * a selected one takes. One number moves every surface's hover together —
+   * a row, a button, a toggle — where each fell back to `muted` on its own
+   * and hover, pressed and selected came out one grey. 3% is the least that
+   * reads as a step on white (2.6 in OKLab ×100; the old row hover was
+   * 1.5); pressed is over twice it, so the two are told apart; 7% of the
+   * primary is the most a selected row takes while a checkbox's `input`
+   * edge on it still holds 3:1.
+   */
+  --_fve-state-hover: var(--fve-state-hover, var(--fvp-state-hover, 3%));
+  --_fve-state-pressed: var(--fve-state-pressed, var(--fvp-state-pressed, 7%));
+  --_fve-state-selected: var(
+    --fve-state-selected,
+    var(--fvp-state-selected, 7%)
+  );
+  --_fve-control-hover: var(
+    --fve-control-hover,
+    var(
+      --fvp-control-hover,
+      color-mix(
+        in oklab,
+        var(--foreground) var(--_fve-state-hover),
+        var(--_fve-control, transparent)
+      )
+    )
+  );
   --_fve-control-pressed: var(
     --fve-control-pressed,
-    var(--fvp-control-pressed)
+    var(
+      --fvp-control-pressed,
+      color-mix(
+        in oklab,
+        var(--foreground) var(--_fve-state-pressed),
+        var(--_fve-control, transparent)
+      )
+    )
   );
   --_fve-outline-hover-edge: var(
     --fve-outline-hover-edge,

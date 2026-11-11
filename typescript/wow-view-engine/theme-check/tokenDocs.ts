@@ -261,6 +261,10 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       en: 'A selected row, a pressed group',
       zh: '选中的行、按下的分组',
     },
+    light: {
+      en: '`primary` at `state-selected` into the rows’ ground',
+      zh: '`primary` 按 `state-selected` 混进行的底',
+    },
   },
   'row-selected-foreground': {
     role: { en: 'The words on a selected row', zh: '选中行上的文字' },
@@ -268,8 +272,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   'row-hover': {
     role: { en: 'A hovered row (derived)', zh: '悬停的行（推导）' },
     light: {
-      en: '`muted` halfway into `background`',
-      zh: '`muted` 与 `background` 各半',
+      en: '`foreground` at `state-hover` into the rows’ ground',
+      zh: '`foreground` 按 `state-hover` 混进行的底',
     },
   },
   'row-stripe': {

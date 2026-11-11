@@ -372,13 +372,13 @@ export const AzureMarksFollowTheBrandInDark: Story = azureMarks('dark');
  * 面板离边 2px；azure 也是 2px，卡片与面板压着自己的边（-1px）；不设时
  * （neutral）仍是 1px 与原来的偏移。卡片与面板的光晕是面上的
  * `focus-halo`（contrast 透明，azure 淡蓝，neutral 是 `ring` 的一半）。
- * 选中行左边的色条（`row-selected-mark`）contrast 链到主色，neutral 没有。
+ * 选中行左边的色条（`row-selected-mark`）每一套都画，是面上的主色。
  */
 const FOCUS_MARKS = {
-  // Width, a card's (and a panel's) offset, a bar on the row.
-  contrast: { wide: '2px', card: '2px', bar: true },
-  azure: { wide: '2px', card: '-1px', bar: false },
-  neutral: { wide: '1px', card: '-1px', bar: false },
+  // Width, a card's (and a panel's) offset.
+  contrast: { wide: '2px', card: '2px' },
+  azure: { wide: '2px', card: '-1px' },
+  neutral: { wide: '1px', card: '-1px' },
 } as const;
 
 const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
@@ -457,13 +457,13 @@ const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
     );
 
     const first = canvas.getByTestId('chosen').querySelector('td')!;
-    const bar = getComputedStyle(first).backgroundImage;
-    if (expected.bar) {
-      await expect(bar).toContain('linear-gradient');
-      await expect(colorOf(root, '--_fve-row-selected-mark')).toBe(
-        colorOf(root, '--primary'),
-      );
-    } else await expect(bar).toBe('none');
+    // The bar down a selected row's edge, in the surface's primary.
+    await expect(getComputedStyle(first).backgroundImage).toContain(
+      'linear-gradient',
+    );
+    await expect(colorOf(root, '--_fve-row-selected-mark')).toBe(
+      colorOf(root, '--primary'),
+    );
   },
 });
 

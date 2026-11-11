@@ -321,13 +321,12 @@ export const GROUNDS: readonly Ground[] = [
     ],
   },
   {
-    // The bar down a selected row's left edge, where a theme draws one
-    // (`row-selected-mark`, D76): a mark of the selection, held to 3:1 off
-    // the selected row it stands on (1.4.11).
+    // The bar down a selected row's left edge (`row-selected-mark`, D76):
+    // a mark of the selection, held to 3:1 off the selected row it stands
+    // on (1.4.11).
     name: 'marked selected row',
     layers: [{ token: 'content' }, { token: 'row-selected' }],
     pairs: marks('row-selected-mark'),
-    requires: 'row-selected-mark',
   },
   {
     // Every other row, where a theme stripes them.
@@ -397,17 +396,11 @@ export const GROUNDS: readonly Ground[] = [
     pairs: texts('item-selected-foreground'),
   },
   {
-    // An outline button under the pointer: its words on the registry's
-    // `muted` hover, and on a theme's `control-hover` where it gives one.
+    // An outline button under the pointer: its words on its hover fill
+    // (`control-hover`, the ink at the hover strength unless a theme says).
     name: 'hovered outline button',
-    layers: [{ token: 'background' }, { token: 'muted' }],
-    pairs: texts('outline-hover-foreground'),
-  },
-  {
-    name: 'hovered outline button on its hover fill',
     layers: [{ token: 'background' }, { token: 'control-hover' }],
     pairs: texts('outline-hover-foreground'),
-    requires: 'control-hover',
   },
   {
     name: 'tooltip',

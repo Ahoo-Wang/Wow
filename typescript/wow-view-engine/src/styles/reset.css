@@ -180,6 +180,12 @@
     --fvp-row-divider: initial;
     --fvp-dark-row-divider: initial;
     --fvp-table-sort-idle: initial;
+    --fvp-state-hover: initial;
+    --fvp-dark-state-hover: initial;
+    --fvp-state-pressed: initial;
+    --fvp-dark-state-pressed: initial;
+    --fvp-state-selected: initial;
+    --fvp-dark-state-selected: initial;
     --fvp-highlight: initial;
     --fvp-dark-highlight: initial;
     --fvp-highlight-foreground: initial;

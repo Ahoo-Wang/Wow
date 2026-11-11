@@ -131,7 +131,11 @@
       --fve-dark-row-hover,
       var(
         --fvp-dark-row-hover,
-        color-mix(in oklab, var(--muted) 50%, var(--background))
+        color-mix(
+          in oklab,
+          var(--foreground) var(--_fve-state-hover),
+          var(--_fve-content)
+        )
       )
     );
     --_fve-quiet-foreground: var(
@@ -289,7 +293,14 @@
       --fve-dark-row-selected,
       var(
         --_fve-brand-dark-row-selected,
-        var(--fvp-dark-row-selected, var(--muted))
+        var(
+          --fvp-dark-row-selected,
+          color-mix(
+            in oklab,
+            var(--primary) var(--_fve-state-selected),
+            var(--_fve-content)
+          )
+        )
       )
     );
     --_fve-row-selected-foreground: var(
@@ -298,7 +309,10 @@
     );
     --_fve-row-selected-mark: var(
       --fve-dark-row-selected-mark,
-      var(--_fve-link-row-selected-mark, var(--fvp-dark-row-selected-mark))
+      var(
+        --_fve-link-row-selected-mark,
+        var(--fvp-dark-row-selected-mark, var(--primary))
+      )
     );
     --_fve-row-stripe: var(
       --fve-dark-row-stripe,
@@ -345,13 +359,46 @@
       --fve-dark-nav-current-shadow,
       var(--fvp-dark-nav-current-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05))
     );
+    /*
+     * The strengths are larger on a dark ground, where a share of a light
+     * ink moves a dark fill less to the eye. A selected row takes an eighth
+     * of the primary, which here is the light one: at a fifth, a checkbox's
+     * edge on its wash over the row read 2.94:1, and the row neared the
+     * header band's grey.
+     */
+    --_fve-state-hover: var(
+      --fve-dark-state-hover,
+      var(--fvp-dark-state-hover, 6%)
+    );
+    --_fve-state-pressed: var(
+      --fve-dark-state-pressed,
+      var(--fvp-dark-state-pressed, 12%)
+    );
+    --_fve-state-selected: var(
+      --fve-dark-state-selected,
+      var(--fvp-dark-state-selected, 12%)
+    );
     --_fve-control-hover: var(
       --fve-dark-control-hover,
-      var(--fvp-dark-control-hover)
+      var(
+        --fvp-dark-control-hover,
+        color-mix(
+          in oklab,
+          var(--foreground) var(--_fve-state-hover),
+          var(--_fve-control, transparent)
+        )
+      )
     );
     --_fve-control-pressed: var(
       --fve-dark-control-pressed,
-      var(--fvp-dark-control-pressed)
+      var(
+        --fvp-dark-control-pressed,
+        color-mix(
+          in oklab,
+          var(--foreground) var(--_fve-state-pressed),
+          var(--_fve-control, transparent)
+        )
+      )
     );
     --_fve-outline-hover-edge: var(
       --fve-dark-outline-hover-edge,

@@ -14,8 +14,8 @@
 /**
  * The theme's roles (ui/theme.md「角色：引擎自己的面」, S3), measured in a browser.
  *
- * - Unset, every role draws what the registry drew: the header and the
- *   totals bands and a selected row are `muted`, the header is set at 500,
+ * - Unset, every role draws its built-in value: the two bands are `muted`, a
+ *   selected row the primary at `state-selected`, the header is set at 500,
  *   a focused control has no outline of its own (the registry's edge and
  *   halo), the controls are 32px and 28px tall.
  * - A host's theme that gives a brand colour and sets roles —
@@ -170,11 +170,11 @@ function buttonHeights(root: HTMLElement, step: 'h-8' | 'h-7'): number[] {
 }
 
 /**
- * 什么都不设的角色就是 registry 原来画的样子（ui/theme.md「角色：引擎自己的面」）。
+ * 什么都不设的角色画的是它的内置值（ui/theme.md「角色：引擎自己的面」）。
  *
- * neutral 下：表头带、合计带与选中行都是 `muted`，表头字重 500，聚焦的按钮没有
- * 自己的轮廓（仍是 registry 的边与光晕），控件高 32px 与 28px。截图基线逐像素
- * 相同是同一件事的像素证据，这里量的是计算样式。
+ * neutral 下：表头带与合计带是 `muted`，选中行是主色按 `state-selected` 混进
+ * 行的底（不与表头带同色），表头字重 500，聚焦的按钮没有自己的轮廓（仍是
+ * registry 的边与光晕），控件高 32px 与 28px。这里量的是计算样式。
  */
 export const UnsetRolesDrawTheRegistry: Story = {
   ...DisplayWithData,
@@ -195,7 +195,7 @@ export const UnsetRolesDrawTheRegistry: Story = {
     );
 
     const row = await selectFirstRow(table);
-    await expect(groundOf(row)).toBe(muted);
+    await expect(groundOf(row)).not.toBe(muted);
     await expect(groundOf(table.querySelector('tbody tr:nth-child(2)')!)).toBe(
       colorOf(surface, '--background'),
     );
