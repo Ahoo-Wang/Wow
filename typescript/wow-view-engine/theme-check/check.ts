@@ -53,14 +53,12 @@ import {
 } from 'culori';
 import postcss from 'postcss';
 import type { Registry } from './registry';
+import { contrast, type Gamut, type Rgba } from './colour';
 import {
   CONVENTIONS,
-  contrast,
-  type Gamut,
   type HostVariables,
   type Mode,
   type Resolver,
-  type Rgba,
 } from './resolve';
 
 export type Severity = 'error' | 'warning';
