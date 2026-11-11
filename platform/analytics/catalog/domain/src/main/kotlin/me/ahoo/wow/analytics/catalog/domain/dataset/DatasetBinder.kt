@@ -296,7 +296,7 @@ internal object DatasetBinder {
         val aggregate = enrichment?.let { "${it.context}.${it.aggregate}" } ?: "its aggregate"
         val why = if (enrichment?.access.isNullOrEmpty()) {
             "its wow_catalog row does not say whether an access policy decides the rows of $aggregate, which reads " +
-                "as one does until that service's Sink writes the row again"
+                "as one does: that service's Sink says so when its node runs the query engine"
         } else {
             "the access policy of $aggregate decides its rows"
         }

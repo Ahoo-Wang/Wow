@@ -141,8 +141,6 @@ internal class RecordingStatements : ClickHouseStatements {
     override suspend fun uuid(database: String, name: String): String? =
         if ("$database.$name" in tables) uuids["$database.$name"] ?: uuidOf(name) else null
 
-    override suspend fun exists(database: String, name: String): Boolean = "$database.$name" in tables
-
     override suspend fun columns(database: String, name: String): List<ClickHouseColumn> =
         tables["$database.$name"].orEmpty()
 
@@ -150,14 +148,17 @@ internal class RecordingStatements : ClickHouseStatements {
     fun uuidOf(name: String): String = java.util.UUID.nameUUIDFromBytes(name.toByteArray()).toString()
 
     override suspend fun comment(database: String, name: String): String? =
-        comments["$database.$name"] ?: "".takeIf { "$database.$name" in tables }
+        if ("$database.$name" in tables) comments["$database.$name"].orEmpty() else null
 
     /** The flat view statements executed. */
     val flatViews: List<String> get() = executed.filter { it.startsWith("CREATE OR REPLACE VIEW") }
 
-    /** Declares every object of [schema] as the Sink expects it. */
+    /** Declares every object of [schema] as the Sink expects it, each with the format in its comment. */
     fun create(schema: ClickHouseSinkSchema) {
-        schema.expected.forEach { tables["${schema.database}.${it.name}"] = it.columns ?: emptyList() }
+        schema.expected.forEach {
+            tables["${schema.database}.${it.name}"] = it.columns ?: emptyList()
+            comments.putIfAbsent("${schema.database}.${it.name}", ClickHouseSinkSchema.FORMAT_COMMENT)
+        }
     }
 
     private companion object {

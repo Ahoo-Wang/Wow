@@ -111,9 +111,6 @@ object ClickHouseCatalog {
     /** The `access` of an aggregate read by the default rule: its tenant, owner and space columns. */
     const val ACCESS_DEFAULT: String = "DEFAULT"
 
-    /** The column a `wow_catalog` of an earlier version lacks, which a Sink that creates its tables adds. */
-    val ACCESS: ClickHouseColumn = ClickHouseColumn("access", "LowCardinality(String)")
-
     /** The columns of `wow_catalog`, in order, with their ClickHouse types. */
     val COLUMNS: List<ClickHouseColumn> = listOf(
         ClickHouseColumn("format", "UInt32"),
@@ -136,7 +133,7 @@ object ClickHouseCatalog {
         ClickHouseColumn("event_revisions", "Map(String, UInt32)"),
         ClickHouseColumn("fingerprint", "String"),
         ClickHouseColumn("columns_hash", "String"),
-        ACCESS,
+        ClickHouseColumn("access", "LowCardinality(String)"),
         ClickHouseColumn("written_at", "DateTime64(3, 'UTC') DEFAULT now64(3)"),
         ClickHouseColumn("writer", "String MATERIALIZED currentUser()"),
     )
@@ -146,14 +143,6 @@ object ClickHouseCatalog {
         "CREATE TABLE IF NOT EXISTS ${identifier(database)}.${identifier(TABLE)}\n(\n" +
             COLUMNS.joinToString(",\n") { "    ${identifier(it.name)} ${it.type}" } +
             "\n)\nENGINE = ReplacingMergeTree(written_at)\nORDER BY (`database`, `table`, fingerprint)"
-
-    /**
-     * The statement that adds [ACCESS] to [database]'s `wow_catalog` of an earlier version; its rows keep it empty,
-     * which a reader takes as a policy's, until their service's Sink writes them again.
-     */
-    fun migration(database: String): String =
-        "ALTER TABLE ${identifier(database)}.${identifier(TABLE)} " +
-            "ADD COLUMN IF NOT EXISTS ${identifier(ACCESS.name)} ${ACCESS.type} AFTER columns_hash"
 
     /**
      * The digest of [columns] the catalog compares with the table's own: SHA-256, in lower-case

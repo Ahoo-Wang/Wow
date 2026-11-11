@@ -69,7 +69,7 @@ data class SourceReference(val path: String, val context: String, val aggregate:
  * [context], [aggregate], [role] such as `state_flat`, [ownership]), the row's [fingerprint], the account that wrote it
  * ([writer]) and when ([writtenAt]), and each event's revision. [access] is whether the aggregate's rows are read by
  * an access policy of its own (`POLICY`) or by its scope's columns (`DEFAULT`), as its service says; empty in a row
- * an earlier Sink wrote, which the catalog reads as `POLICY`.
+ * of a Sink whose node has no query engine to say (`wow.query.enabled=false`), which the catalog reads as `POLICY`.
  */
 data class WowEnrichment(
     val service: String,

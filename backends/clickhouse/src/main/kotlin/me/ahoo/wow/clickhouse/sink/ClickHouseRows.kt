@@ -23,8 +23,9 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /**
- * The row of a [StateEventRecord] in the base table (or in `_state` without the history), a `JSONEachRow` object
- * written with [WowJson], so numbers keep their exact text:
+ * The row of a [StateEventRecord] in the base table, a `JSONEachRow` object written with [WowJson], so numbers keep
+ * their exact text; in `_state`, which the Sink inserts into without the history, the same row without `headers` and
+ * `events` ([ClickHouseSinkSchema.STATE_COLUMNS]):
  *
  * | Column | From |
  * | --- | --- |
@@ -36,9 +37,9 @@ import java.time.format.DateTimeFormatter
  * | `deleted` | as it is |
  * | `access` | the access attributes as JSON text, the built-in `owner` and `space` among them ([AccessValues]); empty when the record has none |
  * | `correlation_id`, `causation_id` | the causation, empty when none |
- * | `headers` | as they are |
+ * | `headers` | as they are; in the history only |
  * | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | the operator; empty and false when none |
- * | `events` | each event's `(name, revision, payload)`, the payload as JSON text |
+ * | `events` | each event's `(name, revision, payload)`, the payload as JSON text; in the history only |
  * | `state`, `state_fingerprint` | the state as JSON text and its schema's fingerprint; empty without the state |
  * | `state_numbers` | the exact text of each top-level number of the state, which `_state_flat` reads decimals from |
  *
@@ -48,8 +49,8 @@ internal object ClickHouseRows {
     private val COMMIT_TIME: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
 
-    /** The row of [record]. */
-    fun rowOf(record: StateEventRecord): ObjectNode = WowJson.mapper.createObjectNode().apply {
+    /** The row of [record]: the base table's, or `_state`'s without [history]. */
+    fun rowOf(record: StateEventRecord, history: Boolean = true): ObjectNode = WowJson.mapper.createObjectNode().apply {
         put("id", record.id)
         put("tenant_id", record.ref.tenantId)
         put("aggregate_id", record.ref.id)
@@ -64,16 +65,20 @@ internal object ClickHouseRows {
         put("access", record.access?.let(AccessValues::text).orEmpty())
         put("correlation_id", record.causation?.correlationId.orEmpty())
         put("causation_id", record.causation?.causationId.orEmpty())
-        putObject("headers").apply { record.headers.forEach { (key, value) -> put(key, value) } }
+        if (history) {
+            putObject("headers").apply { record.headers.forEach { (key, value) -> put(key, value) } }
+        }
         put("operator_id", record.operator?.id.orEmpty())
         put("operator_tenant_id", record.operator?.tenantId.orEmpty())
         put("operator_cross_scope", record.operator?.crossScope ?: false)
-        putArray("events").apply {
-            record.events.forEach { event ->
-                addObject()
-                    .put("name", event.name)
-                    .put("revision", event.revision)
-                    .put("payload", textOf(event.payload))
+        if (history) {
+            putArray("events").apply {
+                record.events.forEach { event ->
+                    addObject()
+                        .put("name", event.name)
+                        .put("revision", event.revision)
+                        .put("payload", textOf(event.payload))
+                }
             }
         }
         val state = record.state
@@ -86,9 +91,10 @@ internal object ClickHouseRows {
         }
     }
 
-    /** The `JSONEachRow` body of [records]: one row per line. */
-    fun bodyOf(records: List<StateEventRecord>): ByteArray =
-        records.joinToString(separator = "\n", postfix = "\n") { textOf(rowOf(it)) }.toByteArray(Charsets.UTF_8)
+    /** The `JSONEachRow` body of [records]: one row per line, the base table's, or `_state`'s without [history]. */
+    fun bodyOf(records: List<StateEventRecord>, history: Boolean = true): ByteArray =
+        records.joinToString(separator = "\n", postfix = "\n") { textOf(rowOf(it, history)) }
+            .toByteArray(Charsets.UTF_8)
 
     private fun textOf(node: JsonNode): String = WowJson.mapper.writeValueAsString(node)
 }

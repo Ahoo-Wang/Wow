@@ -58,6 +58,7 @@ class ClickHouseSinkSchemaTest {
             ORDER BY (tenant_id, aggregate_id, version)
             TTL toDateTime(commit_time) + toIntervalSecond(2592000)
             SETTINGS non_replicated_deduplication_window = 1000
+            COMMENT 'wow-sink-format:1'
             """.trimIndent(),
         )
     }
@@ -66,28 +67,35 @@ class ClickHouseSinkSchemaTest {
     fun `the views should fill the current state and the events from the base table`() {
         val ddl = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 1.days), flat, 50).ddl
         ddl.size.assert().isEqualTo(5)
-        ddl[1].assert().startsWith("CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state`\n(\n    `id` String,")
-        ddl[1].assert().endsWith(
-            "ENGINE = ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" +
-                "SETTINGS non_replicated_deduplication_window = 50",
+        // The current state keeps the base table's columns but the events and the headers.
+        ddl[1].assert().isEqualTo(
+            "CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state`\n(\n" +
+                ClickHouseSinkSchema.STATE_COLUMNS.joinToString(",\n") { "    `${it.name}` ${it.type}" } +
+                "\n)\nENGINE = ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" +
+                "SETTINGS non_replicated_deduplication_window = 50\nCOMMENT 'wow-sink-format:1'",
+        )
+        ClickHouseSinkSchema.STATE_COLUMNS.assert().isEqualTo(
+            ClickHouseSinkSchema.BASE_COLUMNS.filterNot { it.name == "events" || it.name == "headers" },
         )
         ddl[2].assert().contains("`event_name` LowCardinality(String)")
         ddl[2].assert().endsWith(
             "ENGINE = ReplacingMergeTree\nPARTITION BY toYYYYMM(commit_time)\nORDER BY (tenant_id, aggregate_id, version, sequence)\n" +
-                "TTL toDateTime(commit_time) + toIntervalSecond(86400)\nSETTINGS non_replicated_deduplication_window = 50",
+                "TTL toDateTime(commit_time) + toIntervalSecond(86400)\nSETTINGS non_replicated_deduplication_window = 50\n" +
+                "COMMENT 'wow-sink-format:1'",
         )
+        // A materialized view's SELECT is in parentheses, so that ClickHouse reads COMMENT as the view's.
         ddl[3].assert().isEqualTo(
             "CREATE MATERIALIZED VIEW IF NOT EXISTS `analytics`.`shop_order_state_mv` TO `analytics`.`shop_order_state` AS\n" +
-                "SELECT ${ClickHouseSinkSchema.BASE_COLUMNS.joinToString(", ") { it.name }}\n" +
-                "FROM `analytics`.`shop_order_state_events`",
+                "(SELECT ${ClickHouseSinkSchema.STATE_COLUMNS.joinToString(", ") { it.name }}\n" +
+                "FROM `analytics`.`shop_order_state_events`)\nCOMMENT 'wow-sink-format:1'",
         )
         ddl[4].assert().isEqualTo(
             "CREATE MATERIALIZED VIEW IF NOT EXISTS `analytics`.`shop_order_events_mv` TO `analytics`.`shop_order_events` AS\n" +
-                "SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, " +
+                "(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, " +
                 "event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, " +
                 "commit_time, owner_id, space_id, correlation_id, causation_id\n" +
                 "FROM `analytics`.`shop_order_state_events`\n" +
-                "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence",
+                "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)\nCOMMENT 'wow-sink-format:1'",
         )
         val schema = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 1.days), flat, 50)
         schema.flatView(FlatLineage(listOf("0a", schema.flatFingerprint))).assert().isEqualTo(
@@ -95,7 +103,7 @@ class ClickHouseSinkSchemaTest {
                 "SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, " +
                 "`access`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`\n" +
                 "FROM `analytics`.`shop_order_state` FINAL\n" +
-                "COMMENT 'wow-sink-flat:0a,${schema.flatFingerprint}'",
+                "COMMENT 'wow-sink-format:1 wow-sink-flat:0a,${schema.flatFingerprint}'",
         )
         // The fingerprint is the definition's, whatever the database.
         schema.flatFingerprint.assert().hasSize(16)
@@ -128,6 +136,21 @@ class ClickHouseSinkSchemaTest {
             .assert().containsExactly("shop_order_state_mv", "shop_order_events_mv")
         schema.expected.last().columns!!.last().assert().isEqualTo(ClickHouseColumn("total", "Decimal(38, 2)"))
         schema.toString().assert().isEqualTo("ClickHouseSinkSchema(default.shop_order)")
+    }
+
+    @Test
+    fun `every table and view should say the Sink's format in its comment`() {
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat)
+        (schema.ddl + schema.flatView(FlatLineage.EMPTY.then(schema.flatFingerprint))).forEach {
+            it.assert().contains("\nCOMMENT 'wow-sink-format:1")
+        }
+        ClickHouseSinkSchema.hasFormat("wow-sink-format:1").assert().isTrue()
+        ClickHouseSinkSchema.hasFormat("wow-sink-format:1 wow-sink-flat:0a").assert().isTrue()
+        ClickHouseSinkSchema.hasFormat("wow-sink-format:2").assert().isFalse()
+        ClickHouseSinkSchema.hasFormat("wow-sink-format:10").assert().isFalse()
+        ClickHouseSinkSchema.hasFormat("wow-sink-flat:0a").assert().isFalse()
+        ClickHouseSinkSchema.hasFormat("").assert().isFalse()
+        ClickHouseSinkSchema.hasFormat(null).assert().isFalse()
     }
 
     @Test

@@ -53,7 +53,7 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 | Table | Holds |
 | --- | --- |
 | `<ctx>_<agg>_state_events` | The base table the sink inserts into: one row per commit, its events and the state after it. Partitioned by the month of the commit, ordered by tenant, aggregate and version |
-| `<ctx>_<agg>_state` | The current state of each aggregate, filled by a materialized view from the base table |
+| `<ctx>_<agg>_state` | The current state of each aggregate, filled by a materialized view from the base table: its columns but the events and the headers, which the history keeps |
 | `<ctx>_<agg>_events` | One row per event, filled by a materialized view |
 | `<ctx>_<agg>_state_flat` | A view of the current state with each top-level scalar of the state as a typed column, for analytics tools |
 
@@ -120,7 +120,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
 (
@@ -138,18 +139,17 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `access` String,
     `correlation_id` String,
     `causation_id` String,
-    `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
     `operator_cross_scope` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String)
 )
 ENGINE = ReplacingMergeTree(version)
 ORDER BY (tenant_id, aggregate_id)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
 (
@@ -173,21 +173,24 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version, sequence)
-SETTINGS non_replicated_deduplication_window = 1000;
+SETTINGS non_replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
-FROM `default`.`shop_order_state_events`;
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events`)
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
-ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
+COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
 SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 ```
 
 The sorting key is a row's identity: a row with the same key as an earlier one replaces it when ClickHouse merges them.
@@ -201,7 +204,7 @@ The sorting key is a row's identity: a row with the same key as an earlier one r
 
 Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N`, `wow.clickhouse.sink.deduplication-window`. `...history.ttl` adds `TTL toDateTime(commit_time) + toIntervalSecond(<seconds>)` to `_state_events` and `_events`. Without the history there are `_state` and `_state_flat` alone.
 
-**`_state_events` and `_state`**, one row per commit:
+**`_state_events` and `_state`**, one row per commit; `_state` has every column but `headers` and `events`:
 
 | Column | Holds |
 | --- | --- |
@@ -213,9 +216,9 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 | `owner_id`, `space_id` | The scope of the aggregate after the commit, empty when none |
 | `deleted`, `access` | Whether the aggregate is deleted, and its access attributes at the commit as JSON text, the built-in `owner` and `space` among them: information only, never what authorizes a read |
 | `correlation_id`, `causation_id` | The root command's id and the direct cause, empty for a command a caller sent directly |
-| `headers` | The request facts the command carried |
+| `headers` | The request facts the command carried; `_state_events` only |
 | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | Who committed it; empty and false when none |
-| `events` | The commit's events, each `(name, revision, payload)`, the payload as JSON text |
+| `events` | The commit's events, each `(name, revision, payload)`, the payload as JSON text; `_state_events` only |
 | `state`, `state_fingerprint` | The state after the commit as JSON text, and the fingerprint of its schema; empty for an aggregate that publishes no state |
 | `state_numbers` | The exact text of each top-level number of the state, which `_state_flat` reads decimals from |
 
@@ -246,7 +249,9 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 
 `wow.clickhouse.ddl` decides what the sink does with its tables before its first write, and again from time to time: `auto` (the default) creates what is missing and validates the rest; `validate` only checks; `none` does neither. A table dropped or altered fails the writes, which the subscription retries, until it is as the sink expects.
 
-During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with, and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
+Every table and view the sink keeps says the format of the sink's tables in its comment, `wow-sink-format:1`. A table or view the sink expects is the sink's when it exists, has the columns above and says that format; otherwise the sink refuses to write, naming each one and what is wrong with it (`<table> is not of format 1`, `<table> has the columns …`). `auto` creates what is missing with the comment, and leaves a table that exists as it is: one of another format is refused, as one of other columns is. The tables hold nothing the log does not: drop them, and resetting the sink's subscription fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)). `none` checks nothing.
+
+During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with in its comment, after the format (`wow-sink-format:1 wow-sink-flat:<fingerprint>,…`), and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
 
 ## Run it on a cluster
 
@@ -288,14 +293,37 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
--- _state has the columns of _state_events.
+-- _state has the columns of _state_events but the events and the headers.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
-AS `default`.`shop_order_state_events_local`
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `deleted` Bool,
+    `access` String,
+    `correlation_id` String,
+    `causation_id` String,
+    `operator_id` String,
+    `operator_tenant_id` String,
+    `operator_cross_scope` Bool,
+    `state` String,
+    `state_fingerprint` String,
+    `state_numbers` Map(String, String)
+)
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}', version)
 ORDER BY (tenant_id, aggregate_id)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{cluster}'
 (
@@ -319,38 +347,45 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{clus
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)
 ORDER BY (tenant_id, aggregate_id, version, sequence)
-SETTINGS replicated_deduplication_window = 1000;
+SETTINGS replicated_deduplication_window = 1000
+COMMENT 'wow-sink-format:1';
 
--- Every commit of an aggregate goes to one shard: the sharding key is its tenant and id.
+-- Every commit of an aggregate goes to one shard: the sharding key is its tenant and id. The Sink reads the format from
+-- the comment of the tables it expects, these Distributed ones, which `AS` does not copy.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_state_events_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_state_events_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_events_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_state_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_state_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events` ON CLUSTER '{cluster}'
 AS `default`.`shop_order_events_local`
-ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash64(tenant_id, aggregate_id));
+ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash64(tenant_id, aggregate_id))
+COMMENT 'wow-sink-format:1';
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
-FROM `default`.`shop_order_state_events_local`;
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events_local`)
+COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
-SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events_local`
-ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
+COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
 SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
 ```
 
-- **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing or has other columns, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.
+- **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing, has other columns or does not say the sink's format, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. The sink reads the format from their own comments, which `AS` does not copy, so the example gives each one its `COMMENT`. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.
 - **Shard by the aggregate.** The sharding key is `sipHash64(tenant_id, aggregate_id)`, as in 9.x, so all of an aggregate's commits are on one shard: `_state` keeps the highest version of a key, and the history tables merge a replayed row away by their keys, each within a shard.
 - **Replicate by one replica per shard.** Set `<internal_replication>true</internal_replication>` on the cluster's shards, as for any replicated table: a Distributed insert then writes one replica of a shard, and the replicas copy it.
 - **Insert synchronously.** By default ClickHouse answers an insert into a Distributed table once the rows are on the receiving node's disk, and sends them to the shards afterwards. The sink takes an answer as the commit being in the warehouse, and moves its checkpoint on. Make the sink's user insert synchronously, which answers once the shards have the rows:

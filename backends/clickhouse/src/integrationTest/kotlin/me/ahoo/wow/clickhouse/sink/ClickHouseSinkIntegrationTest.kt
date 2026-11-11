@@ -39,7 +39,7 @@ class ClickHouseSinkIntegrationTest {
     }
 
     private fun sinks(options: ClickHouseSinkOptions = ClickHouseSinkOptions(database = database)) =
-        ClickHouseSinks(client, SinkFixtures.MANIFEST, options)
+        ClickHouseSinks(ClientStatements(client), SinkFixtures.MANIFEST, options)
 
     @Test
     fun `a commit should fill the history, the current state and the events, once though retried`(): Unit = runTest {
@@ -140,8 +140,8 @@ class ClickHouseSinkIntegrationTest {
         count("shop_order_state").assert().isEqualTo(2)
         count("shop_order_state FINAL").assert().isEqualTo(1)
         row("SELECT version FROM $database.shop_order_state_flat").getLong("version").assert().isEqualTo(2)
-        ClientStatements(client).exists(database, "shop_order_state_events").assert().isFalse()
-        ClientStatements(client).exists(database, "shop_order_events").assert().isFalse()
+        ClientStatements(client).comment(database, "shop_order_state_events").assert().isNull()
+        ClientStatements(client).comment(database, "shop_order_events").assert().isNull()
     }
 
     @Test
@@ -165,6 +165,42 @@ class ClickHouseSinkIntegrationTest {
     }
 
     @Test
+    fun `every table and view should say the Sink's format, and the current state keep its own columns`(): Unit =
+        runTest {
+            val sink = sinks().sinkOf("shop", "order")
+            sink.prepare()
+            val statements = ClientStatements(client)
+            sink.schema.expected.forEach {
+                ClickHouseSinkSchema.hasFormat(statements.comment(database, it.name)).assert().isTrue()
+            }
+            statements.columns(database, "shop_order_state").assert().isEqualTo(ClickHouseSinkSchema.STATE_COLUMNS)
+        }
+
+    @Test
+    fun `a table whose comment does not say the format is refused, and left as it is`(): Unit = runTest {
+        sinks().sinkOf("shop", "order").prepare()
+        execute("ALTER TABLE $database.shop_order_state MODIFY COMMENT ''")
+        execute("ALTER TABLE $database.shop_order_events MODIFY COMMENT 'wow-sink-format:2'")
+        val statements = ClientStatements(client)
+        val columns = statements.columns(database, "shop_order_state")
+        listOf(Ddl.VALIDATE, Ddl.AUTO).forEach { ddl ->
+            val sink = sinks(ClickHouseSinkOptions(database = database, ddl = ddl)).sinkOf("shop", "order")
+            val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+            error?.message.assert()
+                .contains("are not the Sink's")
+                .contains("shop_order_state is not of format 1")
+                .contains("shop_order_events is not of format 1")
+        }
+        statements.columns(database, "shop_order_state").assert().isEqualTo(columns)
+        statements.comment(database, "shop_order_state").assert().isEmpty()
+        count("shop_order_state_events").assert().isEqualTo(0)
+        // With ddl=none nothing is checked: the write goes through.
+        sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.NONE)).sinkOf("shop", "order")
+            .write(listOf(recordOf()))
+        count("shop_order_state_events").assert().isEqualTo(1)
+    }
+
+    @Test
     fun `writers of two state schemas should keep the newer flat view, its lineage in its comment`(): Unit = runTest {
         // Finding X-15: during a rolling upgrade the old and the new instances replaced the view in turn.
         val newer = Manifest(
@@ -178,7 +214,8 @@ class ClickHouseSinkIntegrationTest {
         )
         val old = sinks().sinkOf("shop", "order")
         old.write(listOf(recordOf(version = 1)))
-        val new = ClickHouseSinks(client, newer, ClickHouseSinkOptions(database = database)).sinkOf("shop", "order")
+        val new = ClickHouseSinks(ClientStatements(client), newer, ClickHouseSinkOptions(database = database))
+            .sinkOf("shop", "order")
         new.write(listOf(recordOf(version = 2)))
         // An old instance restarts.
         sinks().sinkOf("shop", "order").write(listOf(recordOf(version = 3)))

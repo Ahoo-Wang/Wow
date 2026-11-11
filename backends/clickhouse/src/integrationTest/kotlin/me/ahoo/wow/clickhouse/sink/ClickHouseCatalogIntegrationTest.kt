@@ -34,7 +34,11 @@ class ClickHouseCatalogIntegrationTest {
     }
 
     private fun sinks(ddl: Ddl = Ddl.AUTO) =
-        ClickHouseSinks(client, CatalogFixtures.MANIFEST, ClickHouseSinkOptions(database = database, ddl = ddl))
+        ClickHouseSinks(
+            ClientStatements(client),
+            CatalogFixtures.MANIFEST,
+            ClickHouseSinkOptions(database = database, ddl = ddl),
+        )
 
     @Test
     fun `each table should get a row that its own metadata confirms`(): Unit = runTest {

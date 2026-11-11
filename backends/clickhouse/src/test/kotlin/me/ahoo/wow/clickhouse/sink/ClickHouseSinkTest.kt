@@ -41,7 +41,7 @@ class ClickHouseSinkTest {
         sink.write(listOf(recordOf(version = 2)))
         sink.write(emptyList())
         statements.executed.assert().isEqualTo(
-            listOf(ClickHouseCatalog.ddl("default"), ClickHouseCatalog.migration("default")) + sink.schema.ddl +
+            listOf(ClickHouseCatalog.ddl("default")) + sink.schema.ddl +
                 sink.schema.flatView(FlatLineage(listOf(sink.schema.flatFingerprint))),
         )
         statements.inserts.map { it.first }.assert().containsOnly("`default`.`shop_order_state_events`")
@@ -108,7 +108,10 @@ class ClickHouseSinkTest {
             aggregates = mapOf(ORDER to AggregateSinkOptions(history = false)),
         )
         sinks(options).sinkOf("shop", "order").write(listOf(recordOf()))
-        statements.inserts.single().first.assert().isEqualTo("`default`.`shop_order_state`")
+        val (table, body) = statements.inserts.single()
+        table.assert().isEqualTo("`default`.`shop_order_state`")
+        // The current state's own columns: no events and no headers.
+        body.assert().isEqualTo(ClickHouseRows.bodyOf(listOf(recordOf()), history = false).toString(Charsets.UTF_8))
     }
 
     @Test
@@ -138,6 +141,38 @@ class ClickHouseSinkTest {
         statements.create(sink.schema)
         sink.write(listOf(recordOf()))
         statements.inserts.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a table whose comment does not say the format is refused, and never altered`(): Unit = runTest {
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.VALIDATE)).sinkOf("shop", "order")
+        statements.create(sink.schema)
+        statements.comments["default.shop_order_state"] = ""
+        statements.comments["default.shop_order_events"] = "wow-sink-format:2"
+        statements.comments["default.shop_order_state_mv"] = "an operator's note"
+        val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+        error.assert().isInstanceOf(IllegalStateException::class.java)
+        error!!.message.assert()
+            .contains("The ClickHouse tables of shop.order in default are not the Sink's")
+            .contains("shop_order_state is not of format 1")
+            .contains("shop_order_events is not of format 1")
+            .contains("shop_order_state_mv is not of format 1")
+            .doesNotContain("shop_order_state_events is not")
+            .contains("resetting the Sink's subscription fills them again from the log")
+        statements.executed.assert().isEmpty()
+        statements.inserts.assert().isEmpty()
+    }
+
+    @Test
+    fun `auto creates what is missing with the format, and refuses an existing table without it`(): Unit = runTest {
+        val sink = sinks().sinkOf("shop", "order")
+        statements.create(sink.schema)
+        statements.comments["default.shop_order_state_events"] = ""
+        val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+        error!!.message.assert().contains("shop_order_state_events is not of format 1")
+        // CREATE … IF NOT EXISTS leaves the existing table as it is: nothing but the creations ran.
+        statements.executed.all { it.startsWith("CREATE ") }.assert().isTrue()
+        statements.inserts.assert().isEmpty()
     }
 
     @Test
