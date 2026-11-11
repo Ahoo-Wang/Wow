@@ -13,6 +13,12 @@
 #
 # bench.sh's measure command and its programs, sourced by bench.sh: its helpers and settings are in scope.
 
+# The measure programs' Elasticsearch: the version CI runs (WowContainers.ELASTICSEARCH_IMAGE), one node, on its own
+# port; bench.sh's down removes it with ClickHouse.
+ELASTICSEARCH=wow-e2e-bench-elasticsearch
+ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:9.2.6
+ELASTICSEARCH_URL=http://127.0.0.1:19200
+
 # One statement $1 on the scale check's ClickHouse, its answer on stdout.
 clickhouse() { curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/" --data-binary "$1"; }
 
@@ -28,6 +34,24 @@ clickhouse_up() {
     if clickhouse "SELECT 1" >/dev/null 2>&1; then break; fi
     sleep 0.2
   done
+}
+
+# Starts the measure programs' Elasticsearch ($ELASTICSEARCH_IMAGE), one node with security off and a 1 GB heap, on
+# the store's CPUs, and waits until its cluster is yellow, at most 120 s; ELASTICSEARCH_URL is its address.
+elasticsearch_up() {
+  docker run -d --name "$ELASTICSEARCH" -p 19200:9200 -e discovery.type=single-node -e xpack.security.enabled=false \
+    -e ES_JAVA_OPTS="-Xms1g -Xmx1g" "$ELASTICSEARCH_IMAGE" >/dev/null
+  local store; store=$(opt store-cpus "$(opt server-cpus "")")
+  if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$ELASTICSEARCH" >/dev/null; fi
+  local attempt
+  for attempt in $(seq 1 120); do
+    if curl -sf "$ELASTICSEARCH_URL/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1; then
+      export ELASTICSEARCH_URL
+      return 0
+    fi
+    sleep 1
+  done
+  log "Elasticsearch did not start in 120s"; docker logs --tail 40 "$ELASTICSEARCH" >&2; return 1
 }
 
 # The access scale check (D390 C4's, test/benchmarks/README.md): on fresh containers, ClickHouse seeded with 100,000
@@ -256,71 +280,132 @@ measure_clickhouse_insert() {
 # The tables the sink keeps of the benchmark's account (context transfer), as ClickHouse names them.
 SINK_TABLES="'transfer_account_state_events', 'transfer_account_state', 'transfer_account_events'"
 
-# The sink's counts (D413's "before"): one node on --backend (postgres) with the ClickHouse sink switched on
-# (wow.clickhouse.sink.enabled), --accounts accounts seeded (1,000 spread the commits over many aggregates, 10 make a few
-# hot ones), then E1 deposits at --rate a second for --seconds, open loop, the load's --distribution (`hot`: a
-# --hot-fraction of them to the first --hot-keys accounts). Once the sink has written every commit (its
-# _state_events rows reach the deposits the load counted, or stop growing for 30 s), ClickHouse's part log and query
-# log give the parts each of the sink's tables got, their rows, and the inserts the sink sent: sink.json, with the
-# load's result.json under load/. measure.json names them.
+# The sink's counts (D413's "before" and "after"): one node on --backend (postgres) with --sink's sink (clickhouse, the
+# default, switched on by wow.clickhouse.sink.enabled; elasticsearch, the search server's, on PostgreSQL only),
+# --accounts accounts seeded (1,000 spread the commits over many aggregates, 10 make a few hot ones), then E1 deposits
+# at --rate a second for --seconds, open loop, the load's --distribution (`hot`: a --hot-fraction of them to the first
+# --hot-keys accounts). Once the sink has written every commit (its rows reach the deposits the load counted, or stop
+# growing for 30 s), it reads what the sink did since the seeding: on ClickHouse, the part log and the query log give
+# the parts each of the sink's tables got, their rows, and the inserts the sink sent; on Elasticsearch, the search
+# server's `search-requests` counts give its `_bulk`, `_refresh` and `_update_by_query` requests, and the node's
+# indexing, bulk and refresh totals cross-check them. sink.json, with the load's result.json under load/. measure.json
+# names them.
 measure_sink() {
   check_java
   BACKEND=$(opt backend postgres)
   HEAP=$(opt heap 1g)
-  local accounts rate seconds
+  local sink accounts rate seconds
+  sink=$(opt sink clickhouse)
   accounts=$(opt accounts 1000)
   rate=$(opt rate 200)
   seconds=$(opt seconds 60)
-  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-sink-$accounts")
+  case "$sink:$BACKEND" in
+    clickhouse:* | elasticsearch:postgres) ;;
+    *) log "--sink=$sink on --backend=$BACKEND: clickhouse, or elasticsearch on postgres"; exit 2 ;;
+  esac
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-sink-$sink-$accounts")
   mkdir -p "$OUT"
   trap down EXIT
   down
-  log "starting $BACKEND and ClickHouse"
+  log "starting $BACKEND and $sink"
   OPTIONS="${OPTIONS}no-bus=true
 "
   stores_up "$BACKEND"
   pin_containers "$BACKEND"
-  clickhouse_up
-  OPTIONS="${OPTIONS}server-args=$(opt server-args "") --wow.transport=none --wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.clickhouse.sink.enabled=true
+  local args="--wow.transport=none"
+  if [ "$sink" = clickhouse ]; then
+    clickhouse_up
+    args="$args --wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.clickhouse.sink.enabled=true"
+  else
+    elasticsearch_up
+    args="$args --spring.elasticsearch.uris=$ELASTICSEARCH_URL"
+    # The search server, installed beside the benchmark server, unless --install names another.
+    OPTIONS="${OPTIONS}install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-search-server")
+"
+  fi
+  OPTIONS="${OPTIONS}server-args=$(opt server-args "") $args
 "
   start_node 1
   await_node 1
   TARGET_LIST=${TARGETS[0]}
   log "seeding $accounts accounts"
   load seed --targets="$TARGET_LIST" --accounts="$accounts" --concurrency=32 | tee "$OUT/seed.log" >&2
-  # The parts and inserts counted from here on are the deposits', not the seeding's.
-  clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+  # What is counted from here on is the deposits', not the seeding's.
   local since
-  since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
+  if [ "$sink" = clickhouse ]; then
+    clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+    since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
+  else
+    sink_await "$accounts"
+    since=$(es_counts)
+  fi
   log "E1 at $rate/s for ${seconds}s over $accounts accounts"
   load run --targets="$TARGET_LIST" --accounts="$accounts" --scenario=E1 --rate="$rate" --warm-up=0 \
     --measure="$seconds" --distribution="$(opt distribution uniform)" --hot-fraction="$(opt hot-fraction 0.5)" \
     --hot-keys="$(opt hot-keys 1)" --label=sink --out="$OUT/load" | tee "$OUT/load.log" >&2
-  local expected rows last=-1 still=0
+  local expected
   expected=$(jq '.results.ok + ('"$accounts"')' "$OUT/load/result.json")
   log "waiting for the sink to write $expected commits"
+  sink_await "$expected"
+  if [ "$sink" = clickhouse ]; then
+    clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+    local parts inserts
+    parts=$(clickhouse "SELECT table, count() AS parts, sum(rows) AS rows FROM system.part_log
+        WHERE event_type = 'NewPart' AND table IN ($SINK_TABLES)
+          AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
+        GROUP BY table ORDER BY table FORMAT JSONEachRow" | jq -s .)
+    inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows FROM system.query_log
+        WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
+          AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
+        FORMAT JSONEachRow" | jq -s '.[0]')
+    printf '{"sink":"clickhouse","accounts":%s,"rate":%s,"seconds":%s,"expected":%s,"written":%s,"parts":%s,"inserts":%s}\n' \
+      "$accounts" "$rate" "$seconds" "$expected" "$(sink_written)" "$parts" "$inserts" >"$OUT/sink.json"
+  else
+    jq -n --argjson before "$since" --argjson after "$(es_counts)" \
+      --argjson accounts "$accounts" --argjson rate "$rate" --argjson seconds "$seconds" \
+      --argjson expected "$expected" --argjson written "$(sink_written)" \
+      '{sink: "elasticsearch", accounts: $accounts, rate: $rate, seconds: $seconds, expected: $expected,
+        written: $written,
+        requests: ($after.requests | with_entries(.value -= ($before.requests[.key] // 0))),
+        node: ($after.node | with_entries(.value -= ($before.node[.key] // 0)))}' >"$OUT/sink.json"
+  fi
+  printf '{"schema":"wow-e2e-bench/measure/1","measure":"sink","sink":"%s","accounts":%s}\n' "$sink" "$accounts" \
+    >"$OUT/measure.json"
+  log "results in $OUT"
+}
+
+# The commits measure_sink's sink holds: the ClickHouse sink's _state_events rows, or the Elasticsearch sink's event
+# documents (the account's index, wow_events__transfer__account), 0 while there are none.
+sink_written() {
+  if [ "$(opt sink clickhouse)" = clickhouse ]; then
+    clickhouse "SELECT count() FROM transfer_account_state_events" 2>/dev/null || echo 0
+  else
+    curl -sf "$ELASTICSEARCH_URL/wow_events__transfer__account/_count" 2>/dev/null | jq -r '.count // 0' || echo 0
+  fi
+}
+
+# Waits until measure_sink's sink holds $1 commits, or its count stops growing for 30 s.
+sink_await() {
+  local rows last=-1 still=0
   while [ "$still" -lt 30 ]; do
-    rows=$(clickhouse "SELECT count() FROM transfer_account_state_events" 2>/dev/null || echo 0)
-    if [ "$rows" -ge "$expected" ]; then break; fi
+    rows=$(sink_written)
+    rows=${rows:-0}
+    if [ "$rows" -ge "$1" ]; then break; fi
     if [ "$rows" = "$last" ]; then still=$((still + 1)); else still=0; last=$rows; fi
     sleep 1
   done
-  clickhouse "SYSTEM FLUSH LOGS" >/dev/null
-  local parts inserts
-  parts=$(clickhouse "SELECT table, count() AS parts, sum(rows) AS rows FROM system.part_log
-      WHERE event_type = 'NewPart' AND table IN ($SINK_TABLES)
-        AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
-      GROUP BY table ORDER BY table FORMAT JSONEachRow" | jq -s .)
-  inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows FROM system.query_log
-      WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
-        AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
-      FORMAT JSONEachRow" | jq -s '.[0]')
-  printf '{"sink":"clickhouse","accounts":%s,"rate":%s,"seconds":%s,"expected":%s,"written":%s,"parts":%s,"inserts":%s}\n' \
-    "$accounts" "$rate" "$seconds" "$expected" "$(clickhouse "SELECT count() FROM transfer_account_state_events")" \
-    "$parts" "$inserts" >"$OUT/sink.json"
-  printf '{"schema":"wow-e2e-bench/measure/1","measure":"sink","sink":"clickhouse","accounts":%s}\n' "$accounts" \
-    >"$OUT/measure.json"
-  log "results in $OUT"
+}
+
+# The Elasticsearch sink's counts so far, as one JSON object: `requests`, the search server's last `search-requests`
+# line (logged once a second; this waits for the next), and `node`, the node's indexing, bulk and refresh totals.
+es_counts() {
+  sleep 1.2
+  local requests
+  requests=$(grep -o 'search-requests {.*}' "$OUT/node-1.log" | tail -1 | sed 's/^search-requests //') || true
+  if [ -z "$requests" ]; then requests='{}'; fi
+  curl -sf "$ELASTICSEARCH_URL/_nodes/stats/indices/indexing,bulk,refresh" | jq -c --argjson requests "$requests" \
+    '{requests: $requests, node: ([.nodes[].indices] | {indexTotal: (map(.indexing.index_total) | add),
+      bulkOperations: (map(.bulk.total_operations) | add), refreshTotal: (map(.refresh.total) | add)})}'
 }
 
 # measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert or sink.

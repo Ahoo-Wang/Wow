@@ -1,0 +1,23 @@
+# The search server's stores (profile `search`, which its main class adds to the `postgres` profile the harness runs
+# it with): its stores are named, as the eShop catalog's `search` profile names its own. The log, the commands' loads
+# and the state reads are on PostgreSQL, the store main, on the `postgres` profile's data source; the account's events
+# are queried from Elasticsearch, the store search, which starts the account's Elasticsearch sink. Named stores take
+# the place of the `postgres` profile's wow.backend, so it is `auto` here. The harness sets Elasticsearch's address
+# (`spring.elasticsearch.uris`) on the command line.
+spring:
+  elasticsearch:
+    uris: http://localhost:19200
+wow:
+  backend: auto
+  stores:
+    main:
+      type: postgres
+    search:
+      type: elasticsearch
+  log:
+    store: main
+  aggregates:
+    "[transfer.account]":
+      query:
+        events:
+          store: search

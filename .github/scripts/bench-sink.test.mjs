@@ -21,9 +21,11 @@ import { INSERT, readInsert, readSink, SINK } from './bench-sink.mjs';
  * A stand-in for bench.sh's two sink programs. clickhouse-insert writes, per arm, CPU a row of 1 µs with no column,
  * 1 + N/2 µs per column and 1 + N/10 µs as a tuple, and a skip index whose forced use under FINAL miscounts;
  * [wrongFinal] makes the plain FINAL miscount too. sink writes the commits the load made, every one written but in
- * the scenario [unwritten] names, in inserts of 10 rows and parts of 10 rows.
+ * the scenario [unwritten] names: on ClickHouse in inserts of 10 rows and parts of 10 rows; on Elasticsearch
+ * (--sink=elasticsearch) the deposits' commits 4 to a _bulk, an _update_by_query a 100 and 2 other requests, but none
+ * counted in the scenario [uncounted] names.
  */
-function fakeSinkBench(dir, { wrongFinal = false, unwritten } = {}) {
+function fakeSinkBench(dir, { wrongFinal = false, unwritten, uncounted } = {}) {
   const path = join(dir, 'bench.sh');
   writeFileSync(
     path,
@@ -51,6 +53,14 @@ if (opt('program') === 'clickhouse-insert') {
   const name = out.split('/').pop();
   const expected = Number(opt('rate')) * Number(opt('seconds')) + Number(opt('accounts'));
   const written = name === ${JSON.stringify(unwritten ?? '')} ? expected - 5 : expected;
+  if (opt('sink') === 'elasticsearch') {
+    const deposits = expected - Number(opt('accounts'));
+    const requests = name === ${JSON.stringify(uncounted ?? '')} ? {} : { _bulk: deposits / 4, _refresh: 0, _update_by_query: deposits / 100, other: 2 };
+    fs.writeFileSync(out + '/sink.json', JSON.stringify({ sink: 'elasticsearch', accounts: Number(opt('accounts')), rate: Number(opt('rate')), seconds: Number(opt('seconds')), expected, written,
+      requests, node: { indexTotal: deposits, bulkOperations: deposits / 4, refreshTotal: 7 } }));
+    fs.writeFileSync(out + '/measure.json', JSON.stringify({ measure: 'sink', sink: 'elasticsearch', accounts: Number(opt('accounts')) }));
+    process.exit(0);
+  }
   fs.writeFileSync(out + '/sink.json', JSON.stringify({ sink: 'clickhouse', accounts: Number(opt('accounts')), expected, written,
     parts: [
       { table: 'transfer_account_events', parts: String(expected / 10), rows: String(expected) },
@@ -75,8 +85,8 @@ const options = (dir, benchPath, name) => ({
   out: join(dir, 'results', name),
 });
 
-test('the sink group is the insert experiment and the ClickHouse sink, on the head on PostgreSQL', () => {
-  assert.deepEqual(suitesOf('sink'), ['ch-insert', 'sink-ch']);
+test('the sink group is the insert experiment and the two sinks, on the head on PostgreSQL', () => {
+  assert.deepEqual(suitesOf('sink'), ['ch-insert', 'sink-ch', 'sink-es']);
   for (const name of suitesOf('sink')) {
     assert.equal(SUITES[name].kind, 'measure');
     assert.deepEqual(
@@ -196,4 +206,50 @@ test('a sink program without its results reads nothing, and its failed run is an
     [['insert', 'run failed']],
   );
   assert.match(renderSuite(suite), /No run completed\./);
+});
+
+test('the Elasticsearch sink runs each scenario on the search server, and counts its requests a 1,000 commits', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite(
+    'sink-es',
+    options(
+      dir,
+      fakeSinkBench(dir, { unwritten: 'hot', uncounted: 'mixed' }),
+      'sink-es',
+    ),
+  );
+  assert.equal(suite.program, 'sink');
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.status]),
+    SINK.scenarios.map(scenario => [scenario.name, 'ok']),
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  assert.deepEqual(
+    calls.map(call => call.replace(/ --out=.*/, '')),
+    [
+      `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
+      `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=10 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
+      `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=hot --hot-fraction=0.5 --hot-keys=1`,
+    ],
+  );
+  // The deposits' commits are the commits less the accounts the seeding opened.
+  const spread = suite.runs[0].measure;
+  assert.equal(spread.commits, 12000);
+  assert.equal(spread.commitsPerBulk, 4);
+  const text = renderSuite(suite);
+  assert.match(
+    text,
+    /\| spread \| 1000 \| 13000 \| 13000 \| 12000 \| 3000 \| 4\.0 \| 120 \(10\.0\) \| 0 \(0\.0\) \| 2 \| 12000 \| 7 \|/,
+  );
+  assert.deepEqual(
+    anomalies(suite).map(row => [row.run, row.kind, row.detail]),
+    [
+      ['hot', 'commits not written', "12005 of 12010 in the sink's tables"],
+      [
+        'mixed',
+        'requests not counted',
+        "no search-requests line in the node's log",
+      ],
+    ],
+  );
 });

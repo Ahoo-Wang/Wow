@@ -167,6 +167,7 @@ object ArchitectureRules {
         WowProject("routing-spike", "test/routing-spike"),
         WowProject("lease-spike", "test/lease-spike"),
         WowProject("benchmark-server", "test/benchmarks/server"),
+        WowProject("benchmark-search-server", "test/benchmarks/search-server"),
         WowProject("migration-rehearsal", "test/migration-rehearsal"),
         WowProject("spi-consumer", "test/spi-consumer"),
     )

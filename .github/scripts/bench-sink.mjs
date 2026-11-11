@@ -16,7 +16,8 @@ import {
 
 // bench.sh's sink programs, of D412 and D413 (d412-d413-design.md): `clickhouse-insert`, what computed columns cost a
 // ClickHouse insert a row, each column's own JSONExtract against one into a tuple, and whether a skip index holds
-// under FINAL; `sink`, the parts and inserts the ClickHouse sink makes of E1's commits.
+// under FINAL; `sink`, the batches a sink makes of E1's commits: the ClickHouse sink's parts and inserts, or the
+// Elasticsearch sink's requests (the search server's, test/benchmarks/search-server).
 
 /** The programs of this module, as a `measure` suite names them. */
 export const SINK_PROGRAMS = ['clickhouse-insert', 'sink'];
@@ -61,7 +62,10 @@ const SINK_TABLES = [
   'transfer_account_events',
 ];
 
-/** The `sink` group's suites, on [arm]: the head's build on PostgreSQL. */
+/**
+ * The `sink` group's suites, on [arm]: the head's build on PostgreSQL. A `sink` suite's `sink` is bench.sh's --sink:
+ * the head's benchmark server with the ClickHouse sink, or the search server with the Elasticsearch one.
+ */
 export function sinkSuites(arm) {
   return {
     'ch-insert': {
@@ -76,9 +80,19 @@ export function sinkSuites(arm) {
       group: 'sink',
       kind: 'measure',
       measure: 'sink',
+      sink: 'clickhouse',
       arms: [arm],
       answers:
         "The ClickHouse sink's parts and inserts (D413's before): one node, E1 deposits at a fixed rate over many accounts, a few hot ones, and many with one hot; then the parts each of the sink's tables got (system.part_log) and the inserts the sink sent (system.query_log).",
+    },
+    'sink-es': {
+      group: 'sink',
+      kind: 'measure',
+      measure: 'sink',
+      sink: 'elasticsearch',
+      arms: [arm],
+      answers:
+        "The Elasticsearch sink's requests (D413's before): one node of the search server, its account's events on Elasticsearch, E1 deposits at a fixed rate in sink-ch's three scenarios; then the `_bulk`, `_refresh` and `_update_by_query` requests the sink sent (counted on the store's client) for the deposits' commits, with the node's indexing, bulk and refresh totals as a cross-check.",
     },
   };
 }
@@ -100,6 +114,7 @@ function runsOf(definition) {
   return SINK.scenarios.map(scenario => ({
     name: scenario.name,
     args: [
+      ...(definition.sink === 'elasticsearch' ? ['--sink=elasticsearch'] : []),
       `--accounts=${scenario.accounts}`,
       `--rate=${SINK.rate}`,
       `--seconds=${SINK.seconds}`,
@@ -189,13 +204,14 @@ export function readInsert(dir) {
 }
 
 /**
- * sink's results from bench.sh's --out [dir]: the commits the load made and the sink wrote, its inserts and the commits
- * each carried,
- * and the parts and rows of each of its tables; undefined when sink.json is missing.
+ * sink's results from bench.sh's --out [dir]: the commits the load made and the sink wrote; on ClickHouse its inserts,
+ * the commits each carried and the parts and rows of each of its tables, on Elasticsearch its requests by kind and
+ * the deposits' commits each `_bulk` carried; undefined when sink.json is missing.
  */
 export function readSink(dir) {
   const sink = readJsonIfThere(join(dir, 'sink.json'));
   if (!sink) return undefined;
+  if (sink.sink === 'elasticsearch') return readElasticsearchSink(sink);
   const inserts = Number(sink.inserts?.inserts ?? 0);
   const parts = Object.fromEntries(
     (sink.parts ?? []).map(it => [
@@ -206,12 +222,38 @@ export function readSink(dir) {
   // The query log counts the rows its materialized views wrote too: an insert's commits are the base table's rows.
   const commits = parts[SINK_TABLES[0]]?.rows ?? 0;
   return {
+    sink: 'clickhouse',
     accounts: sink.accounts,
     expected: Number(sink.expected),
     written: Number(sink.written),
     inserts,
     commitsPerInsert: inserts > 0 ? commits / inserts : null,
     parts,
+  };
+}
+
+/**
+ * The Elasticsearch sink's sink.json [sink]: its counts are from after the seeding, so the commits they are read
+ * against are the deposits' (the commits less the accounts the seeding opened).
+ */
+function readElasticsearchSink(sink) {
+  const requests = Object.fromEntries(
+    Object.entries(sink.requests ?? {}).map(([kind, count]) => [
+      kind,
+      Number(count),
+    ]),
+  );
+  const commits = Number(sink.expected) - Number(sink.accounts);
+  const bulks = requests._bulk ?? 0;
+  return {
+    sink: 'elasticsearch',
+    accounts: sink.accounts,
+    expected: Number(sink.expected),
+    written: Number(sink.written),
+    commits,
+    requests,
+    commitsPerBulk: bulks > 0 ? commits / bulks : null,
+    node: sink.node ?? {},
   };
 }
 
@@ -274,8 +316,9 @@ function skipLines(skip) {
   ];
 }
 
-/** sink's table: per scenario, the commits, the inserts and their rows, and each table's parts and rows a part. */
-export function sinkTables(suite) {
+/** sink's table: the ClickHouse sink's, or the Elasticsearch sink's when [sink] is `elasticsearch`. */
+export function sinkTables(suite, sink = 'clickhouse') {
+  if (sink === 'elasticsearch') return elasticsearchSinkTable(suite);
   const lines = [
     '| Scenario | Accounts | Commits | Written | Inserts | Commits an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) |',
     '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
@@ -294,7 +337,36 @@ export function sinkTables(suite) {
   return lines;
 }
 
-/** The anomalies of a suite of one of SINK_PROGRAMS: a run that failed, commits the sink did not write, a wrong FINAL. */
+/**
+ * The Elasticsearch sink's table: per scenario, the commits, the deposits' commits and the requests the sink sent for
+ * them, `_bulk` with the commits each carried, `_update_by_query` and `_refresh` a 1,000 commits, and the node's
+ * documents indexed and refreshes.
+ */
+function elasticsearchSinkTable(suite) {
+  const lines = [
+    "| Scenario | Accounts | Commits | Written | Deposits' commits | _bulk | Commits a _bulk | _update_by_query (a 1,000 commits) | _refresh (a 1,000 commits) | Other requests | Documents indexed (node) | Refreshes (node) |",
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  ];
+  const perThousand = (count, commits) =>
+    `${num(count ?? 0, 0)} (${commits > 0 ? num(((count ?? 0) * 1000) / commits, 1) : '-'})`;
+  for (const run of suite.runs) {
+    if (run.status !== 'ok') {
+      lines.push(`| ${run.name} | ${run.status} | | | | | | | | | | |`);
+      continue;
+    }
+    const measured = run.measure;
+    const { requests, node, commits } = measured;
+    lines.push(
+      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(commits, 0)} | ${num(requests._bulk ?? 0, 0)} | ${measured.commitsPerBulk === null ? '-' : num(measured.commitsPerBulk, 1)} | ${perThousand(requests._update_by_query, commits)} | ${perThousand(requests._refresh, commits)} | ${num(requests.other ?? 0, 0)} | ${num(node.indexTotal ?? 0, 0)} | ${num(node.refreshTotal ?? 0, 0)} |`,
+    );
+  }
+  return lines;
+}
+
+/**
+ * The anomalies of a suite of one of SINK_PROGRAMS: a run that failed, commits the sink did not write, Elasticsearch
+ * requests that were not counted, a wrong FINAL.
+ */
 export function sinkAnomalies(suite) {
   const rows = [];
   const row = (run, kind, detail) =>
@@ -315,6 +387,12 @@ export function sinkAnomalies(suite) {
         run,
         'commits not written',
         `${measured.written} of ${measured.expected} in the sink's tables`,
+      );
+    if (measured.sink === 'elasticsearch' && !('_bulk' in measured.requests))
+      row(
+        run,
+        'requests not counted',
+        "no search-requests line in the node's log",
       );
     const plain = measured.skip?.settings?.find(
       it => it.useSkipIndexesIfFinal === 0,
@@ -338,7 +416,9 @@ export function renderSink(suite, definition) {
     '',
     `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`,
     '',
-    ...(suite.program === 'sink' ? sinkTables(suite) : insertTables(suite)),
+    ...(suite.program === 'sink'
+      ? sinkTables(suite, definition?.sink)
+      : insertTables(suite)),
     '',
   ];
   const found = anomalyTable(sinkAnomalies(suite));

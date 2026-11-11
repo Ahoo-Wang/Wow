@@ -251,6 +251,7 @@ jobs:
           fi
           tasks=("$project:installDist")
           if [ -d "$load" ]; then tasks+=("$loader:installDist"); fi
+          if [ -d test/benchmarks/search-server ]; then tasks+=(":benchmark-search-server:installDist"); fi
           # A baseline from before the scope was removed builds its V10 modules with it; later commits ignore it.
           ./gradlew -Pwow.scope=v10 "${tasks[@]}" --stacktrace
           # Each tarball holds the installed distribution's directory alone, whatever the layout.
