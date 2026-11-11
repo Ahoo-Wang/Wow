@@ -167,7 +167,8 @@ class QuerySchemaValidationTest {
         listOf<Any>(listOf("a", "b"), listOf("a")).forEach { values ->
             val filter = EqualFilter(QueryField("tags"), values)
             validateQuery(filter, schema).assert().isSameAs(filter)
-            filter.value.assert().isSameAs(values)
+            // The operand stays the list it was, a copy of the caller's.
+            filter.value.assert().isEqualTo(values)
         }
         assertThrows<QuerySchemaValidationException> {
             validateQuery(
