@@ -405,4 +405,3 @@ A run that writes the checkpoints holds the role of its command until it ends:
 
 The cut-over is kept in the V10 target, beside the log: one checkpoint row per partition, in the group `wow.migrate/<context>` under the name `cutover`, which each pass moves forward and never back. The service's subscriptions see the entries up to it as imported, and its transport sink publishes them marked so ([History imported from 9.x](../guide/published-streams#history-imported-from-9x)). A dry run records none.
 
-Reserved keys and parked entries imported before the tool recorded their origin cannot be told from V10's own: import into a fresh V10 target, or remove them before an `import --restart`.

@@ -67,7 +67,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | `events` | 每个事件的 `name`、`revision` 和 `payload`，按顺序。设置或取消的定时也在其中，即系统事件 `wow.ScheduleSet` 和 `wow.ScheduleCancelled`。 |
 | `scope` | 这次提交之后聚合的所有者和空间。 |
 | `access` | 聚合的访问属性（`owner` 与 `space` 也在其中）：先是这次提交之后的值，之后随属性变化保持为当前值；未盖章的流为 null。 |
-| `accessVersion` | `access` 所属的版本：随提交写入时是这次提交自己的版本，之后某次提交改变了属性时是那次提交的版本。属性的每一份副本（日志、流的索引、Sink 的表）都保留版本更晚的那一份；与 `access` 一同为 null，更早版本写的信封里也没有它。 |
+| `accessVersion` | `access` 所属的版本：随提交写入时是这次提交自己的版本，之后某次提交改变了属性时是那次提交的版本。属性的每一份副本（日志、流的索引、Sink 的表）都保留版本更晚的那一份；与 `access` 一同为 null。 |
 | `causation` | 命令所属的链，如果它是 Saga 发出的。 |
 | `headers` | 准入记录的请求事实，例如 `app_id`。 |
 | `operator` | 提交以谁的名义记录；匿名调用方为 null。 |
