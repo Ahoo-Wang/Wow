@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.flow.first
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalk.Companion.IMPORTING
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -280,7 +281,4 @@ internal class InstanceAppends(
 }
 
 /** The streams of one group commit at most: as many as one PostgreSQL statement of the log takes. */
-/** The schema of an access walk an import claimed: no node serves it, so the nodes take it over unfinished. */
-internal const val IMPORTING = "wow.import"
-
 private const val MAX_GROUP_STREAMS = 1000

@@ -26,6 +26,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.runtime.access.AccessSchema
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalk.Companion.IMPORTING
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
@@ -130,21 +131,23 @@ class SnapshotWriterTest {
         imported()
         val orderType = NineXExample.orderModel.type
         val cartType = NineXExample.cartModel.type
+        // The import claimed each type's walk once its first streams were in.
+        log.walk(orderType).assert().isEqualTo(AccessWalk(IMPORTING, emptyMap()))
         val writer = writer()
         val done = listOf(writer.writeAll(order), writer.writeAll(cart))
-        // A cart that failed, or is missing, records nothing of its type.
+        // A cart that failed, or is missing, records nothing of its type: the import's walk stays, for the nodes.
         writer.recordWalks(listOf(done[0], done[1].copy(failed = 1)))
         log.walk(orderType).assert().isEqualTo(
             AccessWalk(AccessSchema.of(NineXExample.orderModel), emptyMap(), walked = 1, completed = true),
         )
-        log.walk(cartType).assert().isNull()
+        log.walk(cartType)!!.schema.assert().isEqualTo(IMPORTING)
         writer.recordWalks(listOf(done[0]))
-        log.walk(cartType).assert().isNull()
+        log.walk(cartType)!!.schema.assert().isEqualTo(IMPORTING)
         printed.assert().containsExactly(
             "$orderType: its access walk is recorded as completed for the schema []: 1 instances stamped.",
         )
         // A walk recorded is left as it is, and one of another schema is reported.
-        log.claim(cartType, AccessWalk("region:string", emptyMap()), expected = null).assert().isTrue()
+        log.claim(cartType, AccessWalk("region:string", emptyMap()), expected = IMPORTING).assert().isTrue()
         writer.recordWalks(done)
         log.walk(cartType)!!.schema.assert().isEqualTo("region:string")
         printed.assert().hasSize(2)
@@ -164,7 +167,7 @@ class SnapshotWriterTest {
             val done = listOf(writer.writeAll(order), writer.writeAll(cart))
             done.map { it.written }.assert().containsExactly(1, 1)
             writer.recordWalks(done)
-            log.walk(NineXExample.orderModel.type).assert().isNull()
+            log.walk(NineXExample.orderModel.type)!!.schema.assert().isEqualTo(IMPORTING)
             // A log that holds none of the types: nothing to record.
             val empty = InMemoryEventLog(4)
             SnapshotWriter(events, NineXExample.plan, models, { empty }, { store }, checkpoints).recordWalks(done)
@@ -198,7 +201,7 @@ class SnapshotWriterTest {
         }.let { MigrationPlan(it, NineXExample.manifest) }
         val orderType = NineXExample.orderModel.type
         writer(plan = merged).recordWalks(listOf(done[0]))
-        log.walk(orderType).assert().isNull()
+        log.walk(orderType)!!.schema.assert().isEqualTo(IMPORTING)
         writer(plan = merged).recordWalks(done)
         log.walk(orderType)!!.walked.assert().isEqualTo(2)
     }

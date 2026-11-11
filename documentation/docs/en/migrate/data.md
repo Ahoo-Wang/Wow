@@ -253,6 +253,8 @@ The tail reads each event stream collection by a `(createTime, _id)` index, whic
 
 Through this dual run, start the V10 service's nodes on standby, with [`wow.node.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node is activated, so it never acts on the imported 9.x history.
 
+Import only while the V10 nodes are on standby or stopped. An import claims each type's access walk right after its first streams of that type, so that the nodes walk them. A node that accepts commands can, in the milliseconds before that claim, record the type's walk as completed over those streams, which carry no attributes: an events query under an access policy then leaves them out. If streams were imported into a service whose nodes were active, run `snapshot`, which stamps the history of every imported instance ([The access attributes](#_7-the-access-attributes)).
+
 ### Compare and snapshot during the dual run
 
 Once the import is done and the tail follows 9.x, run `compare` and `snapshot`. Each walks every instance once and records where it started. At the cut-over, each then works only on what changed since (steps 5 and 6), which keeps the write stop short. Review the differences the full comparison finds now, so the cut-over only confirms them.

@@ -44,7 +44,7 @@ internal class UnwrittenTypes {
 
     private val types = ConcurrentHashMap<AggregateType, Unwritten>()
 
-    operator fun contains(type: AggregateType): Boolean = type in types
+    operator fun contains(type: AggregateType): Boolean = types.containsKey(type)
 
     /** A run's look at the members while [type] has no store: [mixed] when one served it under another schema. */
     fun seen(type: AggregateType, mixed: Boolean) {
@@ -72,10 +72,10 @@ internal class UnwrittenTypes {
     }
 
     /**
-     * A run found [type]'s store, [mixed] as [seen] says: whether this node watched it from before the store was
-     * created, fresh throughout, so every stream it holds is this schema's. The type is no longer watched.
+     * A run found [type]'s store, after it looked at the members ([seen]): whether this node watched it from before the
+     * store was created, fresh throughout, so every stream it holds is this schema's. The type is no longer watched.
      */
-    fun created(type: AggregateType, mixed: Boolean): Boolean = types.remove(type)?.fresh == true && !mixed
+    fun created(type: AggregateType): Boolean = types.remove(type)?.fresh == true
 
     companion object {
         /** The most runs a type without a store is not read again for: 16, about 80 s at the default interval. */
