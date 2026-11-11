@@ -25,9 +25,16 @@ import {
   sinkAnomalies,
   SINK_PROGRAMS,
 } from './bench-sink.mjs';
+import {
+  indexAnomalies,
+  INDEX_PROGRAMS,
+  renderIndex,
+  runIndex,
+} from './bench-index.mjs';
 
 // The `measure` kind of bench.mjs's suites, run through bench.sh's `measure` command: its programs' settings, runs,
-// results, tables and anomalies. It imports bench-common.mjs and bench-sink.mjs, never bench.mjs, which imports it.
+// results, tables and anomalies. It imports bench-common.mjs, bench-sink.mjs and bench-index.mjs, never bench.mjs,
+// which imports it.
 
 // kind `measure`, measure `walk` (bench.sh measure --program=walk, AccessWalkBench): the access walk of the data set's
 // accounts of `streams` streams each under `rate` E1 deposits a second, open loop, over `warmUp` and `measure` seconds;
@@ -380,6 +387,7 @@ export const programOf = definition =>
 /** The anomalies of a `measure` suite, as [anomalies] lists them. */
 export function measureAnomalies(suite) {
   if (SINK_PROGRAMS.includes(suite.program)) return sinkAnomalies(suite);
+  if (INDEX_PROGRAMS.includes(suite.program)) return indexAnomalies(suite);
   const rows = [];
   if (suite.kind === 'measure' && suite.program === 'walk') {
     // A run that failed, and deposits that failed: that run's numbers do not hold.
@@ -430,6 +438,8 @@ export function measureAnomalies(suite) {
 export function renderMeasure(suite, definition) {
   if (SINK_PROGRAMS.includes(suite.program))
     return renderSink(suite, definition);
+  if (INDEX_PROGRAMS.includes(suite.program))
+    return renderIndex(suite, definition);
   if (suite.kind === 'measure' && suite.program === 'walk') {
     const lines = [
       `## ${labelOf(suite)}`,
@@ -479,6 +489,8 @@ export function runMeasure(
 ) {
   if (SINK_PROGRAMS.includes(definition.measure)) {
     runSink(definition, suite, { benchPath, out, cpuset, arms, save });
+  } else if (INDEX_PROGRAMS.includes(definition.measure)) {
+    runIndex(definition, suite, { benchPath, out, cpuset, arms, save });
   } else if (definition.measure === 'walk') {
     for (const spec of definition.runs) {
       const runName = spec.arm.id;

@@ -4,11 +4,12 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { armsOfRuns, walkRuns, walkShareRuns } from './bench-measure.mjs';
+import { indexSuites } from './bench-index.mjs';
 import { sinkSuites } from './bench-sink.mjs';
 
 /**
  * The suites of the `measure` kind, by name, on bench.mjs's arms: the access scale checks (the dataset's queries, the
- * walk's share and cost) and the sink group (sinkSuites). bench.mjs spreads them into its SUITES where they stood.
+ * walk's share and cost), the sink group (sinkSuites) and the index group (indexSuites). bench.mjs spreads them into its SUITES where they stood.
  */
 export function measureSuites({
   HEAD_PG,
@@ -63,5 +64,6 @@ export function measureSuites({
         'The access walk under live commands on MongoDB, as access-walk-pg.',
     },
     ...sinkSuites(HEAD_PG),
+    ...indexSuites(HEAD_MONGO),
   };
 }

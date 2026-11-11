@@ -408,7 +408,41 @@ es_counts() {
       bulkOperations: (map(.bulk.total_operations) | add), refreshTotal: (map(.refresh.total) | add)})}'
 }
 
-# measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert or sink.
+# D411's index figures (the search server's IndexFigures, in its install's index/): on fresh containers, MongoDB and
+# Elasticsearch, and the eShop catalog's server on its `search` profile in IndexFigures' JVM, seeded with --products
+# products, each created and updated; then the product's snapshot and events indices, each merged to one segment, and
+# their documents, store bytes, indexing time and mapped text fields in --out's index.json.
+measure_index() {
+  check_java
+  BACKEND=mongo
+  HEAP=$(opt heap 2g)
+  local products install
+  products=$(opt products 100000)
+  install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-search-server")
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-index-$products")
+  mkdir -p "$OUT"
+  trap down EXIT
+  down
+  log "starting mongo and elasticsearch"
+  OPTIONS="${OPTIONS}no-bus=true
+"
+  stores_up mongo
+  pin_containers mongo
+  elasticsearch_up
+  log "seeding $products products into the catalog"
+  pin server-cpus
+  ${PREFIX[@]+"${PREFIX[@]}"} "$SERVER_JAVA/bin/java" "-Xms$HEAP" "-Xmx$HEAP" -XX:+UseG1GC \
+    -cp "$install/index/*" me.ahoo.wow.benchmark.search.IndexFiguresKt \
+    --products="$products" --concurrency="$(opt concurrency 64)" --elasticsearch="$ELASTICSEARCH_URL" --out="$OUT" \
+    --spring.mongodb.uri="mongodb://127.0.0.1:27017/?replicaSet=rs0" --server.port="$PUBLIC_PORT" \
+    --wow.internal.port="$INTERNAL_PORT" >"$OUT/index.log" 2>&1 || {
+    log "IndexFigures failed:"; tail -40 "$OUT/index.log" >&2; return 1
+  }
+  printf '{"schema":"wow-e2e-bench/measure/1","measure":"index","products":%s}\n' "$products" >"$OUT/measure.json"
+  log "results in $OUT"
+}
+
+# measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert, sink or index.
 measure() {
   parse "$@"
   case "$(opt program dataset-access)" in
@@ -416,6 +450,7 @@ measure() {
     walk) measure_walk ;;
     clickhouse-insert) measure_clickhouse_insert ;;
     sink) measure_sink ;;
-    *) log "unknown program $(opt program ""): dataset-access, walk, clickhouse-insert or sink"; exit 2 ;;
+    index) measure_index ;;
+    *) log "unknown program $(opt program ""): dataset-access, walk, clickhouse-insert, sink or index"; exit 2 ;;
   esac
 }

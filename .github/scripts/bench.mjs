@@ -2048,6 +2048,7 @@ export function resolveInputs({
       'access-dataset',
       'access-walk',
       'sink',
+      'index',
     ],
     ab: ['ab'],
     head: ['head'],
@@ -2060,6 +2061,7 @@ export function resolveInputs({
     'access-dataset': ['access-dataset'],
     'access-walk': ['access-walk'],
     sink: ['sink'],
+    index: ['index'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
