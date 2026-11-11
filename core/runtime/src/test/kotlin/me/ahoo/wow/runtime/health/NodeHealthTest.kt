@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.health
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -202,9 +201,8 @@ class NodeHealthTest : NodeHealthFixtures() {
         health.readiness().status.assert().isEqualTo(HealthStatus.UP)
         health.health().status(NodeHealth.STORES).assert().isEqualTo(HealthStatus.DEGRADED)
         // Once the window of the failures has passed, the store is up again.
-        delay(5)
-        health(node, HealthOptions(storeDownAfter = Duration.ZERO, storeWindow = 1.milliseconds)).health()
-            .status(NodeHealth.STORES).assert().isEqualTo(HealthStatus.UP)
+        val windowed = health(node, HealthOptions(storeDownAfter = Duration.ZERO, storeWindow = 1.milliseconds))
+        eventually { windowed.health().status(NodeHealth.STORES) == HealthStatus.UP }
     }
 
     @Test
@@ -233,8 +231,9 @@ class NodeHealthTest : NodeHealthFixtures() {
                     health.readiness().component(NodeHealth.STORES)!!.components.single()
                         .details["lastError"] == "TimeoutException"
                 }
-                delay(200)
-                // In flight with no progress, but the store does not answer: the kernel waits for it.
+                // In flight with no progress for the stall timeout, but the store does not answer: the kernel waits
+                // for it.
+                eventually { progressMillis(health) >= health.options.stallTimeout.inWholeMilliseconds }
                 health.liveness().status.assert().isEqualTo(HealthStatus.UP)
                 log.hang!!.complete(Unit)
                 stuck.await()

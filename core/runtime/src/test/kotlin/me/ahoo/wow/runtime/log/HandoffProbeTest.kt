@@ -24,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -61,8 +62,9 @@ class HandoffProbeTest : HandoffLogFixtures() {
             awaitOpen(log)
             val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
             gated.committed.await()
-            // Several probes run while the append is held.
-            delay(200)
+            // A probe reads the head while the append is held, finds the commit there, and waits for its hand-over.
+            val heads = store.heads.get()
+            eventually { store.heads.get() > heads }
             gated.release.complete(Unit)
             held.await()
             seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
@@ -126,9 +128,10 @@ class HandoffProbeTest : HandoffLogFixtures() {
             // This node's commit (sequence 1) is held on its way back; another node appends sequence 2 meanwhile.
             val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
             gated.committed.await()
+            val heads = store.heads.get()
             store.append(next(refs[1]))
             // The probe runs, finds the head at 2 and waits for this node's append.
-            delay(probe * 2)
+            eventually { store.heads.get() > heads }
             gated.release.complete(Unit)
             held.await()
             // Both, well within a probe interval: the other node's entry is read right after the hand-over.

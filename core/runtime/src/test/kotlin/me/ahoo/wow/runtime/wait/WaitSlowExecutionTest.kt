@@ -18,7 +18,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -110,7 +109,8 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
         started()
         val result = background.async { coordinator.execute(order, placeSlowly(WaitPlan.COMMITTED)) }
         deciding.await()
-        delay(100)
+        // Held while it decides: nothing under the deadline answers it before it settles.
+        result.isCompleted.assert().isFalse()
         decideGate.complete(Unit)
         val answered = withTimeout(5.seconds) { result.await() }
         answered.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

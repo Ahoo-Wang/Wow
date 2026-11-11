@@ -17,7 +17,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.ExecutorOptions
@@ -30,7 +29,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeSource
 
 /**
  * The node's liveness: a kernel stuck while the stores answer, a dispatcher or drivers that do not tick, and a reconcile
@@ -49,7 +47,7 @@ class NodeLivenessTest : NodeHealthFixtures() {
             eventually { node.context(BANK).executor.commandsInFlight == 1 }
             // One command in flight fills a bound of one.
             health.health().status(NodeHealth.EXECUTOR).assert().isEqualTo(HealthStatus.DEGRADED)
-            delay(150)
+            eventually { progressMillis(health) >= health.options.stallTimeout.inWholeMilliseconds }
             health.sample()
             val liveness = health.liveness()
             liveness.status.assert().isEqualTo(HealthStatus.DOWN)
@@ -79,7 +77,6 @@ class NodeLivenessTest : NodeHealthFixtures() {
                 NodeHealth(node, it, options, dispatcher.asCoroutineDispatcher(), drivers.asCoroutineDispatcher())
             }
             start(health)
-            delay(50)
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
             hold(dispatcher, drivers)
             var stalls: List<*> = emptyList<Any>()
@@ -168,13 +165,12 @@ class NodeLivenessTest : NodeHealthFixtures() {
         leases.losing = true
         asked.await()
         leases.losing = false
-        // That reconcile waits on the store now, well inside the stall timeout: the node stays live throughout.
-        val waiting = TimeSource.Monotonic.markNow()
-        while (waiting.elapsedNow() < SLOW_STORE) {
+        // That reconcile waits on the store now, well inside the stall timeout: the node stays live throughout, until the
+        // ownership has been reconciling for the slow store's time.
+        eventually {
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
-            delay(50)
+            (ownership.reconcilingFor ?: Duration.ZERO) >= SLOW_STORE
         }
-        ownership.reconcilingFor.assert().isNotNull().isGreaterThanOrEqualTo(SLOW_STORE)
         health.liveness().status.assert().isEqualTo(HealthStatus.UP)
         // The store answers: the reconcile ends with the partitions back, and the node is still live.
         leases.acquiring = null

@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.state
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
@@ -32,11 +31,15 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -175,9 +178,9 @@ class KernelStateReadsTest {
         lost.at(cart, 2)!!.firstEventTime.assert().isEqualTo(7L)
     }
 
-    private fun waiting(wait: Duration) = KernelStateReads(
+    private fun waiting(wait: Duration, store: SnapshotStore = snapshots) = KernelStateReads(
         registry,
-        mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), snapshots)),
+        mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), store)),
         minVersionWait = wait,
     )
 
@@ -211,9 +214,16 @@ class KernelStateReadsTest {
                 as MinVersionNotReachedException
             ).version.assert().isEqualTo(0)
         // Committed while the read waits: it is read.
+        val loads = AtomicInteger()
+        val counted = object : SnapshotStore by snapshots {
+            override suspend fun load(ref: AggregateRef): SnapshotRecord? = snapshots.load(ref).also {
+                loads.incrementAndGet()
+            }
+        }
         coroutineScope {
-            val read = async { waiting(5.seconds).latest(cart, 2) }
-            delay(100)
+            val read = async { waiting(5.seconds, counted).latest(cart, 2) }
+            // The read found version 1 and waits: it loads the snapshot again after each poll.
+            eventually { loads.get() >= 2 }
             log.append(
                 EventStreamRecord(
                     ref = cart,

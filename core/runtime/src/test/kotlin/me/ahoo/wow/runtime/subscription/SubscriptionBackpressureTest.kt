@@ -227,7 +227,7 @@ class SubscriptionBackpressureTest {
             runtime.start(setOf(0))
             eventually { seen.size == AGGREGATES.size && runtime.throttled().singleOrNull()?.limit == 1 }
             // Once the handlings that started under a higher limit have ended: one at a time.
-            delay(HANDLING)
+            eventually { running.get() == 0 }
             measuring.set(true)
             delay(THROTTLED_FOR)
             mostWhileThrottled.get().assert().isLessThanOrEqualTo(1)

@@ -167,6 +167,9 @@ abstract class NodeHealthFixtures {
         }
     }
 
+    /** How long [health]'s liveness says the node's commands in flight have made no progress, in milliseconds. */
+    protected fun progressMillis(health: NodeHealth): Long = health.liveness().details["lastProgressMillis"] as Long
+
     /** Starts [health]'s tick and its sampler, as a host starts both. */
     protected fun start(health: NodeHealth) {
         health.start()
