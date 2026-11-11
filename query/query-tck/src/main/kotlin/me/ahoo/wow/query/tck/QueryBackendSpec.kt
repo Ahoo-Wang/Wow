@@ -181,7 +181,10 @@ abstract class QueryBackendSpec : SnapshotDateBucketCases() {
 
         /** The fields of the order state the TCK queries, as the Manifest would declare them. */
         val DECLARATION = querySchema {
-            field("state.name") { types(QueryValueType.STRING) }
+            field("state.name") {
+                types(QueryValueType.STRING)
+                text()
+            }
             field("state.status") { types(QueryValueType.STRING) }
             field("state.amount") { types(QueryValueType.DECIMAL) }
             field("state.quantity") { types(QueryValueType.INTEGER) }

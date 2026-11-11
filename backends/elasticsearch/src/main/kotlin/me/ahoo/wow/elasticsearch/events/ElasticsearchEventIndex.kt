@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
-import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.io.StringReader
 
 /**
@@ -29,9 +28,7 @@ import java.io.StringReader
  *   dropped as over-long (no `ignore_above`), so an attribute's presence is exact, its integers a `long`, its booleans
  *   a `boolean`. Elasticsearch indexes nothing for an empty object or a null value, so [ACCESS_VERSION], an `integer`
  *   the Sink writes on every stream with attributes (the version they are of), tells a stamped stream from one that is
- *   not: the `events` model's presence of `access` reads it. Both are fields added within format 1 ([ADDED],
- *   [ADDITIONS]); an index of a version that recorded tags keeps their mapping, `tags` and `tagsRecorded`, which
- *   nothing writes or reads.
+ *   not: the `events` model's presence of `access` reads it.
  * - `events` is `nested`, each event `{name: keyword, revision: integer, body}`, so a predicate matches one event and
  *   an aggregation expands them (`expand("events")`).
  * - The bodies are **not** mapped dynamically (`dynamic: false`): a body field is indexed only once the index maps it,
@@ -50,26 +47,12 @@ internal object ElasticsearchEventIndex {
     /** The version of the stream whose access attributes a stream document holds; see the class. */
     const val ACCESS_VERSION = "accessVersion"
 
-    /** The dynamic templates of the index, the whole list [ADDITIONS] puts, so it reads the same merged or replaced. */
+    /** The dynamic templates of the index. */
     private const val DYNAMIC_TEMPLATES = """
         [
           { "access_strings": { "path_match": "access.*", "match_mapping_type": "string", "mapping": { "type": "keyword" } } }
         ]
     """
-
-    /** The fields added within format 1, which an index created before them gets from [ADDITIONS]. */
-    val ADDED: List<String> = listOf(EventStreamFields.ACCESS, ACCESS_VERSION)
-
-    /** The mapping of [ADDED], put on an index created before them, with the template that maps the attributes. */
-    val ADDITIONS: String = """
-        {
-          "dynamic_templates": $DYNAMIC_TEMPLATES,
-          "properties": {
-            "${EventStreamFields.ACCESS}": { "type": "object", "dynamic": true },
-            "$ACCESS_VERSION": { "type": "integer" }
-          }
-        }
-    """.trimIndent()
 
     /** The mappings of the index (without its settings): what a missing index's queries are admitted against. */
     val MAPPINGS: String = """

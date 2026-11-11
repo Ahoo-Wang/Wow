@@ -154,19 +154,22 @@ class ElasticsearchFieldKindsTest {
     }
 
     @Test
-    fun `model search needs an indexed field that indexes every value and has no null_value`() {
-        field(Property.Kind.Text).supportsModelFullText().assert().isTrue()
-        field(Property.Kind.Keyword, ignoreAbove = UNCAPPED_IGNORE_ABOVE).supportsModelFullText().assert().isTrue()
-        field(Property.Kind.Keyword, ignoreAbove = 3).supportsModelFullText().assert().isFalse()
-        field(Property.Kind.Text, nullValue = JsonData.of("n/a")).supportsModelFullText().assert().isFalse()
-        field(Property.Kind.Text, indexed = false).supportsModelFullText().assert().isFalse()
-        field(Property.Kind.Nested).supportsModelFullText().assert().isFalse()
-
-        field(Property.Kind.Text).supportsModelPhraseSearch().assert().isTrue()
-        field(Property.Kind.Text, ignoreAbove = UNCAPPED_IGNORE_ABOVE).supportsModelPhraseSearch().assert().isFalse()
-        field(Property.Kind.Text, nullValue = JsonData.of("n/a")).supportsModelPhraseSearch().assert().isFalse()
-        field(Property.Kind.Text, indexed = false).supportsModelPhraseSearch().assert().isFalse()
-        field(Property.Kind.SemanticText).supportsModelPhraseSearch().assert().isFalse()
+    fun `a value is searched by words only when every string it holds is marked as prose`() {
+        val marked = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), text = true)
+        val plain = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING))
+        val absent = QueryValueSchema(QueryValueKind.NULL)
+        marked.searchedByWords().assert().isTrue()
+        plain.searchedByWords().assert().isFalse()
+        QueryValueSchema(QueryValueKind.ARRAY, items = marked).searchedByWords().assert().isTrue()
+        QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(marked, absent)
+        ).searchedByWords().assert().isTrue()
+        QueryValueSchema(
+            QueryValueKind.UNION,
+            alternatives = listOf(marked, plain)
+        ).searchedByWords().assert().isFalse()
+        absent.searchedByWords().assert().isFalse()
     }
 
     private fun field(

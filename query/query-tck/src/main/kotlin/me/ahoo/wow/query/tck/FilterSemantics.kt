@@ -225,7 +225,11 @@ object FilterSemantics {
 
     /** Field operators the matrix does not cover, with the reason. */
     val UNCOVERED: Map<FilterOperator, String> = buildMap {
-        put(FilterOperator.SEARCH, "Full-text relevance is storage-defined; the TCK covers search separately.")
+        put(
+            FilterOperator.SEARCH,
+            "Full-text relevance is storage-defined; SnapshotFilterCases holds which fields a search that names none " +
+                "reads, where the storage offers one.",
+        )
         put(FilterOperator.ELEMENT_MATCH, "A scope, not a comparison; its predicates follow this matrix per element.")
         FilterOperator.entries.filter { FilterOperatorSpec.of(it).valueRule == ValueRule.TEMPORAL }.forEach {
             put(it, "Resolved to a range at admission; the range cases apply.")

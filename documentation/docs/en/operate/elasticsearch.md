@@ -54,6 +54,18 @@ An aggregate whose `query.snapshot.store` names the Elasticsearch store has its 
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
 
+## Full-text search {#full-text-search}
+
+A string field of the state or of an event body is mapped as a `keyword`: matched by its whole value, as equality, `contains`, `startsWith`, sorts and groups match it. It is searched by words only where its schema marks it as prose: `@QueryText` on the property ([Describe what types cannot](../guide/queries#describe-what-types-cannot)), `x-wow-text` in the Manifest, `text()` in a declaration in code. A marked field gets a `text` sub-field, analyzed by the index's default analyzer, and the capability descriptor lists it among the fields a `search` may name: `record.search.fields`, or its element's.
+
+- **A `search` that names fields** reads those, each of which must be marked; another is answered `unsupported-capability`.
+- **A `search` that names no field** reads the marked fields of the record, outside its elements, the ones `record.search.fields` lists. Where none is marked, it is answered `model-search-unsupported`.
+- **A phrase** needs every field it reads to take one, as every `text` sub-field does.
+
+Mark only prose a reader searches by words, such as a name, a description, a note or a reason. Ids, enums, codes and references are matched by their whole value, and an index of each of their words only costs space and indexing time.
+
+Marking a field later adds the `text` sub-field to the index and indexes the documents written before it again ([below](#field-mapped-later)). Removing a marker leaves the sub-field in the mapping, and the field is no longer searched by words. When an index name covers several indices, an alias over rollover indices, and only some of them map the sub-field, the field keeps its whole-value matches and is searched by words once every index maps it.
+
 ## A field mapped later {#field-mapped-later}
 
 The state's and the events' body fields are mapped when a query first loads the aggregate's schema (under `ddl: auto`), so a field added to a schema later is mapped on an index that already holds documents. Those documents are indexed again in the background, by an `_update_by_query` task that keeps each document as it is, so that they are found by the new field too. Until the task ends, a query that filters, sorts or groups on the new field misses the documents written before the field was mapped: its results are incomplete.

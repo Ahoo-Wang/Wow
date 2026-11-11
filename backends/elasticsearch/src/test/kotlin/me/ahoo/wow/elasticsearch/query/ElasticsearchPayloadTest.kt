@@ -75,6 +75,16 @@ class ElasticsearchPayloadTest {
     }
 
     @Test
+    fun `scalars merged are prose only when every variant marks them so`() {
+        fun prose() = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), text = true)
+        val marked = prose()
+        val plain = scalar(QueryValueType.STRING, "plain")
+        union(marked, prose()).mappable(true).assert().isSameAs(marked)
+        union(marked, plain).mappable(true).assert().isSameAs(plain)
+        union(plain, marked).mappable(true).assert().isSameAs(plain)
+    }
+
+    @Test
     fun `arrays merge their items, and kinds that differ do not merge`() {
         val merged = union(
             array(scalar(QueryValueType.STRING, "a")),

@@ -39,6 +39,7 @@ import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.requiredOperandValue
+import me.ahoo.wow.query.schema.QueryCapability
 
 /**
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
@@ -51,6 +52,27 @@ internal object ElasticsearchFilterCompiler {
      */
     fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>): Query =
         compileNormalized(filter, admitted, nested = false)
+
+    /**
+     * A `multi_match` over the fields [filter] names, or, when it names none, over the record's fields marked as
+     * prose, as the descriptor lists them. A `multi_match` without fields reads the index's default fields, every
+     * field indexed, so a search whose list comes out empty (a grant the list does not back) matches nothing.
+     */
+    private fun search(filter: SearchFilter, admitted: AdmittedQuery<*>): Query {
+        val fields = if (filter.fields.isEmpty()) {
+            admitted.recordSearchPaths(
+                if (filter.mode == SearchMode.PHRASE) QueryCapability.FULL_TEXT_PHRASE else QueryCapability.FULL_TEXT_TERMS,
+            )
+        } else {
+            filter.fields.map(admitted::physicalPath)
+        }
+        if (fields.isEmpty()) return matchNone { it }
+        return multiMatch {
+            it.query(filter.query).fields(fields)
+            if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
+            it
+        }
+    }
 
     /** [nested]: inside a nested query, where the document id is not addressable by `_id`. */
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -173,16 +195,7 @@ internal object ElasticsearchFilterCompiler {
         is ExpressionFilter -> script { query ->
             query.script(RuntimeExpressionCompiler(admitted).compileCondition(filter))
         }
-        is SearchFilter -> multiMatch {
-            it.query(filter.query)
-            if (filter.fields.isEmpty()) {
-                it.lenient(true)
-            } else {
-                it.fields(filter.fields.map(admitted::physicalPath))
-            }
-            if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
-            it
-        }
+        is SearchFilter -> search(filter, admitted)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> term {
                 it.field(admitted.systemPath(filter)).value(false)

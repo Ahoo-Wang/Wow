@@ -140,15 +140,19 @@ internal val QueryStorageFamily.kinds: Set<Property.Kind>
 private val ElasticsearchMappedField.queryable: Boolean
     get() = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
-internal fun ElasticsearchMappedField.supportsModelFullText(): Boolean {
-    if (!indexesEveryValue(ignoreAbove) || nullValue != null) return false
-    return indexed && kind in MATCH_KINDS
-}
+/** The capabilities of a search by words, which only a value its schema marks as prose is granted. */
+internal val FULL_TEXT_CAPABILITIES: Set<QueryCapability> =
+    setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
 
-internal fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean {
-    if (ignoreAbove != null || nullValue != null) return false
-    return indexed && kind in PHRASE_SEARCH_KINDS
-}
+/**
+ * Whether this value is prose a reader searches by words: every string it holds (an array's items, a union's
+ * strings) is marked so ([QueryValueSchema.text]). A field that is not is never searched by words, whatever its
+ * mapping: one an operator mapped as `text`, or one whose marker was removed.
+ */
+internal fun QueryValueSchema.searchedByWords(): Boolean =
+    operationValues().filter { it.kind != QueryValueKind.NULL }.let { values ->
+        values.isNotEmpty() && values.all(QueryValueSchema::text)
+    }
 
 internal val SIGNED_INTEGER_KINDS = setOf(
     Property.Kind.Byte,
@@ -235,8 +239,6 @@ internal val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
 )
 
 private val PHRASE_SEARCH_KINDS = SEARCH_KINDS - Property.Kind.SemanticText
-
-private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS
 
 private val NORMALIZED_VALUE_CAPABILITIES = setOf(
     QueryCapability.EXACT_MATCH,

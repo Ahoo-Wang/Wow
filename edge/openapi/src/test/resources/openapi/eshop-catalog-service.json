@@ -5612,10 +5612,12 @@
             "type" : [ "string", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           },
           "name" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           },
           "price" : {
             "type" : "number",
@@ -5629,7 +5631,8 @@
         "type" : "object",
         "properties" : {
           "reason" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           }
         },
         "required" : [ "reason" ],
@@ -5639,7 +5642,8 @@
         "type" : "object",
         "properties" : {
           "reason" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           }
         },
         "required" : [ "reason" ],
@@ -5699,10 +5703,12 @@
             "type" : [ "string", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           },
           "name" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           }
         },
         "required" : [ "description", "name" ],
@@ -5816,10 +5822,12 @@
             "type" : [ "string", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           },
           "name" : {
-            "type" : "string"
+            "type" : "string",
+            "x-wow-text" : { }
           },
           "price" : {
             "type" : "number",

@@ -21,6 +21,7 @@ import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFix
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.logical
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.objectValue
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.path
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.prose
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.scalar
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -77,7 +78,7 @@ class ElasticsearchKeywordCapabilitiesTest {
     @Test
     fun `ambiguous keyword siblings do not pick an arbitrary native target`() {
         val schema = bind(
-            logical("name" to scalar(QueryValueType.STRING)),
+            logical("name" to prose()),
             TypeMapping.of {
                 it.properties("name") {
                     it.text { text ->
@@ -173,7 +174,7 @@ class ElasticsearchKeywordCapabilitiesTest {
 
     @Test
     fun `normalized keyword rejects source literal operations and selects a lossless sibling`() {
-        val definition = logical("code" to scalar(QueryValueType.STRING), "name" to scalar(QueryValueType.STRING))
+        val definition = logical("code" to scalar(QueryValueType.STRING), "name" to prose())
         val schema = bind(
             definition,
             TypeMapping.of {

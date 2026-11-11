@@ -227,7 +227,7 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `search` | `query`：非空字符串，`fields`：路径（不写表示每个可检索的字段），`mode`：`terms`（默认）或 `phrase` | 全文匹配，需要后端支持（否则为 `model-search-unsupported`） |
+| `search` | `query`：非空字符串，`fields`：路径（不写表示后端检索整条记录时读的字段：Elasticsearch 上为标了 `@QueryText` 的字段，MongoDB 上为它的文本索引中的字段），`mode`：`terms`（默认）或 `phrase` | 全文匹配，需要后端支持：不指定字段而后端不提供时为 `model-search-unsupported`，字段不能按词检索时为 `unsupported-capability` |
 | `expression` | `expression`，`comparison`：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`，`value`：有限的数字 | 每条记录计算出的 `expression` 满足这个比较；没有值的记录不匹配 |
 
 `expression` 是 `{"type":"field","field":…}`、`{"type":"constant","value":…}`、`{"type":"binary","operator":"add|subtract|multiply|divide","left":…,"right":…}` 和 `{"type":"date-diff","from":…,"to":…,"unit":"second|minute|hour|day"}` 之一：

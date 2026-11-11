@@ -356,6 +356,7 @@ public final class me/ahoo/wow/query/tck/SnapshotDateBucketCases$Companion {
 public abstract class me/ahoo/wow/query/tck/SnapshotFilterCases : me/ahoo/wow/query/tck/SnapshotQueryFixtures {
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
 	public final fun a numeric expression over integer fields divides without truncating ()V
+	public final fun a search that names no field reads the fields marked as prose, where the storage offers one ()V
 	public final fun element match selects records with one element matching every predicate ()V
 	public final fun filter semantics cover every field operator ()V
 	public final fun filter semantics matrix ()Ljava/util/List;

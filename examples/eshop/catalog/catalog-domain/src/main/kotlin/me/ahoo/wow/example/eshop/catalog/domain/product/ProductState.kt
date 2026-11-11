@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import me.ahoo.wow.api.query.annotation.QueryIndex
+import me.ahoo.wow.api.query.annotation.QueryText
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued
@@ -29,9 +30,12 @@ import java.math.BigDecimal
  * keys are the storefront's usual filter and sort ("the published products of a category, cheapest first").
  */
 class ProductState {
+    // The storefront's search box reads these by words (`@QueryText`); the ids, the status and the price it matches.
+    @field:QueryText
     var name: String = ""
         private set
 
+    @field:QueryText
     var description: String = ""
         private set
 

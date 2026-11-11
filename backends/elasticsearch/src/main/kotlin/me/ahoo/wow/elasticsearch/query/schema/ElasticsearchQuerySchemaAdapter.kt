@@ -131,9 +131,37 @@ internal class ElasticsearchQuerySchemaAdapter(
                 logicalSchema.value(path.template())?.isElementScope() != true
             }
             mapping.warnTruncatedDecimals(logicalSchema, paths)
-            val rootSearchFields = mapping.fields.filterKeys { path ->
-                nestedPaths.none { path.startsWith("$it.") }
-            }.values
+            val bindings = paths.associateWith { path ->
+                val value = checkNotNull(logicalSchema.value(path))
+                val symbolic = path.segments.any { it is QueryPathSegment.Key }
+                val source = if (symbolic) null else path.field(emptyList()).path
+                val projection = when {
+                    source in METADATA_FIELDS -> null
+                    source != null && source in mapping.fields -> mapping.fields.getValue(
+                        source
+                    ).projectionPath?.let { target ->
+                        if (target == source) path else target.sourceTemplate(arrayPaths + nestedPaths)
+                    }
+                    else -> path
+                }?.takeIf { mapping.sourceAvailable(it) }
+                QueryValueBindings(
+                    bindings = mapping.valueBindings(
+                        model,
+                        path,
+                        source,
+                        value,
+                        invalidNested,
+                        nestedPaths,
+                        arrayPaths,
+                    ),
+                    projectionPath = projection,
+                    responsePath = projection,
+                )
+            }
+            // A search that names no field searches the record's fields searched by words (outside every element):
+            // one `multi_match` over them, so a phrase only when each of them takes one.
+            val recordSearch = bindings.filterKeys { it.atRecord() }.values.map { it.bindings }
+                .filter { QueryCapability.FULL_TEXT_TERMS in it }
             return QueryStorageFacts(
                 fullProjectionAvailable = mapping.fullProjectionAvailable,
                 // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
@@ -142,42 +170,12 @@ internal class ElasticsearchQuerySchemaAdapter(
                 storage = mapping.storageSupport(),
                 provisional = mapping.provisional,
                 capabilities = buildSet {
-                    // A missing index answers nothing, so a model-wide search of it answers nothing as well.
-                    if (mapping.provisional) addAll(PROVISIONAL_MODEL_CAPABILITIES)
-                    if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
-                        add(QueryCapability.FULL_TEXT_TERMS)
-                    }
-                    if (rootSearchFields.any(ElasticsearchMappedField::supportsModelPhraseSearch)) {
+                    if (recordSearch.isNotEmpty()) add(QueryCapability.FULL_TEXT_TERMS)
+                    if (recordSearch.isNotEmpty() && recordSearch.all { QueryCapability.FULL_TEXT_PHRASE in it }) {
                         add(QueryCapability.FULL_TEXT_PHRASE)
                     }
                 },
-                bindings = paths.associateWith { path ->
-                    val value = checkNotNull(logicalSchema.value(path))
-                    val symbolic = path.segments.any { it is QueryPathSegment.Key }
-                    val source = if (symbolic) null else path.field(emptyList()).path
-                    val projection = when {
-                        source in METADATA_FIELDS -> null
-                        source != null && source in mapping.fields -> mapping.fields.getValue(
-                            source
-                        ).projectionPath?.let { target ->
-                            if (target == source) path else target.sourceTemplate(arrayPaths + nestedPaths)
-                        }
-                        else -> path
-                    }?.takeIf { mapping.sourceAvailable(it) }
-                    QueryValueBindings(
-                        bindings = mapping.valueBindings(
-                            model,
-                            path,
-                            source,
-                            value,
-                            invalidNested,
-                            nestedPaths,
-                            arrayPaths,
-                        ),
-                        projectionPath = projection,
-                        responsePath = projection,
-                    )
-                },
+                bindings = bindings,
             )
         }
 
@@ -204,7 +202,7 @@ internal class ElasticsearchQuerySchemaAdapter(
                         ?: binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
                     )?.let { capability to it }
             }.toMap()
-        }
+        }.filterKeys { it !in FULL_TEXT_CAPABILITIES || value.searchedByWords() }
 
         private val log = KotlinLogging.logger {}
 
@@ -237,9 +235,6 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         private val METADATA_FIELDS = setOf(DOCUMENT_ID, "_score", "_doc", "_shard_doc")
-
-        private val PROVISIONAL_MODEL_CAPABILITIES =
-            setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
 
         /** A path the mapping holds no field for: no metadata field, and no field at or below a flattened one. */
         private fun ElasticsearchIndexMapping.unmapped(source: String?): Boolean =
@@ -461,6 +456,13 @@ internal class ElasticsearchQuerySchemaAdapter(
             else -> listOf("keyword", "exact")
         }
     }
+}
+
+/** Whether this path is a field of the record itself: no map key, and no field of an array's elements. */
+private fun QueryPathTemplate.atRecord(): Boolean {
+    if (segments.any { it is QueryPathSegment.Key }) return false
+    val firstItem = segments.indexOfFirst { it == QueryPathSegment.Item }
+    return firstItem < 0 || segments.drop(firstItem).none { it is QueryPathSegment.Property }
 }
 
 private fun String.atOrBelow(parent: String): Boolean = this == parent || startsWith("$parent.")

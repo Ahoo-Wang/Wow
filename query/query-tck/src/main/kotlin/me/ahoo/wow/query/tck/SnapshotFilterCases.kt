@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
@@ -47,6 +48,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DAY
@@ -204,6 +206,18 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
             .assert().containsExactlyInAnyOrder("o1", "o2", "o5")
         fixture.ids(NorFilter(listOf(paid, large))).assert().isEmpty()
         fixture.ids(NorFilter(listOf(paid))).assert().containsExactlyInAnyOrder("o3", "o4", "o5")
+        Unit
+    }
+
+    @Test
+    fun `a search that names no field reads the fields marked as prose, where the storage offers one`() = blocking {
+        val fixture = given(orders())
+        Assumptions.assumeTrue(fixture.schema.supports(QueryCapability.FULL_TEXT_TERMS)) {
+            "The storage offers no search that names no field."
+        }
+        // `state.name` is marked as prose; `state.status` holds words too, and is not.
+        fixture.ids(SearchFilter("gamma")).assert().containsExactly("o3")
+        fixture.ids(SearchFilter("paid")).assert().isEmpty()
         Unit
     }
 

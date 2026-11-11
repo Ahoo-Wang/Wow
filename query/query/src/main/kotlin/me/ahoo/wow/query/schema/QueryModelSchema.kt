@@ -211,6 +211,24 @@ class QueryModelSchema(
         resolveField(field, matches)
     }
 
+    /**
+     * The fields a `SEARCH` may name, by path, grouped by the element they live in (`null` for the record): those the
+     * storage binds a full-text capability, comparable. An element's field is searched only inside `ELEMENT_MATCH` on
+     * its element. The descriptor lists each group as its `search.fields`.
+     */
+    internal val searchFields: Map<String?, List<QueryFieldSchema>> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        this.bindings.filterValues {
+            QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
+        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.distinct().sorted()
+            .mapNotNull { path -> field(QueryField(path)) }
+            .filter { it.comparable && it.elementAncestors != null }
+            .groupBy { it.elementAncestors?.lastOrNull()?.path }
+    }
+
+    /** The record's fields a `SEARCH` may name ([searchFields] outside every element): `record.search.fields`. */
+    internal val recordSearchFields: List<QueryFieldSchema>
+        get() = searchFields[null].orEmpty()
+
     internal val maskedValues = definition.maskedValues
     internal val hasMaskedFields: Boolean = maskedValues.isNotEmpty()
 

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
+import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import java.time.Duration
@@ -91,6 +92,15 @@ class AdmittedQuery<out Q : Any> internal constructor(
 
     /** The absolute physical path [reference] resolved to: where a backend reads the field. */
     fun physicalPath(reference: QueryField<*>): String = field(reference).physicalField.path
+
+    /**
+     * The physical paths of the record's fields a `SEARCH` may name with [capability], the descriptor's
+     * `record.search.fields`: what a storage that searches the whole model by its fields searches for a `SEARCH` that
+     * names none.
+     */
+    @InternalWowApi
+    fun recordSearchPaths(capability: QueryCapability): List<String> =
+        schema.recordSearchFields.mapNotNull { it.binding(capability)?.physicalField?.path }
 
     /** The physical path of the system field a system-field filter of [query] targets. */
     fun systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path

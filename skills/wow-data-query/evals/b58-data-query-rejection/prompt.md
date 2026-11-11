@@ -15,17 +15,13 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:c30fe7a66a61ff8a7624896cade2ba38103e8d36cfeeb39261d10122ef989a83",
+  "version" : "sha256:caa97421064467ec9ae2b11e5c508e294e05f349e32c85ea9c076220e70d4315",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
     "paging" : [ "list", "paged", "cursor" ],
     "defaultScope" : "active",
     "rootOperators" : [ "id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression" ],
-    "search" : {
-      "modes" : [ "terms" ],
-      "fields" : [ ]
-    },
     "stream" : {
       "resumable" : true
     }

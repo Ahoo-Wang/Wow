@@ -51,11 +51,37 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
-    fun `model level search should be lenient while explicit fields keep strict parsing`() {
-        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+    fun `a search that names no field searches the record's searchable fields, one that names fields those`() {
+        // SCHEMA binds full text on `state.value` (terms and phrase), `state.words` (terms) and `state.phrases`
+        // (phrase) at the record, and on `state.items.title` inside an element, which no record search reads.
+        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().let { search ->
+            search.fields().assert().containsExactly("state.value", "state.words")
+            search.lenient().assert().isNull()
+            search.type().assert().isNull()
+        }
+        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value", mode = SearchMode.PHRASE)).multiMatch()
+            .let { search ->
+                search.fields().assert().containsExactly("state.phrases", "state.value")
+                search.type().assert().isEqualTo(TextQueryType.Phrase)
+            }
         ElasticsearchFilterCompiler.compileAdmitted(
             SearchFilter("value", setOf(QueryField("state.value"))),
-        ).multiMatch().lenient().assert().isNull()
+        ).multiMatch().fields().assert().containsExactly("state.value")
+    }
+
+    @Test
+    fun `a search that names no field matches nothing when no field backs it, never the index's default fields`() {
+        // Granted by the storage, yet no field binds full text: the list comes out empty.
+        val unbacked = nativeSchema(
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            fields = mapOf(
+                QueryField("state.value") to nativeBindings(QueryField("state.value"), QueryCapability.EXACT_MATCH)
+            ),
+        )
+        ElasticsearchFilterCompiler.compile(
+            SearchFilter("value"),
+            unbacked
+        )._kind().assert().isEqualTo(Query.Kind.MatchNone)
     }
 
     private fun assertQuery(actual: Query, expected: Query) {
@@ -272,7 +298,7 @@ class ElasticsearchFilterCompilerTest {
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
         private val SCHEMA = nativeSchema(
-            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE),
             fields = buildMap {
                 listOf(
                     SnapshotFields.AGGREGATE_ID,
@@ -298,6 +324,14 @@ class ElasticsearchFilterCompilerTest {
                 )
                 put(QueryField("state.text"), nativeBindings(QueryField("state.text"), QueryCapability.LITERAL_MATCH))
                 put(
+                    QueryField("state.words"),
+                    nativeBindings(QueryField("state.words"), QueryCapability.FULL_TEXT_TERMS)
+                )
+                put(
+                    QueryField("state.phrases"),
+                    nativeBindings(QueryField("state.phrases"), QueryCapability.FULL_TEXT_PHRASE),
+                )
+                put(
                     QueryField("state.tags"),
                     nativeBindings(QueryField("state.tags"), QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
                 )
@@ -312,6 +346,14 @@ class ElasticsearchFilterCompilerTest {
                         QueryField("storage.items.name"),
                         QueryCapability.EXACT_MATCH,
                         QueryCapability.PRESENCE,
+                    ),
+                )
+                put(
+                    QueryField("state.items.title"),
+                    nativeBindings(
+                        QueryField("storage.items.title"),
+                        QueryCapability.FULL_TEXT_TERMS,
+                        QueryCapability.FULL_TEXT_PHRASE,
                     ),
                 )
                 put(

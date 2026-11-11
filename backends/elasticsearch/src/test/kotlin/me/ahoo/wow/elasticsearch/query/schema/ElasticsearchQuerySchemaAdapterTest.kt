@@ -26,6 +26,7 @@ import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFix
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.logical
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.objectValue
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.path
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.prose
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.scalar
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapterFixtures.union
 import me.ahoo.wow.query.schema.QueryCapability
@@ -42,7 +43,7 @@ import java.util.concurrent.TimeUnit
 class ElasticsearchQuerySchemaAdapterTest {
     @Test
     fun `multifields are native bindings and never logical names`() {
-        val definition = logical("name" to scalar(QueryValueType.STRING))
+        val definition = logical("name" to prose())
         val schema = bind(
             definition,
             TypeMapping.of { mapping ->
@@ -240,10 +241,70 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a field is searched by words only when its schema marks it and its index maps a text field for it`() {
+        val textOf = TypeMapping.of { mapping ->
+            listOf("markedMapped", "plainMapped").forEach { name ->
+                mapping.properties(name) { it.keyword { keyword -> keyword.fields("text") { it.text { it } } } }
+            }
+            listOf("markedUnmapped", "plainUnmapped").forEach { name -> mapping.properties(name) { it.keyword { it } } }
+            mapping.properties("operatorText") { it.text { it } }
+        }
+        val schema = bind(
+            logical(
+                "markedMapped" to prose(),
+                "markedUnmapped" to prose(),
+                "plainMapped" to scalar(QueryValueType.STRING),
+                "plainUnmapped" to scalar(QueryValueType.STRING),
+                "operatorText" to scalar(QueryValueType.STRING),
+            ),
+            textOf,
+        )
+        schema.path("markedMapped", QueryCapability.FULL_TEXT_TERMS).assert().isEqualTo("markedMapped.text")
+        schema.path("markedMapped", QueryCapability.FULL_TEXT_PHRASE).assert().isEqualTo("markedMapped.text")
+        listOf("markedUnmapped", "plainMapped", "plainUnmapped", "operatorText").forEach { name ->
+            schema.path(name, QueryCapability.FULL_TEXT_TERMS).assert().isNull()
+            schema.path(name, QueryCapability.FULL_TEXT_PHRASE).assert().isNull()
+        }
+        // Exact matches keep the root keyword whatever the marker.
+        schema.path("plainMapped", QueryCapability.EXACT_MATCH).assert().isEqualTo("plainMapped")
+        schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+    }
+
+    @Test
+    fun `a search that names no field is offered only over marked fields, a phrase only when each of them takes one`() {
+        val keywords = bind(
+            logical("tenantId" to scalar(QueryValueType.STRING), "name" to scalar(QueryValueType.STRING)),
+            TypeMapping.of { it.properties("tenantId") { it.keyword { it } }.properties("name") { it.text { it } } },
+        )
+        keywords.capabilities.assert().doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        val semantic = bind(
+            logical("name" to prose(), "summary" to prose()),
+            TypeMapping.of {
+                it.properties("name") { it.text { it } }
+                    .properties("summary") { it.semanticText { semantic -> semantic.inferenceId("e5") } }
+            },
+        )
+        semantic.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
+        semantic.capabilities.assert().doesNotContain(QueryCapability.FULL_TEXT_PHRASE)
+        // A missing index offers the search where its schema marks a field, and only there.
+        ElasticsearchQuerySchemaAdapter.facts(
+            logical("name" to scalar(QueryValueType.STRING)),
+            ElasticsearchIndexMapping.from("test", TypeMapping.of { it }, provisional = true),
+        ).capabilities.assert().isEmpty()
+        ElasticsearchQuerySchemaAdapter.facts(
+            logical("name" to prose()),
+            ElasticsearchIndexMapping.from("test", TypeMapping.of { it }, provisional = true),
+        ).capabilities.assert().containsExactlyInAnyOrder(
+            QueryCapability.FULL_TEXT_TERMS,
+            QueryCapability.FULL_TEXT_PHRASE
+        )
+    }
+
+    @Test
     fun `nested only search does not imply root model search`() {
         val schema =
             bind(
-                logical("items" to array(objectValue(mapOf("name" to scalar(QueryValueType.STRING))))),
+                logical("items" to array(objectValue(mapOf("name" to prose())))),
                 TypeMapping.of {
                     it.properties("items") { it.nested { it.properties("name") { it.text { it } } } }
                 }
@@ -258,7 +319,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             bind(
                 logical(
                     "items" to array(
-                        objectValue(mapOf("name" to scalar(QueryValueType.STRING), "code" to scalar(QueryValueType.STRING)))
+                        objectValue(mapOf("name" to prose(), "code" to scalar(QueryValueType.STRING)))
                     )
                 ),
                 TypeMapping.of {
@@ -366,7 +427,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             "tags" to objectValue(additional = array(scalar(QueryValueType.STRING))),
             "state" to objectValue(
                 mapOf(
-                    "status" to scalar(QueryValueType.STRING),
+                    "status" to prose(),
                     "capped" to scalar(QueryValueType.STRING),
                     "flag" to scalar(QueryValueType.BOOLEAN),
                 )

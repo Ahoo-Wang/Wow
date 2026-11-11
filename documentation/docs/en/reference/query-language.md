@@ -227,7 +227,7 @@ A snapshot query sees only aggregates that are not deleted, unless its filter na
 
 | `op` | Properties | Matches |
 | --- | --- | --- |
-| `search` | `query`: a non-blank string, `fields`: paths (none for every searchable field), `mode`: `terms` (default) or `phrase` | A full-text match, where the backend supports it (`model-search-unsupported` otherwise) |
+| `search` | `query`: a non-blank string, `fields`: paths (none for the fields the backend searches the whole record by: on Elasticsearch those marked `@QueryText`, on MongoDB its text index's), `mode`: `terms` (default) or `phrase` | A full-text match, where the backend supports it: `model-search-unsupported` for a search that names no field where it offers none, `unsupported-capability` for a field it does not search by words |
 | `expression` | `expression`, `comparison`: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `value`: a finite number | The computed `expression` of each record compares so; a record where it has no value does not match |
 
 An `expression` is one of `{"type":"field","field":…}`, `{"type":"constant","value":…}`, `{"type":"binary","operator":"add|subtract|multiply|divide","left":…,"right":…}` and `{"type":"date-diff","from":…,"to":…,"unit":"second|minute|hour|day"}`:
