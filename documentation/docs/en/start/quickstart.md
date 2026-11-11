@@ -66,7 +66,7 @@ dependencies {
     testImplementation("me.ahoo.wow:wow-test")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("me.ahoo.test:fluent-assert-core:1.2.1")
+    testImplementation("me.ahoo.test:fluent-assert-core:1.3.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

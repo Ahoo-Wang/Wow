@@ -43,7 +43,7 @@ What these add up to, as guarantees a release must keep:
 
 ## What it assumes
 
-- **One cluster per system.** All the services of a system run in the same cluster and can reach each other directly: waits that follow a command across services, and the channels between a service's nodes, are built on that. The internal port is never exposed outside the cluster, and traffic inside it is authenticated too ([Secure a Deployment](../operate/security)).
+- **One cluster per system.** All the services of a system run in the same cluster and can reach each other directly: waits that follow a command across services, and the channels between a service's nodes, are built on that. The internal port is never exposed outside the cluster: it takes no token, so the network policy that keeps it inside is its boundary ([Secure a Deployment](../operate/security)).
 - **A durable store and, between contexts, Kafka.** Each service keeps its log on PostgreSQL or MongoDB. Contexts reach each other's events and commands through Kafka.
 - **JDK 21 and Gradle.** Models and the contract are bound at build time by KSP and the Wow Gradle plugin, which has no Maven counterpart.
 
