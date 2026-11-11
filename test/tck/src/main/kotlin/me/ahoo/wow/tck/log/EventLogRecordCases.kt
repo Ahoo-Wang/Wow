@@ -81,7 +81,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
             scope = Scope("owner ü", "space"),
             causation = Causation("root", "$context.aggregate/tenant/b@3"),
             headers = mapOf("app" to "console", "quote" to "\" é"),
-            operator = Operator("alice ü", "home", crossScope = true),
+            operator = Operator("alice ü", "home", actedElsewhere = true),
         )
         val ownerOnly = stream("b", 1, scope = Scope(ownerId = "owner"), operator = Operator("bob", "tenant"))
         val spaceOnly = stream("c", 1, scope = Scope(spaceId = "space"))

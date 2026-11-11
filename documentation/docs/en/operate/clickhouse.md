@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
@@ -188,7 +188,7 @@ SETTINGS non_replicated_deduplication_window = 1000
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_acted_elsewhere, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
@@ -228,7 +228,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 | `deleted`, `access` | Whether the aggregate is deleted, and its access attributes at the commit as JSON text, the built-in `owner` and `space` among them: information only, never what authorizes a read |
 | `correlation_id`, `causation_id` | The root command's id and the direct cause, empty for a command a caller sent directly |
 | `headers` | The request facts the command carried; `_state_events` only |
-| `operator_id`, `operator_tenant_id`, `operator_cross_scope` | Who committed it; empty and false when none |
+| `operator_id`, `operator_tenant_id`, `operator_acted_elsewhere` | Who committed it; empty and false when none |
 | `events` | The commit's events, each `(name, revision, payload)`, the payload as JSON text; `_state_events` only |
 | `state`, `state_fingerprint` | The state after the commit as JSON text, and the fingerprint of its schema; empty for an aggregate that publishes no state |
 | `state_numbers` | The exact text of each top-level number of the state, which `_state_flat` reads decimals from |
@@ -320,7 +320,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
@@ -351,7 +351,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
@@ -416,7 +416,7 @@ COMMENT 'wow-sink-format:1';
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_acted_elsewhere, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events_local`)
 COMMENT 'wow-sink-format:1';
 
@@ -449,7 +449,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 ## Commands are not written
 
-Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, filled from the command topic. Wow 10 writes no command to ClickHouse: the sink copies commits, so a command that was rejected, or changed nothing, leaves no row. What a commit keeps of its command is in `_state_events`: `command_id`, `request_id` and `command_type`; the operator in `operator_id`, `operator_tenant_id` and `operator_cross_scope`; `correlation_id` and `causation_id`, which for a saga's command is the commit it handled; the request facts in `headers`; and the events the command produced, with their payloads. The command's body is not kept. For a history of commands:
+Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, filled from the command topic. Wow 10 writes no command to ClickHouse: the sink copies commits, so a command that was rejected, or changed nothing, leaves no row. What a commit keeps of its command is in `_state_events`: `command_id`, `request_id` and `command_type`; the operator in `operator_id`, `operator_tenant_id` and `operator_acted_elsewhere`; `correlation_id` and `causation_id`, which for a saga's command is the commit it handled; the request facts in `headers`; and the events the command produced, with their payloads. The command's body is not kept. For a history of commands:
 
 - **Read it from the commits**, for which command changed an aggregate, when, and for whom:
 

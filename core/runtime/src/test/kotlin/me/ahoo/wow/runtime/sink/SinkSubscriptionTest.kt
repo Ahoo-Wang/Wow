@@ -28,6 +28,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -259,6 +260,8 @@ class SinkSubscriptionTest {
         val sink = sink()
         sink.subscription.maxRun.assert().isEqualTo(1)
         sink.subscription.runHandler.assert().isNull()
+        sink.subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
+        Batching().subscription().kind.assert().isEqualTo(FunctionKind.SYSTEM)
     }
 
     /** A sink that takes [MAX_BATCH] records a write, records each write by version and refuses [refusing]. */

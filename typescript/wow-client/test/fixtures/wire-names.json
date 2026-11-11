@@ -3,7 +3,7 @@
   "enumerations": {
     "CommandResult.Status": ["succeeded", "rejected", "failed"],
     "Stage": ["accepted", "committed", "handled"],
-    "FunctionKind": ["command", "project", "react", "saga", "snapshot", "reservation", "timers"],
+    "FunctionKind": ["command", "project", "react", "saga", "system"],
     "Ownership": ["owner", "tenant"],
     "FilterOperator": ["match-all", "match-none", "id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "and", "or", "nor", "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists", "deletion", "element-match", "search", "today", "before-today", "tomorrow", "this-week", "next-week", "last-week", "this-month", "last-month", "recent-days", "earlier-days", "yesterday", "next-month", "last-year", "this-year", "next-year", "before-now", "after-now", "expression"],
     "StringComparison": ["case-sensitive", "case-insensitive"],

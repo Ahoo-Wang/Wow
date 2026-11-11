@@ -27,7 +27,7 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * the request id `timer_id#slot`; the rule is a `jsonb` object (`{type, ...}`, as Wow's JSON writes it) and the slot a
  * counter from 1. The target takes four columns; the body is the command's JSON as text, given back as written; the
  * causation is two nullable columns, both null or both set; the operator is a nullable `jsonb` object,
- * `{id, tenantId, crossScope}`; the scope the command is sent in a nullable `jsonb` object
+ * `{id, tenantId, actedElsewhere}`; the scope the command is sent in a nullable `jsonb` object
  * `{ownerId, spaceId}`, null for none. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING
  * (claimed) timers serves the due read, each table's branch of it, and one on the target of the PARKED timers serves a
  * retry.

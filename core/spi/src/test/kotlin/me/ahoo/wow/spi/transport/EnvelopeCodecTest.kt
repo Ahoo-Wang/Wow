@@ -66,7 +66,7 @@ class EnvelopeCodecTest {
         ),
         causation = Causation("root", "shop.cart/t1/alice@3"),
         headers = mapOf("app" to "web"),
-        operator = Operator("alice", "t0", crossScope = true),
+        operator = Operator("alice", "t0", actedElsewhere = true),
         transport = Transport(wait, listOf(ReservationKey("email", "a@b")), mapOf("traceparent" to "00-1-2-01")),
     )
 
@@ -97,7 +97,7 @@ class EnvelopeCodecTest {
             "ref", "version", "commandId", "requestId", "commandType", "commitTime", "events", "state", "scope",
             "deleted", "access", "accessVersion", "causation", "headers", "operator",
         )
-        payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "crossScope")
+        payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "actedElsewhere")
         payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
         payload["state"]["schemaFingerprint"].stringValue().assert().isEqualTo("f1")
         payload["state"]["state"].isObject.assert().isTrue()

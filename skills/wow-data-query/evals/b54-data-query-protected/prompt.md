@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:3687f3f6e5882ca91077ca6c8404dd66777877e840369d1b9b8c72e8ef438ebb",
+  "version" : "sha256:b0aed6d9a36483c50cc51bfafe2e720cf412f07f7f7144e399c27c9fcf82b6ea",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -174,7 +174,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "firstOperator.crossScope",
+    "path" : "firstOperator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,
@@ -293,7 +293,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "operator.crossScope",
+    "path" : "operator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,

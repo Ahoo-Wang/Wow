@@ -63,8 +63,8 @@ class CommandResultsTest {
         commandFunction(model, command.copyWith(body = Unknown(1))).name.assert().isEqualTo("Unknown")
         subscriptionFunction(FunctionKind.SAGA, "shop", "order-saga.onPlaced")
             .assert().isEqualTo(FunctionInfo(FunctionKind.SAGA, "shop", "order-saga", "onPlaced"))
-        subscriptionFunction(FunctionKind.SNAPSHOT, "shop", "snapshot")
-            .assert().isEqualTo(FunctionInfo(FunctionKind.SNAPSHOT, "shop", "snapshot", "snapshot"))
+        subscriptionFunction(FunctionKind.SYSTEM, "shop", "snapshot")
+            .assert().isEqualTo(FunctionInfo(FunctionKind.SYSTEM, "shop", "snapshot", "snapshot"))
     }
 
     @Test

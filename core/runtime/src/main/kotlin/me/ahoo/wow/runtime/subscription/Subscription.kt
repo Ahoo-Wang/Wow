@@ -229,10 +229,10 @@ class Subscription private constructor(
         )
 
         /**
-         * A projection's subscription whose lane hands [runHandler] the run of an aggregate's live entries waiting
-         * together, at most [maxRun], in version order; [handler] handles an entry alone: an operator's retry, a
-         * parked retry, and the entry a run failed at. A run answers how many of its entries are done, never a
-         * rejection or derived commands, so only a projection batches.
+         * A sink's subscription, a [FunctionKind.SYSTEM] one, whose lane hands [runHandler] the run of an aggregate's
+         * live entries waiting together, at most [maxRun], in version order; [handler] handles an entry alone: an
+         * operator's retry, a parked retry, and the entry a run failed at. A run answers how many of its entries are
+         * done, never a rejection or derived commands, so only a sink, which writes as a projection does, batches.
          *
          * A run is one attempt within the handler's timeout ([HandlerRetry.timeout], else the host's), so [maxRun] is
          * sized for a run to fit it: a run that times out costs the timeout, then moves one entry alone.
@@ -256,7 +256,7 @@ class Subscription private constructor(
                 startFrom,
                 decoder,
                 models,
-                FunctionKind.PROJECT,
+                FunctionKind.SYSTEM,
                 EntryHandler { entry ->
                     handler(entry)
                     HandledEntry.NOTHING
@@ -308,7 +308,7 @@ class Subscription private constructor(
             start,
             EntryDecoder.RECORDS,
             emptyList(),
-            FunctionKind.REACT,
+            FunctionKind.SYSTEM,
             EntryHandler { entry ->
                 handler(entry)
                 HandledEntry.NOTHING

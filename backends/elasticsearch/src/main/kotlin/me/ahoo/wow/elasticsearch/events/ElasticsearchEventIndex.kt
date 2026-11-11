@@ -76,7 +76,7 @@ internal object ElasticsearchEventIndex {
                 "properties": {
                   "id": { "type": "keyword" },
                   "tenantId": { "type": "keyword" },
-                  "crossScope": { "type": "boolean" }
+                  "actedElsewhere": { "type": "boolean" }
                 }
               },
               "access": { "type": "object", "dynamic": true },

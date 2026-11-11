@@ -62,7 +62,7 @@ class ReservationSubscription(
     val subscription: Subscription = Subscription.builtIn(
         Hop.RESERVATION_SUBSCRIPTION,
         SubscriptionFilter(context),
-        FunctionKind.RESERVATION,
+        FunctionKind.SYSTEM,
         ::apply,
     )
 

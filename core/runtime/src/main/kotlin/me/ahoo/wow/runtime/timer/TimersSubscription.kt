@@ -70,7 +70,7 @@ class TimersSubscription(
     val subscription: Subscription = Subscription.builtIn(
         Hop.TIMERS_SUBSCRIPTION,
         SubscriptionFilter(context),
-        FunctionKind.TIMERS,
+        FunctionKind.SYSTEM,
         ::write,
     )
 

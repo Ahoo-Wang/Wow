@@ -31,7 +31,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The snapshot document `MongoSnapshotStore` writes, as the query side reads it: each system
  * field of a snapshot record is a top-level field under its stored name ([PHYSICAL]), the state is the document
- * `state`, the access attributes the document `access`, the operators the documents `{id, tenantId, crossScope}` or
+ * `state`, the access attributes the document `access`, the operators the documents `{id, tenantId, actedElsewhere}` or
  * null, and the schedules the
  * document of each rule by its key, `{type, ...}`. `_id` is the store's own and never part of a record.
  */

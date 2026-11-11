@@ -142,7 +142,7 @@ class HttpCommandClientTest {
                 )
             val roots = peer.taken.map { CallWires.decode(it.headers.getValue(WowHeaders.CALL)) }
             roots.map { it.tenantId }.assert().containsExactly("t1", "t1", "t2")
-            roots.map { it.operator!!.crossScope }.assert().containsExactly(false, false, true)
+            roots.map { it.operator!!.actedElsewhere }.assert().containsExactly(false, false, true)
             caught<Misuse.Argument> { runBlocking { client().wait("no command of a contract") } }
                 .message.assert().contains("decided by no aggregate")
             caught<Misuse.Argument> { runBlocking { client().wait(DeleteAggregate(), "a b") } }
@@ -248,7 +248,7 @@ class HttpCommandClientTest {
         val root = CallWires.decode(request.headers.getValue(WowHeaders.CALL))
         root.tenantId.assert().isEqualTo("t2")
         Scope(root.ownerId, root.spaceId).assert().isEqualTo(Scope("bob"))
-        root.operator!!.crossScope.assert().isTrue()
+        root.operator!!.actedElsewhere.assert().isTrue()
     }
 
     @Test

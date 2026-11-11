@@ -370,7 +370,7 @@ export function fakeViewStore(
         subscription: 'wow.snapshot',
       },
       function: {
-        kind: FunctionKind.SNAPSHOT,
+        kind: FunctionKind.SYSTEM,
         context: 'view-store',
         processor: 'snapshot',
         name: 'snapshot',

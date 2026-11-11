@@ -79,7 +79,7 @@ class PlainValuesTest {
         )
         Caller.of().assert().isEqualTo(Caller.ANONYMOUS)
         caller.copyWith(tenantId = "other").tenantId.assert().isEqualTo("other")
-        valueSemantics({ Operator.of("alice", "tenant") }, Operator.of("alice", "tenant", crossScope = true))
+        valueSemantics({ Operator.of("alice", "tenant") }, Operator.of("alice", "tenant", actedElsewhere = true))
     }
 
     @Test

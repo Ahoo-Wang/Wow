@@ -68,7 +68,7 @@ describe('the wire spelling of the types', () => {
       'CommandResultStatus',
       'Ownership',
     ]);
-    expect(values).toHaveLength(3 + 7 + 3 + 2);
+    expect(values).toHaveLength(3 + 5 + 3 + 2);
     expect(values.filter(value => !KEBAB.test(value))).toEqual([]);
   });
 

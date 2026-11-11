@@ -129,8 +129,7 @@ class AccessStampOptions @InternalWowApi constructor(
  *   [AccessWalking.covers]); after them (a node of an earlier version still running, an import), the follower stamps
  *   its aggregate's whole history with the attributes of its current state ([AccessWalking.stampCurrent]), once, and
  *   passes over its streams up to that version.
- * - **Run as [FunctionKind.PROJECT]**: it writes derived data of the log, as a projection does. A kind of its own would
- *   be a new value of an enum the wire carries (the OpenAPI document, the TypeScript client) for one built-in.
+ * - **Run as [FunctionKind.SYSTEM]**, as every built-in subscription is: its name, `wow.access`, says which one.
  */
 @InternalWowApi
 class AccessStamping(
@@ -156,7 +155,7 @@ class AccessStamping(
     val subscription: Subscription = Subscription.builtIn(
         NAME,
         SubscriptionFilter(context, this.models.keys.mapTo(LinkedHashSet()) { it.name }),
-        FunctionKind.PROJECT,
+        FunctionKind.SYSTEM,
         ::stamp,
     )
 

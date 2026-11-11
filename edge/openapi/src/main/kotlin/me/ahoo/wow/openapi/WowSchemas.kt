@@ -193,7 +193,7 @@ internal object WowSchemas {
     private fun readSchemas(): Map<String, Any?> = linkedMapOf(
         SCOPE to objectSchema(mapOf("ownerId" to NULLABLE_STRING, "spaceId" to NULLABLE_STRING)),
         OPERATOR to objectSchema(
-            mapOf("id" to STRING, "tenantId" to STRING, "crossScope" to BOOLEAN),
+            mapOf("id" to STRING, "tenantId" to STRING, "actedElsewhere" to BOOLEAN),
             listOf("id", "tenantId"),
             "Who sent a command.",
         ),
@@ -317,7 +317,7 @@ internal object WowSchemas {
         mapOf(
             "kind" to obj(
                 "type" to "string",
-                "enum" to listOf("command", "project", "react", "saga", "snapshot", "reservation", "timers"),
+                "enum" to listOf("command", "project", "react", "saga", "system"),
             ),
             "context" to STRING,
             "processor" to STRING,

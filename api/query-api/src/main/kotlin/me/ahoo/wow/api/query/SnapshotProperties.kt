@@ -75,7 +75,7 @@ open class SnapshotProperties protected constructor() {
     @JvmField
     val LAST_EVENT_TIME: QueryField<Long> = QueryField.of("lastEventTime")
 
-    /** Who sent the last command: `{id, tenantId, crossScope}`, or `null` for an anonymous caller. */
+    /** Who sent the last command: `{id, tenantId, actedElsewhere}`, or `null` for an anonymous caller. */
     @JvmField
     val OPERATOR: QueryField<Any?> = QueryField.of("operator")
 
@@ -86,7 +86,7 @@ open class SnapshotProperties protected constructor() {
     val OPERATOR__TENANT_ID: QueryField<String?> = QueryField.of("operator.tenantId")
 
     @JvmField
-    val OPERATOR__CROSS_SCOPE: QueryField<Boolean?> = QueryField.of("operator.crossScope")
+    val OPERATOR__ACTED_ELSEWHERE: QueryField<Boolean?> = QueryField.of("operator.actedElsewhere")
 
     /** Who sent the command that created the aggregate, as [OPERATOR]. */
     @JvmField
@@ -99,7 +99,7 @@ open class SnapshotProperties protected constructor() {
     val FIRST_OPERATOR__TENANT_ID: QueryField<String?> = QueryField.of("firstOperator.tenantId")
 
     @JvmField
-    val FIRST_OPERATOR__CROSS_SCOPE: QueryField<Boolean?> = QueryField.of("firstOperator.crossScope")
+    val FIRST_OPERATOR__ACTED_ELSEWHERE: QueryField<Boolean?> = QueryField.of("firstOperator.actedElsewhere")
 
     /**
      * The schedules the aggregate keeps: each rule by its key, `{type, ...}` as Wow's JSON writes it

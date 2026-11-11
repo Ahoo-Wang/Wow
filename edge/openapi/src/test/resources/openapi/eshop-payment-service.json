@@ -1780,7 +1780,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ]
+            "enum" : [ "command", "project", "react", "saga", "system" ]
           },
           "context" : {
             "type" : "string"
@@ -1902,7 +1902,7 @@
           "tenantId" : {
             "type" : "string"
           },
-          "crossScope" : {
+          "actedElsewhere" : {
             "type" : "boolean"
           }
         },

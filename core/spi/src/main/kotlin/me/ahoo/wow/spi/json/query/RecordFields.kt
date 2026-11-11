@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * columns of `me.ahoo.wow.spi.snapshot.SnapshotRecord` with the state under [STATE]. 9.x's `contextName`,
  * `aggregateName`, `eventId` and `snapshotTime` are gone, and 9.x's `eventTime` is [LAST_EVENT_TIME]: a snapshot query
  * is always of one aggregate type, which the backend adds itself. [OPERATOR] and [FIRST_OPERATOR] keep
- * 9.x's names but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
+ * 9.x's names but are objects, `{id, tenantId, actedElsewhere}` ([OperatorFields]), or null for an
  * anonymous caller: filter on `operator.id`.
  */
 @InternalWowApi
@@ -52,12 +52,12 @@ object SnapshotFields {
 object OperatorFields {
     const val ID: String = "id"
     const val TENANT_ID: String = "tenantId"
-    const val CROSS_SCOPE: String = "crossScope"
+    const val ACTED_ELSEWHERE: String = "actedElsewhere"
 }
 
 /**
  * The names of an event stream record's fields: one record per stream, the commit of one command at
- * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, crossScope}`, or
+ * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, actedElsewhere}`, or
  * null for an anonymous caller; [ACCESS] the aggregate's current access attributes, or null when not stamped;
  * [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
  */

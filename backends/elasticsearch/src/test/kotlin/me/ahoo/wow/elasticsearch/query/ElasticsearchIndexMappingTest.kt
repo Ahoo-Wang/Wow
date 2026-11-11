@@ -201,7 +201,7 @@ class ElasticsearchIndexMappingTest {
         )
         mapping.provisional.assert().isTrue()
         mapping.fields.getValue("tenantId").kind.assert().isEqualTo(Property.Kind.Keyword)
-        mapping.fields.getValue("operator.crossScope").kind.assert().isEqualTo(Property.Kind.Boolean)
+        mapping.fields.getValue("operator.actedElsewhere").kind.assert().isEqualTo(Property.Kind.Boolean)
         mapping.fields.keys.filter { it.startsWith("state.") }.assert().isEmpty()
     }
 }

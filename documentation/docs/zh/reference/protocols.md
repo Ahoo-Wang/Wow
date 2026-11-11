@@ -39,7 +39,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | 聚合引用 | `{"type": {"context", "name"}, "tenantId", "id"}` | 把 ID 留给服务端生成的创建命令，在服务端选定 ID 之前 `id` 为 null。`(none)` 永远不是 ID：写着它的引用会被拒绝。 |
 | 作用域 | `{"ownerId", "spaceId"}` | 两者都可以为 null。在命令上是调用方的作用域；在提交或快照上是提交后聚合的作用域。 |
 | 因果 | `{"correlationId", "causationId"}` | `correlationId` 是根命令的 ID；`causationId` 是直接原因，对 Saga 的命令是它处理的那次提交。调用方直接发出的命令没有因果，它自己就是根。 |
-| 操作人 | `{"id", "tenantId", "crossScope"}` | 提交以谁的名义记录：调用方的主体标识和它自己的租户；它在另一个租户或作用域中行事时 `crossScope` 为 true。 |
+| 操作人 | `{"id", "tenantId", "actedElsewhere"}` | 提交以谁的名义记录：调用方的主体标识和它自己的租户；它在另一个租户或作用域中行事时 `actedElsewhere` 为 true。 |
 | 跳 | `{"stage", "context", "subscription"}` | `stage` 是 `accepted`、`committed` 或 `handled`；只有 `handled` 才有 `subscription`；快照那一跳是 `handled`，`subscription` 为 `wow.snapshot`。 |
 
 时间都是纪元毫秒。
@@ -161,7 +161,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     }
   },
   "transport": null
@@ -223,7 +223,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     },
     "replyTo": {
       "context": "bank",
@@ -320,7 +320,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
     "operator": {
       "id": "u-42",
       "tenantId": "t1",
-      "crossScope": false
+      "actedElsewhere": false
     },
     "scope": {
       "ownerId": "u-42",
@@ -343,7 +343,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | `commandId`、`requestId`、`correlationId` | 命令、它的幂等键，以及它所在链的根。 |
 | `ref` | 聚合。 |
 | `hop` | 这个结果报告的是等待计划的哪一跳。 |
-| `function` | 由谁产生：`{kind, context, processor, name}`。`kind` 是 `command`、`project`、`react`、`saga`、`snapshot`、`reservation` 或 `timers`；对命令，`processor` 和 `name` 是聚合和命令；对订阅，是它的处理器和函数。 |
+| `function` | 由谁产生：`{kind, context, processor, name}`。`kind` 是 `command`、`project`、`react`、`saga` 或 `system`，最后一种是 Wow 的内置订阅；对命令，`processor` 和 `name` 是聚合和命令；对订阅，是它的处理器和函数（内置的 `wow.snapshot` 为 `wow` 和 `snapshot`）。 |
 | `status` | `succeeded`、`rejected` 或 `failed`。 |
 | `version` | 提交之后聚合的版本；什么都没追加时不变。 |
 | `duplicate` | 这个请求已经提交过，没有再次决定。 |
@@ -397,10 +397,10 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "subscription": "wow.snapshot"
     },
     "function": {
-      "kind": "snapshot",
+      "kind": "system",
       "context": "bank",
-      "processor": "wow.snapshot",
-      "name": "wow.snapshot"
+      "processor": "wow",
+      "name": "snapshot"
     },
     "status": "succeeded",
     "version": 2,

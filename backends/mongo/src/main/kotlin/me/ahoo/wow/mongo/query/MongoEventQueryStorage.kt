@@ -83,7 +83,7 @@ class MongoEventQueryStorage @JvmOverloads constructor(
 /**
  * A stream document `MongoEventLog` writes, as the `events` model reads it: each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
- * crossScope}` or absent, the access attributes the document `access` or absent when not stamped,
+ * actedElsewhere}` or absent, the access attributes the document `access` or absent when not stamped,
  * and the events the array `events`, each `{name, revision, payload}`, whose
  * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
  */
@@ -187,7 +187,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                         nodes.objectNode()
                             .put(MongoOperators.ID, operator.id)
                             .put(MongoOperators.TENANT_ID, operator.tenantId)
-                            .put(MongoOperators.CROSS_SCOPE, operator.crossScope)
+                            .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
                     } ?: nodes.nullNode(),
                 )
                 else -> set(logical, ExactBson.node(document[physical]))

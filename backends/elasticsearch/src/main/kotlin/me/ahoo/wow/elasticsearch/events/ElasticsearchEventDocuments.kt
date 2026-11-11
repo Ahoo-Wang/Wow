@@ -25,7 +25,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The stream document of the events index: the record of the `events` model as it is
  * (`EventStreamRecords.stored`), each field under the model's name ([RECORD_FIELDS]), the operator `{id, tenantId,
- * crossScope}` or null, each event `{name, revision, body}` as committed: its stored name and revision,
+ * actedElsewhere}` or null, each event `{name, revision, body}` as committed: its stored name and revision,
  * its body as Wow's JSON, whose numbers Elasticsearch keeps exactly in `_source`; the aggregate's access attributes
  * with [ElasticsearchEventIndex.ACCESS_VERSION], the version they are of (the record's, its own version when it names
  * none: a record of an earlier version's envelope). A document of a stream not stamped has
@@ -51,7 +51,7 @@ internal object ElasticsearchEventDocuments {
 
     private const val OPERATOR_ID = "id"
     private const val OPERATOR_TENANT_ID = "tenantId"
-    private const val OPERATOR_CROSS_SCOPE = "crossScope"
+    private const val OPERATOR_ACTED_ELSEWHERE = "actedElsewhere"
 
     private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
@@ -99,6 +99,6 @@ internal object ElasticsearchEventDocuments {
         nodes.objectNode()
             .put(OPERATOR_ID, operator.id)
             .put(OPERATOR_TENANT_ID, operator.tenantId)
-            .put(OPERATOR_CROSS_SCOPE, operator.crossScope)
+            .put(OPERATOR_ACTED_ELSEWHERE, operator.actedElsewhere)
     }
 }

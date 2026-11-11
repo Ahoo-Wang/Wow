@@ -96,7 +96,7 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
         record.path("ownerId").stringValue().assert().isEqualTo("owner-1")
         record.path("spaceId").isNull.assert().isTrue()
         record.path("operator").path("id").stringValue().assert().isEqualTo("user-1")
-        record.path("operator").path("crossScope").booleanValue().assert().isFalse()
+        record.path("operator").path("actedElsewhere").booleanValue().assert().isFalse()
         val event = record.path("events").single()
         event.path("name").stringValue().assert().isEqualTo("${type.context}.${type.name}.OrderCreated")
         event.path("revision").intValue().assert().isEqualTo(1)

@@ -66,7 +66,7 @@ abstract class SnapshotStoreSpec {
             "lead" to null
         ),
         operator: Operator? = Operator("bob", tenant),
-        firstOperator: Operator? = Operator("alice ü", "home", crossScope = true),
+        firstOperator: Operator? = Operator("alice ü", "home", actedElsewhere = true),
         schedules: Map<String, ScheduleRule> = mapOf(
             "pay-timeout" to ScheduleRule.After(1_800_000),
             "report" to ScheduleRule.Cron("0 0 9 * * *", "Asia/Shanghai", Misfire.CATCH_UP),

@@ -30,14 +30,12 @@ enum class FunctionKind {
     /** A saga's handler: it may derive commands, and only its hop may be followed by more hops. */
     SAGA,
 
-    /** The built-in subscription that writes snapshots. */
-    SNAPSHOT,
-
-    /** The built-in subscription that confirms reservations. */
-    RESERVATION,
-
-    /** The built-in subscription that writes the timers of scheduled commands. */
-    TIMERS,
+    /**
+     * A built-in subscription of Wow's: the snapshots, the reservations, the timers, the access stamps, the sinks, the
+     * receipts and the command intake. Which one it is is its [FunctionInfo.processor] and [FunctionInfo.name], its
+     * name split at the last dot (`wow` and `snapshot` for `wow.snapshot`).
+     */
+    SYSTEM,
 
     /**
      * A kind of function a newer writer sent that this reader does not know. Only a reader produces it:
