@@ -19,13 +19,60 @@ import me.ahoo.wow.clickhouse.sink.ClickHouseSql.identifier
 import me.ahoo.wow.spi.Ddl
 import java.security.MessageDigest
 
-/** A column as `system.columns` reads it: its [name] and its [type]. */
+/**
+ * A column as `system.columns` reads it: its [name] and its [type]; for a column ClickHouse computes on insert
+ * (`MATERIALIZED`), [computed] is its comment, null for a stored one.
+ */
 @InternalWowApi
-data class ClickHouseColumn(val name: String, val type: String)
+data class ClickHouseColumn(val name: String, val type: String, val computed: String? = null)
 
-/** A table or view of the Sink: its [name], and the [columns] it has, or null when only its existence is checked. */
+/**
+ * A table or view of the Sink: its [name], the stored [columns] it has, or null when only its existence is checked,
+ * and the columns it [computes][computed], which it has at least, each of its definition ([ComputedColumn.comment]).
+ */
 @InternalWowApi
-data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn>?)
+data class ClickHouseObject(
+    val name: String,
+    val columns: List<ClickHouseColumn>?,
+    val computed: List<ComputedColumn> = emptyList(),
+) {
+    /** Every column it has, as `system.columns` lists them: the stored ones, then the computed ones. */
+    val all: List<ClickHouseColumn> get() = columns.orEmpty() + computed.map { ClickHouseColumn(it.name, it.type) }
+
+    /**
+     * Why the [actual] columns are not these, or null when they are: other stored columns (a stored one of a computed
+     * one's name among them), or a computed column of
+     * another definition (its type or expression changed, which ClickHouse cannot change without rewriting every
+     * row). A computed column it does not expect, another writer's, is no reason; one it lacks is [missing].
+     */
+    fun mismatch(actual: List<ClickHouseColumn>): String? {
+        val stored = if (computed.isEmpty()) actual else actual.filter { it.computed == null }
+        if (stored != columns) {
+            return "$name has the columns ${textOf(stored)}, not ${textOf(columns.orEmpty())}"
+        }
+        val changed = computed.mapNotNull { column ->
+            val found = actual.firstOrNull { it.name == column.name }
+            if (found == null || found.computed == column.comment) {
+                null
+            } else {
+                "${column.name} ${found.type} (${found.computed}), which this version computes as " +
+                    "${column.type} (${column.comment})"
+            }
+        }
+        return changed.takeIf { it.isNotEmpty() }?.let {
+            "$name has ${it.joinToString("; ")}: ClickHouse cannot change a column's definition without rewriting " +
+                "every row"
+        }
+    }
+
+    private fun textOf(columns: List<ClickHouseColumn>): String = columns.joinToString(", ", "[", "]") {
+        "${it.name} ${it.type}"
+    }
+
+    /** The computed columns the [actual] columns lack, in order. */
+    fun missing(actual: List<ClickHouseColumn>): List<ComputedColumn> =
+        computed.filter { column -> actual.none { it.name == column.name } }
+}
 
 /**
  * The tables and views of one aggregate [type], in [database], named after the
@@ -36,12 +83,14 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *   on `commit_time` when [AggregateSinkOptions.historyTtl] is set.
  * - `<ctx>_<agg>_state`, a ReplacingMergeTree(version) ordered by `(tenant_id, aggregate_id)`, the current state:
  *   filled by the materialized view `<ctx>_<agg>_state_mv` from the base table, with the base table's columns but
- *   the events and the headers, which the history keeps ([STATE_COLUMNS]).
+ *   the events and the headers, which the history keeps ([STATE_COLUMNS]); and the columns ClickHouse computes from
+ *   them when a row is inserted ([computed]): an access column per declared access attribute ([accessColumns]), then a
+ *   flat column per top-level scalar of the state ([flatColumns]), each with its fingerprint in its comment.
  * - `<ctx>_<agg>_events`, a ReplacingMergeTree ordered by `(tenant_id, aggregate_id, version, sequence)`, one row
  *   per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
  *   base table's `events`; under the same TTL.
- * - `<ctx>_<agg>_state_flat`, a view of `_state FINAL`: the system columns and the state schema's top-level scalars
- *   as typed columns ([FlatColumns]); its definition's [flatFingerprint] and those of the writers before it are kept
+ * - `<ctx>_<agg>_state_flat`, a view of `_state FINAL`: the system columns and the flat columns `_state` computes
+ *   ([FlatColumns]); its definition's [flatFingerprint] and those of the writers before it are kept
  *   in its comment ([FlatLineage]), so that during a rolling upgrade an older writer leaves a newer
  *   writer's view as it is.
  *
@@ -65,7 +114,12 @@ class ClickHouseSinkSchema(
     val aggregate: AggregateSinkOptions,
     val flatColumns: List<FlatColumn>,
     private val deduplicationWindow: Int = ClickHouseSinkOptions.DEFAULT_DEDUPLICATION_WINDOW,
+    /** The access columns of `_state`, one per declared access attribute ([AccessColumns]). */
+    val accessColumns: List<ComputedColumn> = emptyList(),
 ) {
+    /** The columns `_state` computes, in its order: the access columns, then the flat ones. */
+    val computed: List<ComputedColumn> = accessColumns + flatColumns.map(ComputedColumn::of)
+
     private val prefix = prefixOf(type)
     val stateEvents: String = "${prefix}_state_events"
     val state: String = stateOf(type)
@@ -93,7 +147,8 @@ class ClickHouseSinkSchema(
                 createTable(
                     state,
                     STATE_COLUMNS,
-                    "ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" + settings()
+                    "ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" + settings(),
+                    computed,
                 )
             )
             if (aggregate.history) {
@@ -144,6 +199,16 @@ class ClickHouseSinkSchema(
     private fun flatDefinition(from: String): String = "SELECT ${flatSelect().joinToString(", ")}\nFROM $from FINAL"
 
     /**
+     * The statements that add the computed columns [missing] to `_state`, each after the column before it in
+     * [computed]'s order (the stored columns' last for the first), so that the table lists its columns as a table
+     * created with them would. Metadata only: a part written before is computed when it is read, until it is merged.
+     */
+    fun addColumns(missing: List<ComputedColumn>): List<String> = missing.map { column ->
+        val before = computed.getOrNull(computed.indexOf(column) - 1)?.name ?: STATE_COLUMNS.last().name
+        "ALTER TABLE ${qualified(state)} ADD COLUMN IF NOT EXISTS ${column.definition} AFTER ${identifier(before)}"
+    }
+
+    /**
      * What [Ddl.VALIDATE] checks: every table and view with its columns, the materialized views by name; each of them
      * with the format in its comment ([hasFormat]).
      */
@@ -152,7 +217,7 @@ class ClickHouseSinkSchema(
             if (aggregate.history) {
                 add(ClickHouseObject(stateEvents, BASE_COLUMNS))
             }
-            add(ClickHouseObject(state, STATE_COLUMNS))
+            add(ClickHouseObject(state, STATE_COLUMNS, computed))
             if (aggregate.history) {
                 add(ClickHouseObject(events, EVENT_COLUMNS))
                 add(ClickHouseObject(stateView, null))
@@ -166,10 +231,15 @@ class ClickHouseSinkSchema(
             )
         }
 
-    private fun createTable(name: String, columns: List<ClickHouseColumn>, engine: String): String =
-        "CREATE TABLE IF NOT EXISTS ${qualified(name)}\n(\n" +
-            columns.joinToString(",\n") { "    ${identifier(it.name)} ${it.type}" } +
-            "\n)\nENGINE = $engine\n" + comment()
+    private fun createTable(
+        name: String,
+        columns: List<ClickHouseColumn>,
+        engine: String,
+        computed: List<ComputedColumn> = emptyList(),
+    ): String = "CREATE TABLE IF NOT EXISTS ${qualified(name)}\n(\n" +
+        (columns.map { "${identifier(it.name)} ${it.type}" } + computed.map { it.definition })
+            .joinToString(",\n") { "    $it" } +
+        "\n)\nENGINE = $engine\n" + comment()
 
     private fun comment(): String = "COMMENT ${ClickHouseSql.literal(FORMAT_COMMENT)}"
 
@@ -187,9 +257,8 @@ class ClickHouseSinkSchema(
 
     private fun settings(): String = "SETTINGS non_replicated_deduplication_window = $deduplicationWindow"
 
-    private fun flatSelect(): List<String> =
-        FLAT_SYSTEM_COLUMNS.map { identifier(it.name) } +
-            flatColumns.map { "${it.expression} AS ${identifier(it.name)}" }
+    private fun flatSelect(): List<String> = (FLAT_SYSTEM_COLUMNS.map { it.name } + flatColumns.map { it.name })
+        .map(::identifier)
 
     override fun toString(): String = "ClickHouseSinkSchema($database.$prefix)"
 
@@ -349,11 +418,14 @@ class FlatLineage(val fingerprints: List<String>) {
 
         /** The lineage a view's [comment] keeps, from [PREFIX] on (after the format); empty when it keeps none. */
         fun of(comment: String?): FlatLineage {
-            val at = comment?.indexOf(PREFIX) ?: -1
+            if (comment == null) {
+                return EMPTY
+            }
+            val at = comment.indexOf(PREFIX)
             if (at < 0) {
                 return EMPTY
             }
-            val fingerprints = comment!!.substring(at + PREFIX.length).split(',')
+            val fingerprints = comment.substring(at + PREFIX.length).split(',')
             return FlatLineage(fingerprints.map { it.trim() }.filter { it.isNotEmpty() })
         }
     }

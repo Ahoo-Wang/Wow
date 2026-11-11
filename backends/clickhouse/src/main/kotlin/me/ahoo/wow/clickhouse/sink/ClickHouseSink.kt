@@ -229,12 +229,29 @@ class ClickHouseSink internal constructor(
     private suspend fun create(): FlatLineage {
         statements.execute(ClickHouseCatalog.ddl(schema.database))
         schema.ddl.forEach { statements.execute(it) }
+        addComputed()
         val lineage = lineage()
         val fingerprint = schema.flatFingerprint
         if (lineage.current == fingerprint || lineage.supersedes(fingerprint)) {
             return lineage
         }
         return lineage.then(fingerprint).also { statements.execute(schema.flatView(it)) }
+    }
+
+    /**
+     * Adds the computed columns `_state` lacks (a property, or an access attribute, declared since it was created),
+     * before the flat view selects them; only to a `_state` that is the Sink's, of its format, its stored columns and
+     * no computed column of another definition. Any other is left as it is, and [validate] refuses it.
+     */
+    private suspend fun addComputed() {
+        val expected = schema.expected.first { it.name == schema.state }
+        if (!ClickHouseSinkSchema.hasFormat(statements.comment(schema.database, schema.state))) {
+            return
+        }
+        val actual = statements.columns(schema.database, schema.state)
+        if (expected.mismatch(actual) == null) {
+            schema.addColumns(expected.missing(actual)).forEach { statements.execute(it) }
+        }
     }
 
     private suspend fun validate(lineage: FlatLineage) {
@@ -259,8 +276,9 @@ class ClickHouseSink internal constructor(
 
     /**
      * Why the table or view [expected] is not the Sink's, or null when it is: it does not exist, its comment does not
-     * say the Sink's format, or it has other columns. A materialized view, and a flat view a [newer] writer replaced,
-     * are checked by their comment alone.
+     * say the Sink's format, it has other columns ([ClickHouseObject.mismatch]), or it lacks a computed column, which
+     * `auto` adds and `validate` names with the statement that adds it. A materialized view, and a flat view a [newer]
+     * writer replaced, are checked by their comment alone.
      */
     private suspend fun problemOf(expected: ClickHouseObject, newer: Boolean): String? {
         val name = expected.name
@@ -272,7 +290,10 @@ class ClickHouseSink internal constructor(
             return null
         }
         val actual = statements.columns(schema.database, name)
-        return "$name has the columns $actual, not ${expected.columns}".takeIf { actual != expected.columns }
+        expected.mismatch(actual)?.let { return it }
+        val missing = expected.missing(actual).takeIf { it.isNotEmpty() } ?: return null
+        return "$name lacks ${missing.joinToString { it.name }}, which a Sink with ddl=auto adds: " +
+            schema.addColumns(missing).joinToString("; ")
     }
 
     override fun toString(): String = "ClickHouseSink(${schema.database}.${schema.target})"

@@ -53,9 +53,9 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 | Table | Holds |
 | --- | --- |
 | `<ctx>_<agg>_state_events` | The base table the sink inserts into: one row per commit, its events and the state after it. Partitioned by the month of the commit, ordered by tenant, aggregate and version |
-| `<ctx>_<agg>_state` | The current state of each aggregate, filled by a materialized view from the base table: its columns but the events and the headers, which the history keeps |
+| `<ctx>_<agg>_state` | The current state of each aggregate, filled by a materialized view from the base table: its columns but the events and the headers, which the history keeps, and the access and flat columns ClickHouse computes from them |
 | `<ctx>_<agg>_events` | One row per event, filled by a materialized view |
-| `<ctx>_<agg>_state_flat` | A view of the current state with each top-level scalar of the state as a typed column, for analytics tools |
+| `<ctx>_<agg>_state_flat` | A view of the current state with its flat columns, each top-level scalar of the state as a typed column, for analytics tools |
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
 
@@ -144,7 +144,16 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `operator_cross_scope` Bool,
     `state` String,
     `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `state_numbers` Map(String, String),
+    `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
+    `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
+    `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
+    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) COMMENT 'wow:336ba53b0b5c800e',
+    `price` Decimal(38, 0) MATERIALIZED toDecimal128OrZero(state_numbers['price'], 0) COMMENT 'wow:f273feebcfeba26b',
+    `discount` Nullable(Decimal(38, 18)) MATERIALIZED toDecimal128OrNull(state_numbers['discount'], 18) COMMENT 'wow:f41862a517046c64',
+    `rate` Float64 MATERIALIZED JSONExtract(state, 'rate', 'Float64') COMMENT 'wow:7bd9491e8e41a742',
+    `paid` Bool MATERIALIZED JSONExtract(state, 'paid', 'Bool') COMMENT 'wow:9239a7d46de01f6e',
+    `state_version` Int64 MATERIALIZED JSONExtract(state, 'version', 'Int64') COMMENT 'wow:4e0c748d3474d842'
 )
 ENGINE = ReplacingMergeTree(version)
 ORDER BY (tenant_id, aggregate_id)
@@ -188,9 +197,9 @@ ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, `status`, `note`, `quantity`, `total`, `price`, `discount`, `rate`, `paid`, `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
 The sorting key is a row's identity: a row with the same key as an earlier one replaces it when ClickHouse merges them.
@@ -224,7 +233,12 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 
 **`_events`**, one row per event: `sequence` (the event's place in its commit, from 1), `event_name`, `event_revision` and `payload`, with the commit's `id`, `tenant_id`, `aggregate_id`, `version`, `command_id`, `request_id`, `command_type`, `commit_time`, `owner_id`, `space_id`, `correlation_id` and `causation_id`.
 
-**`_state_flat`** starts with `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `access`, then has a column for each top-level scalar property of the state schema, in its order:
+**The computed columns of `_state`.** After its stored columns, `_state` has columns ClickHouse computes from them when a row is inserted (`MATERIALIZED`): no insert sets them, and `SELECT *` leaves them out, so name them. Each one's comment keeps a fingerprint of its type and expression (`wow:<fingerprint>`). They are:
+
+- **an access column per access attribute the aggregate declares**, `access_<name>`, read from `access`: `Nullable(String)`, `Nullable(Int64)` or `Nullable(Bool)` by the attribute's type, or `Array(String)`, `Array(Int64)` or `Array(Bool)` for a multiple one. A row without the attribute has `NULL`, or an empty array. The built-in `owner` and `space` are `owner_id` and `space_id`.
+- **a flat column for each top-level scalar property of the state schema**, in its order, read from `state` (a decimal from `state_numbers`).
+
+**`_state_flat`** is a view of `_state FINAL`: `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `access`, then the flat columns:
 
 | The property | Its column |
 | --- | --- |
@@ -234,7 +248,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 | any other `number` | `Float64` |
 | `boolean` | `Bool` |
 
-A property that admits `null` is `Nullable`. Objects, arrays, references and compositions are not columns; read them from `state` with ClickHouse's JSON functions. A property named as one of the nine system columns takes the prefix `state_`, as the sample's `version` does.
+A property that admits `null` is `Nullable`. Objects, arrays, references and compositions are not columns; read them from `state` with ClickHouse's JSON functions. A property named as a column `_state` has already, a stored one or an access column, takes the prefix `state_`, again while the name is still taken, as the sample's `version` does.
 
 ## Delivered once, read once
 
@@ -252,6 +266,26 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 Every table and view the sink keeps says the format of the sink's tables in its comment, `wow-sink-format:1`. A table or view the sink expects is the sink's when it exists, has the columns above and says that format; otherwise the sink refuses to write, naming each one and what is wrong with it (`<table> is not of format 1`, `<table> has the columns …`). `auto` creates what is missing with the comment, and leaves a table that exists as it is: one of another format is refused, as one of other columns is. The tables hold nothing the log does not: drop them, and resetting the sink's subscription fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)). `none` checks nothing.
 
 During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with in its comment, after the format (`wow-sink-format:1 wow-sink-flat:<fingerprint>,…`), and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
+
+### When the state schema changes
+
+`_state` is the sink's when it has at least the computed columns a writer expects, each with its fingerprint. A computed column it does not expect, another writer's, is left as it is.
+
+- **A property or an access attribute added.** `auto` adds its column, `ALTER TABLE <db>.<ctx>_<agg>_state ADD COLUMN IF NOT EXISTS <column> <type> MATERIALIZED <expression> COMMENT 'wow:<fingerprint>' AFTER <the column before it>`, before the flat view selects it. This changes metadata only: a part written before is computed when it is read, until a merge rewrites it, which `_state`'s merges do as rows are written. To compute it in every part at once, run `ALTER TABLE <db>.<ctx>_<agg>_state MATERIALIZE COLUMN <column>`, a mutation, which is optional. With `validate`, the sink refuses to write and names the statements that add the columns. An older writer finds a column it does not compute, and writes on.
+- **A property's type changed** (a field that became nullable, a decimal of another scale, a string that became a number). The column is of another definition, and ClickHouse cannot change it without rewriting every row: the sink refuses to write, naming the column, its type and the one this version computes. A type change cannot roll: the older writers keep writing until they are replaced; then drop the tables and reset the sink's subscription ([Rebuild the warehouse](#rebuild-the-warehouse)).
+- **A property removed.** Its column stays, and is still computed on every insert, until you drop it: `ALTER TABLE <db>.<ctx>_<agg>_state DROP COLUMN <column>`, once no writer computes it.
+- **An access attribute declared later** has its column at once, but a row keeps the attributes it was written with: an aggregate's newest row has no value of it until its next commit.
+
+On a cluster, a column is added to the local tables and to the Distributed one, the two statements the sink cannot run itself:
+
+```sql
+ALTER TABLE `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
+    ADD COLUMN IF NOT EXISTS `weight` Float64 MATERIALIZED JSONExtract(state, 'weight', 'Float64') COMMENT 'wow:<fingerprint>' AFTER `state_version`;
+ALTER TABLE `default`.`shop_order_state` ON CLUSTER '{cluster}'
+    ADD COLUMN IF NOT EXISTS `weight` Float64 MATERIALIZED JSONExtract(state, 'weight', 'Float64') COMMENT 'wow:<fingerprint>' AFTER `state_version`;
+```
+
+`validate` prints the single-node statement with the column's fingerprint, which these take.
 
 ## Run it on a cluster
 
@@ -296,7 +330,7 @@ ORDER BY (tenant_id, aggregate_id, version)
 SETTINGS replicated_deduplication_window = 1000
 COMMENT 'wow-sink-format:1';
 
--- _state has the columns of _state_events but the events and the headers.
+-- _state has the columns of _state_events but the events and the headers, and computes the flat ones.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
 (
     `id` String,
@@ -318,7 +352,16 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `operator_cross_scope` Bool,
     `state` String,
     `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `state_numbers` Map(String, String),
+    `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
+    `note` Nullable(String) MATERIALIZED JSONExtract(state, 'note', 'Nullable(String)') COMMENT 'wow:8e528fd6dd433f30',
+    `quantity` Int64 MATERIALIZED JSONExtract(state, 'quantity', 'Int64') COMMENT 'wow:de224aeb8bf7629c',
+    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) COMMENT 'wow:336ba53b0b5c800e',
+    `price` Decimal(38, 0) MATERIALIZED toDecimal128OrZero(state_numbers['price'], 0) COMMENT 'wow:f273feebcfeba26b',
+    `discount` Nullable(Decimal(38, 18)) MATERIALIZED toDecimal128OrNull(state_numbers['discount'], 18) COMMENT 'wow:f41862a517046c64',
+    `rate` Float64 MATERIALIZED JSONExtract(state, 'rate', 'Float64') COMMENT 'wow:7bd9491e8e41a742',
+    `paid` Bool MATERIALIZED JSONExtract(state, 'paid', 'Bool') COMMENT 'wow:9239a7d46de01f6e',
+    `state_version` Int64 MATERIALIZED JSONExtract(state, 'version', 'Int64') COMMENT 'wow:4e0c748d3474d842'
 )
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}', version)
 ORDER BY (tenant_id, aggregate_id)
@@ -380,9 +423,9 @@ ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, `status`, `note`, `quantity`, `total`, `price`, `discount`, `rate`, `paid`, `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
+COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
 - **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing, has other columns or does not say the sink's format, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. The sink reads the format from their own comments, which `AS` does not copy, so the example gives each one its `COMMENT`. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.
@@ -397,7 +440,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:eb326856599fc0e7';
   `wow` is the user in `wow.clickhouse.username`.
 
 - **Deduplication.** `non_replicated_deduplication_window` does not apply to a replicated table, whose counterpart is `replicated_deduplication_window`; the example sets it to the sink's default. `wow.clickhouse.sink.deduplication-window` sets the tables the sink creates only.
-- **The flat view** is the sink's statement with `ON CLUSTER`. Its columns come from the aggregate's state schema: to get the statement for another aggregate, let the sink create it once against a single-node ClickHouse, and read `SHOW CREATE VIEW <ctx>_<agg>_state_flat`.
+- **The flat view** is the sink's statement with `ON CLUSTER`. Its columns, and `_state`'s computed ones, come from the aggregate's state schema and access attributes: to get the statements for another aggregate, let the sink create them once against a single-node ClickHouse, and read `SHOW CREATE TABLE <ctx>_<agg>_state` and `SHOW CREATE VIEW <ctx>_<agg>_state_flat`. The Distributed `_state` takes the computed columns from `_state_local` by `AS`, and reads them from the shards by name.
 - **`wow_catalog`** is not in the example. The analytics catalog reads it, and the sink writes it through the node its endpoint reaches. Without it the sink logs the failed write and goes on; to use the catalog, create it from the statement above where the sink and the catalog both reach it.
 
 ## Commands are not written

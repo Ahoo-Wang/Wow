@@ -17,14 +17,15 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.Currency
 
 /**
- * A column of a view: its [name], its ClickHouse [type] as `system.columns` reads it, the [expression] it is, and the
- * state's [property] it is read from.
+ * A flat column of the state: its [name], its ClickHouse [type] as `system.columns` reads it, the [expression] it is
+ * computed by on `_state` ([ComputedColumn]), and the state's [property] it is read from.
  */
 @InternalWowApi
 data class FlatColumn(val name: String, val type: String, val expression: String, val property: String = name)
 
 /**
- * The typed columns of `<ctx>_<agg>_state_flat`: one per top-level scalar property of the state
+ * The flat columns of the state, computed on `<ctx>_<agg>_state` and selected by `<ctx>_<agg>_state_flat`: one per
+ * top-level scalar property of the state
  * schema, a JSON Schema of the Manifest's `$defs`, in the schema's order. A property that is an object, an array, a
  * reference or a composition is left out: nested expansion is deferred.
  *
@@ -42,7 +43,8 @@ data class FlatColumn(val name: String, val type: String, val expression: String
  * Decimals are read from the record's `state_numbers`, the exact text of each top-level number:
  * ClickHouse's JSON functions parse numbers as `Float64` (`12.30` becomes `12.3`, 27 digits become `1.23e26`).
  *
- * A property named as a system column of the view gets the prefix `state_`.
+ * A property named as a column `_state` already has, a stored one or an access column ([reserved]), gets the prefix
+ * `state_`, again while the name is still taken: `version` is `state_version`.
  */
 internal object FlatColumns {
     /** The scale of a decimal that declares none and whose currency, if it is a money, is another field. */
@@ -70,7 +72,11 @@ internal object FlatColumns {
             "boolean" -> extracted(key, "Bool", nullable)
             else -> return null
         }
-        return FlatColumn(if (name in reserved) "state_$name" else name, nullableOf(base, nullable), expression, name)
+        var column = name
+        while (column in reserved) {
+            column = "state_$column"
+        }
+        return FlatColumn(column, nullableOf(base, nullable), expression, name)
     }
 
     private fun typesOf(type: Any?): List<String>? = when (type) {

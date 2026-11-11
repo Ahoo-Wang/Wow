@@ -12,7 +12,7 @@ dimension an approver reviewed), the columns (a source's value, `<alias>.<column
 functions the catalog allows), the filters and the subject, whose scope the rows take; each column's protection
 follows its lineage. Each version compiles to one ClickHouse view, `ds_<context>_<name>_<digest>_v<N>`, the digest of
 the exact id telling apart ids that read the same once made safe (`DatasetCompiler`, a
-pure function: a source whose engine merges rows read through `FINAL`, a left join's empty side `NULL`, a value inside
+pure function: a source whose engine merges rows read through `FINAL`, by the columns the dataset reads of it, a left join's empty side `NULL`, a value inside
 JSON text through `JSONExtractString`, every name quoted and every text escaped). Publishing creates the version's view
 in `wow_datasets` (the only DDL the catalog runs); every node serving queries reads the publications from the datasets'
 snapshots (`DatasetPublicationWatcher`: what changed every 5 seconds, everything every 5 minutes) and serves the current

@@ -41,7 +41,8 @@ sealed interface DatasetCompilation {
  * protection, its lineage.
  *
  * The view reads each source as its rows are now: a source whose engine merges rows (`ReplacingMergeTree` and the
- * others that collapse, aggregate or sum) through `FINAL`; a left join keeps empty right sides `NULL`
+ * others that collapse, aggregate or sum) through `FINAL`, selecting the columns the dataset reads of it by name, so
+ * that a column the table computes (`MATERIALIZED`, which `SELECT *` leaves out) is read as any other; a left join keeps empty right sides `NULL`
  * (`join_use_nulls`); a value inside a JSON text column through `JSONExtractString`, inside a `JSON` column through
  * its subcolumn. Every name is quoted and every text literal escaped, so nothing of a definition is spliced in.
  */
@@ -100,6 +101,8 @@ object DatasetCompiler {
         require(version > 0) { "A version is 1 or more." }
         val view = viewOf(context, name, version)
         val scope = scopeOf(dataset)
+        val read = readOf(dataset, scope)
+        val source = { bound: BoundSource -> source(bound, read[bound.alias].orEmpty()) }
         val select = buildString {
             append("SELECT\n")
             val columns = scope.columns.map { (column, ref) -> "${expression(ref, dataset)} AS ${quote(column)}" } +
@@ -174,10 +177,26 @@ object DatasetCompiler {
         return "$id/${(listOf(ref.column) + ref.path).joinToString(".")}"
     }
 
-    private fun source(source: BoundSource): String {
+    /**
+     * The columns the dataset reads of each source, by its alias: the scope's, the columns', the filters' and the join
+     * keys', in the order of the source's own columns.
+     */
+    private fun readOf(dataset: BoundDataset, scope: Scope): Map<String, List<String>> {
+        val refs = scope.columns.map { it.second } +
+            (dataset.columns.map { it.expression } + dataset.filters).flatMap { it.refs() } +
+            dataset.joins.flatMap { join -> join.on.flatMap { listOf(it.first, it.second) } }
+        val byAlias = refs.groupBy({ it.alias }, { it.column })
+        return dataset.sources.associate { source ->
+            val names = byAlias[source.alias].orEmpty().toSet()
+            source.alias to source.state.columns.map { it.name }.filter { it in names }
+        }
+    }
+
+    private fun source(source: BoundSource, read: List<String>): String {
         val table = "${quote(source.state.database)}.${quote(source.state.table)}"
         return if (MERGING.containsMatchIn(source.state.tableEngine)) {
-            "(SELECT * FROM $table FINAL) AS ${quote(source.alias)}"
+            val columns = read.takeIf { it.isNotEmpty() }?.joinToString(", ") { quote(it) } ?: "*"
+            "(SELECT $columns FROM $table FINAL) AS ${quote(source.alias)}"
         } else {
             "$table AS ${quote(source.alias)}"
         }

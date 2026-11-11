@@ -59,7 +59,7 @@ internal object CatalogEntries {
         fun withPrefix(prefix: String): List<Mark> = events.flatten().map {
             it.copy(path = if (it.path.isEmpty()) prefix else "$prefix.${it.path}")
         }
-        val columns = schema.expected.associate { it.name to it.columns.orEmpty() }
+        val columns = schema.expected.associate { it.name to it.all }
         fun entry(table: String, role: String, marked: List<Mark>): CatalogEntry = CatalogEntry(
             table = table,
             role = role,

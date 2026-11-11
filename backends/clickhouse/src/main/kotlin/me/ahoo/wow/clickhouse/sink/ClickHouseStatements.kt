@@ -33,7 +33,10 @@ internal interface ClickHouseStatements {
      */
     suspend fun insert(table: String, body: ByteArray, token: String)
 
-    /** The columns of [database]'s table or view [name], in order; empty when there is none. */
+    /**
+     * The columns of [database]'s table or view [name], in order, a computed one (`MATERIALIZED`) with its comment
+     * ([ClickHouseColumn.computed]); empty when there is none.
+     */
     suspend fun columns(database: String, name: String): List<ClickHouseColumn>
 
     /** The `system.tables.uuid` of [database]'s table or view [name]; null when there is none the account sees. */
@@ -65,10 +68,13 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
 
     override suspend fun columns(database: String, name: String): List<ClickHouseColumn> = Dispatchers.IO.clickhouse {
         client.queryAll(
-            "SELECT name, type FROM system.columns WHERE database = {database:String} AND table = {name:String} " +
-                "ORDER BY position",
+            "SELECT name, type, default_kind, comment FROM system.columns " +
+                "WHERE database = {database:String} AND table = {name:String} ORDER BY position",
             mapOf<String, Any>("database" to database, "name" to name),
-        ).map { ClickHouseColumn(it.getString("name"), it.getString("type")) }
+        ).map {
+            val computed = it.getString("comment").takeIf { _ -> it.getString("default_kind") == MATERIALIZED }
+            ClickHouseColumn(it.getString("name"), it.getString("type"), computed)
+        }
     }
 
     override suspend fun uuid(database: String, name: String): String? = Dispatchers.IO.clickhouse {
@@ -87,5 +93,6 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
 
     companion object {
         const val DEDUPLICATE_VIEWS: String = "deduplicate_blocks_in_dependent_materialized_views"
+        private const val MATERIALIZED = "MATERIALIZED"
     }
 }

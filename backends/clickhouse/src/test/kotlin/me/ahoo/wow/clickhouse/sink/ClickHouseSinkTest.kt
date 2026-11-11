@@ -135,7 +135,7 @@ class ClickHouseSinkTest {
         error!!.message.assert()
             .contains("shop_order_events does not exist")
             .contains("shop_order_events_mv does not exist")
-            .contains("shop_order_state has the columns [ClickHouseColumn(name=id, type=String)]")
+            .contains("shop_order_state has the columns [id String], not [id String, tenant_id String,")
         statements.inserts.assert().isEmpty()
         // Once the tables are there, the next write prepares again and succeeds.
         statements.create(sink.schema)
@@ -172,6 +172,51 @@ class ClickHouseSinkTest {
         error!!.message.assert().contains("shop_order_state_events is not of format 1")
         // CREATE … IF NOT EXISTS leaves the existing table as it is: nothing but the creations ran.
         statements.executed.all { it.startsWith("CREATE ") }.assert().isTrue()
+        statements.inserts.assert().isEmpty()
+    }
+
+    @Test
+    fun `auto should add the computed columns the current state lacks, before the flat view selects them`(): Unit =
+        runTest {
+            val sink = sinks().sinkOf("shop", "order")
+            statements.create(sink.schema)
+            // A _state created before the state schema had its properties: its stored columns alone.
+            statements.tables["default.shop_order_state"] = ClickHouseSinkSchema.STATE_COLUMNS
+            val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+            val alters = sink.schema.addColumns(sink.schema.computed)
+            statements.executed.filter { it.startsWith("ALTER") }.assert().isEqualTo(alters)
+            statements.executed.indexOf(alters.last()).assert()
+                .isLessThan(statements.executed.indexOfFirst { it.startsWith("CREATE OR REPLACE VIEW") })
+            // The recording server added nothing, so the check after it still finds them missing.
+            error!!.message.assert().contains("shop_order_state lacks status, note, quantity")
+        }
+
+    @Test
+    fun `validate should name the computed columns missing, with the statements that add them`(): Unit = runTest {
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.VALIDATE)).sinkOf("shop", "order")
+        statements.create(sink.schema)
+        statements.tables["default.shop_order_state"] = statements.tables.getValue("default.shop_order_state")
+            .filterNot { it.name == "total" }
+        val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+        val total = sink.schema.computed.single { it.name == "total" }
+        error!!.message.assert().contains(
+            "shop_order_state lacks total, which a Sink with ddl=auto adds: " +
+                sink.schema.addColumns(listOf(total)).single(),
+        )
+        statements.executed.assert().isEmpty()
+    }
+
+    @Test
+    fun `a computed column of another definition should be refused, and nothing added`(): Unit = runTest {
+        val sink = sinks().sinkOf("shop", "order")
+        statements.create(sink.schema)
+        statements.tables["default.shop_order_state"] = statements.tables.getValue("default.shop_order_state")
+            .map { if (it.name == "total") ClickHouseColumn("total", "Float64", "wow:0123456789abcdef") else it }
+            .filterNot { it.name == "paid" }
+        val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+        error!!.message.assert().contains("shop_order_state has total Float64 (wow:0123456789abcdef)")
+            .contains("resetting the Sink's subscription fills them again from the log")
+        statements.executed.none { it.startsWith("ALTER") }.assert().isTrue()
         statements.inserts.assert().isEmpty()
     }
 
