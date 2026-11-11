@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FunctionKind
 import org.junit.jupiter.api.Test
 
 /**

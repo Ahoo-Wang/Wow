@@ -21,6 +21,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -33,7 +34,6 @@ import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment

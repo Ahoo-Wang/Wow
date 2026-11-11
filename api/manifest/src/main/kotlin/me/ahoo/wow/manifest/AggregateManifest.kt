@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
@@ -125,24 +128,6 @@ class AccessAttributeManifest @InternalWowApi constructor(
         /** A boolean. */
         BOOLEAN,
     }
-}
-
-/** Where an aggregate's id comes from (`me.ahoo.wow.api.aggregate.AggregateIdSource`). */
-enum class AggregateIdSource {
-    /** The request's, or one admission generates for a command that creates its aggregate. */
-    ASSIGNED,
-
-    /** Its owner's: one per owner, addressed by an owner-level caller as its own. */
-    OWNER,
-}
-
-/** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`). */
-enum class Ownership {
-    /** The owner of the command that creates it, when that command has one. */
-    OWNER,
-
-    /** Its tenant alone: no owner is recorded, and no read is restricted by owner. */
-    TENANT,
 }
 
 /**
@@ -299,18 +284,6 @@ class RouteManifest @InternalWowApi constructor(val method: String, val path: St
     override fun toString(): String = "RouteManifest(method=$method, path=$path)"
 
     private fun valueFields(): List<Any?> = listOf(method, path)
-}
-
-/** Whether a command creates its aggregate (`@CreateAggregate`, `@AllowCreate`). */
-enum class Creation {
-    /** Only on an aggregate that exists. */
-    NONE,
-
-    /** Only on an aggregate that does not exist yet. */
-    REQUIRED,
-
-    /** On either. */
-    ALLOWED,
 }
 
 /**

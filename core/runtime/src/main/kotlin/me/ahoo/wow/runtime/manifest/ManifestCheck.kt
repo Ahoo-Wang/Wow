@@ -31,7 +31,7 @@ import me.ahoo.wow.manifest.Manifest
  *   schedule system commands every model decides (`wow.schedule.Set`, `Cancel`) are not listed;
  * - a former name ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or one the
  *   model reads as the command and the Manifest does not list;
- * - a different [creation][me.ahoo.wow.manifest.Creation];
+ * - a different [creation][me.ahoo.wow.api.aggregate.Creation];
  * - a mounted command of the Manifest the model does not mount under that name, or one the model mounts
  *   ([AggregateModel.mountedCommandTypes]) that the Manifest does not list as mounted;
  * - an event of the Manifest the model does not name so, or of another revision;
@@ -117,8 +117,8 @@ internal object ManifestCheck {
                 (commandType.aliases - aliases.toSet()).forEach {
                     add("command $name has the former name $it in the model of $type but not in the Manifest")
                 }
-                val creation = model.decider(commandType.type)?.creation?.name
-                if (creation != command.creation.name) {
+                val creation = model.decider(commandType.type)?.creation
+                if (creation != command.creation) {
                     add(
                         "command $name creates its aggregate ${command.creation} in the Manifest, $creation in the model"
                     )

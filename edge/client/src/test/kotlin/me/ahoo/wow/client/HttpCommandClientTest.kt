@@ -18,6 +18,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
@@ -37,13 +39,10 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.FailureClassification
-import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.RouteManifest
@@ -436,7 +435,7 @@ class HttpCommandClientTest {
             val unreachable = caught<WowProblemException> {
                 runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
             }
-            unreachable.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            unreachable.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
             unreachable.retry.assert().isEqualTo(Retry.NEW_REQUEST)
             unreachable.cause.assert().isInstanceOf(IOException::class.java)
         }

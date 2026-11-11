@@ -22,13 +22,13 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.test.server.wowServer
@@ -60,7 +60,7 @@ class InventoryServerTest {
     fun `a quantity that is not positive should be invalid before the stock decides`() {
         for (command in listOf(ReceiveStock(0), ReserveStock("o-1", -1))) {
             val invalid = rejected { server.commands(EMPLOYEE).wait(command, "mug") }
-            invalid.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+            invalid.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
             invalid.result.error!!.violations.single().let {
                 it.path.assert().isEqualTo("quantity")
                 it.code.assert().isEqualTo("positive")
@@ -71,10 +71,10 @@ class InventoryServerTest {
     @Test
     fun `a buyer should not change the stock, which an employee receives (UI-49)`() {
         val refused = rejected { server.commands(BUYER).wait(ReceiveStock(3), "cap") }
-        refused.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused.result.error!!.message.assert().contains("Only an employee changes the stock")
         rejected { server.commands(BUYER).wait(ReserveStock("o-1", 1), "cap") }
-            .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         runBlocking { server.commands(EMPLOYEE).wait(ReceiveStock(3), "cap") }
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }

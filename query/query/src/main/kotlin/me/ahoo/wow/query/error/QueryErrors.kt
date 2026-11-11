@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.error
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
@@ -38,28 +39,28 @@ import me.ahoo.wow.manifest.FrameworkErrors
  */
 @InternalWowApi
 object QueryErrors {
-    const val MALFORMED: String = FrameworkErrors.QUERY_MALFORMED
-    const val INVALID: String = FrameworkErrors.QUERY_INVALID
-    const val FAILED: String = FrameworkErrors.QUERY_FAILED
-    const val TIMEOUT: String = FrameworkErrors.QUERY_TIMEOUT
-    const val STORAGE_UNAVAILABLE: String = FrameworkErrors.STORAGE_UNAVAILABLE
-    const val BUSY: String = FrameworkErrors.QUERY_BUSY
+    const val MALFORMED: String = FrameworkCodes.QUERY_MALFORMED
+    const val INVALID: String = FrameworkCodes.QUERY_INVALID
+    const val FAILED: String = FrameworkCodes.QUERY_FAILED
+    const val TIMEOUT: String = FrameworkCodes.QUERY_TIMEOUT
+    const val STORAGE_UNAVAILABLE: String = FrameworkCodes.STORAGE_UNAVAILABLE
+    const val BUSY: String = FrameworkCodes.QUERY_BUSY
 
     /** A `single` query that matched no record, whatever its model. */
-    const val NOT_FOUND: String = FrameworkErrors.QUERY_NOT_FOUND
+    const val NOT_FOUND: String = FrameworkCodes.QUERY_NOT_FOUND
 
     /** A dataset that is not served, or not to the caller. */
-    const val DATASET_NOT_FOUND: String = FrameworkErrors.QUERY_DATASET_NOT_FOUND
+    const val DATASET_NOT_FOUND: String = FrameworkCodes.QUERY_DATASET_NOT_FOUND
 
     /** An aggregation that names no sort found more groups than its limit. */
-    const val TOO_MANY_GROUPS: String = FrameworkErrors.QUERY_TOO_MANY_GROUPS
+    const val TOO_MANY_GROUPS: String = FrameworkCodes.QUERY_TOO_MANY_GROUPS
 
     /** A state read of a minimum version the aggregate has not reached. */
-    const val MIN_VERSION_NOT_REACHED: String = FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
-    const val DATASET_UNAVAILABLE: String = FrameworkErrors.QUERY_DATASET_UNAVAILABLE
+    const val MIN_VERSION_NOT_REACHED: String = FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED
+    const val DATASET_UNAVAILABLE: String = FrameworkCodes.QUERY_DATASET_UNAVAILABLE
 
     /** The caller may not run this query. */
-    const val FORBIDDEN: String = FrameworkErrors.AUTH_FORBIDDEN
+    const val FORBIDDEN: String = FrameworkCodes.AUTH_FORBIDDEN
 }
 
 /** A query error as the edge answers it: its framework [errorCode], its text and the violations of the request. */

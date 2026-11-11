@@ -17,6 +17,7 @@ import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.Snapshot
@@ -24,7 +25,6 @@ import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.StateManifest

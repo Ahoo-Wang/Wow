@@ -16,6 +16,7 @@ package me.ahoo.wow.http.problem
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
@@ -44,11 +45,11 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
     /** The status of [code] for a command of [context]; [ifMatch] when the request carried `If-Match`. */
     fun status(code: String, context: String? = null, ifMatch: Boolean = false): Int {
         overrides[code]?.let { return it }
-        if (ifMatch && code == FrameworkErrors.AGGREGATE_VERSION_MISMATCH) {
+        if (ifMatch && code == FrameworkCodes.AGGREGATE_VERSION_MISMATCH) {
             return FrameworkErrors.PRECONDITION_FAILED_STATUS
         }
         return find(code, context)?.status
-            ?: if (code.startsWith(FrameworkErrors.PREFIX)) {
+            ?: if (code.startsWith(FrameworkCodes.PREFIX)) {
                 HttpStatus.INTERNAL_SERVER_ERROR.value()
             } else {
                 FrameworkErrors.DOMAIN_REJECTION_STATUS

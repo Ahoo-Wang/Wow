@@ -16,13 +16,13 @@ package me.ahoo.wow.gradle
 import groovy.json.JsonSlurper
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest

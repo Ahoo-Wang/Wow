@@ -15,7 +15,7 @@ package me.ahoo.wow.query.state
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.error.QueryBindingError
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
@@ -64,7 +64,7 @@ class StateNotFoundException(val ref: AggregateRef, val reason: Reason, detail: 
 
     /** The code the caller is answered with. */
     val errorCode: String
-        get() = FrameworkErrors.AGGREGATE_NOT_FOUND
+        get() = FrameworkCodes.AGGREGATE_NOT_FOUND
 }
 
 /**

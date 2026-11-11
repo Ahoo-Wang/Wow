@@ -73,8 +73,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /*
  * A test that starts a PartitionOwnership on the test's scheduler (runTest, StandardTestDispatcher(testScheduler))
  * ends with ownership.abort() in a finally, or with a stop() there that waits on nothing the test may leave hanging.
@@ -141,7 +139,7 @@ fun accountManifest(service: String? = SERVICE, context: String = CONTEXT): Mani
                         CommandManifest(
                             "Deposit",
                             schema = Manifest.schemaRef("Deposit"),
-                            creation = ManifestCreation.ALLOWED,
+                            creation = Creation.ALLOWED,
                         ),
                     ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, "account", it) },
                     events = listOf(EventManifest("Deposited", schema = Manifest.schemaRef("Deposited"))),

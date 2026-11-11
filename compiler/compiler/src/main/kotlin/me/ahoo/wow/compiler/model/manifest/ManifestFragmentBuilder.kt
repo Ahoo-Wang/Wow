@@ -13,7 +13,11 @@
 
 package me.ahoo.wow.compiler.model.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.compiler.model.aggregate.AfterBinding
@@ -27,18 +31,14 @@ import me.ahoo.wow.compiler.model.subscription.Receipt
 import me.ahoo.wow.compiler.model.subscription.SendsBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.manifest.AccessAttributeManifest
-import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
-import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest

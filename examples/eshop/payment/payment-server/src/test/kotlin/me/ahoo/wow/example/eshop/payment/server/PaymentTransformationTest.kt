@@ -18,11 +18,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -124,7 +124,7 @@ class PaymentTransformationTest {
         val callback = """{"merchantReference":"order-unknown","disputeId":"dispute-8","reason":"Fraud"}"""
         val unknown = payment.chargeback(callback).problem!!
         unknown.status.assert().isEqualTo(NOT_FOUND)
-        unknown.code.assert().isEqualTo(FrameworkErrors.AGGREGATE_NOT_FOUND)
+        unknown.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         unknown.result!!.transformedFrom!!.command.assert().isEqualTo(CHARGEBACK)
     }
 
@@ -168,7 +168,7 @@ class PaymentTransformationAuthorizationTest {
         val callback = """{"merchantReference":"order-guarded","disputeId":"dispute-9","reason":"Fraud"}"""
 
         val refused = payment.chargeback(callback, "mallory").problem!!
-        refused.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused.result!!.function.name.assert().isEqualTo("RefundPayment")
         refused.result!!.transformedFrom!!.command.assert().isEqualTo(PaymentTransformationTest.CHARGEBACK)
         payment.payment("order-guarded")!!.status.assert().isEqualTo(PaymentStatus.SUCCEEDED)

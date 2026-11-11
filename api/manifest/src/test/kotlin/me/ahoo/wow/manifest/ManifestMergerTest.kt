@@ -14,6 +14,9 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.result.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -212,7 +215,7 @@ class ManifestMergerTest {
     fun `a context's errors should be its own and declared once`() {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
-            val errors = context.errors + context.errors + ErrorManifest(FrameworkErrors.COMMAND_BUSY, 429)
+            val errors = context.errors + context.errors + ErrorManifest(FrameworkCodes.COMMAND_BUSY, 429)
             fragment.copyWith(contexts = listOf(context.copyWith(errors = errors)))
         }
         val conflicts = assertThrows<ManifestConflictException> {
@@ -228,7 +231,7 @@ class ManifestMergerTest {
     fun `a fragment's top-level errors should be the framework's`() {
         val fragment = Manifests.fragment().copyWith(
             errors = FrameworkErrors.ALL.take(1) + ErrorManifest("cart.empty", 422) +
-                ErrorManifest(FrameworkErrors.COMMAND_BUSY, 503),
+                ErrorManifest(FrameworkCodes.COMMAND_BUSY, 503),
         )
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
@@ -458,7 +461,7 @@ class ManifestMergerTest {
             name = "summary",
             route = RouteManifest("GET", "/shop/summaries/{day}"),
             // A framework code is every Manifest's own: a route may refuse with it without its context declaring it.
-            errors = listOf("shop.summary.closed", FrameworkErrors.COMMAND_UNHANDLED),
+            errors = listOf("shop.summary.closed", FrameworkCodes.COMMAND_UNHANDLED),
         )
         val server = ManifestFragment(
             "shop-server.json",
@@ -492,7 +495,7 @@ class ManifestMergerTest {
                 ServiceRouteManifest(
                     "lookup",
                     RouteManifest("GET", "/shop/lookup"),
-                    errors = listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, "wow.aggregate.notfound"),
+                    errors = listOf(FrameworkCodes.AGGREGATE_NOT_FOUND, "wow.aggregate.notfound"),
                 ),
             )
             fragment.copyWith(contexts = listOf(context.copyWith(routes = routes)))
@@ -506,7 +509,7 @@ class ManifestMergerTest {
             "service route shop.lookup (a.json) refuses with wow.aggregate.notfound, which is not an error of the " +
                 "framework",
         )
-        conflicts.filter { it.contains(FrameworkErrors.AGGREGATE_NOT_FOUND) }.assert().isEmpty()
+        conflicts.filter { it.contains(FrameworkCodes.AGGREGATE_NOT_FOUND) }.assert().isEmpty()
         conflicts.filter { it.contains("takes a segment an aggregate, the jobs or the framework reserves") }
             .assert().hasSize(2)
     }

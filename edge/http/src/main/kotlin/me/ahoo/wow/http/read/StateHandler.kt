@@ -33,7 +33,6 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
@@ -182,7 +181,7 @@ internal class StateHandler(
     private suspend fun reader(request: ServerRequest, type: AggregateType): Reader {
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
-        val target = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
+        val target = headers.target(request, FrameworkCodes.QUERY_MALFORMED)
         val queryCaller = answering(type) { targets.of(type, caller, target) }
         val acting = checkNotNull(queryCaller.caller)
         // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
@@ -244,7 +243,7 @@ internal class StateHandler(
             notReached?.let { behind ->
                 throw ProblemException(
                     statuses.problemOf(
-                        FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED,
+                        FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED,
                         behind.message!!,
                         ref.type.context
                     )

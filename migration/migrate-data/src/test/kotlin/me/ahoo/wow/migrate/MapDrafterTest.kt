@@ -14,13 +14,13 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.migrate.example.NineXExample

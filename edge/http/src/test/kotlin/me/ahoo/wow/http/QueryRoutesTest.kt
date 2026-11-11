@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
@@ -97,7 +96,7 @@ class QueryRoutesTest {
             ),
         ).assert().containsExactly("c-1", "c-2")
         node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = mapOf(WowHeaders.SCOPE to "owner"))
-            .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
     }
 
     @Test
@@ -109,7 +108,7 @@ class QueryRoutesTest {
         fixed.query(
             """{"kind":"list","filter":{"op":"match-all"}}""",
             headers = mapOf(WowHeaders.SCOPE to "tenant=\"acme\"", "X-Admin" to "yes"),
-        ).assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+        ).assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
     }
 
     @Test
@@ -130,7 +129,7 @@ class QueryRoutesTest {
         ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*, owner=bob", "X-Admin" to "yes")))
             .assert().containsExactly("c-3")
         across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes"))
-            .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
     }
 
     @Test
@@ -150,7 +149,7 @@ class QueryRoutesTest {
         )
             .body!!["count"].asLong().assert().isEqualTo(1L)
         fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 acme)", admin))
-            .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
     }
 
     @Test
@@ -169,7 +168,7 @@ class QueryRoutesTest {
         single.body!!["aggregateId"].asString().assert().isEqualTo("c-4")
         // A query result, not a statement that an aggregate does not exist (review R4-Q, Q-4).
         node.query("""{"kind":"single","filter":{"op":"eq","field":"state.items","value":40}}""")
-            .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
+            .assertQueryProblem(404, FrameworkCodes.QUERY_NOT_FOUND)
 
         val bounded = node.query("""{"kind":"count","filter":{"op":"match-all"},"limit":3}""")
         bounded.status.assert().isEqualTo(200)
@@ -196,7 +195,7 @@ class QueryRoutesTest {
         } while (cursor != null)
         seen.assert().containsExactly("c-5", "c-4", "c-3", "c-2", "c-1")
         node.query("""{"kind":"cursor","filter":{"op":"match-all"},"cursor":"garbage"}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_INVALID)
             .violations().assert().contains(QueryErrorCodes.INVALID_CURSOR)
     }
 
@@ -218,7 +217,7 @@ class QueryRoutesTest {
         val groups = """"groupBy":[{"type":"terms","field":"state.items","alias":"items"}],""" +
             """"metrics":[{"type":"count","alias":"carts"}],"limit":1"""
         node.query("""{"kind":"aggregate","filter":{"op":"match-all"},$groups}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_TOO_MANY_GROUPS)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_TOO_MANY_GROUPS)
         // A sort makes the cut a top-N the query asked for.
         val top = node.query(
             """{"kind":"aggregate","filter":{"op":"match-all"},$groups,""" +
@@ -235,7 +234,7 @@ class QueryRoutesTest {
         ids(small.query("""{"kind":"list","filter":{"op":"match-all"}}""")).assert().hasSize(2)
         ids(small.query("""{"kind":"list","filter":{"op":"match-all"},"limit":3}""")).assert().hasSize(3)
         node.query("""{"kind":"list","filter":{"op":"match-all"},"limit":5000}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_INVALID)
             .violations().assert().contains(QueryErrorCodes.SIZE_OUT_OF_RANGE)
     }
 
@@ -261,7 +260,7 @@ class QueryRoutesTest {
         node.stream("""{"kind":"list","filter":{"op":"eq","field":"state.unknown","value":9}}""").let {
             it.status.assert().isEqualTo(400)
             it.contentType.assert().isEqualTo("application/problem+json")
-            json.readTree(it.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            json.readTree(it.body)["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
         }
     }
 
@@ -273,11 +272,11 @@ class QueryRoutesTest {
         streamed.events.map { it.event }.assert().containsExactly("row", "error")
         // A stream that cannot be resumed carries no positions.
         streamed.events.first().id.assert().isNull()
-        streamed.events.last().data["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_FAILED)
+        streamed.events.last().data["code"].asString().assert().isEqualTo(FrameworkCodes.QUERY_FAILED)
         // Not streamed, the same failure is a problem.
         failing.query(
             """{"kind":"list","filter":{"op":"match-all"}}"""
-        ).assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
+        ).assertQueryProblem(500, FrameworkCodes.QUERY_FAILED)
     }
 
     @Test
@@ -293,7 +292,7 @@ class QueryRoutesTest {
     @Test
     fun `a body that does not read as a query should be wow-query-malformed with its code`() {
         fun malformed(body: String?, code: String, path: String = "body") {
-            val problem = node.query(body).assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+            val problem = node.query(body).assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
             problem.body!!["violations"][0]["code"].asString().assert().isEqualTo(code)
             problem.body!!["violations"][0]["path"].asString().assert().isEqualTo(path)
         }
@@ -337,7 +336,7 @@ class QueryRoutesTest {
     @Test
     fun `a query the model refuses should be wow-query-invalid with each violation's code`() {
         val problem = node.query("""{"kind":"list","filter":{"op":"eq","field":"state.unknown","value":1}}""")
-            .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
+            .assertQueryProblem(400, FrameworkCodes.QUERY_INVALID)
         problem.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.UNKNOWN_FIELD)
         problem.body!!["violations"][0]["path"].asString().assert().isEqualTo("state.unknown")
         problem.body!!["type"].asString().assert().isEqualTo("urn:wow:error:wow.query.invalid")
@@ -353,7 +352,7 @@ class QueryRoutesTest {
         )
         val timedOut = slow.query(
             """{"kind":"count","filter":{"op":"match-all"}}"""
-        ).assertQueryProblem(504, FrameworkErrors.QUERY_TIMEOUT)
+        ).assertQueryProblem(504, FrameworkCodes.QUERY_TIMEOUT)
         // Not worth running again as it is (decision D254 ③): no Retry-After.
         timedOut.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isNull()
     }
@@ -362,10 +361,10 @@ class QueryRoutesTest {
     fun `a backend failure should be wow-query-failed without its detail`() {
         val failing = QueryNode(snapshots = { FailingList(it) })
         val problem = failing.query("""{"kind":"count","filter":{"op":"match-all"}}""")
-            .assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
+            .assertQueryProblem(500, FrameworkCodes.QUERY_FAILED)
         problem.body!!["detail"].asString().assert().isEqualTo("The query failed.")
         failing.query("""{"kind":"paged","filter":{"op":"match-all"}}""")
-            .assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
+            .assertQueryProblem(500, FrameworkCodes.QUERY_FAILED)
             .body!!["detail"].asString().assert().isEqualTo("The backend is down.")
     }
 

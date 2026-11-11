@@ -48,7 +48,6 @@ import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.receiveFirst
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -438,9 +437,9 @@ internal class QueryHandler(
         }
         if (failure !is QueryError) {
             logger.error(failure) { "A query failed." }
-            return statuses.problemOf(FrameworkErrors.QUERY_FAILED, "The query failed.", context)
+            return statuses.problemOf(FrameworkCodes.QUERY_FAILED, "The query failed.", context)
         }
-        if (failure.errorCode == FrameworkErrors.QUERY_FAILED) {
+        if (failure.errorCode == FrameworkCodes.QUERY_FAILED) {
             logger.error(failure) { "A query failed: ${failure.errorMsg}" }
         }
         return statuses.problemOf(failure.errorCode, failure.errorMsg, context).copyWith(
@@ -450,7 +449,7 @@ internal class QueryHandler(
 
     /** What `Wow-Scope` names for the query of [request], or null without it; [targets] decide whether it may. */
     private fun named(request: ServerRequest): ScopeHeader.QueryTarget? =
-        headers.queryTarget(request, FrameworkErrors.QUERY_MALFORMED)
+        headers.queryTarget(request, FrameworkCodes.QUERY_MALFORMED)
 
     /** [caller]'s query caller of the dataset [type] in what it [named], or null when the dataset's tenant is fixed. */
     private fun queryCaller(type: AggregateType, caller: Caller, named: ScopeHeader.QueryTarget?): QueryCaller? = try {

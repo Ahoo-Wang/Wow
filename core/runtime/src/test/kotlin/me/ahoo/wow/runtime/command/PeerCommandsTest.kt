@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
@@ -56,8 +57,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 /**
  * Commands of a peer context from code that is not a saga (decision D259, review M-1), between a sales service and a
  * stock service over [InMemoryTopics]: the sales node's gateway admits a stock reservation it does not serve, known from
@@ -345,7 +344,7 @@ class PeerCommandsTest {
     fun `a peer's command whose class is not on the class path should be refused, naming the api module to depend on`(): Unit =
         runBlocking {
             stockNode().start()
-            val sales = salesNode(stockContract = withItemCommand(stockManifest(), "Recount", ManifestCreation.NONE))
+            val sales = salesNode(stockContract = withItemCommand(stockManifest(), "Recount", Creation.NONE))
                 .also { it.start() }
             val result = sales.gateway.execute(
                 ServerCommandRequest.builder(STOCK, "item", "Recount", CommandBody.of("{}"))
@@ -463,7 +462,7 @@ class PeerCommandsTest {
         }
 
     /** [manifest] with one more command of the stock item, [name], whose class is on no class path. */
-    private fun withItemCommand(manifest: Manifest, name: String, creation: ManifestCreation): Manifest =
+    private fun withItemCommand(manifest: Manifest, name: String, creation: Creation): Manifest =
         manifest.copyWith(
             contexts = manifest.contexts.map { context ->
                 context.copyWith(

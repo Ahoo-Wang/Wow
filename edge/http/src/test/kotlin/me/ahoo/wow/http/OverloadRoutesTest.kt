@@ -21,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.InFlightLimit
 import org.junit.jupiter.api.Test
@@ -52,7 +53,7 @@ class OverloadRoutesTest {
             answer.contentType.assert().isEqualTo("application/problem+json")
             answer.headers.getFirst(HttpHeaders.RETRY_AFTER)
                 .assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toString())
-            answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_BUSY)
+            answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_BUSY)
             answer.body!!["detail"].asString().assert().isEqualTo(
                 "The node already has 2 commands in flight; retry later."
             )

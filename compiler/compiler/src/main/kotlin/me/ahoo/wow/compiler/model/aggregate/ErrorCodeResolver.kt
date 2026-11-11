@@ -22,9 +22,9 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.manifest.ErrorManifest
-import me.ahoo.wow.manifest.FrameworkErrors
 import java.io.File
 
 /** A rejection code of the module: `@ErrorCode` on a `const val`, and its problems. */
@@ -112,8 +112,8 @@ internal object ErrorCodeResolver {
                         "context shares)",
                 )
             }
-            if (code.startsWith(FrameworkErrors.PREFIX)) {
-                add("error code $code of $name takes the framework's prefix ${FrameworkErrors.PREFIX}")
+            if (code.startsWith(FrameworkCodes.PREFIX)) {
+                add("error code $code of $name takes the framework's prefix ${FrameworkCodes.PREFIX}")
             }
             if (status !in STATUSES) {
                 add("error code $code of $name has status $status: a status is 400 to 599")

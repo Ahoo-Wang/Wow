@@ -21,7 +21,6 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 
 /** `GET …/{id}/state?at=` and `GET …/{id}/state/trace` (decision D40). */
@@ -84,11 +83,11 @@ class HistoryRoutesTest {
     fun `a time before the first commit is 404, one that is not an instant 400`() {
         history()
         at("1970-01-01T00:00:00.999Z").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
-        at("yesterday").assertCode(400, FrameworkErrors.QUERY_INVALID)
-        at("1970-01-01T00:00:01").assertCode(400, FrameworkErrors.QUERY_INVALID)
+        at("yesterday").assertCode(400, FrameworkCodes.QUERY_INVALID)
+        at("1970-01-01T00:00:01").assertCode(400, FrameworkCodes.QUERY_INVALID)
         node.get(
             "/shop/cart/c-1/state?version=1&at=1970-01-01T00:00:01Z"
-        ).assertCode(400, FrameworkErrors.QUERY_INVALID)
+        ).assertCode(400, FrameworkCodes.QUERY_INVALID)
     }
 
     @Test
@@ -157,7 +156,7 @@ class HistoryRoutesTest {
             "limit=0",
             "limit=${StateHandler.MAX_TRACE_LIMIT + 1}",
         ).forEach { query ->
-            node.get("/shop/cart/c-1/state/trace?$query").assertCode(400, FrameworkErrors.QUERY_INVALID)
+            node.get("/shop/cart/c-1/state/trace?$query").assertCode(400, FrameworkCodes.QUERY_INVALID)
         }
     }
 

@@ -63,8 +63,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
-
 const val SALES = "sales"
 const val STOCK = "stock"
 const val SALES_SERVICE = "sales-service"
@@ -153,7 +151,7 @@ fun orderSaga(
 private fun aggregateManifest(
     context: String,
     name: String,
-    commands: List<Pair<Class<*>, ManifestCreation>>,
+    commands: List<Pair<Class<*>, Creation>>,
     events: List<Class<*>>,
 ) = AggregateManifest(
     name,
@@ -180,8 +178,8 @@ fun salesManifest(): Manifest = Manifest(
                     SALES,
                     "order",
                     listOf(
-                        PlaceOrder::class.java to ManifestCreation.REQUIRED,
-                        CancelOrder::class.java to ManifestCreation.NONE,
+                        PlaceOrder::class.java to Creation.REQUIRED,
+                        CancelOrder::class.java to Creation.NONE,
                     ),
                     listOf(OrderPlaced::class.java, OrderCancelled::class.java),
                 ),
@@ -200,7 +198,7 @@ fun stockManifest(): Manifest = Manifest(
                 aggregateManifest(
                     STOCK,
                     "item",
-                    listOf(Reserve::class.java to ManifestCreation.ALLOWED),
+                    listOf(Reserve::class.java to Creation.ALLOWED),
                     listOf(Reserved::class.java),
                 ),
             ),

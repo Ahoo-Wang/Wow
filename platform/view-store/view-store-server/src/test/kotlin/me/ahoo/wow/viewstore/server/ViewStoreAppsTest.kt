@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.policy.ReadAction
@@ -40,7 +40,7 @@ class ViewStoreAppsTest {
         apps.authorize(Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf("console"))), read)
             .assert().isEqualTo(ReadAuthorization.Allowed)
         val refused = apps.authorize(Caller.of(subject = "alice"), read) as ReadAuthorization.Denied
-        refused.code.assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
+        refused.code.assert().isEqualTo(FrameworkCodes.QUERY_MALFORMED)
         refused.message.assert().contains("no application")
     }
 }

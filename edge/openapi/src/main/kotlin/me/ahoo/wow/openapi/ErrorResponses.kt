@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
@@ -57,14 +58,14 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
     ): Map<String, Any?> {
         val entries = mutableListOf<Pair<Int, Entry>>()
         codes.map(framework::getValue).forEach { entries += status(it) to Entry(it.code, it.description) }
-        if (ifMatch && FrameworkErrors.AGGREGATE_VERSION_MISMATCH !in overrides) {
+        if (ifMatch && FrameworkCodes.AGGREGATE_VERSION_MISMATCH !in overrides) {
             entries += FrameworkErrors.PRECONDITION_FAILED_STATUS to Entry(
-                FrameworkErrors.AGGREGATE_VERSION_MISMATCH,
+                FrameworkCodes.AGGREGATE_VERSION_MISMATCH,
                 "The aggregate is not at the version If-Match names.",
             )
         }
         if (domain) {
-            byContext[context].orEmpty().filterNot { it.code.startsWith(FrameworkErrors.PREFIX) }.forEach {
+            byContext[context].orEmpty().filterNot { it.code.startsWith(FrameworkCodes.PREFIX) }.forEach {
                 entries += status(it) to Entry(it.code, it.description)
             }
             entries += FrameworkErrors.DOMAIN_REJECTION_STATUS to Entry(null, DOMAIN_REJECTION)
@@ -124,7 +125,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             },
             "headers" to Json.obj(
                 WowHttpContract.RETRY_AFTER_HEADER to Json.ref(Json.HEADERS, WowHttpContract.RETRY_AFTER_HEADER),
-            ).takeIf { FrameworkErrors.STORAGE_UNAVAILABLE in codes },
+            ).takeIf { FrameworkCodes.STORAGE_UNAVAILABLE in codes },
             "content" to Json.obj(PROBLEM_JSON to Json.obj("schema" to Json.schemaRef(WowSchemas.PROBLEM))),
             "x-wow-error-codes" to codes.takeIf { it.isNotEmpty() },
         )
@@ -139,11 +140,11 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             "A rejection by the domain, with the code it chose; the problem carries the command's result."
 
         /** The framework codes no documented route answers, initialized before [COMMAND] reads them. */
-        private val NOT_ROUTED = setOf(FrameworkErrors.CALL_COMMAND_FORBIDDEN, FrameworkErrors.LEDGER_STALE)
+        private val NOT_ROUTED = setOf(FrameworkCodes.CALL_COMMAND_FORBIDDEN, FrameworkCodes.LEDGER_STALE)
 
         /**
          * The codes a command route answers: every framework code but the query ones, the internal port's call code
-         * ([FrameworkErrors.CALL_COMMAND_FORBIDDEN]) and the ledger's stale action ([FrameworkErrors.LEDGER_STALE],
+         * ([FrameworkCodes.CALL_COMMAND_FORBIDDEN]) and the ledger's stale action ([FrameworkCodes.LEDGER_STALE],
          * answered to a ledger command, which arrives on the command topic), which no documented route answers.
          */
         val COMMAND: List<String> = FrameworkErrors.ALL.map { it.code }
@@ -155,73 +156,73 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
          * runs under the log store's query bulkhead.
          */
         val STATE: List<String> = listOf(
-            FrameworkErrors.AUTH_UNAUTHENTICATED,
-            FrameworkErrors.AUTH_FORBIDDEN,
-            FrameworkErrors.QUERY_MALFORMED,
-            FrameworkErrors.QUERY_INVALID,
-            FrameworkErrors.AGGREGATE_NOT_FOUND,
-            FrameworkErrors.QUERY_BUSY,
-            FrameworkErrors.STORAGE_UNAVAILABLE,
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
+            FrameworkCodes.QUERY_MALFORMED,
+            FrameworkCodes.QUERY_INVALID,
+            FrameworkCodes.AGGREGATE_NOT_FOUND,
+            FrameworkCodes.QUERY_BUSY,
+            FrameworkCodes.STORAGE_UNAVAILABLE,
         )
 
         /** The query codes only a dataset's routes answer: one not served, and one not queryable now. */
         private val DATASET_ONLY = setOf(
-            FrameworkErrors.QUERY_DATASET_UNAVAILABLE,
-            FrameworkErrors.QUERY_DATASET_NOT_FOUND,
+            FrameworkCodes.QUERY_DATASET_UNAVAILABLE,
+            FrameworkCodes.QUERY_DATASET_NOT_FOUND,
         )
 
         /**
          * The codes a state read answers: a [STATE] code, or a minimum version not reached within its wait.
          */
-        val STATE_READ: List<String> = STATE + FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+        val STATE_READ: List<String> = STATE + FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED
 
         /**
          * The codes a query answers: the query codes but a dataset's and a state read's,
          * `wow.query.not-found` a `single` one that matches nothing among them.
          */
-        val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
+        val QUERY: List<String> = listOf(FrameworkCodes.AUTH_UNAUTHENTICATED, FrameworkCodes.AUTH_FORBIDDEN) +
             FrameworkErrors.ALL.map { it.code }.filter {
-                it.startsWith(QUERY_PREFIX) && it !in DATASET_ONLY && it != FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+                it.startsWith(QUERY_PREFIX) && it !in DATASET_ONLY && it != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED
             } +
-            FrameworkErrors.STORAGE_UNAVAILABLE
+            FrameworkCodes.STORAGE_UNAVAILABLE
 
         /**
          * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
          * answer, and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
          * but not queryable now (-2); and `wow.query.dataset-not-found`, one not served to the caller.
          */
-        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY + DATASET_ONLY
+        val DATASET_QUERY: List<String> = QUERY - FrameworkCodes.QUERY_BUSY + DATASET_ONLY
 
         /** The codes a query model's capability descriptor answers. */
         val DESCRIPTOR: List<String> = listOf(
-            FrameworkErrors.AUTH_UNAUTHENTICATED,
-            FrameworkErrors.QUERY_FAILED,
-            FrameworkErrors.STORAGE_UNAVAILABLE,
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.QUERY_FAILED,
+            FrameworkCodes.STORAGE_UNAVAILABLE,
         )
 
         /** The codes a dataset's descriptor answers: a model's, and `wow.query.dataset-not-found`. */
-        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkErrors.QUERY_DATASET_NOT_FOUND
+        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkCodes.QUERY_DATASET_NOT_FOUND
 
         /** The codes the dataset list answers. */
         val DATASET_LIST: List<String> = listOf(
-            FrameworkErrors.AUTH_UNAUTHENTICATED,
-            FrameworkErrors.AUTH_FORBIDDEN,
-            FrameworkErrors.QUERY_MALFORMED,
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
+            FrameworkCodes.QUERY_MALFORMED,
         )
 
         /** The codes of the framework's own endpoints: the caller must be authenticated. */
-        val FRAMEWORK: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED)
+        val FRAMEWORK: List<String> = listOf(FrameworkCodes.AUTH_UNAUTHENTICATED)
 
         /** A service route's: its caller refused, a parameter that does not read, and a failure. */
         val ROUTE: List<String> = listOf(
-            FrameworkErrors.AUTH_UNAUTHENTICATED,
-            FrameworkErrors.AUTH_FORBIDDEN,
-            FrameworkErrors.ROUTE_MALFORMED,
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
+            FrameworkCodes.ROUTE_MALFORMED,
         )
 
         /** The framework codes whose description speaks of a command, as a route's answers say them. */
         private val ROUTE_WORDS: Map<String, String> = mapOf(
-            FrameworkErrors.AUTH_FORBIDDEN to "The caller may not call this route: an authorizer refused it, or it " +
+            FrameworkCodes.AUTH_FORBIDDEN to "The caller may not call this route: an authorizer refused it, or it " +
                 "names a scope it may not act in.",
         )
 

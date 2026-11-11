@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
@@ -72,7 +73,7 @@ internal object OpenApiFixtures {
                 errors = listOf(
                     ErrorManifest("shop.cart.full", 409, "The cart is full."),
                     ErrorManifest("shop.cart.closed", 422),
-                    ErrorManifest(FrameworkErrors.AGGREGATE_EXISTS, 409, "Not the context's."),
+                    ErrorManifest(FrameworkCodes.AGGREGATE_EXISTS, 409, "Not the context's."),
                 ),
             ),
         ),

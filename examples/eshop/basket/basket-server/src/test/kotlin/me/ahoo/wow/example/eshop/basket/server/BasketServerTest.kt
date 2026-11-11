@@ -20,6 +20,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketStateView
@@ -28,7 +29,6 @@ import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.test.server.fakePeer
@@ -93,7 +93,7 @@ class BasketServerTest {
     fun `a basket should be its buyer's alone`() {
         val dave = server.commands(buyer("dave"))
         rejected { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "carol") }
-            .code.assert().isEqualTo(FrameworkErrors.AGGREGATE_FORBIDDEN)
+            .code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         // By its own id, the buyer reaches the basket the commands without one do.
         runBlocking { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "dave") }
         basket("dave", buyer("dave"))!!.state.items.single().productId.assert().isEqualTo("mug")
@@ -103,7 +103,7 @@ class BasketServerTest {
     fun `an item of no quantity or a negative price should be invalid before the basket decides`() {
         val frank = server.commands(buyer("frank"))
         val invalid = rejected { frank.wait(AddBasketItem("mug", BigDecimal("-1"), 0)) }
-        invalid.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        invalid.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         invalid.result.error!!.violations.map { it.path to it.code }
             .assert().containsExactly("quantity" to "positive", "unitPrice" to "positive-or-zero")
         // Nothing was decided: the basket was not created.
@@ -128,7 +128,7 @@ class BasketServerTest {
     fun `an employee should have no basket of its own to read by the route that names none`() {
         val noOwner = server.http.get("/eshop-basket/basket/state", caller = EMPLOYEE)
         noOwner.problem!!.status.assert().describedAs(noOwner.text).isEqualTo(BAD_REQUEST)
-        noOwner.problem!!.code.assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
+        noOwner.problem!!.code.assert().isEqualTo(FrameworkCodes.QUERY_MALFORMED)
     }
 
     /** The basket [id] as [caller] reads it; null when the caller sees none. */

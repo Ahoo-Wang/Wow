@@ -59,7 +59,7 @@ internal data class CommandTarget(
     val command: String,
     val byId: Boolean,
     val id: String? = null,
-    /** Whether the command always creates its aggregate ([me.ahoo.wow.manifest.Creation.REQUIRED]). */
+    /** Whether the command always creates its aggregate ([me.ahoo.wow.api.aggregate.Creation.REQUIRED]). */
     val creates: Boolean = false,
     /**
      * Whether the command is a system command of one of Wow's built-in aggregates, a job's or the snapshot rebuild's,

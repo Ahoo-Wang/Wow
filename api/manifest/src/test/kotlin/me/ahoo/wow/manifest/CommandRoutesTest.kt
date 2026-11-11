@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource

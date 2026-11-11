@@ -14,8 +14,8 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.manifest.AccessAttributeManifest
-import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest

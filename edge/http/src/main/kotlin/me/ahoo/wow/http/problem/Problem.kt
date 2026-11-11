@@ -16,6 +16,7 @@ package me.ahoo.wow.http.problem
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
@@ -188,7 +189,7 @@ class Problem @InternalWowApi constructor(
                     status.value(),
                     status.reasonPhrase,
                     unavailable.message,
-                    FrameworkErrors.STORAGE_UNAVAILABLE,
+                    FrameworkCodes.STORAGE_UNAVAILABLE,
                 )
             }
             return tooLargeProblem(failure)

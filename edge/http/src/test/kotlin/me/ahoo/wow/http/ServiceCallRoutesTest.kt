@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
@@ -25,6 +26,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WowHeaders
@@ -35,8 +37,6 @@ import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
-import me.ahoo.wow.manifest.Creation
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
@@ -189,7 +189,7 @@ class ServiceCallRoutesTest {
     fun `a call the target rejects should answer its rejected result`(): Unit = runBlocking {
         val rejected = caller.call(call(body = Checkout()))
         rejected.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        rejected.error!!.code.assert().isEqualTo(FrameworkErrors.AGGREGATE_NOT_FOUND)
+        rejected.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -198,14 +198,14 @@ class ServiceCallRoutesTest {
             // The caller's contract is newer than the target: a command the target has no route of.
             val byId = caller.call(call().let { OutgoingCall("$CONTEXT.cart.AddItemV2", it.command) })
             byId.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-            byId.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            byId.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             byId.commandId.assert().isEqualTo("call-1")
             val creation = caller.call(call(ref = "").let { OutgoingCall("$CONTEXT.cart.OpenCartV2", it.command) })
             creation.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-            creation.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            creation.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             val wishlist = call().command.copyWith(ref = AggregateType(CONTEXT, "wishlist").ref(TENANT, "w-1"))
             val aggregate = caller.call(OutgoingCall("$CONTEXT.wishlist.AddItem", wishlist))
-            aggregate.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            aggregate.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             node.commands.assert().isEmpty()
             // Still a service's call alone: any other caller is refused first.
             internalPost("/shop/cart/cart-1/add-item-v2", mapOf("X-User" to "mallory")).assertForbidden()
@@ -228,7 +228,7 @@ class ServiceCallRoutesTest {
 
     private fun Answer.assertForbidden() {
         status.assert().isEqualTo(403)
-        body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
     }
 
     @Test
@@ -265,7 +265,7 @@ class ServiceCallRoutesTest {
             mapOf(WowHeaders.SERVICE to SERVICE, WowHeaders.CALL to "%%%"),
         )
         answer.status.assert().isEqualTo(400)
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_MALFORMED)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test

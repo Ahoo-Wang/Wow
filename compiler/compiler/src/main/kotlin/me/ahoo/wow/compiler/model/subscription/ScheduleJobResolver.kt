@@ -22,10 +22,11 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.SagaContext
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -192,6 +193,6 @@ internal data class JobBinding(
     val scope: String,
     val misfire: String,
 ) {
-    /** The job as the Manifest lists it, its scope and misfire by their wire names. */
-    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), WireNames.of(misfire))
+    /** The job as the Manifest lists it, its scope and misfire the annotation's constants. */
+    fun manifest(): JobManifest = JobManifest(name, cron, zone, JobScope.valueOf(scope), Misfire.valueOf(misfire))
 }
