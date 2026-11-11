@@ -21,10 +21,14 @@ the head.
     is higher in all four pairs.
   - CPU per operation is level (1.01–1.02), and so are MongoDB's commands per operation. The store is at or near its
     one core in both arms.
-  - Ruled out: the access walk, which stamps nothing in these end-to-end runs (its claim reads zero heads), and the
-    access follower's reads (RT-9, by an A/A run with the follower's memory raised).
-  - Not confirmed: the two access indexes #5394 adds to the log. That run reached its job's time limit after two
-    equal-rate pairs, which point opposite ways.
+  - Ruled out: the access walk and the access follower's reads.
+    - On the head and the tag, the walk stamps nothing in these end-to-end runs: its claim reads zero heads. It did
+      run in one arm of one run, #5394's parent in 43067146468 (see below).
+    - The follower's reads (RT-9) are ruled out by an A/A run with the follower's memory raised.
+  - Not confirmed: the two access indexes #5394 adds to the log.
+    - In an ABAB against its parent, with the parent's walk held back, #5394's CPU per operation is 0.974 and its p99
+      0.983 (medians of four pairs, at about 2,090/s on EPYC 9V45 runners).
+    - The difference itself was measured on EPYC 7763 runners at about 1,100/s.
   - No cause is stated.
 - **E3 on MongoDB with 100k accounts** was beyond noise in L3 (p99 1.85, n=2). It is not there again in the ABAB
   (1.048, n=4), and leaves the list.
@@ -185,9 +189,10 @@ Each run is one dispatch of `bench.yml` from a `bench/` branch of its own, delet
 | [43013655859](https://github.com/Ahoo-Wang/Wow/actions/runs/43013655859) | `e1fa5a04f1` | beta.1 | e1-mongo-uniform at 100k, ABAB form | E1 MongoDB on main | p99 1.435 (1.215–1.977), higher in all four pairs, p50 1.231, CPU 1.012 |
 | [43037691309](https://github.com/Ahoo-Wang/Wow/actions/runs/43037691309) | `bc9afce234` (main) | `20e32fb9e8` (main with #5420 undone) | e1-pg-uniform, e3-pg at 100k | Check 2: what #5420 costs or buys | See "Snapshot writes on PostgreSQL" |
 | [43038596676](https://github.com/Ahoo-Wang/Wow/actions/runs/43038596676) | `f85650f560`, A/A, the second arm with `wow.access.capacity=1000000` | none | e1-mongo-uniform at 100k, `repeats=4` | RT-9: the access follower's read of the stream before | The capacity arm is not lower: p99 1.253 (0.951–2.056), finds 0.0023 on both arms. RT-9 is ruled out |
-| [43067146468](https://github.com/Ahoo-Wang/Wow/actions/runs/43067146468) | `4e20d0c22d` (#5394) | `d781d71441`, its parent | e1-mongo-uniform at 100k, ABAB form | The log's two access indexes on MongoDB | Not confirmed (see below). The job reached its 150-minute limit after two equal-rate pairs |
+| [43067146468](https://github.com/Ahoo-Wang/Wow/actions/runs/43067146468) | `4e20d0c22d` (#5394) | `d781d71441`, its parent | e1-mongo-uniform at 100k, ABAB form | The log's two access indexes on MongoDB | Not confirmed (see below). Its base ran the access walk. The job reached its 150-minute limit after two equal-rate pairs |
 | [43069705154](https://github.com/Ahoo-Wang/Wow/actions/runs/43069705154) | `16a04c9e3e` (#6041) | beta.1 | component-mongo, component-pg at 100k | X-119: is the walk gone? | Yes: its four statements at 0 |
 | [43069714076](https://github.com/Ahoo-Wang/Wow/actions/runs/43069714076) | `16a04c9e3e` | beta.1 | e1-mongo-uniform at 100k, ABAB form | E1 MongoDB after #6041 | p99 1.195 and p50 1.407, both within noise. The p50 is higher in all four pairs |
+| [43109405928](https://github.com/Ahoo-Wang/Wow/actions/runs/43109405928), [43109413562](https://github.com/Ahoo-Wang/Wow/actions/runs/43109413562) | `d781d71441`, #5394's parent, `wow.access.walk-rate=1`, `walk-batch=1` | `4e20d0c22d` (#5394) | e1-mongo-uniform at 100k, `repeats=2` each | The log's two access indexes, without the parent's walk | Not confirmed: #5394/parent p99 0.983 and CPU 0.974 (medians of four pairs), within noise (see below) |
 
 The reports of these runs are under [`actions-snapshot/followups/`](actions-snapshot/followups/).
 
@@ -221,11 +226,41 @@ At an equal rate, head over base:
     1.050; CPU per operation 1.009 (1.001–1.018).
   - Its saturation of 0.858 is the first artifact (the head stopped at 1,024 clients). At 256 clients the arms were
     0.972.
-  - Its base did not settle after priming: every base run waited the full 180 s at 0.17–0.40 cores, while every head
-    run was quiet in 3 s. The node's log does not say why.
+  - Its base did not settle after priming, because its access walk was running. Every base run waited the full 180 s
+    at 0.17–0.40 cores, while every head run was quiet in 3 s.
+    - On the parent, the seed's first append creates the log collection. The walk's next claim reads heads the seed
+      is raising, and walks every account.
+    - #5394 creates the collection at start (`events.prepare`), so its claim reads zero heads and completes with
+      nothing to stamp.
+    - MongoDB's queries per operation in the measured phase agree: the base 0.017–0.041, the head 0.0032–0.0035.
+    - So its pairs compared the indexes plus one arm's walk.
+- **The A/B again, with the parent's walk held back** (43109405928 and 43109413562, two pairs each):
+  - **Setup:** the parent (`d781d71441`) ran with `wow.access.walk-rate=1` and `walk-batch=1`. The workflow's
+    `properties` reach only the head arm, so the parent is in the head slot and #5394 in the base slot. The ratios
+    below are #5394/parent, the inverses of the runs' own.
+  - **Where:** both runs were on EPYC 9V45 runners. Their equal rates were 2,096.0/s and 2,085.2/s.
+  - **The walk is out of the comparison.** MongoDB's queries per operation were 0.0038–0.0040 on the parent against
+    0.0018–0.0019 on #5394, the parent's walk at one aggregate a second. Commands were 0.010–0.011 on both, and every
+    settle was quiet in 3 s.
+
+  | Run, pair | p50 | p99 | CPU ms/op | Alloc/op | p99 ms, #5394 / parent |
+  | --- | ---: | ---: | ---: | ---: | --- |
+  | 43109405928 e1 | 1.166 | 0.978 | 0.981 | 0.996 | 370.7 / 378.9 |
+  | 43109405928 e2 | 0.970 | 0.821 | 0.967 | 0.997 | 395.3 / 481.3 |
+  | 43109413562 e1 | 2.155 | 1.855 | 1.012 | 0.971 | 835.6 / 450.6 |
+  | 43109413562 e2 | 0.922 | 0.987 | 0.896 | 1.004 | 305.2 / 309.2 |
+  | Median | 1.068 | 0.983 | 0.974 | 0.997 | |
+
+  - **Significance:** the runs' own tables (parent/#5394) give p50 0.959 and 0.597 and p99 1.123 and 0.666, all
+    within noise.
+  - **Saturation:** the calibrated throughput is 0.890 and 0.874 (parent/#5394), "lower". This is the first artifact:
+    the parent's searches stopped at 1,024 and 512 clients.
+  - **Reading:** on these runners #5394's two indexes show no cost. CPU per operation is below the parent's in three
+    of four pairs, and the one pair above 1 in latency is a run's first equal-rate pair.
 - **What is left:** the head's p99 at an equal rate stands above the tag's in every run on an EPYC 7763. On #6041's head
-  it is within the suite's noise, but its p50 is above in all four pairs. Whether it matters at GA, and whether #5394
-  causes it, is not settled by these runs.
+  it is within the suite's noise, but its p50 is above in all four pairs. The run without the parent's walk doesn't
+  confirm #5394 as its cause. That run was on EPYC 9V45 runners at about twice the rate, so the question is open on
+  the 7763. Whether the difference matters at GA is not settled by these runs.
 
 ### Snapshot writes on PostgreSQL
 
@@ -392,7 +427,10 @@ measured. A `cold-pg` or `e5-mongo` pair with `aa=true` would measure them.
 - **A significance ratio can lie outside its own interval** (E1 PostgreSQL at 100k in L3; the index run's p99).
 - **An ABAB of e1-mongo-uniform at 100k with `repeats=4` and `profile=true` reaches the job's 150-minute limit.**
   42987505636 reached it after its timed rounds, 43067146468 before its last pairs, and 43069714076 ended at 148.5
-  minutes. A base that does not settle after priming adds up to 3 minutes a run.
+  minutes. A node whose access walk runs after priming (#5394's parent) adds up to 3 minutes a run. Two dispatches with
+  `repeats=2` each took about an hour.
+- **`properties` reaches only the head arm.** A change to the base arm's configuration means putting the base's ref in
+  the head slot and reading the runs' ratios inverted, as 43109405928 and 43109413562 do.
 - **A base at or after `84f9e281dc` did not install:** the server archive also holds the search server, so
   `INSTALL_BASE` found two directories. #6053 fixes it.
 
