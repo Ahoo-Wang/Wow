@@ -263,6 +263,8 @@
     --fvp-chart-slice-border: initial;
     --fvp-chart-map-edge: initial;
     --fvp-dark-chart-map-edge: initial;
+    --fvp-chart-ink-dark: initial;
+    --fvp-chart-ink-light: initial;
     --fvp-chart-tooltip: initial;
     --fvp-dark-chart-tooltip: initial;
     --fvp-chart-tooltip-foreground: initial;

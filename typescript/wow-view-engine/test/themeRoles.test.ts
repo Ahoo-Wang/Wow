@@ -132,6 +132,8 @@ const BUILT_IN: Readonly<
   'chart-bar-radius': 'min(2px, calc(var(--radius) * 0.6))',
   'chart-bar-max-width': '80px',
   'chart-slice-border': '1px',
+  'chart-ink-dark': 'oklch(0 0 0deg)',
+  'chart-ink-light': 'oklch(1 0 0deg)',
 };
 
 /** A value for each kind of role no built-in value is. */

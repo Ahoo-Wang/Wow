@@ -861,6 +861,22 @@
     --fve-chart-map-edge,
     var(--fvp-chart-map-edge, var(--_fve-chart-axis))
   );
+  /*
+   * The inks of a number written on a mark, the darker for a light mark and
+   * the lighter for a deep one. Black and white, the two ends: between them
+   * no colour is under 4.58:1 from both, so every slot of any palette has
+   * one that reads on it, whatever the page's own ink and ground are (a
+   * near-black of 0.145 already leaves a band of mid greys at 4.4). One
+   * value in both modes: the mark decides, not the mode.
+   */
+  --_fve-chart-ink-dark: var(
+    --fve-chart-ink-dark,
+    var(--fvp-chart-ink-dark, oklch(0 0 0deg))
+  );
+  --_fve-chart-ink-light: var(
+    --fve-chart-ink-light,
+    var(--fvp-chart-ink-light, oklch(1 0 0deg))
+  );
   --_fve-chart-tooltip: var(
     --fve-chart-tooltip,
     var(--fvp-chart-tooltip, var(--popover))

@@ -130,15 +130,25 @@ describe('emphasized: a mark under the pointer', () => {
 
 describe('inkOn: a label written on a mark', () => {
   it('takes whichever of the two inks stands further from the mark', () => {
-    expect(inkOn(LIGHT, 'rgb(20, 40, 120)')).toBe(LIGHT.ground);
-    expect(inkOn(LIGHT, 'rgb(220, 232, 250)')).toBe(LIGHT.foreground);
-    // The dark theme's inks are the other way round; the rule is the same.
-    expect(inkOn(DARK, 'rgb(20, 40, 120)')).toBe(DARK.foreground);
+    expect(inkOn(LIGHT, 'rgb(20, 40, 120)')).toBe(LIGHT.ink.light);
+    expect(inkOn(LIGHT, 'rgb(220, 232, 250)')).toBe(LIGHT.ink.dark);
+    // The mark decides, not the mode: the same two inks in the dark.
+    expect(inkOn(DARK, 'rgb(20, 40, 120)')).toBe(DARK.ink.light);
+    expect(inkOn(DARK, 'rgb(220, 232, 250)')).toBe(DARK.ink.dark);
   });
 
-  it('keeps the foreground where a colour cannot be read', () => {
-    expect(inkOn(LIGHT, 'not a colour')).toBe(LIGHT.foreground);
-    expect(inkOn(theme('fg', 'ground'), 'rgb(0, 0, 0)')).toBe('fg');
+  it('are the chart’s own, not the page’s words and ground', () => {
+    // A page written in a soft ink on a pale ground: neither reads on a
+    // mid-tone mark, and neither is what the label takes.
+    const soft = theme('rgb(120, 120, 120)', 'rgb(200, 200, 200)');
+    expect(inkOn(soft, 'rgb(227, 73, 72)')).toBe(soft.ink.dark);
+    expect(inkOn(soft, 'rgb(20, 40, 120)')).toBe(soft.ink.light);
+  });
+
+  it('keeps the dark ink where a colour cannot be read', () => {
+    expect(inkOn(LIGHT, 'not a colour')).toBe(LIGHT.ink.dark);
+    const unread = { ...LIGHT, ink: { dark: 'ink', light: 'paper' } };
+    expect(inkOn(unread, 'rgb(0, 0, 0)')).toBe('ink');
   });
 });
 

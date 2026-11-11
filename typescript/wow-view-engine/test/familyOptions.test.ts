@@ -200,9 +200,9 @@ describe('heatmapOption', () => {
     const [palest, deepest] = (
       heatmapOption(data, context(undefined, true), light) as Loose
     ).series[0].data;
-    // The palest cell takes the dark ink, the deepest the ground's.
-    expect(palest.label.color).toBe('rgb(10, 10, 10)');
-    expect(deepest.label.color).toBe('rgb(255, 255, 255)');
+    // The palest cell takes the chart's dark ink, the deepest its light.
+    expect(palest.label.color).toBe(light.ink.dark);
+    expect(deepest.label.color).toBe(light.ink.light);
     // No halo: the ink is the contrast.
     const series = (
       heatmapOption(data, context(undefined, true), light) as Loose

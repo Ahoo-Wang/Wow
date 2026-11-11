@@ -322,6 +322,19 @@ describe('each check fires on what it names', () => {
     );
   });
 
+  it('holds a palette to the chart’s own inks', () => {
+    // Black and white leave no colour without an ink; a softer dark ink
+    // leaves a mid grey with neither.
+    const slot = '--fve-chart-1: #777777; --fve-dark-chart-1: #777777;';
+    const short =
+      'slot 1: neither chart-ink-dark nor chart-ink-light reads 4.5:1 inside it';
+    const said = (css: string) => check(css).map(({ message }) => message);
+    expect(said(`:root { ${slot} }`).join('\n')).not.toContain(short);
+    expect(
+      said(`:root { ${slot} --fve-chart-ink-dark: #0a0a0a; }`).join('\n'),
+    ).toContain(short);
+  });
+
   it('says so when a strength is not a percentage', () => {
     expect(
       check(':root { --fve-state-hover: 0.03; }').map(({ message }) => message),

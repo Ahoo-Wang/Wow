@@ -323,6 +323,10 @@ export const TOKENS = [
     fallback: 'chart-axis',
     chart: true,
   },
+  // The two inks a number written on a mark takes one of (`inkOn`): one
+  // value in both modes, the mark's colour deciding, not the page's.
+  { name: 'chart-ink-dark', ...role('chart'), modes: 1, chart: true },
+  { name: 'chart-ink-light', ...role('chart'), modes: 1, chart: true },
   // The chart's tooltip is HTML inside the chart's element, so it reads its
   // roles through utilities (`charts/tooltip.ts`), as any popup does.
   { name: 'chart-tooltip', ...role('chart'), fallback: 'popover' },
