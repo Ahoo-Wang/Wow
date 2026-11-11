@@ -379,6 +379,7 @@ internal class MongoLogAppender(
         } catch (
             failure: MongoException,
         ) {
+            // Each sequence is left to the tail, which fills it again.
             gaps.indices.toSet()
         }
         gaps.forEachIndexed { at, gap ->
