@@ -80,6 +80,22 @@ class KernelObservationTest {
         }
 
     @Test
+    fun `an observer that throws, alone, should leave the command's outcome unchanged`(): Unit = runBlocking {
+        val throwing = object : Observer {
+            override fun executing(command: Command<*>, commandType: String): Observation = object : Observation {
+                override fun outcome(outcome: ObservedOutcome) = error("broken")
+
+                override fun end() = error("broken")
+            }
+
+            override fun appending(stream: EventStreamRecord): Observation = error("broken")
+        }
+        val alone = Kernel(InMemoryEventLog(), clock = { 0L }, observer = Observer.of(listOf(throwing)))
+        alone.execute(cartModel, Command("c-1", "r-1", ref, CreateCart("ahoo")))
+            .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+    }
+
+    @Test
     fun `a scheduled command not yet due should fail its observed execution, unchanged`(): Unit = runBlocking {
         val due = ScheduleContext("timer-1", "expire", 1, 60_000).headers()
         assertThrows<ScheduleNotDueException> {

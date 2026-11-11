@@ -94,10 +94,17 @@ class CompositeObserverTest {
     }
 
     @Test
-    fun `none should be no observer, and one itself`() {
+    fun `none should be no observer, and one should be guarded as several are`() {
         Observer.of(emptyList()).assert().isSameAs(Observer.NONE)
-        val one = Recording("a")
-        Observer.of(listOf(one)).assert().isSameAs(one)
+        val one = Observer.of(listOf(Recording("a")))
+        one.executing(command, "shop.cart.Open").end()
+        told.assert().containsExactly("a execute end")
+        // One that fails alone fails no work either: not at its stage, its event, nor its trace.
+        val failing = Observer.of(listOf(Failing))
+        failing.executing(command, "shop.cart.Open").assert().isSameAs(Observation.NONE)
+        failing.observed(ObservedEvent.ReservationLost("shop"))
+        failing.resuming(emptyMap()).assert().isSameAs(EmptyCoroutineContext)
+        Observer.of(listOf(Observer.NONE)).deciding(command).assert().isSameAs(Observation.NONE)
     }
 
     @Test
@@ -154,5 +161,8 @@ class CompositeObserverTest {
         }
         Observer.of(listOf(failingEnd, Recording("b"))).deciding(command).end()
         told.last().assert().isEqualTo("b decide end")
+        // So is the stage of one observer alone, or of the only one of several that observes it.
+        Observer.of(listOf(failingEnd)).deciding(command).end()
+        Observer.of(listOf(failingEnd, Observer.NONE)).deciding(command).end()
     }
 }

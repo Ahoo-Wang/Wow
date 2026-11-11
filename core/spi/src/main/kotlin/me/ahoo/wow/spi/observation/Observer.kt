@@ -95,14 +95,10 @@ interface Observer {
 
         /**
          * [observers] as one observer: each told of every stage and event in their order, one that fails isolated
-         * from the work and from the others ([CompositeObserver]); [NONE] for none, the observer itself for one.
+         * from the work and from the others ([CompositeObserver]), one alone too; [NONE] for none.
          */
         @JvmStatic
-        fun of(observers: List<Observer>): Observer = when (observers.size) {
-            0 -> NONE
-            1 -> observers.single()
-            else -> CompositeObserver(observers)
-        }
+        fun of(observers: List<Observer>): Observer = if (observers.isEmpty()) NONE else CompositeObserver(observers)
     }
 }
 
