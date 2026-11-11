@@ -62,6 +62,15 @@ public final class me/ahoo/wow/test/AggregateSpecsKt {
 	public static final fun getDEFAULT_START ()Ljava/time/Instant;
 }
 
+public final class me/ahoo/wow/test/AnsweringCommandClient : me/ahoo/wow/api/client/CommandClient {
+	public final fun getCalls ()Ljava/util/List;
+	public synthetic fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/test/AnsweringCommandClient;
+	public fun send (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Lme/ahoo/wow/api/client/CommandRequest;)Lkotlinx/coroutines/flow/Flow;
+	public fun wait (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class me/ahoo/wow/test/CallResultsKt {
 	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;I)Lme/ahoo/wow/api/result/CommandResult;
@@ -74,6 +83,19 @@ public final class me/ahoo/wow/test/CallResultsKt {
 	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static synthetic fun rejectedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+}
+
+public final class me/ahoo/wow/test/CommandCall {
+	public final fun committed (ILme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun committed$default (Lme/ahoo/wow/test/CommandCall;ILme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun failed (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun failed$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequest ()Lme/ahoo/wow/api/client/CommandRequest;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun rejected$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/test/EventEnvelope {
@@ -220,6 +242,12 @@ public final class me/ahoo/wow/test/ProcessorSpecsKt {
 	public static final fun reactorSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 	public static final fun sagaSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
 	public static final fun sagaSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
+}
+
+public final class me/ahoo/wow/test/RouteCallsKt {
+	public static final fun answeringCommandClient (Lkotlin/jvm/functions/Function2;)Lme/ahoo/wow/test/AnsweringCommandClient;
+	public static final fun routeCall (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/api/read/Queries;Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/String;)Lme/ahoo/wow/api/route/RouteCall;
+	public static synthetic fun routeCall$default (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/api/read/Queries;Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/route/RouteCall;
 }
 
 public final class me/ahoo/wow/test/ScheduleSpec {

@@ -221,19 +221,22 @@ await expect(refused).rejects.toMatchObject({
 
 ## 测试路由 {#test-a-route}
 
-测试处理函数，就用测试自己的调用去调用它；查询可以是一个真实的查询侧，背后是内存中的快照（`wow-test-query` 的 `memoryQueries`）：
+测试处理函数，就用测试 DSL 构建的调用去调用它：`wow-test` 的 `routeCall(caller, queries, commands, requestId)`。它在调用方的租户与作用域中行事；处理函数若读取或发送了测试未提供的东西，就会失败并说明要提供什么。查询可以是一个真实的查询侧，背后是内存中的快照（`wow-test-query` 的 `memoryQueries`），命令可以是 `answeringCommandClient { call -> … }`，它应答每个请求并把请求记入 `calls`（[测试](./testing#service-routes)）：
 
 <!-- sample: examples/eshop/catalog/catalog-domain/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/StorefrontTest.kt#call -->
 
 ```kotlin
-/** A shopper's call: its reads run on [queries] as the anonymous caller. */
-private class Call(override val queries: Queries) : RouteCall {
-    override val caller: Caller = Caller.ANONYMOUS
-    override val tenantId: String = caller.tenantId
-    override val scope: Scope = caller.scope
-    override val requestId: String = "r1"
-    override val commands: CommandClient get() = error("The storefront sends no command.")
-}
+/** A shopper's call: its reads run on a query side in memory as the anonymous caller; it sends no command. */
+private val call = routeCall(
+    queries = memoryQueries {
+        snapshot(model, "mug", created("8.50"), ProductPublished)
+        snapshot(model, "cup", created("5.00"), ProductPublished)
+        snapshot(model, "bowl", created("7.00"), ProductPublished)
+        snapshot(model, "plate", created("3.00", categoryId = "plates"), ProductPublished)
+        snapshot(model, "draft", created("1.00"))
+        snapshot(model, "old", created("2.00"), ProductPublished, ProductDelisted("Out of season"))
+    }.of(Caller.ANONYMOUS),
+)
 ```
 
 `StorefrontTest` 给它 `memoryQueries { snapshot(productModel(), "mug", ProductCreated(...), ProductPublished) }.of(Caller.ANONYMOUS)`，于是每件商品的状态就是它自己的事件构建出的状态，再断言每条路由的应答与拒绝。`CatalogEndToEndTest` 在启动的服务上经 HTTP 调用这些路由：`204`、商品列表项与 `400` problem。

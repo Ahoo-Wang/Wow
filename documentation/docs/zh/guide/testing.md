@@ -400,6 +400,10 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec(handlers, start)` 测试，
 
 一次越过多个时间槽时只运行最近的那个，其余的计入触发的 `skipped`，除非任务的规则要求补跑。失败的触发按它的任务的 `@Retry` 重试或停放，见[失败、重试与停放](#failures-retries-and-parking)。`scheduleSpecTests` 让每个带检查的 `advanceTime` 和每个 `whenTick` 各成为一个测试。[测试定时任务](./scheduling#test-it)给出了一个任务早晨的触发。
 
+## 服务路由 {#service-routes}
+
+服务路由的处理函数像决策函数一样，直接调用来测试：用测试 DSL 构建的调用 `routeCall(caller, queries, commands, requestId)`。这个调用在调用方的租户与作用域中行事。省略时，调用方是匿名的，请求 ID 为 `request-1`；处理函数若读取或发送，测试就会失败并说明要提供什么。命令用 `answeringCommandClient { call -> … }`：它经 `send`、`wait` 或 `stream`、以 `of` 给出的任一调用方接收的每个请求，都交给这个 lambda，并记入 `calls`。lambda 用 `call.committed(version)`、`call.rejected(code)` 或 `call.failed(code)` 应答，真实的客户端会返回或抛出它们。[测试路由](./service-routes#test-a-route)给出了店面的测试。`RouteCall` 与 `CommandClient` 由 Wow 实现：自己编写它们的测试需要 `@OptIn(InternalWowApi::class)`，并会在 Wow 新增成员时失效。
+
 ## 访问策略 {#access-policies}
 
 访问策略用 `accessPolicySpec(model, policy)` 测试：给定事件之后、或某个状态和作用域下的聚合，`whenCaller(subject, claims, roles)` 像内核和查询那样，检查这个调用方能读取和修改什么。[测试策略](./ownership#test-a-policy)给出了一个例子。
