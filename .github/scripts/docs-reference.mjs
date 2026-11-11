@@ -113,14 +113,14 @@ const WORDS = {
       title: 'API Levels',
       description:
         'What each level of the public API promises, and the declarations that are experimental or SPI.',
-      intro: `Every public declaration of a published module has one of four levels. The ABI dumps (\`<module>/api/<module>.api\`) record the signatures of the first three, so a change to them shows in review. The markers are in \`me.ahoo.wow.api.annotation\` of \`wow-annotations\`, which every Wow artifact brings along.`,
+      intro: `Every public declaration of a published module has one of four levels. The ABI dumps (\`<module>/api/<module>.api\`) record the signatures of the first three, so a change to them shows in review. The markers are in \`me.ahoo.wow.api.annotation\` of \`wow-annotations\`, which every Wow artifact but \`wow-cocache-api\` brings along.`,
       table: [
         '| Level | Marker | Promise |',
         '| --- | --- | --- |',
         '| Public | none | A 10.x patch release keeps it binary compatible. A 10.x minor release may change it; its release notes name every such change. |',
         '| Experimental | `@ExperimentalWowApi` | A 10.x minor release may change or remove it. Using it needs `@OptIn(ExperimentalWowApi::class)`, a compiler warning otherwise. |',
         '| SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |',
-        "| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. An application cannot opt in (a compiler error), and the dumps leave it out. |",
+        "| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. Using it without opting in is a compiler error, and an application does not opt in; the dumps leave it out. |",
       ],
       beyondTitle: 'Beyond the API',
       beyond: `The API is one of three things an upgrade keeps compatible. Within a major version, adjacent minor versions run side by side: the cluster channel, the wait signals, the Kafka envelope, the log's entries and the leases stay readable by the minor version before and after ([Upgrade a Deployment](../operate/upgrades)). A service's own contract, its commands, events, state and error codes, is held to its committed baseline by the build's compatibility check ([The Manifest](../guide/manifest)). Across a major version, a service moves once, with a blue-green cut-over.`,
@@ -190,14 +190,14 @@ const WORDS = {
     levels: {
       title: 'API 级别',
       description: '公开 API 每个级别的承诺，以及实验性与 SPI 的声明。',
-      intro: `已发布模块的每个公开声明都属于四个级别之一。ABI 转储（\`<module>/api/<module>.api\`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 \`wow-annotations\` 的 \`me.ahoo.wow.api.annotation\`，每个 Wow 制品都会带上它。`,
+      intro: `已发布模块的每个公开声明都属于四个级别之一。ABI 转储（\`<module>/api/<module>.api\`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 \`wow-annotations\` 的 \`me.ahoo.wow.api.annotation\`，除 \`wow-cocache-api\` 外，每个 Wow 制品都会带上它。`,
       table: [
         '| 级别 | 标记 | 承诺 |',
         '| --- | --- | --- |',
         '| 公开 | 无 | 10.x 的补丁版本保持二进制兼容。10.x 的次版本可能改动它，并在发布说明中列出每一处。 |',
         '| 实验性 | `@ExperimentalWowApi` | 10.x 的次版本可能改动或移除它。使用时需要 `@OptIn(ExperimentalWowApi::class)`，否则编译器给出警告。 |',
         '| SPI | `@WowSpi` | 后端与传输实现的端口；次版本可能改动它。使用时需要 `@OptIn(WowSpi::class)`，否则编译器给出警告。 |',
-        '| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。应用无法选择使用（编译错误），ABI 转储也不包含它。 |',
+        '| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。未选择使用就使用它是编译错误，应用也不选择使用；ABI 转储不包含它。 |',
       ],
       beyondTitle: 'API 之外 {#beyond-the-api}',
       beyond: `API 只是升级要保持兼容的三样东西之一。在同一个主版本内，相邻的次版本可以并行运行：集群通道、等待信号、Kafka 信封、日志条目和租约，对前一个和后一个次版本都保持可读（[升级部署](../operate/upgrades)）。服务自己的契约，即它的命令、事件、状态和错误码，由构建的兼容性检查对照提交的基线来保证（[Manifest 与兼容](../guide/manifest)）。跨主版本时，服务通过一次蓝绿切换迁移一次。`,

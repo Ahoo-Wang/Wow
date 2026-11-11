@@ -7,14 +7,14 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 
 # API 级别
 
-已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 `wow-annotations` 的 `me.ahoo.wow.api.annotation`，每个 Wow 制品都会带上它。
+已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 `wow-annotations` 的 `me.ahoo.wow.api.annotation`，除 `wow-cocache-api` 外，每个 Wow 制品都会带上它。
 
 | 级别 | 标记 | 承诺 |
 | --- | --- | --- |
 | 公开 | 无 | 10.x 的补丁版本保持二进制兼容。10.x 的次版本可能改动它，并在发布说明中列出每一处。 |
 | 实验性 | `@ExperimentalWowApi` | 10.x 的次版本可能改动或移除它。使用时需要 `@OptIn(ExperimentalWowApi::class)`，否则编译器给出警告。 |
 | SPI | `@WowSpi` | 后端与传输实现的端口；次版本可能改动它。使用时需要 `@OptIn(WowSpi::class)`，否则编译器给出警告。 |
-| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。应用无法选择使用（编译错误），ABI 转储也不包含它。 |
+| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。未选择使用就使用它是编译错误，应用也不选择使用；ABI 转储不包含它。 |
 
 ## API 之外 {#beyond-the-api}
 

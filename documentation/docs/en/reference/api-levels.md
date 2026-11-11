@@ -7,14 +7,14 @@ description: "What each level of the public API promises, and the declarations t
 
 # API Levels
 
-Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review. The markers are in `me.ahoo.wow.api.annotation` of `wow-annotations`, which every Wow artifact brings along.
+Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review. The markers are in `me.ahoo.wow.api.annotation` of `wow-annotations`, which every Wow artifact but `wow-cocache-api` brings along.
 
 | Level | Marker | Promise |
 | --- | --- | --- |
 | Public | none | A 10.x patch release keeps it binary compatible. A 10.x minor release may change it; its release notes name every such change. |
 | Experimental | `@ExperimentalWowApi` | A 10.x minor release may change or remove it. Using it needs `@OptIn(ExperimentalWowApi::class)`, a compiler warning otherwise. |
 | SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |
-| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. An application cannot opt in (a compiler error), and the dumps leave it out. |
+| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. Using it without opting in is a compiler error, and an application does not opt in; the dumps leave it out. |
 
 ## Beyond the API
 
