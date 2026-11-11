@@ -145,7 +145,8 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
             val context = MongoLogFixture.newContext()
             val log = MongoLogFixture.log(1, context)
             val order = AggregateType(context, "order")
-            val committed = log.append(stream("a", 1, requestId = "taken", aggregate = order)) as AppendOutcome.Committed
+            val committed =
+                log.append(stream("a", 1, requestId = "taken", aggregate = order)) as AppendOutcome.Committed
             // A duplicate request fails at the insert: a placeholder takes its sequence.
             log.append(stream("b", 1, requestId = "taken", aggregate = order))
                 .assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
@@ -155,7 +156,8 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
                 document.getLong("_id").assert()
                     .isEqualTo(MongoEventLog.positionId(document.getInteger("partition"), document.getLong("sequence")))
             }
-            documents.find(Filters.eq("_id", MongoEventLog.positionId(committed.position.partition, committed.position.sequence)))
+            val position = MongoEventLog.positionId(committed.position.partition, committed.position.sequence)
+            documents.find(Filters.eq("_id", position))
                 .first()!!.getString("request_id").assert().isEqualTo("taken")
             documents.find(Filters.exists(MongoEventLog.GAP)).toList().assert().isNotEmpty()
             documents.listIndexes().map { it.getString("name") }.toList()
@@ -198,7 +200,8 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
         val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
         val (outcomes, sent) = CountedMongo.commandsOf {
             runBlocking {
-                (1..FIRST_TOUCHES).map { async(Dispatchers.Default) { log.append(stream("o-$it", 1, aggregate = type)) } }
+                (1..FIRST_TOUCHES)
+                    .map { async(Dispatchers.Default) { log.append(stream("o-$it", 1, aggregate = type)) } }
                     .awaitAll()
             }
         }

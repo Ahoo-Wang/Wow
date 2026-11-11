@@ -60,9 +60,26 @@ class PartitionSequenceThroughputSpike {
             Scenario("one partition, 32 contending writers", partitions = 1, writers = 32, ownerSerialized = false),
             Scenario("64 partitions, 32 writers", partitions = 64, writers = 32, ownerSerialized = false),
             Scenario("64 partitions, 128 writers", partitions = 64, writers = 128, ownerSerialized = false),
-            Scenario("64 partitions, 128 writers, owner-serialized", partitions = 64, writers = 128, ownerSerialized = true),
-            Scenario("one partition, 32 writers, owner group commit", 1, 32, ownerSerialized = false, groupCommit = true),
-            Scenario("64 partitions, 128 writers, owner group commit", 64, 128, ownerSerialized = false, groupCommit = true),
+            Scenario(
+                "64 partitions, 128 writers, owner-serialized",
+                partitions = 64,
+                writers = 128,
+                ownerSerialized = true
+            ),
+            Scenario(
+                "one partition, 32 writers, owner group commit",
+                1,
+                32,
+                ownerSerialized = false,
+                groupCommit = true
+            ),
+            Scenario(
+                "64 partitions, 128 writers, owner group commit",
+                64,
+                128,
+                ownerSerialized = false,
+                groupCommit = true
+            ),
             Scenario(
                 "baseline: plain insert, no partition counter",
                 partitions = 64,
@@ -125,7 +142,9 @@ class PartitionSequenceThroughputSpike {
             }
         }
 
-        runBlocking(Dispatchers.Default) { repeat(scenario.writers) { launch { append(WARMUP / scenario.writers, null) } } }
+        runBlocking(Dispatchers.Default) {
+            repeat(scenario.writers) { launch { append(WARMUP / scenario.writers, null) } }
+        }
         val latencies = LongArray(MEASURED)
         val started = System.nanoTime()
         runBlocking(Dispatchers.Default) {

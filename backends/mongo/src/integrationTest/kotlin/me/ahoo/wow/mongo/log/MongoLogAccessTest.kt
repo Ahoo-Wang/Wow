@@ -49,7 +49,8 @@ class MongoLogAccessTest : MongoLogFixtures() {
             // The blocks list the registered collections, and a seal writes into each: the type's is not among them.
             registered().assert().containsExactly("order")
 
-            log.append(stream("s-1", 1, aggregate = snapshot)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream("s-1", 1, aggregate = snapshot))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
             database.getCollection(name).listIndexes().mapNotNull { it.getString("name") }.toList()
                 .assert().contains(MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY)
             registered().assert().containsExactly("order", "snapshot")

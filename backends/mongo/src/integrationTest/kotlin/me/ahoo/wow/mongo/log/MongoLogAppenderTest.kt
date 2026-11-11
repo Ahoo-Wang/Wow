@@ -117,9 +117,12 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         val valid = stream("a", 1)
         val log = createLog(valid.ref.type.context, 1)
         val tooPrecise = valid.copyWith(
-            events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.2345678901234567890123456789012345}""")),
+            events = listOf(
+                EventRecord("x.aggregate.Priced", 1, """{"amount":1.2345678901234567890123456789012345}""")
+            ),
         )
-        (log.append(tooPrecise) as AppendOutcome.Rejected).cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+        (log.append(tooPrecise) as AppendOutcome.Rejected).cause
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
         log.head(0).assert().isNull()
         log.read(tooPrecise.ref).toList().assert().isEmpty()
         // An integer of 35 digits has no exact Decimal128 of scale 0 either.
@@ -180,7 +183,11 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         log.append(big).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
         log.head(0).assert().isNull()
         val outcomes = log.appendAll(
-            listOf(stream("before", 1, aggregate = type) to null, big to null, stream("after", 1, aggregate = type) to null),
+            listOf(
+                stream("before", 1, aggregate = type) to null,
+                big to null,
+                stream("after", 1, aggregate = type) to null
+            ),
         )
         outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
@@ -255,7 +262,8 @@ class MongoLogAppenderTest : MongoLogFixtures() {
                 }
             })
             val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-            log.appendAll(group(context, "a", "b")).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+            log.appendAll(group(context, "a", "b"))
+                .forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
             log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
             tailed(log, 3).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c")
         }
@@ -482,7 +490,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
                 }
             })
             val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-            owner.appendAll(listOf(stream("hot", 1, aggregate = type) to null, stream("cold", 1, aggregate = type) to null))
+            owner.appendAll(
+                listOf(stream("hot", 1, aggregate = type) to null, stream("cold", 1, aggregate = type) to null)
+            )
             MongoLogFixture.log(1, context).append(stream("hot", 2, aggregate = type))
                 .assert().isInstanceOf(AppendOutcome.Committed::class.java)
             armed = true

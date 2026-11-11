@@ -59,7 +59,14 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
             CountedMongo.Sent("update", "wow_checkpoint"),
         )
         counted.load(group, "saga", 0).assert().isEqualTo(9L)
-        CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick.map { Checkpoint.of(it.subscription, it.partition, it.position + 10) }) } }
+        CountedMongo.commandsOf {
+            runBlocking {
+                counted.saveAll(
+                    group,
+                    tick.map { Checkpoint.of(it.subscription, it.partition, it.position + 10) }
+                )
+            }
+        }
             .second.assert().containsExactly(CountedMongo.Sent("update", "wow_checkpoint"))
         tick.forEach { counted.load(group, it.subscription, it.partition).assert().isEqualTo(it.position + 10) }
     }

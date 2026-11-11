@@ -100,10 +100,12 @@ class MongoAggregateReadsTest : MongoLogFixtures() {
         val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
         val type = AggregateType(context, "order")
         val count = 2 * VersionPages.SIZE + 3
-        (1..count).chunked(GROUP_OF_STREAMS).forEach { versions ->
+        for (versions in (1..count).chunked(GROUP_OF_STREAMS)) {
             log.appendAll(versions.map { stream("long", it, aggregate = type) to null })
         }
-        (1..SHORT).forEach { log.append(stream("short", it, aggregate = type)) }
+        for (version in 1..SHORT) {
+            log.append(stream("short", version, aggregate = type))
+        }
         val events = collection(context, "order")
         fun sent(read: suspend () -> Int): Pair<Int, List<String>> {
             val (size, sent) = CountedMongo.commandsOf { runBlocking { read() } }

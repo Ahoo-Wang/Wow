@@ -52,6 +52,7 @@ import kotlin.time.Duration.Companion.minutes
  */
 class MongoWriteConcernTest {
     @Test
+    @Suppress("LongMethod") // One write of every store, each checked for its write concern: a list, not steps.
     fun `every store writes with w majority, though the client's default is w 1`(): Unit = runBlocking {
         val writes = CopyOnWriteArrayList<BsonDocument>()
         val listener = object : CommandListener {

@@ -78,14 +78,17 @@ class MongoTailReadsTest : MongoLogFixtures() {
         writer.append(stream("a", 2, aggregate = order))
         val entries = withTimeout(TAIL_TIMEOUT_MS) { reader.tail(0).take(3).toList() }
         entries.map { it.stream.ref.type }.assert().containsExactly(order, cart, order)
-        reader.findByRequestId(cart, "tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
+        reader.findByRequestId(cart, "tenant", entries[1].stream.requestId)?.ref
+            .assert().isEqualTo(cart.ref("tenant", "b"))
     }
 
     @Test
     fun `a tail stops at a missing sequence rather than skip it`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         val log = MongoLogFixture.log(1, context)
-        (1..3).forEach { log.append(stream("a", it, aggregate = AggregateType(context, "order"))) }
+        for (version in 1..3) {
+            log.append(stream("a", version, aggregate = AggregateType(context, "order")))
+        }
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "order"))
             .deleteOne(Filters.eq("sequence", 2L))
         withTimeoutOrNull(TAIL_STALL_MS) { log.tail(0).take(2).toList() }.assert().isNull()

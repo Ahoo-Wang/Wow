@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.client.model.Filters
 import com.mongodb.ConnectionString
 import com.mongodb.client.MongoClients
+import com.mongodb.client.model.Filters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -115,7 +115,8 @@ class MongoShardingTest {
     fun `a type's timer collection is sharded by partition, its reads by owner on one shard, its due read on all`(): Unit =
         runBlocking {
             val context = MongoLogFixture.newContext()
-            val store = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS).also { it.createSchema() }
+            val store = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS)
+                .also { it.createSchema() }
             val type = AggregateType(context, "order")
             // An owner in each partition, so the timers are on both shards.
             val owners = (1..PARTITIONS * 8).map { type.ref("tenant", "o-$it") }
@@ -200,7 +201,13 @@ class MongoShardingTest {
         keyOf("${MongoLogFixture.DATABASE}.${MongoNames.of("wow_log", context, "order")}").assert().isNull()
         keyOf("${MongoLogFixture.DATABASE}.${MongoSnapshotStore.collectionName(context, "order")}").assert().isNull()
         // Its schema first, as the host makes sure of it: the shared registry is created with its format record.
-        val timers = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.NONE)
+        val timers = MongoTimerStore(
+            client,
+            MongoLogFixture.DATABASE,
+            context,
+            PARTITIONS,
+            sharding = MongoSharding.NONE
+        )
             .also { it.createSchema() }
         timers.put(timer(AggregateType(context, "order").ref("tenant", "o-1"))).assert().isTrue()
         keyOf("${MongoLogFixture.DATABASE}.${timers.collectionName("order")}").assert().isNull()

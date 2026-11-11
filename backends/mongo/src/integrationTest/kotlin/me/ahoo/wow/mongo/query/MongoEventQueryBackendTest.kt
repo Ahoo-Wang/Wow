@@ -62,8 +62,10 @@ class MongoEventQueryBackendTest : EventQueryBackendSpec() {
         val schema = given().schema
         // Decision D271: a sequence the log allocated and did not write holds a placeholder, which has no version.
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
-            .getCollection(MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
-                .collection(type.name))
+            .getCollection(
+                MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
+                    .collection(type.name)
+            )
             .insertOne(Document("partition", 0).append("sequence", Long.MAX_VALUE).append("gap", "failed"))
         val backend = binding(type).backend
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().hasSize(7)

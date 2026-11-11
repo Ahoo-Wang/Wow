@@ -41,7 +41,11 @@ class MongoTimeoutsTest {
 
     @Test
     fun `a store's calls carry its operation timeout, its schema's commands the longer one`(): Unit = runBlocking {
-        val store = MongoCheckpointStore(MongoLogFixture.client, MongoLogFixture.DATABASE, operationTimeout = 1.milliseconds)
+        val store = MongoCheckpointStore(
+            MongoLogFixture.client,
+            MongoLogFixture.DATABASE,
+            operationTimeout = 1.milliseconds
+        )
         // The schema's commands have five minutes: creating it succeeds.
         store.createSchema()
         // A read has a millisecond, which no round trip fits in.

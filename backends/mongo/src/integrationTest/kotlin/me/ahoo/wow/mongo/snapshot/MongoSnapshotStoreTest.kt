@@ -69,7 +69,8 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             .assert().containsExactlyInAnyOrderElementsOf(
                 listOf("_id_", MongoSnapshotStore.OWNER_INDEX, MongoSnapshotStore.SPACE_INDEX) + MongoLogFixture.shardIndexes,
             )
-        store.pending(type, 2, limit = 10).assert().containsExactly(type.ref("t1", "a"), type.ref("t1", "b"), type.ref("t2", "a"))
+        store.pending(type, 2, limit = 10)
+            .assert().containsExactly(type.ref("t1", "a"), type.ref("t1", "b"), type.ref("t2", "a"))
         store.pending(type, 2, after = type.ref("t1", "b"), limit = 10).assert().containsExactly(type.ref("t2", "a"))
     }
 
@@ -108,7 +109,9 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         store.load(saved.ref).assert().isNull()
         // So is an exponent Decimal128 cannot hold, or holds only by changing the scale.
         listOf("1E-6200", "1E+6120").forEach { number ->
-            assertThrownBy<IllegalArgumentException> { runBlocking { store.save(saved.copyWith(state = """{"n":$number}""")) } }
+            assertThrownBy<IllegalArgumentException> {
+                runBlocking { store.save(saved.copyWith(state = """{"n":$number}""")) }
+            }
         }
         store.save(saved).assert().isTrue()
     }
@@ -191,7 +194,9 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         store.pending(type, 2, limit = 10).assert().contains(type.ref("tenant", "above"))
         store.pending(type, 1, limit = 10).assert().doesNotContain(batch[0].ref)
         // A refused one meets the key and is saved again alone.
-        val (third, refused) = CountedMongo.commandsOf { runBlocking { store.saveAll(listOf(of("s2", 1), of("s3", 2))) } }
+        val (third, refused) = CountedMongo.commandsOf {
+            runBlocking { store.saveAll(listOf(of("s2", 1), of("s3", 2))) }
+        }
         third.assert().containsExactly(SnapshotSaveOutcome.Refused, SnapshotSaveOutcome.Written)
         refused.map { it.name }.assert().containsExactly("update", "findAndModify", "findAndModify", "update")
     }

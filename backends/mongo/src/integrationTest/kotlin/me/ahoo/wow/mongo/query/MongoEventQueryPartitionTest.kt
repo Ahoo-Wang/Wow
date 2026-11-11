@@ -78,7 +78,9 @@ class MongoEventQueryPartitionTest {
         // The profiler this reads runs on a shard's members, not on a mongos.
         assumeFalse(MongoLogFixture.sharded, "The profiler is not on a mongos.")
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
-        (1..VERSIONS).forEach { version -> log.appendAll((0 until AGGREGATES).map { stream(it, version) to null }) }
+        for (version in 1..VERSIONS) {
+            log.appendAll((0 until AGGREGATES).map { stream(it, version) to null })
+        }
         val storage = MongoEventQueryStorage(
             MongoLogFixture.client,
             MongoLogFixture.DATABASE,

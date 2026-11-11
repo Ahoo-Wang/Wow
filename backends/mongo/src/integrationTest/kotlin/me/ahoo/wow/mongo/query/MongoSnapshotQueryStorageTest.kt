@@ -29,9 +29,6 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.OrFilter
-import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -42,14 +39,17 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
+import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.mongo.log.MongoLogFixture
@@ -85,7 +85,8 @@ class MongoSnapshotQueryStorageTest {
     private fun store(type: AggregateType) =
         MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
 
-    private suspend fun schema(type: AggregateType): QueryModelSchema = QueryFixtures.schema(type, storage(type).binding(type)!!.storage)
+    private suspend fun schema(type: AggregateType): QueryModelSchema =
+        QueryFixtures.schema(type, storage(type).binding(type)!!.storage)
 
     @Test
     fun `admission rejects what MongoDB declines`(): Unit = runBlocking {
@@ -93,18 +94,28 @@ class MongoSnapshotQueryStorageTest {
         store(type).createCollection(type.name)
         val schema = schema(type)
         fun rejects(filter: FilterExpression, sort: List<Sort> = emptyList()) {
-            val error = runCatching { QueryAdmission.Trusted.list(ListQuery(filter, sort = sort), schema) }.exceptionOrNull()
+            val error = runCatching { QueryAdmission.Trusted.list(ListQuery(filter, sort = sort), schema) }
+                .exceptionOrNull()
             (error is QuerySchemaValidationException).assert().describedAs("$error").isTrue()
         }
         rejects(GreaterThanFilter(QueryField("state.issuedAt"), "2026-01-01T00:00:00Z"))
         rejects(EqualFilter(QueryField("state.issuedAt"), "2026-01-01T00:00:00Z"))
         rejects(MatchAllFilter, listOf(Sort(QueryField("state.issuedAt"), Sort.Direction.ASC)))
         // MongoDB cannot sort by two arrays on independent paths.
-        rejects(MatchAllFilter, listOf(Sort(QueryField("state.keywords"), Sort.Direction.ASC), Sort(QueryField("state.scores"), Sort.Direction.ASC)))
+        rejects(
+            MatchAllFilter,
+            listOf(
+                Sort(QueryField("state.keywords"), Sort.Direction.ASC),
+                Sort(QueryField("state.scores"), Sort.Direction.ASC)
+            )
+        )
         // Full-text search needs a text index.
         rejects(SearchFilter("wow"))
         val cursor = runCatching {
-            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("state.keywords"), Sort.Direction.ASC))), schema)
+            QueryAdmission.Trusted.cursor(
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("state.keywords"), Sort.Direction.ASC))),
+                schema
+            )
         }.exceptionOrNull()
         ((cursor as QuerySchemaValidationException).violation is QueryViolation.UnsupportedCapability).assert().isTrue()
         // A date string still exists.
@@ -120,22 +131,29 @@ class MongoSnapshotQueryStorageTest {
         provisional.provisional.assert().isTrue()
         val backend = binding!!.backend
         val status = QueryField("state.status")
-        backend.list(QueryAdmission.Trusted.list(ListQuery(EqualFilter(status, "NEW")), provisional)).toList().assert().isEmpty()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(EqualFilter(status, "NEW")), provisional)).toList()
+            .assert().isEmpty()
         backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 5), provisional))
             .assert().isEqualTo(CountResult(0, exact = true))
-        backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT), provisional)).let { page ->
+        val exact = PagedQuery(MatchAllFilter, total = TotalMode.EXACT)
+        backend.paged(QueryAdmission.Trusted.paged(exact, provisional)).let { page ->
             page.list.assert().isEmpty()
             page.total.assert().isEqualTo(0L)
         }
-        backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2), provisional)).list.assert().isEmpty()
+        backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2), provisional)).list
+            .assert().isEmpty()
         backend.aggregate(
             QueryAdmission.Trusted.aggregate(
-                AggregationQuery(groupBy = listOf(AggregationGroup.Terms(status, "status")), metrics = listOf(AggregationMetric.Count("count"))),
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(status, "status")),
+                    metrics = listOf(AggregationMetric.Count("count"))
+                ),
                 provisional,
             ),
         ).toList().assert().isEmpty()
         // Reading created nothing, so the store still claims the collection.
-        database.listCollectionNames().into(ArrayList()).contains(storage(type).collection(type.name)).assert().isFalse()
+        database.listCollectionNames().into(ArrayList()).contains(storage(type).collection(type.name))
+            .assert().isFalse()
 
         // Once the aggregate's first snapshot creates the collection, its structures prove the facts.
         store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}"""))
@@ -153,14 +171,16 @@ class MongoSnapshotQueryStorageTest {
             readPreference = ReadPreference.secondaryPreferred(),
         ).binding(type)!!.backend
         // The test replica set has one member: the read falls back to the primary.
-        secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema(type))).toList().assert().hasSize(1)
+        secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema(type))).toList()
+            .assert().hasSize(1)
     }
 
     @Test
     fun `a storage serves only its own context`(): Unit = runBlocking {
         val type = newType()
         assertThrownBy<IllegalArgumentException> { storage(type).binding(AggregateType("elsewhere", "order")) }
-        storage(type).collection(type.name).assert().isEqualTo(MongoSnapshotStore.collectionName(type.context, type.name))
+        storage(type).collection(type.name)
+            .assert().isEqualTo(MongoSnapshotStore.collectionName(type.context, type.name))
         val elsewhere = MongoQueryIndexes.plan("elsewhere", "order", QueryIndexPlan.of(schema(type), emptyList()))
         assertThrownBy<IllegalArgumentException> { storage(type).manageIndexes(elsewhere) }
     }
@@ -194,22 +214,33 @@ class MongoSnapshotQueryStorageTest {
             (error as StorageTimeoutException).timeout.assert().isEqualTo(timeout)
         }
         times { backend.count(QueryAdmission.Trusted.count(CountQuery(slow), schema).withTimeout(timeout)) }
-        times { backend.stream(QueryAdmission.Trusted.list(ListQuery(slow, sort = byAmount), schema).withTimeout(timeout)).toList() }
+        times {
+            backend.stream(
+                QueryAdmission.Trusted.list(ListQuery(slow, sort = byAmount), schema).withTimeout(timeout)
+            ).toList()
+        }
         times {
             backend.page(
-                QueryAdmission.Trusted.paged(PagedQuery(slow, sort = byAmount, total = TotalMode.EXACT), schema).withTimeout(timeout),
+                QueryAdmission.Trusted.paged(PagedQuery(slow, sort = byAmount, total = TotalMode.EXACT), schema)
+                    .withTimeout(timeout),
                 PageWindow.Offset(0, 1, withTotal = true),
             )
         }
         times {
             backend.page(
-                QueryAdmission.Trusted.cursor(CursorQuery(slow, sort = byAmount, size = 1), schema).withTimeout(timeout),
+                QueryAdmission.Trusted.cursor(CursorQuery(slow, sort = byAmount, size = 1), schema)
+                    .withTimeout(timeout),
                 PageWindow.Keyset(null, 1),
             )
         }
         times {
-            val query = AggregationQuery(slow, groupBy = listOf(AggregationGroup.Terms(STATUS, "status")), metrics = listOf(AggregationMetric.Count("count")))
-            backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema).withTimeout(timeout), GroupWindow.All).toList()
+            val query = AggregationQuery(
+                slow,
+                groupBy = listOf(AggregationGroup.Terms(STATUS, "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            )
+            backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema).withTimeout(timeout), GroupWindow.All)
+                .toList()
         }
         // Without a timeout the same command runs to the end, and a bounded count stops one past its limit.
         backend.count(QueryAdmission.Trusted.count(CountQuery(slow, limit = 10), schema)).assert().isEqualTo(11L)
@@ -229,7 +260,8 @@ class MongoSnapshotQueryStorageTest {
         // auto made sure of the collection as the store does, so the store opens it.
         store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}""")).assert().isTrue()
         storage(type).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
-        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
+            .assert().isEqualTo(MongoQueryIndexReport())
 
         // An index of the same name and another definition is reported, and rebuilt by auto.
         val collection = database.getCollection(storage(type).collection(type.name))
@@ -238,13 +270,17 @@ class MongoSnapshotQueryStorageTest {
         storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
             .assert().isEqualTo(MongoQueryIndexReport(invalid = listOf(STATUS_INDEX.name)))
         storage(type).manageIndexes(indexes)
-            .assert().isEqualTo(MongoQueryIndexReport(created = listOf(STATUS_INDEX.name), invalid = listOf(STATUS_INDEX.name)))
-        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+            .assert().isEqualTo(
+                MongoQueryIndexReport(created = listOf(STATUS_INDEX.name), invalid = listOf(STATUS_INDEX.name))
+            )
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
+            .assert().isEqualTo(MongoQueryIndexReport())
         // A collection the store created has the scope indexes already.
         val fresh = newType()
         store(fresh).createCollection(fresh.name)
         val planned = MongoQueryIndexes.plan(fresh.context, fresh.name, QueryIndexPlan.of(schema, emptyList()))
-        storage(fresh, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(planned).assert().isEqualTo(MongoQueryIndexReport())
+        storage(fresh, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(planned)
+            .assert().isEqualTo(MongoQueryIndexReport())
     }
 
     @Test
@@ -296,7 +332,8 @@ class MongoSnapshotQueryStorageTest {
         plan(InFilter(REGION, listOf("K7", "K8"))).assert().contains(region)
         plan(ContainsAllFilter(REGION, listOf("K7", "R7"))).assert().contains(region)
         // A policy ORs its branches: each takes its own attribute's index.
-        plan(OrFilter(listOf(EqualFilter(DEPT, "D7"), EqualFilter(REGION, "K7")))).assert().contains(dept).contains(region)
+        plan(OrFilter(listOf(EqualFilter(DEPT, "D7"), EqualFilter(REGION, "K7"))))
+            .assert().contains(dept).contains(region)
     }
 
     @Test
@@ -306,7 +343,10 @@ class MongoSnapshotQueryStorageTest {
         val schema = schema(type)
         val collection = database.getCollection(storage(type).collection(type.name))
         val admitted = QueryAdmission.Trusted.list(ListQuery(TenantIdFilter("t3"), limit = 10), schema)
-        val filter = Filters.and(MongoSnapshotStore.tenantKeys("t3"), MongoMatchCompiler.compile(admitted.query.filter, admitted))
+        val filter = Filters.and(
+            MongoSnapshotStore.tenantKeys("t3"),
+            MongoMatchCompiler.compile(admitted.query.filter, admitted)
+        )
         val found = collection.find(filter).sort(Sorts.ascending("_id")).limit(10)
         found.explain().winningPlan().assert().contains("\"indexName\": \"_id_\"").doesNotContain("\"SORT\"")
         found.map { it.getString("tenant_id") }.toList().assert().hasSize(10).allMatch { it == "t3" }
@@ -326,7 +366,8 @@ class MongoSnapshotQueryStorageTest {
         const val DOCUMENTS = 200_000
         const val BATCH = 10_000
 
-        fun newType(): AggregateType = AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
+        fun newType(): AggregateType =
+            AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
 
         /**
          * One aggregate type of [DOCUMENTS] snapshots, written in the store's shape, over ten tenants, 500 owners, 300
@@ -336,7 +377,7 @@ class MongoSnapshotQueryStorageTest {
             val type = newType()
             val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
             val collection = MongoSnapshotStore.ensure(database, type.context, type.name)
-            (0 until DOCUMENTS).chunked(BATCH).forEach { batch ->
+            for (batch in (0 until DOCUMENTS).chunked(BATCH)) {
                 collection.insertMany(
                     batch.map { i ->
                         Document("_id", MongoSnapshotStore.keyOf(type.ref("t${i % 10}", "id-$i")))
@@ -358,7 +399,8 @@ class MongoSnapshotQueryStorageTest {
                 )
             }
             val schema = runBlocking {
-                QueryFixtures.schema(type, MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!.storage)
+                val storage = MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
+                QueryFixtures.schema(type, storage.binding(type)!!.storage)
             }
             MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
                 .manageIndexes(

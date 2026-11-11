@@ -78,7 +78,10 @@ class MongoEventQueryIndexesTest {
     /** Stream `n`, the first of its aggregate, of an owner and a space among a hundred; every fiftieth not stamped. */
     private fun stream(n: Int): EventStreamRecord {
         val scope = Scope("u-${n % OWNERS}", "s-${n % OWNERS}")
-        val access = AccessValues.ofStream(mapOf("region" to "R${n % REGIONS}", "teams" to listOf("K${n % REGIONS}")), scope)
+        val access = AccessValues.ofStream(
+            mapOf("region" to "R${n % REGIONS}", "teams" to listOf("K${n % REGIONS}")),
+            scope
+        )
         return EventStreamRecord(
             ref = type.ref(if (n % 2 == 0) "t3" else "t4", "o-$n"),
             version = 1,
@@ -96,7 +99,9 @@ class MongoEventQueryIndexesTest {
     fun `the access indexes of a log are created as ddl says and serve the queries under a policy`(): Unit =
         runBlocking {
             val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
-            (0 until ROWS).chunked(BATCH).forEach { chunk -> log.appendAll(chunk.map { stream(it) to null }) }
+            for (chunk in (0 until ROWS).chunked(BATCH)) {
+                log.appendAll(chunk.map { stream(it) to null })
+            }
             val binding = MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
                 .binding(type)!!
             val schema = QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
@@ -117,7 +122,8 @@ class MongoEventQueryIndexesTest {
                 .containsExactlyInAnyOrderElementsOf(names)
             MongoQueryIndexes.manage(database, Ddl.AUTO, indexes, ensured).created.assert()
                 .containsExactlyInAnyOrderElementsOf(names)
-            MongoQueryIndexes.manage(database, Ddl.VALIDATE, indexes, ensured).assert().isEqualTo(MongoQueryIndexReport())
+            MongoQueryIndexes.manage(database, Ddl.VALIDATE, indexes, ensured)
+                .assert().isEqualTo(MongoQueryIndexReport())
 
             val collection = database.getCollection(indexes.first().collection)
             fun plan(filter: FilterExpression): String {
@@ -127,7 +133,8 @@ class MongoEventQueryIndexesTest {
                 )
                 // Every `events` query holds the streams' scope, the indexes' partial filter.
                 val streams = Filters.exists("version")
-                return collection.find(Filters.and(streams, MongoMatchCompiler.compile(admitted.query.filter, admitted)))
+                val filter = Filters.and(streams, MongoMatchCompiler.compile(admitted.query.filter, admitted))
+                return collection.find(filter)
                     .limit(10).explain()
                     .get("queryPlanner", Document::class.java).get("winningPlan", Document::class.java).toJson()
             }

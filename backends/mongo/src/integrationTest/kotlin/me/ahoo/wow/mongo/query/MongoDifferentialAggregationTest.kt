@@ -41,7 +41,6 @@ import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
-import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
@@ -49,6 +48,7 @@ import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.backend.aggregate
@@ -63,7 +63,8 @@ internal class MongoDifferentialAggregationTest : MongoDifferentialFixtures() {
     }
 
     companion object {
-        private fun count(alias: String = "count", filter: FilterExpression = MatchAllFilter) = AggregationMetric.Count(alias, filter)
+        private fun count(alias: String = "count", filter: FilterExpression = MatchAllFilter) =
+            AggregationMetric.Count(alias, filter)
 
         private val BY_STATUS = AggregationGroup.Terms(STATUS, "status")
 

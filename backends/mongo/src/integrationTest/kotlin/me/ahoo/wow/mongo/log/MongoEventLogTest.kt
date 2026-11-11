@@ -43,7 +43,9 @@ class MongoEventLogTest : EventLogSpec() {
 
     /** A decimal of 40 significant digits: MongoDB keeps at most 34 exactly. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-        events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")),
+        events = listOf(
+            EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")
+        ),
     )
 
     @Test
@@ -74,7 +76,7 @@ class MongoEventLogTest : EventLogSpec() {
                     delay(10)
                 }
             }
-            (2..COMMITS + 1).forEach { version ->
+            for (version in 2..COMMITS + 1) {
                 val mark = CountedMongo.begin()
                 log.append(stream("a", version, aggregate = type))
                 withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)

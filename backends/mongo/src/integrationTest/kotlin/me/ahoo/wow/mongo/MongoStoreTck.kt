@@ -35,6 +35,8 @@ class MongoStoreTck : StoreTck() {
 
     /** A decimal beyond what BSON's Decimal128 holds. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-        events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")),
+        events = listOf(
+            EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")
+        ),
     )
 }
