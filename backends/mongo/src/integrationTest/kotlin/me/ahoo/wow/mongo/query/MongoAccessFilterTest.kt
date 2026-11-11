@@ -14,14 +14,11 @@
 package me.ahoo.wow.mongo.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.AccessFilterSpec
-import me.ahoo.wow.spi.access.AccessValues
-import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /** The access filter contract on MongoDB's snapshot queries: a policy's filter pushed down to the `access` document. */
 class MongoAccessFilterTest : AccessFilterSpec() {
@@ -35,20 +32,4 @@ class MongoAccessFilterTest : AccessFilterSpec() {
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!
-
-    /** [record] as the snapshot it is of: its attributes in their stored form, none on a record not stamped. */
-    private fun snapshotOf(type: AggregateType, record: AccessRecord): SnapshotRecord = SnapshotRecord(
-        ref = type.ref(TENANT, record.id),
-        version = 1,
-        schemaFingerprint = "tck",
-        state = "{}",
-        scope = Scope(record.owner, record.space),
-        firstEventTime = 0,
-        lastEventTime = 0,
-        access = AccessValues.of(accessTree(record)).orEmpty(),
-    )
-
-    private companion object {
-        const val TENANT = "tenant"
-    }
 }

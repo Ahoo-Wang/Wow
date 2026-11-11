@@ -27,6 +27,7 @@ import me.ahoo.wow.api.access.AccessPredicate.Denied
 import me.ahoo.wow.api.access.AccessPredicate.Not
 import me.ahoo.wow.api.access.AccessPredicate.Unknown
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -47,7 +48,9 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.querySchema
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import tools.jackson.databind.JsonNode
@@ -130,6 +133,21 @@ abstract class AccessFilterSpec {
         return tree
     }
 
+    /**
+     * [record] as the snapshot of it a snapshot store writes, in [type]: its owner and space its scope, its declared
+     * attributes in their stored form, none on a record not stamped ([keepsUnstamped]).
+     */
+    protected fun snapshotOf(type: AggregateType, record: AccessRecord): SnapshotRecord = SnapshotRecord(
+        ref = type.ref(SNAPSHOT_TENANT, record.id),
+        version = 1,
+        schemaFingerprint = "tck",
+        state = "{}",
+        scope = Scope(record.owner, record.space),
+        firstEventTime = 0,
+        lastEventTime = 0,
+        access = AccessValues.of(accessTree(record)).orEmpty(),
+    )
+
     @TestFactory
     fun `access filter matrix`(): List<DynamicTest> {
         val records = if (keepsUnstamped) {
@@ -181,11 +199,8 @@ abstract class AccessFilterSpec {
         ).schema()
     }
 
-    /**
-     * The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them: what a backend that
-     * maps its fields before it stores a record declares first.
-     */
-    protected fun declaration(): QuerySchemaDeclaration = querySchema {
+    /** The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them. */
+    private fun declaration(): QuerySchemaDeclaration = querySchema {
         DatasetAccessSpec.ATTRIBUTES.forEach { attribute ->
             val type = when (attribute.type) {
                 AccessAttributeManifest.Type.STRING -> QueryValueType.STRING
@@ -215,6 +230,7 @@ abstract class AccessFilterSpec {
 
     internal companion object {
         private const val ACCESS = "access"
+        private const val SNAPSHOT_TENANT = "tenant"
         private const val CONTEXT_SUFFIX = 12
 
         /** The matrix's documents, each with the attributes it holds now. */
