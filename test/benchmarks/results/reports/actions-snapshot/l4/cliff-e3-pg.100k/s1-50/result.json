@@ -1,0 +1,2280 @@
+{
+  "schema": "wow-e2e-bench/run/1",
+  "label": "cliff-e3-pg-s1-50",
+  "scenario": "E3",
+  "scenarioDescription": "transfer, answered once the saga's entry is stored on the target",
+  "startedAt": "2026-11-11T08:20:42.260190869Z",
+  "load": {
+    "model": "open loop, fixed arrival rate; latency from each operation's scheduled time",
+    "rate": 50.0,
+    "warmUpSeconds": 10,
+    "measureSeconds": 60,
+    "seed": 20261015,
+    "keys": {
+      "distribution": "uniform",
+      "accounts": 100000
+    },
+    "targets": ["http://127.0.0.1:18080"],
+    "inFlightCap": 1500,
+    "inFlightBoundBy": "rate x request timeout"
+  },
+  "results": {
+    "scheduled": 3000,
+    "ok": 3000,
+    "failed": 0,
+    "errors": {},
+    "errorPercent": 0.0,
+    "throughput": 50.0,
+    "latencyMs": {
+      "p50": 2.815,
+      "p95": 6.623,
+      "p99": 13.311,
+      "p999": 182.271,
+      "max": 212.17,
+      "mean": 4.105184
+    },
+    "worstSecondP99Ms": 212.17,
+    "worstSecond": 3,
+    "maxSendLagMs": 3.575,
+    "rerouted": 0,
+    "sent": {
+      "ok": 3500,
+      "failed": 0
+    },
+    "failedLatencyMs": {
+      "p50": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "p999": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "byScenario": null,
+    "perSecond": [
+      {
+        "second": 0,
+        "ok": 50,
+        "p50Ms": 3.231,
+        "p99Ms": 18.158,
+        "maxMs": 18.158
+      },
+      {
+        "second": 1,
+        "ok": 50,
+        "p50Ms": 3.535,
+        "p99Ms": 8.846,
+        "maxMs": 8.846
+      },
+      {
+        "second": 2,
+        "ok": 50,
+        "p50Ms": 4.287,
+        "p99Ms": 52.4,
+        "maxMs": 52.4
+      },
+      {
+        "second": 3,
+        "ok": 50,
+        "p50Ms": 3.103,
+        "p99Ms": 212.17,
+        "maxMs": 212.17
+      },
+      {
+        "second": 4,
+        "ok": 50,
+        "p50Ms": 2.767,
+        "p99Ms": 15.141,
+        "maxMs": 15.141
+      },
+      {
+        "second": 5,
+        "ok": 50,
+        "p50Ms": 2.895,
+        "p99Ms": 7.641,
+        "maxMs": 7.641
+      },
+      {
+        "second": 6,
+        "ok": 50,
+        "p50Ms": 4.927,
+        "p99Ms": 14.583,
+        "maxMs": 14.583
+      },
+      {
+        "second": 7,
+        "ok": 50,
+        "p50Ms": 2.927,
+        "p99Ms": 85.212,
+        "maxMs": 85.212
+      },
+      {
+        "second": 8,
+        "ok": 50,
+        "p50Ms": 2.975,
+        "p99Ms": 68.43,
+        "maxMs": 68.43
+      },
+      {
+        "second": 9,
+        "ok": 50,
+        "p50Ms": 2.959,
+        "p99Ms": 8.616,
+        "maxMs": 8.616
+      },
+      {
+        "second": 10,
+        "ok": 50,
+        "p50Ms": 3.615,
+        "p99Ms": 10.645,
+        "maxMs": 10.645
+      },
+      {
+        "second": 11,
+        "ok": 50,
+        "p50Ms": 3.535,
+        "p99Ms": 11.291,
+        "maxMs": 11.291
+      },
+      {
+        "second": 12,
+        "ok": 50,
+        "p50Ms": 2.847,
+        "p99Ms": 6.53,
+        "maxMs": 6.53
+      },
+      {
+        "second": 13,
+        "ok": 50,
+        "p50Ms": 2.863,
+        "p99Ms": 11.549,
+        "maxMs": 11.549
+      },
+      {
+        "second": 14,
+        "ok": 50,
+        "p50Ms": 2.943,
+        "p99Ms": 6.775,
+        "maxMs": 6.775
+      },
+      {
+        "second": 15,
+        "ok": 50,
+        "p50Ms": 4.607,
+        "p99Ms": 11.972,
+        "maxMs": 11.972
+      },
+      {
+        "second": 16,
+        "ok": 50,
+        "p50Ms": 2.607,
+        "p99Ms": 14.015,
+        "maxMs": 14.015
+      },
+      {
+        "second": 17,
+        "ok": 50,
+        "p50Ms": 2.687,
+        "p99Ms": 5.753,
+        "maxMs": 5.753
+      },
+      {
+        "second": 18,
+        "ok": 50,
+        "p50Ms": 2.735,
+        "p99Ms": 4.637,
+        "maxMs": 4.637
+      },
+      {
+        "second": 19,
+        "ok": 50,
+        "p50Ms": 3.871,
+        "p99Ms": 9.761,
+        "maxMs": 9.761
+      },
+      {
+        "second": 20,
+        "ok": 50,
+        "p50Ms": 2.943,
+        "p99Ms": 6.873,
+        "maxMs": 6.873
+      },
+      {
+        "second": 21,
+        "ok": 50,
+        "p50Ms": 2.607,
+        "p99Ms": 5.517,
+        "maxMs": 5.517
+      },
+      {
+        "second": 22,
+        "ok": 50,
+        "p50Ms": 2.479,
+        "p99Ms": 5.653,
+        "maxMs": 5.653
+      },
+      {
+        "second": 23,
+        "ok": 50,
+        "p50Ms": 3.231,
+        "p99Ms": 7.498,
+        "maxMs": 7.498
+      },
+      {
+        "second": 24,
+        "ok": 50,
+        "p50Ms": 4.223,
+        "p99Ms": 10.623,
+        "maxMs": 10.623
+      },
+      {
+        "second": 25,
+        "ok": 50,
+        "p50Ms": 2.559,
+        "p99Ms": 5.311,
+        "maxMs": 5.311
+      },
+      {
+        "second": 26,
+        "ok": 50,
+        "p50Ms": 2.463,
+        "p99Ms": 26.452,
+        "maxMs": 26.452
+      },
+      {
+        "second": 27,
+        "ok": 50,
+        "p50Ms": 2.575,
+        "p99Ms": 6.229,
+        "maxMs": 6.229
+      },
+      {
+        "second": 28,
+        "ok": 50,
+        "p50Ms": 3.807,
+        "p99Ms": 8.325,
+        "maxMs": 8.325
+      },
+      {
+        "second": 29,
+        "ok": 50,
+        "p50Ms": 2.847,
+        "p99Ms": 7.417,
+        "maxMs": 7.417
+      },
+      {
+        "second": 30,
+        "ok": 50,
+        "p50Ms": 2.431,
+        "p99Ms": 10.613,
+        "maxMs": 10.613
+      },
+      {
+        "second": 31,
+        "ok": 50,
+        "p50Ms": 2.479,
+        "p99Ms": 13.072,
+        "maxMs": 13.072
+      },
+      {
+        "second": 32,
+        "ok": 50,
+        "p50Ms": 2.863,
+        "p99Ms": 12.129,
+        "maxMs": 12.129
+      },
+      {
+        "second": 33,
+        "ok": 50,
+        "p50Ms": 3.839,
+        "p99Ms": 7.152,
+        "maxMs": 7.152
+      },
+      {
+        "second": 34,
+        "ok": 50,
+        "p50Ms": 2.495,
+        "p99Ms": 12.146,
+        "maxMs": 12.146
+      },
+      {
+        "second": 35,
+        "ok": 50,
+        "p50Ms": 2.447,
+        "p99Ms": 5.249,
+        "maxMs": 5.249
+      },
+      {
+        "second": 36,
+        "ok": 50,
+        "p50Ms": 2.351,
+        "p99Ms": 25.41,
+        "maxMs": 25.41
+      },
+      {
+        "second": 37,
+        "ok": 50,
+        "p50Ms": 4.543,
+        "p99Ms": 13.266,
+        "maxMs": 13.266
+      },
+      {
+        "second": 38,
+        "ok": 50,
+        "p50Ms": 2.639,
+        "p99Ms": 20.84,
+        "maxMs": 20.84
+      },
+      {
+        "second": 39,
+        "ok": 50,
+        "p50Ms": 2.559,
+        "p99Ms": 4.084,
+        "maxMs": 4.084
+      },
+      {
+        "second": 40,
+        "ok": 50,
+        "p50Ms": 2.367,
+        "p99Ms": 8.981,
+        "maxMs": 8.981
+      },
+      {
+        "second": 41,
+        "ok": 50,
+        "p50Ms": 3.471,
+        "p99Ms": 10.683,
+        "maxMs": 10.683
+      },
+      {
+        "second": 42,
+        "ok": 50,
+        "p50Ms": 3.615,
+        "p99Ms": 6.825,
+        "maxMs": 6.825
+      },
+      {
+        "second": 43,
+        "ok": 50,
+        "p50Ms": 2.495,
+        "p99Ms": 6.228,
+        "maxMs": 6.228
+      },
+      {
+        "second": 44,
+        "ok": 50,
+        "p50Ms": 2.351,
+        "p99Ms": 4.608,
+        "maxMs": 4.608
+      },
+      {
+        "second": 45,
+        "ok": 50,
+        "p50Ms": 2.911,
+        "p99Ms": 5.452,
+        "maxMs": 5.452
+      },
+      {
+        "second": 46,
+        "ok": 50,
+        "p50Ms": 4.095,
+        "p99Ms": 9.642,
+        "maxMs": 9.642
+      },
+      {
+        "second": 47,
+        "ok": 50,
+        "p50Ms": 2.463,
+        "p99Ms": 7.487,
+        "maxMs": 7.487
+      },
+      {
+        "second": 48,
+        "ok": 50,
+        "p50Ms": 2.383,
+        "p99Ms": 5.738,
+        "maxMs": 5.738
+      },
+      {
+        "second": 49,
+        "ok": 50,
+        "p50Ms": 2.383,
+        "p99Ms": 11.933,
+        "maxMs": 11.933
+      },
+      {
+        "second": 50,
+        "ok": 50,
+        "p50Ms": 3.247,
+        "p99Ms": 8.106,
+        "maxMs": 8.106
+      },
+      {
+        "second": 51,
+        "ok": 50,
+        "p50Ms": 2.863,
+        "p99Ms": 8.782,
+        "maxMs": 8.782
+      },
+      {
+        "second": 52,
+        "ok": 50,
+        "p50Ms": 2.367,
+        "p99Ms": 4.435,
+        "maxMs": 4.435
+      },
+      {
+        "second": 53,
+        "ok": 50,
+        "p50Ms": 2.463,
+        "p99Ms": 5.377,
+        "maxMs": 5.377
+      },
+      {
+        "second": 54,
+        "ok": 50,
+        "p50Ms": 2.495,
+        "p99Ms": 6.524,
+        "maxMs": 6.524
+      },
+      {
+        "second": 55,
+        "ok": 50,
+        "p50Ms": 3.967,
+        "p99Ms": 9.573,
+        "maxMs": 9.573
+      },
+      {
+        "second": 56,
+        "ok": 50,
+        "p50Ms": 2.543,
+        "p99Ms": 6.392,
+        "maxMs": 6.392
+      },
+      {
+        "second": 57,
+        "ok": 50,
+        "p50Ms": 2.383,
+        "p99Ms": 5.716,
+        "maxMs": 5.716
+      },
+      {
+        "second": 58,
+        "ok": 50,
+        "p50Ms": 2.303,
+        "p99Ms": 4.392,
+        "maxMs": 4.392
+      },
+      {
+        "second": 59,
+        "ok": 50,
+        "p50Ms": 3.647,
+        "p99Ms": 7.649,
+        "maxMs": 7.649
+      }
+    ],
+    "histogram": {
+      "unit": "microseconds",
+      "subBucketBits": 7,
+      "buckets": [[1952, 1959, 1], [1960, 1967, 1], [1968, 1975, 2], [1992, 1999, 1], [2008, 2015, 1], [2016, 2023, 1], [2032, 2039, 3], [2040, 2047, 3], [2048, 2063, 8], [2064, 2079, 8], [2080, 2095, 10], [2096, 2111, 15], [2112, 2127, 17], [2128, 2143, 20], [2144, 2159, 27], [2160, 2175, 23], [2176, 2191, 17], [2192, 2207, 30], [2208, 2223, 33], [2224, 2239, 34], [2240, 2255, 35], [2256, 2271, 45], [2272, 2287, 40], [2288, 2303, 39], [2304, 2319, 48], [2320, 2335, 43], [2336, 2351, 37], [2352, 2367, 42], [2368, 2383, 45], [2384, 2399, 32], [2400, 2415, 33], [2416, 2431, 32], [2432, 2447, 34], [2448, 2463, 45], [2464, 2479, 41], [2480, 2495, 43], [2496, 2511, 38], [2512, 2527, 37], [2528, 2543, 36], [2544, 2559, 32], [2560, 2575, 35], [2576, 2591, 31], [2592, 2607, 26], [2608, 2623, 34], [2624, 2639, 31], [2640, 2655, 31], [2656, 2671, 23], [2672, 2687, 26], [2688, 2703, 39], [2704, 2719, 32], [2720, 2735, 32], [2736, 2751, 34], [2752, 2767, 22], [2768, 2783, 25], [2784, 2799, 16], [2800, 2815, 32], [2816, 2831, 26], [2832, 2847, 24], [2848, 2863, 22], [2864, 2879, 23], [2880, 2895, 23], [2896, 2911, 25], [2912, 2927, 21], [2928, 2943, 22], [2944, 2959, 21], [2960, 2975, 19], [2976, 2991, 12], [2992, 3007, 23], [3008, 3023, 16], [3024, 3039, 12], [3040, 3055, 15], [3056, 3071, 16], [3072, 3087, 13], [3088, 3103, 9], [3104, 3119, 10], [3120, 3135, 12], [3136, 3151, 18], [3152, 3167, 10], [3168, 3183, 6], [3184, 3199, 2], [3200, 3215, 7], [3216, 3231, 12], [3232, 3247, 12], [3248, 3263, 12], [3264, 3279, 10], [3280, 3295, 13], [3296, 3311, 4], [3312, 3327, 9], [3328, 3343, 8], [3344, 3359, 13], [3360, 3375, 10], [3376, 3391, 12], [3392, 3407, 11], [3408, 3423, 16], [3424, 3439, 13], [3440, 3455, 14], [3456, 3471, 11], [3472, 3487, 10], [3488, 3503, 15], [3504, 3519, 9], [3520, 3535, 9], [3536, 3551, 10], [3552, 3567, 9], [3568, 3583, 12], [3584, 3599, 9], [3600, 3615, 7], [3616, 3631, 7], [3632, 3647, 11], [3648, 3663, 8], [3664, 3679, 8], [3680, 3695, 9], [3696, 3711, 8], [3712, 3727, 7], [3728, 3743, 4], [3744, 3759, 6], [3760, 3775, 6], [3776, 3791, 3], [3792, 3807, 3], [3808, 3823, 5], [3824, 3839, 8], [3840, 3855, 3], [3856, 3871, 7], [3872, 3887, 7], [3888, 3903, 7], [3904, 3919, 6], [3920, 3935, 6], [3936, 3951, 5], [3952, 3967, 9], [3968, 3983, 4], [3984, 3999, 7], [4000, 4015, 5], [4016, 4031, 6], [4032, 4047, 2], [4048, 4063, 5], [4064, 4079, 7], [4080, 4095, 6], [4096, 4127, 7], [4128, 4159, 14], [4160, 4191, 2], [4192, 4223, 15], [4224, 4255, 8], [4256, 4287, 15], [4288, 4319, 7], [4320, 4351, 6], [4352, 4383, 4], [4384, 4415, 13], [4416, 4447, 14], [4448, 4479, 10], [4480, 4511, 7], [4512, 4543, 13], [4544, 4575, 6], [4576, 4607, 19], [4608, 4639, 8], [4640, 4671, 10], [4672, 4703, 8], [4704, 4735, 7], [4736, 4767, 8], [4768, 4799, 5], [4832, 4863, 9], [4864, 4895, 6], [4896, 4927, 6], [4928, 4959, 6], [4960, 4991, 10], [4992, 5023, 10], [5024, 5055, 8], [5056, 5087, 7], [5088, 5119, 3], [5120, 5151, 7], [5152, 5183, 5], [5184, 5215, 4], [5216, 5247, 3], [5248, 5279, 8], [5280, 5311, 7], [5312, 5343, 6], [5344, 5375, 3], [5376, 5407, 8], [5408, 5439, 6], [5440, 5471, 7], [5472, 5503, 4], [5504, 5535, 5], [5536, 5567, 6], [5568, 5599, 4], [5600, 5631, 5], [5632, 5663, 7], [5664, 5695, 11], [5696, 5727, 4], [5728, 5759, 7], [5760, 5791, 4], [5792, 5823, 4], [5824, 5855, 6], [5856, 5887, 3], [5888, 5919, 5], [5920, 5951, 4], [5952, 5983, 2], [5984, 6015, 5], [6016, 6047, 1], [6048, 6079, 2], [6080, 6111, 4], [6112, 6143, 4], [6144, 6175, 3], [6208, 6239, 8], [6240, 6271, 3], [6272, 6303, 5], [6304, 6335, 1], [6336, 6367, 3], [6368, 6399, 4], [6400, 6431, 2], [6432, 6463, 4], [6464, 6495, 6], [6496, 6527, 3], [6528, 6559, 3], [6560, 6591, 4], [6592, 6623, 6], [6624, 6655, 4], [6656, 6687, 4], [6688, 6719, 2], [6720, 6751, 2], [6752, 6783, 3], [6784, 6815, 2], [6816, 6847, 6], [6848, 6879, 3], [6880, 6911, 1], [6912, 6943, 1], [6944, 6975, 2], [7008, 7039, 1], [7040, 7071, 3], [7104, 7135, 2], [7136, 7167, 2], [7168, 7199, 2], [7232, 7263, 1], [7264, 7295, 2], [7328, 7359, 1], [7392, 7423, 5], [7424, 7455, 1], [7456, 7487, 4], [7488, 7519, 3], [7552, 7583, 1], [7584, 7615, 3], [7616, 7647, 1], [7648, 7679, 1], [7680, 7711, 2], [7744, 7775, 2], [7776, 7807, 1], [7808, 7839, 1], [7872, 7903, 2], [7968, 7999, 1], [8032, 8063, 2], [8096, 8127, 1], [8128, 8159, 1], [8160, 8191, 1], [8192, 8255, 1], [8256, 8319, 3], [8320, 8383, 2], [8384, 8447, 1], [8448, 8511, 1], [8512, 8575, 3], [8576, 8639, 1], [8768, 8831, 2], [8832, 8895, 1], [8960, 9023, 3], [9152, 9215, 2], [9280, 9343, 1], [9536, 9599, 2], [9600, 9663, 1], [9728, 9791, 1], [9920, 9983, 1], [10560, 10623, 2], [10624, 10687, 2], [10688, 10751, 1], [11264, 11327, 1], [11392, 11455, 2], [11520, 11583, 1], [11904, 11967, 1], [11968, 12031, 1], [12096, 12159, 2], [12608, 12671, 1], [13056, 13119, 1], [13248, 13311, 2], [13952, 14015, 1], [14528, 14591, 1], [15104, 15167, 1], [18048, 18175, 2], [20736, 20863, 1], [25344, 25471, 1], [25600, 25727, 1], [26368, 26495, 1], [32256, 32383, 1], [33024, 33279, 1], [36608, 36863, 1], [44800, 45055, 1], [47872, 48127, 1], [52224, 52479, 1], [55296, 55551, 1], [64768, 65023, 1], [68096, 68607, 1], [74240, 74751, 1], [84480, 84991, 1], [84992, 85503, 1], [103424, 103935, 1], [122880, 123391, 1], [146432, 147455, 1], [162816, 163839, 1], [172032, 173055, 2], [181248, 182271, 1], [192512, 193535, 1], [211968, 212991, 1]]
+    }
+  },
+  "resources": {
+    "seconds": 59.967,
+    "processes": {
+      "node-1": {
+        "pid": 3446,
+        "cpuSeconds": 11.399999999999977,
+        "averageCores": 0.19010455750662827,
+        "allocatedBytes": 974142088,
+        "rssMaxMb": 1195.2890625,
+        "samples": [
+          {
+            "t": 30,
+            "cpuSeconds": 177.83,
+            "rssMb": 1193.9140625
+          },
+          {
+            "t": 1032,
+            "cpuSeconds": 178.05,
+            "rssMb": 1194.1640625
+          },
+          {
+            "t": 2034,
+            "cpuSeconds": 178.25,
+            "rssMb": 1194.1640625
+          },
+          {
+            "t": 3037,
+            "cpuSeconds": 178.43,
+            "rssMb": 1194.1640625
+          },
+          {
+            "t": 4038,
+            "cpuSeconds": 178.6,
+            "rssMb": 1194.1640625
+          },
+          {
+            "t": 5040,
+            "cpuSeconds": 178.86,
+            "rssMb": 1194.2890625
+          },
+          {
+            "t": 6044,
+            "cpuSeconds": 179.05,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 7045,
+            "cpuSeconds": 179.24,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 8055,
+            "cpuSeconds": 179.43,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 9056,
+            "cpuSeconds": 179.6,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 10058,
+            "cpuSeconds": 179.81,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 11062,
+            "cpuSeconds": 179.99,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 12064,
+            "cpuSeconds": 180.2,
+            "rssMb": 1194.4140625
+          },
+          {
+            "t": 13065,
+            "cpuSeconds": 180.39,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 14066,
+            "cpuSeconds": 180.58,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 15068,
+            "cpuSeconds": 180.75,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 16069,
+            "cpuSeconds": 180.94,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 17073,
+            "cpuSeconds": 181.13,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 18076,
+            "cpuSeconds": 181.31,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 19077,
+            "cpuSeconds": 181.57,
+            "rssMb": 1194.5390625
+          },
+          {
+            "t": 20079,
+            "cpuSeconds": 181.75,
+            "rssMb": 1194.6640625
+          },
+          {
+            "t": 21080,
+            "cpuSeconds": 181.93,
+            "rssMb": 1194.6640625
+          },
+          {
+            "t": 22081,
+            "cpuSeconds": 182.17,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 23082,
+            "cpuSeconds": 182.39,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 24083,
+            "cpuSeconds": 182.6,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 25084,
+            "cpuSeconds": 182.79,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 26085,
+            "cpuSeconds": 182.97,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 27086,
+            "cpuSeconds": 183.15,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 28087,
+            "cpuSeconds": 183.35,
+            "rssMb": 1194.7890625
+          },
+          {
+            "t": 29088,
+            "cpuSeconds": 183.62,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 30089,
+            "cpuSeconds": 183.8,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 31090,
+            "cpuSeconds": 183.97,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 32091,
+            "cpuSeconds": 184.21,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 33091,
+            "cpuSeconds": 184.39,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 34092,
+            "cpuSeconds": 184.57,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 35093,
+            "cpuSeconds": 184.75,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 36094,
+            "cpuSeconds": 184.91,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 37097,
+            "cpuSeconds": 185.08,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 38097,
+            "cpuSeconds": 185.27,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 39098,
+            "cpuSeconds": 185.43,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 40099,
+            "cpuSeconds": 185.61,
+            "rssMb": 1194.9140625
+          },
+          {
+            "t": 41100,
+            "cpuSeconds": 185.78,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 42101,
+            "cpuSeconds": 186.03,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 43103,
+            "cpuSeconds": 186.23,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 44104,
+            "cpuSeconds": 186.4,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 45104,
+            "cpuSeconds": 186.58,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 46105,
+            "cpuSeconds": 186.75,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 47105,
+            "cpuSeconds": 186.96,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 48106,
+            "cpuSeconds": 187.13,
+            "rssMb": 1195.0390625
+          },
+          {
+            "t": 49107,
+            "cpuSeconds": 187.3,
+            "rssMb": 1195.1640625
+          },
+          {
+            "t": 50109,
+            "cpuSeconds": 187.47,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 51110,
+            "cpuSeconds": 187.63,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 52111,
+            "cpuSeconds": 187.85,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 53111,
+            "cpuSeconds": 188.01,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 54112,
+            "cpuSeconds": 188.18,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 55113,
+            "cpuSeconds": 188.35,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 56114,
+            "cpuSeconds": 188.52,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 57114,
+            "cpuSeconds": 188.71,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 58115,
+            "cpuSeconds": 188.88,
+            "rssMb": 1195.2890625
+          },
+          {
+            "t": 59116,
+            "cpuSeconds": 189.04,
+            "rssMb": 1195.2890625
+          }
+        ],
+        "gc": {
+          "samples": 60,
+          "heapUsedMaxMb": 805.42529296875,
+          "heapUsedAverageMb": 513.1586263020833,
+          "heapCapacityMb": 1024.0,
+          "delta": {
+            "YGC": 1.0,
+            "YGCT": 0.019000000000000128,
+            "FGC": 0.0,
+            "FGCT": 0.0,
+            "CGC": 0.0,
+            "CGCT": 0.0,
+            "GCT": 0.019000000000000128
+          }
+        }
+      }
+    },
+    "loadGenerator": {
+      "cpuSeconds": 4.4799999999999995,
+      "averageCores": 0.0747077559324295,
+      "availableProcessors": 1
+    },
+    "containers": {
+      "wow-e2e-bench-kafka": {
+        "samples": 119,
+        "cpuPercentAverage": 45.440840336134464,
+        "cpuPercentMax": 187.57,
+        "lastMemory": "505.4MiB / 15.61GiB",
+        "lastNetIO": "254MB / 8.43MB",
+        "lastBlockIO": "139kB / 255MB"
+      },
+      "wow-e2e-bench-postgres": {
+        "samples": 119,
+        "cpuPercentAverage": 12.267899159663875,
+        "cpuPercentMax": 59.71,
+        "lastMemory": "454.1MiB / 15.61GiB",
+        "lastNetIO": "305MB / 38.1MB",
+        "lastBlockIO": "176kB / 1.07GB"
+      }
+    },
+    "stores": {
+      "postgres": {
+        "fromSecond": -0.981,
+        "toSecond": 60.021,
+        "before": {
+          "epoch": 1.794385251401506E9,
+          "xact_commit": 141753.0,
+          "xact_rollback": 0.0,
+          "tup_inserted": 302779.0,
+          "tup_updated": 276952.0,
+          "tup_deleted": 7.0,
+          "tup_fetched": 2.6211212E7,
+          "tup_returned": 2.7491587E7,
+          "blks_read": 367.0,
+          "blks_hit": 2.0584892E7,
+          "wal_records": 2118491.0,
+          "wal_fpi": 1546.0,
+          "wal_bytes": 3.11788611E8,
+          "wal_buffers_full": 0.0,
+          "wal_write": 13117.0,
+          "wal_sync": 12370.0,
+          "wal_write_time": 474.878,
+          "wal_sync_time": 12166.312,
+          "checkpoint_buffers": 923.0,
+          "bgwriter_buffers": 0.0
+        },
+        "after": {
+          "epoch": 1.794385312403737E9,
+          "xact_commit": 162698.0,
+          "xact_rollback": 0.0,
+          "tup_inserted": 311972.0,
+          "tup_updated": 324363.0,
+          "tup_deleted": 14.0,
+          "tup_fetched": 2.625497E7,
+          "tup_returned": 2.8260984E7,
+          "blks_read": 367.0,
+          "blks_hit": 2.1057073E7,
+          "wal_records": 2291024.0,
+          "wal_fpi": 1546.0,
+          "wal_bytes": 3.30784212E8,
+          "wal_buffers_full": 0.0,
+          "wal_write": 22681.0,
+          "wal_sync": 21934.0,
+          "wal_write_time": 585.133,
+          "wal_sync_time": 14234.548,
+          "checkpoint_buffers": 923.0,
+          "bgwriter_buffers": 0.0
+        },
+        "delta": {
+          "epoch": 61.00223112106323,
+          "xact_commit": 20945,
+          "xact_rollback": 0,
+          "tup_inserted": 9193,
+          "tup_updated": 47411,
+          "tup_deleted": 7,
+          "tup_fetched": 43758,
+          "tup_returned": 769397,
+          "blks_read": 0,
+          "blks_hit": 472181,
+          "wal_records": 172533,
+          "wal_fpi": 0,
+          "wal_bytes": 18995601,
+          "wal_buffers_full": 0,
+          "wal_write": 9564,
+          "wal_sync": 9564,
+          "wal_write_time": 110.25500000000005,
+          "wal_sync_time": 2068.236000000001,
+          "checkpoint_buffers": 0,
+          "bgwriter_buffers": 0
+        }
+      },
+      "kafkaEndOffsets": {
+        "fromSecond": -9.451,
+        "toSecond": 61.648,
+        "before": {
+          "wow.transfer.account.state": 200267,
+          "wow.transfer.commands": 0
+        },
+        "after": {
+          "wow.transfer.account.state": 210503,
+          "wow.transfer.commands": 0
+        },
+        "delta": {
+          "wow.transfer.account.state": 10236,
+          "wow.transfer.commands": 0
+        }
+      }
+    },
+    "postgresSeries": [
+      {
+        "t": 0.019,
+        "xact_commit": 335.0,
+        "wal_records": 2429.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 290956.0,
+        "wal_write": 157.0,
+        "wal_sync": 157.0,
+        "wal_write_time": 1.7479999999999905,
+        "wal_sync_time": 25.118000000000393,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 1.019,
+        "xact_commit": 338.0,
+        "wal_records": 2438.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 293270.0,
+        "wal_write": 159.0,
+        "wal_sync": 159.0,
+        "wal_write_time": 1.7019999999999982,
+        "wal_sync_time": 22.558999999999287,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 2.019,
+        "xact_commit": 332.0,
+        "wal_records": 2597.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 288538.0,
+        "wal_write": 157.0,
+        "wal_sync": 157.0,
+        "wal_write_time": 1.6520000000000437,
+        "wal_sync_time": 20.402000000000044,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 3.019,
+        "xact_commit": 413.0,
+        "wal_records": 2530.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 297830.0,
+        "wal_write": 168.0,
+        "wal_sync": 168.0,
+        "wal_write_time": 2.5259999999999536,
+        "wal_sync_time": 80.32700000000114,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 4.019,
+        "xact_commit": 281.0,
+        "wal_records": 2131.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 259473.0,
+        "wal_write": 118.0,
+        "wal_sync": 118.0,
+        "wal_write_time": 1.38900000000001,
+        "wal_sync_time": 274.58599999999933,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 5.019,
+        "xact_commit": 330.0,
+        "wal_records": 2668.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 304912.0,
+        "wal_write": 157.0,
+        "wal_sync": 157.0,
+        "wal_write_time": 1.6850000000000023,
+        "wal_sync_time": 21.744000000000597,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 6.019,
+        "xact_commit": 347.0,
+        "wal_records": 2523.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 281886.0,
+        "wal_write": 153.0,
+        "wal_sync": 153.0,
+        "wal_write_time": 1.6879999999999882,
+        "wal_sync_time": 20.018999999998414,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 7.019,
+        "xact_commit": 337.0,
+        "wal_records": 2410.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 297257.0,
+        "wal_write": 167.0,
+        "wal_sync": 167.0,
+        "wal_write_time": 1.9490000000000123,
+        "wal_sync_time": 38.57000000000153,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 8.019,
+        "xact_commit": 340.0,
+        "wal_records": 2419.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 287172.0,
+        "wal_write": 150.0,
+        "wal_sync": 150.0,
+        "wal_write_time": 1.580000000000041,
+        "wal_sync_time": 121.97799999999916,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 9.019,
+        "xact_commit": 333.0,
+        "wal_records": 1524.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 224415.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.8529999999999518,
+        "wal_sync_time": 20.627000000000407,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 10.019,
+        "xact_commit": 335.0,
+        "wal_records": 3423.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 348245.0,
+        "wal_write": 151.0,
+        "wal_sync": 151.0,
+        "wal_write_time": 1.6270000000000095,
+        "wal_sync_time": 34.33899999999994,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 11.019,
+        "xact_commit": 336.0,
+        "wal_records": 2570.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 289126.0,
+        "wal_write": 170.0,
+        "wal_sync": 170.0,
+        "wal_write_time": 1.7940000000000396,
+        "wal_sync_time": 32.17699999999968,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 12.019,
+        "xact_commit": 329.0,
+        "wal_records": 2461.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 285886.0,
+        "wal_write": 152.0,
+        "wal_sync": 152.0,
+        "wal_write_time": 2.0179999999999723,
+        "wal_sync_time": 30.35200000000077,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 13.019,
+        "xact_commit": 412.0,
+        "wal_records": 2440.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 279338.0,
+        "wal_write": 154.0,
+        "wal_sync": 154.0,
+        "wal_write_time": 1.697999999999979,
+        "wal_sync_time": 21.73399999999856,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 14.019,
+        "xact_commit": 344.0,
+        "wal_records": 1584.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 230505.0,
+        "wal_write": 162.0,
+        "wal_sync": 162.0,
+        "wal_write_time": 1.7789999999999964,
+        "wal_sync_time": 27.905000000000655,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 15.019,
+        "xact_commit": 351.0,
+        "wal_records": 29712.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 2275208.0,
+        "wal_write": 167.0,
+        "wal_sync": 167.0,
+        "wal_write_time": 2.225999999999999,
+        "wal_sync_time": 28.854999999999563,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 16.019,
+        "xact_commit": 343.0,
+        "wal_records": 2389.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 271876.0,
+        "wal_write": 161.0,
+        "wal_sync": 161.0,
+        "wal_write_time": 3.1440000000000055,
+        "wal_sync_time": 36.57800000000134,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 17.019,
+        "xact_commit": 332.0,
+        "wal_records": 2475.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 277401.0,
+        "wal_write": 151.0,
+        "wal_sync": 151.0,
+        "wal_write_time": 1.7040000000000077,
+        "wal_sync_time": 47.10399999999936,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 18.019,
+        "xact_commit": 329.0,
+        "wal_records": 2328.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 268147.0,
+        "wal_write": 152.0,
+        "wal_sync": 152.0,
+        "wal_write_time": 1.68100000000004,
+        "wal_sync_time": 20.655000000000655,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 19.019,
+        "xact_commit": 346.0,
+        "wal_records": 1462.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 224913.0,
+        "wal_write": 161.0,
+        "wal_sync": 161.0,
+        "wal_write_time": 1.7169999999999845,
+        "wal_sync_time": 23.042999999999665,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 20.019,
+        "xact_commit": 333.0,
+        "wal_records": 2403.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 273602.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.7759999999999536,
+        "wal_sync_time": 24.33299999999872,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 21.019,
+        "xact_commit": 325.0,
+        "wal_records": 2428.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 281892.0,
+        "wal_write": 153.0,
+        "wal_sync": 153.0,
+        "wal_write_time": 1.9240000000000919,
+        "wal_sync_time": 29.108000000000175,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 22.019,
+        "xact_commit": 345.0,
+        "wal_records": 2475.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 299014.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.766999999999939,
+        "wal_sync_time": 20.332000000000335,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 23.019,
+        "xact_commit": 412.0,
+        "wal_records": 2394.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 293748.0,
+        "wal_write": 159.0,
+        "wal_sync": 159.0,
+        "wal_write_time": 1.81899999999996,
+        "wal_sync_time": 21.113999999999578,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 24.019,
+        "xact_commit": 339.0,
+        "wal_records": 2303.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 268314.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.8680000000000518,
+        "wal_sync_time": 21.03900000000067,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 25.019,
+        "xact_commit": 333.0,
+        "wal_records": 2389.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 278322.0,
+        "wal_write": 163.0,
+        "wal_sync": 163.0,
+        "wal_write_time": 2.058999999999969,
+        "wal_sync_time": 29.014999999999418,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 26.019,
+        "xact_commit": 344.0,
+        "wal_records": 2499.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 283179.0,
+        "wal_write": 154.0,
+        "wal_sync": 154.0,
+        "wal_write_time": 1.7710000000000719,
+        "wal_sync_time": 25.585000000000946,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 27.019,
+        "xact_commit": 336.0,
+        "wal_records": 2384.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 281717.0,
+        "wal_write": 157.0,
+        "wal_sync": 157.0,
+        "wal_write_time": 1.6289999999999054,
+        "wal_sync_time": 21.037000000000262,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 28.019,
+        "xact_commit": 335.0,
+        "wal_records": 2355.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 267612.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.7420000000000755,
+        "wal_sync_time": 48.5059999999994,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 29.019,
+        "xact_commit": 342.0,
+        "wal_records": 2595.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 308284.0,
+        "wal_write": 167.0,
+        "wal_sync": 167.0,
+        "wal_write_time": 1.8539999999999281,
+        "wal_sync_time": 34.02000000000044,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 30.019,
+        "xact_commit": 320.0,
+        "wal_records": 2151.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 257771.0,
+        "wal_write": 147.0,
+        "wal_sync": 147.0,
+        "wal_write_time": 1.82000000000005,
+        "wal_sync_time": 24.959999999999127,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 31.019,
+        "xact_commit": 341.0,
+        "wal_records": 2468.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 283017.0,
+        "wal_write": 156.0,
+        "wal_sync": 156.0,
+        "wal_write_time": 1.8099999999999454,
+        "wal_sync_time": 29.08100000000013,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 32.019,
+        "xact_commit": 339.0,
+        "wal_records": 2388.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 274642.0,
+        "wal_write": 161.0,
+        "wal_sync": 161.0,
+        "wal_write_time": 1.7309999999999945,
+        "wal_sync_time": 21.246000000001004,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 33.021,
+        "xact_commit": 417.16566866267465,
+        "wal_records": 2387.2255489021954,
+        "wal_fpi": 0.0,
+        "wal_bytes": 273289.42115768464,
+        "wal_write": 159.6806387225549,
+        "wal_sync": 159.6806387225549,
+        "wal_write_time": 1.7375249500998993,
+        "wal_sync_time": 33.19660678642616,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 34.019,
+        "xact_commit": 328.6573146292585,
+        "wal_records": 2358.7174348697395,
+        "wal_fpi": 0.0,
+        "wal_bytes": 276354.7094188377,
+        "wal_write": 156.31262525050101,
+        "wal_sync": 156.31262525050101,
+        "wal_write_time": 2.0280561122244496,
+        "wal_sync_time": 32.26352705410874,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 35.019,
+        "xact_commit": 350.0,
+        "wal_records": 2442.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 283410.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.6299999999999955,
+        "wal_sync_time": 31.475000000000364,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 36.019,
+        "xact_commit": 341.0,
+        "wal_records": 2415.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 278790.0,
+        "wal_write": 156.0,
+        "wal_sync": 156.0,
+        "wal_write_time": 1.7699999999999818,
+        "wal_sync_time": 20.511999999998807,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 37.019,
+        "xact_commit": 334.0,
+        "wal_records": 2300.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 273300.0,
+        "wal_write": 152.0,
+        "wal_sync": 152.0,
+        "wal_write_time": 1.7699999999999818,
+        "wal_sync_time": 45.15300000000025,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 38.019,
+        "xact_commit": 346.0,
+        "wal_records": 2490.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 290038.0,
+        "wal_write": 163.0,
+        "wal_sync": 163.0,
+        "wal_write_time": 1.8289999999999509,
+        "wal_sync_time": 32.85599999999977,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 39.019,
+        "xact_commit": 326.0,
+        "wal_records": 2337.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 268206.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.8820000000000618,
+        "wal_sync_time": 26.884000000000015,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 40.019,
+        "xact_commit": 339.0,
+        "wal_records": 2358.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 275216.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.8079999999999927,
+        "wal_sync_time": 40.13299999999981,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 41.019,
+        "xact_commit": 340.0,
+        "wal_records": 2431.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 275428.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.6789999999999736,
+        "wal_sync_time": 22.902000000000044,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 42.019,
+        "xact_commit": 339.0,
+        "wal_records": 2444.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 284123.0,
+        "wal_write": 160.0,
+        "wal_sync": 160.0,
+        "wal_write_time": 1.836999999999989,
+        "wal_sync_time": 31.808000000000902,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 43.019,
+        "xact_commit": 384.0,
+        "wal_records": 1329.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 201969.0,
+        "wal_write": 147.0,
+        "wal_sync": 147.0,
+        "wal_write_time": 1.8190000000000737,
+        "wal_sync_time": 34.586999999999534,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 44.019,
+        "xact_commit": 360.0,
+        "wal_records": 3438.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 357611.0,
+        "wal_write": 165.0,
+        "wal_sync": 165.0,
+        "wal_write_time": 1.8209999999999127,
+        "wal_sync_time": 22.85400000000118,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 45.019,
+        "xact_commit": 329.0,
+        "wal_records": 2463.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 283922.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.6170000000000755,
+        "wal_sync_time": 21.82799999999952,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 46.019,
+        "xact_commit": 342.0,
+        "wal_records": 2378.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 271958.0,
+        "wal_write": 154.0,
+        "wal_sync": 154.0,
+        "wal_write_time": 1.669999999999959,
+        "wal_sync_time": 22.467000000000553,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 47.019,
+        "xact_commit": 336.0,
+        "wal_records": 2343.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 279857.0,
+        "wal_write": 161.0,
+        "wal_sync": 161.0,
+        "wal_write_time": 1.8690000000000282,
+        "wal_sync_time": 28.549999999999272,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 48.019,
+        "xact_commit": 338.0,
+        "wal_records": 2447.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 284554.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.6359999999999673,
+        "wal_sync_time": 27.30500000000029,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 49.019,
+        "xact_commit": 341.0,
+        "wal_records": 3345.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 337891.0,
+        "wal_write": 159.0,
+        "wal_sync": 159.0,
+        "wal_write_time": 1.6459999999999582,
+        "wal_sync_time": 24.993999999998778,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 50.019,
+        "xact_commit": 335.0,
+        "wal_records": 1490.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 230624.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.5340000000001055,
+        "wal_sync_time": 22.441000000000713,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 51.019,
+        "xact_commit": 339.0,
+        "wal_records": 2412.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 278379.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.58299999999997,
+        "wal_sync_time": 23.60399999999936,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 52.019,
+        "xact_commit": 332.0,
+        "wal_records": 2305.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 270808.0,
+        "wal_write": 158.0,
+        "wal_sync": 158.0,
+        "wal_write_time": 1.8740000000000236,
+        "wal_sync_time": 27.811999999999898,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 53.019,
+        "xact_commit": 401.0,
+        "wal_records": 2374.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 278241.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.6119999999999663,
+        "wal_sync_time": 21.921000000000276,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 54.019,
+        "xact_commit": 336.0,
+        "wal_records": 2310.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 271652.0,
+        "wal_write": 163.0,
+        "wal_sync": 163.0,
+        "wal_write_time": 1.7100000000000364,
+        "wal_sync_time": 22.67500000000109,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 55.019,
+        "xact_commit": 336.0,
+        "wal_records": 2372.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 275713.0,
+        "wal_write": 156.0,
+        "wal_sync": 156.0,
+        "wal_write_time": 1.72199999999998,
+        "wal_sync_time": 20.704999999999927,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 56.019,
+        "xact_commit": 333.0,
+        "wal_records": 2438.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 274989.0,
+        "wal_write": 152.0,
+        "wal_sync": 152.0,
+        "wal_write_time": 2.509999999999991,
+        "wal_sync_time": 31.230999999999767,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 57.019,
+        "xact_commit": 342.0,
+        "wal_records": 2333.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 272057.0,
+        "wal_write": 163.0,
+        "wal_sync": 163.0,
+        "wal_write_time": 1.8009999999999309,
+        "wal_sync_time": 30.967999999998938,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 58.019,
+        "xact_commit": 337.0,
+        "wal_records": 2309.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 277793.0,
+        "wal_write": 155.0,
+        "wal_sync": 155.0,
+        "wal_write_time": 1.7670000000000528,
+        "wal_sync_time": 22.73199999999997,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 59.019,
+        "xact_commit": 338.0,
+        "wal_records": 2383.0,
+        "wal_fpi": 0.0,
+        "wal_bytes": 276588.0,
+        "wal_write": 159.0,
+        "wal_sync": 159.0,
+        "wal_write_time": 1.7559999999999718,
+        "wal_sync_time": 23.08100000000013,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      },
+      {
+        "t": 60.021,
+        "xact_commit": 337.3253493013972,
+        "wal_records": 2351.297405189621,
+        "wal_fpi": 0.0,
+        "wal_bytes": 264848.30339321354,
+        "wal_write": 149.7005988023952,
+        "wal_sync": 149.7005988023952,
+        "wal_write_time": 1.6047904191617375,
+        "wal_sync_time": 23.201596806388633,
+        "checkpoint_buffers": 0.0,
+        "bgwriter_buffers": 0.0
+      }
+    ],
+    "diskSeries": [
+      {
+        "t": 1.034,
+        "nvme0n1:writes": 160.67864271457086,
+        "nvme0n1:writeKb": 1872.255489021956,
+        "nvme0n1:writeMs": 18.962075848303392,
+        "nvme0n1:ioMs": 22.954091816367267,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 2.037,
+        "nvme0n1:writes": 165.5034895314058,
+        "nvme0n1:writeKb": 1994.0179461615157,
+        "nvme0n1:writeMs": 19.940179461615156,
+        "nvme0n1:ioMs": 18.9431704885344,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 3.038,
+        "nvme0n1:writes": 212.7872127872128,
+        "nvme0n1:writeKb": 14313.686313686316,
+        "nvme0n1:writeMs": 2724.2757242757248,
+        "nvme0n1:ioMs": 63.936063936063945,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 4.04,
+        "nvme0n1:writes": 533.9321357285429,
+        "nvme0n1:writeKb": 56994.01197604791,
+        "nvme0n1:writeMs": 19144.710578842314,
+        "nvme0n1:ioMs": 262.4750499001996,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 5.044,
+        "nvme0n1:writes": 160.3585657370518,
+        "nvme0n1:writeKb": 1844.6215139442231,
+        "nvme0n1:writeMs": 17.92828685258964,
+        "nvme0n1:ioMs": 15.936254980079681,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 6.045,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1874.1258741258744,
+        "nvme0n1:writeMs": 23.976023976023978,
+        "nvme0n1:ioMs": 25.974025974025977,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 7.055,
+        "nvme0n1:writes": 163.36633663366337,
+        "nvme0n1:writeKb": 1964.3564356435643,
+        "nvme0n1:writeMs": 24.752475247524753,
+        "nvme0n1:ioMs": 25.742574257425744,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 8.055,
+        "nvme0n1:writes": 248.0,
+        "nvme0n1:writeKb": 21964.0,
+        "nvme0n1:writeMs": 6586.0,
+        "nvme0n1:ioMs": 109.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 9.058,
+        "nvme0n1:writes": 224.32701894317051,
+        "nvme0n1:writeKb": 18261.21635094716,
+        "nvme0n1:writeMs": 3687.9361914257233,
+        "nvme0n1:ioMs": 83.74875373878366,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 10.062,
+        "nvme0n1:writes": 158.36653386454182,
+        "nvme0n1:writeKb": 1792.8286852589642,
+        "nvme0n1:writeMs": 40.83665338645418,
+        "nvme0n1:ioMs": 44.820717131474105,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 11.063,
+        "nvme0n1:writes": 160.83916083916085,
+        "nvme0n1:writeKb": 1886.1138861138863,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 20.97902097902098,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 12.065,
+        "nvme0n1:writes": 165.6686626746507,
+        "nvme0n1:writeKb": 2031.936127744511,
+        "nvme0n1:writeMs": 18.962075848303392,
+        "nvme0n1:ioMs": 21.956087824351297,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 13.066,
+        "nvme0n1:writes": 163.83616383616385,
+        "nvme0n1:writeKb": 1838.1618381618384,
+        "nvme0n1:writeMs": 15.984015984015986,
+        "nvme0n1:ioMs": 10.98901098901099,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 14.068,
+        "nvme0n1:writes": 167.66467065868264,
+        "nvme0n1:writeKb": 3365.2694610778444,
+        "nvme0n1:writeMs": 24.9500998003992,
+        "nvme0n1:ioMs": 26.94610778443114,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 15.069,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 2365.634365634366,
+        "nvme0n1:writeMs": 20.97902097902098,
+        "nvme0n1:ioMs": 16.983016983016984,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 16.073,
+        "nvme0n1:writes": 226.09561752988049,
+        "nvme0n1:writeKb": 2270.9163346613545,
+        "nvme0n1:writeMs": 44.820717131474105,
+        "nvme0n1:ioMs": 29.8804780876494,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 17.076,
+        "nvme0n1:writes": 172.4825523429711,
+        "nvme0n1:writeKb": 2137.587238285145,
+        "nvme0n1:writeMs": 29.910269192422735,
+        "nvme0n1:ioMs": 19.940179461615156,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 18.077,
+        "nvme0n1:writes": 160.83916083916085,
+        "nvme0n1:writeKb": 1822.1778221778225,
+        "nvme0n1:writeMs": 17.982017982017982,
+        "nvme0n1:ioMs": 15.984015984015986,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 19.079,
+        "nvme0n1:writes": 158.68263473053892,
+        "nvme0n1:writeKb": 1804.3912175648702,
+        "nvme0n1:writeMs": 22.954091816367267,
+        "nvme0n1:ioMs": 22.954091816367267,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 20.08,
+        "nvme0n1:writes": 160.83916083916085,
+        "nvme0n1:writeKb": 1858.1418581418584,
+        "nvme0n1:writeMs": 18.981018981018984,
+        "nvme0n1:ioMs": 14.985014985014987,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 21.081,
+        "nvme0n1:writes": 163.83616383616385,
+        "nvme0n1:writeKb": 1966.0339660339662,
+        "nvme0n1:writeMs": 15.984015984015986,
+        "nvme0n1:ioMs": 22.97702297702298,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 22.082,
+        "nvme0n1:writes": 164.83516483516485,
+        "nvme0n1:writeKb": 2005.994005994006,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 17.982017982017982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 23.083,
+        "nvme0n1:writes": 163.83616383616385,
+        "nvme0n1:writeKb": 1842.1578421578424,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 11.988011988011989,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 24.084,
+        "nvme0n1:writes": 160.83916083916085,
+        "nvme0n1:writeKb": 1906.0939060939063,
+        "nvme0n1:writeMs": 17.982017982017982,
+        "nvme0n1:ioMs": 14.985014985014987,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 25.085,
+        "nvme0n1:writes": 160.83916083916085,
+        "nvme0n1:writeKb": 1806.1938061938065,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 16.983016983016984,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 26.086,
+        "nvme0n1:writes": 164.83516483516485,
+        "nvme0n1:writeKb": 1938.0619380619382,
+        "nvme0n1:writeMs": 18.981018981018984,
+        "nvme0n1:ioMs": 20.97902097902098,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 27.087,
+        "nvme0n1:writes": 162.83716283716285,
+        "nvme0n1:writeKb": 1954.0459540459542,
+        "nvme0n1:writeMs": 45.95404595404596,
+        "nvme0n1:ioMs": 46.95304695304696,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 28.088,
+        "nvme0n1:writes": 164.83516483516485,
+        "nvme0n1:writeKb": 1886.1138861138863,
+        "nvme0n1:writeMs": 20.97902097902098,
+        "nvme0n1:ioMs": 25.974025974025977,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 29.089,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1846.1538461538464,
+        "nvme0n1:writeMs": 21.97802197802198,
+        "nvme0n1:ioMs": 26.973026973026975,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 30.09,
+        "nvme0n1:writes": 189.81018981018983,
+        "nvme0n1:writeKb": 2005.994005994006,
+        "nvme0n1:writeMs": 26.973026973026975,
+        "nvme0n1:ioMs": 22.97702297702298,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 31.091,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1842.1578421578424,
+        "nvme0n1:writeMs": 24.97502497502498,
+        "nvme0n1:ioMs": 17.982017982017982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 32.091,
+        "nvme0n1:writes": 166.0,
+        "nvme0n1:writeKb": 1992.0,
+        "nvme0n1:writeMs": 29.0,
+        "nvme0n1:ioMs": 27.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 33.092,
+        "nvme0n1:writes": 165.83416583416584,
+        "nvme0n1:writeKb": 2793.2067932067935,
+        "nvme0n1:writeMs": 18.981018981018984,
+        "nvme0n1:ioMs": 13.986013986013987,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 34.093,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1950.0499500499502,
+        "nvme0n1:writeMs": 15.984015984015986,
+        "nvme0n1:ioMs": 24.97502497502498,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 35.094,
+        "nvme0n1:writes": 293.70629370629376,
+        "nvme0n1:writeKb": 7544.455544455545,
+        "nvme0n1:writeMs": 1546.4535464535466,
+        "nvme0n1:ioMs": 30.96903096903097,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 36.097,
+        "nvme0n1:writes": 158.5244267198405,
+        "nvme0n1:writeKb": 1842.4725822532405,
+        "nvme0n1:writeMs": 15.952143569292126,
+        "nvme0n1:ioMs": 16.949152542372882,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 37.097,
+        "nvme0n1:writes": 162.0,
+        "nvme0n1:writeKb": 1952.0,
+        "nvme0n1:writeMs": 43.0,
+        "nvme0n1:ioMs": 44.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 38.098,
+        "nvme0n1:writes": 175.82417582417585,
+        "nvme0n1:writeKb": 4915.084915084915,
+        "nvme0n1:writeMs": 42.957042957042965,
+        "nvme0n1:ioMs": 17.982017982017982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 39.099,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1890.1098901098903,
+        "nvme0n1:writeMs": 36.96303696303697,
+        "nvme0n1:ioMs": 33.96603396603397,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 40.1,
+        "nvme0n1:writes": 192.80719280719282,
+        "nvme0n1:writeKb": 2621.3786213786216,
+        "nvme0n1:writeMs": 33.96603396603397,
+        "nvme0n1:ioMs": 17.982017982017982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 41.101,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1830.1698301698304,
+        "nvme0n1:writeMs": 24.97502497502498,
+        "nvme0n1:ioMs": 22.97702297702298,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 42.103,
+        "nvme0n1:writes": 162.6746506986028,
+        "nvme0n1:writeKb": 2003.992015968064,
+        "nvme0n1:writeMs": 17.964071856287426,
+        "nvme0n1:ioMs": 15.968063872255488,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 43.103,
+        "nvme0n1:writes": 164.0,
+        "nvme0n1:writeKb": 1892.0,
+        "nvme0n1:writeMs": 17.0,
+        "nvme0n1:ioMs": 18.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 44.104,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1850.1498501498504,
+        "nvme0n1:writeMs": 17.982017982017982,
+        "nvme0n1:ioMs": 15.984015984015986,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 45.104,
+        "nvme0n1:writes": 162.0,
+        "nvme0n1:writeKb": 1836.0,
+        "nvme0n1:writeMs": 19.0,
+        "nvme0n1:ioMs": 18.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 46.105,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1878.1218781218784,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 16.983016983016984,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 47.106,
+        "nvme0n1:writes": 163.83616383616385,
+        "nvme0n1:writeKb": 1970.0299700299702,
+        "nvme0n1:writeMs": 20.97902097902098,
+        "nvme0n1:ioMs": 21.97802197802198,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 48.107,
+        "nvme0n1:writes": 195.8041958041958,
+        "nvme0n1:writeKb": 2193.806193806194,
+        "nvme0n1:writeMs": 48.95104895104895,
+        "nvme0n1:ioMs": 20.97902097902098,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 49.109,
+        "nvme0n1:writes": 164.67065868263472,
+        "nvme0n1:writeKb": 1880.2395209580839,
+        "nvme0n1:writeMs": 21.956087824351297,
+        "nvme0n1:ioMs": 21.956087824351297,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 50.11,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1818.1818181818185,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 19.980019980019982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 51.111,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1886.1138861138863,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 23.976023976023978,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 52.111,
+        "nvme0n1:writes": 169.0,
+        "nvme0n1:writeKb": 2072.0,
+        "nvme0n1:writeMs": 20.0,
+        "nvme0n1:ioMs": 16.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 53.112,
+        "nvme0n1:writes": 161.83816183816185,
+        "nvme0n1:writeKb": 1810.1898101898105,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 17.982017982017982,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 54.113,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1798.2017982017985,
+        "nvme0n1:writeMs": 16.983016983016984,
+        "nvme0n1:ioMs": 13.986013986013987,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 55.113,
+        "nvme0n1:writes": 163.0,
+        "nvme0n1:writeKb": 1872.0,
+        "nvme0n1:writeMs": 17.0,
+        "nvme0n1:ioMs": 17.0,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 56.114,
+        "nvme0n1:writes": 159.84015984015986,
+        "nvme0n1:writeKb": 1818.1818181818185,
+        "nvme0n1:writeMs": 17.982017982017982,
+        "nvme0n1:ioMs": 25.974025974025977,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 57.115,
+        "nvme0n1:writes": 168.83116883116884,
+        "nvme0n1:writeKb": 2073.926073926074,
+        "nvme0n1:writeMs": 24.97502497502498,
+        "nvme0n1:ioMs": 22.97702297702298,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 58.116,
+        "nvme0n1:writes": 163.83616383616385,
+        "nvme0n1:writeKb": 1870.1298701298704,
+        "nvme0n1:writeMs": 17.982017982017982,
+        "nvme0n1:ioMs": 16.983016983016984,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      },
+      {
+        "t": 59.117,
+        "nvme0n1:writes": 156.84315684315686,
+        "nvme0n1:writeKb": 1770.2297702297703,
+        "nvme0n1:writeMs": 15.984015984015986,
+        "nvme0n1:ioMs": 15.984015984015986,
+        "nvme0n1:flushes": 0.0,
+        "nvme0n1:flushMs": 0.0
+      }
+    ],
+    "samplersReadyBeforeMeasureSeconds": 9.451,
+    "samplers": "/proc every 1000ms; jstat -gc -t <pid> 1000 per JVM; one docker stats stream; one mongosh and one psql session sampling every 1000ms; /proc/diskstats every 1000ms on Linux; allocations over JMX connections opened at the warm-up; all started at the warm-up"
+  },
+  "environment": {
+    "os": "Linux 7.0.0-1019-azure amd64",
+    "cpu": "x86_64",
+    "cores": 1,
+    "memoryGb": null,
+    "osVersion": null,
+    "loadGeneratorJvm": "Eclipse Adoptium OpenJDK 64-Bit Server VM 25.0.5",
+    "docker": "29.4.2",
+    "dockerCpus": "4",
+    "dockerMemory": "15983 MiB",
+    "commit": "d8284109df87504739da5b86dbc1bb3478ae6e04",
+    "dirty": false
+  },
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "32",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}
