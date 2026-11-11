@@ -26,7 +26,7 @@ import {
   type CartesianData,
   type RecordData,
 } from '../src/index.js';
-import { DERIVED_KINDS } from '../src/model/chart.js';
+import { DERIVED_KINDS } from '../src/model/cartesian.js';
 import { shapeChart } from '../src/analysis/chart.js';
 import { derivedValues } from '../src/analysis/derived.js';
 import {
