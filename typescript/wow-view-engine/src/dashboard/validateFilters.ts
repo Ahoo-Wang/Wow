@@ -29,6 +29,7 @@ import {
   type FieldKindRegistry,
 } from '../filter/index.js';
 import { filterValueIssues, isBlankFilterValue } from './filters.js';
+import { shape } from './shape.js';
 
 /**
  * A board's filters as the config declares them: each named once in
@@ -86,11 +87,7 @@ function validateMembers(field: DashboardField, path: IssuePath): Issue[] {
   const issues: Issue[] = [];
   for (const flag of ['required', 'multiple', 'oneDay'] as const)
     if (field[flag] !== undefined && field[flag] !== true)
-      issues.push(
-        issue('dashboard.shape.invalid', [...path, flag], {
-          expected: 'true',
-        }),
-      );
+      issues.push(shape([...path, flag], 'true'));
   if (field.oneDay === true && filterTypeOf(field.kind) !== 'date')
     issues.push(
       issue('dashboard.field.one-day-not-date', [...path, 'oneDay'], {
@@ -99,11 +96,7 @@ function validateMembers(field: DashboardField, path: IssuePath): Issue[] {
     );
   const options: unknown = field.options;
   if (options !== undefined && !Array.isArray(options))
-    issues.push(
-      issue('dashboard.shape.invalid', [...path, 'options'], {
-        expected: 'array',
-      }),
-    );
+    issues.push(shape([...path, 'options'], 'array'));
   else if (Array.isArray(options) && options.length === 0)
     issues.push(
       issue(
@@ -145,7 +138,7 @@ export function validateTimeGrouping(config: DashboardViewConfig): Issue[] {
   if (grouping === undefined) return [];
   const path: IssuePath = ['timeGrouping'];
   if (!isPlainObject(grouping) || !Array.isArray(grouping.units))
-    return [issue('dashboard.shape.invalid', path, { expected: 'object' })];
+    return [shape(path, 'object')];
   const units: unknown[] = grouping.units;
   if (units.length === 0)
     return [issue('dashboard.grouping.units-empty', [...path, 'units'])];

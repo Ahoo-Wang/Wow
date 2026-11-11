@@ -33,6 +33,7 @@ import {
 } from '../model/index.js';
 import { issue, isPlainObject } from '../filter/index.js';
 import { freshId, panelTab } from './panels.js';
+import { shape } from './shape.js';
 
 /**
  * The tabs as admission reads them. An id is how a panel names its tab, so
@@ -49,9 +50,7 @@ export function validateTabs(tabs: readonly DashboardTab[]): Issue[] {
   tabs.forEach((tab, index) => {
     const path: IssuePath = ['tabs', index];
     if (!isPlainObject(tab)) {
-      issues.push(
-        issue('dashboard.shape.invalid', path, { expected: 'object' }),
-      );
+      issues.push(shape(path, 'object'));
       return;
     }
     if (typeof tab.id !== 'string' || tab.id.trim().length === 0)

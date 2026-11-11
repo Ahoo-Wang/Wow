@@ -16,7 +16,8 @@ import { issue } from '../filter/index.js';
 
 /**
  * A value of the wrong shape where a board's config expects another: the
- * one way `validate.ts` and `validateContent.ts` say it.
+ * one way the board's admission says it — `validate.ts`,
+ * `validateContent.ts`, `validateFilters.ts` and `tabs.ts`.
  */
 export function shape(
   path: IssuePath,
