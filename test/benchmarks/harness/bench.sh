@@ -173,7 +173,7 @@ down() {
     for _ in $(seq 1 150); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
   done
   compose down -v --remove-orphans >/dev/null 2>&1 || true
-  docker rm -f "$CLICKHOUSE" >/dev/null 2>&1 || true
+  docker rm -f "$CLICKHOUSE" "$ELASTICSEARCH" >/dev/null 2>&1 || true
 }
 
 # The --name=value options, one name=value per line in OPTIONS (bash 3.2 has no associative arrays); the ones the
@@ -234,11 +234,11 @@ load() {
   ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
-# The launcher of the server distribution $1: benchmark-server, a baseline's from before test/benchmarks/
-# (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
+# The launcher of the server distribution $1: benchmark-server or the search server, a baseline's from before
+# test/benchmarks/ (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
 server_launcher() {
   local name
-  for name in benchmark-server e2e-bench-v10 axon-server; do
+  for name in benchmark-server benchmark-search-server e2e-bench-v10 axon-server; do
     if [ -x "$1/bin/$name" ]; then echo "$1/bin/$name"; return; fi
   done
   echo "$1/bin/benchmark-server"

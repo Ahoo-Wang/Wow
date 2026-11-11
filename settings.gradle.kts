@@ -223,6 +223,9 @@ project(":java-smoke").projectDir = file("examples/java-smoke")
 // and its server on Wow modules only. Never published.
 include(":benchmark-server")
 project(":benchmark-server").projectDir = file("test/benchmarks/server")
+// The benchmark server with an Elasticsearch store, for the search and sink measurements. Never published.
+include(":benchmark-search-server")
+project(":benchmark-search-server").projectDir = file("test/benchmarks/search-server")
 include(":migration-rehearsal")
 project(":migration-rehearsal").projectDir = file("test/migration-rehearsal")
 // A third-party store on the public SPI alone, run through StoreTck: it opts in to nothing. Never published.
