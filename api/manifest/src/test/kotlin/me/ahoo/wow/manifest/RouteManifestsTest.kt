@@ -47,7 +47,7 @@ class RouteManifestsTest {
     fun `a route parameter should equal itself and an equal parameter only`() {
         parameter.assert().isEqualTo(
             parameter
-        ).isEqualTo(parameter.copyWith()).isNotEqualTo(parameter.copyWith(required = false))
+        ).isEqualTo(parameter.copyWith()).isNotEqualTo(parameter.copyWith(name = "night"))
         parameter.equals("day").assert().isFalse()
         parameter.hashCode().assert().isEqualTo(parameter.copyWith().hashCode())
     }
