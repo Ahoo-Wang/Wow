@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.cluster
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
@@ -258,8 +257,9 @@ class ClusterTest : ClusterTestCase() {
         cluster.awaitStable()
         eventually { one.address in cluster.connects && two.address in cluster.connects }
         val greeted = cluster.connects.size
-        // The routes keep showing the same peers: they are not greeted again.
-        delay(300)
+        // The routes keep showing the same peers: they are not greeted again. Three refreshes of each node's routes, not
+        // two: a refresh greets a new peer in its own coroutine, maybe after the next refresh starts.
+        listOf(one, two).forEach { refreshed(it, 3) }
         cluster.connects.size.assert().isEqualTo(greeted)
 
         val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
@@ -342,5 +342,13 @@ class ClusterTest : ClusterTestCase() {
         one.decided.assert().containsExactly(local.commandId)
         gate.complete(Unit)
         two.decided.assert().containsExactly(forwarded.await().commandId)
+    }
+
+    /** Waits until [node]'s routes were read [times] more times: each refresh of them makes a new table. */
+    private suspend fun refreshed(node: TestNode, times: Int) {
+        repeat(times) {
+            val seen = node.ownership.routes
+            eventually { node.ownership.routes !== seen }
+        }
     }
 }
