@@ -296,7 +296,7 @@ class CommittedReceiptsTest {
             // Delivered again, the command is not decided again: its receipt is the original commit's.
             copy.result.duplicate.assert().isTrue()
             stock.decided.size.assert().isEqualTo(1)
-            delay(100.milliseconds)
+            receiptsRead(topics, RECEIPTS, salesBackends.backends(SALES).checkpoints, SALES_SERVICE, SALES)
             commits.size.assert().isEqualTo(1)
             confirmed.size.assert().isEqualTo(1)
         }

@@ -174,7 +174,9 @@ class StandbyNodeTest {
             node.gateway.send(place("o-v10", "cart-v10", "plum")).toList().last().status
                 .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             eventually { "o-v10" in handled }
-            delay(SETTLE_MILLIS)
+            // Every subscription is past every entry of the log: an imported one handled again would have been by now.
+            val subscriptions = node.context(SHOP).subscriptions
+            eventually { subscriptions.positions().all { it.watermark == (log.head(it.partition) ?: 0L) } }
             // The saga's end of the stream was taken at the activation: the imported history is never handled again.
             handled.assert().containsExactly("o-v10")
             log.read(CART.ref(TENANT, "cart-o-9x-1")).toList().assert().isEmpty()

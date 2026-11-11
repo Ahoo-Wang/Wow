@@ -190,7 +190,8 @@ class SubscriptionHoldTest {
                 runtime.positions().map { it.subscription }.assert().containsExactlyInAnyOrder(NAME, "other")
                 eventually { handled.size == 1 && seen.size == 1 }
                 handled.sequences().assert().containsExactly(entry)
-                delay(SETTLE_MILLIS)
+                // The one worker of the subscription is done with the entry: a copy at or below it is dropped.
+                eventually { runtime.positions().single { it.subscription == NAME }.watermark >= entry }
                 handled.size.assert().isEqualTo(1)
             } finally {
                 runtime.stop()

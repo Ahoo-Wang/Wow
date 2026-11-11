@@ -121,7 +121,7 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
             val (receipt, copy) = topics.messages(RECEIPTS).map { EnvelopeCodec.decode(it.value).id }
             copy.assert().isEqualTo(receipt)
             stock.decided.size.assert().isEqualTo(2)
-            delay(100.milliseconds)
+            receiptsRead(topics, RECEIPTS, salesBackends.backends(SALES).checkpoints, SALES_SERVICE, SALES)
             rejections.size.assert().isEqualTo(1)
             cancelled.size.assert().isEqualTo(1)
         }

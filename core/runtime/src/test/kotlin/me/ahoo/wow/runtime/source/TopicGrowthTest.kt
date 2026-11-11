@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.source
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -110,9 +109,16 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
             val record = EnvelopeCodec.message(orderRecord("o-3", 1))
             topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
             eventually { handled.versionsOf("o-3") == listOf(1) }
-            delay(50.milliseconds)
+            // A record of each first partition, read after o-1 and o-2 would be if they were read again.
+            val sentinels = (0 until 2).map { partition ->
+                generateSequence(0) { it + 1 }.map { "s-$it" }
+                    .first { topics.partitionOf(topic, order(it).toString()) == partition }
+            }
+            topics.publish(*sentinels.map { orderRecord(it, 1) }.toTypedArray(), topic = topic)
+            eventually { sentinels.all { handled.versionsOf(it) == listOf(1) } }
             // Nothing read before the partitions were added was handled again.
-            handled.size.assert().isEqualTo(3)
+            listOf("o-1", "o-2").forEach { handled.versionsOf(it).assert().containsExactly(1) }
+            handled.size.assert().isEqualTo(5)
         }
 
     /** Reads [topic] on [node] with [subscription], looking for new partitions every 20 ms. */
