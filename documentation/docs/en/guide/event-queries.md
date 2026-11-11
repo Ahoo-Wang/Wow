@@ -62,7 +62,7 @@ An events query shows only the commits of aggregates the caller may see now. Eac
 
 - An aggregate with an access policy shows its streams to the callers its policy's `read` lets read it ([Where a policy applies](./ownership#where-a-policy-applies)).
 - Any other aggregate shows them within the caller's tenant and, to a caller acting as an owner or in a space, by the aggregate's owner and space of now (`access.owner`, `access.space`). After a transfer, the new owner sees the whole history and the former owner sees none. A filter of the query's own on `ownerId` or `spaceId` reads the values recorded at the commit.
-- A stream not yet stamped has `access` null: one a beta or an import appended, until the access walk of its type completes. It shows neither under an access policy nor to a caller acting as an owner or in a space ([Rebuild and Replay](../operate/replay#access-attributes)).
+- A stream not yet stamped has `access` null: one an import from 9.x appended, until the access walk of its type completes. It shows neither under an access policy nor to a caller acting as an owner or in a space ([Rebuild and Replay](../operate/replay#access-attributes)).
 
 When an aggregate's attributes change, its earlier streams are stamped again, normally within seconds. Until then, an events query reads them by the attributes they were stamped with. A state read, a version, a time and a trace are checked on the aggregate's latest state, so they are never behind ([Read State](./reading-state)).
 

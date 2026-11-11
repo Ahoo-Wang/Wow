@@ -62,7 +62,7 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 
 - 有访问策略的聚合：它的策略的 `read` 允许谁读这个聚合，谁就能看到它的流（[策略在哪里生效](./ownership#where-a-policy-applies)）。
 - 其他聚合：在调用方的租户之内显示它的流；对以所有者身份或在某个空间里行事的调用方，按聚合现在的所有者和空间（`access.owner`、`access.space`）判定。转移之后，新所有者看到全部历史，原所有者一条也看不到。查询自己对 `ownerId` 或 `spaceId` 的过滤，读的是提交时记下的值。
-- 尚未盖章的流 `access` 为 null：beta 或导入追加的流，在其类型的访问遍历完成之前都是这样。它在访问策略下不显示，对以所有者身份或在某个空间里行事的调用方也不显示（[重建与重放](../operate/replay#access-attributes)）。
+- 尚未盖章的流 `access` 为 null：从 9.x 导入时追加的流，在其类型的访问遍历完成之前都是这样。它在访问策略下不显示，对以所有者身份或在某个空间里行事的调用方也不显示（[重建与重放](../operate/replay#access-attributes)）。
 
 聚合的访问属性改变时，它更早的流会被重新盖章，通常在几秒之内完成；在那之前，事件查询按这些流原先盖的属性读取它们。状态读取，以及按版本、按时间和 trace 的读取，都在聚合的最新状态上检查，所以从不滞后（[读取状态](./reading-state)）。
 
