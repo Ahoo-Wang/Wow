@@ -1087,7 +1087,10 @@ jobs:
         run: pnpm --filter "wow-eshop-web^..." build
       - name: Install Chromium
         working-directory: examples/eshop/web
-        run: pnpm exec playwright install --with-deps chromium
+        # Without the system packages when apt cannot fetch them; the warning marks a run that fell back.
+        run: |
+          pnpm exec playwright install --with-deps chromium ||
+            { echo "::warning::${{ github.job }} / Install Chromium: the system packages did not install, so Chromium was installed without them."; pnpm exec playwright install chromium; }
       - name: Test end to end
         working-directory: examples/eshop/web
         run: pnpm test:e2e
@@ -1167,7 +1170,10 @@ jobs:
         run: pnpm --filter 'wow-ops-console...' build
       - name: Install Chromium
         working-directory: platform/ops/console
-        run: pnpm exec playwright install --with-deps chromium
+        # Without the system packages when apt cannot fetch them; the warning marks a run that fell back.
+        run: |
+          pnpm exec playwright install --with-deps chromium ||
+            { echo "::warning::${{ github.job }} / Install Chromium: the system packages did not install, so Chromium was installed without them."; pnpm exec playwright install chromium; }
       - name: Test end to end
         working-directory: platform/ops/console
         run: pnpm test:e2e
@@ -1252,7 +1258,10 @@ jobs:
         run: pnpm --filter 'wow-analytics-catalog-console...' build
       - name: Install Chromium
         working-directory: platform/analytics/catalog/console
-        run: pnpm exec playwright install --with-deps chromium
+        # Without the system packages when apt cannot fetch them; the warning marks a run that fell back.
+        run: |
+          pnpm exec playwright install --with-deps chromium ||
+            { echo "::warning::${{ github.job }} / Install Chromium: the system packages did not install, so Chromium was installed without them."; pnpm exec playwright install chromium; }
       - name: Test end to end
         working-directory: platform/analytics/catalog/console
         run: pnpm test:e2e

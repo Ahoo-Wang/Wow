@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.spi.observation
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * How an observed stage ended ([Observation.outcome]): its span's `wow.outcome` and the tag of its metric. A value
  * is lower case and one word per concept, whichever stage reports it: a command committed before is `duplicate` to
  * its execution, its append and its timer alike.
  */
+@WowSpi
 enum class ObservedOutcome(val value: String) {
     /** The stage ended without naming another outcome. */
     OK("ok"),

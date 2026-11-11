@@ -26,8 +26,8 @@
  * registry's own group class (`group/button`, `group/toggle`,
  * `group/badge`), as the outline badge above is found.
  *
- * Every rule's built-in value is what the registry drew, so a theme that
- * sets no role paints the same pixels. Where a rule has to stand beside a
+ * Every rule's built-in value is what the registry drew unless its note
+ * says the engine draws otherwise (D94). Where a rule has to stand beside a
  * call site's own choice it names the registry's class it replaces
  * (`:where(.h-8)`, `:where(.rounded-lg)`): a call site that asked for
  * another height or corner has had that class merged away (`cn`), so the
@@ -39,6 +39,33 @@
  * weighs what the class it replaces weighs wins that tie by order.
  */
 @layer utilities {
+  /*
+   * No wash under a control in the dark (D94). The registry lays `input`
+   * at 30% under a field, a select, a checkbox, a radio and an outline
+   * button there: a second ground under every word and edge on it, which
+   * each ink then owed its line on, and a lift that was neither the
+   * surface nor a fill. The control keeps its edge and stands on what is
+   * under it. First in the layer, so a theme's own fill (`control`, the
+   * rules below and in `states.css`) is laid after it; the registry's
+   * hover and disabled fills weigh a state beside the class (0,2,0 to this
+   * rule's 0,1,0) and stay, and so does a mixed box's fill, written
+   * `[data-indeterminate]`. A ticked box and a chosen radio are named out:
+   * their fill is the registry's `data-checked` variant, compiled under
+   * `:where()`, which weighs nothing (0,1,0), so this rule would have won
+   * the tie by order and emptied them.
+   */
+  @media not print {
+    .fve\:dark\:bg-input\/30:where(
+        .fve-root[data-theme='dark'] *,
+        .dark .fve-root:not([data-theme='light']) *,
+        .dark .fve-tokens :not(.fve-root, .fve-root *)
+      ):where(
+        :not([data-state='checked'], [data-checked]:not([data-checked='false']))
+      ) {
+      background-color: transparent;
+    }
+  }
+
   /*
    * The scrim behind a dialog and a sheet. The overlay is a root of its
    * own (`ui/kit/popups.tsx`), so the rule names no ancestor. A destructive
