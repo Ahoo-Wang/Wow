@@ -39,6 +39,7 @@ class QuerySchemaValidationException(
     /** The structured violation, when the check that failed states one. */
     val violation: QueryViolation? = null,
 ) : QuerySchemaException(message, cause) {
+    /** The query that breaks [violation], with the violation's message and no cause. */
     constructor(violation: QueryViolation) : this(violation.message, violation = violation)
 
     override val errorCode: String

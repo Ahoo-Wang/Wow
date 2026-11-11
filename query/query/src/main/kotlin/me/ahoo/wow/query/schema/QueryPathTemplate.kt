@@ -58,11 +58,8 @@ sealed interface QueryPathSegment {
  * `Property(state), Property(lines), Item, Property(sku)`. A storage adapter reports its bindings by the logical
  * template ([LogicalQuerySchema.values]) and gives each binding's physical template ([of]).
  */
-class QueryPathTemplate private constructor(input: List<QueryPathSegment>, validatedField: QueryField<*>?) {
-    @InternalWowApi
-    constructor(segments: List<QueryPathSegment>) : this(segments, null)
-
-    val segments: List<QueryPathSegment> = java.util.List.copyOf(input)
+class QueryPathTemplate @InternalWowApi constructor(segments: List<QueryPathSegment>) {
+    val segments: List<QueryPathSegment> = java.util.List.copyOf(segments)
     internal val keyCount: Int = this.segments.count { it is QueryPathSegment.Key }
     internal val hasOrderedKeys: Boolean
     private val hash = this.segments.hashCode()
@@ -83,7 +80,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
                     if (segment.slot != nextSlot++) ordered = false
                 }
                 is QueryPathSegment.Property -> {
-                    if (validatedField == null) requireQueryPathSegment(segment.name)
+                    requireQueryPathSegment(segment.name)
                     if (firstProperty == null) firstProperty = segment.name
                 }
                 QueryPathSegment.Item -> Unit
@@ -91,7 +88,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
         }
         hasOrderedKeys = ordered
         // Root and numeric-leading fragments are valid templates, but not standalone QueryFields.
-        fixedField = validatedField ?: if (keyCount == 0 && firstProperty != null && firstProperty.first() !in '0'..'9') {
+        fixedField = if (keyCount == 0 && firstProperty != null && !firstProperty.first().isDigit()) {
             QueryField(render(emptyList()))
         } else {
             null
@@ -134,7 +131,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
         fun of(vararg segments: QueryPathSegment): QueryPathTemplate = QueryPathTemplate(segments.toList())
 
         internal fun fromField(field: QueryField<*>): QueryPathTemplate =
-            QueryPathTemplate(field.path.split('.').map(QueryPathSegment::Property), field)
+            QueryPathTemplate(field.path.split('.').map(QueryPathSegment::Property))
     }
 }
 
