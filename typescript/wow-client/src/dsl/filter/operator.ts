@@ -115,15 +115,17 @@ export enum SearchMode {
 }
 
 /**
- * Unit of a numeric epoch time field targeted by a relative time filter.
- * Ignored when `datePattern` is set.
+ * The unit a number counts in, as the capability descriptor names it: a
+ * `temporal-epoch` field's epoch (`TemporalEpoch`) or a `duration`
+ * field's length (`DurationSemantic`). The words are the JVM's
+ * `TimeUnit` names in lower case.
  */
 export enum TimeUnit {
-  NANOSECONDS = 'NANOSECONDS',
-  MICROSECONDS = 'MICROSECONDS',
-  MILLISECONDS = 'MILLISECONDS',
-  SECONDS = 'SECONDS',
-  MINUTES = 'MINUTES',
-  HOURS = 'HOURS',
-  DAYS = 'DAYS',
+  NANOSECONDS = 'nanoseconds',
+  MICROSECONDS = 'microseconds',
+  MILLISECONDS = 'milliseconds',
+  SECONDS = 'seconds',
+  MINUTES = 'minutes',
+  HOURS = 'hours',
+  DAYS = 'days',
 }

@@ -1,12 +1,12 @@
 {
   "afterNow": {
-    "doc": "Matches times strictly after the server's `now + offset`\n(`field > now + offset`). The server reads its clock once per query,\nso a saved query never depends on the client's clock, and the moment is\nencoded the way the field stores time: an epoch in `timeUnit`, or text\nin `datePattern` and `zoneId`.\n\nNeeds a Wow server of 9.2.0 or later; an earlier one refuses `AFTER_NOW`.",
+    "doc": "Matches times strictly after the server's `now + offset`\n(`field > now + offset`). The server reads its clock once per query,\nso a saved query never depends on the client's clock, and the moment is\nencoded the way the query schema says the field stores time: an epoch in\nits unit, or text in its pattern, in the zone `zoneId` names.\n\nNeeds a Wow server of 9.2.0 or later; an earlier one refuses `AFTER_NOW`.",
     "tags": [
       "@param field - Query field path, e.g. `state.timeoutAt`.",
       "@param offset - ISO-8601 duration added to now, as\n`java.time.Duration.parse` reads it: days, hours, minutes and seconds,\neach optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative\noffset looks back. Defaults to `PT0S`, now itself.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'after-now', field, offset, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `offset` is not an ISO-8601 duration in that\ngrammar, `field` is not a valid query field path, `zoneId` is blank or\nan invalid UTC offset, `datePattern` is blank or not a valid `java.time`\npattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'after-now', field, offset }`, plus `zoneId` when set.",
+      "@throws TypeError If `offset` is not an ISO-8601 duration in that\ngrammar, `field` is not a valid query field path, or `zoneId` is blank\nor an invalid UTC offset.",
       "@example ```typescript\n// Created in the last 30 minutes.\nfilter.afterNow('state.createTime', '-PT30M');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, offset?: string | undefined, options?: RelativeTimeFilterOptions | undefined) => NowFilter<FIELDS>"
@@ -42,13 +42,13 @@
     "type": "{ <FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>; <FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>; }"
   },
   "beforeNow": {
-    "doc": "Matches times strictly before the server's `now + offset`\n(`field < now + offset`). The server reads its clock once per query,\nso a saved query never depends on the client's clock, and the moment is\nencoded the way the field stores time: an epoch in `timeUnit`, or text\nin `datePattern` and `zoneId`.\n\nNeeds a Wow server of 9.2.0 or later; an earlier one refuses `BEFORE_NOW`.",
+    "doc": "Matches times strictly before the server's `now + offset`\n(`field < now + offset`). The server reads its clock once per query,\nso a saved query never depends on the client's clock, and the moment is\nencoded the way the query schema says the field stores time: an epoch in\nits unit, or text in its pattern, in the zone `zoneId` names.\n\nNeeds a Wow server of 9.2.0 or later; an earlier one refuses `BEFORE_NOW`.",
     "tags": [
       "@param field - Query field path, e.g. `state.timeoutAt`.",
       "@param offset - ISO-8601 duration added to now, as\n`java.time.Duration.parse` reads it: days, hours, minutes and seconds,\neach optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative\noffset looks back. Defaults to `PT0S`, now itself.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'before-now', field, offset, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `offset` is not an ISO-8601 duration in that\ngrammar, `field` is not a valid query field path, `zoneId` is blank or\nan invalid UTC offset, `datePattern` is blank or not a valid `java.time`\npattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'before-now', field, offset }`, plus `zoneId` when set.",
+      "@throws TypeError If `offset` is not an ISO-8601 duration in that\ngrammar, `field` is not a valid query field path, or `zoneId` is blank\nor an invalid UTC offset.",
       "@example ```typescript\n// Timed out: the deadline has passed.\nfilter.beforeNow('state.timeoutAt');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, offset?: string | undefined, options?: RelativeTimeFilterOptions | undefined) => NowFilter<FIELDS>"
@@ -58,9 +58,9 @@
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
       "@param time - 24-hour local time: `HH:mm`, `HH:mm:ss` or `HH:mm:ss.S` with\n1 to 9 fraction digits.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'before-today', field, time, timeUnit }`, plus `zoneId`\nand `datePattern` when set.",
-      "@throws TypeError If `time` is not a string in one of the formats above,\n`field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,\n`datePattern` is blank or not a valid `java.time` pattern, or\n`timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'before-today', field, time }`, plus `zoneId` when set.",
+      "@throws TypeError If `time` is not a string in one of the formats above,\n`field` is not a valid query field path, or `zoneId` is blank or an\ninvalid UTC offset.",
       "@example ```typescript\nfilter.beforeToday('state.createTime', '12:00');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, time: string, options?: RelativeTimeFilterOptions | undefined) => BeforeTodayFilter<FIELDS>"
@@ -115,9 +115,9 @@
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
       "@param days - Number of calendar days, including today; an integer from\n1 to 2147483647.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'earlier-days', field, days, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `days` is not an integer from 1 to 2147483647,\n`field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,\n`datePattern` is blank or not a valid `java.time` pattern, or\n`timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'earlier-days', field, days }`, plus `zoneId` when set.",
+      "@throws TypeError If `days` is not an integer from 1 to 2147483647,\n`field` is not a valid query field path, or `zoneId` is blank or an\ninvalid UTC offset.",
       "@example ```typescript\nfilter.earlierDays('state.createTime', 7);\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions | undefined) => DaysFilter<FIELDS>"
@@ -284,9 +284,9 @@
     "doc": "Matches times within the previous calendar month, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'last-month', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'last-month', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.lastMonth('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -295,9 +295,9 @@
     "doc": "Matches times within the previous Monday-start week, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'last-week', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'last-week', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.lastWeek('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -306,9 +306,9 @@
     "doc": "Matches times within the previous calendar year, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'last-year', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'last-year', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.lastYear('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -366,9 +366,9 @@
     "doc": "Matches times within the next calendar month, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'next-month', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'next-month', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.nextMonth('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -377,9 +377,9 @@
     "doc": "Matches times within the next Monday-start week, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'next-week', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'next-week', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.nextWeek('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -388,9 +388,9 @@
     "doc": "Matches times within the next calendar year, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'next-year', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'next-year', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.nextYear('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -451,9 +451,9 @@
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
       "@param days - Number of calendar days, including today; an integer from\n1 to 2147483647.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'recent-days', field, days, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `days` is not an integer from 1 to 2147483647,\n`field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,\n`datePattern` is blank or not a valid `java.time` pattern, or\n`timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'recent-days', field, days }`, plus `zoneId` when set.",
+      "@throws TypeError If `days` is not an integer from 1 to 2147483647,\n`field` is not a valid query field path, or `zoneId` is blank or an\ninvalid UTC offset.",
       "@example ```typescript\nfilter.recentDays('state.createTime', 7);\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions | undefined) => DaysFilter<FIELDS>"
@@ -505,9 +505,9 @@
     "doc": "Matches times within the current calendar month, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'this-month', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'this-month', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.thisMonth('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -516,9 +516,9 @@
     "doc": "Matches times within the current Monday-start week, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'this-week', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'this-week', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.thisWeek('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -527,10 +527,10 @@
     "doc": "Matches times within the current calendar year, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'this-year', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
-      "@example ```typescript\nfilter.thisYear('state.createTime', { timeUnit: TimeUnit.SECONDS });\n```"
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'this-year', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
+      "@example ```typescript\nfilter.thisYear('state.createTime', { zoneId: 'Asia/Shanghai' });\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
   },
@@ -538,9 +538,9 @@
     "doc": "Matches times within today, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'today', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'today', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.today('state.createTime', { zoneId: 'Asia/Shanghai' });\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -549,9 +549,9 @@
     "doc": "Matches times within tomorrow, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'tomorrow', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'tomorrow', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.tomorrow('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"
@@ -560,9 +560,9 @@
     "doc": "Matches times within yesterday, as the half-open range `[start, end)` in the\nconfigured time zone.",
     "tags": [
       "@param field - Query field path, e.g. `state.status`.",
-      "@param options - Optional `zoneId`, `datePattern` and `timeUnit`; see\n{@link RelativeTimeFilterOptions}. `timeUnit` defaults to\n`TimeUnit.MILLISECONDS`.",
-      "@returns `{ op: 'yesterday', field, timeUnit }`, plus `zoneId` and\n`datePattern` when set.",
-      "@throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an\ninvalid UTC offset, `datePattern` is blank or not a valid\n`java.time` pattern, or `timeUnit` is not a {@link TimeUnit (unresolved)} member.",
+      "@param options - Optional `zoneId`; see {@link RelativeTimeFilterOptions}.",
+      "@returns `{ op: 'yesterday', field }`, plus `zoneId` when set.",
+      "@throws TypeError If `field` is not a valid query field path, or `zoneId` is\nblank or an invalid UTC offset.",
       "@example ```typescript\nfilter.yesterday('state.createTime');\n```"
     ],
     "type": "<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions | undefined) => CalendarFilter<FIELDS>"

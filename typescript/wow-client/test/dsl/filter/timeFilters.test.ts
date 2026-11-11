@@ -13,11 +13,12 @@
 
 /**
  * `filter`'s time filters: calendar periods, days relative to today, and
- * instants relative to the server's now, with their zones, patterns and
- * durations.
+ * instants relative to the server's now, with their zones and durations.
+ * A filter carries no encoding: the server writes its bounds as the field
+ * keeps time.
  */
 
-import { filter, FilterOperator, TimeUnit } from '../../../src/dsl.js';
+import { filter, FilterOperator } from '../../../src/dsl.js';
 import { describe, expect, it } from 'vitest';
 
 describe('filter', () => {
@@ -31,22 +32,20 @@ describe('filter', () => {
     expect(create('createdAt')).toEqual({
       op,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
     });
   });
 
-  it('emits every Wow relative-time unit', () => {
-    expect(
-      Object.values(TimeUnit).map(timeUnit =>
-        filter.today('createdAt', { timeUnit }),
-      ),
-    ).toEqual(
-      Object.values(TimeUnit).map(timeUnit => ({
-        op: FilterOperator.TODAY,
-        field: 'createdAt',
-        timeUnit,
-      })),
-    );
+  it('sends a zone only, the encoding being the field’s', () => {
+    const options = {
+      zoneId: 'UTC',
+      datePattern: 'yyyy-MM-dd',
+      timeUnit: 'seconds',
+    } as never;
+    expect(filter.today('createdAt', options)).toEqual({
+      op: FilterOperator.TODAY,
+      field: 'createdAt',
+      zoneId: 'UTC',
+    });
   });
 
   it.each<{
@@ -60,84 +59,26 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
-      name: 'today with JVM boundary options',
-      create: () =>
-        filter.today('createdAt', {
-          zoneId: '+18:00',
-          datePattern: 'ppHH[',
-        }),
+      name: 'today at the JVM boundary offset',
+      create: () => filter.today('createdAt', { zoneId: '+18:00' }),
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         zoneId: '+18:00',
-        datePattern: 'ppHH[',
-      },
-    },
-    {
-      name: 'padded fraction separated from a numeric field',
-      create: () =>
-        filter.today('createdAt', {
-          datePattern: 'pS:mm',
-        }),
-      expected: {
-        op: FilterOperator.TODAY,
-        field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
-        datePattern: 'pS:mm',
-      },
-    },
-    {
-      name: 'padded numeric field without adjacency',
-      create: () => filter.today('createdAt', { datePattern: 'py' }),
-      expected: {
-        op: FilterOperator.TODAY,
-        field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
-        datePattern: 'py',
-      },
-    },
-    {
-      name: 'wide week-based-year pattern',
-      create: () =>
-        filter.today('createdAt', {
-          datePattern: 'YYYYYYYYYYYYYYYYYYYY',
-        }),
-      expected: {
-        op: FilterOperator.TODAY,
-        field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
-        datePattern: 'YYYYYYYYYYYYYYYYYYYY',
-      },
-    },
-    {
-      name: 'byte order mark, which Kotlin does not count as blank',
-      create: () => filter.today('createdAt', { datePattern: '\uFEFF' }),
-      expected: {
-        op: FilterOperator.TODAY,
-        field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
-        datePattern: '\uFEFF',
       },
     },
     {
       name: 'before today',
       create: () =>
-        filter.beforeToday('createdAt', '09:30', {
-          zoneId: 'UTC+05:30',
-          datePattern: "yyyy-MM-dd 'o''clock'['T'HH:mm:ss]",
-        }),
+        filter.beforeToday('createdAt', '09:30', { zoneId: 'UTC+05:30' }),
       expected: {
         op: FilterOperator.BEFORE_TODAY,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         time: '09:30',
         zoneId: 'UTC+05:30',
-        datePattern: "yyyy-MM-dd 'o''clock'['T'HH:mm:ss]",
       },
     },
     {
@@ -146,7 +87,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TOMORROW,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -155,7 +95,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.THIS_WEEK,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -164,7 +103,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.NEXT_WEEK,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -173,7 +111,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.LAST_WEEK,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -182,7 +119,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.THIS_MONTH,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -191,7 +127,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.LAST_MONTH,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       },
     },
     {
@@ -200,7 +135,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.RECENT_DAYS,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         days: 7,
       },
     },
@@ -210,7 +144,6 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.EARLIER_DAYS,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         days: 30,
       },
     },
@@ -220,25 +153,18 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.BEFORE_NOW,
         field: 'timeoutAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         offset: 'PT0S',
       },
     },
     {
       name: 'after now, looking back',
       create: () =>
-        filter.afterNow('createdAt', '-PT30M', {
-          zoneId: 'UTC',
-          datePattern: 'yyyy-MM-dd HH:mm:ss',
-          timeUnit: TimeUnit.SECONDS,
-        }),
+        filter.afterNow('createdAt', '-PT30M', { zoneId: 'UTC' }),
       expected: {
         op: FilterOperator.AFTER_NOW,
         field: 'createdAt',
-        timeUnit: TimeUnit.SECONDS,
         offset: '-PT30M',
         zoneId: 'UTC',
-        datePattern: 'yyyy-MM-dd HH:mm:ss',
       },
     },
   ])('builds the $name wire shape', ({ create, expected }) => {
@@ -265,7 +191,6 @@ describe('filter', () => {
     expect(filter.afterNow('createdAt', offset)).toEqual({
       op: FilterOperator.AFTER_NOW,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
       offset,
     });
   });
@@ -291,7 +216,6 @@ describe('filter', () => {
       expect(filter.today('createdAt', { zoneId })).toEqual({
         op: FilterOperator.TODAY,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
         zoneId,
       });
     },
@@ -321,35 +245,30 @@ describe('filter', () => {
         zoneId: 'UTC',
         op,
         field: 'createdAt',
-        timeUnit: TimeUnit.MILLISECONDS,
       });
     });
     expect(filter.beforeToday('createdAt', '09:30', options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.BEFORE_TODAY,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
       time: '09:30',
     });
     expect(filter.recentDays('createdAt', 7, options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.RECENT_DAYS,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
       days: 7,
     });
     expect(filter.earlierDays('createdAt', 30, options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.EARLIER_DAYS,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
       days: 30,
     });
     expect(filter.beforeNow('createdAt', 'PT1H', options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.BEFORE_NOW,
       field: 'createdAt',
-      timeUnit: TimeUnit.MILLISECONDS,
       offset: 'PT1H',
     });
   });
@@ -389,65 +308,12 @@ describe('filter', () => {
     ],
     ['blank zone ID', () => filter.today('createdAt', { zoneId: ' ' })],
     [
-      'invalid time unit',
-      () => filter.today('createdAt', { timeUnit: 'INVALID' as TimeUnit }),
-    ],
-    [
       'zone offset outside the JVM range',
       () => filter.today('createdAt', { zoneId: '+23:59' }),
     ],
     [
       'zone offset beyond the JVM boundary minute',
       () => filter.today('createdAt', { zoneId: '+18:01' }),
-    ],
-    [
-      'blank date pattern',
-      () => filter.today('createdAt', { datePattern: '' }),
-    ],
-    [
-      'date pattern of a separator Kotlin counts as blank',
-      () => filter.today('createdAt', { datePattern: '\u001F' }),
-    ],
-    [
-      'unexpected closing date pattern bracket',
-      () => filter.today('createdAt', { datePattern: ']' }),
-    ],
-    [
-      'unsupported date pattern letter',
-      () => filter.today('createdAt', { datePattern: 'jj' }),
-    ],
-    [
-      'invalid date pattern letter count',
-      () => filter.today('createdAt', { datePattern: 'cc' }),
-    ],
-    [
-      'date pattern ending with padding',
-      () => filter.today('createdAt', { datePattern: 'p' }),
-    ],
-    [
-      'padded adjacent numeric date pattern',
-      () => filter.today('createdAt', { datePattern: 'pym' }),
-    ],
-    [
-      'padded fractional date pattern adjacent to a numeric field',
-      () => filter.today('createdAt', { datePattern: 'pSH' }),
-    ],
-    [
-      'padded numeric day-of-week adjacent to a numeric field',
-      () => filter.today('createdAt', { datePattern: 'pcH' }),
-    ],
-    [
-      'forbidden date pattern character',
-      () => filter.today('createdAt', { datePattern: 'yyyy{MM}' }),
-    ],
-    [
-      'unclosed date pattern quote',
-      () => filter.today('createdAt', { datePattern: "yyyy'" }),
-    ],
-    [
-      'non-string date pattern',
-      () =>
-        Reflect.apply(filter.today, null, ['createdAt', { datePattern: 1 }]),
     ],
   ])('rejects %s', (_name, create) => {
     expect(create).toThrow();

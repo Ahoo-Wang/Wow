@@ -38,7 +38,6 @@ import {
   HavingExpressionType,
   SearchMode,
   StringComparison,
-  TimeUnit,
   aggregation,
   asc,
   cursorQuery,
@@ -54,11 +53,7 @@ import {
 import { canonicalJson } from './fixtures/canonicalJson.js';
 
 const zoned = { zoneId: 'Asia/Shanghai' } as const;
-const patterned = {
-  zoneId: '+08:00',
-  datePattern: 'yyyy-MM-dd',
-  timeUnit: TimeUnit.SECONDS,
-} as const;
+const offset = { zoneId: '+08:00' } as const;
 const revenue = aggregation.field('state.amount');
 const paid = filter.eq('state.status', 'PAID');
 
@@ -145,10 +140,10 @@ const CASES: Record<string, () => unknown> = {
   // filter: relative time
   'filter.today': () => filter.today('state.createTime'),
   'filter.today (zone)': () => filter.today('state.createTime', zoned),
-  'filter.today (pattern)': () => filter.today('state.date', patterned),
+  'filter.today (offset zone)': () => filter.today('state.date', offset),
   'filter.beforeToday': () => filter.beforeToday('state.createTime', '12:00'),
-  'filter.beforeToday (pattern)': () =>
-    filter.beforeToday('state.date', '08:30:15', patterned),
+  'filter.beforeToday (offset zone)': () =>
+    filter.beforeToday('state.date', '08:30:15', offset),
   'filter.tomorrow': () => filter.tomorrow('state.dueTime', zoned),
   'filter.yesterday': () => filter.yesterday('state.createTime', zoned),
   'filter.thisWeek': () => filter.thisWeek('state.createTime', zoned),
@@ -161,12 +156,12 @@ const CASES: Record<string, () => unknown> = {
   'filter.nextYear': () => filter.nextYear('state.createTime', zoned),
   'filter.lastYear': () => filter.lastYear('state.createTime', zoned),
   'filter.recentDays': () => filter.recentDays('state.createTime', 7),
-  'filter.recentDays (pattern)': () =>
-    filter.recentDays('state.date', 30, patterned),
+  'filter.recentDays (offset zone)': () =>
+    filter.recentDays('state.date', 30, offset),
   'filter.earlierDays': () => filter.earlierDays('state.createTime', 7, zoned),
   'filter.beforeNow': () => filter.beforeNow('state.timeoutAt'),
-  'filter.beforeNow (pattern)': () =>
-    filter.beforeNow('state.date', 'P1DT2H', patterned),
+  'filter.beforeNow (offset zone)': () =>
+    filter.beforeNow('state.date', 'P1DT2H', offset),
   'filter.afterNow': () => filter.afterNow('state.createTime', '-PT30M', zoned),
   'filter.expression': () =>
     filter.expression(

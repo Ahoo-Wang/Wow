@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:caa97421064467ec9ae2b11e5c508e294e05f349e32c85ea9c076220e70d4315",
+  "version" : "sha256:17251fb20ede877877d70ec71cad0cba39d8cdd236614a42674571acf8fa1840",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -137,7 +137,7 @@ Files from the user's project, shown inline:
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "project" : true,
     "filter" : {
@@ -256,7 +256,7 @@ Files from the user's project, shown inline:
     "nullable" : false,
     "semantic" : {
       "type" : "temporal-epoch",
-      "timeUnit" : "MILLISECONDS"
+      "timeUnit" : "milliseconds"
     },
     "project" : true,
     "filter" : {

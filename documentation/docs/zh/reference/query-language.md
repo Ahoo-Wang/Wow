@@ -31,7 +31,7 @@ outline: deep
 
 该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `unknown-property`；没有 `kind` 或 `kind` 为其他值的请求体，是 `invalid-value` 或 `unknown-value`。
 
-协议自己定义的词一律是小写短横线：`kind`、`op`、`type`、`direction`、`total`、`mode`、`unit` 等枚举类属性，错误码与 violation 代码，以及描述符里的取值（`"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`）。只认这一种写法：`"NOT_IN"` 是 `unknown-type`。后端注册的自定义查询模型或值类型遵守同一规则，不符合的会在服务启动时被拒绝，消息里给出小写的写法。有三类取值保留自己的写法，因为它们不是协议定义的：领域的取值（下文的 `"PUBLISHED"` 是商品的状态）、时区 ID 与 ISO-8601 时长（`Asia/Shanghai`、`PT30M`），以及 `timeUnit`，它取 JDK 的 `TimeUnit` 名称。
+协议自己定义的词一律是小写短横线：`kind`、`op`、`type`、`direction`、`total`、`mode`、`unit` 等枚举类属性，错误码与 violation 代码，以及描述符里的取值（`"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`）。只认这一种写法：`"NOT_IN"` 是 `unknown-type`。后端注册的自定义查询模型或值类型遵守同一规则，不符合的会在服务启动时被拒绝，消息里给出小写的写法。有两类取值保留自己的写法，因为它们不是协议定义的：领域的取值（下文的 `"PUBLISHED"` 是商品的状态），以及时区 ID 与 ISO-8601 时长（`Asia/Shanghai`、`PT30M`）。描述符里的时间单位是 JDK `TimeUnit` 名称的小写（`"milliseconds"`）。
 
 ## 跨租户 {#across-tenants}
 
@@ -167,7 +167,7 @@ outline: deep
 
 ### 相对时间 {#relative-time}
 
-每个操作符都接收 `field`，以及可选的 `zoneId`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）、`datePattern`（`DateTimeFormatter` 模式，用于以格式化字符串存储的字段）和 `timeUnit`（`MILLISECONDS`，默认，或其他 JDK `TimeUnit` 名称，用于以纪元数字存储的字段）。
+每个操作符都接收 `field`，以及可选的 `zoneId`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）。过滤器不带编码：服务器按字段记时间的方式写出窗口的边界，即模型声明的方式（`@QueryTemporal`），纪元数字用它的单位，文本用它的模式。
 
 | `op` | 其他属性 | 匹配 |
 | --- | --- | --- |

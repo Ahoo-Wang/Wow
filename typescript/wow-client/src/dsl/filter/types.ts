@@ -20,7 +20,6 @@ import type {
   FilterOperator,
   SearchMode,
   StringComparison,
-  TimeUnit,
 } from './operator.js';
 
 /**
@@ -232,7 +231,8 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 
 /**
  * Options shared by relative time filters. Unset options are omitted from
- * the payload, except `timeUnit`, which the builders always send.
+ * the payload. How the window's bounds are written is the field's: the
+ * server writes them as the query schema says the field keeps time.
  */
 export interface RelativeTimeFilterOptions {
   /**
@@ -244,17 +244,6 @@ export interface RelativeTimeFilterOptions {
    * the server only.
    */
   zoneId?: string;
-  /**
-   * `java.time.format.DateTimeFormatter` pattern for fields stored as
-   * formatted strings, e.g. `yyyy-MM-dd`. Must equal the pattern declared by
-   * the query schema. Must not be blank.
-   */
-  datePattern?: string;
-  /**
-   * Unit of a numeric epoch field. Defaults to `TimeUnit.MILLISECONDS`.
-   * Ignored when `datePattern` is set.
-   */
-  timeUnit?: TimeUnit;
 }
 
 /**

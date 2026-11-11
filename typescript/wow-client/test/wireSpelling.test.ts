@@ -117,8 +117,8 @@ describe('the wire spelling of the types', () => {
   });
 
   it("should leave what is not the protocol's own as written", () => {
-    // A respelling stops at Wow's vocabulary: a domain value, a time zone, an
-    // ISO duration and a JDK time unit travel as they are.
+    // A respelling stops at Wow's vocabulary: a domain value, a time zone and
+    // an ISO duration travel as they are.
     const golden = readFileSync(
       new URL('./golden/dsl-wire.json', import.meta.url),
       'utf8',
@@ -128,7 +128,6 @@ describe('the wire spelling of the types', () => {
       'UTC',
       'Asia/Shanghai',
       'PT0S',
-      'MILLISECONDS',
     ])
       expect(golden).toContain(`"${value}"`);
   });

@@ -163,7 +163,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `TemporalFormatted` | interface | A field that holds a time written as text in a `java.time` pattern. | — |
 | `TermsAggregationGroup` | type | One group per distinct value of a field, or of an expression; `aggregation.terms`. | — |
 | `TermsAggregationOptions` | interface | The options of `aggregation.terms`. | — |
-| `TimeUnit` | enum | Unit of a numeric epoch time field targeted by a relative time filter. | — |
+| `TimeUnit` | enum | The unit a number counts in, as the capability descriptor names it: a `temporal-epoch` field's epoch (`TemporalEpoch`) or a `duration` field's length (`DurationSemantic`). | — |
 | `TotalMode` | type | How a paged query counts its total (`TotalMode`). | — |
 | `VariantDescriptor` | interface | One variant of an element: the value of its discriminator and the fields that variant has. | — |
 | `VariantsDescriptor` | interface | An element of every record whose fields differ by variant: an event stream record's `body` holds events whose payload fields depend on `bodyType`. | — |
