@@ -84,7 +84,7 @@ export interface ViewResource {
 
 `ViewSource` is the reads of one Wow query route in wow-client's own shapes, so any `QueryModelClient` (a generated `…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)`) is a source as it is, with no adapter; another backend, or a test, writes one by hand (a test uses [`/testing`'s `memorySource`](./testing#api-memorySource)).
 
-- Each read takes `options.signal`, aborted when a newer read takes this one's place or the view that asked is disposed. A source written by hand hands it on to its request.
+- Each read takes `options.signal` (`SourceOptions`, `{ readonly signal?: AbortSignal }`), aborted when a newer read takes this one's place or the view that asked is disposed. A source written by hand hands it on to its request.
 - Rows are `object`: a client's record type is an interface, and the engine reads every value through a field's path and kind rather than trusting a row type.
 - `describe` is optional: the source's capability descriptor. The engine reads it once per source before the first view over it runs, narrows each definition to what it admits and takes its limits, and checks it again on its own schedule; asked with the version already held, an unchanged one answers `notModified`. A wow-client query client's own `describe` is it. Left out, a view runs on the definition and the default limits alone.
 
@@ -94,10 +94,6 @@ export interface ViewSource {
   cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
   describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
   paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
-}
-
-export interface SourceOptions {
-  readonly signal?: AbortSignal;
 }
 ```
 

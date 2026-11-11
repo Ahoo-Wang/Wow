@@ -84,7 +84,7 @@ export interface ViewResource {
 
 `ViewSource` 是一条 Wow 查询路由的读取，用 wow-client 自己的形状，所以任何 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的 `DatasetClient.dataset(…)`）原样就是来源，不用适配；别的后端或测试可以手写一个（测试用 [`/testing` 的 `memorySource`](./testing#api-memorySource)）。
 
-- 每次读取都带 `options.signal`：有更新的读取取代这一个、或发起它的视图被释放时，它被 abort。手写的来源把它转给自己的请求。
+- 每次读取都带 `options.signal`（`SourceOptions`，即 `{ readonly signal?: AbortSignal }`）：有更新的读取取代这一个、或发起它的视图被释放时，它被 abort。手写的来源把它转给自己的请求。
 - 行是 `object`：客户端的记录类型是接口，引擎经字段的路径与类型读每个值，而不是信任行类型。
 - `describe` 可选：来源的能力描述。引擎在第一个视图运行前读一次，按它收窄每份定义、取它的限额，之后按自己的节奏复查；带着已有版本问时，没变就答 `notModified`。wow-client 查询客户端自己的 `describe` 就是它。不提供时，视图只凭定义和缺省限额运行。
 
@@ -94,10 +94,6 @@ export interface ViewSource {
   cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
   describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
   paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
-}
-
-export interface SourceOptions {
-  readonly signal?: AbortSignal;
 }
 ```
 
