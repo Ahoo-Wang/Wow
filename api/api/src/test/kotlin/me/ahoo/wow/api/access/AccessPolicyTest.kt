@@ -23,6 +23,7 @@ import me.ahoo.wow.api.access.AccessPredicate.Denied
 import me.ahoo.wow.api.access.AccessPredicate.Not
 import me.ahoo.wow.api.access.AccessPredicate.Unknown
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.caller.Caller
 import org.junit.jupiter.api.Test
 
@@ -73,7 +74,7 @@ class AccessPolicyTest {
     fun `a policy builds the caller's predicate, the claims in it`() {
         documentAccess.stateType.assert().isEqualTo(DocumentState::class.java)
         documentAccess.aggregate.assert().isNull()
-        documentAccess.read(bob).assert().isEqualTo(
+        documentAccess.read(bob, Ownership.OWNER).assert().isEqualTo(
             AnyOf(
                 listOf(
                     Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.IN, listOf("sales", "hr")),
@@ -84,8 +85,11 @@ class AccessPolicyTest {
             ),
         )
         // A caller holding none of the claims: each comparison unknown, no role.
-        documentAccess.read(Caller()).assert().isEqualTo(AnyOf(listOf(Unknown, Unknown, Unknown, Denied)))
-        documentAccess.write(Caller(attributes = mapOf("departments" to emptyList())))
+        documentAccess.read(
+            Caller(),
+            Ownership.OWNER
+        ).assert().isEqualTo(AnyOf(listOf(Unknown, Unknown, Unknown, Denied)))
+        documentAccess.write(Caller(attributes = mapOf("departments" to emptyList())), Ownership.OWNER)
             .assert().isEqualTo(Unknown)
         documentAccess.toString().assert().contains(DocumentState::class.java.name)
     }
@@ -108,11 +112,11 @@ class AccessPolicyTest {
             readWrite { caller -> DocumentStateAccess.OWNER eq caller.subject }
         }
         shared.aggregate.assert().isEqualTo(AggregateType("office", "archive"))
-        shared.read(bob).assert().isEqualTo(shared.write(bob))
+        shared.read(bob, Ownership.OWNER).assert().isEqualTo(shared.write(bob, Ownership.OWNER))
         accessPolicy<DocumentState> {
             read { allowAll() }
             write { denyAll() }
-        }.write(bob).assert().isEqualTo(Denied)
+        }.write(bob, Ownership.OWNER).assert().isEqualTo(Denied)
     }
 
     @Test
@@ -127,7 +131,7 @@ class AccessPolicyTest {
                     not(DocumentStateAccess.SPACE eq "s-1"),
                 )
             }
-        }.read(Caller())
+        }.read(Caller(), Ownership.OWNER)
         (predicates as AllOf).predicates.assert().containsExactly(
             Comparison(DocumentStateAccess.LEVEL, AccessOperator.EQUAL, listOf(Level.HIGH)),
             Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.IS_NULL),
@@ -242,7 +246,7 @@ class AccessPolicyTest {
             write { denyAll() }
         }
         readOnly.aggregate.assert().isNull()
-        readOnly.read(bob).assert().isEqualTo(Allowed)
+        readOnly.read(bob, Ownership.OWNER).assert().isEqualTo(Allowed)
         assertThrownBy<IllegalArgumentException> {
             accessPolicy(DocumentState::class.java) {
                 write { denyAll() }
@@ -263,9 +267,12 @@ class AccessPolicyTest {
                     allowIf(caller.hasRole("auditor") && !caller.hasRole("admin")),
                 )
             }
-        }.read(bob).assert().isEqualTo(AllOf(listOf(Allowed, Allowed, Allowed, Allowed, Allowed)))
+        }.read(bob, Ownership.OWNER).assert().isEqualTo(AllOf(listOf(Allowed, Allowed, Allowed, Allowed, Allowed)))
         // A policy of another state takes the built-ins, which are every state's.
         accessPolicy<OtherState> { readWrite { caller -> AccessAttribute.OWNER eq caller.subject } }
-            .read(bob).assert().isEqualTo(Comparison(AccessAttribute.OWNER, AccessOperator.EQUAL, listOf("bob")))
+            .read(
+                bob,
+                Ownership.OWNER
+            ).assert().isEqualTo(Comparison(AccessAttribute.OWNER, AccessOperator.EQUAL, listOf("bob")))
     }
 }

@@ -62,6 +62,9 @@ class AccessPolicies private constructor(
     /** The policy of [type], or null when it reads by the default rule. */
     fun of(type: AggregateType): AccessPolicy<*>? = policies[type]
 
+    /** The ownership of [type], an aggregate with a policy: what the policy's default rule compares by. */
+    fun ownershipOf(type: AggregateType): Ownership = aggregates.getValue(type).ownership
+
     /** Whether [type] reads by a policy of its own rather than by the default rule. */
     fun governs(type: AggregateType): Boolean = type in policies
 
@@ -195,13 +198,18 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         if (profile is DatasetQueryModelProfile) {
             val bound = profile.dataset.scope.access?.aggregate ?: return MatchAllFilter
             val policy = access.of(bound) ?: return MatchAllFilter
-            return dataset(profile.dataset, bound, policy.read(acting), context.schema.storage)
+            return dataset(
+                profile.dataset,
+                bound,
+                policy.read(acting, access.ownershipOf(bound)),
+                context.schema.storage
+            )
         }
         val type = context.aggregateType
         val policy = access.of(type) ?: return MatchAllFilter
         // Any model of an aggregate other than its events is its snapshots'.
         val fields = if (context.schema.model == QueryModel.EVENTS) STREAMS else SNAPSHOTS
-        return compile(type, policy.read(acting), fields)
+        return compile(type, policy.read(acting, access.ownershipOf(type)), fields)
     }
 
     /** [predicate] of [type] on the records whose attributes are under [fields], each with its attributes recorded. */

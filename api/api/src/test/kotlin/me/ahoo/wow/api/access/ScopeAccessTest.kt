@@ -57,14 +57,28 @@ class ScopeAccessTest {
     }
 
     @Test
-    fun `a policy keeps the default rule by saying so, with no owner for an aggregate of its tenant`() {
-        val policy = accessPolicy<Note> {
-            read { caller -> ownerAndSpace(caller) }
-            write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
-        }
+    fun `a policy keeps the default rule by saying so, as the aggregate's ownership keeps the scope`() {
+        val policy = accessPolicy<Note> { readWrite { caller -> ownerAndSpace(caller) } }
         val caller = Caller.of(scope = Scope("alice", "s1"), subject = "alice")
-        policy.read(caller).assert().isEqualTo(ScopeAccess.of(Scope("alice", "s1")))
-        policy.write(caller).assert().isEqualTo(ScopeAccess.of(Scope(spaceId = "s1")))
+        policy.read(caller, Ownership.OWNER).assert().isEqualTo(ScopeAccess.of(Scope("alice", "s1")))
+        policy.write(caller, Ownership.OWNER).assert().isEqualTo(ScopeAccess.of(Scope("alice", "s1")))
+        // An aggregate of its tenant records no owner: the space alone is compared, for reads and changes alike.
+        policy.read(caller, Ownership.TENANT).assert().isEqualTo(ScopeAccess.of(Scope(spaceId = "s1")))
+        policy.write(caller, Ownership.TENANT).assert().isEqualTo(ScopeAccess.of(Scope(spaceId = "s1")))
+    }
+
+    @Test
+    fun `an owner-level caller reaches an aggregate of its tenant in its space by the policy's default rule`() {
+        val policy = accessPolicy<Note> { readWrite { caller -> ownerAndSpace(caller) } }
+        val caller = Caller.of(scope = Scope("alice", "s1"), subject = "alice")
+        // The aggregate records no owner, as a tenant's aggregate does.
+        val aggregate = Scope(spaceId = "s1")
+        val read = policy.read(caller, Ownership.TENANT)
+        read.allows { ScopeAccess.valueOf(it, aggregate) }.assert().isTrue()
+        policy.read(caller, Ownership.TENANT).allows { ScopeAccess.valueOf(it, Scope(spaceId = "s2")) }
+            .assert().isFalse()
+        // Compared as an owner's aggregate, the caller's owner finds none on it.
+        policy.read(caller, Ownership.OWNER).allows { ScopeAccess.valueOf(it, aggregate) }.assert().isFalse()
     }
 
     class Note
