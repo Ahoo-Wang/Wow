@@ -145,7 +145,7 @@ rc 前的完整一次：2026-11-11 在 `a7c372ad3e` 上，PostgreSQL 与 MongoDB
 
 | 编号 | 级别 | 位置 | 现象 | 余下 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| EVO-1 | P1 | `api/`、`core/` 的 135 处 KDoc（61 个文件） | 记录的演进规则写「以后可加字段，新参数放最后并带默认值」。Kotlin 调用方省略默认参数时调的是 `of$default`，签名含全部参数，加一个参数即二进制不兼容。文档的承诺是补丁版保持 ABI、次版本可变（API Levels、`AGENTS.md`），所以这句话只保证源码兼容；而 D48 要相邻次版本的服务并存，一个服务的 `-api` jar 会被另一个次版本的服务使用 | 用户定：契约模块（`:annotations`、`:api`、`:query-api`、`:manifest`）跨次版本是否承诺二进制兼容；定了再改 135 句与 `AGENTS.md` | 待定（用户） |
+| EVO-1 | P1 | `api/`、`core/` 的 135 处 KDoc（61 个文件） | 记录的演进规则写「以后可加字段，新参数放最后并带默认值」；这样加字段会改变 `of$default` 的签名，只保证源码兼容。用户已定 D418：10.0.x 二进制兼容，10.x 源码兼容，所以这 135 句成立，不改 | API Levels 的措辞随 D418 改（参考页生成器的 WORDS，中英）；审查第二遍列出契约 jar 与生成代码所调用的入口，这些入口在次版本里加重载而不加参数，清单写进 `AGENTS.md` | 已定（D418），余措辞与清单 |
 | QRY-1、QRY-2 | P2 | `api/query-api` 的 16 个相对时间过滤 | 各带 `datePattern`、`dateFormatter`、`timeUnit`：准入拒绝前两个，对 `timeUnit` 不报错地改写；`timeUnit` 是 JDK 枚举，大写上线 | 只留 `zoneId`；工厂、DSL、线上格式、TS 构建器同改 | 已派（query-bugs） |
 | QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐 | 已派（query-bugs） |
 | MAN-1 | P2 | `api/manifest` | Manifest 自留一份编程模型的词汇（`Creation`、`Ownership`、`AggregateIdSource`、`FunctionKind`、40 个错误码常量）；D294 的理由（`:manifest` 不依赖 `:api`）自 D366 ② 起不成立；`JobManifest.scope`、`misfire` 是任意字符串 | 改用 `:api` 的枚举与 `FrameworkCodes`，双向对照测试删去 | 已派（kernel-writes-p1） |
