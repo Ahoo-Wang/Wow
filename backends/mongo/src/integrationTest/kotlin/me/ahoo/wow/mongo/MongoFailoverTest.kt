@@ -14,14 +14,13 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoException
-import com.mongodb.client.MongoClients
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
@@ -29,10 +28,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
-import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
 import org.junit.jupiter.api.AfterEach
@@ -79,7 +78,10 @@ class MongoFailoverTest {
     @Test
     fun `appends across the primary's crash and restart are committed or unknown, and no commit is lost`(): Unit =
         runBlocking {
-            assumeTrue(System.getProperty(CONTAINER) != null, "Kills a member in the cluster's container: -D$CONTAINER.")
+            assumeTrue(
+                System.getProperty(CONTAINER) != null,
+                "Kills a member in the cluster's container: -D$CONTAINER."
+            )
             appendAcross { crashPrimary() }
         }
 
@@ -148,7 +150,10 @@ class MongoFailoverTest {
      * every other's, so the tail has passed all of them when it reaches it.
      */
     private suspend fun tailed(log: EventLog): List<String> = withTimeout(TAIL_TIMEOUT) {
-        log.tail(0).map { it.stream.ref.id }.transformWhile { id -> emit(id); id != AFTER }.toList()
+        log.tail(0).map { it.stream.ref.id }.transformWhile { id ->
+            emit(id)
+            id != AFTER
+        }.toList()
     }
 
     private fun stepDown() {
@@ -166,8 +171,12 @@ class MongoFailoverTest {
     private fun crashPrimary() {
         val port = checkNotNull(hello().getString("primary")).substringAfterLast(':')
         val kill = ProcessBuilder(
-            "docker", "exec", System.getProperty(CONTAINER),
-            "sh", "-c", "kill -9 \$(cat /data/cluster/rs0-$port.pid)",
+            "docker",
+            "exec",
+            System.getProperty(CONTAINER),
+            "sh",
+            "-c",
+            "kill -9 \$(cat /data/cluster/rs0-$port.pid)",
         ).redirectErrorStream(true).start()
         check(kill.waitFor() == 0) { "The primary on $port was not killed: ${kill.inputStream.reader().readText()}" }
     }

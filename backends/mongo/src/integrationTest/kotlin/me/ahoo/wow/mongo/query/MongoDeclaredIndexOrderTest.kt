@@ -68,7 +68,9 @@ class MongoDeclaredIndexOrderTest {
         val binding = checkNotNull(storage.binding(type))
         val schema = QueryFixtures.schema(type, binding.storage)
         val status = QueryIndexDeclaration("ix_status", listOf("state.status"))
-        storage.manageIndexes(MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(status))))
+        storage.manageIndexes(
+            MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(status)))
+        )
         val namespace = "${MongoLogFixture.DATABASE}.${storage.collection(type.name)}"
 
         // The backend's own find of a page sorted by the declared field in [direction], as the profiler saw it.

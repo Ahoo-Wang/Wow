@@ -109,7 +109,9 @@ class MongoTailWindowTest {
         val context = MongoLogFixture.newContext()
         val type = AggregateType(context, "order")
         val log = MongoLogFixture.log(1, context, tailBatch = WINDOW)
-        (1..5).forEach { log.append(stream(type, "s$it")) }
+        for (n in 1..5) {
+            log.append(stream(type, "s$n"))
+        }
         // Sequences 2 and 3 gone: the window after 1 holds nothing, 4 and 5 lie past it.
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
             .getCollection(MongoNames.of("wow_log", context, "order"))
@@ -126,9 +128,12 @@ class MongoTailWindowTest {
             val context = MongoLogFixture.newContext()
             val type = AggregateType(context, "order")
             // A window as long as a block: what the counter reserved lies within it.
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, tailBatch = MongoEventLog.BLOCK.toInt())
+            val block = MongoEventLog.BLOCK.toInt()
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, tailBatch = block)
                 .also { it.createSchema() }
-            (1..3).forEach { log.append(stream(type, "s$it")) }
+            for (n in 1..3) {
+                log.append(stream(type, "s$n"))
+            }
             // The three streams, then idle reads at the head until the timeout.
             withTimeoutOrNull(IDLE_MS) { log.tail(0).take(4).toList() }.assert().isNull()
             probes.get().assert().isZero()

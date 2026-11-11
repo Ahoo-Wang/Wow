@@ -68,7 +68,10 @@ internal abstract class MongoDifferentialFixtures {
             var token: String? = null
             do {
                 val page = backend.cursor(
-                    QueryAdmission.Trusted.cursor(CursorQuery(filter, sort = sort, size = size, cursor = token), schema),
+                    QueryAdmission.Trusted.cursor(
+                        CursorQuery(filter, sort = sort, size = size, cursor = token),
+                        schema
+                    ),
                 )
                 pages += page.list.map { it.path("aggregateId").stringValue() }
                 token = page.nextCursor
@@ -82,7 +85,8 @@ internal abstract class MongoDifferentialFixtures {
             val orders = QueryFixtures.orders(type)
             val store = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
             orders.forEach { store.save(it) }
-            val mongo = MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)
+            val mongo = MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
+                .binding(type)
             val memory = InMemoryQueryStorage().also { storage -> orders.forEach(storage::save) }.binding(type)
             Side(mongo!!.backend, QueryFixtures.schema(type, mongo!!.storage)) to
                 Side(memory.backend, QueryFixtures.schema(type, memory.storage))

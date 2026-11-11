@@ -42,8 +42,6 @@ import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
@@ -51,6 +49,8 @@ import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -58,7 +58,6 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import org.junit.jupiter.api.DynamicTest
@@ -91,16 +90,26 @@ internal class MongoDifferentialQueryTest : MongoDifferentialFixtures() {
         same("cursor by flag and amount") {
             cursorIds(listOf(Sort(field("flag"), Sort.Direction.ASC), Sort(AMOUNT, Sort.Direction.DESC)), 1, ACTIVE)
         },
-        same("cursor by lastEventTime") { cursorIds(listOf(Sort(QueryField("lastEventTime"), Sort.Direction.DESC)), 2) },
+        same("cursor by lastEventTime") {
+            cursorIds(listOf(Sort(QueryField("lastEventTime"), Sort.Direction.DESC)), 2)
+        },
         same("cursor by version") { cursorIds(listOf(Sort(QueryField("version"), Sort.Direction.ASC)), 3) },
         same("cursor by an inexact decimal") { cursorIds(listOf(Sort(AMOUNT, Sort.Direction.ASC)), 2, ACTIVE) },
         same("cursor by tenant descending") { cursorIds(listOf(Sort(QueryField("tenantId"), Sort.Direction.DESC)), 2) },
         // An array sorts by its least element ascending and its greatest descending. MongoDB sorts an empty array
         // before a missing field, where the reference ties them, so the missing one is filtered out.
-        same("array field ascending") { ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.ASC), BY_ID)) },
-        same("array field descending") { ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.DESC), BY_ID)) },
+        same("array field ascending") {
+            ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.ASC), BY_ID))
+        },
+        same("array field descending") {
+            ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.DESC), BY_ID))
+        },
         same("offset page with a bounded total") {
-            val query = PagedQuery(ACTIVE, sort = listOf(Sort(AMOUNT, Sort.Direction.DESC)), pagination = Pagination(2, 2))
+            val query = PagedQuery(
+                ACTIVE,
+                sort = listOf(Sort(AMOUNT, Sort.Direction.DESC)),
+                pagination = Pagination(2, 2)
+            )
             backend.paged(QueryAdmission.Trusted.paged(query, schema), totalLimit = 3).let { page ->
                 page.list.map { it.path("aggregateId").stringValue() } to (page.total to page.exact)
             }
@@ -114,10 +123,18 @@ internal class MongoDifferentialQueryTest : MongoDifferentialFixtures() {
         Projection(exclude = listOf(QueryField("state.lines"), QueryField("access"))),
         Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.keywords"))),
         Projection(include = listOf(QueryField("state.lines.parts.name"), QueryField("tenantId"))),
-        Projection(exclude = listOf(QueryField("state.lines.parts"), QueryField("deleted"), QueryField("lastEventTime"))),
+        Projection(
+            exclude = listOf(QueryField("state.lines.parts"), QueryField("deleted"), QueryField("lastEventTime"))
+        ),
     ).mapIndexed { index, projection ->
         same("projection $index") {
-            rows(ListQuery(MatchAllFilter, projection = projection, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))))
+            rows(
+                ListQuery(
+                    MatchAllFilter,
+                    projection = projection,
+                    sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+                )
+            )
                 .map { it.toMap() }
         }
     }
