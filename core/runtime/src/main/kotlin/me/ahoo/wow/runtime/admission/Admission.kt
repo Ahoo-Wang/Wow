@@ -214,3 +214,7 @@ internal inline fun List<CommandValidator>.violationsOf(candidate: () -> Command
 /** [command], of [type], as a validator sees it: its target, scope, operator and the caller it carries, if any. */
 internal fun candidateOf(type: CommandType, command: Command<*>): CommandCandidate =
     CommandCandidate(type, command.body, command.ref, command.scope, command.operator, command.caller)
+
+/** The command an admitted request becomes, [command], as a validator sees it: sent to [ref] in [scope]. */
+internal fun candidateOf(command: Resolved, ref: AggregateRef, scope: Scope, operator: Operator?, caller: Caller?) =
+    CommandCandidate(command.type, command.body, ref, scope, operator, caller)
