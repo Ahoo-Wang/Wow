@@ -14,7 +14,7 @@
     "analytics-catalog/source/commandClient.ts": "c1c07e47d6b1ebd52f4cbf0de04a93a606dd44bcbb8f8eb942d32e793ad7c0e1",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/source/queryClient.ts": "572c9ef845f40a5bc7ebaa5b0aea7dbb52557d614829efeac935cccc0192dfd7",
-    "analytics-catalog/types.ts": "2d66f2f265b608158b0bc99487a76c5d8d4ff050851d191f53719e5390550c59",
+    "analytics-catalog/types.ts": "b0426dfbdbe54a7ba7259eb1434360016462cee51314069bbcbf492313e72cb1",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }
 }
