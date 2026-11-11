@@ -154,7 +154,7 @@ export const TOKENS = [
   { name: 'shadow-lg', ...LIFT },
   // The roles (ui/theme.md「角色：引擎自己的面」), by the part of the surface each
   // paints. The grounds and the cards on them.
-  { name: 'canvas', ...role('surface'), fallback: 'background' },
+  { name: 'canvas', ...role('surface'), fallback: 'sidebar' },
   { name: 'content', ...role('surface'), fallback: 'background' },
   { name: 'card-edge', ...role('surface') },
   { name: 'card-shadow', ...role('surface'), kind: 'shadow' },
@@ -164,7 +164,7 @@ export const TOKENS = [
   {
     name: 'table-header-foreground',
     ...role('table'),
-    fallback: 'foreground',
+    fallback: 'quiet-foreground',
   },
   {
     name: 'table-header-weight',
@@ -221,13 +221,13 @@ export const TOKENS = [
     name: 'item-selected-link',
     ...link('state', 'item-selected', 'row-selected'),
   },
-  { name: 'nav-current', ...role('state'), fallback: 'background' },
+  { name: 'nav-current', ...role('state'), fallback: 'row-selected' },
   {
     name: 'nav-current-foreground',
     ...role('state'),
-    fallback: 'foreground',
+    fallback: 'primary',
   },
-  { name: 'nav-current-edge', ...role('state'), fallback: 'border' },
+  { name: 'nav-current-edge', ...role('state') },
   { name: 'nav-current-shadow', ...role('state'), kind: 'shadow' },
   {
     name: 'nav-current-link',

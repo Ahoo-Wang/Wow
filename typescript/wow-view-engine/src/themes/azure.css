@@ -80,6 +80,8 @@
  */
 :where([data-fve-preset='azure']) {
   --fvp-background: oklch(0.9702 0 0deg);
+  /* A board stands on the page here, not on the sidebar's white. */
+  --fvp-canvas: oklch(0.9702 0 0deg);
   --fvp-foreground: oklch(0.2393 0 0deg);
   --fvp-card-foreground: oklch(0.2393 0 0deg);
   --fvp-popover-foreground: oklch(0.2393 0 0deg);
@@ -104,6 +106,7 @@
   --fvp-input: oklch(0.63 0 0deg);
   --fvp-radius: 0.375rem;
   --fvp-dark-background: oklch(0.1913 0 0deg);
+  --fvp-dark-canvas: oklch(0.1913 0 0deg);
   --fvp-dark-foreground: oklch(0.8853 0 0deg);
   --fvp-dark-card: oklch(0.2393 0 0deg);
   --fvp-dark-card-foreground: oklch(0.8853 0 0deg);
@@ -195,10 +198,6 @@
   --fvp-tooltip-foreground: oklch(1 0 0deg);
   --fvp-dark-tooltip: oklch(0.3791 0 0deg);
   --fvp-dark-tooltip-foreground: oklch(0.9551 0 0deg);
-  --fvp-brand-ring-l-min: 0.4;
-  --fvp-brand-ring-l-max: 0.5;
-  --fvp-dark-brand-ring-l-min: 0.68;
-  --fvp-dark-brand-ring-l-max: 0.8;
   --fvp-brand-row-selected-lc: 0.965 0.021;
   --fvp-dark-brand-row-selected-lc: 0.219 0.038;
   --fvp-brand-chart-1-lc: 0.5538 0.1781;

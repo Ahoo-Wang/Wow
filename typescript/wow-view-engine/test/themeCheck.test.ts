@@ -307,7 +307,7 @@ describe('each check fires on what it names', () => {
       ":where([data-fve-preset='mine']) { --fvp-table-header: #222222; }",
     );
     expect(findings.map(({ message }) => message)).toContain(
-      'mine/light: table-header-foreground text on header band 1.24:1 < 4.5:1',
+      'mine/light: table-header-foreground text on header band 1.02:1 < 4.5:1',
     );
   });
 

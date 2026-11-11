@@ -79,9 +79,6 @@ export function SidebarColumn({
           // The panel's own back arrow is its way out, as it is beside the
           // view; a close button beside it would be a second saying the same.
           showCloseButton={false}
-          // Dimmed, not blurred: the result above is what a pick here
-          // redraws, and a reader looks up to see it change.
-          overlayClassName="fve:supports-backdrop-filter:backdrop-blur-none"
           // The keyboard lands where the panel's own levels land it: on the
           // heading it is sent to (`tabIndex={-1}`), which exists only once
           // the drawer has drawn its content — the panel's own effect runs

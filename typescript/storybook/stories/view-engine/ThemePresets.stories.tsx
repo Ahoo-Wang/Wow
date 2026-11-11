@@ -28,7 +28,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
  * the story compares what it reads with a probe the same browser resolved.
  */
 const PRIMARY = {
-  neutral: { light: 'oklch(0.205 0 0)', dark: 'oklch(0.922 0 0)' },
+  neutral: { light: 'oklch(0.5 0.19 264)', dark: 'oklch(0.77 0.133 264)' },
   azure: {
     light: 'oklch(0.541 0.1928 258.885)',
     dark: 'oklch(0.6726 0.176 255.302)',

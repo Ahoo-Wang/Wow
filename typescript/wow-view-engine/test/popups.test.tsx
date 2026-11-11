@@ -322,7 +322,7 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
   const duration = (element: Element | null) =>
     [...(element?.classList ?? [])].filter(name => /^duration-\d+$/.test(name));
 
-  it("takes the panel's length, holds its fade until the panel is gone, and does not blur", async () => {
+  it("takes the panel's length and holds its fade until the panel is gone", async () => {
     render(
       <ViewSurface colorMode="light">
         <Dialog defaultOpen>
@@ -338,10 +338,6 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
     // Its fade ended 100ms before the panel's slide, and it snapped back.
     expect(duration(backdrop)).toEqual(duration(panel));
     expect(backdrop?.classList).toContain('fve:fill-mode-forwards');
-    expect(backdrop?.className).toContain(
-      'fve:supports-backdrop-filter:backdrop-blur-none',
-    );
-    expect(backdrop?.className).not.toContain('fve:backdrop-blur-xs');
   });
 });
 

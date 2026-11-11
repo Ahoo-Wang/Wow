@@ -165,8 +165,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
   brand: {
     role: {
-      en: "The brand colour, on any preset: the primary, the tints of `accent`, `sidebar-accent` and a selected row, and the focus ring where the preset bounds it take its hue, each held to the preset's lines",
-      zh: '品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住',
+      en: "The brand colour, on any preset: the primary, the tints of `accent`, `sidebar-accent` and a selected row, and the focus ring take its hue, each held to the preset's lines",
+      zh: '品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及焦点环都取它的色相，各按该预设的线收住',
     },
     light: UNSET,
     dark: same('`brand`'),

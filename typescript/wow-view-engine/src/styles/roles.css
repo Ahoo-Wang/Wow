@@ -70,10 +70,18 @@
    * The scrim behind a dialog and a sheet. The overlay is a root of its
    * own (`ui/kit/popups.tsx`), so the rule names no ancestor. A destructive
    * confirmation keeps its heavier dim (`ALERT_DIALOG_BACKDROP_DIM`): it
-   * is asked over a page that is already dimmed.
+   * is asked over a page that is already dimmed. No scrim blurs what is
+   * behind it (D94; the registry's `backdrop-blur-xs`): the dim says the
+   * page is set aside, and a reader still tells which row a panel came
+   * from.
    */
   [data-slot='dialog-overlay'] {
     background-color: var(--_fve-scrim);
+  }
+
+  :is([data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay']) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   /*

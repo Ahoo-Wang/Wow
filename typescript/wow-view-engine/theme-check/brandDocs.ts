@@ -37,20 +37,20 @@ export const BRAND_BOUND_DOCS = {
     en: "The primary's and the ring's chroma ceiling",
     zh: '主色与焦点环的彩度上限',
   }),
-  'brand-ring-l-min': bound(
-    {
-      en: "The focus ring's lower lightness bound; the ring is derived only when both ring bounds are given",
-      zh: '焦点环亮度的下限；两个焦点边界都给了焦点环才跟品牌色',
+  'brand-ring-l-min': {
+    role: {
+      en: "The focus ring's lower lightness bound, the primary's unless a preset gives its own",
+      zh: '焦点环亮度的下限，预设不另给时与主色的相同',
     },
-    true,
-  ),
-  'brand-ring-l-max': bound(
-    {
+    light: { en: '`brand-l-min`', zh: '`brand-l-min`' },
+  },
+  'brand-ring-l-max': {
+    role: {
       en: "The focus ring's upper lightness bound",
       zh: '焦点环亮度的上限',
     },
-    true,
-  ),
+    light: { en: '`brand-l-max`', zh: '`brand-l-max`' },
+  },
   'brand-primary-fill-l-min': bound(
     {
       en: "The primary fill's lower lightness bound; the fill is derived only when both bounds are given",
