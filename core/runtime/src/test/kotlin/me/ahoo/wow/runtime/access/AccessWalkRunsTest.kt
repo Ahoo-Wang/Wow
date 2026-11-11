@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TestClock
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
@@ -143,9 +144,7 @@ class AccessWalkRunsTest : AccessWalkingFixtures() {
         delay(100)
         log.walk(type).assert().isNull()
         broken = false
-        withTimeout(5.seconds) {
-            while (log.walk(type)?.completed != true) delay(10)
-        }
+        eventually(5.seconds) { log.walk(type)?.completed == true }
         leases.members("service/office#access").map { it.node }.assert().containsExactly("n-1")
         walking.stop()
         leases.members("service/office#access").assert().isEmpty()

@@ -18,7 +18,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -28,6 +27,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -97,11 +97,9 @@ abstract class HandoffLogFixtures {
         withTimeout(10.seconds) { List(count) { receive() } }
 
     /** Waits until [log] has a tail open in partition 0, so what is appended next is handed to it. */
-    protected suspend fun awaitOpen(log: HandoffLog, tails: Int = 1) = withTimeout(10.seconds) {
-        while (store.heads.get() < tails) {
-            delay(1)
-        }
-        log.storeReads
+    protected suspend fun awaitOpen(log: HandoffLog, tails: Int = 1): Long {
+        eventually { store.heads.get() >= tails }
+        return log.storeReads
     }
 
     protected suspend fun Flow<LogEntry>.takeTwo(count: Int = 2): List<LogEntry> = take(count).toList()

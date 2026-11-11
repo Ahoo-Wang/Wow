@@ -17,7 +17,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
@@ -33,6 +32,7 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.clockOf
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -133,11 +133,7 @@ class WaitWithdrawalTest {
         timedOut.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
         timedOut.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
         // The withdrawal settles its execution while the lane is still held.
-        withTimeout(5.seconds) {
-            while (coordinator.executing > 1) {
-                delay(10)
-            }
-        }
+        eventually(5.seconds) { coordinator.executing <= 1 }
 
         gate.complete(Unit)
         withTimeout(5.seconds) { first.await() }.version.assert().isEqualTo(1)
