@@ -24,7 +24,7 @@ rc 前的验证查出了要先了结的事，用户 2026-11-11 又加了几项 G
 | PostgreSQL：一条命令的开销随它的聚合已提交的历史增长 | p1-sweep-edges | 本机单热点账户峰值 12,351 → 9,432/s（上次 JDK 21，这次 JDK 25），Actions 上 1k 账户的 E1 在并发 1～64 每一步低 11%～19%（同一 runner、同一 JDK），100k 账户持平。本机四臂复测（代码两次、换回 JDK 21 一次、旧提交一次）与 Actions 的组件套件在跑；未下结论 |
 | MongoDB：100k 账户下同速率的 p99 高于 `v10.0.0-beta.1` | p1-sweep-edges | L3：E3 的 p99 比值 1.93 与 1.77（A/A ±9.1%），饱和 0.94；节点每操作的 CPU 与分配不变，存储容器在两臂都跑满。ABAB 四对与组件套件在 Actions 上跑；未下结论 |
 | X-116（#5989）：Elasticsearch 上已盖章、属性全空的聚合对策略查询不可见 | query-bugs | 修法已定：快照从不未盖章，策略不再对快照发「已盖章」守卫；两个 PR 已写好，待验证 |
-| 公开面定型：api 与 core 的深度审查（路线图 9.3h）里「GA 前必须改」的各项，视图引擎的 CSS 契约与 token（9.3i），`host/spring-boot` 的包名（9.3j） | api-core-review、ve-uiux、rt-subs-p1 | rc 是候选版，公开的名字与契约在 rc 前定下。审查与方案刚开始 |
+| 公开面定型：api 与 core 的深度审查（路线图 9.3h，[审查台账](reviews.md) §14），视图引擎的 CSS 契约与 token（9.3i），`host/spring-boot` 的包名（9.3j） | api-core-review、kernel-writes-p1、rt-subs-p1、query-bugs、ve-uiux | 审查第一遍 38 项：23 项已派给三个会话，3 项定为不改，2 项等用户定（契约模块跨次版本的兼容承诺、时间字段的命名），第二遍在读第一遍没读到的部分。视图引擎：用户已定方向 A 与七项视觉选择（均取方案的推荐），按 15 个小 PR 实现。spring-boot：十个包的切法已定，排在该模块手头的改动之后 |
 
 **其余在做的**
 
@@ -35,7 +35,7 @@ rc 前的验证查出了要先了结的事，用户 2026-11-11 又加了几项 G
 | X-117（#5990）：视图引擎单字符键的宿主开关 | view-engine-bugs | 已写好，待验证 |
 | 文档站的性能主题（9.3k） | p1-sweep-edges | 排在两份报告之后，先出提纲；数字等两处性能信号了结 |
 
-会话：新开了两个 Fable 会话（api-core-review、ve-uiux）。kernel-writes-p1 与 view-engine-bugs 做完手头的收尾后不再派新工作，常驻的回到五个：p1-sweep-edges、query-bugs、rt-subs-p1、api-core-review、ve-uiux。
+会话：新开了两个 Fable 会话（api-core-review、ve-uiux）。view-engine-bugs 做完手头的收尾后不再派新工作，api-core-review 读完第二遍即结束；常驻的是五个：p1-sweep-edges、query-bugs、rt-subs-p1、kernel-writes-p1、ve-uiux。
 
 没有派出的小项：四个超过 600 行的测试文件（`HostStoresTest.kt`、`HttpCommandClientTest.kt`、`ViewStoreHostSpec.kt`、`AccessWalkBench.kt`）、X-113 余下的测试存量、X-114 的注释、X-115 的遍历盖章；Renovate 的 #5571 与 #4902 等它变基后变绿即合并；6 条 Dependabot 告警都是 `pnpm-lock.yaml` 里开发工具的传递依赖，不进入发布的包，随 #4902 的锁文件更新解决。
 
@@ -48,7 +48,7 @@ rc 前的验证查出了要先了结的事，用户 2026-11-11 又加了几项 G
 - **验证**：GA 端到端已完整跑过一次，两套全部通过；夜间运行（`soak`、`ga-e2e`、`mongo-cluster`、全量 `ci.yml`）由协调者每轮查看。
 - **文档与 Skill**：迁移 Skill 的评测（8a.2）由用户在跑，结果回来后登记；Skill 里只对预发布版本成立的内容（文档核对的 W1～W6）等评测结束后删。
 - **发布**：rc 与 GA 的时机由用户决定（D202）；beta.1 之后存储形态有变，rc 发布后建议以真实项目再验证一次迁移；与 Axon 的对比在 GA 时刷新，不在 rc 前。
-- **待与用户讨论**：基准工具的缺口（X-106）：两份报告出来后协调者给出一个具体的工作流改动方案，同意之前不动工作流；视图引擎的视觉方向（ve-uiux 的方案）；api 与 core 审查里只有所有者能答的问题。
+- **待与用户讨论**：契约模块跨次版本的兼容承诺（EVO-1）；时间字段的命名（NAM-1）；基准工具的缺口（X-106）：两份报告出来后协调者给出一个具体的工作流改动方案，同意之前不动工作流。
 
 ## 4. 已知问题
 
