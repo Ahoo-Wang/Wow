@@ -290,12 +290,19 @@ SINK_TABLES="'transfer_account_state_events', 'transfer_account_state', 'transfe
 # server's `search-requests` counts give its `_bulk`, `_refresh` and `_update_by_query` requests, and the node's
 # indexing, bulk and refresh totals cross-check them. sink.json, with the load's result.json under load/. measure.json
 # names them.
+#
+# --backlog=true makes the sink drain a backlog instead (a rebuild of the warehouse, a catch-up after a pause): the
+# seeding and the deposits go to a node without the sink (the benchmark server; ClickHouse's sink not switched on),
+# which is then stopped, and a node with the sink starts on the same log. Its subscription starts at the log's
+# beginning and writes every commit, the seeding's too; sink.json counts all of them, and drainMs is the time from that
+# node's launch, its start-up included, until the sink holds them.
 measure_sink() {
   check_java
   BACKEND=$(opt backend postgres)
   HEAP=$(opt heap 1g)
-  local sink accounts rate seconds
+  local sink accounts rate seconds backlog
   sink=$(opt sink clickhouse)
+  backlog=$(opt backlog false)
   accounts=$(opt accounts 1000)
   rate=$(opt rate 200)
   seconds=$(opt seconds 60)
@@ -312,27 +319,41 @@ measure_sink() {
 "
   stores_up "$BACKEND"
   pin_containers "$BACKEND"
-  local args="--wow.transport=none"
+  local args extra install sinking
+  args="$(opt server-args "") --wow.transport=none"
   if [ "$sink" = clickhouse ]; then
     clickhouse_up
-    args="$args --wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.clickhouse.sink.enabled=true"
+    sinking="--wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.clickhouse.sink.enabled=true"
+    install=$(opt install "")
   else
     elasticsearch_up
-    args="$args --spring.elasticsearch.uris=$ELASTICSEARCH_URL"
+    sinking="--spring.elasticsearch.uris=$ELASTICSEARCH_URL"
     # The search server, installed beside the benchmark server, unless --install names another.
-    OPTIONS="${OPTIONS}install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-search-server")
-"
+    install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-search-server")
   fi
-  OPTIONS="${OPTIONS}server-args=$(opt server-args "") $args
+  # With a backlog, the node that takes the load has no sink: ClickHouse's not switched on, or the benchmark server
+  # instead of the search server.
+  local server="$REPO/test/benchmarks/server/build/install/benchmark-server" first=$install
+  if [ "$backlog" = true ]; then
+    extra=$args
+    if [ "$sink" = elasticsearch ]; then first=$server; fi
+  else
+    extra="$args $sinking"
+  fi
+  OPTIONS="${OPTIONS}install=${first:-$server}
+"
+  OPTIONS="${OPTIONS}server-args=$extra
 "
   start_node 1
   await_node 1
   TARGET_LIST=${TARGETS[0]}
   log "seeding $accounts accounts"
   load seed --targets="$TARGET_LIST" --accounts="$accounts" --concurrency=32 | tee "$OUT/seed.log" >&2
-  # What is counted from here on is the deposits', not the seeding's.
+  # What is counted from here on is the deposits', not the seeding's; with a backlog, from the sink's node on.
   local since
-  if [ "$sink" = clickhouse ]; then
+  if [ "$backlog" = true ]; then
+    :
+  elif [ "$sink" = clickhouse ]; then
     clickhouse "SYSTEM FLUSH LOGS" >/dev/null
     since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
   else
@@ -343,10 +364,30 @@ measure_sink() {
   load run --targets="$TARGET_LIST" --accounts="$accounts" --scenario=E1 --rate="$rate" --warm-up=0 \
     --measure="$seconds" --distribution="$(opt distribution uniform)" --hot-fraction="$(opt hot-fraction 0.5)" \
     --hot-keys="$(opt hot-keys 1)" --label=sink --out="$OUT/load" | tee "$OUT/load.log" >&2
-  local expected
+  local expected drain=null
   expected=$(jq '.results.ok + ('"$accounts"')' "$OUT/load/result.json")
+  if [ "$backlog" = true ]; then
+    sink_stop
+    OPTIONS="${OPTIONS}install=${install:-$server}
+"
+    OPTIONS="${OPTIONS}server-args=$args $sinking
+"
+    if [ "$sink" = clickhouse ]; then
+      clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+      since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
+    else
+      # The node's totals before it; the search server's own counts start with it.
+      since=$(es_counts | jq -c '.requests = {}')
+    fi
+    log "the sink drains a backlog of $expected commits"
+    local started
+    started=$(now_ms)
+    start_node 1
+    await_node 1
+  fi
   log "waiting for the sink to write $expected commits"
   sink_await "$expected"
+  if [ "$backlog" = true ]; then drain=$(( $(now_ms) - started )); fi
   if [ "$sink" = clickhouse ]; then
     clickhouse "SYSTEM FLUSH LOGS" >/dev/null
     local parts inserts
@@ -358,20 +399,33 @@ measure_sink() {
         WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
           AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
         FORMAT JSONEachRow" | jq -s '.[0]')
-    printf '{"sink":"clickhouse","accounts":%s,"rate":%s,"seconds":%s,"expected":%s,"written":%s,"parts":%s,"inserts":%s}\n' \
-      "$accounts" "$rate" "$seconds" "$expected" "$(sink_written)" "$parts" "$inserts" >"$OUT/sink.json"
+    printf '{"sink":"clickhouse","accounts":%s,"rate":%s,"seconds":%s,"expected":%s,"written":%s,"parts":%s,"inserts":%s,"backlog":%s,"drainMs":%s}\n' \
+      "$accounts" "$rate" "$seconds" "$expected" "$(sink_written)" "$parts" "$inserts" "$backlog" "$drain" \
+      >"$OUT/sink.json"
   else
     jq -n --argjson before "$since" --argjson after "$(es_counts)" \
       --argjson accounts "$accounts" --argjson rate "$rate" --argjson seconds "$seconds" \
       --argjson expected "$expected" --argjson written "$(sink_written)" \
+      --argjson backlog "$backlog" --argjson drain "$drain" \
       '{sink: "elasticsearch", accounts: $accounts, rate: $rate, seconds: $seconds, expected: $expected,
-        written: $written,
+        written: $written, backlog: $backlog, drainMs: $drain,
         requests: ($after.requests | with_entries(.value -= ($before.requests[.key] // 0))),
         node: ($after.node | with_entries(.value -= ($before.node[.key] // 0)))}' >"$OUT/sink.json"
   fi
   printf '{"schema":"wow-e2e-bench/measure/1","measure":"sink","sink":"%s","accounts":%s}\n' "$sink" "$accounts" \
     >"$OUT/measure.json"
   log "results in $OUT"
+}
+
+# Stops measure_sink's node and forgets it, so that the next start_node 1 is a node of its own.
+sink_stop() {
+  local pid=${SERVER_PIDS[0]}
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  SERVER_PIDS=()
+  TARGETS=()
+  STARTED_AT=()
+  READY=()
 }
 
 # The commits measure_sink's sink holds: the ClickHouse sink's _state_events rows, or the Elasticsearch sink's event

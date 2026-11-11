@@ -53,15 +53,16 @@ if (opt('program') === 'clickhouse-insert') {
   const name = out.split('/').pop();
   const expected = Number(opt('rate')) * Number(opt('seconds')) + Number(opt('accounts'));
   const written = name === ${JSON.stringify(unwritten ?? '')} ? expected - 5 : expected;
+  const backlog = opt('backlog') === 'true' ? { backlog: true, drainMs: 4200 } : {};
   if (opt('sink') === 'elasticsearch') {
     const deposits = expected - Number(opt('accounts'));
     const requests = name === ${JSON.stringify(uncounted ?? '')} ? {} : { _bulk: deposits / 4, _refresh: 0, _update_by_query: deposits / 100, other: 2 };
     fs.writeFileSync(out + '/sink.json', JSON.stringify({ sink: 'elasticsearch', accounts: Number(opt('accounts')), rate: Number(opt('rate')), seconds: Number(opt('seconds')), expected, written,
-      requests, node: { indexTotal: deposits, bulkOperations: deposits / 4, refreshTotal: 7 } }));
+      requests, node: { indexTotal: deposits, bulkOperations: deposits / 4, refreshTotal: 7 }, ...backlog }));
     fs.writeFileSync(out + '/measure.json', JSON.stringify({ measure: 'sink', sink: 'elasticsearch', accounts: Number(opt('accounts')) }));
     process.exit(0);
   }
-  fs.writeFileSync(out + '/sink.json', JSON.stringify({ sink: 'clickhouse', accounts: Number(opt('accounts')), expected, written,
+  fs.writeFileSync(out + '/sink.json', JSON.stringify({ sink: 'clickhouse', accounts: Number(opt('accounts')), expected, written, ...backlog,
     parts: [
       { table: 'transfer_account_events', parts: String(expected / 10), rows: String(expected) },
       { table: 'transfer_account_state', parts: String(expected / 10), rows: String(expected) },
@@ -173,6 +174,7 @@ test('the sink runs each scenario once, and counts its inserts and each table’
       `measure --program=sink --backend=postgres --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
       `measure --program=sink --backend=postgres --accounts=10 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
       `measure --program=sink --backend=postgres --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=hot --hot-fraction=0.5 --hot-keys=1`,
+      `measure --program=sink --backend=postgres --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform --backlog=true`,
     ],
   );
   const spread = suite.runs[0].measure;
@@ -184,7 +186,13 @@ test('the sink runs each scenario once, and counts its inserts and each table’
   const text = renderSuite(suite);
   assert.match(
     text,
-    /\| spread \| 1000 \| 13000 \| 13000 \| 1300 \| 10\.0 \| 1300, 1300, 1300 \| 10\.0, 10\.0, 10\.0 \|/,
+    /\| spread \| 1000 \| 13000 \| 13000 \| 1300 \| 10\.0 \| 1300, 1300, 1300 \| 10\.0, 10\.0, 10\.0 \| - \|/,
+  );
+  // The backlog: drained after the load, its time to drain shown.
+  assert.equal(suite.runs[3].measure.drainMs, 4200);
+  assert.match(
+    text,
+    /\| backlog \| 1000 \| 13000 \| 13000 \| 1300 \| 10\.0 \| .* \| 4\.2 s \|/,
   );
   assert.deepEqual(
     anomalies(suite).map(row => [row.run, row.kind, row.detail]),
@@ -230,6 +238,7 @@ test('the Elasticsearch sink runs each scenario on the search server, and counts
       `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
       `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=10 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform`,
       `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=hot --hot-fraction=0.5 --hot-keys=1`,
+      `measure --program=sink --backend=postgres --sink=elasticsearch --accounts=1000 --rate=${SINK.rate} --seconds=${SINK.seconds} --distribution=uniform --backlog=true`,
     ],
   );
   // The deposits' commits are the commits less the accounts the seeding opened.
@@ -239,7 +248,14 @@ test('the Elasticsearch sink runs each scenario on the search server, and counts
   const text = renderSuite(suite);
   assert.match(
     text,
-    /\| spread \| 1000 \| 13000 \| 13000 \| 12000 \| 3000 \| 4\.0 \| 120 \(10\.0\) \| 0 \(0\.0\) \| 2 \| 12000 \| 7 \|/,
+    /\| spread \| 1000 \| 13000 \| 13000 \| 12000 \| 3000 \| 4\.0 \| 120 \(10\.0\) \| 0 \(0\.0\) \| 2 \| 12000 \| 7 \| - \|/,
+  );
+  // A backlog's counts are of every commit, the seeding's too.
+  const backlog = suite.runs[3].measure;
+  assert.equal(backlog.commits, 13000);
+  assert.match(
+    text,
+    /\| backlog \| 1000 \| 13000 \| 13000 \| 13000 \| 3000 \| 4\.3 \| .* \| 4\.2 s \|/,
   );
   assert.deepEqual(
     anomalies(suite).map(row => [row.run, row.kind, row.detail]),
