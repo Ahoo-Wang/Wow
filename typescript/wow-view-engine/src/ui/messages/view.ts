@@ -185,11 +185,6 @@ export const viewMessages = {
     QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
   )]:
     '{field} is not stored as a known date or time, so a relative time cannot be asked of it.',
-  [wireKey(
-    'runtime.query.failed',
-    QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
-  )]:
-    'The relative time on {field} does not agree with how the field keeps its time: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.PARALLEL_ARRAY_SORT)]:
     '{field} and another list field in the sort cannot be sorted by together; keep one of them.',
   [wireKey('runtime.query.failed', QueryErrorCodes.ARRAY_EQUALITY)]:

@@ -137,6 +137,7 @@ A `ViewSource` over documents held in memory that answers each query the way a W
 | `now` | The service's clock, a function answering a `Date`, which `BEFORE_NOW` and `AFTER_NOW` compare against; the current time when left out; a test pins it to the moment its data is built around, so "after now" answers the same on every run |
 | `timeField` | A time column every document holds as epoch milliseconds, the way a Wow snapshot keeps `firstEventTime`. The documents are kept in its order, and a range on it in the filter's top-level AND is cut out by binary search first — for large sets |
 | `remember` | Answers a repeated aggregation from memory, keyed by the query, each caller getting its own copy. Only for documents that never change; off by default, so a test that edits a document sees the edit in the next answer |
+| `timeUnits` | The unit of each time field the documents hold in another unit than epoch milliseconds, by its path, as the service's query schema declares it: `BEFORE_NOW` and `AFTER_NOW` count the moment in it, as the service does, since a filter carries no unit |
 
 `matches(document, filter, options?)` asks whether one document matches a filter as `memorySource` reads it — a test compares a condition of its own (the one an old screen used, say) with what a view matched. Unlike a source, it assumes nothing about deletion: without a `DELETION` condition a deleted document is a candidate too.
 
@@ -147,6 +148,7 @@ export interface MemorySourceOptions {
   now?: () => Date;
   remember?: boolean;
   timeField?: string;
+  timeUnits?: Readonly<Record<string, TimeUnit>>;
 }
 
 export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => Date }): boolean;

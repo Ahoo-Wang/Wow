@@ -35,20 +35,15 @@ type Filter = FilterExpression | ElementFilterExpression;
  * screen used, to compare with what a view matched. Unlike a source, it
  * assumes nothing about deletion: without a `DELETION` condition a deleted
  * document is a candidate too. `now` is the clock `BEFORE_NOW` and
- * `AFTER_NOW` compare against, read once (the current time by default), and
- * `timeUnits` the unit of each time field not kept in milliseconds.
+ * `AFTER_NOW` compare against, read once (the current time by default),
+ * every time counted in epoch milliseconds.
  */
 export function matches(
   document: RecordData,
   filter: FilterExpression,
-  options: {
-    now?: () => Date;
-    timeUnits?: Readonly<Record<string, TimeUnit>>;
-  } = {},
+  options: { now?: () => Date } = {},
 ): boolean {
-  return new Query(
-    criteria(atNow(filter, options.now, options.timeUnits)),
-  ).test(document);
+  return new Query(criteria(atNow(filter, options.now))).test(document);
 }
 
 /** `value <op> against`, for an `EXPRESSION` filter and a `having`. */

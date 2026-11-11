@@ -99,7 +99,6 @@ A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists wh
 | `not-projectable` | Admission against the query model. |
 | `event-projection-type-required` | Admission against the query model. |
 | `temporal-representation-required` | Admission against the query model. |
-| `temporal-configuration-conflict` | Admission against the query model. |
 | `parallel-array-sort` | Admission against the query model. |
 | `array-equality` | Admission against the query model. |
 | `first-last-requires-single-value` | Admission against the query model. |

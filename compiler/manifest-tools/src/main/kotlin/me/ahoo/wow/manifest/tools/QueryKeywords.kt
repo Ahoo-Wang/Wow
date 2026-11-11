@@ -161,7 +161,10 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
                 annotation.scale.takeIf { it >= 0 }?.let { put("scale", it) }
             }
 
-            is QueryDuration -> attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", annotation.unit.name.lowercase())
+            is QueryDuration -> {
+                val unit = annotation.unit.name.lowercase()
+                attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", unit)
+            }
             is QueryReference -> attributes.putObject(QueryKeywords.REFERENCE_KEYWORD).apply {
                 put("aggregateName", annotation.aggregateName)
                 annotation.contextName.takeIf { it.isNotEmpty() }?.let { put("contextName", it) }

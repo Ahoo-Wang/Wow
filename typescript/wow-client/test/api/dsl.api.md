@@ -1198,7 +1198,6 @@ export const QueryErrorCodes: Readonly<{
     readonly NOT_PROJECTABLE: "not-projectable";
     readonly EVENT_PROJECTION_TYPE_REQUIRED: "event-projection-type-required";
     readonly TEMPORAL_REPRESENTATION_REQUIRED: "temporal-representation-required";
-    readonly TEMPORAL_CONFIGURATION_CONFLICT: "temporal-configuration-conflict";
     readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
     readonly ARRAY_EQUALITY: "array-equality";
     readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "first-last-requires-single-value";

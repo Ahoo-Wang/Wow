@@ -135,10 +135,6 @@ export const viewZhCN = {
     'runtime.query.failed',
     QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
   )]: '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
-  [wireKey(
-    'runtime.query.failed',
-    QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
-  )]: '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.PARALLEL_ARRAY_SORT)]:
     '「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
   [wireKey('runtime.query.failed', QueryErrorCodes.ARRAY_EQUALITY)]:

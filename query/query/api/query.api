@@ -2061,21 +2061,6 @@ public final class me/ahoo/wow/query/schema/QueryViolation$TemporalAggregationUn
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/schema/QueryViolation$TemporalAggregationUnsupported;
 }
 
-public final class me/ahoo/wow/query/schema/QueryViolation$TemporalConfigurationConflict : me/ahoo/wow/query/schema/QueryViolation {
-	public static final field Companion Lme/ahoo/wow/query/schema/QueryViolation$TemporalConfigurationConflict$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getCode ()Ljava/lang/String;
-	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
-	public fun getMessage ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/schema/QueryViolation$TemporalConfigurationConflict;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/query/schema/QueryViolation$TemporalConfigurationConflict$Companion {
-	public final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/schema/QueryViolation$TemporalConfigurationConflict;
-}
-
 public final class me/ahoo/wow/query/schema/QueryViolation$TemporalRepresentationRequired : me/ahoo/wow/query/schema/QueryViolation {
 	public static final field Companion Lme/ahoo/wow/query/schema/QueryViolation$TemporalRepresentationRequired$Companion;
 	public fun equals (Ljava/lang/Object;)Z

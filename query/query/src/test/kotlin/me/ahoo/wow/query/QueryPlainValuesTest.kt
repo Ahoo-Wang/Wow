@@ -158,7 +158,6 @@ class QueryPlainValuesTest {
             QueryViolation.NotProjectable.of(FIELD),
             QueryViolation.EventProjectionTypeRequired.of(FIELD),
             QueryViolation.TemporalRepresentationRequired.of(FIELD),
-            QueryViolation.TemporalConfigurationConflict.of(FIELD),
             QueryViolation.TemporalAggregationUnsupported.of(FIELD),
             QueryViolation.FirstLastRequiresSingleValue.of(FIELD),
             QueryViolation.FirstLastRequiresOrderBy.of(FIELD),

@@ -119,4 +119,3 @@ private class TimeUnitWordReader : ValueDeserializer<TimeUnit>() {
         throw MismatchedInputException.from(parser, TimeUnit::class.java, unknown.message)
     }
 }
-

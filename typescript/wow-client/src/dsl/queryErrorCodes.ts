@@ -151,8 +151,6 @@ export const QueryErrorCodes = Object.freeze({
   EVENT_PROJECTION_TYPE_REQUIRED: 'event-projection-type-required',
   /** A relative-time filter needs a field with a known temporal representation. */
   TEMPORAL_REPRESENTATION_REQUIRED: 'temporal-representation-required',
-  /** A relative-time filter's zone, pattern or unit conflicts with the field's definition. */
-  TEMPORAL_CONFIGURATION_CONFLICT: 'temporal-configuration-conflict',
   /**
    * A sort names two array fields on independent arrays, which the storage
    * cannot order by together; `path` is the second of them. The descriptor

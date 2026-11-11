@@ -74,9 +74,13 @@ class FilterNormalizer(private val defaultZoneId: ZoneId = ZoneOffset.UTC) {
         when (val lowering = expression.spec.lowering) {
             null -> expression
             is Lowering.Rewrite -> lowering.lower(expression)
-            Lowering.RelativeTime -> Window(expression as RelativeTimeFilter, now, checkNotNull(temporal) {
-                "Admission resolves the temporal of a relative-time filter on [${expression.field.path}]."
-            }).lower()
+            Lowering.RelativeTime -> {
+                val relative = expression as RelativeTimeFilter
+                val resolved = checkNotNull(temporal) {
+                    "Admission resolves the temporal of a relative-time filter on [${relative.field.path}]."
+                }
+                Window(relative, now, resolved).lower()
+            }
         }
 
     /** The window of [filter] at [now], its bounds written as [temporal] stores time. */
