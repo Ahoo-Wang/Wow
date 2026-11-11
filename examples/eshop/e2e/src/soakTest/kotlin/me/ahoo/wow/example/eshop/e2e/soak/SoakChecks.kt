@@ -596,7 +596,7 @@ class SoakChecks(
     private fun names(commits: List<SoakDatabase.Commit>): List<String> =
         commits.flatMap { commit -> commit.events.filterNot { it.system }.map { it.name } }
 
-    /** The keys of the schedules [commits] set and did not cancel (`wow.ScheduleSet`, `wow.ScheduleCancelled`). */
+    /** The keys of the schedules [commits] set and did not cancel (`wow.schedule.ScheduleSet`, `wow.schedule.ScheduleCancelled`). */
     private fun pendingSchedules(commits: List<SoakDatabase.Commit>): List<String> {
         val last = LinkedHashMap<String, String>()
         commits.flatMap { it.events }.filter { it.system }.forEach { event ->

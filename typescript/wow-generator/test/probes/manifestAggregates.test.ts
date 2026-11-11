@@ -187,7 +187,7 @@ describe('Manifest clients', () => {
        // The kernel's lifecycle and schedule events come in the same trace.
        const owner: ThingEvent = { name: 'wow.lifecycle.OwnerTransferred', revision: 1, body: { ownerId: 'bob' } };
        function body(event: ThingEvent): string | undefined {
-         if (event.name === 'wow.ScheduleCancelled') return event.body.key;
+         if (event.name === 'wow.schedule.ScheduleCancelled') return event.body.key;
          return event.name === 'probe.thing.Shaped' ? event.body.s : undefined;
        }
        void [traced, reshaped, short, owner, body];`,

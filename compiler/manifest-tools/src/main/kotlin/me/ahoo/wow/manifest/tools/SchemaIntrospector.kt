@@ -79,8 +79,8 @@ import kotlin.reflect.jvm.kotlinProperty
  *   discriminator, and the base class's `x-wow-class` ([Polymorphic]).
  * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
  *   description its fragment entry carries, which the compiler also reads from the KDoc (.1c).
- * - The body of each system command the fragment lists (`wow.lifecycle.TransferOwner`, `wow.snapshot.Rebuild`,
- *   `wow.schedule.Enable`) is a definition keyed by that full name, introspected from its class (`SYSTEM_BODIES`) like
+ * - The body of each system command the fragment lists (`wow.lifecycle.TransferOwner`, `wow.snapshot.RebuildSnapshot`,
+ *   `wow.schedule.EnableJob`) is a definition keyed by that full name, introspected from its class (`SYSTEM_BODIES`) like
  *   a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
  *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`, an argument nullable where it is

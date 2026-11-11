@@ -1556,6 +1556,22 @@ public final class me/ahoo/wow/api/schedule/JobScope : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/api/schedule/JobScope;
 }
 
+public final class me/ahoo/wow/api/schedule/JobTicked {
+	public static final field Companion Lme/ahoo/wow/api/schedule/JobTicked$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDue ()J
+	public final fun getSkipped ()J
+	public final fun getSlot ()J
+	public final fun getTimer ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/JobTicked;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/schedule/JobTicked$Companion {
+	public final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/JobTicked;
+}
+
 public final class me/ahoo/wow/api/schedule/Misfire : java/lang/Enum {
 	public static final field CATCH_UP Lme/ahoo/wow/api/schedule/Misfire;
 	public static final field COALESCE Lme/ahoo/wow/api/schedule/Misfire;
@@ -1782,22 +1798,6 @@ public final class me/ahoo/wow/api/schedule/TickJob {
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/schedule/Ticked {
-	public static final field Companion Lme/ahoo/wow/api/schedule/Ticked$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getDue ()J
-	public final fun getSkipped ()J
-	public final fun getSlot ()J
-	public final fun getTimer ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/Ticked;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/schedule/Ticked$Companion {
-	public final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/Ticked;
 }
 
 public abstract interface class me/ahoo/wow/api/subscribe/CommandReceipt {

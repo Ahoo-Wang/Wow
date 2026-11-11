@@ -57,13 +57,13 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 }
 ```
 
-- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.ScheduleSet`；只定时的决定就只提交这一个事件。
+- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。
 - `scope.cancelSchedule(key)` 取消它。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
 - 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。这个声明只是 Manifest 的内容；内核不会拒绝它没有列出的定时。
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 
-Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancel(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.Set` 和 `wow.schedule.Cancel`。目标必须存在；否则它拒绝 `wow.schedule.Set`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。
+Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancel(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.SetSchedule` 和 `wow.schedule.CancelSchedule`。目标必须存在；否则它拒绝 `wow.schedule.SetSchedule`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。
 
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 
@@ -104,7 +104,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `name` | 任务的名字，在它的上下文中唯一：字母、数字、`_` 和 `-` |
 | `cron` | 六个字段，按 Spring 的 `CronExpression` 读取：`0 0 6 * * *` 是每天 06:00。也接受 `@daily` 这样的宏 |
 | `zone` | 读取 `cron` 所用的时区，默认 UTC |
-| `scope` | `SYSTEM`（默认）：一个实例，在默认租户中，宿主在启动时启用。`TENANT`：每个租户一个实例，由该租户中的系统命令 `wow.schedule.Enable` 创建；宿主从不启动它，每个租户都可以覆盖规则、时区和 misfire。`SHARDED`：每个日志分区一个实例，在默认租户中，宿主在启动时启用，由分区的属主为它自己分区的聚合运行，每个时间槽各触发一次，并设置 `tick.partition` |
+| `scope` | `SYSTEM`（默认）：一个实例，在默认租户中，宿主在启动时启用。`TENANT`：每个租户一个实例，由该租户中的系统命令 `wow.schedule.EnableJob` 创建；宿主从不启动它，每个租户都可以覆盖规则、时区和 misfire。`SHARDED`：每个日志分区一个实例，在默认租户中，宿主在启动时启用，由分区的属主为它自己分区的聚合运行，每个时间槽各触发一次，并设置 `tick.partition` |
 | `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。它的 `due` 是该时间槽自己的时间，是表达式指定的时间，`wow.timers.expires-after` 也从这个时间判断它是否迟到；错过超过 100,000 个时间槽时，`skipped` 是估算值。`CATCH_UP`：每个错过的时间槽都运行 |
 
 宿主在 `wow.schedules.<name>` 下配置任务，而且只在这里配置，不需要重新构建：
@@ -124,7 +124,7 @@ wow:
 
 实例自己的规则优先于宿主的规则：`TENANT` 任务中租户的规则，或者运维人员用 `reschedule` 设的规则。它由实例保存，所以重启后依然有效。
 
-任务的实例也接收 HTTP 命令：`POST /<context>/wow.schedule/{id}/<command>`，命令为 `enable`、`reschedule`、`disable`，id 为任务名。它们是 Wow 的系统命令，公开端口默认从不放行：没有命令授权器的服务拒绝它们（403 `wow.auth.forbidden`），有授权器时由授权器决定。在 CoSec 下，动作是 `schedule/<job>` 上的 `<context>:wow.schedule.Enable`（以及其他任务命令），由策略授予运维人员（[动作名称](../operate/security#action-names)）。任务自己的命令、Saga 发出的命令以及 ops 在内部端口发送的命令不受影响。
+任务的实例也接收 HTTP 命令：`POST /<context>/wow.schedule/{id}/<command>`，命令为 `enable`、`reschedule`、`disable`，id 为任务名。它们是 Wow 的系统命令，公开端口默认从不放行：没有命令授权器的服务拒绝它们（403 `wow.auth.forbidden`），有授权器时由授权器决定。在 CoSec 下，动作是 `schedule/<job>` 上的 `<context>:wow.schedule.EnableJob`（以及其他任务命令），由策略授予运维人员（[动作名称](../operate/security#action-names)）。任务自己的命令、Saga 发出的命令以及 ops 在内部端口发送的命令不受影响。
 
 ## 测试 {#test-it}
 

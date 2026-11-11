@@ -159,7 +159,7 @@ interface SagaContext : SubscriptionContext {
 
     /**
      * Schedules [request]'s command on its target under [key] as [rule] says: the execution derives the system
-     * command `wow.schedule.Set` to that target with the commands the handler returns, after them, keyed as a
+     * command `wow.schedule.SetSchedule` to that target with the commands the handler returns, after them, keyed as a
      * returned request is, so handling the commit again derives the same request. The handler declares the class of
      * the command in its `@Sends(schedules)`. The target must exist: otherwise
      * it rejects the command, which the saga's `@OnRejected` handler for [SetSchedule] gets.
@@ -169,7 +169,7 @@ interface SagaContext : SubscriptionContext {
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>)
 
     /**
-     * Cancels the schedule [key] of [target]: the execution derives the system command `wow.schedule.Cancel` to it,
+     * Cancels the schedule [key] of [target]: the execution derives the system command `wow.schedule.CancelSchedule` to it,
      * after the commands the handler returns; see [schedule].
      */
     fun cancel(key: String, target: AggregateRef)

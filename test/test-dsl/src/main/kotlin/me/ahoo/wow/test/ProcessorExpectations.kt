@@ -53,8 +53,8 @@ class ProcessorExpectations internal constructor(
     val commands: List<Command<*>> get() = done.commands.filterNot { it.isSchedule() }
 
     /**
-     * The schedules the handlers set or cancelled: their derived system commands `wow.schedule.Set`
-     * and `wow.schedule.Cancel`, in order.
+     * The schedules the handlers set or cancelled: their derived system commands `wow.schedule.SetSchedule`
+     * and `wow.schedule.CancelSchedule`, in order.
      */
     val schedules: List<Command<*>> get() = done.commands.filter { it.isSchedule() }
 
@@ -209,7 +209,7 @@ class ProcessorExpectations internal constructor(
     }
 
     /**
-     * The handlers scheduled [command] under [key]: they derived `wow.schedule.Set` to [target] when
+     * The handlers scheduled [command] under [key]: they derived `wow.schedule.SetSchedule` to [target] when
      * given, which schedules [command] as [rule] says when it is given.
      */
     fun expectScheduled(key: String, command: Any, rule: ScheduleRule? = null, target: AggregateRef? = null) {

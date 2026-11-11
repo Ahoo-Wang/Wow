@@ -84,7 +84,7 @@ class InventoryServerTest {
         val disable = CommandRequest.of(DisableJob(), id = RECEIVE_DELIVERIES, type = JOBS)
         for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
             rejected { server.commands(caller).wait(disable) }.result.error!!.message.assert()
-                .contains("Only an employee sends wow.schedule.Disable")
+                .contains("Only an employee sends wow.schedule.DisableJob")
         }
         runBlocking { server.commands(EMPLOYEE).wait(disable) }
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

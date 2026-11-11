@@ -197,11 +197,11 @@ class OrderingServerTest {
      */
     @Test
     fun `the snapshot rebuild should be an employee's alone (UI-50)`() {
-        val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild"
+        val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild-snapshot"
         for (caller in listOf(Caller.ANONYMOUS, buyer("alice-rebuilds"))) {
             val refused = server.http.post(rebuild, """{"ids":["order-1"]}""", caller = caller).problem!!
             refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-            refused.detail.assert().contains("Only an employee sends wow.snapshot.Rebuild")
+            refused.detail.assert().contains("Only an employee sends wow.snapshot.RebuildSnapshot")
         }
         server.http.post(rebuild, """{"ids":["order-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
     }

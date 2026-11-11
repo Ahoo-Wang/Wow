@@ -63,7 +63,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A service's failure ledger and the ops context end to end on one node (decision D141), over [InMemoryTopics]: the
- * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.Retry`
+ * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.RetryParked`
  * on the stock context's command topic, as the ops context sends it, retries the item there and is published resolved.
  */
 class LedgerNodeTest {

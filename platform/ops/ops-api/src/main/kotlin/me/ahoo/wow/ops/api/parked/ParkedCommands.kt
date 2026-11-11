@@ -38,7 +38,7 @@ data class RecordParked(val entry: ParkedEntry)
 data class RecordResolved(val resolution: ParkedResolution)
 
 /**
- * The owning service refused the ledger's system command [action] (`wow.ledger.Retry`, ...) the ops saga sent it for
+ * The owning service refused the ledger's system command [action] (`wow.ledger.RetryParked`, ...) the ops saga sent it for
  * an operator's request on the entry, with the error [code] and [reason] of its rejection: its receipt
  * came back to the saga, which records it here, so the console shows why the request came to nothing. Only the saga
  * sends it: internal.
@@ -53,28 +53,28 @@ data class RecordActionRefused(val action: String, val code: String, val reason:
  */
 
 /**
- * Handles the parked aggregate again from where it is parked (`wow.ledger.Retry`): the parking at [failedAt], the
+ * Handles the parked aggregate again from where it is parked (`wow.ledger.RetryParked`): the parking at [failedAt], the
  * entry's `failedAt` as the console showed it, when given; another parking refuses it as stale.
  */
 @Summary("Retry a parked entry")
 data class Retry(val reason: String? = null, val failedAt: Long? = null)
 
 /**
- * Resolves the entry without handling what was parked (`wow.ledger.Skip`): the parking at [failedAt], as for
+ * Resolves the entry without handling what was parked (`wow.ledger.SkipParked`): the parking at [failedAt], as for
  * [Retry].
  */
 @Summary("Skip a parked entry")
 data class Skip(val reason: String? = null, val failedAt: Long? = null)
 
 /**
- * Marks the entry [recoverable] (`wow.ledger.MarkRecoverable`, 9.x `MarkRecoverable`): `recoverable`, `unrecoverable`
+ * Marks the entry [recoverable] (`wow.ledger.MarkParkedRecoverable`, 9.x `MarkRecoverable`): `recoverable`, `unrecoverable`
  * or `unknown`; an unrecoverable entry is not retried automatically.
  */
 @Summary("Mark a parked entry recoverable or not")
 data class MarkRecoverable(val recoverable: String)
 
 /**
- * Applies a retry spec to the entry (`wow.ledger.ApplyRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
+ * Applies a retry spec to the entry (`wow.ledger.ApplyParkedRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
  * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl] (`PT3M` or
  * `3m`). A member left out keeps the value the entry is retried by now. The host refuses a negative count and a
  * duration Kotlin cannot read at admission (`wow.command.invalid`, each under its member's path).

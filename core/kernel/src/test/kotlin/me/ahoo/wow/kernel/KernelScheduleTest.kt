@@ -46,9 +46,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Decision D198: a decide function's schedules are the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
+ * Decision D198: a decide function's schedules are the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`
  * committed with its events, in the same stream, or not at all; every aggregate decides the system commands
- * `wow.schedule.Set` and `wow.schedule.Cancel`; the kernel keeps the rules beside the state, and a scheduled command
+ * `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule`; the kernel keeps the rules beside the state, and a scheduled command
  * is not decided before its slot's due time.
  */
 class KernelScheduleTest {

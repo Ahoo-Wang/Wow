@@ -212,7 +212,7 @@ test("an operator retries an entry, it goes back to the owning service, and the 
     .poll(async () =>
       (await ledgerCommands(request, context)).map((it) => [it.type, it.id]),
     )
-    .toContainEqual(["wow.ledger.Retry", exhausted.id]);
+    .toContainEqual(["wow.ledger.RetryParked", exhausted.id]);
 
   // The owning service retried it: the open view reads the entries again on
   // its own and lets the resolved one go.
@@ -292,12 +292,12 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
     })
     .toEqual(
       expect.arrayContaining([
-        "wow.ledger.MarkRecoverable",
-        "wow.ledger.ApplyRetrySpec",
+        "wow.ledger.MarkParkedRecoverable",
+        "wow.ledger.ApplyParkedRetrySpec",
       ]),
     );
   const sent = await ledgerCommands(request, context);
-  const spec = sent.find((it) => it.type === "wow.ledger.ApplyRetrySpec");
+  const spec = sent.find((it) => it.type === "wow.ledger.ApplyParkedRetrySpec");
   expect(spec?.body).toMatchObject({ maxRetries: 5, initialBackoff: "1h30m" });
 });
 

@@ -40,10 +40,10 @@ object Ledger {
     /** The namespace of the ledger's system commands. */
     const val NAMESPACE: String = "wow.ledger"
 
-    const val RETRY: String = "$NAMESPACE.Retry"
-    const val SKIP: String = "$NAMESPACE.Skip"
-    const val MARK_RECOVERABLE: String = "$NAMESPACE.MarkRecoverable"
-    const val APPLY_RETRY_SPEC: String = "$NAMESPACE.ApplyRetrySpec"
+    const val RETRY: String = "$NAMESPACE.RetryParked"
+    const val SKIP: String = "$NAMESPACE.SkipParked"
+    const val MARK_RECOVERABLE: String = "$NAMESPACE.MarkParkedRecoverable"
+    const val APPLY_RETRY_SPEC: String = "$NAMESPACE.ApplyParkedRetrySpec"
 
     /** The context a service publishes its ledger to unless it is configured otherwise. */
     const val OPS_CONTEXT: String = "ops"

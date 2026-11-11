@@ -107,11 +107,11 @@ import kotlin.coroutines.CoroutineContext
  * its ownership and is recorded for the audit; a retry of one is answered whatever the aggregate's scope.
  *
  * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule]) are the
- * system events `wow.ScheduleSet` and `wow.ScheduleCancelled` after its events in the stream it commits, the last
+ * system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled` after its events in the stream it commits, the last
  * change of each key: they commit with its events, or not at all, and a decision that only schedules commits them
  * alone (on an aggregate that exists). The command a schedule sends is stored by its type name and JSON
  * ([AttemptScopes]). Every aggregate also decides the
- * system commands `wow.schedule.Set` and `wow.schedule.Cancel` a saga derives ([KernelLifecycle]); the kernel keeps
+ * system commands `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule` a saga derives ([KernelLifecycle]); the kernel keeps
  * the rules of the schedules an aggregate holds beside its state ([CachedState.schedules]).
  *
  * A command a schedule sent ([Command.schedule]) is not decided before the time its slot was due by this kernel's

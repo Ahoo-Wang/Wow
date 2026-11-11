@@ -26,6 +26,7 @@ import me.ahoo.wow.api.schedule.JobEnabled
 import me.ahoo.wow.api.schedule.JobRescheduled
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.RescheduleJob
 import me.ahoo.wow.api.schedule.ScheduleCancelled
@@ -34,7 +35,6 @@ import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.TickJob
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -89,16 +89,16 @@ class ScheduleJobModelTest {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
             // 2026-01-01: the first slot is February's.
             advanceTime(31.days) {
-                expectEvent(Ticked::class) {
+                expectEvent(JobTicked::class) {
                     slot.assert().isEqualTo(1L)
                     skipped.assert().isEqualTo(0L)
                     due.assert().isEqualTo(Instant.parse("2026-02-01T00:00:00Z").toEpochMilli())
                 }
             }
-            advanceTime(28.days) { expectEvent(Ticked::class) { slot.assert().isEqualTo(2L) } }
+            advanceTime(28.days) { expectEvent(JobTicked::class) { slot.assert().isEqualTo(2L) } }
             // April and May are missed: June runs, the two before it skipped.
             advanceTime(92.days) {
-                expectEvent(Ticked::class) {
+                expectEvent(JobTicked::class) {
                     slot.assert().isEqualTo(5L)
                     skipped.assert().isEqualTo(2L)
                     due.assert().isEqualTo(Instant.parse("2026-06-01T00:00:00Z").toEpochMilli())
@@ -119,7 +119,7 @@ class ScheduleJobModelTest {
         aggregateSpec(ScheduleJobModel.model("billing", listOf(catchUp)), id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
             advanceTime(91.days) {
-                expectEvent(Ticked::class) {
+                expectEvent(JobTicked::class) {
                     slot.assert().isEqualTo(3L)
                     skipped.assert().isEqualTo(0L)
                 }
@@ -137,7 +137,7 @@ class ScheduleJobModelTest {
             }
             // Midnight of February 1st in Shanghai is 16:00 UTC on January 31st.
             advanceTime(30.days + 16.hours) {
-                expectEvent(Ticked::class) {
+                expectEvent(JobTicked::class) {
                     due.assert().isEqualTo(Instant.parse("2026-01-31T16:00:00Z").toEpochMilli())
                 }
             }
@@ -168,7 +168,7 @@ class ScheduleJobModelTest {
             expectNothingDue(60.days)
             whenCommand(RescheduleJob()) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
-            advanceTime(31.days) { expectEventTypes(Ticked::class) }
+            advanceTime(31.days) { expectEventTypes(JobTicked::class) }
         }
     }
 
@@ -212,7 +212,7 @@ class ScheduleJobModelTest {
             }
             // Every five minutes from 00:05: at 05:00 the sixtieth slot runs, the 59 before it coalesced.
             advanceTime(5.hours) {
-                expectEvent(Ticked::class) {
+                expectEvent(JobTicked::class) {
                     slot.assert().isEqualTo(60L)
                     skipped.assert().isEqualTo(59L)
                 }
@@ -228,7 +228,7 @@ class ScheduleJobModelTest {
             whenCommand(TickJob()) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             val timer = "${ScheduleJobModel.refOf("billing", "invoice", "acme")}#tick@1"
             whenCommand(TickJob(), headers = ScheduleContext(timer, "tick", 2, 7).headers()) {
-                expectEvents(Ticked(timer, 2, 0, 7))
+                expectEvents(JobTicked(timer, 2, 0, 7))
             }
             // The same slot again, or an older one: nothing.
             whenCommand(TickJob(), headers = ScheduleContext(timer, "tick", 2, 7).headers()) { expectUnchanged() }
@@ -239,7 +239,7 @@ class ScheduleJobModelTest {
             }
             val later = "${ScheduleJobModel.refOf("billing", "invoice", "acme")}#tick@5"
             whenCommand(TickJob(), headers = ScheduleContext(later, "tick", 1, 9, 0).headers()) {
-                expectEvents(Ticked(later, 1, 0, 9))
+                expectEvents(JobTicked(later, 1, 0, 9))
             }
             whenCommand(DisableJob()) { expectEventTypes(JobDisabled::class) }
             whenCommand(TickJob(), headers = ScheduleContext(later, "tick", 2, 10).headers()) { expectUnchanged() }
@@ -261,7 +261,7 @@ class ScheduleJobModelTest {
         val committed = outcome as CommandOutcome.Committed
         val rule = ScheduleRule.Cron("0 0 0 15 * *", "Asia/Shanghai")
         committed.stream.events.map { codec.decode(model, it) }.assert().containsExactly(
-            Ticked(timer, 1, 0, 900),
+            JobTicked(timer, 1, 0, 900),
             JobRescheduled(rule, shanghai),
             ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK, "{}"),
         )

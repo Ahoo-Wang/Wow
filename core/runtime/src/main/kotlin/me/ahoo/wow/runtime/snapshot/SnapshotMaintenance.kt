@@ -74,7 +74,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   once its subscription's checkpoint in every partition reached the log's head of the previous run; the table is
  *   then marked backfilled.
  * - **Rebuild requests**: the built-in subscription [REBUILD_SUBSCRIPTION] rewrites, from the log, the snapshots each
- *   `wow.SnapshotRebuildRequested` of the rebuild aggregate names ([SnapshotRebuildModel]), in each target: in place on
+ *   `wow.snapshot.SnapshotRebuildRequested` of the rebuild aggregate names ([SnapshotRebuildModel]), in each target: in place on
  *   a node of the claimed revision, else marked stale (or written at its own revision when missing) for the rebuild.
  *
  * It answers [rebuilding] for a type while the table of its primary target is rebuilding or not backfilled.

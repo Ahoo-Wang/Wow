@@ -117,7 +117,7 @@ describe("a parked entry's reading", () => {
   it("says why the owning service refused the last request (D226)", () => {
     const reading = read(
       rowOf({
-        refusedAction: "wow.ledger.Skip",
+        refusedAction: "wow.ledger.SkipParked",
         refusalCode: "wow.auth.forbidden",
         refusalReason: "Taken from the ops context's saga alone.",
       }),

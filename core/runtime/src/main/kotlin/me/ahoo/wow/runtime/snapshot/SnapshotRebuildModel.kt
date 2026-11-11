@@ -34,8 +34,8 @@ class RebuildState {
 /**
  * The built-in aggregate that takes a context's snapshot rebuild requests: `<context>.snapshot`, one
  * instance per snapshotted aggregate type in each tenant, whose id is the aggregate type's name. It belongs to its
- * tenant (no owner), has no lifecycle commands and no snapshots of its own, and decides `wow.snapshot.Rebuild(ids)`:
- * it commits `wow.SnapshotRebuildRequested(ids)`, each id once, which the built-in rebuild subscription
+ * tenant (no owner), has no lifecycle commands and no snapshots of its own, and decides `wow.snapshot.RebuildSnapshot(ids)`:
+ * it commits `wow.snapshot.SnapshotRebuildRequested(ids)`, each id once, which the built-in rebuild subscription
  * ([SnapshotMaintenance.REBUILD_SUBSCRIPTION]) carries out. A request to an instance that is no snapshotted aggregate
  * type of the context is rejected with [FrameworkCodes.COMMAND_INVALID].
  */

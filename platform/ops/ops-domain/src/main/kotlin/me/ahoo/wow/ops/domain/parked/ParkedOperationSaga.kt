@@ -35,7 +35,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
  * Sends an operator's request on a [Parked] entry back to the service that owns the entry: the ledger's
- * system command of the same name (`wow.ledger.Retry`, `Skip`, `MarkRecoverable`, `ApplyRetrySpec`), to the command
+ * system command of the same name (`wow.ledger.RetryParked`, `Skip`, `MarkRecoverable`, `ApplyRetrySpec`), to the command
  * topic of the context that holds the entry ([ParkedState.context]), addressed to the entry ([Ledger.targetOf]). The
  * owning service takes it because this saga of the ops context sent it (the operator was authorized
  * here, and keeps being the command's), runs it on its ledger, and publishes the entry as it then

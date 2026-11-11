@@ -70,20 +70,20 @@ internal object WowSchemas {
 
     /** The job commands a tenant sends through the gateway, by their full names, with their bodies. */
     val JOB_COMMANDS: Map<String, Map<String, Any?>> = linkedMapOf(
-        "wow.schedule.Enable" to objectSchema(
+        "wow.schedule.EnableJob" to objectSchema(
             mapOf(
                 "job" to type("string"),
-                "rule" to nullable(schemaRef("wow.schedule.JobRule")),
+                "rule" to nullable(schemaRef("wow.JobRule")),
                 "partition" to obj("type" to listOf("integer", "null"), "minimum" to 0),
             ),
             listOf("job"),
             "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
         ),
-        "wow.schedule.Reschedule" to objectSchema(
-            mapOf("rule" to nullable(schemaRef("wow.schedule.JobRule"))),
+        "wow.schedule.RescheduleJob" to objectSchema(
+            mapOf("rule" to nullable(schemaRef("wow.JobRule"))),
             description = "Overrides the instance's rule; null follows the job's default again.",
         ),
-        "wow.schedule.Disable" to objectSchema(emptyMap(), description = "Stops the job instance."),
+        "wow.schedule.DisableJob" to objectSchema(emptyMap(), description = "Stops the job instance."),
     )
 
     private val JOB_RULE: Map<String, Any?>
@@ -147,7 +147,7 @@ internal object WowSchemas {
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
     /** The snapshot rebuild command, by its full name. */
-    const val REBUILD: String = "wow.snapshot.Rebuild"
+    const val REBUILD: String = "wow.snapshot.RebuildSnapshot"
 
     private val REBUILD_COMMAND: Map<String, Any?>
         get() = objectSchema(
@@ -159,7 +159,7 @@ internal object WowSchemas {
 
     /** Every framework schema, by name. */
     fun all(): Map<String, Any?> = commandSchemas() + readSchemas() + querySchemas() + LIFECYCLE + JOB_COMMANDS +
-        ("wow.schedule.JobRule" to JOB_RULE) + (REBUILD to REBUILD_COMMAND)
+        ("wow.JobRule" to JOB_RULE) + (REBUILD to REBUILD_COMMAND)
 
     /** The command result and the problem, with what they hold. */
     private fun commandSchemas(): Map<String, Any?> = linkedMapOf(

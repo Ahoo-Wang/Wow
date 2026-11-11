@@ -113,14 +113,14 @@
               "system": true
             },
             {
-              "name": "wow.snapshot.Rebuild",
+              "name": "wow.snapshot.RebuildSnapshot",
               "aliases": [],
-              "schema": "#/$defs/wow.snapshot.Rebuild",
+              "schema": "#/$defs/wow.snapshot.RebuildSnapshot",
               "creation": "none",
               "routes": [
                 {
                   "method": "POST",
-                  "path": "/eshop-inventory/stock/wow.snapshot.rebuild"
+                  "path": "/eshop-inventory/stock/wow.snapshot.rebuild-snapshot"
                 }
               ],
               "system": true
@@ -234,40 +234,40 @@
       ],
       "commands": [
         {
-          "name": "wow.schedule.Enable",
+          "name": "wow.schedule.EnableJob",
           "aliases": [],
-          "schema": "#/$defs/wow.schedule.Enable",
+          "schema": "#/$defs/wow.schedule.EnableJob",
           "creation": "none",
           "routes": [
             {
               "method": "POST",
-              "path": "/eshop-inventory/wow.schedule/{id}/enable"
+              "path": "/eshop-inventory/wow.schedule/{id}/enable-job"
             }
           ],
           "system": true
         },
         {
-          "name": "wow.schedule.Reschedule",
+          "name": "wow.schedule.RescheduleJob",
           "aliases": [],
-          "schema": "#/$defs/wow.schedule.Reschedule",
+          "schema": "#/$defs/wow.schedule.RescheduleJob",
           "creation": "none",
           "routes": [
             {
               "method": "POST",
-              "path": "/eshop-inventory/wow.schedule/{id}/reschedule"
+              "path": "/eshop-inventory/wow.schedule/{id}/reschedule-job"
             }
           ],
           "system": true
         },
         {
-          "name": "wow.schedule.Disable",
+          "name": "wow.schedule.DisableJob",
           "aliases": [],
-          "schema": "#/$defs/wow.schedule.Disable",
+          "schema": "#/$defs/wow.schedule.DisableJob",
           "creation": "none",
           "routes": [
             {
               "method": "POST",
-              "path": "/eshop-inventory/wow.schedule/{id}/disable"
+              "path": "/eshop-inventory/wow.schedule/{id}/disable-job"
             }
           ],
           "system": true
@@ -626,11 +626,11 @@
       "description": "Moves the aggregate to the space spaceId.",
       "x-wow-class": "me.ahoo.wow.api.lifecycle.TransferSpace"
     },
-    "wow.schedule.Disable": {
+    "wow.schedule.DisableJob": {
       "type": "object",
       "x-wow-class": "me.ahoo.wow.api.schedule.DisableJob"
     },
-    "wow.schedule.Enable": {
+    "wow.schedule.EnableJob": {
       "type": "object",
       "properties": {
         "job": { "type": "string" },
@@ -640,14 +640,14 @@
       "required": ["job"],
       "x-wow-class": "me.ahoo.wow.api.schedule.EnableJob"
     },
-    "wow.schedule.Reschedule": {
+    "wow.schedule.RescheduleJob": {
       "type": "object",
       "properties": {
         "rule": { "$ref": "#/$defs/me.ahoo.wow.api.schedule.JobRule-nullable" }
       },
       "x-wow-class": "me.ahoo.wow.api.schedule.RescheduleJob"
     },
-    "wow.snapshot.Rebuild": {
+    "wow.snapshot.RebuildSnapshot": {
       "type": "object",
       "properties": {
         "ids": { "type": "array", "items": { "type": "string" } }

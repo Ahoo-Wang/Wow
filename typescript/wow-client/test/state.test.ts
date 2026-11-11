@@ -183,7 +183,7 @@ describe('StateClient', () => {
               revision: 1,
               body: { title: 'Pear' },
             },
-            { name: 'wow.ScheduleCancelled', revision: 1, body: { key: 'k' } },
+            { name: 'wow.schedule.ScheduleCancelled', revision: 1, body: { key: 'k' } },
           ]),
         ],
       }),
@@ -199,7 +199,7 @@ describe('StateClient', () => {
             return event.body.ownerId;
           case 'eshop-catalog.product.ProductRenamed':
             return event.body.title;
-          case 'wow.ScheduleCancelled':
+          case 'wow.schedule.ScheduleCancelled':
             return event.body.key;
           default:
             return event.name;

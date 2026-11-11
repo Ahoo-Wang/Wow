@@ -143,13 +143,13 @@ class OpenApiRouteTest {
         val report = ScheduleJob("report", ScheduleRule.Cron("0 0 9 * * *"), JobScope.TENANT)
         val node = HttpNode(jobs = listOf(report), authorizer = operatorsOnly)
         val paths = node.get(WowPaths.OPENAPI).body!!["paths"]
-        listOf("enable", "reschedule", "disable").forEach { command ->
+        listOf("enable-job", "reschedule-job", "disable-job").forEach { command ->
             val operation = paths["/shop/wow.schedule/{id}/$command"]["post"]
             operation["tags"][0].asString().assert().isEqualTo("shop.schedule")
             operation["description"].asString().assert().contains("`report`")
         }
         val enabled = node.post(
-            "/shop/wow.schedule/report/enable",
+            "/shop/wow.schedule/report/enable-job",
             """{"job":"report"}""",
             user = OPERATOR,
             headers = mapOf("X-Tenant-Level" to "true"),

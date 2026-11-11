@@ -33,7 +33,7 @@ object SystemCommands {
     const val DELETE_AGGREGATE: String = Lifecycle.DELETE_AGGREGATE
 
     /** The rebuild of an aggregate type's snapshots, the ids in its body. */
-    const val REBUILD: String = "wow.snapshot.Rebuild"
+    const val REBUILD: String = "wow.snapshot.RebuildSnapshot"
 
     /** The name of a context's built-in job aggregate. */
     internal const val JOB_AGGREGATE: String = ScheduleJobs.AGGREGATE
@@ -63,12 +63,12 @@ object SystemCommands {
         return system(name, byId, own)
     }
 
-    /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild`. */
+    /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild-snapshot`. */
     @InternalWowApi
     fun rebuild(context: String, aggregate: String): CommandManifest =
         system(REBUILD, CommandRoutes.unaddressed(context, aggregate, REBUILD))
 
-    /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable`, ... */
+    /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable-job`, ... */
     @InternalWowApi
     fun jobs(context: String): List<CommandManifest> = JOBS.map { system(it, CommandRoutes.jobRoute(context, it)) }
 

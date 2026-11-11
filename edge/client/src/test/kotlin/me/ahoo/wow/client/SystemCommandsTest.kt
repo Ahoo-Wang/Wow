@@ -97,7 +97,7 @@ class SystemCommandsTest {
     @Test
     fun `a snapshot rebuild should go to its aggregate type's route`() {
         sent(CommandRequest.of(RebuildSnapshot.of(listOf("b-1", "b-2")), type = BOX)).let {
-            it.path.assert().isEqualTo("/mail/box/wow.snapshot.rebuild")
+            it.path.assert().isEqualTo("/mail/box/wow.snapshot.rebuild-snapshot")
             WowJson.mapper.readTree(it.body)["ids"].values().map { id -> id.asString() }
                 .assert().containsExactly("b-1", "b-2")
         }
@@ -107,9 +107,9 @@ class SystemCommandsTest {
     fun `a job's command should go to the job its id names, on the context's job aggregate`() {
         val jobs = AggregateType("mail", ScheduleJobs.AGGREGATE)
         sent(CommandRequest.of(DisableJob(), id = "sweep", type = jobs)).path
-            .assert().isEqualTo("/mail/wow.schedule/sweep/disable")
+            .assert().isEqualTo("/mail/wow.schedule/sweep/disable-job")
         sent(CommandRequest.of(EnableJob.of("sweep"), id = "sweep", type = jobs)).let {
-            it.path.assert().isEqualTo("/mail/wow.schedule/sweep/enable")
+            it.path.assert().isEqualTo("/mail/wow.schedule/sweep/enable-job")
             WowJson.mapper.readTree(it.body)["job"].asString().assert().isEqualTo("sweep")
         }
     }

@@ -79,7 +79,7 @@ class OpsConsoleTest {
         ops.post("/ops/parked/$id/retry", "{}", Who.OPERATOR).assertOk()
         eventually("the retry sent to $context") {
             ops.server.http.get("${LedgerSimulatorRoutes.PATH}/commands/$context").assertOk().text
-                .contains("wow.ledger.Retry")
+                .contains("wow.ledger.RetryParked")
         }
 
         val resolution = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",

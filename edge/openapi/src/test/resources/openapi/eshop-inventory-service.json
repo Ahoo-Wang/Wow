@@ -1008,12 +1008,12 @@
         }
       }
     },
-    "/eshop-inventory/stock/wow.snapshot.rebuild" : {
+    "/eshop-inventory/stock/wow.snapshot.rebuild-snapshot" : {
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
-        "summary" : "Rebuild",
-        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
-        "operationId" : "eshop-inventory.stock.wow.snapshot.Rebuild",
+        "summary" : "RebuildSnapshot",
+        "description" : "Sends `wow.snapshot.RebuildSnapshot`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-inventory.stock.wow.snapshot.RebuildSnapshot",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
         }, {
@@ -1037,7 +1037,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+                "$ref" : "#/components/schemas/wow.snapshot.RebuildSnapshot"
               }
             }
           }
@@ -1577,12 +1577,12 @@
         }
       }
     },
-    "/eshop-inventory/wow.schedule/{id}/enable" : {
+    "/eshop-inventory/wow.schedule/{id}/enable-job" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
-        "summary" : "Enable",
-        "description" : "Sends the job command `wow.schedule.Enable` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
-        "operationId" : "eshop-inventory.schedule.wow.schedule.Enable",
+        "summary" : "EnableJob",
+        "description" : "Sends the job command `wow.schedule.EnableJob` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.EnableJob",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
         }, {
@@ -1610,7 +1610,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.schedule.Enable"
+                "$ref" : "#/components/schemas/wow.schedule.EnableJob"
               }
             }
           }
@@ -1664,12 +1664,12 @@
         }
       }
     },
-    "/eshop-inventory/wow.schedule/{id}/reschedule" : {
+    "/eshop-inventory/wow.schedule/{id}/reschedule-job" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
-        "summary" : "Reschedule",
-        "description" : "Sends the job command `wow.schedule.Reschedule` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
-        "operationId" : "eshop-inventory.schedule.wow.schedule.Reschedule",
+        "summary" : "RescheduleJob",
+        "description" : "Sends the job command `wow.schedule.RescheduleJob` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.RescheduleJob",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
         }, {
@@ -1697,7 +1697,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.schedule.Reschedule"
+                "$ref" : "#/components/schemas/wow.schedule.RescheduleJob"
               }
             }
           }
@@ -1751,12 +1751,12 @@
         }
       }
     },
-    "/eshop-inventory/wow.schedule/{id}/disable" : {
+    "/eshop-inventory/wow.schedule/{id}/disable-job" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
-        "summary" : "Disable",
-        "description" : "Sends the job command `wow.schedule.Disable` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
-        "operationId" : "eshop-inventory.schedule.wow.schedule.Disable",
+        "summary" : "DisableJob",
+        "description" : "Sends the job command `wow.schedule.DisableJob` to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.DisableJob",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
         }, {
@@ -1784,7 +1784,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.schedule.Disable"
+                "$ref" : "#/components/schemas/wow.schedule.DisableJob"
               }
             }
           }
@@ -3103,7 +3103,7 @@
         },
         "required" : [ "ownerId" ]
       },
-      "wow.schedule.Enable" : {
+      "wow.schedule.EnableJob" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
         "properties" : {
@@ -3112,7 +3112,7 @@
           },
           "rule" : {
             "anyOf" : [ {
-              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+              "$ref" : "#/components/schemas/wow.JobRule"
             }, {
               "type" : "null"
             } ]
@@ -3124,25 +3124,25 @@
         },
         "required" : [ "job" ]
       },
-      "wow.schedule.Reschedule" : {
+      "wow.schedule.RescheduleJob" : {
         "type" : "object",
         "description" : "Overrides the instance's rule; null follows the job's default again.",
         "properties" : {
           "rule" : {
             "anyOf" : [ {
-              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+              "$ref" : "#/components/schemas/wow.JobRule"
             }, {
               "type" : "null"
             } ]
           }
         }
       },
-      "wow.schedule.Disable" : {
+      "wow.schedule.DisableJob" : {
         "type" : "object",
         "description" : "Stops the job instance.",
         "properties" : { }
       },
-      "wow.schedule.JobRule" : {
+      "wow.JobRule" : {
         "type" : "object",
         "description" : "An instance's own rule of a job; each part that is null follows the job's default.",
         "properties" : {
@@ -3158,7 +3158,7 @@
           }
         }
       },
-      "wow.snapshot.Rebuild" : {
+      "wow.snapshot.RebuildSnapshot" : {
         "type" : "object",
         "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the caller's tenant.",
         "properties" : {

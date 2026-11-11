@@ -20,10 +20,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
@@ -102,7 +102,7 @@ class ScheduleJobBindingTest {
         requestId = "r-1",
         commandType = ScheduleJobs.TICK,
         commitTime = 0,
-        events = listOf(Ticked("$ref#tick@1", slot, 0, 0)),
+        events = listOf(JobTicked("$ref#tick@1", slot, 0, 0)),
         state = JobState().apply { this.job = job },
     )
 

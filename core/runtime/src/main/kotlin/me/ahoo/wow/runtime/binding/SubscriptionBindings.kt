@@ -79,7 +79,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   any, right after the commands are executed, in their order; what it derives is executed too, but
  *   is not among the commands the saga's hop reports: the wait follows the committed command, not the receipt.
  * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule]) are derived
- *   commands too, the system commands `wow.schedule.Set` and `wow.schedule.Cancel` to their target, executed in order
+ *   commands too, the system commands `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule` to their target, executed in order
  *   with the others to that target; the command they schedule is named by the context's models and Manifests
  *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
  * - **Jobs**: a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the

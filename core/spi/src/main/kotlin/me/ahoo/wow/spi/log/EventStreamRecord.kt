@@ -71,8 +71,8 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  *   recorded them, or imported without them, until a stamp gives them. [accessVersion] is the version they are of:
  *   the stream's own when appended with them (the default when [access] is given), the stamp's after a stamp, null
  *   with [access]. A writer of a copy of them keeps the one of the later version, which values cannot tell.
- * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
- *   `wow.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
+ * - The schedules a decision set or cancelled are among its [events], as the system events `wow.schedule.ScheduleSet` and
+ *   `wow.schedule.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
  * - [rejection] is the rejection whose events this stream holds, when a decision rejected its command with events,
  *   from the headers under [REJECTION_PREFIX] (`wow.rejection.code`, `.message`, `.extensions`); null for a commit.
  *   Its events are ordinary events of the aggregate, which projections and sagas handle as any; a retry of the

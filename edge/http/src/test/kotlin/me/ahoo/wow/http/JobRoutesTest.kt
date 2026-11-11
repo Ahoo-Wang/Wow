@@ -43,9 +43,9 @@ class JobRoutesTest {
 
     /** The three job commands of `report`: each route's path and body. */
     private val commands = listOf(
-        "/shop/wow.schedule/report/enable" to """{"job":"report","rule":{"zone":"Asia/Shanghai"}}""",
-        "/shop/wow.schedule/report/reschedule" to """{"rule":null}""",
-        "/shop/wow.schedule/report/disable" to "{}",
+        "/shop/wow.schedule/report/enable-job" to """{"job":"report","rule":{"zone":"Asia/Shanghai"}}""",
+        "/shop/wow.schedule/report/reschedule-job" to """{"rule":null}""",
+        "/shop/wow.schedule/report/disable-job" to "{}",
     )
 
     @Test
@@ -102,7 +102,7 @@ class JobRoutesTest {
                 ),
             )
             .build()
-            .post().uri("/shop/wow.schedule/report/enable")
+            .post().uri("/shop/wow.schedule/report/enable-job")
             .header(WowHeaders.SERVICE, "ops-service")
             .header(WowHeaders.CALL, call)
             .header("Content-Type", "application/json")
@@ -115,7 +115,7 @@ class JobRoutesTest {
     @Test
     fun `an unknown job is refused as an invalid job command`() {
         val answer = node.post(
-            "/shop/wow.schedule/other/enable",
+            "/shop/wow.schedule/other/enable-job",
             """{"job":"other"}""",
             user = OPERATOR,
             headers = tenantLevel,
@@ -126,7 +126,7 @@ class JobRoutesTest {
 
     @Test
     fun `a context without jobs has no job routes`() {
-        HttpNode().post("/shop/wow.schedule/report/enable", """{"job":"report"}""").status.assert()
+        HttpNode().post("/shop/wow.schedule/report/enable-job", """{"job":"report"}""").status.assert()
             .isEqualTo(404)
     }
 }

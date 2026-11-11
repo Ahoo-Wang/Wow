@@ -55,7 +55,7 @@ Authorization happens at admission, before the command runs:
 
 The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
-The system commands of Wow's built-in aggregates follow the same rule on the public port: a scheduled job's commands (`POST /<context>/wow.schedule/{id}/enable`, `reschedule` and `disable`) and the snapshot rebuild of an aggregate type (`POST /<context>/<aggregate>/wow.snapshot.rebuild`). Without a command authorizer the public port refuses them to every caller (403 `wow.auth.forbidden`), the anonymous one included, and the host says so at startup. With one, the authorizer decides: under CoSec, a policy grants their actions ([below](#action-names)) to the operators. A service in gateway mode, which has no CoSec authorizer, needs an authorizer of its own for them. Only the public port refuses them: the jobs' own commands, the sagas' and the commands another service, such as ops, calls on the internal port are sent as before. An aggregate's lifecycle commands (`wow.lifecycle.*`) are on the aggregate itself, authorized and scope-checked as its domain commands are.
+The system commands of Wow's built-in aggregates follow the same rule on the public port: a scheduled job's commands (`POST /<context>/wow.schedule/{id}/enable-job`, `reschedule` and `disable`) and the snapshot rebuild of an aggregate type (`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`). Without a command authorizer the public port refuses them to every caller (403 `wow.auth.forbidden`), the anonymous one included, and the host says so at startup. With one, the authorizer decides: under CoSec, a policy grants their actions ([below](#action-names)) to the operators. A service in gateway mode, which has no CoSec authorizer, needs an authorizer of its own for them. Only the public port refuses them: the jobs' own commands, the sagas' and the commands another service, such as ops, calls on the internal port are sent as before. An aggregate's lifecycle commands (`wow.lifecycle.*`) are on the aggregate itself, authorized and scope-checked as its domain commands are.
 
 A command no client should ever send, such as a payment gateway's answer that a saga records, is marked `@InternalCommand` instead of being guarded by a policy alone, which one missing rule would undo. The public port serves no route of it: a request to one is answered `404`, the problem of any unknown path, whatever the caller and the policies, and the CoSec route map leaves it out ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). The internal port still takes it from the services `wow.callers.<service>.commands` permits, and the node's authorizers decide it as any command.
 
@@ -67,8 +67,8 @@ A command and a service route have one CoSec name, whether CoSec decides the HTT
 | --- | --- | --- |
 | A command | `<context>:<command>`, its name as the Manifest lists it: `eshop-ordering:CreateOrder`, `shop:wow.lifecycle.DeleteAggregate` | `<aggregate>/<id>`: `order/o-1` |
 | A command route that names no aggregate id, such as a creation | `<context>:<command>` | `<aggregate>`: `order` |
-| The snapshot rebuild of an aggregate type | `<context>:wow.snapshot.Rebuild` | `snapshot/<aggregate>` |
-| A scheduled job's command | `<context>:wow.schedule.Enable` and the other job commands | `schedule/<job>` |
+| The snapshot rebuild of an aggregate type | `<context>:wow.snapshot.RebuildSnapshot` | `snapshot/<aggregate>` |
+| A scheduled job's command | `<context>:wow.schedule.EnableJob` and the other job commands | `schedule/<job>` |
 | A service route | `<context>:<route>` | `route/<route>` |
 | A query or state route | `http:<METHOD>` | its path |
 

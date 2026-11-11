@@ -187,16 +187,16 @@ class OpenApiPathsTest {
         OpenApiChecks.check(document)
         @Suppress("UNCHECKED_CAST")
         val paths = document["paths"] as Map<String, Map<String, Map<String, Any?>>>
-        val enable = paths.getValue("/shop/wow.schedule/{id}/enable").getValue("post")
-        enable["operationId"].assert().isEqualTo("shop.schedule.wow.schedule.Enable")
-        schemaOf(enable["requestBody"]).assert().isEqualTo("#/components/schemas/wow.schedule.Enable")
+        val enable = paths.getValue("/shop/wow.schedule/{id}/enable-job").getValue("post")
+        enable["operationId"].assert().isEqualTo("shop.schedule.wow.schedule.EnableJob")
+        schemaOf(enable["requestBody"]).assert().isEqualTo("#/components/schemas/wow.schedule.EnableJob")
         paths.keys.assert().contains(
-            "/shop/wow.schedule/{id}/reschedule",
-            "/shop/wow.schedule/{id}/disable"
+            "/shop/wow.schedule/{id}/reschedule-job",
+            "/shop/wow.schedule/{id}/disable-job"
         )
         @Suppress("UNCHECKED_CAST")
         (document["tags"] as List<Map<String, Any?>>).map { it["name"] }.assert().contains("shop.schedule")
-        OpenApiChecks.validate(document, "wow.schedule.Enable", """{"job":"report","rule":{"misfire":"catch-up"}}""")
+        OpenApiChecks.validate(document, "wow.schedule.EnableJob", """{"job":"report","rule":{"misfire":"catch-up"}}""")
             .assert().isEmpty()
         val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
         invalid.assert().contains(FrameworkCodes.SCHEDULE_JOB_INVALID)
@@ -205,11 +205,11 @@ class OpenApiPathsTest {
 
     @Test
     fun `an aggregate that keeps snapshots should have the snapshot rebuild route`() {
-        val rebuild = operation("post", "/shop/cart/wow.snapshot.rebuild")
-        rebuild["operationId"].assert().isEqualTo("shop.cart.wow.snapshot.Rebuild")
-        schemaOf(rebuild["requestBody"]).assert().isEqualTo("#/components/schemas/wow.snapshot.Rebuild")
-        OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":["c-1"]}""").assert().isEmpty()
-        OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":[]}""").assert().isNotEmpty()
+        val rebuild = operation("post", "/shop/cart/wow.snapshot.rebuild-snapshot")
+        rebuild["operationId"].assert().isEqualTo("shop.cart.wow.snapshot.RebuildSnapshot")
+        schemaOf(rebuild["requestBody"]).assert().isEqualTo("#/components/schemas/wow.snapshot.RebuildSnapshot")
+        OpenApiChecks.validate(document, "wow.snapshot.RebuildSnapshot", """{"ids":["c-1"]}""").assert().isEmpty()
+        OpenApiChecks.validate(document, "wow.snapshot.RebuildSnapshot", """{"ids":[]}""").assert().isNotEmpty()
         val none = ManifestOpenApi.write(
             MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map { context ->
@@ -225,7 +225,7 @@ class OpenApiPathsTest {
             ),
         )
         @Suppress("UNCHECKED_CAST")
-        (none["paths"] as Map<String, Any?>).keys.assert().noneMatch { it.contains("wow.snapshot.rebuild") }
+        (none["paths"] as Map<String, Any?>).keys.assert().noneMatch { it.contains("wow.snapshot.rebuild-snapshot") }
     }
 
     @Test

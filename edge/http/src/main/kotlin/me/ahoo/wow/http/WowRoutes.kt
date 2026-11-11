@@ -407,7 +407,7 @@ private fun CoRouterFunctionDsl.commandRoutes(
 
 /**
  * The routes of [context]'s own commands ([ContextManifest.commands]): the job commands of its built-in job aggregate
- * when it has jobs, `POST /{context}/wow.schedule/{id}/enable`, `.../reschedule` and `.../disable`, the instance's id
+ * when it has jobs, `POST /{context}/wow.schedule/{id}/enable-job`, `.../reschedule` and `.../disable`, the instance's id
  * being the job's name.
  */
 private fun CoRouterFunctionDsl.contextRoutes(

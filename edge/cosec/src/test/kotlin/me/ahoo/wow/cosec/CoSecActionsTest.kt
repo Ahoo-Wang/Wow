@@ -64,11 +64,14 @@ class CoSecActionsTest {
     @Test
     fun `the system commands' routes are their actions on the aggregates they run on`() {
         resolve("DELETE", "/shop/cart/c-1").assert().isEqualTo("shop:wow.lifecycle.DeleteAggregate cart/c-1")
-        resolve("POST", "/shop/cart/wow.snapshot.rebuild").assert().isEqualTo("shop:wow.snapshot.Rebuild snapshot/cart")
         resolve(
             "POST",
-            "/shop/wow.schedule/report/enable"
-        ).assert().isEqualTo("shop:wow.schedule.Enable schedule/report")
+            "/shop/cart/wow.snapshot.rebuild-snapshot"
+        ).assert().isEqualTo("shop:wow.snapshot.RebuildSnapshot snapshot/cart")
+        resolve(
+            "POST",
+            "/shop/wow.schedule/report/enable-job"
+        ).assert().isEqualTo("shop:wow.schedule.EnableJob schedule/report")
     }
 
     @Test

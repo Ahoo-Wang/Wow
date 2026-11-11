@@ -178,7 +178,7 @@ internal class NodePublicPort {
         if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
             logger.info {
                 "No CommandAuthorizer bean: the public port refuses Wow's system commands of its built-in aggregates " +
-                    "(wow.schedule.*, wow.snapshot.Rebuild) with 403 until the application gives one; the jobs, the " +
+                    "(wow.schedule.*, wow.snapshot.RebuildSnapshot) with 403 until the application gives one; the jobs, the " +
                     "sagas and the internal port's calls send them as before."
             }
         }

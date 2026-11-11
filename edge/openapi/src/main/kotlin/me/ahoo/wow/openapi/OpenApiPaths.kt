@@ -169,7 +169,7 @@ internal class OpenApiPaths(
 
     /**
      * The job commands of [context]'s built-in job aggregate ([ContextManifest.commands]), when it has jobs:
-     * `POST /{context}/wow.schedule/{id}/enable`, ..., the id being the job's name.
+     * `POST /{context}/wow.schedule/{id}/enable-job`, ..., the id being the job's name.
      */
     private fun jobRoutes(context: ContextManifest) {
         val tag = "${context.name}.${WowSchemas.JOB_AGGREGATE}"

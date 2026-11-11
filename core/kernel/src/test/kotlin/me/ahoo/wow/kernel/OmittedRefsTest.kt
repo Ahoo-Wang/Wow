@@ -220,7 +220,7 @@ class OmittedRefsTest {
     @Test
     fun `an OnSchedule job's command of an id or a body should go to its class's aggregate, in the instance's tenant`() {
         val instance = AggregateType("inventory", "job").ref("acme", "nightly")
-        val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
+        val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.TickJob", 1L, listOf("ticked"), "state")
         // A job's handler gets the saga context of the job instance's commit, as an @OnEvent handler does.
         val saga =
             ExecutionSagaContext(

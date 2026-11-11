@@ -57,13 +57,13 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 }
 ```
 
-- `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.ScheduleSet`; a decision that only schedules commits just that.
+- `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.schedule.ScheduleSet`; a decision that only schedules commits just that.
 - `scope.cancelSchedule(key)` cancels it. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
 - The function declares the scheduled commands' classes in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them by full type name. The declaration is what the Manifest says; the kernel does not refuse a schedule it leaves out.
 
 ## Schedule from a saga
 
-A saga records the schedule in its `SagaContext`, from any of its handlers: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancel(key, target)` cancels it. The runtime sends both after the commands the handler returns, in the order the handler called them, as the system commands `wow.schedule.Set` and `wow.schedule.Cancel`. The target must exist; otherwise it rejects the `wow.schedule.Set`, which the saga's `@OnRejected` handler of `SetSchedule` gets. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`: scheduling a class it does not declare fails the handling for good, and the aggregate parks at once ([Write a Saga](./sagas#schedule-a-command)).
+A saga records the schedule in its `SagaContext`, from any of its handlers: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancel(key, target)` cancels it. The runtime sends both after the commands the handler returns, in the order the handler called them, as the system commands `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule`. The target must exist; otherwise it rejects the `wow.schedule.SetSchedule`, which the saga's `@OnRejected` handler of `SetSchedule` gets. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`: scheduling a class it does not declare fails the handling for good, and the aggregate parks at once ([Write a Saga](./sagas#schedule-a-command)).
 
 ## How a scheduled command is delivered
 
@@ -104,7 +104,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `name` | The job's name, unique in its context: letters, digits, `_` and `-` |
 | `cron` | Six fields, as Spring's `CronExpression` reads them: `0 0 6 * * *` is 06:00 every day. A macro such as `@daily` is read too |
 | `zone` | The zone `cron` is read in, UTC by default |
-| `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.Enable` in that tenant; the host never starts one, and each tenant may override the rule, its zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
+| `scope` | `SYSTEM`, the default: one instance, in the default tenant, enabled by the host at startup. `TENANT`: one instance per tenant, created by the system command `wow.schedule.EnableJob` in that tenant; the host never starts one, and each tenant may override the rule, its zone and its misfire. `SHARDED`: one instance per log partition, in the default tenant, enabled by the host at startup and run by the partition's owner for its own partition's aggregates, each ticked once per slot with `tick.partition` set |
 | `misfire` | `COALESCE`, the default: of the slots missed while no node ran the job, only the latest runs, and `skipped` counts the others. Its `due` is that slot's own time, a time the expression names, and `wow.timers.expires-after` judges it late from that time; beyond 100,000 missed slots `skipped` is an estimate. `CATCH_UP`: each missed slot runs |
 
 The host configures a job under `wow.schedules.<name>`, and only there, without a new build:
@@ -124,7 +124,7 @@ wow:
 
 An instance's own rule comes before the host's: a tenant's of a `TENANT` job, or one an operator set with `reschedule`. It is kept by the instance, so it outlives a restart.
 
-The job's instances also take commands over HTTP, `POST /<context>/wow.schedule/{id}/<command>`: `enable`, `reschedule`, `disable`, the job's name as the id. They are Wow's system commands, so the public port never allows them by default: a service without a command authorizer refuses them (403 `wow.auth.forbidden`), and with one, the authorizer decides. Under CoSec the action is `<context>:wow.schedule.Enable` (and the other job commands) on `schedule/<job>`, which a policy grants to the operators ([Action names](../operate/security#action-names)). The jobs' own commands, the sagas' and the commands ops sends on the internal port are not refused.
+The job's instances also take commands over HTTP, `POST /<context>/wow.schedule/{id}/<command>`: `enable`, `reschedule`, `disable`, the job's name as the id. They are Wow's system commands, so the public port never allows them by default: a service without a command authorizer refuses them (403 `wow.auth.forbidden`), and with one, the authorizer decides. Under CoSec the action is `<context>:wow.schedule.EnableJob` (and the other job commands) on `schedule/<job>`, which a policy grants to the operators ([Action names](../operate/security#action-names)). The jobs' own commands, the sagas' and the commands ops sends on the internal port are not refused.
 
 ## Test it
 

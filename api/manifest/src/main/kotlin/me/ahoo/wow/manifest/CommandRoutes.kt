@@ -33,7 +33,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - an aggregate's lifecycle commands: `DELETE /{context}/{aggregate}/{id}` for `wow.lifecycle.DeleteAggregate`
  *   ([deleteRoute]), `POST /{context}/{aggregate}/{id}/wow.lifecycle.<segment>` for the others ([byIdPath] of the
  *   system name: `wow.lifecycle.restore-aggregate`);
- * - an aggregate's snapshot rebuild: `POST /{context}/{aggregate}/wow.snapshot.rebuild`, the ids in its body
+ * - an aggregate's snapshot rebuild: `POST /{context}/{aggregate}/wow.snapshot.rebuild-snapshot`, the ids in its body
  *   ([unaddressed] of the system name);
  * - a context's schedule jobs: `POST /{context}/wow.schedule/{id}/<segment>`, the job's name as the id
  *   ([jobRoute]: `.../enable`, `.../reschedule`, `.../disable`).
@@ -142,8 +142,8 @@ object CommandRoutes {
         RouteManifest(DELETE, "/$context/$aggregate")
 
     /**
-     * The route of the schedule job command [name] (`wow.schedule.Enable`) of [context], to the job the path's id
-     * names: `POST /{context}/wow.schedule/{id}/enable`.
+     * The route of the schedule job command [name] (`wow.schedule.EnableJob`) of [context], to the job the path's id
+     * names: `POST /{context}/wow.schedule/{id}/enable-job`.
      */
     @InternalWowApi
     fun jobRoute(context: String, name: String): RouteManifest =

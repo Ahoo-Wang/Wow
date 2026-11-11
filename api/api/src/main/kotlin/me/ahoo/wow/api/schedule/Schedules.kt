@@ -174,7 +174,7 @@ enum class Misfire {
 }
 
 /**
- * The system command `wow.schedule.Set`: sets the schedule [key] of the aggregate it is sent to, to
+ * The system command `wow.schedule.SetSchedule`: sets the schedule [key] of the aggregate it is sent to, to
  * send it the command of type [commandType] (`context.aggregate.Command`), [command] its JSON, as [rule] says. Every
  * aggregate decides it without user code, on an aggregate that exists; a saga derives it
  * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]).
@@ -210,7 +210,7 @@ class SetSchedule @InternalWowApi constructor(
 }
 
 /**
- * The system command `wow.schedule.Cancel`: cancels the schedule [key] of the aggregate it is sent to.
+ * The system command `wow.schedule.CancelSchedule`: cancels the schedule [key] of the aggregate it is sent to.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -236,7 +236,7 @@ class CancelSchedule @InternalWowApi constructor(val key: String) {
 }
 
 /**
- * The system event `wow.ScheduleSet`: the aggregate set its schedule [key], to send [target] the command
+ * The system event `wow.schedule.ScheduleSet`: the aggregate set its schedule [key], to send [target] the command
  * of type [commandType], [command] its JSON, as [rule] says. Committed with the aggregate's other events; the built-in
  * `timers` subscription derives the timer store from it.
  *
@@ -278,7 +278,7 @@ class ScheduleSet @InternalWowApi constructor(
 }
 
 /**
- * The system event `wow.ScheduleCancelled`: the aggregate cancelled its schedule [key].
+ * The system event `wow.schedule.ScheduleCancelled`: the aggregate cancelled its schedule [key].
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -388,10 +388,10 @@ class ScheduleContext @InternalWowApi constructor(
 
 /** The names of the schedule system commands and events. */
 object Schedules {
-    const val SET: String = "wow.schedule.Set"
-    const val CANCEL: String = "wow.schedule.Cancel"
-    const val SCHEDULE_SET: String = "wow.ScheduleSet"
-    const val SCHEDULE_CANCELLED: String = "wow.ScheduleCancelled"
+    const val SET: String = "wow.schedule.SetSchedule"
+    const val CANCEL: String = "wow.schedule.CancelSchedule"
+    const val SCHEDULE_SET: String = "wow.schedule.ScheduleSet"
+    const val SCHEDULE_CANCELLED: String = "wow.schedule.ScheduleCancelled"
 
     /** The schedule system commands, by their names. */
     @JvmField

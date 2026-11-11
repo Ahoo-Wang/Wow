@@ -22,7 +22,7 @@ enum class JobScope {
     SYSTEM,
 
     /**
-     * One instance per tenant, created by the system command `wow.schedule.Enable` in that tenant, each tenant free to
+     * One instance per tenant, created by the system command `wow.schedule.EnableJob` in that tenant, each tenant free to
      * override the rule and its time zone.
      */
     TENANT,
@@ -74,7 +74,7 @@ class JobRule @InternalWowApi constructor(
 }
 
 /**
- * The system command `wow.schedule.Enable`: creates, or enables again, the instance of the job [job]
+ * The system command `wow.schedule.EnableJob`: creates, or enables again, the instance of the job [job]
  * it is sent to, the aggregate `<context>.schedule` whose id is the job's name in its tenant. [rule] overrides the
  * job's default rule (null keeps the instance's own override, if any); [partition] is the log partition of an
  * instance of a [JobScope.SHARDED] job, which the host enables.
@@ -105,7 +105,7 @@ class EnableJob @InternalWowApi constructor(val job: String, val rule: JobRule? 
 }
 
 /**
- * The system command `wow.schedule.Reschedule`: overrides the rule of the job instance it is sent to
+ * The system command `wow.schedule.RescheduleJob`: overrides the rule of the job instance it is sent to
  * with [rule]; null follows the job's default again.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -129,7 +129,7 @@ class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
 }
 
 /**
- * The system command `wow.schedule.Disable`: stops the job instance it is sent to.
+ * The system command `wow.schedule.DisableJob`: stops the job instance it is sent to.
  *
  * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
  * with one, a bare `DisableJob` would compile as that object, a value equal to no DisableJob, and as a `when`
@@ -144,7 +144,7 @@ class DisableJob {
 }
 
 /**
- * The system command `wow.schedule.Tick`: the schedule of a job instance is due; the slot is the
+ * The system command `wow.schedule.TickJob`: the schedule of a job instance is due; the slot is the
  * command's [ScheduleContext]. Only a slot newer than the last one ticks.
  *
  * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
@@ -160,7 +160,7 @@ class TickJob {
 }
 
 /**
- * The system event `wow.JobEnabled`: the instance of [job] runs by [rule], [override] its own part of it.
+ * The system event `wow.schedule.JobEnabled`: the instance of [job] runs by [rule], [override] its own part of it.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -189,7 +189,7 @@ class JobEnabled @InternalWowApi constructor(
 }
 
 /**
- * The system event `wow.JobRescheduled`: the instance runs by [rule] from now on, [override] its own part of it.
+ * The system event `wow.schedule.JobRescheduled`: the instance runs by [rule] from now on, [override] its own part of it.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -212,7 +212,7 @@ class JobRescheduled @InternalWowApi constructor(val rule: ScheduleRule.Cron, va
 }
 
 /**
- * The system event `wow.JobDisabled`: the instance does not run until it is enabled again.
+ * The system event `wow.schedule.JobDisabled`: the instance does not run until it is enabled again.
  *
  * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
  * with one, a bare `JobDisabled` would compile as that object, a value equal to no JobDisabled, and as a `when`
@@ -227,25 +227,25 @@ class JobDisabled {
 }
 
 /**
- * The system event `wow.Ticked`: the instance ran the [slot] of its [timer], due at [due], after [skipped] slots the
+ * The system event `wow.schedule.JobTicked`: the instance ran the [slot] of its [timer], due at [due], after [skipped] slots the
  * schedule coalesced.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class Ticked @InternalWowApi constructor(val timer: String, val slot: Long, val skipped: Long, val due: Long) {
+class JobTicked @InternalWowApi constructor(val timer: String, val slot: Long, val skipped: Long, val due: Long) {
     override fun equals(other: Any?): Boolean =
-        this === other || other is Ticked && valueFields() == other.valueFields()
+        this === other || other is JobTicked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "Ticked(timer=$timer, slot=$slot, skipped=$skipped, due=$due)"
+    override fun toString(): String = "JobTicked(timer=$timer, slot=$slot, skipped=$skipped, due=$due)"
 
     private fun valueFields(): List<Any?> = listOf(timer, slot, skipped, due)
 
     companion object {
-        /** A Ticked of the given fields; parameters added later come last, with a default. */
+        /** A JobTicked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(timer: String, slot: Long, skipped: Long, due: Long): Ticked = Ticked(timer, slot, skipped, due)
+        fun of(timer: String, slot: Long, skipped: Long, due: Long): JobTicked = JobTicked(timer, slot, skipped, due)
     }
 }
 
@@ -301,14 +301,14 @@ object ScheduleJobs {
     /** The component the commands of a job run as: `system:schedule`. */
     const val COMPONENT: String = "schedule"
 
-    const val ENABLE: String = "wow.schedule.Enable"
-    const val RESCHEDULE: String = "wow.schedule.Reschedule"
-    const val DISABLE: String = "wow.schedule.Disable"
-    const val TICK: String = "wow.schedule.Tick"
-    const val JOB_ENABLED: String = "wow.JobEnabled"
-    const val JOB_RESCHEDULED: String = "wow.JobRescheduled"
-    const val JOB_DISABLED: String = "wow.JobDisabled"
-    const val TICKED: String = "wow.Ticked"
+    const val ENABLE: String = "wow.schedule.EnableJob"
+    const val RESCHEDULE: String = "wow.schedule.RescheduleJob"
+    const val DISABLE: String = "wow.schedule.DisableJob"
+    const val TICK: String = "wow.schedule.TickJob"
+    const val JOB_ENABLED: String = "wow.schedule.JobEnabled"
+    const val JOB_RESCHEDULED: String = "wow.schedule.JobRescheduled"
+    const val JOB_DISABLED: String = "wow.schedule.JobDisabled"
+    const val TICKED: String = "wow.schedule.JobTicked"
 
     /** The job system commands, by their names. */
     @JvmField
@@ -325,7 +325,7 @@ object ScheduleJobs {
         JOB_ENABLED to JobEnabled::class.java,
         JOB_RESCHEDULED to JobRescheduled::class.java,
         JOB_DISABLED to JobDisabled::class.java,
-        TICKED to Ticked::class.java,
+        TICKED to JobTicked::class.java,
     )
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }

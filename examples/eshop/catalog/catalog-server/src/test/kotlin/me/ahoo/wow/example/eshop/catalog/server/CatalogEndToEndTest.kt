@@ -164,7 +164,7 @@ class CatalogEndToEndTest {
      */
     @Test
     fun `the snapshot rebuild should be an employee's alone, not the anonymous caller's nor a buyer's (UI-50)`() {
-        val rebuild = "/eshop-catalog/product/wow.snapshot.rebuild"
+        val rebuild = "/eshop-catalog/product/wow.snapshot.rebuild-snapshot"
         for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
             server.http.post(rebuild, """{"ids":["p-1"]}""", caller = caller).problem!!
                 .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)

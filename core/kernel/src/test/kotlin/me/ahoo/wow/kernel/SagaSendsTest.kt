@@ -23,9 +23,9 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -192,7 +192,7 @@ class SagaSendsTest {
             val tick = stateEvent(
                 ScheduleJobModel.refOf("shop", "nightly"),
                 JobState().apply { this.job = "nightly" },
-                Ticked("t", 1, 0, 0),
+                JobTicked("t", 1, 0, 0),
             )
             job.invoke(
                 tick,
