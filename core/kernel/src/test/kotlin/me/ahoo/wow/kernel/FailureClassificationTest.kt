@@ -72,6 +72,27 @@ class FailureClassificationTest {
     }
 
     @Test
+    fun `the kernel's own failures are classified before a handler's lists, whatever they name`() {
+        val retryAll = HandlerRetry(
+            recoverable = listOf(IllegalStateException::class.java, IllegalArgumentException::class.java),
+        )
+        listOf(
+            UndeclaredSendException("shop.saga", String::class.java, "derives"),
+            InvalidDerivedRequestException("No command request."),
+            Misuse.State("No URL calls context x."),
+            Misuse.Argument("No aggregate has a state of X."),
+            // Wrapped, as a handler may rethrow it.
+            IllegalStateException("wrapped", UndeclaredSendException("shop.saga", String::class.java, "derives")),
+        ).forEach { classification.classify(it, retryAll).assert().isEqualTo(FailureClass.UNRECOVERABLE) }
+        val parkAll = HandlerRetry(unrecoverable = listOf(IllegalStateException::class.java))
+        val cart = AggregateType("shop", "cart").ref("tenant", "c-1")
+        val late = HandlerTimeoutException("shop.saga", cart, 3, 5.seconds)
+        classification.classify(late, parkAll).assert().isEqualTo(FailureClass.RECOVERABLE)
+        // The handler's own failure of the same class is still its list's.
+        classification.classify(IllegalStateException("mine"), parkAll).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+    }
+
+    @Test
     fun `the application's classifiers come before the modules', the modules' before the caller's own and the built-in`() {
         val down = StorageUnavailableException("down")
         val module = FailureClassifier {
