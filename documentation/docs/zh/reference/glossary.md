@@ -23,7 +23,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Backpressure | 背压 | 系统某部分负载高的信号，例如繁忙拒绝或等待超时；订阅对它的回应是放慢，而不是暂停或停放。见[订阅](../concepts/subscriptions#failures-park-one-aggregate)。 |
 | Bounded context | 限界上下文 | 领域的一部分，有自己的模型、自己的日志和自己的公开语言。见[上下文之间](../concepts/cross-context)。 |
 | Bulkhead | 舱壁 | 带短队列的并发上限，防止查询用光写入需要的连接。见[读模型](../concepts/read-models#reads-must-not-slow-down-writes)。 |
-| Caller | 调用方 | 发出请求的一方，即宿主认证的结果：租户、作用域、主体标识、属性，以及它是不是服务；只存活于请求期间。见[身份](../concepts/identity#who-the-caller-is)。 |
+| Caller | 调用方 | 发出请求的一方，即宿主认证的结果：租户、作用域、主体标识、属性，以及它是不是服务；它随命令到达决策它的节点，但从不被记录，提交只保留它的操作人。见[身份](../concepts/identity#who-the-caller-is)。 |
 | Causation | 因果 | Saga 产生的命令提交时记录的根命令和直接原因。 |
 | Chain | 等待链 | 由多跳组成、可能跨上下文的等待计划：先是命令自身按顺序的各阶段；只有在 Saga 的 `HANDLED` 跳之后，才能接它派生的命令的跳。见[等待结果](../concepts/waits#waiting-for-a-chain)。 |
 | Checkpoint | 检查点 | 订阅已处理完一个分区中所有条目的那个位置。见[订阅](../concepts/subscriptions#how-subscriptions-read-the-log)。 |

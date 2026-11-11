@@ -44,7 +44,7 @@ For each request, the host's caller resolver turns the authenticated principal i
 - further **attributes**, its claims, such as its roles or its departments, which access policies read;
 - whether it is a **service** of the system rather than a user.
 
-The caller lives only as long as the request. What a commit keeps of it is the **operator**: the subject, the operator's own tenant, and whether it acted in another tenant or scope. Roles, attributes and personal information never enter the log.
+The caller travels with the command to the node that decides it, through the cluster channel and the command topics, and is never recorded. What a commit keeps of it is the **operator**: the subject, the operator's own tenant, and whether it acted in another tenant or scope. Roles, attributes and personal information never enter the log.
 
 Callers come in two levels. An **owner-level** caller, whose scope has an owner, reads and writes only its own aggregates. A **tenant-level** caller, whose scope has no owner, reads and writes every aggregate of its tenant, for example a member of staff who ships orders. A space the caller acts in narrows both. An aggregate that belongs to its tenant has no owner to compare, so callers of both levels read it ([Who reads it](../guide/ownership#who-reads-it)). Which actions each may perform is decided by authorization, below.
 
