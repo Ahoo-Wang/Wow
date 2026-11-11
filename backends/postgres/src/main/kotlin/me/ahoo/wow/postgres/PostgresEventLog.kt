@@ -200,7 +200,7 @@ class PostgresEventLog(
         completed: Boolean,
     ): Boolean = logAccess.advance(type, schema, cursor, walked, completed)
 
-    override fun serves(schemas: Map<AggregateType, String>) {
+    override fun serve(schemas: Map<AggregateType, String>) {
         catalog.served = schemas.filterKeys { it.context == context }.mapKeys { (type, _) -> type.name }
     }
 

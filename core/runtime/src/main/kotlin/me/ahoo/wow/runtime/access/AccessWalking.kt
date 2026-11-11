@@ -278,12 +278,12 @@ class AccessWalking(
     }
 
     /**
-     * Tells each type's log the access schema this node serves for it ([AccessWalks.serves]), before the log creates
+     * Tells each type's log the access schema this node serves for it ([AccessWalks.serve]), before the log creates
      * any of their stores: a store it creates then records its walk completed. The node's assembly calls it.
      */
     fun serve() {
         schemas.keys.groupBy { checkNotNull(walksOf(it)) }.forEach { (walks, types) ->
-            walks.serves(types.associateWith { schemas.getValue(it) })
+            walks.serve(types.associateWith { schemas.getValue(it) })
         }
     }
 
@@ -321,8 +321,22 @@ class AccessWalking(
                 walk == null || walk.schema != schema || !walk.completed -> claim(type, schema)
                 walk.walked != 0L -> Unit
                 mixed(type, schema) -> crossed += type
-                crossed.remove(type) -> record(type, checkNotNull(walksOf(type)), schema, expected = schema)
+                crossed.remove(type) -> reclaim(type, schema)
             }
+        }
+    }
+
+    /**
+     * Claims the walk of [type] for [schema] again over the log's heads, while the log still records it completed with
+     * nothing walked; else takes the one recorded, which another node of [schema] claimed again already.
+     */
+    private suspend fun reclaim(type: AggregateType, schema: String) {
+        val walks = checkNotNull(walksOf(type))
+        val recorded = walks.walk(type)
+        if (recorded != null && recorded.schema == schema && recorded.completed && recorded.walked == 0L) {
+            record(type, walks, schema, expected = schema)
+        } else {
+            recorded?.let { walked[type] = it }
         }
     }
 

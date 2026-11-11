@@ -54,7 +54,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
-    /** The walk of each type, as [claim] and [advance] recorded it, or its first append ([serves]). */
+    /** The walk of each type, as [claim] and [advance] recorded it, or its first append ([serve]). */
     private val walks = HashMap<AggregateType, AccessWalk>()
 
     /** The types the log holds a stream of: their stores exist. */
@@ -129,7 +129,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     /** Whether a stream of [type] was appended: the store of a type's history is its streams. */
     override suspend fun holds(type: AggregateType): Boolean = lock.withLock { type in held }
 
-    override fun serves(schemas: Map<AggregateType, String>) {
+    override fun serve(schemas: Map<AggregateType, String>) {
         served = schemas
     }
 

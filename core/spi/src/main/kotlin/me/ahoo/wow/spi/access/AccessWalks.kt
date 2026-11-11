@@ -28,7 +28,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * None of these creates the store of a type's history (its collection, its table): a type the log holds none of
  * ([holds]) has nothing to walk, and its first append creates its store as it would without walks. The step that
- * creates it records the walk completed for the schema the log [serves] for the type, if any.
+ * creates it records the walk completed for the schema the log [serve] for the type, if any.
  */
 @InternalWowApi
 interface AccessWalks : AccessStamps {
@@ -73,7 +73,7 @@ interface AccessWalks : AccessStamps {
      * claims the walk again over the log's heads then. It rests on a node of the schema that stays that saw the other
      * and is still up once it is gone, which a rolling deployment gives.
      */
-    fun serves(schemas: Map<AggregateType, String>) = Unit
+    fun serve(schemas: Map<AggregateType, String>)
 }
 
 /** A page of a type's aggregates ([AccessWalks.aggregates]), and the cursor of the next one; null after the last. */
@@ -123,7 +123,7 @@ data class AccessWalk(
         const val IMPORTING: String = "wow.import"
 
         /**
-         * The walk the creation of a type's store records for [schema], the one its log [AccessWalks.serves]:
+         * The walk the creation of a type's store records for [schema], the one its log [AccessWalks.serve]:
          * completed, with nothing walked and no heads.
          */
         fun created(schema: String): AccessWalk = AccessWalk(schema, emptyMap(), completed = true)

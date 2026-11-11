@@ -186,7 +186,7 @@ abstract class EventLogAccessCases internal constructor() : EventLogRecordCases(
             val log = createLog()
             Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
             val walks = log as AccessWalks
-            walks.serves(mapOf(type to "region:string"))
+            walks.serve(mapOf(type to "region:string"))
             walks.walk(type).assert().isNull()
             log.append(stream("a-1", 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
             walks.walk(type).assert().isEqualTo(AccessWalk.created("region:string"))
@@ -197,7 +197,7 @@ abstract class EventLogAccessCases internal constructor() : EventLogRecordCases(
                 // Another node, of another schema, makes sure of the store the first created: the walk stays.
                 val second = createLog()
                 val secondWalks = second as AccessWalks
-                secondWalks.serves(mapOf(type to "teams:string[]"))
+                secondWalks.serve(mapOf(type to "teams:string[]"))
                 second.append(stream("a-2", 1))
                 secondWalks.walk(type).assert().isEqualTo(AccessWalk.created("region:string"))
             }

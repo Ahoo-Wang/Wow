@@ -178,7 +178,7 @@ class StoreActivityTest {
             val memory = InMemoryEventLog(2)
             val tracked = trackedLog(memory, StoreActivity(StoreActivity.LOG, "bank"))
             val ref = me.ahoo.wow.runtime.subscription.cart("c-1")
-            (tracked as AccessWalks).serves(mapOf(ref.type to "region:string"))
+            (tracked as AccessWalks).serve(mapOf(ref.type to "region:string"))
             Appender(tracked).append("c-1")
             memory.walk(ref.type).assert().isEqualTo(AccessWalk.created("region:string"))
         }

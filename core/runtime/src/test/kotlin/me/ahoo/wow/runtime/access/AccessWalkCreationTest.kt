@@ -118,12 +118,48 @@ class AccessWalkCreationTest : AccessWalkingFixtures() {
         }
 
     @Test
+    fun `of two nodes of the schema that stays, the second takes the walk the first claimed again, and walks nothing`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            val leases = InMemoryLeaseStore()
+            val first = walking(log, leases)
+            val second = AccessWalking(
+                "office",
+                "service/office",
+                "n-2",
+                listOf(model),
+                Kernel(log),
+                { log },
+                leases,
+                options,
+                observer = observer,
+            )
+            first.serve()
+            committed(log, listOf("d-1"), "sales")
+            leases.olderNode()
+            unstamped(log, listOf("d-2"), "legal")
+            // Each reads the walk recorded at creation, then sees the older node.
+            listOf(first, second).forEach { it.maintain() }
+            listOf(first, second).forEach { it.maintain() }
+            leases.leave(members, "n-0")
+            // The first claims it again and walks both aggregates; the second reads that walk and takes it.
+            first.maintain().assert().isFalse()
+            second.maintain().assert().isFalse()
+            log.walk(type)!!.let {
+                it.walked.assert().isEqualTo(2)
+                it.completed.assert().isTrue()
+            }
+            second.walks().getValue(type).walked.assert().isEqualTo(2)
+            walked().assert().hasSize(2)
+        }
+
+    @Test
     fun `a store an older schema created while this one appended is walked once the older one's nodes are gone`(): Unit =
         runBlocking {
             val log = InMemoryEventLog()
             val leases = InMemoryLeaseStore()
             // A node of the older schema creates the store, which records its walk.
-            log.serves(mapOf(type to older))
+            log.serve(mapOf(type to older))
             leases.olderNode()
             unstamped(log, listOf("d-1"), "sales")
             log.walk(type).assert().isEqualTo(AccessWalk.created(older))
