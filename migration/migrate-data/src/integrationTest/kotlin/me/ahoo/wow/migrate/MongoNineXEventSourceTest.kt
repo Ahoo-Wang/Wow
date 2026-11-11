@@ -33,7 +33,9 @@ class MongoNineXEventSourceTest {
         inventories.getValue(order).also {
             it.streams.assert().isEqualTo(4)
             it.events.assert().containsEntry(NineXEventType("order_created", "0.0.1"), 1L)
-            it.commands.assert().isEqualTo(mapOf("create_order" to 1L, "change_address" to 1L, "pay_order" to 1L, "ship_order" to 1L))
+            it.commands.assert().isEqualTo(
+                mapOf("create_order" to 1L, "change_address" to 1L, "pay_order" to 1L, "ship_order" to 1L)
+            )
             it.streamsWithoutCommand.assert().isEqualTo(0)
         }
         inventories.getValue(cart).commands.assert().containsEntry("add_cart_item", 2L)
@@ -54,7 +56,8 @@ class MongoNineXEventSourceTest {
             .replace("\"body\":{}}]", "\"body\":{}},$noted]")
         NineXMongoStore.insert(database, twice)
         NineXMongoStore.insert(database, reversed)
-        val shape = setOf(NineXEventType("order_noted", NineXStream.DEFAULT_REVISION), NineXEventType("order_shipped", "0.0.1"))
+        val shape =
+            setOf(NineXEventType("order_noted", NineXStream.DEFAULT_REVISION), NineXEventType("order_shipped", "0.0.1"))
         source.inventory().first { it.aggregate == order }.streamEventTypes.assert()
             .containsEntry(shape, 2L)
             .containsEntry(setOf(NineXEventType("order_shipped", "0.0.1")), 1L)
@@ -72,12 +75,14 @@ class MongoNineXEventSourceTest {
     @Test
     fun `the inventory counts a stream whose command header is blank as recording no command`() {
         val text = NineXExample.resource("order-stream-v1.json")
-        fun blank(command: String, id: String) = text.replace("\"upstream_name\":\"create_order\"", "\"upstream_name\":\"$command\"")
-            .replace("0VY3GwaK4OmV00E", "$id-order").replace("0VY3Gwb94OmV00H", "$id-stream")
+        fun blank(command: String, id: String) =
+            text.replace("\"upstream_name\":\"create_order\"", "\"upstream_name\":\"$command\"")
+                .replace("0VY3GwaK4OmV00E", "$id-order").replace("0VY3Gwb94OmV00H", "$id-stream")
         NineXMongoStore.insert(database, blank("", "empty"))
         NineXMongoStore.insert(database, blank(" ", "blank"))
         source.inventory().first { it.aggregate == order }.run {
-            commands.keys.assert().containsExactlyInAnyOrder("create_order", "change_address", "pay_order", "ship_order")
+            commands.keys.assert()
+                .containsExactlyInAnyOrder("create_order", "change_address", "pay_order", "ship_order")
             commands.assert().containsEntry("create_order", 1L)
             streamsWithoutCommand.assert().isEqualTo(2)
         }
@@ -122,14 +127,18 @@ class MongoNineXEventSourceTest {
         val text = NineXExample.resource("order-stream-v1.json")
         fun insert(stream: String, aggregateId: String?, tenantId: String = "(0)") = NineXMongoStore.insert(
             database,
-            text.replace("\"0VY3Gwb94OmV00H\"", "\"$stream\"").replace("\"tenantId\":\"(0)\"", "\"tenantId\":\"$tenantId\"")
+            text.replace("\"0VY3Gwb94OmV00H\"", "\"$stream\"")
+                .replace("\"tenantId\":\"(0)\"", "\"tenantId\":\"$tenantId\"")
                 .replace(
                     "\"aggregateId\":\"0VY3GwaK4OmV00E\",",
                     aggregateId?.let { "\"aggregateId\":${RefusedIds.quoted(it)}," }.orEmpty(),
                 ),
         )
         insert("absent", null)
-        NineXMongoStore.insert(database, text.replace("\"0VY3Gwb94OmV00H\"", "\"null\"").replace("\"0VY3GwaK4OmV00E\"", "null"))
+        NineXMongoStore.insert(
+            database,
+            text.replace("\"0VY3Gwb94OmV00H\"", "\"null\"").replace("\"0VY3GwaK4OmV00E\"", "null")
+        )
         insert("empty", "")
         insert("empty-t2", "", tenantId = "t2")
         insert("blank", " ")
@@ -172,9 +181,11 @@ class MongoNineXEventSourceTest {
         insert("absent", "o-1", null)
         insert("blank", "o-1", " ")
         insert("other", "o-2", "")
-        source.inventory().first { it.aggregate == order }.tenantless.assert().isEqualTo(mapOf("o-1" to 2L, "o-2" to 1L))
+        source.inventory().first { it.aggregate == order }.tenantless
+            .assert().isEqualTo(mapOf("o-1" to 2L, "o-2" to 1L))
         // Each reads as of the blank tenant, as the in-memory store reads it.
-        source.aggregateIds(order, null, 10).filter { it.id == "o-2" }.assert().containsExactly(NineXAggregateId("o-2", ""))
+        source.aggregateIds(order, null, 10).filter { it.id == "o-2" }
+            .assert().containsExactly(NineXAggregateId("o-2", ""))
         source.tenantsOf(order, "o-1").assert().containsExactly("", " ")
         // The walk reads them as streams does: no stream of the absent tenant, the blank ones by their own tenant.
         source.instances(order, null, 10, 100).filter { it.id.id.startsWith("o-") }
@@ -202,7 +213,8 @@ class MongoNineXEventSourceTest {
 
         val committed = source.committedSince(order, first.createTime, null, 2)
         committed.map { it.version }.assert().containsExactly(1, 1)
-        val next = source.committedSince(order, first.createTime, committed.last().let { NineXPosition(it.createTime, it.id) }, 10)
+        val after = committed.last().let { NineXPosition(it.createTime, it.id) }
+        val next = source.committedSince(order, first.createTime, after, 10)
         next.map { it.version }.assert().containsExactly(2, 3, 4)
         source.committedSince(order, Long.MAX_VALUE, null, 10).assert().isEmpty()
 

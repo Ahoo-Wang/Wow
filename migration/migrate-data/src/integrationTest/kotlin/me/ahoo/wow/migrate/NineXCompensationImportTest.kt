@@ -35,13 +35,13 @@ import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -107,6 +107,7 @@ class NineXCompensationImportTest {
     private val printed: String get() = output.toString()
 
     @Test
+    @Suppress("LongMethod") // One import, then the ledger and the ops API over it, in the order an operator meets them.
     fun `the unresolved 9x executions import into the failure ledger on MongoDB, and the ops API resumes them`(): Unit =
         runBlocking {
             val target = """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET" }"""
@@ -115,14 +116,18 @@ class NineXCompensationImportTest {
             run("import", "--config", config(target, NineXExample.MAP_TEXT).toString()).assert()
                 .isEqualTo(MigrateData.FAILED)
             printed.assert()
-                .contains("  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)")
+                .contains(
+                    "  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)"
+                )
                 .contains(
                     "the 9.x processor function example-service.CartSaga.onOrderCreated (2 unresolved executions) " +
                         "has no subscription mapping: its failures would be lost",
                 )
                 .contains("the 9.x processor function example-service.OrderSaga.onEvent (1 unresolved executions)")
                 .contains("the 9.x processor function example-service.OrderSaga.onStateEvent (1 unresolved executions)")
-                .contains("the 9.x processor function example-service.OrderProjector.onOrderPaid (1 unresolved executions)")
+                .contains(
+                    "the 9.x processor function example-service.OrderProjector.onOrderPaid (1 unresolved executions)"
+                )
                 .doesNotContain("streams imported")
 
             val config = config(target)
@@ -197,7 +202,11 @@ class NineXCompensationImportTest {
             page.entries.map { it.entry.subscription.name }.assert()
                 .containsExactly(CART_SAGA, ORDER_CREATED, ORDER_STATE)
             page.entries.map { it.status }.assert()
-                .containsExactly(ParkedView.Status.SCHEDULED, ParkedView.Status.SCHEDULED, ParkedView.Status.UNRECOVERABLE)
+                .containsExactly(
+                    ParkedView.Status.SCHEDULED,
+                    ParkedView.Status.SCHEDULED,
+                    ParkedView.Status.UNRECOVERABLE
+                )
             // 9.x's next retry for the first; the second's by its applied spec, after its retry started.
             page.entries.map { it.nextRetryAt }.assert()
                 .containsExactly(FAILED_AT + 180_000, FAILED_AT + 180_000 + 120_000, null)
@@ -260,7 +269,8 @@ class NineXCompensationImportTest {
             "DIFFERS V10 $ORDER_CREATED $ref parked from v1: the 9.x execution 0VYC0mp1nA0002 (example-service." +
                 "OrderSaga.onEvent on example-service.order/(0)/$ORDER_ID v1) it was imported for is succeeded in 9.x",
         )
-        run("import", "--config", config.toString(), "--restart").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        run("import", "--config", config.toString(), "--restart")
+            .assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("RESOLVED $ORDER_CREATED $ref from v1")
         ledger.parked(orderCreated, ref).assert().isNull()
         ledger.parked(cartSaga, ref).assert().isNotNull()

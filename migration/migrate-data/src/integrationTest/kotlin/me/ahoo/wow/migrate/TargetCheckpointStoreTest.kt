@@ -89,7 +89,8 @@ class TargetCheckpointStoreTest {
             table.write("m", 0, first, mapOf("import" to 1L)).assert().describedAs(backend.name).isTrue()
             // A second first write, or a write over an older version, loses.
             table.write("m", 0, first, mapOf("import" to 1L)).assert().describedAs(backend.name).isFalse()
-            table.load("m").assert().describedAs(backend.name).isEqualTo(StoredCheckpoints(first, 1, mapOf("import" to 1L)))
+            table.load("m").assert().describedAs(backend.name)
+                .isEqualTo(StoredCheckpoints(first, 1, mapOf("import" to 1L)))
 
             val paused = TargetCheckpointRepository(table, "m", held(CheckpointRole.IMPORT to 1))
             val pausedKeys = TargetImportedKeys(table, "m", held(CheckpointRole.IMPORT to 1), pageSize = 2)
@@ -195,7 +196,13 @@ class TargetCheckpointStoreTest {
     private fun migrate(target: String) {
         val nineX = NineXMongoStore.example()
         val first = NineXExample.stream("order-stream-v1.json")
-        NineXMongoStore.prepare(nineX, "order_no", "NO-1", Document("orderId", first.aggregateId.id), NineXPreparedKey.TTL_FOREVER)
+        NineXMongoStore.prepare(
+            nineX,
+            "order_no",
+            "NO-1",
+            Document("orderId", first.aggregateId.id),
+            NineXPreparedKey.TTL_FOREVER
+        )
         val map = NineXExample.MAP_TEXT.replace(
             "\"to\": \"example.order\",",
             """

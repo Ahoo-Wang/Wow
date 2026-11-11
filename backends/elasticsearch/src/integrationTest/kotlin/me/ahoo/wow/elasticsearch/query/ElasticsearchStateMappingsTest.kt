@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
@@ -39,20 +40,19 @@ import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
-import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.querySchema
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.io.StringReader
-import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /** How each logical value of a state schema maps, and how lists stream past one page. */
 class ElasticsearchStateMappingsTest {
@@ -125,7 +125,12 @@ class ElasticsearchStateMappingsTest {
             },
         ).get()
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
-        val report = queries.manageIndexes(type, schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), declaration).let { QueryIndexPlan.of(it, emptyList()) })
+        val none = ElasticsearchSnapshotQueries(
+            ElasticsearchFixture.client,
+            ElasticsearchFixture.names,
+            me.ahoo.wow.spi.Ddl.NONE,
+        )
+        val report = queries.manageIndexes(type, schema(none, declaration).let { QueryIndexPlan.of(it, emptyList()) })
         report.invalid.assert().containsExactlyInAnyOrder("state.flat", "state.active")
         report.created.assert().contains("state.name", "state.day", "state.score", "state.labels", "state.codes", "state.matrix", "state.address.city", "state.parts", "state.parts.code", "state.flat.inner")
         report.created.assert().doesNotContain("state.either", "state.address.geo.lat")
@@ -139,15 +144,21 @@ class ElasticsearchStateMappingsTest {
         mapping.fields.getValue("state.flat.inner").kind.assert().isEqualTo(Property.Kind.Keyword)
         mapping.fields.containsKey("state.either").assert().isFalse()
         // Validate reports, without creating, what a new schema lacks.
-        val validating = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.VALIDATE)
+        val validating = ElasticsearchSnapshotQueries(
+            ElasticsearchFixture.client,
+            ElasticsearchFixture.names,
+            me.ahoo.wow.spi.Ddl.VALIDATE,
+        )
         val wider = querySchema {
             field("state.name") { types(QueryValueType.STRING) }
             field("state.extra") { types(QueryValueType.BOOLEAN) }
         }
-        validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing.assert().containsExactly("state.extra")
+        validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing
+            .assert().containsExactly("state.extra")
     }
 
     @Test
+    @Suppress("LongMethod") // One schema of every kind of string, then each field's mapping checked: a list, not steps.
     fun `a string is a keyword, with a text field only where its schema marks it as prose`(): Unit = runBlocking {
         store.createIndex(type.name)
         // Mapped before: a keyword without the text field, one whose text field is a keyword, one with a text field.
@@ -190,9 +201,20 @@ class ElasticsearchStateMappingsTest {
             field("state.unmarked") { types(QueryValueType.STRING) }
         }
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
-        val planned = schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), prose)
+        val none = ElasticsearchSnapshotQueries(
+            ElasticsearchFixture.client,
+            ElasticsearchFixture.names,
+            me.ahoo.wow.spi.Ddl.NONE,
+        )
+        val planned = schema(none, prose)
         val report = queries.manageIndexes(type, QueryIndexPlan.of(planned, emptyList()))
-        report.created.assert().contains("state.title", "state.code", "state.tags", "state.later.text", "state.bare.text")
+        report.created.assert().contains(
+            "state.title",
+            "state.code",
+            "state.tags",
+            "state.later.text",
+            "state.bare.text"
+        )
         report.invalid.assert().containsExactly("state.odd.text")
         val mapping = ElasticsearchIndexMappingResolver(ElasticsearchFixture.client).refresh(index)
         mapping.fields.getValue("state.title").multiFields.assert().containsExactly("state.title.text")
@@ -219,7 +241,9 @@ class ElasticsearchStateMappingsTest {
     @Test
     fun `the documents written before a field is mapped are indexed again by a throttled task`(): Unit = runBlocking {
         ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names).prepare(type)
-        (1..3).forEach { store.save(snapshot("r$it", """{"name":"N$it"}""")) }
+        for (n in 1..3) {
+            store.save(snapshot("r$n", """{"name":"N$n"}"""))
+        }
         // At the store's rate, and with no limit at -1.
         mapOf(50 to 50.0, -1 to -1.0).forEach { (rate, reported) ->
             // A rewrite reads the index as last refreshed: one just ended would leave every document a version conflict.
@@ -243,9 +267,12 @@ class ElasticsearchStateMappingsTest {
     fun `a list streams page after page past its batch`(): Unit = runBlocking {
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
         queries.prepare(type)
-        (1..5).forEach { store.save(snapshot("t$it", """{"name":"N$it"}""")) }
+        for (n in 1..5) {
+            store.save(snapshot("t$n", """{"name":"N$n"}"""))
+        }
         val schema = schema(queries, declaration)
-        val backend = ElasticsearchQueryBackend(type, ElasticsearchFixture.client, index, SnapshotDocumentsForTest, batchSize = 2)
+        val backend =
+            ElasticsearchQueryBackend(type, ElasticsearchFixture.client, index, SnapshotDocumentsForTest, batchSize = 2)
         val sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort), schema)).toList()
             .map { it.path("aggregateId").stringValue() }.assert().containsExactly("t1", "t2", "t3", "t4", "t5")
@@ -275,14 +302,24 @@ class ElasticsearchStateMappingsTest {
         val reloaded = schema(queries, dates)
         val backend = queries.binding(type).backend
         suspend fun groups(group: AggregationGroup, vararg metrics: AggregationMetric) = backend.aggregate(
-            QueryAdmission.Trusted.aggregate(AggregationQuery(groupBy = listOf(group), metrics = metrics.toList().ifEmpty { listOf(AggregationMetric.Count("count")) }), reloaded),
+            QueryAdmission.Trusted.aggregate(
+                AggregationQuery(
+                    groupBy = listOf(group),
+                    metrics = metrics.toList().ifEmpty { listOf(AggregationMetric.Count("count")) },
+                ),
+                reloaded,
+            ),
         ).toList()
-        groups(AggregationGroup.DateHistogram(QueryField("state.day"), "day", AggregationDateUnit.DAY)).size.assert().isEqualTo(2)
-        groups(AggregationGroup.DateHistogram(QueryField("state.day"), "second", AggregationDateUnit.SECOND)).size.assert().isEqualTo(2)
+        groups(AggregationGroup.DateHistogram(QueryField("state.day"), "day", AggregationDateUnit.DAY)).size
+            .assert().isEqualTo(2)
+        groups(AggregationGroup.DateHistogram(QueryField("state.day"), "second", AggregationDateUnit.SECOND)).size
+            .assert().isEqualTo(2)
         groups(AggregationGroup.DateHistogram(QueryField("state.at"), "month", AggregationDateUnit.MONTH)).single()
             .path("count").longValue().assert().isEqualTo(2L)
-        groups(AggregationGroup.DatePart(QueryField("state.at"), "hour", AggregationDatePart.HOUR_OF_DAY)).size.assert().isEqualTo(2)
-        groups(AggregationGroup.DatePart(QueryField("state.day"), "weekday", AggregationDatePart.DAY_OF_WEEK)).size.assert().isEqualTo(2)
+        groups(AggregationGroup.DatePart(QueryField("state.at"), "hour", AggregationDatePart.HOUR_OF_DAY)).size
+            .assert().isEqualTo(2)
+        groups(AggregationGroup.DatePart(QueryField("state.day"), "weekday", AggregationDatePart.DAY_OF_WEEK)).size
+            .assert().isEqualTo(2)
         groups(
             AggregationGroup.Terms(QueryField("state.day"), "key"),
             AggregationMetric.Numeric(

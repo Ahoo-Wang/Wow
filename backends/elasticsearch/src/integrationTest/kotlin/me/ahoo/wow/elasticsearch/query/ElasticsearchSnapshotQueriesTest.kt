@@ -90,13 +90,17 @@ class ElasticsearchSnapshotQueriesTest {
         schema.provisional.assert().isTrue()
         val backend = queries.binding(type).backend
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().isEmpty()
-        backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema)).count.assert().isEqualTo(0L)
+        backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema)).count
+            .assert().isEqualTo(0L)
         backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)).total.assert().isEqualTo(0L)
         backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, total = TotalMode.NONE), schema))
             .list.assert().isEmpty()
         backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter), schema)).list.assert().isEmpty()
         backend.aggregate(
-            QueryAdmission.Trusted.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))), schema),
+            QueryAdmission.Trusted.aggregate(
+                AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+                schema
+            ),
         ).toList().single().path("count").longValue().assert().isEqualTo(0L)
         // Created since: a query admitted against the provisional schema is refused.
         store.createIndex(type.name)
@@ -129,12 +133,15 @@ class ElasticsearchSnapshotQueriesTest {
         queries.managesIndexes.assert().isTrue()
         queries.prepare(type)
         // A snapshot written before its state was mapped: indexed again once the mapping comes.
-        store.save(snapshot("early", """{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}"""))
+        store.save(
+            snapshot("early", """{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}""")
+        )
             .assert().isTrue()
         // A schema compiled without mapping anything (`none`), as the host compiles one before it manages the indexes.
         val report = queries.manageIndexes(type, QueryIndexPlan.of(schema(queries(Ddl.NONE)), emptyList()))
         report.created.assert().contains("state.name", "state.lines", "state.lines.sku")
-        queries.manageIndexes(type, QueryIndexPlan.of(schema(queries), emptyList())).assert().isEqualTo(QueryIndexReport.NONE)
+        queries.manageIndexes(type, QueryIndexPlan.of(schema(queries), emptyList()))
+            .assert().isEqualTo(QueryIndexReport.NONE)
         val schema = schema(queries)
         schema.field(QueryField("state.name"))?.binding(QueryCapability.EXACT_MATCH).assert().isNotNull()
         val backend = queries.binding(type).backend
@@ -151,7 +158,9 @@ class ElasticsearchSnapshotQueriesTest {
         found.assert().containsExactly("early")
         // Reindexing kept the state exactly as it was written.
         ExactJson.of(checkNotNull(store.load(type.ref("tenant", "early"))).state)
-            .assert().isEqualTo(ExactJson.of("""{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}"""))
+            .assert().isEqualTo(
+                ExactJson.of("""{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}""")
+            )
     }
 
     @Test
@@ -159,7 +168,8 @@ class ElasticsearchSnapshotQueriesTest {
         store.createIndex(type.name)
         ElasticsearchFixture.client.indices().putMapping(
             PutMappingRequest.of {
-                it.index(index).withJson(StringReader("""{"properties":{"state":{"properties":{"name":{"type":"long"}}}}}"""))
+                it.index(index)
+                    .withJson(StringReader("""{"properties":{"state":{"properties":{"name":{"type":"long"}}}}}"""))
             },
         ).get()
         val validating = queries(Ddl.VALIDATE)
@@ -173,7 +183,8 @@ class ElasticsearchSnapshotQueriesTest {
         none.prepare(type)
         schema(none).field(QueryField("state.status"))?.binding(QueryCapability.EXACT_MATCH).assert().isNull()
         // Auto adds what is missing and keeps the field mapped otherwise.
-        queries().manageIndexes(type, QueryIndexPlan.of(schema(queries()), emptyList())).invalid.assert().containsExactly("state.name")
+        queries().manageIndexes(type, QueryIndexPlan.of(schema(queries()), emptyList())).invalid
+            .assert().containsExactly("state.name")
     }
 
     @Test

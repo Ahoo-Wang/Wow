@@ -71,11 +71,14 @@ class NineXWalkTest {
 
     @Test
     fun `a page reads 9x's index with no sort in the store, and costs its own instances, however many follow`() {
-        (1..300).forEach { insertOrder("o-%03d".format(it), "(0)") }
+        for (n in 1..300) {
+            insertOrder("o-%03d".format(n), "(0)")
+        }
         database.runCommand(Document("profile", 2))
         val first = try {
             source.instances(order, NineXAggregateId("o-100", "(0)"), 5, 1000).also {
-                it.map { instance -> instance.id.id }.assert().containsExactly("o-101", "o-102", "o-103", "o-104", "o-105")
+                it.map { instance -> instance.id.id }.assert()
+                    .containsExactly("o-101", "o-102", "o-103", "o-104", "o-105")
                 it.all { instance -> instance.complete && instance.streams.size == 4 }.assert().isTrue()
                 source.aggregateIds(order, NineXAggregateId("o-200", "(0)"), 5).map { id -> id.id }.assert()
                     .containsExactly("o-201", "o-202", "o-203", "o-204", "o-205")
@@ -113,7 +116,7 @@ class NineXWalkTest {
         sorted.size.assert().isEqualTo(8)
         sorted.indexOf(NineXAggregateId("b", "\uE000")).assert()
             .isLessThan(sorted.indexOf(NineXAggregateId("b", "\uD83D\uDE00")))
-        (1..3).forEach { limit ->
+        for (limit in 1..3) {
             pages({ source.aggregateIds(order, it, limit) }, { it }).flatten().assert().isEqualTo(sorted)
             val instances = pages({ source.instances(order, it, limit, 1000) }, { it.id }).flatten()
             instances.map { it.id }.assert().isEqualTo(sorted)
@@ -148,7 +151,9 @@ class NineXWalkTest {
     fun `a page ends at the instance that reaches its streams, and one that does not parse is left to the import`() {
         insertOrder("p-1", "(0)")
         insertOrder("p-2", "(0)")
-        insertOrder("p-3", "(0)") { if ("\"version\":2" in it) it.replace(Regex(""""commandId":"[^"]*","""), "") else it }
+        insertOrder("p-3", "(0)") {
+            if ("\"version\":2" in it) it.replace(Regex(""""commandId":"[^"]*","""), "") else it
+        }
         source.instances(order, example, 10, 6).also { page ->
             page.map { it.id.id to it.complete }.assert().containsExactly("p-1" to true, "p-2" to false)
             page.last().streams.map { it.version }.assert().containsExactly(1, 2)

@@ -74,6 +74,7 @@ class NineXReservationImportTest {
         ReservationScope.of(NineXExample.orderModel.type, tenantId, namespace)
 
     @Test
+    @Suppress("LongMethod") // One import, then each kind of key it reserved, checked in turn.
     fun `the confirmed 9x PrepareKey keys import as V10 reservations of their owners`(): Unit = runBlocking {
         // A second order, in another tenant: its key's reservation takes that tenant.
         NineXMongoStore.insert(

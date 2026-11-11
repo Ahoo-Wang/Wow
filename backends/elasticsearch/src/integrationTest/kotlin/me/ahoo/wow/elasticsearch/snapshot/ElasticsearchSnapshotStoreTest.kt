@@ -72,7 +72,9 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         store.save(snapshot("a", 5, aggregate = type)).assert().isFalse()
         store.save(snapshot("a", 4, aggregate = type)).assert().isFalse()
         store.rebuilds!!.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
-        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
+        ElasticsearchFixture.client.indices().delete {
+            it.index(ElasticsearchFixture.names.snapshots(context, "aggregate"))
+        }.get()
         store.load(newer.ref).assert().isNull()
     }
 
@@ -98,7 +100,9 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         val type = AggregateType(context, "aggregate")
         store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
         // The index is gone under the store, which made sure of it: each document reads as missing.
-        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
+        ElasticsearchFixture.client.indices().delete {
+            it.index(ElasticsearchFixture.names.snapshots(context, "aggregate"))
+        }.get()
         val outcomes = store.saveAll(listOf(snapshot("a", 2, aggregate = type), snapshot("b", 1, aggregate = type)))
         outcomes.assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
     }
@@ -117,7 +121,7 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
                 }.awaitAll()
             }
             saved.assert().doesNotContain(false)
-            (1..WRITERS).forEach { writer ->
+            for (writer in 1..WRITERS) {
                 stores.first().load(type.ref("tenant", "w$writer"))?.version.assert().isEqualTo(1)
             }
         }
@@ -132,7 +136,9 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
             "\"index.mapping.ignore_malformed\": true",
             "\"index.mapping.ignore_malformed\": true, \"index.routing.allocation.require._name\": \"nowhere\"",
         )
-        ElasticsearchFixture.client.indices().create { it.index(index).waitForActiveShards { active -> active.count(0) }.withJson(java.io.StringReader(unassigned)) }.get()
+        ElasticsearchFixture.client.indices().create {
+            it.index(index).waitForActiveShards { active -> active.count(0) }.withJson(java.io.StringReader(unassigned))
+        }.get()
         val type = AggregateType(context, "aggregate")
         val saving = async(Dispatchers.Default) { createStore(context).save(snapshot("a", 1, aggregate = type)) }
         delay(ALLOCATION_DELAY)
