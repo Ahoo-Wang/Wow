@@ -235,7 +235,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 
 **The computed columns of `_state`.** After its stored columns, `_state` has columns ClickHouse computes from them when a row is inserted (`MATERIALIZED`): no insert sets them, and `SELECT *` leaves them out, so name them. Each one's comment keeps a fingerprint of its type and expression (`wow:<fingerprint>`). They are:
 
-- **an access column per access attribute the aggregate declares**, `access_<name>`, read from `access`: `Nullable(String)`, `Nullable(Int64)` or `Nullable(Bool)` by the attribute's type, or `Array(String)`, `Array(Int64)` or `Array(Bool)` for a multiple one. A row without the attribute has `NULL`, or an empty array. The built-in `owner` and `space` are `owner_id` and `space_id`.
+- **an access column per access attribute the aggregate declares**, `access_<name>`, read from `access`: `Nullable(String)`, `Nullable(Int64)` or `Nullable(Bool)` by the attribute's type, or `Array(String)`, `Array(Int64)` or `Array(Bool)` for a multiple one. A row without the attribute has `NULL`, or an empty array. The built-in `owner` and `space` are `owner_id` and `space_id`. A dataset bound to the aggregate reads its access policy's restriction from these columns ([Datasets](../guide/datasets)).
 - **a flat column for each top-level scalar property of the state schema**, in its order, read from `state` (a decimal from `state_numbers`).
 
 **`_state_flat`** is a view of `_state FINAL`: `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `access`, then the flat columns:

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.clickhouse.query
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AndFilter
@@ -34,6 +35,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
+import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.dataset.QueryDataset
@@ -42,6 +44,7 @@ import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 
 /**
  * The semi-join a dataset bound to an aggregate reads an access restriction as ([ClickHouseDatasetAccess]), compiled
@@ -54,10 +57,7 @@ class ClickHouseDatasetAccessSqlTest {
     fun `the restriction should be one semi-join on the newest record of the query's tenants`() {
         sql(InFilter(department, listOf("sales")), TenantIdFilter("t1")).assert().isEqualTo(
             "(`tenant_id`, `id`) IN (SELECT tenant_id, aggregate_id FROM `wow`.`bi_document_state` FINAL " +
-                "WHERE tenant_id IN ({p0:String}) AND access != '' AND " +
-                "((JSONType(access, {p1:String}) IN ('String') AND JSONExtractString(access, {p1:String}) IN " +
-                "({p2:String})) OR (JSONType(access, {p1:String}) = 'Array' AND " +
-                "hasAny(JSONExtract(access, {p1:String}, 'Array(String)'), [{p2:String}]))))",
+                "WHERE tenant_id IN ({p0:String}) AND access != '' AND `access_department` IN ({p2:String}))",
         )
         sql(MatchAllFilter, OrFilter(listOf(TenantIdFilter("t1"), TenantIdFilter("t2"))))
             .assert().contains("WHERE tenant_id IN ({p0:String}, {p1:String}) AND access != '' AND 1)")
@@ -82,24 +82,54 @@ class ClickHouseDatasetAccessSqlTest {
     }
 
     @Test
-    fun `each comparison should read the attribute's JSON value as a scalar or an array's elements`() {
-        sql(EqualFilter(QueryField("pages"), 3L)).assert()
-            .contains("JSONType(access, {p0:String}) IN ('Int64', 'UInt64') AND JSONExtractInt(access, {p0:String})")
-            .contains("'Array(Int64)'")
-        sql(EqualFilter(QueryField("published"), true)).assert()
-            .contains("JSONExtractBool(access, {p0:String}) IN ({p1:Bool})").contains("'Array(Bool)'")
-        sql(InFilter(department, listOf("sales", 2L))).assert()
-            .contains("IN ({p1:String})) OR").contains("IN ({p2:Int64})) OR")
-        sql(StartsWithFilter(QueryField("org"), "/acme")).assert()
-            .contains("startsWith(JSONExtractString(access, {p0:String}), {p1:String})")
-            .contains("arrayExists(x -> startsWith(x, {p1:String}), JSONExtract(access, {p0:String}, 'Array(String)'))")
-        sql(ContainsAllFilter(QueryField("sharedWith"), listOf("bob", "carol"))).assert()
-            .contains("[{p1:String}]").contains("[{p3:String}]").contains(") AND (")
-        sql(IsEmptyFilter(QueryField("sharedWith"))).assert()
-            .contains("(JSONType(access, {p0:String}) = 'Array' AND JSONLength(access, {p0:String}) = 0)")
-        sql(IsNullFilter(department)).assert().contains("JSONType(access, {p0:String}) = 'Null'")
+    fun `a single attribute should read its column, an operand of its type only`() {
+        sql(EqualFilter(QueryField("pages"), 3L)).assert().contains("`access_pages` IN ({p1:Int64})")
+        sql(EqualFilter(QueryField("published"), true)).assert().contains("`access_published` IN ({p1:Bool})")
+        // An operand of another type holds of no value of it.
+        sql(InFilter(department, listOf("sales", 2L))).assert().contains("`access_department` IN ({p1:String}))")
+        sql(EqualFilter(department, 2L)).assert().endsWith("AND 0)")
+        sql(StartsWithFilter(QueryField("org"), "/acme")).assert().contains("startsWith(`access_org`, {p1:String})")
+        sql(StartsWithFilter(QueryField("pages"), "1")).assert().endsWith("AND 0)")
+        // One value holds all only if they are one.
+        sql(ContainsAllFilter(department, listOf("sales", "ops"))).assert()
+            .contains("(`access_department` = {p1:String} AND `access_department` = {p2:String})")
+        sql(ContainsAllFilter(department, listOf("sales", 2L))).assert().endsWith("AND 0)")
+        sql(IsEmptyFilter(department)).assert().endsWith("AND 0)")
+        sql(IsNullFilter(department)).assert().contains("`access_department` IS NULL")
         sql(NorFilter(listOf(IsNotNullFilter(department)))).assert()
-            .contains("NOT ifNull((JSONType(access, {p0:String}) != 'Null'), 0)")
+            .contains("NOT ifNull((`access_department` IS NOT NULL), 0)")
+    }
+
+    @Test
+    fun `a multiple attribute should read its array, its absence from the JSON value`() {
+        val shared = QueryField("sharedWith")
+        sql(InFilter(shared, listOf("bob", "carol"))).assert()
+            .contains("hasAny(`access_sharedWith`, [{p1:String}, {p2:String}])")
+        sql(ContainsAllFilter(shared, listOf("bob", "carol"))).assert()
+            .contains("hasAll(`access_sharedWith`, [{p1:String}, {p2:String}])")
+        val prefix = "arrayExists(x -> startsWith(x, {p1:String}), `access_sharedWith`)"
+        sql(StartsWithFilter(shared, "b")).assert().contains(prefix)
+        // An empty array column cannot tell an attribute a record lacks from an empty one: its JSON value can.
+        sql(IsEmptyFilter(shared)).assert()
+            .contains("(JSONType(access, {p0:String}) = 'Array' AND empty(`access_sharedWith`))")
+        sql(IsNullFilter(shared)).assert().contains("JSONType(access, {p0:String}) = 'Null'")
+        sql(IsNotNullFilter(shared)).assert().contains("JSONType(access, {p0:String}) != 'Null'")
+    }
+
+    @Test
+    fun `the owner and the space, which have no column, should be read from the access JSON as strings`() {
+        val owner = "JSONExtract(access, {p0:String}, 'Nullable(String)')"
+        sql(EqualFilter(QueryField("owner"), "alice")).assert().contains("$owner IN ({p1:String})")
+        sql(IsNullFilter(QueryField("space"))).assert().contains("$owner IS NULL")
+        sql(IsNotNullFilter(QueryField("owner"))).assert().contains("$owner IS NOT NULL")
+        sql(StartsWithFilter(QueryField("space"), "/a")).assert().contains("startsWith($owner, {p1:String})")
+        sql(IsEmptyFilter(QueryField("owner"))).assert().endsWith("AND 0)")
+    }
+
+    @Test
+    fun `an attribute the current state has no column of should be refused`() {
+        assertThrows<QuerySchemaValidationException> { sql(EqualFilter(QueryField("region"), "east")) }
+            .message.assert().contains("[region]").contains("access_region")
     }
 
     @Test
@@ -146,10 +176,29 @@ class ClickHouseDatasetAccessSqlTest {
         dataset: QueryDataset = BOUND,
     ): String {
         val admitted = QueryAdmission.Trusted.list(ListQuery(root), ClickHouseQueryFixtures.SCHEMA)
-        return ClickHouseDatasetAccess(dataset, "wow").compile(predicate, admitted, TABLE, SqlParameters())
+        val access = ClickHouseDatasetAccess(dataset, "wow", ClickHouseTableMetadata(Duration.ofMinutes(1)) { STATE })
+        runBlocking { access.load() }
+        return access.compile(predicate, admitted, TABLE, SqlParameters())
     }
 
     private companion object {
+        /** The bound aggregate's `_state`, its access columns as the Sink computes them. */
+        val STATE = ClickHouseTable(
+            "wow",
+            "bi_document_state",
+            "ReplacingMergeTree",
+            listOf(
+                ClickHouseColumn("tenant_id", "String"),
+                ClickHouseColumn("aggregate_id", "String"),
+                ClickHouseColumn("access", "String"),
+                ClickHouseColumn("access_department", "Nullable(String)"),
+                ClickHouseColumn("access_org", "Nullable(String)"),
+                ClickHouseColumn("access_pages", "Nullable(Int64)"),
+                ClickHouseColumn("access_published", "Nullable(Bool)"),
+                ClickHouseColumn("access_sharedWith", "Array(String)"),
+            ),
+        )
+
         val BOUND: QueryDataset = QueryDataset.of(AggregateType("bi", "orders")) {
             tenant("tenant_id")
             identity("id")

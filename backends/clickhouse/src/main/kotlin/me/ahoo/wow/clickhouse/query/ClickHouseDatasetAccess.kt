@@ -29,19 +29,22 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.clickhouse.sink.AccessColumns
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkSchema
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.access.AccessValues
 
 /**
  * The access restriction of a dataset bound to an aggregate ([DatasetAccess]) on ClickHouse: one semi-join of the
  * dataset's rows on the current access records of their aggregate, which the Sink keeps in that aggregate's
  * `<ctx>_<agg>_state` in [database] (`wow.clickhouse.database`). That table holds one row per commit, replaced by
- * version, so after `FINAL` each aggregate's row is its newest commit's, whose `access` column holds the attributes
- * after it as JSON text ([me.ahoo.wow.spi.access.AccessValues]), empty when it recorded none:
+ * version, so after `FINAL` each aggregate's row is its newest commit's: its `access` column holds the attributes after
+ * it as JSON text ([me.ahoo.wow.spi.access.AccessValues]), empty when it recorded none, and the Sink computes a typed
+ * column of each declared attribute from it, `access_<name>` (`Nullable(T)`, or `Array(T)` for a multiple one):
  *
  * ```sql
  * (<tenant column>, <id column>) IN (
@@ -55,15 +58,28 @@ import me.ahoo.wow.query.schema.QueryViolation
  *   orders by; a query restricted to none reads every tenant's.
  * - The predicate is read on the newest record only: `FINAL` applies the `WHERE` after it merges the rows, so an
  *   older record never grants. An aggregate without a record, or with one of no attributes, is never read.
- * - Each comparison reads its attribute's JSON value as the in-memory storage reads a field's values: a missing
- *   attribute and a `null` one hold no value, an array each of its elements, a scalar itself, so `EQ`, `IN`,
- *   `STARTS_WITH` and `CONTAINS_ALL` hold of a value or an element of the operand's type, `IS_EMPTY` of an empty
- *   array, and `IS_NULL` of an attribute holding no value.
+ * - Each comparison reads its attribute's column ([state], `_state`'s columns): `EQ` and `IN` hold of a value, or of
+ *   an element of a multiple one, `CONTAINS_ALL` of all of them, `STARTS_WITH` of a string, each only of an operand of
+ *   the column's type; `IS_NULL` of an attribute holding no value. The built-in `owner` and `space`, which have no
+ *   column, are read from `access` as strings, as the attributes the record holds. A multiple attribute's `IS_NULL`, `IS_NOT_NULL` and `IS_EMPTY` read the type of
+ *   its JSON value, since an empty array column cannot tell a missing attribute (a record written before it was
+ *   declared) from an empty one. A `NULL` comparison holds of no row, under `NOR` too ([ClickHouseFilterCompiler.nor]).
+ * - An attribute `_state` has no column of yet (the Sink has not added one a later version declared) is refused.
  */
-internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, database: String) {
+internal class ClickHouseDatasetAccess(
+    private val dataset: QueryDataset,
+    database: String,
+    /** The columns of the aggregate's `_state`, read as the dataset's table's are, and [load]ed before a query. */
+    private val state: ClickHouseTableMetadata,
+) {
     private val bound = requireNotNull(dataset.scope.access) { "Dataset [${dataset.name}] is bound to no aggregate." }
     private val source =
         "${quoteIdentifier(database)}.${quoteIdentifier(ClickHouseSinkSchema.stateOf(bound.aggregate))} FINAL"
+
+    /** Reads `_state`'s columns, again once their time to live has passed, before a query compiles a restriction. */
+    suspend fun load() {
+        state.table()
+    }
 
     /** The semi-join of [predicate], an access restriction's, over the rows of [table] that [admitted] reads. */
     fun compile(
@@ -84,7 +100,7 @@ internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, databa
                 }
             }
             add("access != ''")
-            add(Predicates(parameters).compile(predicate))
+            add(Predicates(parameters, state.current()).compile(predicate))
         }
         val where = conditions.joinToString(" AND ")
         return if (tenant == null) {
@@ -112,8 +128,11 @@ internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, databa
         }
     }
 
-    /** An access restriction's predicate on the `access` JSON text, every operand bound as a typed parameter. */
-    private class Predicates(private val parameters: SqlParameters) {
+    /** What an attribute is read from: its access column, single or multiple, or a built-in one's JSON value. */
+    private class Attribute(val column: String, val element: TypeOf, val multiple: Boolean, val key: String)
+
+    /** An access restriction's predicate on `_state`'s columns ([state]), every operand bound as a typed parameter. */
+    private class Predicates(private val parameters: SqlParameters, private val state: ClickHouseTable) {
         @Suppress("CyclomaticComplexMethod") // One branch per node of the restriction's vocabulary.
         fun compile(filter: FilterExpression): String = when (filter) {
             MatchAllFilter -> "1"
@@ -121,53 +140,90 @@ internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, databa
             is AndFilter -> filter.operands.joinToString(" AND ", "(", ")") { compile(it) }
             is OrFilter -> filter.operands.joinToString(" OR ", "(", ")") { compile(it) }
             is NorFilter -> ClickHouseFilterCompiler.nor(filter.operands.map(::compile))
-            is EqualFilter -> holds(filter.field, listOf(filter.value))
-            is InFilter -> holds(filter.field, filter.values)
-            is ContainsAllFilter -> filter.values.joinToString(" AND ", "(", ")") { holds(filter.field, listOf(it)) }
-            is StartsWithFilter -> {
-                val key = key(filter.field)
-                val prefix = parameters.bind(filter.value, STRING)
-                "((JSONType(access, $key) = 'String' AND startsWith(JSONExtractString(access, $key), $prefix)) OR " +
-                    "(JSONType(access, $key) = 'Array' AND " +
-                    "arrayExists(x -> startsWith(x, $prefix), JSONExtract(access, $key, 'Array(String)'))))"
+            is EqualFilter -> holds(attributeOf(filter.field), listOf(filter.value))
+            is InFilter -> holds(attributeOf(filter.field), filter.values)
+            is ContainsAllFilter -> holdsAll(attributeOf(filter.field), filter.values)
+            is StartsWithFilter -> startsWith(attributeOf(filter.field), filter.value)
+            is IsEmptyFilter -> attributeOf(filter.field).let { attribute ->
+                if (attribute.multiple) "(${jsonType(attribute)} = 'Array' AND empty(${attribute.column}))" else "0"
             }
-            is IsEmptyFilter -> {
-                val key = key(filter.field)
-                "(JSONType(access, $key) = 'Array' AND JSONLength(access, $key) = 0)"
-            }
-            // A missing attribute's type reads as Null, as an explicit null's does.
-            is IsNullFilter -> "JSONType(access, ${key(filter.field)}) = 'Null'"
-            is IsNotNullFilter -> "JSONType(access, ${key(filter.field)}) != 'Null'"
+            is IsNullFilter -> isNull(attributeOf(filter.field), true)
+            is IsNotNullFilter -> isNull(attributeOf(filter.field), false)
             else -> throw QueryViolation.StorageUnsupported("an access restriction's [${filter.operator}]").rejection()
         }
 
-        /** Whether [field] holds one of [values], as a scalar or as an element of an array, by their types. */
-        private fun holds(field: QueryField<*>, values: List<Any?>): String {
-            val key = key(field)
-            return values.groupBy { TypeOf.of(it) }.entries.joinToString(" OR ", "(", ")") { (type, operands) ->
-                val bound = operands.map { parameters.bind(it.toString(), type.parameter) }
-                val scalar = type.scalars.joinToString(", ", "JSONType(access, $key) IN (", ")") { "'$it'" }
-                "($scalar AND ${type.extract("access", key)} IN (${bound.joinToString(", ")})) OR " +
-                    "(JSONType(access, $key) = 'Array' AND " +
-                    "hasAny(JSONExtract(access, $key, 'Array(${type.parameter})'), [${bound.joinToString(", ")}]))"
+        /** Whether [attribute] holds one of [values], an element of it for a multiple one; of its type only. */
+        private fun holds(attribute: Attribute, values: List<Any?>): String {
+            val bound = operands(attribute, values).ifEmpty { return "0" }
+            return if (attribute.multiple) {
+                "hasAny(${attribute.column}, [${bound.joinToString(", ")}])"
+            } else {
+                "${attribute.column} IN (${bound.joinToString(", ")})"
             }
         }
 
-        private fun key(field: QueryField<*>): String = parameters.bind(field.path, STRING)
+        /** Whether [attribute] holds every one of [values]: a single one only if they are one value. */
+        private fun holdsAll(attribute: Attribute, values: List<Any?>): String {
+            val bound = operands(attribute, values)
+            return when {
+                bound.size < values.size -> "0"
+                bound.isEmpty() -> "1"
+                attribute.multiple -> "hasAll(${attribute.column}, [${bound.joinToString(", ")}])"
+                else -> bound.joinToString(" AND ", "(", ")") { "${attribute.column} = $it" }
+            }
+        }
+
+        private fun startsWith(attribute: Attribute, prefix: String): String {
+            if (attribute.element != TypeOf.STRING) {
+                return "0"
+            }
+            val bound = parameters.bind(prefix, STRING)
+            return if (attribute.multiple) {
+                "arrayExists(x -> startsWith(x, $bound), ${attribute.column})"
+            } else {
+                "startsWith(${attribute.column}, $bound)"
+            }
+        }
+
+        private fun isNull(attribute: Attribute, none: Boolean): String = if (attribute.multiple) {
+            "${jsonType(attribute)} ${if (none) "=" else "!="} 'Null'"
+        } else {
+            "${attribute.column} ${if (none) "IS NULL" else "IS NOT NULL"}"
+        }
+
+        /** [values] of [attribute]'s type, bound; one of another type holds of no value of it. */
+        private fun operands(attribute: Attribute, values: List<Any?>): List<String> = values
+            .filter { TypeOf.of(it) == attribute.element }
+            .map { parameters.bind(it.toString(), attribute.element.parameter) }
+
+        private fun jsonType(attribute: Attribute): String = "JSONType(access, ${attribute.key})"
+
+        private fun attributeOf(field: QueryField<*>): Attribute {
+            if (field.path == AccessValues.OWNER || field.path == AccessValues.SPACE) {
+                val key = parameters.bind(field.path, STRING)
+                return Attribute("JSONExtract(access, $key, 'Nullable(String)')", TypeOf.STRING, false, key)
+            }
+            val name = AccessColumns.PREFIX + field.path
+            val column = state.columns[name] ?: throw QueryViolation.StorageUnsupported(
+                "the access attribute [${field.path}], which ${state.qualifiedName} has no column $name of yet",
+            ).rejection()
+            val multiple = column.type.startsWith(ARRAY)
+            val element = if (multiple) column.type.removePrefix(ARRAY).removeSuffix(")") else column.baseType
+            return Attribute(
+                quoteIdentifier(name),
+                TypeOf.ofColumn(element, column.type),
+                multiple,
+                parameters.bind(field.path, STRING),
+            )
+        }
     }
 
-    /** How a JSON value of an operand's type is read: its JSON types, its extraction and its parameter type. */
-    private enum class TypeOf(val parameter: String, val scalars: List<String>) {
-        STRING("String", listOf("String")),
-        INTEGER("Int64", listOf("Int64", "UInt64")),
-        BOOLEAN("Bool", listOf("Bool")),
+    /** The types of an attribute's values: the parameter type of an operand of it. */
+    private enum class TypeOf(val parameter: String) {
+        STRING("String"),
+        INTEGER("Int64"),
+        BOOLEAN("Bool"),
         ;
-
-        fun extract(json: String, key: String): String = when (this) {
-            STRING -> "JSONExtractString($json, $key)"
-            INTEGER -> "JSONExtractInt($json, $key)"
-            BOOLEAN -> "JSONExtractBool($json, $key)"
-        }
 
         companion object {
             fun of(value: Any?): TypeOf = when (value) {
@@ -176,10 +232,15 @@ internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, databa
                 is Boolean -> BOOLEAN
                 else -> throw QueryViolation.StorageUnsupported("an access restriction's operand [$value]").rejection()
             }
+
+            /** The type of an access column's [element]s, of the column's [type]. */
+            fun ofColumn(element: String, type: String): TypeOf = entries.firstOrNull { it.parameter == element }
+                ?: throw QueryViolation.StorageUnsupported("an access column of type [$type]").rejection()
         }
     }
 
     private companion object {
         const val STRING = "String"
+        const val ARRAY = "Array("
     }
 }

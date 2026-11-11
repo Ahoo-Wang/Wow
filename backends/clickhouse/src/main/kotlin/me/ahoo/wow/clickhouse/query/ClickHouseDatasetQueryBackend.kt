@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.clickhouse.sink.ClickHouseSinkSchema
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.CachedQueryBindings
@@ -60,7 +61,11 @@ class ClickHouseDatasetBindings @JvmOverloads constructor(
     override fun createBinding(key: QueryDataset): QueryBackendBinding<QueryBackend> {
         val storage = ClickHouseDatasetStorage.of(key, options.database)
         val metadata = ClickHouseTableMetadata(options.metadataTtl) { executor.table(storage.database, storage.table) }
-        val access = key.scope.access?.let { ClickHouseDatasetAccess(key, options.database) }
+        val access = key.scope.access?.let { bound ->
+            val state = ClickHouseSinkSchema.stateOf(bound.aggregate)
+            val columns = ClickHouseTableMetadata(options.metadataTtl) { executor.table(options.database, state) }
+            ClickHouseDatasetAccess(key, options.database, columns)
+        }
         return QueryBackendBinding(
             ClickHouseDatasetQueryBackend(key, storage, executor, metadata, access),
             ClickHouseQuerySchemaAdapter(key, storage, metadata),
@@ -94,13 +99,19 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
     private val fields: List<String> = dataset.declaration.fields.keys.map(QueryField<*>::path)
 
+    /** The dataset's table, `_state`'s columns read too when the dataset is bound to an aggregate. */
+    private suspend fun table(): ClickHouseTable {
+        access?.load()
+        return metadata.table()
+    }
+
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
-        val select = Select(query, metadata.table())
+        val select = Select(query, table())
         emitAll(executor.rows(select.records(query.query.limit, 0), query.timeout))
     }
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
-        val table = metadata.table()
+        val table = table()
         val select = Select(query, table)
         return when (window) {
             is PageWindow.Offset -> coroutineScope {
@@ -120,10 +131,10 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     }
 
     override suspend fun count(query: AdmittedQuery<CountQuery>): Long =
-        count(query, query.query.filter, query.query.limit, metadata.table())
+        count(query, query.query.filter, query.query.limit, table())
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
-        val table = metadata.table()
+        val table = table()
         emitAll(
             executor.rows(
                 ClickHouseAggregationCompiler(query, table, source(table), access).compile(window),

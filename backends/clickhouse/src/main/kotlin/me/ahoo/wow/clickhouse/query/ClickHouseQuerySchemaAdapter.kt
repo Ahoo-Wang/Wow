@@ -60,6 +60,9 @@ internal class ClickHouseTableMetadata(
     suspend fun refresh(): ClickHouseTable = mutex.withLock {
         load().also { cached = it to clock() }
     }
+
+    /** The table as last read; a caller reads it ([table]) before. */
+    fun current(): ClickHouseTable = checkNotNull(cached) { "The table is read before it is used." }.first
 }
 
 /**

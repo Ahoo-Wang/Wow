@@ -87,4 +87,22 @@ class FlatColumnsTest {
         FlatColumns.of(schema, setOf("request_id", "version", "state_version", "access_region")).map { it.name }
             .assert().containsExactly("state_request_id", "state_state_version", "state_access_region")
     }
+
+    @Test
+    fun `a prefixed name should not be another property's own, in either order`() {
+        val reserved = setOf("id")
+        val first = mapOf("properties" to linkedMapOf("id" to STRING, "state_id" to STRING))
+        val second = mapOf("properties" to linkedMapOf("state_id" to STRING, "id" to STRING))
+        FlatColumns.of(first, reserved).associate { it.property to it.name }.assert()
+            .isEqualTo(mapOf("id" to "state_state_id", "state_id" to "state_id"))
+        FlatColumns.of(second, reserved).associate { it.property to it.name }.assert()
+            .isEqualTo(mapOf("id" to "state_state_id", "state_id" to "state_id"))
+        // A property that is no column takes no name.
+        val nested = mapOf("properties" to linkedMapOf("id" to STRING, "state_id" to mapOf("type" to "object")))
+        FlatColumns.of(nested, reserved).single().name.assert().isEqualTo("state_id")
+    }
+
+    private companion object {
+        val STRING = mapOf("type" to "string")
+    }
 }
