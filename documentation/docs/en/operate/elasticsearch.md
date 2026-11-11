@@ -54,6 +54,8 @@ An aggregate whose `query.snapshot.store` names the Elasticsearch store has its 
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
 
+A snapshot's document, and an event search document, also hold `accessPresent`: `true` under each access attribute the aggregate holds, a single one with a value, a multiple one empty or not. Elasticsearch indexes nothing for an empty array, so an access policy reads there whether an attribute is present, and grants on Elasticsearch the aggregates it grants on any store and to a state read. A document written before an attribute was declared lacks it, as the attribute is missing from it, until the aggregate's next commit or the access walk writes it again.
+
 ## Full-text search {#full-text-search}
 
 A string field of the state or of an event body is mapped as a `keyword`: matched by its whole value, as equality, `contains`, `startsWith`, sorts and groups match it. It is searched by words only where its schema marks it as prose: `@QueryText` on the property ([Describe what types cannot](../guide/queries#describe-what-types-cannot)), `x-wow-text` in the Manifest, `text()` in a declaration in code. A marked field gets a `text` sub-field, analyzed by the index's default analyzer, and the capability descriptor lists it among the fields a `search` may name: `record.search.fields`, or its element's.

@@ -199,8 +199,11 @@ abstract class AccessFilterSpec {
         ).schema()
     }
 
-    /** The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them. */
-    private fun declaration(): QuerySchemaDeclaration = querySchema {
+    /**
+     * The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them: what a backend that
+     * maps its fields before it stores a record declares first.
+     */
+    protected fun declaration(): QuerySchemaDeclaration = querySchema {
         DatasetAccessSpec.ATTRIBUTES.forEach { attribute ->
             val type = when (attribute.type) {
                 AccessAttributeManifest.Type.STRING -> QueryValueType.STRING

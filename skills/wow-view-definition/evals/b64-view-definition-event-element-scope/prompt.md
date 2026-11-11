@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:eb2ac39cd73372cc41b295fc55ddbd96128aa1b782a0687c5a56949ec2370f35",
+  "version" : "sha256:704cac015ec89e818e2e8bfc2eca6538ed662a63aafbf3f4f34c40a2587a7ae0",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -83,7 +83,7 @@ Files from the user's project, shown inline:
     "nullable" : true,
     "project" : true,
     "filter" : {
-      "operators" : [ ]
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
     },
     "sort" : {
       "paged" : false,
@@ -97,7 +97,7 @@ Files from the user's project, shown inline:
     "nullable" : true,
     "project" : true,
     "filter" : {
-      "operators" : [ ]
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
     },
     "sort" : {
       "paged" : false,
@@ -674,7 +674,7 @@ Files from the user's project, shown inline:
   "dynamic" : [ ],
   "constraints" : [ {
     "type" : "null-or-empty-as-missing",
-    "fields" : [ "access", "operator", "ownerId", "spaceId" ]
+    "fields" : [ "access", "access.owner", "access.space", "operator", "ownerId", "spaceId" ]
   }, {
     "type" : "array-equality"
   }, {

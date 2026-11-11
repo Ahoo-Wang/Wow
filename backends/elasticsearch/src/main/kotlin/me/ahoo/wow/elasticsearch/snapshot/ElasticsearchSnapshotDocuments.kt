@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
@@ -88,6 +89,7 @@ internal object ElasticsearchSnapshotDocuments {
         put(SPACE_ID, snapshot.scope.spaceId)
         put(DELETED, snapshot.deleted)
         set(ACCESS, AccessValues.json(snapshot.access))
+        set(ElasticsearchAccessPresence.FIELD, ElasticsearchAccessPresence.json(snapshot.access))
         put(FIRST_EVENT_TIME, snapshot.firstEventTime)
         put(LAST_EVENT_TIME, snapshot.lastEventTime)
         set(OPERATOR, operator(snapshot.operator))
