@@ -319,7 +319,10 @@ class SubscriptionPauseTest {
         appender.append("x")
         runtime.start(setOf(0))
         eventually { runtime.paused().isNotEmpty() }
-        delay((PAUSED_SCANS * 5).milliseconds)
+        // Three scans, not two: a retry a scan dispatches claims its entry in its own coroutine, maybe after the next
+        // scan starts.
+        val scans = ledger.scans.get()
+        eventually { ledger.scans.get() >= scans + 3 }
         ledger.claims.get().assert().isZero()
         down.set(false)
         eventually { !ledger.isParked(SubscriptionId("shop", "projection"), cart("p")) }
@@ -345,12 +348,26 @@ class SubscriptionPauseTest {
         }
     }
 
-    /** Records each entry parked, and whether the partition was paused then; counts the claimed retries. */
+    /**
+     * Records each entry parked, and whether the partition was paused then; counts the claimed retries, and the reads of
+     * the due entries, at least one a scan.
+     */
     private class RecordingLedger(private val delegate: FailureLedger) : FailureLedger by delegate {
         val runtime = AtomicReference<SubscriptionRuntime>()
         val parks = CopyOnWriteArrayList<ParkedAggregate>()
         val parkedWhilePaused = AtomicInteger()
         val claims = AtomicInteger()
+        val scans = AtomicInteger()
+
+        override suspend fun due(
+            subscription: SubscriptionId,
+            partitions: Collection<Int>,
+            now: Long,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<ParkedAggregate> = delegate.due(subscription, partitions, now, after, limit).also {
+            scans.incrementAndGet()
+        }
 
         override suspend fun park(entry: ParkedAggregate): Boolean {
             if (runtime.get()?.paused()?.isNotEmpty() == true) {
@@ -374,7 +391,6 @@ class SubscriptionPauseTest {
 
     private companion object {
         const val MAX_ATTEMPTS = 3
-        const val PAUSED_SCANS = 10
         val OUTAGE = 3.seconds
     }
 }
