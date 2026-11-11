@@ -62,12 +62,12 @@ class OrderLifecycleTest {
     fun `a deleted order should refuse its next command until it is restored`() {
         val alice = buyer()
         val id = submitted(alice)
-        lifecycle(id, DeleteAggregate.of(), alice).version.assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
+        lifecycle(id, DeleteAggregate(), alice).version.assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
         read(id, alice)!!.deleted.assert().isTrue()
 
         rejected { confirm(id, alice) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
 
-        lifecycle(id, RestoreAggregate.of(), alice)
+        lifecycle(id, RestoreAggregate(), alice)
         read(id, alice)!!.deleted.assert().isFalse()
         confirm(id, alice)
     }

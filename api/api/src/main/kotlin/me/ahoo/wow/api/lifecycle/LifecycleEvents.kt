@@ -18,39 +18,31 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * The aggregate was deleted ([DeleteAggregate]).
  *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `AggregateDeleted` would compile as that object, a value equal to no AggregateDeleted, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `AggregateDeleted()`.
  */
-class AggregateDeleted @InternalWowApi constructor() {
+class AggregateDeleted() {
     override fun equals(other: Any?): Boolean = this === other || other is AggregateDeleted
 
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "AggregateDeleted"
-
-    companion object {
-        /** A AggregateDeleted; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(): AggregateDeleted = AggregateDeleted()
-    }
 }
 
 /**
  * The aggregate's deletion was taken back ([RestoreAggregate]).
  *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `AggregateRestored` would compile as that object, a value equal to no AggregateRestored, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `AggregateRestored()`.
  */
-class AggregateRestored @InternalWowApi constructor() {
+class AggregateRestored() {
     override fun equals(other: Any?): Boolean = this === other || other is AggregateRestored
 
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "AggregateRestored"
-
-    companion object {
-        /** A AggregateRestored; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(): AggregateRestored = AggregateRestored()
-    }
 }
 
 /**

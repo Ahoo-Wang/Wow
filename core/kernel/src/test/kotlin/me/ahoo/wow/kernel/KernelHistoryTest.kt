@@ -145,8 +145,8 @@ class KernelHistoryTest {
     @Test
     fun `the state after a deletion is the deleted one, until it is restored`(): Unit = runBlocking {
         send(CreateCart("ahoo"), 1000, owned)
-        send(DeleteAggregate.of(), 2000)
-        send(RestoreAggregate.of(), 3000)
+        send(DeleteAggregate(), 2000)
+        send(RestoreAggregate(), 3000)
         kernel.stateAt(cartModel, ref, millis(1500))!!.deleted.assert().isFalse()
         kernel.stateAt(cartModel, ref, millis(2500))!!.deleted.assert().isTrue()
         kernel.stateAt(cartModel, ref, millis(3500))!!.deleted.assert().isFalse()
@@ -202,11 +202,11 @@ class KernelHistoryTest {
     fun `a trace carries the deleted mark and the scope after each commit`(): Unit = runBlocking {
         send(CreateCart("ahoo"), 1000, owned)
         send(TransferOwner("bob"), 3000)
-        send(DeleteAggregate.of(), 4000)
+        send(DeleteAggregate(), 4000)
         val trace = kernel.trace(cartModel, ref, 1, 3, 10)
         trace.map { it.scope.ownerId }.assert().isEqualTo(listOf("alice", "bob", "bob"))
         trace.map { it.deleted }.assert().isEqualTo(listOf(false, false, true))
-        trace[2].events.assert().isEqualTo(listOf(AggregateDeleted.of()))
+        trace[2].events.assert().isEqualTo(listOf(AggregateDeleted()))
     }
 
     @Test

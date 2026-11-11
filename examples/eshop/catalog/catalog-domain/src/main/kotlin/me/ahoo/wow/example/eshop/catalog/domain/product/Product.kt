@@ -98,7 +98,7 @@ class Product(private val state: ProductState) {
     // Decision: a domain event and the lifecycle event AggregateDeleted.
     @OnCommand(produces = [ProductDiscontinued::class, AggregateDeleted::class])
     fun onCommand(command: DiscontinueProduct): Decision =
-        Decision.events(ProductDiscontinued(command.reason), AggregateDeleted.of())
+        Decision.events(ProductDiscontinued(command.reason), AggregateDeleted())
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

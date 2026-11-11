@@ -131,40 +131,32 @@ class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
 /**
  * The system command `wow.schedule.Disable`: stops the job instance it is sent to.
  *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `DisableJob` would compile as that object, a value equal to no DisableJob, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `DisableJob()`.
  */
-class DisableJob @InternalWowApi constructor() {
+class DisableJob() {
     override fun equals(other: Any?): Boolean = this === other || other is DisableJob
 
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "DisableJob"
-
-    companion object {
-        /** A DisableJob; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(): DisableJob = DisableJob()
-    }
 }
 
 /**
  * The system command `wow.schedule.Tick`: the schedule of a job instance is due; the slot is the
  * command's [ScheduleContext]. Only a slot newer than the last one ticks.
  *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `TickJob` would compile as that object, a value equal to no TickJob, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `TickJob()`.
  */
-class TickJob @InternalWowApi constructor() {
+class TickJob() {
     override fun equals(other: Any?): Boolean = this === other || other is TickJob
 
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "TickJob"
-
-    companion object {
-        /** A TickJob; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(): TickJob = TickJob()
-    }
 }
 
 /**
@@ -222,20 +214,16 @@ class JobRescheduled @InternalWowApi constructor(val rule: ScheduleRule.Cron, va
 /**
  * The system event `wow.JobDisabled`: the instance does not run until it is enabled again.
  *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `JobDisabled` would compile as that object, a value equal to no JobDisabled, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `JobDisabled()`.
  */
-class JobDisabled @InternalWowApi constructor() {
+class JobDisabled() {
     override fun equals(other: Any?): Boolean = this === other || other is JobDisabled
 
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "JobDisabled"
-
-    companion object {
-        /** A JobDisabled; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(): JobDisabled = JobDisabled()
-    }
 }
 
 /**

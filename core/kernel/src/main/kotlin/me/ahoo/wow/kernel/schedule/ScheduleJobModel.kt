@@ -194,7 +194,7 @@ object ScheduleJobModel {
         if (state.enabled && state.rule == rule && state.override == override) {
             return Decision.NoOp
         }
-        schedule(ScheduleJobs.TICK_KEY, rule, TickJob.of())
+        schedule(ScheduleJobs.TICK_KEY, rule, TickJob())
         return Decision.events(JobEnabled(job.name, rule, override, body.partition))
     }
 
@@ -226,7 +226,7 @@ object ScheduleJobModel {
         if (state.rule == rule && state.override == body.rule) {
             return Decision.NoOp
         }
-        schedule(ScheduleJobs.TICK_KEY, rule, TickJob.of())
+        schedule(ScheduleJobs.TICK_KEY, rule, TickJob())
         return Decision.events(JobRescheduled(rule, body.rule))
     }
 
@@ -235,7 +235,7 @@ object ScheduleJobModel {
             return Decision.NoOp
         }
         cancelSchedule(ScheduleJobs.TICK_KEY)
-        return Decision.events(JobDisabled.of())
+        return Decision.events(JobDisabled())
     }
 
     private fun DecideScope.tick(jobs: Map<String, ScheduleJob>, state: JobState): Decision {
@@ -246,14 +246,14 @@ object ScheduleJobModel {
         val job = jobs[state.job]
         if (job == null) {
             cancelSchedule(ScheduleJobs.TICK_KEY)
-            return Decision.events(JobDisabled.of())
+            return Decision.events(JobDisabled())
         }
         val ticked = Ticked(slot.timer, slot.slot, slot.skipped, slot.due)
         val rule = ruleOf(job, state.override)
         if (rule == null || rule == state.rule) {
             return Decision.events(ticked)
         }
-        schedule(ScheduleJobs.TICK_KEY, rule, TickJob.of())
+        schedule(ScheduleJobs.TICK_KEY, rule, TickJob())
         return Decision.events(ticked, JobRescheduled(rule, state.override))
     }
 

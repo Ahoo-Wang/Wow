@@ -73,7 +73,7 @@ class ScheduleJobRuntimeTest {
             val ids = AtomicInteger()
             ScheduleJobRuntime.send(
                 model,
-                listOf(ref to EnableJob("nightly"), ref to DisableJob.of()),
+                listOf(ref to EnableJob("nightly"), ref to DisableJob()),
                 retry,
                 { "id-${ids.incrementAndGet()}" },
             ) { _, command ->
@@ -91,7 +91,7 @@ class ScheduleJobRuntimeTest {
                 EnableJob("nightly"),
                 EnableJob("nightly"),
                 EnableJob("nightly"),
-                DisableJob.of()
+                DisableJob()
             )
             sent.map { it.id }.distinct().size.assert().isEqualTo(4)
             sent.first().operator.assert().isEqualTo(Operator.system(ScheduleJobs.COMPONENT))
@@ -107,7 +107,7 @@ class ScheduleJobRuntimeTest {
             .isEqualTo(ScheduleRule.Cron("0 0 3 * * *", "Asia/Tokyo", Misfire.CATCH_UP))
         JobOptions(cron = "0 0 4 * * *").rule.assert().isEqualTo(JobRule("0 0 4 * * *"))
         ScheduleJobRuntime.startup("shop", listOf(job), mapOf("nightly" to JobOptions(enabled = false)), 1)
-            .assert().containsExactly(ref to DisableJob.of())
+            .assert().containsExactly(ref to DisableJob())
     }
 
     @Test

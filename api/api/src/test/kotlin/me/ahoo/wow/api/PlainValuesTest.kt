@@ -148,13 +148,13 @@ class PlainValuesTest {
     @Test
     fun `a system type without fields is equal to every other of its kind, and to nothing else`() {
         val kinds: List<() -> Any> = listOf(
-            DeleteAggregate::of,
-            RestoreAggregate::of,
-            AggregateDeleted::of,
-            AggregateRestored::of,
-            DisableJob::of,
-            TickJob::of,
-            JobDisabled::of,
+            ::DeleteAggregate,
+            ::RestoreAggregate,
+            ::AggregateDeleted,
+            ::AggregateRestored,
+            ::DisableJob,
+            ::TickJob,
+            ::JobDisabled,
         )
         kinds.forEach { make ->
             val one = make()

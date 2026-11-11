@@ -398,7 +398,7 @@ class ScheduledCommandsTest {
     fun `deleting an order cancels its timers`(): Unit = runBlocking {
         val node = node("node-1", TimedBackends()).also { it.start() }
         node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
-        node.send("o-1", DeleteAggregate.of())
+        node.send("o-1", DeleteAggregate())
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.CANCELLED }
     }
 

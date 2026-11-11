@@ -113,8 +113,8 @@ internal object KernelLifecycle {
             )
         }
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }
-        is DeleteAggregate -> Decision.events(AggregateDeleted.of())
-        is RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored.of()) else Decision.NoOp
+        is DeleteAggregate -> Decision.events(AggregateDeleted())
+        is RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored()) else Decision.NoOp
         is TransferOwner -> changeOrNoOp(loaded.scope.ownerId == body.ownerId) { OwnerTransferred(body.ownerId) }
         is TransferSpace -> changeOrNoOp(loaded.scope.spaceId == body.spaceId) { SpaceTransferred(body.spaceId) }
         else -> throw IllegalArgumentException("${body.javaClass.name} is not a lifecycle command.")

@@ -111,7 +111,7 @@ class ScheduleSpecTest {
     fun `deleting the aggregate cancels its timers`() {
         aggregateSpec(model) {
             whenCommand(PlaceOrder(10)) {}
-            whenCommand(DeleteAggregate.of()) {}
+            whenCommand(DeleteAggregate()) {}
             timer("pay-timeout")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
             advanceTime(1.seconds)
         }

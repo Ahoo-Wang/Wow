@@ -327,7 +327,7 @@ class CommandMessagesTest {
             sender.typeOf(Command("c", "r", ref, Reserve(1))).assert().isEqualTo("stock.item.Reserve")
             // A system command is every aggregate's, by its system name (decision D198).
             sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL)
-            sender.typeOf(Command("c", "r", ref, DeleteAggregate.of())).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
+            sender.typeOf(Command("c", "r", ref, DeleteAggregate())).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
                 .message.assert().contains("depend on the api module of stock")
             val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")

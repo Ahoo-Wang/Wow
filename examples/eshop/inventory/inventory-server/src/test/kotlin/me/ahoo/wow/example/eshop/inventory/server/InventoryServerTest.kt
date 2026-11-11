@@ -81,7 +81,7 @@ class InventoryServerTest {
 
     @Test
     fun `the scheduled job's commands should be an employee's alone (UI-50)`() {
-        val disable = CommandRequest.of(DisableJob.of(), id = RECEIVE_DELIVERIES, type = JOBS)
+        val disable = CommandRequest.of(DisableJob(), id = RECEIVE_DELIVERIES, type = JOBS)
         for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
             rejected { server.commands(caller).wait(disable) }.result.error!!.message.assert()
                 .contains("Only an employee sends wow.schedule.Disable")

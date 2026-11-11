@@ -134,7 +134,7 @@ class ProductSpec {
             given(mug)
             given(ProductPublished)
             whenCommand(DiscontinueProduct("Supplier stopped making it")) {
-                expectEvents(ProductDiscontinued("Supplier stopped making it"), AggregateDeleted.of())
+                expectEvents(ProductDiscontinued("Supplier stopped making it"), AggregateDeleted())
                 expectDeleted()
                 expectState { status.assert().isEqualTo(ProductStatus.DELISTED) }
             }
