@@ -959,10 +959,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
       - name: Install Playwright browser
-        # Without the system packages when apt cannot fetch them; the warning marks a run that fell back.
-        run: |
-          pnpm --filter wow-storybook exec playwright install --with-deps chromium ||
-            { echo "::warning::${{ github.job }} / Install Playwright browser: the system packages did not install, so Chromium was installed without them."; pnpm --filter wow-storybook exec playwright install chromium; }
+        run: pnpm --filter wow-storybook exec playwright install --with-deps chromium
       - name: Test Storybook interactions
         env:
           SHARD: ${{ matrix.shard }}
