@@ -132,7 +132,7 @@ export async function loadItem(baseURL: string): Promise<Item> {
 
 缺少方法时通常应检查标签和 operationId，本次运行的警告会点名被跳过的操作（`--strict` 会让它们失败）；缺少返回类型时检查成功响应（`200`，否则最小的其他 2xx）及其媒体类型。方法名取自 operationId（`getItem`），见[方法名](../reference/typescript/wow-generator/generated-output#方法)。Schema 编译器不是服务端验证器。此调用方在执行前不分配运行时资源，成功时会完整消费 JSON 响应。
 
-参见 [CLI 选项](../reference/typescript/wow-generator/cli)、[输出与重新生成](../reference/typescript/wow-generator/generated-output)、[OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)，以及独立的 [Wow 识别规则](../reference/typescript/wow-generator/wow-discovery)。
+参见 [CLI 选项](../reference/typescript/wow-generator/cli)、[输出与重新生成](../reference/typescript/wow-generator/generated-output)，以及 [OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)。
 
 普通客户端由 [analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts) 决定、[emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts) 写出。
 

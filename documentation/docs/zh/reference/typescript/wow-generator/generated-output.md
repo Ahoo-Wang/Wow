@@ -5,23 +5,44 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 # 生成产物与重新生成
 
-生成的是 TypeScript 源码，不是独立 HTTP 实现。装饰器类需启用 `experimentalDecorators: true` 编译；安装实际输出 import 的包。
+生成的是 TypeScript 源码，不是独立 HTTP 实现：安装实际输出 import 的包。
 
+## 输入怎样读
+
+输入是 Wow Manifest 时按 Manifest 读：带数字的 `format` 和 `contexts` 数组、没有 `openapi` 或 `swagger` 键的文档，即服务在 `GET /wow/manifest` 答出的，或项目作为基线提交的。其他输入必须是 OpenAPI 3 文档。
+
+- **从 Manifest**，生成器写出基于 `@ahoo-wang/wow-client` 的类型化客户端，每个限界上下文一个目录：它的命令、查询、状态与服务路由。
+- **从 OpenAPI 文档**，只写出文档的模型（`types.ts`）与每个 tag 一个装饰器 API 客户端（`*ApiClient.ts`）：不论文档有哪些路径，都没有命令、查询或状态客户端。编译它们要启用 `experimentalDecorators: true`。
 
 <!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 ## 产物类型
 
+### 从 Manifest
+
+每个限界上下文一个以它命名的目录：
+
+| 产物 | 包含 |
+| --- | --- |
+| `contract.ts` | `<Context>Contract`：上下文的名字、上下文级错误码和它的各个聚合（各带自己的错误码）；`<Context>ErrorCode` 联合类型、`<Context>Subscription` 和 `<context>Wait` 各跳 |
+| `manifest.ts` | `<Context>Manifest`，一个 `RoutingManifest`：上下文各命令与生命周期命令的路由、它的服务路由，以及命令体指明了聚合的命令里指明聚合的那个属性（`idProperty`），不含 schema。命令客户端按它发送 |
+| `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
+| `routes.ts` | `<Context>Routes`：每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
+| `textNumbers.ts` | 递归类型在哪里持有精确数字，标记一次；只在有这种类型时写出 |
+| `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名；两个类共用的名字，或生成模块已经绑定的名字，以类的包名限定 |
+| `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`，聚合的描述符；`<Aggregate>StateField`，查询能指明的 `state.*` 字段；`<Aggregate>Access`，它的访问属性；`<Aggregate>Event`，它的事件的联合类型 |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个答出每一跳的 `…Stream` 孪生方法，以及聚合列出的生命周期命令；经由它的 `client`（基于上下文 `manifest.ts` 的 `CommandClient`）发送 |
+| `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
+| `index.ts` | 本次生成的 .ts 文件及非空子目录的递归导出 |
+| `.wow-generator.json` | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256 |
+
+### 从 OpenAPI 文档
+
 | 产物                      | 生成规则                                                                                               |
 | ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `types.ts`                | 按 schema 名称空间分组的组件模型类型/枚举及导入的 Wow 类型                                             |
-| `*ApiClient.ts`           | 带 operationId 的普通 tagged 操作；操作全部 tag 都必须是可用 API tag；排除 wow/Actuator/Wow 聚合 tag。以类名命名，与所有生成文件一样用 camelCase：`cartApiClient.ts` |
-| `commandClient.ts`        | 已解析聚合的命令路径、请求体别名（`AddCartItemCommand`；请求体本身已命名为 `…Command` 的不声明）、普通及流式命令客户端，各自经由它的 `client`（基于上下文 `manifest.ts` 的 `CommandClient`）发送 |
-| `queryClient.ts`          | 聚合 QueryClientFactory、状态/字段类型、领域事件联合（空集为 never）及事件标题枚举                     |
-| `contract.ts`             | 上下文的 `<Context>Contract`（名字、上下文级错误码，以及各聚合及其错误码）、`<Context>ErrorCode` 联合类型、`<Context>Subscription` 和 `<context>Wait` 各跳 |
-| `manifest.ts`             | `<Context>Manifest`，一个 `RoutingManifest`：各聚合的命令和生命周期命令及其路由，不含 schema；命令客户端按它发送 |
-| `client.ts`               | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端 |
+| `types.ts`                | 按 schema 名称空间分组的组件模型类型与枚举                                                             |
+| `*ApiClient.ts`           | 带 operationId 的普通 tagged 操作；操作全部 tag 都必须是可用 API tag。以类名命名，与所有生成文件一样用 camelCase：`cartApiClient.ts` |
 | `index.ts`                | 本次生成的 .ts 文件及非空子目录的递归导出                                                              |
-| `.wow-generator.json`     | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256；旧的 `.fetcher-generator.json` 会被读取一次并替换      |
+| `.wow-generator.json`     | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256                                                    |
 
 ## 源码约定
 
@@ -33,9 +54,9 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 模型的文档注释默认只含摘要：标题、描述、schema 键、format、默认值、示例和约束。对象模型还会列出其 schema 要求的属性（`- required: a, b`，没有时为 `- required: (none)`），因为生成的属性都不带 `?`。以 `anyOf: [{type: null}, X]` 表示的可空值按 `X` 生成注释，因此可空整数也保留 `format`。`--schema-docs full`（选项 `schemaDocs: 'full'`）还会嵌入完整的 JSON schema。
 
-## 方法
+## API 客户端的方法
 
-方法名依次取：[配置](./configuration)中的 `apiClients[tag].methodNames[operationId]`、操作的 `x-fetcher-method` 扩展，否则取 operationId 按点号分隔的最后一段并转为 camelCase：
+OpenAPI 文档的 API 客户端的方法名依次取：[配置](./configuration)中的 `apiClients[tag].methodNames[operationId]`、操作的 `x-fetcher-method` 扩展，否则取 operationId 按点号分隔的最后一段并转为 camelCase：
 
 | operationId                  | 方法名           |
 | ---------------------------- | ---------------- |
@@ -76,43 +97,64 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 
 ## 名字与 schema
 
-- 名字会转为标识符：参数 `item-id` → `itemId`，schema `Page«User»` → `PageUser`，`1stThing` → `_1stThing`，命令 `pay-order` → `PAY_ORDER` 与 `payOrder`。描述中的 `*/` 会被转义。
+- 名字会转为标识符：参数 `item-id` → `itemId`，schema `Page«User»` → `PageUser`，`1stThing` → `_1stThing`，Manifest 的命令 `PayOrder` → `payOrder`。描述中的 `*/` 会被转义。
 - 类型名中，schema 名以大写字母开头、不含分隔符的段按原样保留，缩写也不改：`MCPListTools` 仍是 `MCPListTools`，`OpenAIFile` 仍是 `OpenAIFile`。含分隔符或以小写开头的段才转成 PascalCase（`order_item` → `OrderItem`）。方法名、枚举成员、端点常量的规则不变。
 - 两个 schema 归一化后生成同一个模型时以退出码 4 失败。归一化后相同的枚举值会得到不同的成员。归一化后指向同一客户端的 tag 会生成带编号的类（`User2ApiClient`），并给出警告。
 - 指向不存在目标的 `$ref` 以退出码 4 失败，并列出这些引用。
 - `{ nullable: true, allOf: [{ $ref }] }` 允许 `null`。带 discriminator 的 `oneOf` 按判别属性收窄各分支。以自身为值的 map 生成带索引签名的接口。名为 `Record` 或 `Response` 的模型以别名导入，不会遮蔽全局类型。
-- 空的命令或事件体为 `Record<string, never>`。
-- 命令的请求体类型声明为 `<请求体>Command`（`AddCartItemCommand = CommandBody<AddCartItem>`），名字不会重复 `Command`：请求体本身已命名为 `MountedCommand` 的不声明别名，方法直接用 `CommandBody<MountedCommand>`。命令类型与聚合所在包的模型或另一个命令的请求体同名时（命令 `Foo` 与 `FooCommand`），以退出码 4 失败，并写明两个 schema；改名其中一个即可。
-- 命令方法把 Wow 拦截器不填的路径变量作为位置参数，按它们在路径中的顺序排列：`/cart/{id}/{customerId}` 得到 `(id, customerId, …)`。
-
-Wow 查询 schema 映射为 `@ahoo-wang/wow-client` 的类型。带 `filter` 属性的 `wow.api.query.ListQuery`、`PagedQuery` schema（Wow 8.11 及以后）映射为根入口的 `FilterListQuery`、`FilterPagedQuery`；`wow.api.query.Condition`、`ConditionOptions`、`Operator`，以及不带 `filter` 的 `ListQuery`、`PagedQuery` schema（Wow 8.10）映射为 `@ahoo-wang/wow-client/legacy` 中已弃用的类型，该子路径在 v10 删除。
+- Manifest 的空命令或事件体为 `Record<string, unknown>`。
 
 ## 运行时配置
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
-通过 ApiMetadata 构造器创建生成的客户端，通常传 `{ fetcher }`。为目标服务配置 Fetcher.baseURL；生成过程不调用生成 API。
+`@ahoo-wang/fetcher-eventstream` 是 `@ahoo-wang/wow-client` 的 peer，供 `…Stream` 方法用。OpenAPI 文档的 API 客户端还会导入 `@ahoo-wang/fetcher-decorator`。
 
-命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，会把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径，请求发往 `/example/...`。流式命令客户端继承同一个构造器，并使用 wow-client 的 `COMMAND_STREAM_ENDPOINT`（`@api('', COMMAND_STREAM_ENDPOINT)`）：请求 `text/event-stream`，服务端发来错误事件时，流以 `WowError` 报错，和 `CommandClient.sendAndWaitStream` 一致。不经按上下文别名路由的网关、直接访问服务时，传 `basePath: ''`；查询客户端工厂对应传 `contextAlias: ''`：
+一个上下文的客户端由它的 `<Context>Client` 一起创建，参数是 `WowClientOptions`：`fetcher` 发送请求（不给时用缺省 fetcher），带着宿主的拦截器（例如认证）；`basePath` 是加在每条路由前的路径，例如网关的前缀。生成不调用服务。eShop 购物车的：
 
-<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端；本页的 V10 重写改用 Manifest 客户端 -->
+<!-- typecheck: file=generated/eshop-basket/client.ts -->
+
+<!-- sample: examples/eshop/web/src/generated/basket/eshop-basket/client.ts -->
+
 ```ts
-import { Fetcher } from '@ahoo-wang/fetcher';
-import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';
+// Code generated by wow-generator. DO NOT EDIT.
 
-const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
-const commands = new CartCommandClient({ fetcher, basePath: '' });
-const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
-  fetcher,
-  contextAlias: '',
-});
+import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
+import { BasketCommandClient } from './basket/commandClient.js';
+import { BasketEventQueryClient, BasketSnapshotQueryClient, BasketStateClient } from './basket/queryClient.js';
+import { EshopBasketManifest } from './manifest.js';
+
+/** The clients of `eshop-basket`: its command client, and per aggregate its command, query and state clients. */
+export class EshopBasketClient {
+  /** Sends any command of the service, by its Manifest's routes: `send`, `wait` and `stream`. */
+  readonly commands: CommandClient;
+
+  /** The clients of `eshop-basket.basket`. */
+  readonly basket: {
+    readonly commands: BasketCommandClient;
+    readonly snapshots: BasketSnapshotQueryClient;
+    readonly events: BasketEventQueryClient;
+    readonly state: BasketStateClient;
+  };
+
+  /** @param options - How the service is reached */
+  constructor(options?: WowClientOptions) {
+    this.commands = new CommandClient(options, { manifest: EshopBasketManifest });
+    this.basket = {
+      commands: new BasketCommandClient(options),
+      snapshots: new BasketSnapshotQueryClient(options),
+      events: new BasketEventQueryClient(options),
+      state: new BasketStateClient(options),
+    };
+  }
+}
 ```
 
-查询客户端工厂的 `aggregateName` 是从聚合快照路由读出的路由段，例如以 `@AggregateRoute(resourceName = "sales-order")` 声明的聚合 `order` 为 `sales-order`。字段类型参数是 `` `${OrderAggregatedFields}` ``，即字段枚举的字符串值：枚举成员和对应字符串都能编译，拼错的字段不能。把查询标注为 `ListQuery` 或 `FilterListQuery`（字段默认为 `string`）的代码需要写明字段类型：`` ListQuery<`${CartAggregatedFields}`> ``。参见[声明式端点](https://fetcher.ahoo.me/zh/reference/decorator/services-and-endpoints)。
+eShop 网页在页面同源的一个 fetcher 上创建五个上下文的客户端，每个上下文的路由都以 `/eshop-<context>/` 开头（`examples/eshop/web/src/shop/clients.ts`）。
 
 ## 所有权与失败
 
@@ -128,7 +170,7 @@ const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
 
 [typescript/wow-generator/src/emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts)
 
-[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/wow-generator/src/emitters/queryClients.ts)
+[typescript/wow-generator/src/emitters/manifest/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-generator/src/emitters/manifest)
 
 [typescript/wow-generator/src/analysis/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/models.ts)
 

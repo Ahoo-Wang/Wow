@@ -33,6 +33,5 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 - [生成器配置](configuration)
 - [程序化 API](programmatic-api)
 - [生成产物与重新生成](generated-output)
-- [Wow 聚合识别](wow-discovery)
 
 [完整公开符号索引](./symbols.md)

@@ -33,6 +33,5 @@ Use the CLI for a reproducible build step, with `--strict` in CI to fail on warn
 - [Generator configuration](configuration)
 - [Programmatic API](programmatic-api)
 - [Generated output and regeneration](generated-output)
-- [Wow aggregate discovery](wow-discovery)
 
 [Complete public symbol index](./symbols.md)
