@@ -251,6 +251,13 @@ class QueryRoutesTest {
         )
         (1..3).forEach { bounded.save("c-$it") }
         bounded.query("""{"kind":"cursor"}""").body!!["list"].size().assert().isEqualTo(1)
+        // Neither a default list size nor a page size: the gateway pages by a stream chunk, here every match.
+        val open = QueryNode(
+            entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0)),
+            defaultListSize = 0,
+        )
+        (1..3).forEach { open.save("c-$it") }
+        open.query("""{"kind":"cursor"}""").body!!["list"].size().assert().isEqualTo(3)
     }
 
     @Test

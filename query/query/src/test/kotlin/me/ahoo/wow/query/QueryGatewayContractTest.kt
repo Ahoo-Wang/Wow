@@ -49,6 +49,7 @@ import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
+import java.util.IdentityHashMap
 
 /**
  * The gateway answers the records a backend returns as JSON trees, unchanged: 9.x materialized typed snapshots and
@@ -100,6 +101,15 @@ class QueryGatewayContractTest {
             SnapshotBackend.keysetSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxPageSize + 1)
             gateway.cursor(CursorQuery(size = 3), QueryCaller.IN_PROCESS)
             SnapshotBackend.keysetSize.assert().isEqualTo(4)
+        }
+    }
+
+    @Test
+    fun `a backend refuses a cursor query that was admitted without a page size`() {
+        runTest {
+            val unsized = AdmittedQuery(CursorQuery(), gatewaySchema(), QueryEntry.IN_PROCESS, IdentityHashMap())
+            runCatching { SnapshotBackend.cursor(unsized) }.exceptionOrNull().assert()
+                .isInstanceOf(IllegalStateException::class.java)
         }
     }
 

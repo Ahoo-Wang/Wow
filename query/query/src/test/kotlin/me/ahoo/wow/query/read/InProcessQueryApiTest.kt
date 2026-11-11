@@ -326,6 +326,11 @@ class InProcessQueryApiTest {
                 entryPolicy = QueryEntryPolicy(inProcess = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxPageSize = 1)),
             )
             bounded.of(alice).snapshots<CartState>().cursor(CursorQuery()).list.assert().hasSize(1)
+            // No in-process budget: the default list size itself; none either, the gateway's stream chunk.
+            api(defaultListSize = 2, entryPolicy = QueryEntryPolicy()).of(alice).snapshots<CartState>()
+                .cursor(CursorQuery()).list.assert().hasSize(2)
+            api(defaultListSize = 0, entryPolicy = QueryEntryPolicy()).of(alice).snapshots<CartState>()
+                .cursor(CursorQuery()).list.assert().hasSize(3)
         }
 
     @Test
