@@ -242,23 +242,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         )
     }
 
-    /**
-     * The fields a `SEARCH` may name, by the element they live in (`null` for the record): granted a full-text
-     * capability by storage and comparable. An element field is searchable only inside `ELEMENT_MATCH` on its element,
-     * so it is never listed for the record.
-     */
-    private val searchable: Map<String?, List<QueryFieldSchema>> by lazy {
-        schema.bindings.filterValues {
-            QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
-        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.distinct().sorted()
-            .mapNotNull { path -> schema.field(QueryField(path)) }
-            .filter { it.comparable && it.elementAncestors != null }
-            .groupBy { it.elementAncestors?.lastOrNull()?.path }
-    }
-
     /** Search inside [element]: its searchable fields and the modes all of them accept. */
     private fun elementSearch(element: String): SearchDescriptor? {
-        val fields = searchable[element]?.takeIf { it.isNotEmpty() } ?: return null
+        val fields = schema.searchFields[element]?.takeIf { it.isNotEmpty() } ?: return null
         val modes = listOfNotNull(
             SearchMode.TERMS.takeIf { fields.all { it.binding(QueryCapability.FULL_TEXT_TERMS) != null } },
             SearchMode.PHRASE.takeIf { fields.all { it.binding(QueryCapability.FULL_TEXT_PHRASE) != null } },

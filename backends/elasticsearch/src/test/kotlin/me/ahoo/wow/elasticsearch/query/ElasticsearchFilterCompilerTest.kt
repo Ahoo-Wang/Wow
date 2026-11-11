@@ -69,6 +69,21 @@ class ElasticsearchFilterCompilerTest {
         ).multiMatch().fields().assert().containsExactly("state.value")
     }
 
+    @Test
+    fun `a search that names no field matches nothing when no field backs it, never the index's default fields`() {
+        // Granted by the storage, yet no field binds full text: the list comes out empty.
+        val unbacked = nativeSchema(
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            fields = mapOf(
+                QueryField("state.value") to nativeBindings(QueryField("state.value"), QueryCapability.EXACT_MATCH)
+            ),
+        )
+        ElasticsearchFilterCompiler.compile(
+            SearchFilter("value"),
+            unbacked
+        )._kind().assert().isEqualTo(Query.Kind.MatchNone)
+    }
+
     private fun assertQuery(actual: Query, expected: Query) {
         val actualGen = MAPPER.createBufferingGenerator()
         actual.serialize(actualGen, MAPPER)
