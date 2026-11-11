@@ -13,11 +13,16 @@
 
 package me.ahoo.wow.runtime.sink
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
@@ -38,10 +43,12 @@ import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.RunEntry
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.sink.Sink
@@ -55,6 +62,7 @@ import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The records a sink subscription writes (design 04 §4, decisions D58, D133, D140). */
 class SinkSubscriptionTest {
@@ -258,12 +266,16 @@ class SinkSubscriptionTest {
     }
 
     /** A sink that takes [MAX_BATCH] records a write, records each write by version and refuses [refusing]. */
-    private inner class Batching(val refusing: Set<Int> = emptySet()) : Sink {
+    private inner class Batching(
+        val refusing: Set<Int> = emptySet(),
+        val gate: CompletableDeferred<Unit>? = null,
+    ) : Sink {
         val writes = CopyOnWriteArrayList<List<Int>>()
         override val maxBatch: Int = MAX_BATCH
 
         override suspend fun write(records: List<StateEventRecord>) {
             writes += records.map { it.version }
+            gate?.await()
             records.firstOrNull { it.version in refusing }?.let { throw IllegalArgumentException("v${it.version}") }
         }
 
@@ -280,16 +292,21 @@ class SinkSubscriptionTest {
      * Versions 1 and 3 price the order; version 2 holds a retired event only, so it has no record, unless [second]
      * gives its events.
      */
-    private suspend fun runOf(subscription: Subscription, second: List<EventRecord>? = null): List<RunEntry> {
+    private suspend fun runOf(
+        subscription: Subscription,
+        second: List<EventRecord>? = null,
+        aggregate: AggregateRef = ref,
+        partition: Int? = null,
+    ): List<RunEntry> {
         val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
         val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
         listOf(listOf(priced), second ?: listOf(discounted), listOf(priced)).forEachIndexed { index, events ->
             val version = index + 1
             val stream = EventStreamRecord(
-                ref = ref,
+                ref = aggregate,
                 version = version,
-                commandId = "c-$version",
-                requestId = "r-$version",
+                commandId = "c-${aggregate.id}-$version",
+                requestId = "r-${aggregate.id}-$version",
                 commandType = "shop.order.SetPrice",
                 commitTime = version.toLong(),
                 events = events,
@@ -297,9 +314,10 @@ class SinkSubscriptionTest {
             )
             log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         }
-        return log.read(ref).toList().map { stream ->
-            val entry = subscription.decoder.decode(stream, log.positionOf(stream.ref, stream.version), null)
-            RunEntry(entry, EmptyCoroutineContext)
+        return log.read(aggregate).toList().map { stream ->
+            val position = log.positionOf(stream.ref, stream.version)
+                ?.let { if (partition == null) it else LogPosition(partition, it.sequence) }
+            RunEntry(subscription.decoder.decode(stream, position, null), EmptyCoroutineContext)
         }
     }
 
@@ -349,6 +367,25 @@ class SinkSubscriptionTest {
         val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
         val subscription = SinkSubscription(NAME, type, sink, reader).subscription
         assertThrows<OutOfMemoryError> { runBlocking { subscription.runHandler!!(runOf(subscription)) } }
+    }
+
+    @Test
+    fun `runs of different partitions waiting together should go in one write`(): Unit = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        val sink = Batching(gate = gate)
+        val subscription = sink.subscription()
+        val first = runOf(subscription, aggregate = type.ref("t", "o-1"), partition = 0)
+        val second = runOf(subscription, aggregate = type.ref("t", "o-2"), partition = 3)
+        val third = runOf(subscription, aggregate = type.ref("t", "o-3"), partition = 1)
+        val leading = async { subscription.runHandler!!(first) }
+        eventually { sink.writes.size == 1 }
+        // While the first write is held, the runs of two other partitions wait for the next, together.
+        val waiting = listOf(second, third).map { async { subscription.runHandler!!(it) } }
+        delay(100.milliseconds)
+        sink.writes.size.assert().isEqualTo(1)
+        gate.complete(Unit)
+        (listOf(leading) + waiting).awaitAll().map { it.done }.assert().containsExactly(3, 3, 3)
+        sink.writes.map { it.size }.assert().containsExactly(2, 4)
     }
 
     @Test

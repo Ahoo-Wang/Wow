@@ -62,8 +62,8 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * - **Batches**: a sink of [Sink.maxBatch] above 1 is handed runs: the subscription is a batching one
  *   ([Subscription.batching]), whose lane hands [writeRun] the run of an aggregate's entries waiting together, at
  *   most [Sink.maxBatch]; each entry's record is built in its own observation, and the runs of all lanes waiting
- *   together are written with one [Sink.write] ([SinkWrites]; the partitions share [WRITE_LANES] of them, an
- *   aggregate's always in the same). A run answers how many of its entries are done: those whose records are durable,
+ *   together, of every partition, are written with one [Sink.write] ([SinkWrites], one per sink, one write in flight).
+ *   A run answers how many of its entries are done: those whose records are durable,
  *   and those that have none. A sink of [Sink.maxBatch] 1 is handed one record a call, its entries handled one by one.
  */
 internal class SinkSubscription(
@@ -83,12 +83,11 @@ internal class SinkSubscription(
         ) { "The sink $name reads the shared states as ${reader.reader}, not as itself." }
     }
 
-    /** The batched writes of a sink of [Sink.maxBatch] above 1, partition `p`'s in lane `p % WRITE_LANES`. */
-    private val writes: List<SinkWrites> =
-        if (sink.maxBatch > 1) List(WRITE_LANES) { SinkWrites(sink, sink.maxBatch) } else emptyList()
+    /** The batched writes of a sink of [Sink.maxBatch] above 1, of all its partitions; null for a sink of 1. */
+    private val writes: SinkWrites? = if (sink.maxBatch > 1) SinkWrites(sink, sink.maxBatch) else null
 
     /** The subscription to register: of [type]'s streams only, every event of them. */
-    val subscription: Subscription = if (writes.isEmpty()) {
+    val subscription: Subscription = if (writes == null) {
         Subscription(
             name = name,
             filter = SubscriptionFilter(type.context, setOf(type.name)),
@@ -141,8 +140,7 @@ internal class SinkSubscription(
                 owners += index
             }
         }
-        val partition = run.first().entry.position?.partition ?: 0
-        val written = writes[Math.floorMod(partition, WRITE_LANES)].write(records)
+        val written = checkNotNull(writes) { "A sink of maxBatch 1 runs no run." }.write(records)
         val failure = written.failure ?: return RunHandled(built, unbuilt)
         if (NodeFatals.isFatal(failure)) {
             throw failure
@@ -222,9 +220,4 @@ internal class SinkSubscription(
     }
 
     override fun toString(): String = "SinkSubscription($name)"
-
-    internal companion object {
-        /** The group commits of a batching sink: one per partition left most writes small, one for all could lag. */
-        const val WRITE_LANES = 4
-    }
 }

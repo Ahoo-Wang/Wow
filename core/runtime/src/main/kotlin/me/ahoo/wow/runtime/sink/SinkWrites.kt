@@ -35,6 +35,10 @@ internal class Written(val done: Int, val failure: Throwable?)
  * of one aggregate's entries, and the runs waiting together are written with one [Sink.write], of at most [maxBatch]
  * records, so that a warehouse gets one insert, one part or one `_bulk` for many commits instead of one each.
  *
+ * - **One per sink, one write in flight**: the batch grows with the load, up to [maxBatch], whatever partition each
+ *   run is of. Group commits by partition would only cut it: on a sink that writes one batch at a time (ClickHouse's
+ *   one insert), four of them carried half the commits an insert one did, draining a backlog.
+ *
  * - **No waiting for a batch to fill** (as [me.ahoo.wow.runtime.snapshot.SnapshotWrites]): a run finding no write
  *   running leads one at once, after a [yield] that lets the lanes ready in the same instant join it; the runs
  *   arriving while it runs wait for the next, which the leader writes too, until its own run is written. Then it hands
@@ -46,6 +50,10 @@ internal class Written(val done: Int, val failure: Throwable?)
  *   it (systemic: the partitions pause). Any other failure of a batch of several runs writes each run alone, and a
  *   run that fails alone is written record by record: it answers the records written before the one that failed, and
  *   that one's failure, so only its aggregate is retried and parked, from that record. A fatal error fails every run.
+ *   The leader writes them within its own run's timeout: at most [maxBatch] records, as the batch was. A leader that
+ *   times out puts the runs it has not ended back, and the next leader goes on from them. The entry that failed is
+ *   then handled alone by its lane, with one [Sink.write] of its own outside these batches, so no later batch
+ *   carries it.
  * - **Cancellation**: a leader cancelled (its lane stopped, or its run timed out) leaves the queue if no batch took its
  *   own run yet, puts the runs it took and has not ended back in front and hands the lead on; a waiting run cancelled
  *   leaves the queue.
