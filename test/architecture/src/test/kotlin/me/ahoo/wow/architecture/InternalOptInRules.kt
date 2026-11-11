@@ -23,7 +23,12 @@ import java.io.File
 /** Who may opt in to `InternalWowApi`: no application ([USER_PROJECTS]), but the declarations listed with a reason. */
 object InternalOptInRules {
     /** The [TOOLS] that are applications: they use Wow as a user does. */
-    private val APPLICATION_TOOLS = setOf("benchmark-server", "benchmark-search-server", "migration-rehearsal", "spi-consumer")
+    private val APPLICATION_TOOLS = setOf(
+        "benchmark-server",
+        "benchmark-search-server",
+        "migration-rehearsal",
+        "spi-consumer",
+    )
 
     /**
      * The projects that use Wow as an application does (decision D216; `userProjects` of the root build): the
