@@ -25,7 +25,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * branch too; without one the compiler refuses it and names each place to write `DeleteAggregate()`.
  */
 @Description("Marks the aggregate deleted; its events stay in the log.")
-class DeleteAggregate() {
+class DeleteAggregate {
     override fun equals(other: Any?): Boolean = this === other || other is DeleteAggregate
 
     override fun hashCode(): Int = javaClass.hashCode()
@@ -41,7 +41,7 @@ class DeleteAggregate() {
  * branch too; without one the compiler refuses it and names each place to write `RestoreAggregate()`.
  */
 @Description("Takes back the deletion of a deleted aggregate.")
-class RestoreAggregate() {
+class RestoreAggregate {
     override fun equals(other: Any?): Boolean = this === other || other is RestoreAggregate
 
     override fun hashCode(): Int = javaClass.hashCode()

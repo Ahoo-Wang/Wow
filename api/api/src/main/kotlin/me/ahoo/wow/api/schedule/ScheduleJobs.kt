@@ -135,7 +135,7 @@ class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
  * with one, a bare `DisableJob` would compile as that object, a value equal to no DisableJob, and as a `when`
  * branch too; without one the compiler refuses it and names each place to write `DisableJob()`.
  */
-class DisableJob() {
+class DisableJob {
     override fun equals(other: Any?): Boolean = this === other || other is DisableJob
 
     override fun hashCode(): Int = javaClass.hashCode()
@@ -151,7 +151,7 @@ class DisableJob() {
  * with one, a bare `TickJob` would compile as that object, a value equal to no TickJob, and as a `when`
  * branch too; without one the compiler refuses it and names each place to write `TickJob()`.
  */
-class TickJob() {
+class TickJob {
     override fun equals(other: Any?): Boolean = this === other || other is TickJob
 
     override fun hashCode(): Int = javaClass.hashCode()
@@ -218,7 +218,7 @@ class JobRescheduled @InternalWowApi constructor(val rule: ScheduleRule.Cron, va
  * with one, a bare `JobDisabled` would compile as that object, a value equal to no JobDisabled, and as a `when`
  * branch too; without one the compiler refuses it and names each place to write `JobDisabled()`.
  */
-class JobDisabled() {
+class JobDisabled {
     override fun equals(other: Any?): Boolean = this === other || other is JobDisabled
 
     override fun hashCode(): Int = javaClass.hashCode()

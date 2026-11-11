@@ -53,8 +53,9 @@ class BareSystemTypeTest {
                 "\nfun branch(body: Any) = when (body) {\n    DeleteAggregate -> 1\n    else -> 0\n}",
         )
         bare.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        // Each bare name is refused, the compiler naming the classifier that has no companion.
-        names.forEach { name -> bare.messages.assert().contains("'$name'") }
+        // Each bare name is refused, the compiler naming the classifier that has no companion; the when branch too.
+        names.forEach { name -> bare.messages.assert().contains("'class $name ").contains("does not have a companion") }
+        bare.messages.lines().count { "does not have a companion" in it }.assert().isGreaterThan(names.size)
         val built = compile(names.joinToString("\n") { "val built$it: Any = $it()" })
         built.exitCode.assert().withFailMessage { built.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
     }
