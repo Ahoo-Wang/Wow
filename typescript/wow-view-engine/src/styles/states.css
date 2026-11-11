@@ -32,7 +32,26 @@
  * registry's own `hover:` is.
  */
 @layer utilities {
+  /*
+   * The primary button is the primary as a fill under words, `primary-fill`
+   * and its ink: in the dark a step deeper than the primary, which there is
+   * light enough to be text and too light to carry white words (D94). Under
+   * the pointer it keeps the registry's four fifths of its fill.
+   */
+  .fve\:group\/button:where(.fve\:bg-primary) {
+    background-color: var(--_fve-primary-fill);
+    color: var(--_fve-primary-fill-foreground);
+  }
+
   @media (hover: hover) {
+    .fve\:group\/button:where(.fve\:hover\:bg-primary\/80):hover {
+      background-color: color-mix(
+        in oklab,
+        var(--_fve-primary-fill) 80%,
+        transparent
+      );
+    }
+
     :is(.fve\:group\/button, .fve\:group\/toggle):where(
         .fve\:hover\:bg-muted
       ):hover:not(

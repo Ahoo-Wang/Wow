@@ -158,12 +158,18 @@
       --fve-dark-primary-fill,
       var(
         --_fve-brand-dark-primary-fill,
-        var(--fvp-dark-primary-fill, var(--primary))
+        var(
+          --fvp-dark-primary-fill,
+          var(--_fve-derived-primary-fill, var(--primary))
+        )
       )
     );
     --_fve-primary-fill-foreground: var(
       --fve-dark-primary-fill-foreground,
-      var(--fvp-dark-primary-fill-foreground, var(--primary-foreground))
+      var(
+        --fvp-dark-primary-fill-foreground,
+        var(--_fve-derived-primary-fill-foreground, var(--primary-foreground))
+      )
     );
     /* White, not black — see the light half: over the dark card black tops
        out at 1.48:1 however much of it is spent. */

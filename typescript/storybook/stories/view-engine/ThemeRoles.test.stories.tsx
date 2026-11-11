@@ -249,8 +249,8 @@ function hueOffBrand(painted: string, theme: 'light' | 'dark'): number {
  *
  * acme 给了品牌色（`--fve-brand`），设了表头带（底、600 的字重、列分隔线）、
  * 2px 的焦点轮廓离控件 2px 并去掉光晕、高一档的控件（36px 与 30px），菜单高亮
- * 链接到面上的主色与主色的字（`highlight-link`）。选中行是品牌派生的淡色，
- * 高亮是品牌派生的主色，都带品牌的色相；它没设的合计带仍是 `muted`，行仍是
+ * 链接到面上主色的填色与它的字（`highlight-link`）。选中行是品牌派生的淡色，
+ * 高亮是品牌派生的主色（暗色深一档、白字），都带品牌的色相；合计带仍是 `muted`，行仍是
  * 页面的底。
  */
 const hostRoles = (theme: 'light' | 'dark'): Story => ({
@@ -308,8 +308,8 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
         .replace(')', ', 0.50)'),
     );
 
-    // The menu highlights with the surface's primary and its ink, by a link:
-    // the primary the brand derives, in either mode.
+    // The menu highlights with the primary's fill and its ink, by a link:
+    // the brand's hue in either mode, a step deeper under white in dark.
     const trigger = [
       ...canvasElement.querySelectorAll<HTMLElement>('[aria-haspopup="menu"]'),
     ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none')!;
@@ -333,11 +333,11 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
       'acme',
     );
     await settled(() => getComputedStyle(highlighted).backgroundColor);
-    const primary = colorOf(surface, '--primary');
-    await expect(hueOffBrand(primary, theme)).toBeLessThan(10);
-    await expect(groundOf(highlighted)).toBe(primary);
+    const fill = colorOf(surface, '--_fve-primary-fill');
+    await expect(hueOffBrand(fill, theme)).toBeLessThan(10);
+    await expect(groundOf(highlighted)).toBe(fill);
     await expect(rgbOf(getComputedStyle(highlighted).color)).toBe(
-      colorOf(surface, '--primary-foreground'),
+      colorOf(surface, '--_fve-primary-fill-foreground'),
     );
     await userEvent.keyboard('{Escape}');
   },

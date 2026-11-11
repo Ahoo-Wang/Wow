@@ -185,7 +185,7 @@ export function themeSource(styles: string): string {
 }
 
 /**
- * `var(--fve-x, fallback)`, `var(--_fve-brand-x, fallback)`,
+ * `var(--fve-x, fallback)`, `var(--_fve-brand-x, fallback)` (or `derived`),
  * `var(--_fve-link-x, fallback)` or `var(--fvp-x, fallback)`, split at its
  * first top-level comma — or with no fallback at all, a token with no
  * built-in value (the controls group), which is unset until a theme gives
@@ -195,7 +195,7 @@ function layerReference(
   value: string,
 ): [string, string | undefined] | undefined {
   const match =
-    /^var\((--fv[ep]-[\w-]+|--_fve-(?:brand|link)-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(
+    /^var\((--fv[ep]-[\w-]+|--_fve-(?:brand|derived|link)-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(
       value,
     );
   return match ? [match[1], match[2]?.trim()] : undefined;
@@ -401,7 +401,7 @@ export function createResolver({
     if (brandCache) return brandCache;
     const declared = new Map<string, BrandDeclaration>();
     root.walkAtRules('supports', supports => {
-      supports.walkDecls(/^--_fve-brand-/, decl => {
+      supports.walkDecls(/^--_fve-(brand|derived)-/, decl => {
         const rule = decl.parent as postcss.Rule;
         declared.set(decl.prop, {
           value: tidy(decl.value),
@@ -460,7 +460,7 @@ export function createResolver({
       const reference = layerReference(value);
       if (!reference) return value;
       const [variable, fallback] = reference;
-      const given = variable.startsWith('--_fve-brand-')
+      const given = /^--_fve-(brand|derived)-/.test(variable)
         ? brand.get(variable)
         : variable.startsWith('--_fve-link-')
           ? link(variable)
@@ -520,7 +520,7 @@ export function createResolver({
           ? token(reference[1], seen)
           : evaluate(reference[2], seen);
       if (value === 'transparent') return { r: 0, g: 0, b: 0, alpha: 0 };
-      const relative = relativeOklch(value);
+      const relative = relativeOklch(value, name => token(name, seen));
       if (relative)
         return rgba(
           gamut === 'clip' ? relative : clampChroma(relative, 'oklch'),

@@ -85,10 +85,10 @@ export const TOKENS = [
   { name: 'ring', ...OWN, brand: true },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
   { name: 'quiet-foreground', ...ENGINE },
-  // The primary as a filled area under words — a menu's highlighted item
-  // linked to the brand: the primary itself unless a preset gives a deeper
-  // step (dark, where the primary is light enough to be text on the dark
-  // grounds and too light to carry white words).
+  // The primary as a filled area under words — the primary button, and a
+  // menu's highlighted item linked to it: the primary itself in light, a
+  // step deeper in dark, where the primary is light enough to be text on
+  // the dark grounds and too light to carry white words.
   { name: 'primary-fill', ...ENGINE, brand: true, fallback: 'primary' },
   {
     name: 'primary-fill-foreground',

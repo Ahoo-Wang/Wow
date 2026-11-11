@@ -98,6 +98,15 @@
   --fvp-dark-popover-foreground: oklch(1 0 0deg);
   --fvp-dark-primary: oklch(0.84 0.1 250deg);
   --fvp-dark-primary-foreground: oklch(0 0 0deg);
+  /* A filled primary is the light primary under black words: the most
+     contrast a fill and its ink can have (the stylesheet's deeper fill
+     under white words reads about 5:1, under this theme's 7:1). With a
+     brand colour the fill keeps the primary's band, written again here
+     because a preset cannot read the surface's own bounds. */
+  --fvp-dark-primary-fill: oklch(0.84 0.1 250deg);
+  --fvp-dark-primary-fill-foreground: oklch(0 0 0deg);
+  --fvp-dark-brand-primary-fill-l-min: 0.8;
+  --fvp-dark-brand-primary-fill-l-max: 0.9;
   --fvp-dark-secondary: oklch(0.25 0 0deg);
   --fvp-dark-secondary-foreground: oklch(1 0 0deg);
   --fvp-dark-muted: oklch(0.2 0 0deg);
