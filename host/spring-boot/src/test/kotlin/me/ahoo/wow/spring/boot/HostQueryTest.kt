@@ -243,8 +243,7 @@ class HostQueryTest {
             owner().assert().isEqualTo("rebuilt")
             store.rebuilds!!.rewrite(record(1, "older")).assert().isFalse()
             owner().assert().isEqualTo("rebuilt")
-            val plain = MemoryStore(StoreConfig("plain", StoreTypes.MEMORY))
-            plain.snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
+            memoryStore("plain").snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
         }
     }
 

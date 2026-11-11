@@ -419,7 +419,7 @@ abstract class SnapshotRebuildSpec {
 
 /** [SnapshotRebuildSpec] in memory. */
 class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): Store = MemoryStore(StoreConfig(name, StoreTypes.MEMORY))
+    override fun store(name: String): Store = memoryStore(name)
 }
 
 /**
@@ -428,7 +428,7 @@ class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
  */
 class SlowStoreSnapshotRebuildTest : SnapshotRebuildSpec() {
     override fun store(name: String): Store = if (name != A) {
-        MemoryStore(StoreConfig(name, StoreTypes.MEMORY))
+        memoryStore(name)
     } else {
         MemoryStore(StoreConfig(name, StoreTypes.MEMORY), snapshotsOf = { SlowSaves(InMemorySnapshotStore()) })
     }
