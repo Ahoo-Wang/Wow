@@ -114,7 +114,7 @@ internal class NodePublicPort {
         }
         return WowHttpOptions(
             requestFacts = properties.http.requestFacts.toSet(),
-            errorStatuses = properties.http.errors.mapValues { it.value.status },
+            errorStatuses = properties.http.errorStatuses(),
             manifestEndpoint = properties.http.manifest.enabled,
             openApiEndpoint = properties.http.openapi.enabled,
             clientFacts = properties.http.clientFacts.enabled,

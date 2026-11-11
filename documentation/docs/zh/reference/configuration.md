@@ -245,7 +245,7 @@ The HTTP status of an error code, by code (bracketed in a property name: `wow.ht
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.http.errors.[<code>].status` | `Integer` | `0` | The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start. |
+| `wow.http.errors.[<code>].status` | `Integer` |  | The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start. |
 
 ## `wow.http.global-errors`
 

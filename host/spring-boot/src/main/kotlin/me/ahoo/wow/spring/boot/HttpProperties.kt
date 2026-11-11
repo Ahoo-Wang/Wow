@@ -18,6 +18,7 @@ import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.spi.config.configNotNull
 import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -40,6 +41,14 @@ class HttpProperties {
 
     /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
     var errors: MutableMap<String, Error> = LinkedHashMap()
+
+    /** The status of each code of [errors]; an entry without one refuses the start, naming its key. */
+    fun errorStatuses(): Map<String, Int> = errors.mapValues { (code, error) ->
+        val key = "wow.http.errors.[$code].status"
+        configNotNull(error.status, key, "Set $key, 400 to 599, or remove the entry.") {
+            "The error code $code has no status: an entry of wow.http.errors is the status its code is answered with."
+        }
+    }
 
     /** The problem+json answers of what fails on the application's own routes. */
     var globalErrors: GlobalErrors = GlobalErrors()
@@ -87,7 +96,7 @@ class HttpProperties {
     @InternalWowApi
     class Error {
         /** The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start. */
-        var status: Int = 0
+        var status: Int? = null
     }
 
     @InternalWowApi
