@@ -139,6 +139,60 @@ export const FixedOnAPhone: Story = {
   },
 };
 
+/** A column the play narrows and widens, as a window is. */
+const RESIZED = (Story: ComponentType) => (
+  <div data-column style={{ width: 1440 }}>
+    <Story />
+  </div>
+);
+
+/**
+ * How far any panel's right edge passes its grid's, at worst, over every
+ * frame drawn for `ms`. Read after each paint: a frame's animation callback
+ * runs before its layout and its resize observers, and would read a width
+ * the grid takes before the frame is drawn.
+ */
+function worstPastGrid(grid: HTMLElement, ms: number): Promise<number> {
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    const start = performance.now();
+    let worst = -Infinity;
+    channel.port1.onmessage = () => {
+      const right = grid.getBoundingClientRect().right;
+      for (const item of grid.querySelectorAll('.react-grid-item'))
+        worst = Math.max(worst, item.getBoundingClientRect().right - right);
+      if (performance.now() - start < ms)
+        requestAnimationFrame(() => channel.port2.postMessage(0));
+      else {
+        channel.port1.close();
+        resolve(worst);
+      }
+    };
+    requestAnimationFrame(() => channel.port2.postMessage(0));
+  });
+}
+
+/**
+ * A window narrowed or widened lays the panels out at the new width in the
+ * frame the grid takes it (#3721). The grid's stylesheet eases a panel from
+ * its old place to its new one; after a width change that drew them past the
+ * grid for 200ms — up to 150px on a window 160px narrower.
+ */
+export const NarrowedWindow: Story = {
+  ...DisplayAllPanels,
+  decorators: [RESIZED],
+  play: async ({ canvasElement }) => {
+    const grid = await drawn(canvasElement);
+    await waitFor(() => panelsInside(grid));
+    const column = canvasElement.querySelector<HTMLElement>('[data-column]')!;
+    for (const width of [1280, 1440, 1100]) {
+      const drawnFrames = worstPastGrid(grid, 400);
+      column.style.width = `${width}px`;
+      await expect(await drawnFrames).toBeLessThanOrEqual(1);
+    }
+  },
+};
+
 /**
  * 固定宽度／全宽 on the edit bar: each press lays the board out anew at once,
  * and 撤销 takes it back — one step of building like any other.
