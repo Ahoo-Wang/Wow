@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.timer
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.naming.Escapes.escaped
@@ -233,6 +234,7 @@ class Timer @InternalWowApi constructor(
  * Where a [Timer] is. Statuses may be added, each read by every node before one writes it, so a `when` over them keeps
  * an `else` branch.
  */
+@WowSpi
 enum class TimerStatus {
     /** Waiting to be sent, or being retried after a technical failure. */
     PENDING,

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 /**
  * How a subscription answers a failure of its handler (9.x `RecoverableType`).
  */
+@WowSpi
 enum class FailureClass {
     /**
      * The aggregate's own failure, which no retry changes (invalid data, a defect, a value refused for good): the

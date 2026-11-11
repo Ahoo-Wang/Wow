@@ -122,6 +122,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.ObservedEvent` | class | `wow-spi` |
+| `me.ahoo.wow.spi.observation.ObservedOutcome` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observation` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.TraceContext` | class | `wow-spi` |
@@ -145,9 +146,12 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.store.StorePool` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.CheckpointStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.FailureClass` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.timer.TimerStatus` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.EnvelopeKind` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.SourceMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionOffsets` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |

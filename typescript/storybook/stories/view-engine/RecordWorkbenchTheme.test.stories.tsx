@@ -747,7 +747,7 @@ export const ControlBordersInLightTheme: Story = controlBorders('light');
 
 /**
  * The same controls with the surface pinned dark, where the token is white at
- * an opacity and carries the `bg-input/30` fill with it.
+ * an opacity, on the surface itself: a control wears no wash there (D94).
  */
 export const ControlBordersInDarkTheme: Story = controlBorders('dark');
 

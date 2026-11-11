@@ -307,9 +307,8 @@ export async function colorsSettled(): Promise<void> {
  * The border of one control, measured against what is behind it.
  *
  * "Behind it" is two things and both have to clear the bar: the surface the
- * control sits on, and the control's own fill when it has one — the dark
- * theme gives inputs a `bg-input/30` wash, which is the same token at another
- * opacity and therefore moves with it.
+ * control sits on, and the control's own fill when it has one — a theme's
+ * `control` under a toolbar's button, or a state's fill.
  */
 export function measureBorderContrast(
   element: Element,
