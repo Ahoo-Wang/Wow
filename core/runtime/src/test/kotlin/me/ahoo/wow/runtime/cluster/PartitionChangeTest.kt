@@ -60,12 +60,17 @@ class PartitionChangeTest {
     fun `each partition acquired, then handed off, is reported both times`(): Unit = runTest(timeout = 1.minutes) {
         val changed = CopyOnWriteArrayList<Int>()
         val ownership = ownership(InMemoryLeaseStore(virtualClock()), changed)
-        ownership.start()
-        delay(1.seconds)
-        changed.toSet().assert().isEqualTo((0 until PARTITIONS).toSet())
-        changed.size.assert().isEqualTo(PARTITIONS)
-        ownership.stop()
-        changed.groupingBy { it }.eachCount().values.toSet().assert().containsExactly(2)
+        try {
+            ownership.start()
+            delay(1.seconds)
+            changed.toSet().assert().isEqualTo((0 until PARTITIONS).toSet())
+            changed.size.assert().isEqualTo(PARTITIONS)
+            ownership.stop()
+            changed.groupingBy { it }.eachCount().values.toSet().assert().containsExactly(2)
+        } finally {
+            // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+            ownership.abort()
+        }
     }
 
     @Test
@@ -122,15 +127,20 @@ class PartitionChangeTest {
             timeSource = testScheduler.timeSource,
             partitionChanged = { check(!handingOff) { "The state cache is gone." } },
         )
-        ownership.start()
-        delay(1.seconds)
-        ownership.owned.assert().isEqualTo((0 until PARTITIONS).toSet())
-        runtime.isRunning.assert().isTrue()
-        handingOff = true
-        ownership.stop()
-        ownership.isRunning.assert().isFalse()
-        runtime.isRunning.assert().isFalse()
-        leases.owners(GROUP.name).assert().isEmpty()
+        try {
+            ownership.start()
+            delay(1.seconds)
+            ownership.owned.assert().isEqualTo((0 until PARTITIONS).toSet())
+            runtime.isRunning.assert().isTrue()
+            handingOff = true
+            ownership.stop()
+            ownership.isRunning.assert().isFalse()
+            runtime.isRunning.assert().isFalse()
+            leases.owners(GROUP.name).assert().isEmpty()
+        } finally {
+            // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+            ownership.abort()
+        }
     }
 
     @Test
@@ -151,12 +161,17 @@ class PartitionChangeTest {
             timeSource = testScheduler.timeSource,
             intake = intake,
         )
-        ownership.start()
-        delay(1.seconds)
-        runtime.isRunning.assert().isTrue()
-        ownership.stop()
-        runtime.isRunning.assert().isFalse()
-        coVerify { intake.stop() }
+        try {
+            ownership.start()
+            delay(1.seconds)
+            runtime.isRunning.assert().isTrue()
+            ownership.stop()
+            runtime.isRunning.assert().isFalse()
+            coVerify { intake.stop() }
+        } finally {
+            // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+            ownership.abort()
+        }
     }
 
     @Test
