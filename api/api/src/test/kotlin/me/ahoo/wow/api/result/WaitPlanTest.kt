@@ -70,6 +70,7 @@ class WaitPlanTest {
     fun `only a HANDLED hop names a subscription, and it must`() {
         Hop.handled("projector.on-placed", "sales").toString().assert().isEqualTo("handled(sales/projector.on-placed)")
         assertThrownBy<IllegalArgumentException> { Hop(Stage.HANDLED) }
+        assertThrownBy<IllegalArgumentException> { Hop(Stage.HANDLED, subscription = " ") }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.COMMITTED, subscription = "snapshot") }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.ACCEPTED, context = " ") }
     }
