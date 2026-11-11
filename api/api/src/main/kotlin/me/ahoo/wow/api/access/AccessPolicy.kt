@@ -127,7 +127,6 @@ class AccessPolicyBuilder<S : Any> internal constructor(
  * caller does not hold, a null or no values, denies ([AccessPredicate.Unknown]), as does one of a value the aggregate
  * does not have.
  */
-@Suppress("TooManyFunctions") // The operators of the policy language.
 class AccessScope<S : Any> internal constructor() {
     /** The attribute's value is [value]. */
     infix fun <V : Any> AccessAttribute.Single<S, V>.eq(value: V?): AccessPredicate =

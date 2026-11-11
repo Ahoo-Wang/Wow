@@ -217,7 +217,7 @@ internal class HealthGroupsEnvironmentPostProcessor : EnvironmentPostProcessor {
          */
         private fun probes(environment: ConfigurableEnvironment): Boolean? = try {
             Binder.get(environment).bind(PROBES, Boolean::class.javaObjectType).orElse(true)
-        } catch (@Suppress("SwallowedException") refused: BindException) {
+        } catch (refused: BindException) {
             null
         }
     }

@@ -63,7 +63,7 @@ internal class ConnectionDefaultsEnvironmentPostProcessor : EnvironmentPostProce
             val path = afterScheme.substringAfter('/', missingDelimiterValue = "").substringBefore('?')
             val database = try {
                 URLDecoder.decode(path, Charsets.UTF_8)
-            } catch (@Suppress("SwallowedException") malformed: IllegalArgumentException) {
+            } catch (malformed: IllegalArgumentException) {
                 return null
             }
             return database.takeIf { it.isNotBlank() }

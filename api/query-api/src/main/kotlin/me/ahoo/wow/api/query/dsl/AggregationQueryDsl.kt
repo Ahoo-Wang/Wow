@@ -41,7 +41,6 @@ import java.time.ZoneId
  * Inside an expanded element, a group or metric field is relative to the innermost element unless its scope is
  * [AggregationGroupScope.ROOT].
  */
-@Suppress("TooManyFunctions")
 @QueryDslMarker
 @ExperimentalWowApi
 class AggregationQueryDsl {

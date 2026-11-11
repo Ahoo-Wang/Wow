@@ -79,7 +79,6 @@ interface Info : TreeCoded, NameCapable, Comparable<Info> {
     /** Whether [child] is a direct child of this node. */
     fun isDirectChild(child: Info): Boolean = code.isDirectChild(child.code)
 
-    @Suppress("ReturnCount")
     override fun compareTo(other: Info): Int {
         val levelCompared = level.compareTo(other.level)
         if (levelCompared != 0) {

@@ -377,9 +377,9 @@ internal class MongoLogAppender(
                 bulk.writeErrors.filterNot { it.category == ErrorCategory.DUPLICATE_KEY }.mapTo(HashSet()) { it.index }
             }
         } catch (
-            @Suppress("SwallowedException") // Each sequence is left to the tail, which fills it again.
             failure: MongoException,
         ) {
+            // Each sequence is left to the tail, which fills it again.
             gaps.indices.toSet()
         }
         gaps.forEachIndexed { at, gap ->

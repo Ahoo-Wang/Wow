@@ -211,7 +211,7 @@ internal class MongoQuerySchemaAdapter internal constructor(
         }
 
         // One native capability gate preserves shape, representation and union checks.
-        @Suppress("CyclomaticComplexMethod", "ReturnCount")
+        @Suppress("CyclomaticComplexMethod")
         private fun QueryValueSchema.supports(
             capability: QueryCapability,
             path: QueryPathTemplate,
@@ -233,7 +233,6 @@ internal class MongoQuerySchemaAdapter internal constructor(
             return capability != QueryCapability.CURSOR_SORT || supportsCursorSort(storage?.types, requirements)
         }
 
-        @Suppress("ReturnCount")
         private fun QueryValueSchema.supportsArray(
             capability: QueryCapability,
             path: QueryPathTemplate,
@@ -266,7 +265,6 @@ internal class MongoQuerySchemaAdapter internal constructor(
             else -> listOf(this)
         }
 
-        @Suppress("ReturnCount")
         private fun List<QueryValueSchema>.supportsUnion(
             capability: QueryCapability,
             path: QueryPathTemplate,
