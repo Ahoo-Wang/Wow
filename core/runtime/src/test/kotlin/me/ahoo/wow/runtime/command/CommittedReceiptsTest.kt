@@ -27,7 +27,6 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -297,7 +296,7 @@ class CommittedReceiptsTest {
             // Delivered again, the command is not decided again: its receipt is the original commit's.
             copy.result.duplicate.assert().isTrue()
             stock.decided.size.assert().isEqualTo(1)
-            receiptsRead()
+            receiptsRead(topics, RECEIPTS, salesBackends.backends(SALES).checkpoints, SALES_SERVICE, SALES)
             commits.size.assert().isEqualTo(1)
             confirmed.size.assert().isEqualTo(1)
         }
@@ -332,19 +331,6 @@ class CommittedReceiptsTest {
         override suspend fun list(group: String): List<Checkpoint> = emptyList()
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
-    }
-
-    /**
-     * Waits until the sales node's receipts subscription has read every receipt on the topic: a receipt handled twice
-     * would have been by then. Its checkpoint in each partition is the offset to read next.
-     */
-    private suspend fun receiptsRead() {
-        val group = LeaseGroup.topic(SALES_SERVICE, RECEIPTS).name
-        val checkpoints = salesBackends.backends(SALES).checkpoints
-        eventually {
-            topics.partitions(RECEIPTS).sumOf { checkpoints.load(group, Receipts.nameOf(SALES), it) ?: 0L } ==
-                topics.messages(RECEIPTS).size.toLong()
-        }
     }
 
     private companion object {

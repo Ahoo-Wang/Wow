@@ -22,6 +22,7 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
+import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -30,7 +31,9 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.junit.jupiter.api.AfterEach
@@ -131,5 +134,24 @@ abstract class CommandIntakeFixtures {
 
         /** The stock context's command intake, which parks the commands it cannot execute. */
         val INTAKE = SubscriptionId(STOCK, CommandIntake.NAME)
+    }
+}
+
+/**
+ * Waits until the receipts subscription of [context] in [service] has read every receipt on [topic]: a receipt handled
+ * twice would have been by then. Its checkpoint in each partition, in [checkpoints], is the offset to read next, since
+ * a receipt's position is its offset + 1, so all are read when the checkpoints add up to the topic's message count.
+ */
+internal suspend fun receiptsRead(
+    topics: InMemoryTopics,
+    topic: String,
+    checkpoints: CheckpointStore,
+    service: String,
+    context: String,
+) {
+    val group = LeaseGroup.topic(service, topic).name
+    eventually {
+        topics.partitions(topic).sumOf { checkpoints.load(group, Receipts.nameOf(context), it) ?: 0L } ==
+            topics.messages(topic).size.toLong()
     }
 }

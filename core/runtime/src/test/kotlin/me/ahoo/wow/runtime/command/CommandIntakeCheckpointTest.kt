@@ -18,7 +18,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -122,7 +121,7 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
             val (receipt, copy) = topics.messages(RECEIPTS).map { EnvelopeCodec.decode(it.value).id }
             copy.assert().isEqualTo(receipt)
             stock.decided.size.assert().isEqualTo(2)
-            receiptsRead()
+            receiptsRead(topics, RECEIPTS, salesBackends.backends(SALES).checkpoints, SALES_SERVICE, SALES)
             rejections.size.assert().isEqualTo(1)
             cancelled.size.assert().isEqualTo(1)
         }
@@ -134,18 +133,5 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
         override suspend fun list(group: String): List<Checkpoint> = emptyList()
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
-    }
-
-    /**
-     * Waits until the sales node's receipts subscription has read every receipt on the topic: a receipt handled twice
-     * would have been by then. Its checkpoint in each partition is the offset to read next.
-     */
-    private suspend fun receiptsRead() {
-        val group = LeaseGroup.topic(SALES_SERVICE, RECEIPTS).name
-        val checkpoints = salesBackends.backends(SALES).checkpoints
-        eventually {
-            topics.partitions(RECEIPTS).sumOf { checkpoints.load(group, Receipts.nameOf(SALES), it) ?: 0L } ==
-                topics.messages(RECEIPTS).size.toLong()
-        }
     }
 }
