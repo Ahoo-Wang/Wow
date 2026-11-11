@@ -136,7 +136,8 @@ class ElasticsearchQueryFeaturesTest {
     }
 
     private fun ids(filter: FilterExpression): List<String> = runBlocking {
-        backend.list(QueryAdmission.Trusted.list(ListQuery(filter, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)), limit = 100), schema))
+        val query = ListQuery(filter, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)), limit = 100)
+        backend.list(QueryAdmission.Trusted.list(query, schema))
             .toList().map { it.path("aggregateId").stringValue() }
     }
 
@@ -150,10 +151,17 @@ class ElasticsearchQueryFeaturesTest {
                     AggregationMetric.Numeric(AggregationFunction.STDDEV, QUANTITY, "stddev"),
                     AggregationMetric.Numeric(AggregationFunction.VARIANCE, QUANTITY, "variance"),
                     AggregationMetric.Percentile(QUANTITY, 50.0, "median"),
-                    AggregationMetric.Any(QueryField("state.status"), "anyStatus", EqualFilter(QueryField("state.status"), "SHIPPED")),
+                    AggregationMetric.Any(
+                        QueryField("state.status"),
+                        "anyStatus",
+                        EqualFilter(QueryField("state.status"), "SHIPPED")
+                    ),
                     AggregationMetric.First(QueryField("state.quantity"), "first", QueryField("state.createdAt")),
                     AggregationMetric.Last(QueryField("state.quantity"), "last", QueryField("state.createdAt")),
-                    AggregationMetric.DistinctCount(AggregationExpression.Field(QueryField("state.status")), "statuses"),
+                    AggregationMetric.DistinctCount(
+                        AggregationExpression.Field(QueryField("state.status")),
+                        "statuses"
+                    ),
                     AggregationMetric.DistinctCount(
                         AggregationExpression.Field(QueryField("state.status")),
                         "paidStatuses",
@@ -184,6 +192,7 @@ class ElasticsearchQueryFeaturesTest {
     }
 
     @Test
+    @Suppress("LongMethod") // Each kind of expression in one query, its arguments a line each: a list, not steps.
     fun `expression metrics, groups and filters run as runtime fields and scripts`() {
         val total = AggregationExpression.Binary(AggregationExpressionOperator.MULTIPLY, AMOUNT, QUANTITY)
         val row = aggregate(
@@ -192,15 +201,27 @@ class ElasticsearchQueryFeaturesTest {
                     AggregationMetric.Numeric(AggregationFunction.SUM, total, "revenue"),
                     AggregationMetric.Numeric(
                         AggregationFunction.MAX,
-                        AggregationExpression.DateDiff(QueryField("state.createdAt"), QueryField("lastEventTime"), DateDiffUnit.DAY),
+                        AggregationExpression.DateDiff(
+                            QueryField("state.createdAt"),
+                            QueryField("lastEventTime"),
+                            DateDiffUnit.DAY
+                        ),
                         "lag",
                     ),
                     AggregationMetric.Numeric(
                         AggregationFunction.MIN,
                         AggregationExpression.Binary(
                             AggregationExpressionOperator.SUBTRACT,
-                            AggregationExpression.Binary(AggregationExpressionOperator.ADD, AMOUNT, AggregationExpression.Constant(1.0)),
-                            AggregationExpression.Binary(AggregationExpressionOperator.DIVIDE, QUANTITY, AggregationExpression.Constant(2.0)),
+                            AggregationExpression.Binary(
+                                AggregationExpressionOperator.ADD,
+                                AMOUNT,
+                                AggregationExpression.Constant(1.0)
+                            ),
+                            AggregationExpression.Binary(
+                                AggregationExpressionOperator.DIVIDE,
+                                QUANTITY,
+                                AggregationExpression.Constant(2.0)
+                            ),
                         ),
                         "shifted",
                     ),
@@ -222,7 +243,16 @@ class ElasticsearchQueryFeaturesTest {
         byTotal.map { it.path("count").longValue() }.sum().assert().isEqualTo(5L)
         val byTerm = aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.Terms(alias = "doubled", expression = AggregationExpression.Binary(AggregationExpressionOperator.MULTIPLY, QUANTITY, AggregationExpression.Constant(2.0)))),
+                groupBy = listOf(
+                    AggregationGroup.Terms(
+                        alias = "doubled",
+                        expression = AggregationExpression.Binary(
+                            AggregationExpressionOperator.MULTIPLY,
+                            QUANTITY,
+                            AggregationExpression.Constant(2.0)
+                        )
+                    )
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
@@ -232,6 +262,7 @@ class ElasticsearchQueryFeaturesTest {
     }
 
     @Test
+    @Suppress("LongMethod") // One aggregation per kind of group, each checked: a list, not steps.
     fun `groups by histogram, date histogram, date part and missing key, sorted by a metric`() {
         aggregate(
             AggregationQuery(
@@ -242,19 +273,35 @@ class ElasticsearchQueryFeaturesTest {
             .assert().containsExactly(0.0 to 1L, 20.0 to 2L, 40.0 to 2L)
         aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.DateHistogram(QueryField("state.createdAt"), "week", AggregationDateUnit.WEEK, "Asia/Shanghai")),
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(
+                        QueryField("state.createdAt"),
+                        "week",
+                        AggregationDateUnit.WEEK,
+                        "Asia/Shanghai"
+                    )
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         ).map { it.path("count").longValue() }.sum().assert().isEqualTo(5L)
         aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.DatePart(QueryField("state.createdAt"), "hour", AggregationDatePart.HOUR_OF_DAY)),
+                groupBy = listOf(
+                    AggregationGroup.DatePart(QueryField("state.createdAt"), "hour", AggregationDatePart.HOUR_OF_DAY)
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         ).single().path("count").longValue().assert().isEqualTo(5L)
         aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.DatePart(QueryField("state.createdAt"), "weekday", AggregationDatePart.DAY_OF_WEEK, dense = true)),
+                groupBy = listOf(
+                    AggregationGroup.DatePart(
+                        QueryField("state.createdAt"),
+                        "weekday",
+                        AggregationDatePart.DAY_OF_WEEK,
+                        dense = true
+                    )
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         ).size.assert().isEqualTo(7)
@@ -272,7 +319,11 @@ class ElasticsearchQueryFeaturesTest {
                 groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
                 metrics = listOf(
                     AggregationMetric.Count("count"),
-                    AggregationMetric.DistinctCount(AggregationExpression.Field(QueryField("state.name")), "names", GreaterThanFilter(AMOUNT_FIELD, 15)),
+                    AggregationMetric.DistinctCount(
+                        AggregationExpression.Field(QueryField("state.name")),
+                        "names",
+                        GreaterThanFilter(AMOUNT_FIELD, 15)
+                    ),
                 ),
                 sort = listOf(Sort(QueryField("names"), Sort.Direction.DESC)),
                 limit = 1,
@@ -284,14 +335,25 @@ class ElasticsearchQueryFeaturesTest {
     fun `element groups under root groups, with element filters and metric filters`() {
         val rows = aggregate(
             AggregationQuery(
-                elements = listOf(AggregationElement(QueryField("state.lines"), GreaterThanFilter(QueryField("price"), 5))),
+                elements = listOf(
+                    AggregationElement(QueryField("state.lines"), GreaterThanFilter(QueryField("price"), 5))
+                ),
                 groupBy = listOf(
-                    AggregationGroup.DateHistogram(QueryField("state.createdAt"), "day", AggregationDateUnit.DAY, scope = AggregationGroupScope.ROOT),
+                    AggregationGroup.DateHistogram(
+                        QueryField("state.createdAt"),
+                        "day",
+                        AggregationDateUnit.DAY,
+                        scope = AggregationGroupScope.ROOT
+                    ),
                     AggregationGroup.Terms(QueryField("sku"), "sku"),
                 ),
                 metrics = listOf(
                     AggregationMetric.Count("lines"),
-                    AggregationMetric.Numeric(AggregationFunction.AVG, AggregationExpression.Field(QueryField("price")), "price"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.AVG,
+                        AggregationExpression.Field(QueryField("price")),
+                        "price"
+                    ),
                     AggregationMetric.Count("many", GreaterThanFilter(QueryField("quantity"), 1)),
                 ),
             ),
@@ -301,10 +363,23 @@ class ElasticsearchQueryFeaturesTest {
         val summary = aggregate(
             AggregationQuery(
                 elements = listOf(AggregationElement(QueryField("state.lines"))),
-                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status", scope = AggregationGroupScope.ROOT)),
+                groupBy = listOf(
+                    AggregationGroup.Terms(QueryField("state.status"), "status", scope = AggregationGroupScope.ROOT)
+                ),
                 metrics = listOf(
-                    AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("quantity")), "quantity"),
-                    AggregationMetric.Derived("double", DerivedExpression.Binary(AggregationExpressionOperator.MULTIPLY, DerivedExpression.MetricRef("quantity"), DerivedExpression.Constant(2.0))),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("quantity")),
+                        "quantity"
+                    ),
+                    AggregationMetric.Derived(
+                        "double",
+                        DerivedExpression.Binary(
+                            AggregationExpressionOperator.MULTIPLY,
+                            DerivedExpression.MetricRef("quantity"),
+                            DerivedExpression.Constant(2.0)
+                        )
+                    ),
                 ),
                 limit = 3,
             ),
@@ -317,13 +392,15 @@ class ElasticsearchQueryFeaturesTest {
     @Test
     fun `string, search, array and element filters`() {
         ids(ContainsFilter(QueryField("state.name"), "eta")).assert().containsExactly("o2")
-        ids(ContainsFilter(QueryField("state.name"), "ALPHA", StringComparison.CASE_INSENSITIVE)).assert().containsExactly("o1")
+        ids(ContainsFilter(QueryField("state.name"), "ALPHA", StringComparison.CASE_INSENSITIVE))
+            .assert().containsExactly("o1")
         ids(StartsWithFilter(QueryField("state.name"), "Gam")).assert().containsExactly("o3")
         ids(EndsWithFilter(QueryField("state.name"), "Four")).assert().containsExactly("o4")
         ids(NotEqualFilter(QueryField("state.status"), "PAID")).assert().containsExactly("o3", "o4", "o5")
         ids(ContainsAllFilter(QueryField("state.keywords"), listOf("a", "b"))).assert().containsExactly("o1")
         ids(SearchFilter("gamma")).assert().containsExactly("o3")
-        ids(SearchFilter("delta four", setOf(QueryField("state.name")), SearchMode.PHRASE)).assert().containsExactly("o4")
+        ids(SearchFilter("delta four", setOf(QueryField("state.name")), SearchMode.PHRASE))
+            .assert().containsExactly("o4")
         ids(
             ElementMatchFilter(QueryField("state.lines"), EqualFilter(QueryField("sku"), "B")),
         ).assert().containsExactly("o1", "o5")
@@ -336,11 +413,29 @@ class ElasticsearchQueryFeaturesTest {
         val row = aggregate(
             AggregationQuery(
                 metrics = listOf(
-                    AggregationMetric.Any(QueryField("state.quantity"), "anyQuantity", EqualFilter(QueryField("state.quantity"), 3)),
+                    AggregationMetric.Any(
+                        QueryField("state.quantity"),
+                        "anyQuantity",
+                        EqualFilter(QueryField("state.quantity"), 3)
+                    ),
                     AggregationMetric.Any(AMOUNT_FIELD, "anyAmount", EqualFilter(QueryField("state.quantity"), 3)),
-                    AggregationMetric.Any(QueryField("state.status"), "anyNone", EqualFilter(QueryField("state.status"), "NONE")),
-                    AggregationMetric.Percentile(QUANTITY, 50.0, "noMedian", EqualFilter(QueryField("state.status"), "NONE")),
-                    AggregationMetric.First(QueryField("state.name"), "noFirst", QueryField("state.createdAt"), EqualFilter(QueryField("state.status"), "NONE")),
+                    AggregationMetric.Any(
+                        QueryField("state.status"),
+                        "anyNone",
+                        EqualFilter(QueryField("state.status"), "NONE")
+                    ),
+                    AggregationMetric.Percentile(
+                        QUANTITY,
+                        50.0,
+                        "noMedian",
+                        EqualFilter(QueryField("state.status"), "NONE")
+                    ),
+                    AggregationMetric.First(
+                        QueryField("state.name"),
+                        "noFirst",
+                        QueryField("state.createdAt"),
+                        EqualFilter(QueryField("state.status"), "NONE")
+                    ),
                 ),
             ),
         ).single()
@@ -351,7 +446,10 @@ class ElasticsearchQueryFeaturesTest {
         row.path("noFirst").isNull.assert().isTrue()
         aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.Terms(AMOUNT_FIELD, "amount"), AggregationGroup.Terms(QueryField("state.quantity"), "quantity")),
+                groupBy = listOf(
+                    AggregationGroup.Terms(AMOUNT_FIELD, "amount"),
+                    AggregationGroup.Terms(QueryField("state.quantity"), "quantity")
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         ).map { it.path("amount").doubleValue() }.assert().containsExactly(10.5, 20.0, 30.25, 40.0, 50.0)

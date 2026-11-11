@@ -49,7 +49,12 @@ class MongoNineXTagsTest {
     private val texts = listOf(
         stream("tags-5", "0VY3GwaK4OmV00E", 5, tagsEvent("e-5", """{"region":["west"],"team":["a","b"]}""")),
         // A retag: 9.x replaced the whole map.
-        stream("tags-6", "0VY3GwaK4OmV00E", 6, tagsEvent("e-6", """{"region":["east","north"],"level":["x"],"flag":["TRUE"]}""")),
+        stream(
+            "tags-6",
+            "0VY3GwaK4OmV00E",
+            6,
+            tagsEvent("e-6", """{"region":["east","north"],"level":["x"],"flag":["TRUE"]}""")
+        ),
         // An event of the user's holding tags, one whose tags are no object, and a clear.
         stream(
             "tags-1",
@@ -126,7 +131,8 @@ class MongoNineXTagsTest {
         both("flag", TagValueProblem.NOT_BOOLEAN).assert().isEmpty()
         both("none", TagValueProblem.NOT_INTEGER).assert().isEmpty()
         both("region", TagValueProblem.MULTIPLE, fromSnapshots = true).assert().containsExactly("tagged-order")
-        both("channel", TagValueProblem.NOT_INTEGER, fromSnapshots = true).assert().containsExactly("tagged-order", "z-tagged")
+        both("channel", TagValueProblem.NOT_INTEGER, fromSnapshots = true)
+            .assert().containsExactly("tagged-order", "z-tagged")
         both("level", TagValueProblem.NOT_INTEGER, fromSnapshots = true).assert().isEmpty()
         streams.tagSamples(order, "level", TagValueProblem.NOT_BOOLEAN, 1).assert().containsExactly("tags-1")
         snapshots.tagSamples(order, "channel", TagValueProblem.NOT_BOOLEAN, 1).assert().containsExactly("tagged-order")

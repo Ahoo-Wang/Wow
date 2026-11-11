@@ -138,7 +138,9 @@ class ElasticsearchEventSinkAccessTest {
             val sink = sink()
             // The commit at 6 changed the attributes to west; the log stamps them over 1 to 5 in chunks of two. The
             // Sink reads 1 and 2 after the first chunk, as of 6, and 3 before the second, as of its own version.
-            sink.write(listOf(record(1, access("west"), accessVersion = 6), record(2, access("west"), accessVersion = 6)))
+            sink.write(
+                listOf(record(1, access("west"), accessVersion = 6), record(2, access("west"), accessVersion = 6))
+            )
             sink.write(listOf(record(3, access("east"))))
             // East differs from 2's west, so the Sink stamps it over 1 and 2 as of 3: their stamp is of 6, later.
             documents().assert().containsExactly(access("west") to 6, access("west") to 6, access("east") to 3)

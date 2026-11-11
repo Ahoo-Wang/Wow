@@ -251,7 +251,10 @@ class ImportCutoverChainTest {
             PEER_MANIFEST,
             BackendFactory { stores },
             SubscriptionBindings(mapOf(PEER to listOf(board, payout))),
-            ContractDirectory(PEER_MANIFEST, listOf(ManifestFragment(EXAMPLE_CONTRACT, Manifest(contexts = EXAMPLE.contexts)))),
+            ContractDirectory(
+                PEER_MANIFEST,
+                listOf(ManifestFragment(EXAMPLE_CONTRACT, Manifest(contexts = EXAMPLE.contexts)))
+            ),
             topics = SourceTopics(topics, PREFIX),
         )
     }
