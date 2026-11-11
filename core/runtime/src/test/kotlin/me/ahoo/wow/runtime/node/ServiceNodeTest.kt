@@ -13,141 +13,45 @@
 
 package me.ahoo.wow.runtime.node
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Creation
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.HandlerRetry
-import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
-import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.StateCacheSizing
-import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.ServerCommandRequest
-import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.Deposit
-import me.ahoo.wow.runtime.cluster.Deposited
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.Hrw
-import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
-import me.ahoo.wow.runtime.cluster.RecordingLeases
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.fastOptions
-import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.log.HandoffOptions
-import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
-import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.runtime.wait.ResultCodes
-import me.ahoo.wow.runtime.wait.WaitOptions
-import me.ahoo.wow.spi.config.WowConfigurationException
-import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
-import me.ahoo.wow.spi.subscription.SubscriptionId
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/** The node assembly (decision D108): admission to commit through one node, several contexts, two nodes, and stop. */
-class ServiceNodeTest {
-    /** While not null, the replies of node-2 wait for it. */
-    @Volatile
-    private var replyGate: CompletableDeferred<Unit>? = null
-
-    private val channel = LoopbackClusterChannel(latency = { address ->
-        if (address.startsWith("node-2")) {
-            replyGate?.await()
-        }
-    })
-    private val nodes = ConcurrentHashMap<String, ServiceNode>()
-
-    @AfterEach
-    fun stop(): Unit = runBlocking {
-        replyGate?.complete(Unit)
-        nodes.values.forEach { it.stop() }
-    }
-
-    private fun node(
-        name: String,
-        vararg contexts: String = arrayOf(BANK),
-        backends: BackendFactory = InMemoryBackends(),
-        decided: MutableList<String> = CopyOnWriteArrayList(),
-        model: (String) -> AggregateModel<*> = { accountModel(it, decided) },
-        options: ServiceNodeOptions = fastNodeOptions(),
-        subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
-        listener: (ServiceNode.Step) -> Unit = {},
-        address: String? = "$name.internal:9090",
-        peers: List<ManifestFragment> = emptyList(),
-        observer: Observer = Observer.NONE,
-    ): ServiceNode = ServiceNode(
-        NODE_SERVICE,
-        name,
-        address,
-        contexts.map(model),
-        accountsManifest(*contexts),
-        backends,
-        channel,
-        remoteSignals = { origin, signal, _ -> nodes[origin.node]?.waits?.signal(signal) },
-        options = options,
-        subscriptions = subscriptions,
-        listener = listener,
-        contracts = ContractDirectory(accountsManifest(*contexts), peers),
-        observer = observer,
-    ).also {
-        nodes[name] = it
-        if (it.hasAddress) {
-            channel.bind(it.address, it.forwardHandler)
-        }
-    }
-
-    private fun deposit(
-        context: String = BANK,
-        id: String? = null,
-        amount: Int = 1,
-        wait: WaitPlan? = WaitPlan.COMMITTED,
-    ) = ServerCommandRequest(
-        context = context,
-        aggregate = "account",
-        command = "Deposit",
-        body = CommandBody.of("""{"amount":$amount}"""),
-        caller = Caller(TENANT),
-        aggregateId = id,
-        wait = wait,
-    )
-
+/**
+ * The node assembly (decision D108): admission to commit through one node, several contexts, two nodes, and stop.
+ */
+class ServiceNodeTest : ServiceNodeFixtures() {
     @Test
     fun `each context's state cache is sized from the heap unless the host sizes it`() {
         // Work package B.O-4: a tenth of the heap in bytes, split between the node's contexts, or the configured capacity.
@@ -310,166 +214,6 @@ class ServiceNodeTest {
     }
 
     @Test
-    fun `a node stops in order - hand off, let the waits end, close the gateway, the executors and the logs`(): Unit =
-        runBlocking {
-            val events = CopyOnWriteArrayList<String>()
-            val inMemory = InMemoryBackends()
-            val backends = BackendFactory { context ->
-                inMemory.backends(context).let { it.copyWith(leases = RecordingLeases(it.leases, events)) }
-            }
-            val entered = CompletableDeferred<Unit>()
-            val stuck = SubscriptionFactory { context ->
-                listOf(
-                    Subscription(PROJECTOR, SubscriptionFilter(context.context)) {
-                        entered.complete(Unit)
-                        CompletableDeferred<Unit>().await()
-                    },
-                )
-            }
-            lateinit var node: ServiceNode
-            node = node(
-                "node-1",
-                backends = backends,
-                options = fastNodeOptions().copyWith(subscription = testOptions(stopTimeout = 100.milliseconds)),
-                subscriptions = stuck,
-                listener = { step -> events += "$step ${node.waits.size} ${node.state}" },
-            )
-            node.start()
-            val timeout = 2.seconds
-            val waiting = async(Dispatchers.Default) {
-                node.gateway.execute(deposit(id = "a-1", wait = WaitPlan.of(Hop.handled(PROJECTOR)).within(timeout)))
-            }
-            entered.await()
-            node.waits.size.assert().isEqualTo(1)
-
-            val started = System.nanoTime()
-            node.stop()
-            val elapsed = ((System.nanoTime() - started) / 1_000_000).milliseconds
-
-            val result = waiting.await()
-            result.status.assert().isEqualTo(CommandResult.Status.FAILED)
-            result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
-            result.hop.assert().isEqualTo(Hop.committed(BANK))
-            // Stopping waited for the wait, which ended at its timeout, not sooner.
-            elapsed.assert().isGreaterThan(timeout - 500.milliseconds)
-            val releases = events.filter { it.startsWith("release ") }
-            releases.size.assert().isEqualTo(8)
-            events.drop(releases.size).assert().containsExactly(
-                "HANDED_OFF 1 STOPPING",
-                "WAITS_ENDED 0 STOPPING",
-                "GATEWAY_CLOSED 0 STOPPING",
-                "EXECUTIONS_ENDED 0 STOPPING",
-                "EXECUTORS_CLOSED 0 STOPPING",
-                "LOGS_CLOSED 0 STOPPING",
-            )
-            node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
-
-            // The executor refuses, and the append queue takes nothing.
-            val bank = node.context(BANK)
-            val model = bank.models.first()
-            val late = Command("c-late", "r-late", model.type.ref(TENANT, "a-2"), Deposit())
-            bank.coordinator.executeHere(model, late, null).committed.error!!.code
-                .assert().isEqualTo(FrameworkCodes.NODE_CLOSING)
-        }
-
-    @Test
-    fun `a node stops only once the commands still executing have settled`(): Unit = runBlocking {
-        val backends = InMemoryBackends(partitions = 16)
-        val options = fastNodeOptions().copyWith(cluster = fastOptions(forwardTimeout = 10.seconds))
-        val decided = CopyOnWriteArrayList<String>()
-        val steps = CopyOnWriteArrayList<ServiceNode.Step>()
-        val one = node("node-1", backends = backends, options = options, listener = { steps += it })
-        val two = node("node-2", backends = backends, decided = decided, options = options)
-        one.start()
-        two.start()
-        val names = listOf("node-1", "node-2")
-        eventually(15.seconds) {
-            one.context(BANK).ownership.routes.owners.mapValues { it.value.node } == Hrw.assignment(names, 16)
-        }
-        val id = (0 until 64).map { "acc-$it" }.first {
-            Hrw.owner(Partitioner.partitionOf(AggregateType(BANK, "account").ref(TENANT, it), 16), names) == "node-2"
-        }
-        replyGate = CompletableDeferred()
-
-        // Its caller goes away while node-2's reply is held: the command goes on executing in node-1's coordinator.
-        val caller = launch(Dispatchers.Default) {
-            one.gateway.execute(deposit(id = id, wait = WaitPlan.COMMITTED.within(10.seconds)))
-        }
-        eventually { decided.isNotEmpty() }
-        caller.cancelAndJoin()
-        one.waits.size.assert().isEqualTo(0)
-        one.context(BANK).coordinator.executing.assert().isEqualTo(1)
-
-        val stopping = async(Dispatchers.Default) { one.stop() }
-        eventually { ServiceNode.Step.GATEWAY_CLOSED in steps }
-        delay(200)
-        stopping.isCompleted.assert().isFalse()
-        steps.assert().doesNotContain(ServiceNode.Step.EXECUTIONS_ENDED)
-
-        replyGate!!.complete(Unit)
-        withTimeout(10.seconds) { stopping.await() }
-        steps.takeLast(3).assert().containsExactly(
-            ServiceNode.Step.EXECUTIONS_ENDED,
-            ServiceNode.Step.EXECUTORS_CLOSED,
-            ServiceNode.Step.LOGS_CLOSED,
-        )
-        one.context(BANK).coordinator.executing.assert().isEqualTo(0)
-        decided.assert().hasSize(1)
-    }
-
-    /** A node whose deposits never finish deciding, by [decide]: its stop still returns, past the drain timeout. */
-    private fun stopsPastStuckDecide(decide: suspend () -> Unit): Unit = runBlocking {
-        val deciding = CompletableDeferred<Unit>()
-        val stuck = { context: String ->
-            aggregate<Account>(context, "account") {
-                initial { Account() }
-                decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
-                    deciding.complete(Unit)
-                    decide()
-                    Decision.events(Deposited(body.amount))
-                }
-                evolve<Deposited> { balance += it.amount }
-            }
-        }
-        val drain = 200.milliseconds
-        val options = fastNodeOptions().copyWith(
-            cluster = fastOptions(drainTimeout = drain),
-            wait = WaitOptions(maxTimeout = 1.seconds),
-        )
-        val steps = CopyOnWriteArrayList<ServiceNode.Step>()
-        val node = node("node-1", model = stuck, options = options, listener = { steps += it })
-        node.start()
-        val result = node.gateway.execute(deposit(id = "a-1", wait = WaitPlan.COMMITTED.within(100.milliseconds)))
-        result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
-        deciding.await()
-        node.context(BANK).coordinator.executing.assert().isEqualTo(1)
-
-        // Before, the executors waited without a bound for the very commands the coordinators cancel after them.
-        withTimeout(10.seconds) { node.stop() }
-        steps.takeLast(3).assert().containsExactly(
-            ServiceNode.Step.EXECUTIONS_ENDED,
-            ServiceNode.Step.EXECUTORS_CLOSED,
-            ServiceNode.Step.LOGS_CLOSED,
-        )
-        node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
-    }
-
-    @Test
-    fun `a node stops past a decide still running at the drain timeout, cancelling it`() {
-        stopsPastStuckDecide { CompletableDeferred<Unit>().await() }
-    }
-
-    @Test
-    fun `a node stops past a decide that ignores its cancellation, once the drain timeout passes again`() {
-        val release = CompletableDeferred<Unit>()
-        try {
-            stopsPastStuckDecide { withContext(NonCancellable) { release.await() } }
-        } finally {
-            release.complete(Unit)
-        }
-    }
-
-    @Test
     fun `a node built without an address learns it before it starts`(): Unit = runBlocking {
         val backends = InMemoryBackends()
         val node = node("node-1", backends = backends, address = null)
@@ -490,129 +234,6 @@ class ServiceNodeTest {
             .assert().isEqualTo("127.0.0.1:41234")
         assertThrows<IllegalStateException> { node.bind("127.0.0.1:41236") }
         node.gateway.execute(deposit(id = "a-1")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-    }
-
-    @Test
-    fun `a start configured for a subscription the node does not have is refused`() {
-        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
-        fun starts(vararg names: String) = fastNodeOptions().let {
-            it.copyWith(
-                subscription = it.subscription.copyWith(
-                    starts = names.map { SubscriptionId(BANK, it) }.associateWith { SubscriptionStart.Beginning }
-                )
-            )
-        }
-        // The application's subscriptions and the built-in ones may be configured (decision D154).
-        node("node-1", options = starts("plain", "wow.snapshot"), subscriptions = plain)
-        assertThrows<WowConfigurationException> {
-            node("node-2", options = starts("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("subscription $BANK.Plain.typo", "plain")
-    }
-
-    @Test
-    fun `a parked retry spec configured for a subscription the node does not have is refused`() {
-        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
-        fun specs(vararg names: String) = fastNodeOptions().let {
-            val parked =
-                ParkedRetryOptions(
-                    specs = names.map { SubscriptionId(BANK, it) }.associateWith { ParkedRetrySpec(maxRetries = 1) }
-                )
-            it.copyWith(subscription = it.subscription.copyWith(parked = parked))
-        }
-        val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
-        node.parked.subscriptions.assert().contains(SubscriptionId(BANK, "wow.snapshot"))
-        assertThrows<WowConfigurationException> {
-            node("node-2", options = specs("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("parked retry spec", "subscription $BANK.Plain.typo", "plain")
-    }
-
-    @Test
-    fun `a retry budget configured for a subscription the node does not have is refused (P3)`() {
-        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
-        fun retries(vararg names: String) = fastNodeOptions().let {
-            it.copyWith(
-                subscription = it.subscription.copyWith(
-                    retries = names.map { SubscriptionId(BANK, it) }.associateWith { HandlerRetry(maxAttempts = 1) }
-                )
-            )
-        }
-        node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)
-        assertThrows<WowConfigurationException> {
-            node("node-2", options = retries("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("retry budget", "subscription $BANK.Plain.typo", "plain")
-    }
-
-    @Test
-    fun `the node's default wait timeout is its gateway's`() {
-        val options = fastNodeOptions().copyWith(wait = WaitOptions(defaultTimeout = 3.seconds))
-        node("node-1", options = options).gateway.defaultWaitTimeout(BANK).assert().isEqualTo(3.seconds)
-        assertThrows<IllegalArgumentException> {
-            fastNodeOptions().copyWith(wait = WaitOptions(defaultTimeout = Duration.ZERO))
-        }
-    }
-
-    @Test
-    fun `a node whose Manifest disagrees with its models is not built`() {
-        val manifest = accountsManifest(BANK, LEDGER)
-        assertThrows<me.ahoo.wow.runtime.manifest.ManifestMismatchException> {
-            ServiceNode(
-                NODE_SERVICE,
-                "node-1",
-                "node-1.internal:9090",
-                listOf(accountModel(BANK), accountModel(AUDIT)),
-                manifest,
-                InMemoryBackends(),
-                channel,
-            )
-        }.differences.assert().containsExactlyInAnyOrder(
-            "aggregate $AUDIT.account has a model but is not in the Manifest",
-            "aggregate $LEDGER.account is in the Manifest but has no model",
-        )
-    }
-
-    @Test
-    fun `a creation without an id keeps the id its request created in the context's log (D191)`(): Unit = runBlocking {
-        val node = node("node-1").also { it.start() }
-        val request = deposit().copyWith(requestId = "deposit-1")
-        val first = node.gateway.execute(request)
-        first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val again = node.gateway.execute(request)
-        again.ref.assert().isEqualTo(first.ref)
-        again.duplicate.assert().isTrue()
-        node.gateway.execute(deposit(context = "nowhere").copyWith(requestId = "deposit-1"))
-            .error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-        node.stop()
-    }
-
-    @Test
-    fun `a node refuses contracts of another Manifest`() {
-        assertThrows<IllegalArgumentException> {
-            ServiceNode(
-                NODE_SERVICE,
-                "node-1",
-                "node-1.internal:9090",
-                listOf(accountModel(BANK)),
-                accountsManifest(BANK),
-                InMemoryBackends(),
-                channel,
-                contracts = ContractDirectory(accountsManifest(BANK, LEDGER)),
-            )
-        }.message.assert().contains("contracts")
-    }
-
-    @Test
-    fun `a node refuses a Manifest of another service`() {
-        assertThrows<IllegalArgumentException> {
-            ServiceNode(
-                "other-service",
-                "node-1",
-                "node-1.internal:9090",
-                listOf(accountModel(BANK)),
-                accountsManifest(BANK),
-                InMemoryBackends(),
-                channel,
-            )
-        }.message.assert().contains("other-service")
     }
 
     @Test
@@ -641,13 +262,5 @@ class ServiceNodeTest {
         node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
         node.contexts.values.forEach { it.ownership.isRunning.assert().isFalse() }
         assertThrows<IllegalStateException> { runBlocking { node.start() } }
-    }
-
-    private companion object {
-        const val BANK = "bank"
-        const val LEDGER = "ledger"
-        const val AUDIT = "audit"
-        const val TENANT = "t"
-        const val PROJECTOR = "projector"
     }
 }
