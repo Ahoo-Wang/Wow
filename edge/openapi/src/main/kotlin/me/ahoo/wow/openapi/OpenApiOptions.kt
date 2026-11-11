@@ -28,32 +28,20 @@ package me.ahoo.wow.openapi
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
-class OpenApiOptions private constructor(
-    val title: String,
-    val servers: List<String>,
-    val datasets: Boolean,
-    val manifestEndpoint: Boolean,
-    val openApiEndpoint: Boolean,
-    val errorStatuses: Map<String, Int>,
+class OpenApiOptions(
+    val title: String = DEFAULT_TITLE,
+    val servers: List<String> = emptyList(),
+    val datasets: Boolean = true,
+    val manifestEndpoint: Boolean = true,
+    val openApiEndpoint: Boolean = true,
+    val errorStatuses: Map<String, Int> = emptyMap(),
     /**
      * How a caller presents its identity, by scheme name: the document's `components.securitySchemes`, and its
      * global `security`, one requirement naming them all, since a caller presents them together (the development
      * callers' `Wow-*` headers). None by default.
      */
-    val securitySchemes: Map<String, OpenApiSecurityScheme>,
+    val securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
 ) {
-    /** The default options; a constructor of its own, as the JVM has it for a class whose arguments all default. */
-    constructor() : this(DEFAULT_TITLE)
-
-    constructor(
-        title: String = DEFAULT_TITLE,
-        servers: List<String> = emptyList(),
-        datasets: Boolean = true,
-        manifestEndpoint: Boolean = true,
-        openApiEndpoint: Boolean = true,
-        errorStatuses: Map<String, Int> = emptyMap(),
-    ) : this(title, servers, datasets, manifestEndpoint, openApiEndpoint, errorStatuses, emptyMap())
-
     /** These options with [schemes] as the [securitySchemes]. */
     fun withSecuritySchemes(schemes: Map<String, OpenApiSecurityScheme>): OpenApiOptions =
         OpenApiOptions(title, servers, datasets, manifestEndpoint, openApiEndpoint, errorStatuses, schemes.toMap())
