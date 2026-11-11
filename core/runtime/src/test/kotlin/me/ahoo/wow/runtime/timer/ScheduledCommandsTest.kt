@@ -246,10 +246,11 @@ class ScheduledCommandsTest {
         set.commandType.assert().isEqualTo(Schedules.SET)
         set.requestId.assert()
             .isEqualTo(
-                ExecutionSagaContext.derivedId(
+                ExecutionSagaContext.scheduleId(
                     ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1),
                     order("o-1"),
                     SetSchedule::class.java,
+                    "remind",
                 ),
             )
         val timer = checkNotNull(node.timer(order("o-1"), "remind"))
