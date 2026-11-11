@@ -27,10 +27,13 @@ import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 
 /** The lifecycle of a node, as its facade drives it: once each, in order, the first failure thrown at the end. */
 class NodeLifecycleTest {
@@ -108,6 +111,33 @@ class NodeLifecycleTest {
         steps.assert().containsExactly(*ServiceNode.Step.entries.toTypedArray())
         node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
     }
+
+    @Test
+    fun `a node is a member of its access walks before it takes a partition, so before it accepts commands`(): Unit =
+        runBlocking {
+            val inMemory = InMemoryBackends()
+            val calls = CopyOnWriteArrayList<String>()
+            val leases = InMemoryLeaseStore()
+            val recording = object : LeaseStore by leases {
+                override suspend fun heartbeat(
+                    service: String,
+                    node: String,
+                    address: String,
+                    ttl: Duration,
+                    groups: Set<String>,
+                ): Member = leases.heartbeat(service, node, address, ttl, groups).also { calls += "member $service" }
+
+                override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
+                    leases.acquire(group, partition, owner, ttl).also { calls += "acquire $group" }
+            }
+            val node = node({ context -> inMemory.backends(context).copyWith(leases = recording) })
+            node.start()
+            val entered = calls.indexOfFirst { it.startsWith("member ") && it.endsWith("#access") }
+            val acquired = calls.indexOfFirst { it.startsWith("acquire ") }
+            entered.assert().isNotNegative()
+            acquired.assert().isGreaterThan(entered)
+            node.stop()
+        }
 
     @Test
     fun `an address is bound once, before the node starts`(): Unit = runBlocking {

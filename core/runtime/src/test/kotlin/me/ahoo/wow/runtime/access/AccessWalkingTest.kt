@@ -138,16 +138,23 @@ class AccessWalkingTest : AccessWalkingFixtures() {
     }
 
     @Test
-    fun `a type without a store of its history is not claimed, and the first run after its first append claims it`(): Unit =
+    fun `a type without a store of its history is not claimed, and the first run due after its first append claims it`(): Unit =
         runBlocking {
             val log = InMemoryEventLog()
-            val walking = walking(log)
+            val leases = InMemoryLeaseStore()
+            val walking = walking(log, leases)
             walking.maintain().assert().isFalse()
             log.holds(type).assert().isFalse()
             log.walk(type).assert().isNull()
             walking.walks().assert().isEmpty()
-            // A node of an earlier version writes the type's first stream: the next run's heads reach it.
+            // A node of an earlier schema writes the type's first stream: the next run due, the third, has heads that
+            // reach it.
+            val older = "department:integer"
+            val served = setOf("document@${AccessSchema.hashOf(older)}")
+            leases.heartbeat("service/office#access", "n-0", "n-0", 30.seconds, served)
             unstamped(log, listOf("d-1"), "sales")
+            walking.maintain().assert().isFalse()
+            log.walk(type).assert().isNull()
             walking.maintain().assert().isFalse()
             log.walk(type)!!.let {
                 it.completed.assert().isTrue()

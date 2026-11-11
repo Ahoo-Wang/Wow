@@ -96,4 +96,14 @@ data class AccessWalk(
     val cursor: String? = null,
     val walked: Long = 0,
     val completed: Boolean = false,
-)
+) {
+    @InternalWowApi
+    companion object {
+        /**
+         * The [schema] of a walk an import claimed once the type's first streams were in: no node serves it, so the
+         * nodes take it over as an unfinished walk of another schema and walk the type, unless the import's snapshot
+         * step stamps the history and completes the walk in its place.
+         */
+        const val IMPORTING: String = "wow.import"
+    }
+}

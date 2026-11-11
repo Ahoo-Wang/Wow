@@ -166,6 +166,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
                 intakes[context]?.takeIf { context in running }?.let { context.intake!!.add(it.subscription) }
             }
             if (!standby) {
+                enterWalks()
                 join()
             }
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
@@ -206,6 +207,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             return@withLock activation ?: Activation(node, null, by, reason, activated = false)
         }
         try {
+            enterWalks()
             join()
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             logger.error(failure) { "Node $node of $service failed to activate from standby; stopping." }
@@ -264,6 +266,12 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         topicSubscriptions.values.forEach { it.start() }
         ledgerPublisher?.start()
     }
+
+    /**
+     * Makes the node a member of each context's access walks before it joins the lease groups and so accepts commands:
+     * a walk records a store created meanwhile as its own schema's alone only while no member serves another.
+     */
+    private suspend fun enterWalks() = contexts.values.forEach { it.accessWalking?.enter() }
 
     /** Starts the jobs, the snapshot maintenance and the access walks, in the background. */
     private fun work() {

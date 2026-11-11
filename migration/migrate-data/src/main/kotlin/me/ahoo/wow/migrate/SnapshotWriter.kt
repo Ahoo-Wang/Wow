@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalk.Companion.IMPORTING
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -312,8 +313,8 @@ internal class SnapshotWriter(
      * failure, as completed for the type's access schema ([AccessSchema]), so the V10 nodes find it walked: [writePage]
      * stamped each instance's history. It records no heads, so a stream without attributes, one those stamps did not
      * reach (an append in flight can land on MongoDB below the head a walk read) or one appended since, is the built-in
-     * subscription `wow.access`'s, which stamps its aggregate when it reads it. A walk already recorded is left as it is,
-     * and a node whose model has another access schema walks the type again.
+     * subscription `wow.access`'s, which stamps its aggregate when it reads it. A walk already recorded but the import's
+     * own ([IMPORTING]) is left as it is, and a node whose model has another access schema walks the type again.
      */
     suspend fun recordWalks(progress: List<SnapshotProgress>) {
         val clean = progress.filter { it.done && it.failed == 0L }.associateBy { it.aggregate }
@@ -331,14 +332,15 @@ internal class SnapshotWriter(
         }
         val schema = AccessSchema.of(models.of(type))
         val walk = AccessWalk(schema, emptyMap(), walked = walked, completed = true)
-        if (walks.claim(type, walk, expected = null)) {
+        // In place of the walk the import claimed ([IMPORTING]), or of none.
+        if (walks.claim(type, walk, expected = IMPORTING) || walks.claim(type, walk, expected = null)) {
             report(
                 "$type: its access walk is recorded as completed for the schema [$schema]: $walked instances stamped."
             )
             return
         }
         val recorded = walks.walk(type) ?: return
-        if (recorded.schema != schema) {
+        if (recorded.schema != schema && recorded.schema != IMPORTING) {
             report(
                 "$type: the log records its access walk for the schema [${recorded.schema}], not this model's " +
                     "[$schema]: it is left as it is, and the V10 nodes of this model walk the type again.",
