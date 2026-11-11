@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.spring.boot.http.NodeInternalPort
 import org.junit.jupiter.api.Test
 import org.springframework.mock.env.MockEnvironment
 import java.net.URI

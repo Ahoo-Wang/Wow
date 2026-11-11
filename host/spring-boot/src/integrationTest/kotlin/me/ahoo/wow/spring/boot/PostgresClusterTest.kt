@@ -20,6 +20,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

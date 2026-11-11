@@ -37,6 +37,9 @@ import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.peer.PeerTargets
 import me.ahoo.wow.spi.subscription.FailureClass
+import me.ahoo.wow.spring.boot.http.PeerDiscoveries
+import me.ahoo.wow.spring.boot.http.PeerEndpoints
+import me.ahoo.wow.spring.boot.http.PeerTargetProperties
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

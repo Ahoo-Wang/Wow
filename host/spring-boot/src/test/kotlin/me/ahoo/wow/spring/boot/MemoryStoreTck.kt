@@ -17,6 +17,7 @@ import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spring.boot.store.MemoryStoreProvider
 import me.ahoo.wow.tck.StoreTck
 
 /** The host's store in memory, opened through its built-in provider, against every port's contract. */

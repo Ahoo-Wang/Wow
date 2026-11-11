@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spring.boot.transport.SinkAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.context.properties.bind.Binder

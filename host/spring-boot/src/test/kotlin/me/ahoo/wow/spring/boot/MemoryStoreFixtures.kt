@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spring.boot.store.MemoryStore
 
 /** A store in memory named [name], as the host opens one: the tests' shorthand for its config. */
 internal fun memoryStore(name: String) = MemoryStore(StoreConfig(name, StoreTypes.MEMORY))

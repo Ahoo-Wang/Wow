@@ -27,7 +27,7 @@ import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spring.boot.HostBackends
+import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer

@@ -342,11 +342,11 @@ class ServiceNode @InternalWowApi constructor(
      * parked entry is retried and no job or schedule runs, and its gateway refuses every command
      * ([FrameworkCodes.NODE_STANDBY]). [activate] then joins the groups, at the cut-over: a subscription that starts at
      * the end of its stream starts where the stream ends then, not where it ended when the node booted.
+     *
+     * The host starts the node, as it takes it off standby ([activate]).
      */
-    suspend fun start(): Unit = start(standby = false)
-
-    /** Starts the node as [start] does, on standby when [standby] says so (see [start]). */
-    suspend fun start(standby: Boolean): Unit = lifecycle.start(standby)
+    @InternalWowApi
+    suspend fun start(standby: Boolean = false): Unit = lifecycle.start(standby)
 
     /** Whether the node is on standby: started with `standby` and not [activate]d yet. */
     @InternalWowApi

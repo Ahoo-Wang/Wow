@@ -32,6 +32,9 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spring.boot.query.QueryProperties
+import me.ahoo.wow.spring.boot.query.storeQueryOptions
+import me.ahoo.wow.spring.boot.store.StoreProperties
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import kotlin.time.Duration.Companion.milliseconds

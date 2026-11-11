@@ -28,6 +28,7 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.spring.boot.node.BeanFactoryDependencies
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean

@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.AmbiguousDependencyException
 import me.ahoo.wow.kernel.Types
+import me.ahoo.wow.spring.boot.node.BeanFactoryDependencies
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean

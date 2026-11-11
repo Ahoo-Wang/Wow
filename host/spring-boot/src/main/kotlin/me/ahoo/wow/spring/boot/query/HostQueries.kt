@@ -1,0 +1,408 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spring.boot.query
+
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
+import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.query.store.QueryStores
+import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
+import me.ahoo.wow.spi.store.WritePressure
+import me.ahoo.wow.spi.store.facet
+import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.config.AGGREGATE_KEY_FIX
+import me.ahoo.wow.spring.boot.node.BackendsLifecycle
+import me.ahoo.wow.spring.boot.node.WowLifecycles
+import me.ahoo.wow.spring.boot.store.MemoryStore
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
+import org.springframework.context.SmartLifecycle
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * The snapshot query backend of the node: the [bindings] of each aggregate type's backend and storage facts (null when
+ * no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's
+ * storage and [manages][manageIndexes] its `x-wow-index` indexes and those of its access attributes at startup.
+ */
+@InternalWowApi
+class SnapshotQueryBackend(
+    val bindings: QueryBindings<AggregateType>?,
+    private val prepare: (AggregateType) -> Unit = {},
+    private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
+    /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has [bindings]. */
+    private val serves: (AggregateType) -> Boolean = { bindings != null },
+    /** The store whose query bulkhead [AggregateType]'s snapshot queries run under; none for the application's own. */
+    private val store: (AggregateType) -> String? = { null },
+) {
+    /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
+    val managesIndexes: Boolean get() = bindings != null && indexes != null
+
+    /** Whether the backend queries [type]'s snapshots: their store has a query backend. */
+    fun serves(type: AggregateType): Boolean = serves.invoke(type)
+
+    /** Makes sure [type]'s storage exists, so its facts are the storage's own. */
+    fun prepare(type: AggregateType) = prepare.invoke(type)
+
+    /** The store [type]'s snapshot queries run on, or null when the host does not know it. */
+    fun storeOf(type: AggregateType): String? = store.invoke(type)
+
+    /** Manages [plan], [type]'s indexes planned on its query model, as the `ddl` of its store says. */
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport =
+        indexes?.invoke(type, plan) ?: QueryIndexReport.NONE
+
+    @InternalWowApi
+    companion object {
+        /** No backend: the node's snapshots are not queried. */
+        @JvmField
+        val NONE: SnapshotQueryBackend = SnapshotQueryBackend(null)
+
+        /** The snapshot queries of one store ([StoreQueries.snapshots]) as a backend. */
+        fun of(queries: SnapshotQueries): SnapshotQueryBackend = SnapshotQueryBackend(
+            bindings = queries,
+            prepare = queries::prepare,
+            indexes = queries::manageIndexes.takeIf { queries.managesIndexes },
+        )
+
+        /**
+         * The backend of each aggregate type's snapshot store, [storeOf]: [backendOf] gives it, null
+         * when its store has none, whose snapshots are then not [serves]d and have no binding. [NONE] when no type's
+         * store has one.
+         */
+        fun routing(
+            types: Collection<AggregateType>,
+            storeOf: (AggregateType) -> String? = { null },
+            backendOf: (AggregateType) -> SnapshotQueryBackend?,
+        ): SnapshotQueryBackend {
+            if (types.none { backendOf(it) != null }) {
+                return NONE
+            }
+            return SnapshotQueryBackend(
+                bindings = { type -> backendOf(type)?.bindings?.binding(type) },
+                prepare = { type -> backendOf(type)?.prepare(type) },
+                indexes = { type, plan -> backendOf(type)?.manageIndexes(type, plan) ?: QueryIndexReport.NONE },
+                serves = { type -> backendOf(type)?.serves(type) == true },
+                store = { type -> storeOf(type)?.takeIf { backendOf(type) != null } },
+            )
+        }
+    }
+}
+
+/**
+ * The queries of a store in memory, its [StoreQueries] facet: its snapshots from the in-memory reference query
+ * backend it was given ([MemoryStore.queries]), when it was given one, and its logs scanned in memory
+ * ([InMemoryEventQueryStorage.of]) for the `events` model, when it [scansEvents]; `wow.query.memory.enabled` false
+ * turns both off.
+ */
+internal class MemoryQueries(
+    private val store: Store,
+    private val queries: InMemoryQueryStorage?,
+    private val scansEvents: Boolean,
+) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries? = queries?.let { storage ->
+        object : SnapshotQueries {
+            override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
+        }
+    }
+
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? {
+        if (!scansEvents) return null
+        val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
+        return QueryBindings { type ->
+            store.openedLog(type.context)?.let { log ->
+                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(log) }.binding(type)
+            }
+        }
+    }
+}
+
+/**
+ * The `events` query backend of the node: the [bindings] of each aggregate type's events backend and
+ * storage facts, none for a type no backend serves (its events are then not queried), and the [store] its queries run
+ * on, null for the application's own backend. For a store whose events queries manage indexes
+ * ([me.ahoo.wow.query.store.EventQueries]), how it [prepare]s a type's log and [manages][manageIndexes] the indexes of
+ * its access attributes at startup. It is not itself [QueryBindings], so that it is never taken for the application's
+ * snapshot bindings bean.
+ */
+@InternalWowApi
+class EventQueryBackend(
+    private val store: (AggregateType) -> String? = { null },
+    private val prepare: (AggregateType) -> Unit = {},
+    private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
+    /** Whether the store of [AggregateType]'s events queries manages their indexes, of those [indexes] serves: all. */
+    private val manages: (AggregateType) -> Boolean = { true },
+    val bindings: QueryBindings<AggregateType>,
+) {
+    /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
+    val managesIndexes: Boolean get() = indexes != null
+
+    /**
+     * Whether the host manages the indexes of [type]'s log: its events queries run on a store that manages them, not
+     * an index a Sink writes (Elasticsearch's), whose mapping indexes the attributes itself.
+     */
+    fun managesIndexes(type: AggregateType): Boolean = managesIndexes && manages(type)
+
+    /** The binding of [type]'s events backend, or null when none serves them. */
+    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = bindings.binding(type)
+
+    /** The store [type]'s events queries run on, or null when the host does not know it. */
+    fun storeOf(type: AggregateType): String? = store.invoke(type)
+
+    /** Makes sure [type]'s log exists, so an index has a table or a collection to be on. */
+    fun prepare(type: AggregateType) = prepare.invoke(type)
+
+    /** Manages [plan], the indexes of [type]'s access attributes on its `events` model, as its store's `ddl` says. */
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport =
+        indexes?.invoke(type, plan) ?: QueryIndexReport.NONE
+
+    @InternalWowApi
+    companion object {
+        /** No backend: the node's events are not queried. */
+        @JvmField
+        val NONE: EventQueryBackend = EventQueryBackend { null }
+    }
+}
+
+/**
+ * The stores the `events` queries of the aggregate types run on (one events backend per aggregate
+ * type, chosen by configuration as its other stores are).
+ */
+internal object HostEventStores {
+    /**
+     * The aggregate types whose `wow.aggregates.[<context>.<aggregate>].query.events.store` names a store, each with
+     * that store, one of [stores]; any other type's events are queried on its log store.
+     */
+    fun configured(properties: WowProperties?, stores: Set<String>): Map<AggregateType, String> =
+        properties?.aggregates.orEmpty().mapNotNull { (key, aggregate) ->
+            val store = aggregate.query.events.store ?: return@mapNotNull null
+            val context = key.substringBefore('.', "")
+            val name = key.substringAfter('.', "")
+            configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                "wow.aggregates.[$key] names no aggregate type."
+            }
+            configCheck(
+                store in stores,
+                "wow.aggregates.[$key].query.events.store",
+                store,
+                "Name one of the stores of wow.stores: $stores.",
+            ) { "wow.aggregates.[$key].query.events.store is $store, which is none of the stores." }
+            AggregateType(context, name) to store
+        }.toMap()
+}
+
+/**
+ * The snapshot stores the `snapshot` queries of the aggregate types read: by default each type's primary snapshot
+ * store, the one its commands load from and its state reads read; another of its snapshot stores when its
+ * configuration names one, such as a search index that serves its state queries.
+ */
+internal object HostSnapshotQueryStores {
+    /**
+     * The aggregate types whose `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names a store, each with
+     * that store, which [targetsOf] must list among the type's snapshot stores.
+     */
+    fun configured(properties: WowProperties?, targetsOf: (AggregateType) -> List<String>): Map<AggregateType, String> =
+        properties?.aggregates.orEmpty().mapNotNull { (key, aggregate) ->
+            val store = aggregate.query.snapshot.store ?: return@mapNotNull null
+            val context = key.substringBefore('.', "")
+            val name = key.substringAfter('.', "")
+            configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                "wow.aggregates.[$key] names no aggregate type."
+            }
+            val type = AggregateType(context, name)
+            val targets = targetsOf(type)
+            configCheck(
+                store in targets,
+                "wow.aggregates.[$key].query.snapshot.store",
+                store,
+                "Name one of its snapshot stores: $targets (wow.aggregates.[$key].snapshot.stores).",
+            ) { "wow.aggregates.[$key].query.snapshot.store is $store, which is none of its snapshot stores $targets." }
+            type to store
+        }.toMap()
+}
+
+/**
+ * What the host gives `wow-query`'s query bounds ([me.ahoo.wow.query.store.QueryStores]): each store's
+ * write pressure as the node measures it, and whether an aggregate type's events queries that name no aggregate run.
+ */
+internal object HostQueryBulkheads {
+    /**
+     * The write pressure of [store], read at each sample: its appends' latency as the started [node] measures it, when
+     * a log of the node is on it, and the callers waiting for a connection of its pool, when it says. Without a
+     * started node (not built yet, or stopped), its appends give none.
+     */
+    fun pressureOf(node: () -> ServiceNode?, name: String, store: Store?): WritePressure {
+        val pool = store?.facet<StorePool>()
+        return WritePressure {
+            val latency = (node()?.writePressure(name) ?: WritePressure.NONE).sample()
+            pool?.let { latency.waiting(it.waitingForConnection() ?: 0) } ?: latency
+        }
+    }
+
+    /**
+     * Whether [type]'s events queries that name no aggregate run: its
+     * `wow.aggregates.[<context>.<aggregate>].query.events.unpinned`, else that of its events [store], else [global].
+     */
+    fun unpinned(
+        type: AggregateType,
+        store: String?,
+        global: UnpinnedEvents,
+        properties: WowProperties?,
+    ): UnpinnedEvents = properties?.aggregates?.get("${type.context}.${type.name}")?.query?.events?.unpinned
+        ?: store?.let { properties?.stores?.get(it)?.query?.events?.unpinned }
+        ?: global
+}
+
+/**
+ * The node whose write pressure the stores' query bounds adapt to ([HostQueryBulkheads.pressureOf]), taken once the
+ * context has built every singleton. The bounds cannot take the node as a parameter: the node is built with the
+ * gate its state rebuilds replay under ([me.ahoo.wow.runtime.state.ReplayGate]), which is built over them.
+ */
+@InternalWowApi
+class HostQueryNode(private val nodes: ObjectProvider<ServiceNode>) : SmartInitializingSingleton {
+    @Volatile
+    private var node: ServiceNode? = null
+
+    /** The node once it started and until it stopped; null before it is built, before it starts and once it stopped. */
+    fun started(): ServiceNode? = node?.takeIf {
+        it.state == ServiceNode.State.RUNNING || it.state == ServiceNode.State.STOPPING
+    }
+
+    override fun afterSingletonsInstantiated() {
+        node = nodes.ifAvailable
+    }
+}
+
+/**
+ * Manages the indexes of every aggregate type in [types] at startup, after the backends' schemas
+ * exist ([BackendsLifecycle]) and before the node starts: each aggregate's storage is prepared, its query model
+ * compiled from [catalog], and its Manifest's `x-wow-index` planned and managed by [backend] as the `ddl` of the store
+ * it is on says (`wow.stores.<store>.ddl`, else `wow.ddl`). A key the model cannot index fails the start, and so does
+ * an index that `validate` finds missing or invalid: a query it would serve scans the whole collection.
+ */
+@InternalWowApi
+class QueryIndexesLifecycle(
+    private val manifest: Manifest,
+    private val types: List<AggregateType>,
+    private val backend: SnapshotQueryBackend,
+    private val catalog: QuerySchemaCatalog,
+    /** The `events` query backend, whose logs' access attributes are indexed for the types in [eventTypes]. */
+    private val events: EventQueryBackend = EventQueryBackend.NONE,
+    private val eventTypes: List<AggregateType> = emptyList(),
+    /** The key of the `ddl` that applies to a store, by the store's name: `wow.ddl` unless the store sets its own. */
+    private val ddlKeyOf: (store: String?) -> String = { DDL },
+) : SmartLifecycle {
+    @Volatile
+    private var running = false
+
+    /** What the last start did, by aggregate type. */
+    @Volatile
+    var reports: Map<AggregateType, QueryIndexReport> = emptyMap()
+        private set
+
+    /** What the last start did on the logs, by aggregate type: the indexes of the access attributes. */
+    @Volatile
+    var eventReports: Map<AggregateType, QueryIndexReport> = emptyMap()
+        private set
+
+    override fun start() {
+        if (backend.managesIndexes) {
+            reports = types.filter(backend::serves).associateWith { type ->
+                backend.prepare(type)
+                val schema = runBlocking { catalog.schema(type, QueryModel.SNAPSHOT) }
+                val declarations = QueryIndexDeclaration.of(manifest, type.context, type.name) +
+                    QueryIndexDeclaration.accessOf(manifest, type.context, type.name)
+                backend.manageIndexes(type, QueryIndexPlan.of(schema, declarations)).also { report ->
+                    if (report.created.isNotEmpty()) {
+                        logger.info { "Created the query indexes ${report.created} of $type." }
+                    }
+                }
+            }
+        }
+        if (events.managesIndexes) {
+            eventReports = eventTypes.filter { events.binding(it) != null && events.managesIndexes(it) }
+                .associateWith(::manageEventIndexes)
+        }
+        refuseUnmanaged(reports, backend::storeOf)
+        refuseUnmanaged(eventReports, events::storeOf)
+        running = true
+    }
+
+    /**
+     * Manages the indexes of [type]'s access attributes on its log: each one it declares and the built-in owner and
+     * space, planned on its `events` model.
+     */
+    private fun manageEventIndexes(type: AggregateType): QueryIndexReport {
+        events.prepare(type)
+        val schema = runBlocking { catalog.schema(type, QueryModel.EVENTS) }
+        val declarations = QueryIndexDeclaration.accessOf(manifest, type.context, type.name) +
+            QueryIndexDeclaration.BUILT_IN_ACCESS
+        return events.manageIndexes(type, QueryIndexPlan.of(schema, declarations)).also { report ->
+            if (report.created.isNotEmpty()) {
+                logger.info { "Created the access indexes ${report.created} of the log of $type." }
+            }
+        }
+    }
+
+    /** Refuses the start when an index is still missing or invalid: what `validate` reports and does not create. */
+    private fun refuseUnmanaged(reports: Map<AggregateType, QueryIndexReport>, storeOf: (AggregateType) -> String?) {
+        val unmanaged = reports.mapNotNull { (type, report) ->
+            val left = (report.missing + report.invalid).distinct() - report.created.toSet()
+            left.takeIf { it.isNotEmpty() }?.let { type to it }
+        }
+        if (unmanaged.isEmpty()) {
+            return
+        }
+        val key = ddlKeyOf(storeOf(unmanaged.first().first))
+        throw WowConfigurationException(
+            key,
+            Ddl.VALIDATE.name.lowercase(),
+            "The query indexes ${unmanaged.joinToString { (type, indexes) -> "$indexes of $type" }} are missing " +
+                "or invalid, and $key=validate creates none.",
+            "Create them (a run with $key=auto creates them), or drop their x-wow-index declarations.",
+        )
+    }
+
+    override fun stop() {
+        running = false
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getPhase(): Int = WowLifecycles.QUERY_INDEXES_PHASE
+
+    private companion object {
+        val logger = KotlinLogging.logger {}
+        const val DDL = "wow.ddl"
+    }
+}

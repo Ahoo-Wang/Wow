@@ -434,7 +434,7 @@ test('the Manifest outline follows the writer: nested objects, arrays of written
 test('a configuration type reads as the operator writes it: a host properties class as the group it binds', () => {
   assert.equal(
     javaType(
-      'java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.StoreProperties>',
+      'java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.store.StoreProperties>',
     ),
     'Map<String,Store>',
   );
@@ -443,12 +443,12 @@ test('a configuration type reads as the operator writes it: a host properties cl
     'Switch',
   );
   assert.equal(
-    javaType('me.ahoo.wow.spring.boot.PeerTargetProperties$Contract'),
+    javaType('me.ahoo.wow.spring.boot.http.PeerTargetProperties$Contract'),
     'Contract',
   );
   // A nested class of a properties class, and a type outside the host, keep their own names.
   assert.equal(
-    javaType('me.ahoo.wow.spring.boot.QueryProperties$Budget'),
+    javaType('me.ahoo.wow.spring.boot.query.QueryProperties$Budget'),
     'Budget',
   );
   assert.equal(
