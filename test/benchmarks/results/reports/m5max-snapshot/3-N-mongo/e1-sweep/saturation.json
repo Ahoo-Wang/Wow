@@ -6,74 +6,95 @@
     "accounts": 100000
   },
   "targets": ["http://127.0.0.1:18080", "http://127.0.0.1:18081", "http://127.0.0.1:18082"],
-  "saturationThroughput": 15341.3,
+  "saturationThroughput": 14778.8,
   "saturationConcurrency": 1024,
-  "generatorCores": 1.3506639473750308,
+  "generatorCores": 1.214303276917437,
   "availableProcessors": 18,
   "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
   "steps": [
     {
       "concurrency": 1,
-      "throughput": 324.56666666666666,
-      "ok": 9737,
+      "seconds": 30,
+      "throughput": 317.6,
+      "ok": 9528,
       "errors": {},
-      "p50Ms": 2.959,
-      "p99Ms": 6.303,
-      "generatorCores": 0.09958931186588567
+      "p50Ms": 2.975,
+      "p99Ms": 6.495,
+      "generatorCores": 0.11888388482214704,
+      "sentOk": 12745,
+      "sentFailed": 0
     },
     {
       "concurrency": 4,
-      "throughput": 996.8333333333334,
-      "ok": 29905,
+      "seconds": 30,
+      "throughput": 1325.8,
+      "ok": 39774,
       "errors": {},
-      "p50Ms": 2.975,
-      "p99Ms": 9.087,
-      "generatorCores": 0.13935290457754768
+      "p50Ms": 2.559,
+      "p99Ms": 7.167,
+      "generatorCores": 0.18806314421369608,
+      "sentOk": 49975,
+      "sentFailed": 0
     },
     {
       "concurrency": 16,
-      "throughput": 3360.2,
-      "ok": 100806,
+      "seconds": 30,
+      "throughput": 2484.866666666667,
+      "ok": 74546,
       "errors": {},
-      "p50Ms": 4.223,
-      "p99Ms": 11.647,
-      "generatorCores": 0.47854678753548485
+      "p50Ms": 5.375,
+      "p99Ms": 17.407,
+      "generatorCores": 0.3634889416198486,
+      "sentOk": 99166,
+      "sentFailed": 0
     },
     {
       "concurrency": 64,
-      "throughput": 6832.833333333333,
-      "ok": 204985,
+      "seconds": 30,
+      "throughput": 7114.433333333333,
+      "ok": 213433,
       "errors": {},
-      "p50Ms": 8.031,
-      "p99Ms": 22.655,
-      "generatorCores": 0.776781041388229
+      "p50Ms": 7.935,
+      "p99Ms": 20.863,
+      "generatorCores": 0.7763528141489815,
+      "sentOk": 283160,
+      "sentFailed": 0
     },
     {
       "concurrency": 256,
-      "throughput": 12318.466666666667,
-      "ok": 369554,
+      "seconds": 30,
+      "throughput": 12128.666666666666,
+      "ok": 363860,
       "errors": {},
-      "p50Ms": 19.327,
-      "p99Ms": 47.103,
-      "generatorCores": 1.1519215097178193
+      "p50Ms": 19.839,
+      "p99Ms": 47.359,
+      "generatorCores": 1.054682624180904,
+      "sentOk": 494406,
+      "sentFailed": 0
     },
     {
       "concurrency": 1024,
-      "throughput": 15341.3,
-      "ok": 460239,
+      "seconds": 30,
+      "throughput": 14778.8,
+      "ok": 443364,
       "errors": {},
-      "p50Ms": 51.199,
-      "p99Ms": 194.559,
-      "generatorCores": 1.3506639473750308
+      "p50Ms": 52.223,
+      "p99Ms": 204.799,
+      "generatorCores": 1.214303276917437,
+      "sentOk": 594659,
+      "sentFailed": 0
     },
     {
       "concurrency": 4096,
-      "throughput": 6580.766666666666,
-      "ok": 197423,
+      "seconds": 30,
+      "throughput": 6998.7,
+      "ok": 209961,
       "errors": {},
-      "p50Ms": 202.751,
-      "p99Ms": 5242.879,
-      "generatorCores": 0.6406652967314405
+      "p50Ms": 183.295,
+      "p99Ms": 4489.215,
+      "generatorCores": 0.5793455929203732,
+      "sentOk": 293842,
+      "sentFailed": 78
     }
   ],
   "meta": {
@@ -81,12 +102,14 @@
     "nodes": "3",
     "heap": "1g",
     "gc": "G1",
-    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
     "stores": "kafka mongo",
+    "storeWriteIops": "",
     "primed": "true",
-    "primeSeconds": "11",
-    "settleSeconds": "4",
+    "primeSeconds": "12",
+    "settleSeconds": "3",
     "accounts": "100000",
-    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/20261103-003859-run-mongo-n3-saturation"
+    "session": "/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/20261111-003332-run-mongo-n3-saturation"
   }
 }

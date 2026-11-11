@@ -21,6 +21,9 @@ import me.ahoo.wow.api.annotation.WowSpi
  * How the save of one snapshot of a [SnapshotStore.saveAll] ended: [Written], [Refused] by the version guard (the store
  * holds the same or a later version, or one of a higher state revision, which the save then marked stale), or
  * [Failed] alone, the others of the batch unaffected. A failure of the whole call is thrown instead.
+ *
+ * Cases may be added, so a `when` over them keeps an `else` branch, which reads [written]: a snapshot not written may
+ * be saved again, the save being version-guarded.
  */
 @WowSpi
 sealed interface SnapshotSaveOutcome {

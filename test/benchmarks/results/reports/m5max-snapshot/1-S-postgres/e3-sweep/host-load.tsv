@@ -1,25 +1,25 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793692602	19.29	11.35	9.88	32	Stats 9, sysmond 5, WindowServer 4	cosec-redis 0.23%	69	0	0.0	
-1793692614	15.75	10.96	9.76	50	WindowServer 11, mdworker_shared 9, mds_stores 5	cosec-redis 0.14%	246	3	0.0	
-1793692627	14.01	10.74	9.70	58	WindowServer 30, Claude Helper 8, Claude Helper (Renderer) 4	cosec-redis 0.13%	296	2	0.0	
-1793692639	12.00	10.46	9.62	32	WindowServer 16, Claude Helper 4, Claude Helper (Renderer) 4	cosec-redis 0.14%	478	2	0.0	
-1793692651	10.86	10.27	9.56	32	WindowServer 16, Claude Helper 7, Stats 4	cosec-redis 0.15%	396	4	0.0	
-1793692664	9.88	10.07	9.50	35	WindowServer 20, Claude Helper 9, Claude Helper (Renderer) 2	cosec-redis 0.14%	342	4	0.0	
-1793692676	8.82	9.83	9.42	41	WindowServer 20, Claude Helper 10, WeChatAppEx Helper (Renderer) 6	cosec-redis 0.15%	329	4	0.0	
-1793692688	8.41	9.70	9.38	46	WindowServer 25, Claude Helper 11, sysmond 4	cosec-redis 0.16%	453	7	0.0	
-1793692700	7.12	9.35	9.26	63	WindowServer 29, Stats 11, Claude Helper 10	cosec-redis 0.16%	250	3	0.0	
-1793692712	6.56	9.16	9.19	49	WindowServer 27, Claude Helper 11, Claude Helper (Renderer) 3	cosec-redis 0.17%	483	6	0.0	
-1793692725	5.99	8.91	9.10	39	WindowServer 23, Claude Helper 11, Claude Helper (Renderer) 3	cosec-redis 0.14%	582	6	0.0	
-1793692737	5.46	8.70	9.02	53	WindowServer 26, Claude Helper 12, sysmond 4	cosec-redis 0.15%	615	7	0.0	
-1793692749	6.15	8.68	9.01	61	WindowServer 28, Claude Helper 11, Stats 6	cosec-redis 0.16%	664	7	0.0	
-1793692761	8.20	9.04	9.13	28	WindowServer 12, Claude Helper 5, sysmond 3	cosec-redis 0.15%	626	6	0.0	
-1793692774	7.61	8.87	9.07	17	WindowServer 5, claude 3, Claude Helper 2	cosec-redis 0.15%	657	8	0.0	
-1793692786	10.25	9.37	9.24	41	WindowServer 17, Stats 9, Claude Helper 5	cosec-redis 0.15%	713	6	0.0	
-1793692798	10.75	9.49	9.29	24	WindowServer 10, claude 3, Stats 3	cosec-redis 0.14%	529	7	0.1	
-1793692811	14.56	10.36	9.60	7	Claude Helper (Renderer) 1, WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.14%	712	10	0.0	
-1793692823	12.87	10.13	9.53	2	WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Shadowrocket 0	cosec-redis 0.16%	240	2	0.0	
-1793692835	13.81	10.51	9.67	14	Stats 6, WindowServer 2, configd 2	cosec-redis 0.15%	819	12	0.0	
-1793692848	12.22	10.28	9.60	6	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 1	cosec-redis 0.17%	1541	58	0.0	
-1793692861	15.76	11.20	9.94	11	claude 2, WindowServer 2, claude 1	cosec-redis 0.22%	300	5	0.0	
-1793692873	16.26	11.44	10.04	27	sysmond 14, Activity Monitor 4, Stats 3	cosec-redis 0.15%	1158	4	0.0	
-1793692886	15.07	11.43	10.06	19	Stats 6, sysmond 4, WindowServer 3	cosec-redis 0.17%	956	1	0.0	
+1794380138	18.69	12.17	9.87	84	WindowServer 54, Claude Helper 9, sysmond 5	chprobe 11.25%	254	0	0.0	
+1794380151	16.92	12.00	9.83	80	WindowServer 53, Claude Helper 12, Claude Helper (Renderer) 6	chprobe 1.88%	432	2	0.0	
+1794380163	14.92	11.74	9.77	100	WindowServer 52, Claude Helper 20, Stats 7	chprobe 3.36%	255	2	0.0	
+1794380175	12.56	11.37	9.67	84	WindowServer 54, node 10, Claude Helper 7	chprobe 46.86%	160	1	0.0	
+1794380187	11.25	11.13	9.60	63	WindowServer 40, Claude Helper 10, Claude Helper (Renderer) 5	chprobe 2.10%	404	4	0.0	
+1794380200	10.99	11.07	9.61	61	WindowServer 40, Claude Helper 11, Claude Helper (Renderer) 4	chprobe 2.88%	422	4	0.0	
+1794380212	10.56	10.97	9.59	93	WindowServer 47, Claude Helper 12, launchd 8	chprobe 2.11%	496	2	0.0	
+1794380224	11.00	11.03	9.63	103	WindowServer 49, Claude Helper 16, Claude Helper (Renderer) 14	chprobe 40.41%	440	4	0.0	
+1794380236	14.39	11.75	9.90	74	WindowServer 44, Claude Helper 10, Claude Helper (Renderer) 7	chprobe 1.89%	269	4	0.2	
+1794380249	12.22	11.40	9.81	177	java 54, WindowServer 51, Claude Helper (Renderer) 28	chprobe 1.81%	382	3	0.0	
+1794380261	11.32	11.24	9.77	83	WindowServer 47, Claude Helper 12, Claude Helper (Renderer) 11	chprobe 2.26%	417	4	0.0	
+1794380273	10.56	11.08	9.73	89	WindowServer 48, Claude Helper 13, Claude Helper (Renderer) 11	chprobe 2.75%	538	5	0.0	
+1794380286	8.67	10.64	9.60	69	WindowServer 47, Claude Helper 13, Claude Helper (Renderer) 5	chprobe 31.86%	711	7	0.1	
+1794380298	8.28	10.49	9.56	74	WindowServer 47, Claude Helper 12, Claude Helper (Renderer) 7	chprobe 3.59%	636	7	0.0	
+1794380310	7.78	10.27	9.49	91	WindowServer 54, Claude Helper (Renderer) 17, Claude Helper 12	chprobe 2.56%	455	4	0.0	
+1794380323	6.82	9.98	9.40	69	WindowServer 47, Claude Helper 11, Claude Helper (Renderer) 5	chprobe 1.65%	602	6	0.0	
+1794380335	12.43	11.00	9.77	74	WindowServer 48, Claude Helper 11, Claude Helper (Renderer) 6	chprobe 31.57%	616	6	4.5	
+1794380348	11.35	10.82	9.72	77	WindowServer 50, Claude Helper 11, Claude Helper (Renderer) 6	chprobe 2.46%	948	13	0.0	
+1794380361	12.02	11.02	9.81	83	WindowServer 50, Claude Helper (Renderer) 13, Claude Helper 12	chprobe 1.53%	521	4	0.0	
+1794380373	15.25	11.72	10.07	77	WindowServer 53, Claude Helper 10, Claude Helper (Renderer) 5	chprobe 3.81%	982	14	0.0	
+1794380386	12.67	11.32	9.96	79	WindowServer 52, Claude Helper 12, Claude Helper (Renderer) 6	chprobe 21.47%	1563	36	0.0	
+1794380398	11.39	11.10	9.89	96	WindowServer 42, deleted 12, Claude Helper 10	chprobe 37.03%	363	2	0.0	
+1794380411	11.50	11.12	9.93	80	WindowServer 46, Claude Helper (Renderer) 15, Claude Helper 11	chprobe 40.95%	830	3	0.0	
+1794380424	10.65	10.95	9.89	82	WindowServer 47, Claude Helper (Renderer) 16, Claude Helper 11	chprobe 2.70%	281	1	0.0	

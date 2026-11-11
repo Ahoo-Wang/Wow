@@ -197,7 +197,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 | `AccessFilterSpec` | `wow-query-tck` | `store(type, records)`、`binding(type)` | `keepsUnstamped` |
 | `DatasetAccessSpec` | `wow-query-tck` | `createDatasetBindings()`、`createTable(table)`、`storeAccess(…)` | |
 
-为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，内存后端运行 `StoreTck`、七个存储 spec 与 `FailureLedgerContextsSpec`、`TopicTransportSpec` 和五个查询 spec；PostgreSQL 和 MongoDB 运行七个存储 spec、`FailureLedgerContextsSpec`、`QueryBackendSpec`、`EventQueryBackendSpec` 和 `AccessFilterSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec`、两个查询 spec 和 `AccessFilterSpec`；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec`、`DatasetQueryBackendSpec` 和 `DatasetAccessSpec`。
+为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，内存后端运行 `StoreTck`、七个存储 spec 与 `FailureLedgerContextsSpec`、`TopicTransportSpec` 和五个查询 spec；PostgreSQL 和 MongoDB 运行七个存储 spec、`FailureLedgerContextsSpec`、`QueryBackendSpec`、`EventQueryBackendSpec` 和 `AccessFilterSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec`、`DatasetQueryBackendSpec` 和 `DatasetAccessSpec`。
 
 ### 能力与跳过的测试 {#capabilities}
 

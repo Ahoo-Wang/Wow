@@ -1,0 +1,30 @@
+## begin 2026-11-11T01:27:35-0800
+uptime:  1:27  up 2 days,  1:01, 2 users, load averages: 12.85 12.33 10.67
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
+busiest other processes (% of one core):
+  69.1 49671 Claude Helper (Renderer)
+  42.0 408 WindowServer
+  10.7 49159 Claude Helper
+  3.1 49150 Claude
+  2.5 1103 Stats
+  2.1 597 AppleCentauriAlpha
+  1.9 96422 bash
+  1.5 75515 claude
+allowed JVMs (% of one core): 38528 77572 59696 0.0
+other JVMs:
+## end 2026-11-11T01:32:19-0800
+uptime:  1:32  up 2 days,  1:06, 2 users, load averages: 17.48 11.88 10.59
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
+busiest other processes (% of one core):
+  36.1 408 WindowServer
+  28.4 49671 Claude Helper (Renderer)
+  10.0 49159 Claude Helper
+  6.7 49150 Claude
+  3.0 775 Shadowrocket
+  1.4 597 AppleCentauriAlpha
+  0.9 9893 screencaptureui
+  0.7 78385 claude
+allowed JVMs (% of one core): 38528 77572 59696 0.0
+other JVMs:

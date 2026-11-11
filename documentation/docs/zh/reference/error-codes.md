@@ -72,14 +72,14 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `cursor-sort-too-many` | Reading and decoding the request body. |
 | `invalid-cursor` | Reading and decoding the request body. |
 | `stream-not-resumable` | Reading and decoding the request body. |
-| `size-out-of-range` | The entry budget and gates (errorCode IllegalArgument). |
-| `filter-too-large` | The entry budget and gates (errorCode IllegalArgument). |
-| `expensive-operator-disabled` | The entry budget and gates (errorCode IllegalArgument). |
-| `count-requires-filter` | The entry budget and gates (errorCode IllegalArgument). |
-| `residual-groups-exceeded` | The entry budget and gates (errorCode IllegalArgument). |
-| `too-many-groups` | The entry budget and gates (errorCode IllegalArgument). |
-| `explicit-entry-required` | The entry budget and gates (errorCode IllegalArgument). |
-| `replay-too-long` | A state point read (GET …/{id}/state?version=\|at=, …/state/trace). |
+| `size-out-of-range` | The entry budget and gates. |
+| `filter-too-large` | The entry budget and gates. |
+| `expensive-operator-disabled` | The entry budget and gates. |
+| `count-requires-filter` | The entry budget and gates. |
+| `residual-groups-exceeded` | The entry budget and gates. |
+| `too-many-groups` | The entry budget and gates. |
+| `explicit-entry-required` | The entry budget and gates. |
+| `replay-too-long` | A state point read. |
 | `unknown-field` | Admission against the query model. |
 | `unsupported-capability` | Admission against the query model. |
 | `element-scope-required` | Admission against the query model. |

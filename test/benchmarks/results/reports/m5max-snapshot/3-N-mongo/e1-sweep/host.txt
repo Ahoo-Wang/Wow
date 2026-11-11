@@ -1,30 +1,30 @@
-## begin 2026-11-03T00:40:08-0800
-uptime:  0:40  up 2 days, 19:22, 1 user, load averages: 29.50 26.13 19.89
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-mongo wow-e2e-bench-kafka cosec-redis 
+## begin 2026-11-11T00:34:42-0800
+uptime:  0:34  up 2 days, 8 mins, 2 users, load averages: 15.10 10.69 14.07
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  9.9 879 Stats
-  4.8 614 sysmond
-  4.8 361 configd
-  3.8 420 WindowServer
-  1.8 44932 Activity Monitor
-  1.5 55160 bash
-  0.8 8840 zed
-  0.8 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
-allowed JVMs (% of one core): 67826 
+  50.2 408 WindowServer
+  16.5 49159 Claude Helper
+  8.5 49671 Claude Helper (Renderer)
+  2.2 597 AppleCentauriAlpha
+  2.2 55777 claude
+  1.7 49150 Claude
+  1.1 50579 claude
+  0.9 775 Shadowrocket
+allowed JVMs (% of one core): 38528 77572 59696 0.0
 other JVMs:
-## end 2026-11-03T00:44:54-0800
-uptime:  0:44  up 2 days, 19:27, 1 user, load averages: 32.79 24.69 20.35
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-mongo wow-e2e-bench-kafka cosec-redis 
+## end 2026-11-11T00:39:27-0800
+uptime:  0:39  up 2 days, 13 mins, 2 users, load averages: 34.96 19.37 16.41
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  16.0 614 sysmond
-  8.4 44932 Activity Monitor
-  6.6 495 symptomsd
-  3.0 97379 claude
-  0.9 573 AppleCentauriAlpha
-  0.8 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
-  0.5 543 searchpartyd
-  0.4 625 wifip2pd
-allowed JVMs (% of one core): 67826 
+  41.2 408 WindowServer
+  12.5 49159 Claude Helper
+  5.4 49671 Claude Helper (Renderer)
+  2.3 819 SCIM_Extension
+  1.8 49150 Claude
+  1.5 52644 claude
+  1.3 477 symptomsd
+  1.2 775 Shadowrocket
+allowed JVMs (% of one core): 38528 77572 59696 0.1
 other JVMs:

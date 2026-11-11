@@ -115,7 +115,7 @@ internal object ElasticsearchSnapshotDocuments {
             deleted = document.path(DELETED).booleanValue(),
             firstEventTime = document.path(FIRST_EVENT_TIME).longValue(),
             lastEventTime = document.path(LAST_EVENT_TIME).longValue(),
-            // A document of a version that recorded tags holds no access attributes until it is written again.
+            // A document that holds no access attributes reads as one with none.
             access = AccessValues.of(document.get(ACCESS)).orEmpty(),
             operator = operatorOf(document.path(OPERATOR)),
             firstOperator = operatorOf(document.path(FIRST_OPERATOR)),

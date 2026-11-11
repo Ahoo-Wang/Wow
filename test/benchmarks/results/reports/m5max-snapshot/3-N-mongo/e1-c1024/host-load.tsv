@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793695789	34.75	24.65	20.94	55	launchd 22, sysmond 8, Stats 8	cosec-redis 0.15%	142	3		
-1793695800	31.32	24.35	20.90	14	WindowServer 4, Stats 3, Shadowrocket 2	cosec-redis 0.18%	1409	17		
-1793695813	35.06	25.43	21.32	29	corespotlightd 8, sysmond 6, suggestd 4	cosec-redis 0.17%	1324	18		
-1793695825	31.84	25.05	21.24	10	sysmond 4, Activity Monitor 1, zed 1	cosec-redis 0.35%	1380	18		
-1793695837	35.47	26.15	21.69	11	Stats 4, WindowServer 3, configd 2	cosec-redis 0.16%	1374	19		
-1793695850	33.09	25.95	21.67	16	sysmond 5, launchd 3, Activity Monitor 2	cosec-redis 0.18%	1375	19		
-1793695862	36.63	27.17	22.19	5	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 1, WindowServer 1	cosec-redis 0.23%	1464	18		
+1794386694	39.69	25.86	19.56	42	WindowServer 8, sysmond 8, Claude Helper (Renderer) 6		218	0	0.0	
+1794386706	33.02	25.05	19.38	76	WindowServer 20, SCIM_Extension 11, biomesyncd 7		1373	23	0.1	
+1794386719	33.57	25.43	19.58	17	WindowServer 4, Claude Helper (Renderer) 4, Claude Helper 3		1431	21	0.1	
+1794386731	30.10	25.05	19.55	33	WindowServer 8, Claude 7, Claude Helper (Renderer) 5		1422	20	0.1	
+1794386743	33.53	26.01	19.96	29	WindowServer 13, Stats 3, Claude 2		960	12	0.0	
+1794386755	29.40	25.36	19.80	16	WindowServer 4, Claude Helper (Renderer) 2, Claude 2		1415	23	0.2	
+1794386768	24.75	24.53	19.60	72	WindowServer 37, Claude Helper 11, claude 10		1412	18	0.1	

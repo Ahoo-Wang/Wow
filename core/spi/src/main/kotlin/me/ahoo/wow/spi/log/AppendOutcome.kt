@@ -19,6 +19,9 @@ import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * How an append ended. Every expected result is a value; only a defect is an exception.
+ *
+ * Cases may be added, so a `when` over them keeps an `else` branch, which reads one as [Unknown]: whether the stream
+ * committed is not known, and reading it back tells.
  */
 @WowSpi
 sealed interface AppendOutcome {

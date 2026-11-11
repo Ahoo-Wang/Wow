@@ -48,8 +48,7 @@ import me.ahoo.wow.api.schedule.ScheduleContext
  * aggregate's access policy compares its claims with the aggregate's access attributes before and after deciding.
  * It is Wow's own, never recorded: not in the stream, its headers, its operator or the audit. It travels with the
  * command to the node that decides it, through the cluster channel and the command topics. A command no caller sent
- * has none: a derived one ([causation]), one an older node relayed, or one a producer wrote on a command topic
- * without one.
+ * has none: a derived one ([causation]), or one a producer wrote on a command topic without one.
  *
  * Fields may be added: admission builds a command, and the test DSL builds one for a test; the
  * constructor is internal to Wow.

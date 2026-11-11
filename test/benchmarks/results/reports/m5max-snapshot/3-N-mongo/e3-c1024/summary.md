@@ -1,6 +1,6 @@
 # 3-N-mongo/e3-c1024: E3 (uniform), 3 node(s) on mongo
 
-Result 4,892.3/s at 1,024 clients.
+Result 4,769.1/s at 1,024 clients.
 Sustainable (the highest step with a p99 of 200 ms or less and no error): none.
 Failed more than 1% (not a peak): none.
 
@@ -8,6 +8,6 @@ Generator cores are the load generator's, of the 18 processors it had; Generator
 
 | Clients | Throughput (/s) | p50 (ms) | p99 (ms) | OK | Errors | Generator cores | Generator thread | Other CPU | Host CPU | Load (1 min, max) | |
 | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| 1,024 | 4,892.3 | 165.89 | 581.63 | 293,537 | 0 | 0.62 | 0.09 | 0.24 / 0.48 | 13.5 | 41.6 |  |
+| 1,024 | 4,769.1 | 162.81 | 626.69 | 286,149 | 0 | 0.58 | 0.09 | 0.86 / 1.21 | 13.9 | 44.5 |  |
 
-Load averages before: 38.90 27.80 22.44; after: 36.65 29.53 23.57.
+Load averages before: 22.36 24.03 19.48; after: 37.67 29.04 21.79.

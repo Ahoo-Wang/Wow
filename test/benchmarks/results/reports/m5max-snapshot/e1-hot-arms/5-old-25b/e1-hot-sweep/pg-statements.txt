@@ -1,0 +1,29 @@
+ calls  |  rows  | total_ms | mean_ms |                                                                              query                                                                               
+--------+--------+----------+---------+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 277407 |      0 |     93.4 |   0.000 | BEGIN
+ 129709 | 129709 |   6943.1 |   0.054 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  68156 |  68156 |   4838.5 |   0.071 | WITH current AS ( SELECT coalesce(max(version), 0) AS version FROM "wow_log__transfer__account" WHERE aggregate_id = $1 AND tenant_id = $2 ), bump AS ( UPDATE "
+  34836 |  69672 |   2857.1 |   0.082 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  23083 |  69249 |   2420.0 |   0.105 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  19567 |  78268 |   2492.2 |   0.127 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  17134 |  85670 |   2415.9 |   0.141 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  13990 |  83940 |   2231.5 |   0.160 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+  13147 |  26294 |   2087.7 |   0.159 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+  11157 |      0 |     11.8 |   0.001 | SET LOCAL idle_in_transaction_session_timeout = 60000
+  11157 |      0 |     12.0 |   0.001 | SET LOCAL lock_timeout = 29000
+  11157 |      0 |     58.7 |   0.005 | SET LOCAL statement_timeout = 29000
+  10583 |  74081 |   1860.0 |   0.176 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+   7063 |  14126 |    836.9 |   0.118 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, causat
+   6917 |  55336 |   1297.0 |   0.188 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+   6836 |  20508 |   1382.9 |   0.202 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   4800 |  19200 |   1062.7 |   0.221 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   4027 |  36243 |    801.8 |   0.199 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+   3781 |  18905 |    936.5 |   0.248 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   3119 |  18714 |    832.1 |   0.267 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   2746 |   2746 |     44.8 |   0.016 | SELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1
+   2643 |  18501 |    772.6 |   0.292 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   2379 |  19032 |    727.3 |   0.306 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+   2321 |  23210 |    504.5 |   0.217 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_t
+   2154 |  19386 |    702.9 |   0.326 | WITH input (ord, branch, part, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, 
+(25 rows)
+

@@ -35,7 +35,7 @@
 #                  statements by calls over the measurement, from its settle on (reset before it, as the harness resets
 #                  them only for a profiled session)
 
-export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home}"
+export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home}"
 export PATH="$JAVA_HOME/bin:$PATH"
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -377,5 +377,6 @@ curate() {
     --include='up-prime.json' --include='up-settle.json' --include='log-digest.md' --include='*-peak.md' \
     --include='saturate.log' --include='run.log' --include='saturation.json' --include='result.json' \
     --include='settle.json' --include='settle.log' --include='summary.md' --include='pg-statements.txt' \
+    --include='hot-version.tsv' --include='tables.txt' --include='explain.txt' \
     --include='allowed-jvms.txt' --exclude='*' "$1/" "$2/"
 }

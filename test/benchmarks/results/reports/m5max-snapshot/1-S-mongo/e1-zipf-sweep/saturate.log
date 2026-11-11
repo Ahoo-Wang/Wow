@@ -1,13 +1,13 @@
-1793693323 [settle] 1s: node-1 0.02
-1793693324 [settle] 2s: node-1 0.01
-1793693325 [settle] 3s: node-1 0.02
-1793693325 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1793693366 [saturate] E1: concurrency=1 throughput=325.8/s p50=2ms errors={}
-1793693406 [saturate] E1: concurrency=4 throughput=1038.1/s p50=2ms errors={}
-1793693446 [saturate] E1: concurrency=16 throughput=1758.2/s p50=6ms errors={}
-1793693486 [saturate] E1: concurrency=64 throughput=2819.9/s p50=14ms errors={}
-1793693526 [saturate] E1: concurrency=256 throughput=3898.2/s p50=45ms errors={}
-1793693569 [saturate] E1: concurrency=1024 throughput=2672.6/s p50=53ms errors={}
-1793693619 [saturate] E1: concurrency=4096 throughput=6667.6/s p50=167ms errors={http-429-wow.command.busy=30749}
-1793693619 [saturate] saturation: 6667.6/s at concurrency 4096
-1793693620 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/1-S-mongo/e1-zipf-sweep
+1794380875 [settle] 1s: node-1 0.02
+1794380876 [settle] 2s: node-1 0.02
+1794380877 [settle] 3s: node-1 0.03
+1794380877 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794380917 [saturate] E1: concurrency=1 throughput=324.1/s p50=2ms errors={}
+1794380957 [saturate] E1: concurrency=4 throughput=973.0/s p50=3ms errors={}
+1794380997 [saturate] E1: concurrency=16 throughput=2057.4/s p50=5ms errors={}
+1794381037 [saturate] E1: concurrency=64 throughput=7096.1/s p50=7ms errors={}
+1794381077 [saturate] E1: concurrency=256 throughput=12643.0/s p50=17ms errors={}
+1794381117 [saturate] E1: concurrency=1024 throughput=14536.9/s p50=21ms errors={}
+1794381158 [saturate] E1: concurrency=4096 throughput=16731.3/s p50=72ms errors={http-429-wow.command.busy=78298}
+1794381158 [saturate] saturation: 16731.3/s at concurrency 4096
+1794381158 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/1-S-mongo/e1-zipf-sweep

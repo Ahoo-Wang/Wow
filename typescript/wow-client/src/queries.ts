@@ -232,9 +232,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
 
   /**
    * The first record that matches, or `undefined` when none does: the
-   * service's 404 `wow.query.not-found`, as Kotlin's `QueryApi.single`
-   * answers `null`. Any other 404, of a dataset or a route that does not
-   * exist, still rejects.
+   * service's 404 `wow.query.not-found` or `wow.aggregate.not-found`, as
+   * Kotlin's `QueryApi.single` answers `null`. Any other 404, of a dataset
+   * or a route that does not exist, still rejects.
    */
   single<const INCLUDE extends FIELDS>(
     query: Including<FilterSingleQuery<FIELDS>, INCLUDE>,
