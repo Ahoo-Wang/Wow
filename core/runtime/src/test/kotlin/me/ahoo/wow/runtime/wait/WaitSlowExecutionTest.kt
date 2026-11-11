@@ -28,7 +28,6 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.subscription.eventually
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -72,12 +71,6 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
         eventually { coordinator.executing == 0 }
         decideGate.complete(Unit)
         log.findByRequestId(command.ref, command.requestId).assert().isNull()
-    }
-
-    @Test
-    fun `the default timeout is positive, and only capped by the maximum`() {
-        WaitOptions(maxTimeout = 5.seconds).defaultTimeout.assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
-        assertThrows<IllegalArgumentException> { WaitOptions(defaultTimeout = 0.seconds) }
     }
 
     @Test

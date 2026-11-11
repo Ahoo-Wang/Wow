@@ -342,13 +342,13 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * The timeout of a command of [context] whose request names none: its coordinator's
-     * [default][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout], capped by its maximum; [WaitPlan.DEFAULT_TIMEOUT]
+     * [default][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout], at most its maximum; [WaitPlan.DEFAULT_TIMEOUT]
      * for a context this gateway does not admit. An edge whose request names a plan but no timeout gives the plan
      * this timeout.
      */
     @InternalWowApi
     fun defaultWaitTimeout(context: String): Duration =
-        coordinators[context]?.options?.let { minOf(it.defaultTimeout, it.maxTimeout) } ?: WaitPlan.DEFAULT_TIMEOUT
+        coordinators[context]?.options?.defaultTimeout ?: WaitPlan.DEFAULT_TIMEOUT
 
     /**
      * Whether the node is on standby ([me.ahoo.wow.runtime.node.ServiceNode.start]): every request is refused with

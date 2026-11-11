@@ -25,8 +25,9 @@ import kotlin.time.Duration.Companion.seconds
  * - [maxHops] is the longest chain a wait may follow: [DEFAULT_MAX_HOPS] by default, at most
  *   [MAX_HOPS_CAP]. Each saga a chain follows adds two hops, its `handled` and the next `committed`.
  * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of.
- * - [defaultTimeout] is the timeout of a command whose caller names no wait plan, capped by
- *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
+ * - [defaultTimeout] is the timeout of a command whose caller names no wait plan, at most [maxTimeout]: a default
+ *   above it is refused, since it would act as the maximum without a word.
+ *   [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
  * - [maxRegistered] is how many waits the node holds at once: [DEFAULT_MAX_REGISTERED] by default. A
  *   command whose wait would be one more is not run: it is answered FAILED at ACCEPTED with
  *   [ResultCodes.BUSY] (`wow.command.busy`, 429 with `Retry-After`), as a command beyond the node's in-flight limit
@@ -48,6 +49,10 @@ class WaitOptions @InternalWowApi constructor(
         require(maxHops >= 1) { "A wait chain has at least one hop." }
         require(maxHops <= MAX_HOPS_CAP) { "A wait chain has at most $MAX_HOPS_CAP hops, not $maxHops." }
         require(defaultTimeout.isPositive()) { "The default wait timeout is positive." }
+        require(defaultTimeout <= maxTimeout) {
+            "The default wait timeout $defaultTimeout is above the maximum $maxTimeout: raise the maximum or lower " +
+                "the default."
+        }
         require(maxRegistered >= 1) { "A node holds at least one wait, not $maxRegistered." }
     }
 

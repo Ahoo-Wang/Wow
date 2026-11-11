@@ -179,7 +179,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
     fun `the server caps the timeout a caller asks for`(): Unit = runBlocking {
         started()
         snapshotGate = CompletableDeferred()
-        val capped = coordinator(WaitOptions(maxTimeout = 150.milliseconds))
+        val capped = coordinator(WaitOptions(maxTimeout = 150.milliseconds, defaultTimeout = 150.milliseconds))
         val result = withTimeout(
             5.seconds
         ) { capped.execute(order, place(wait = WaitPlan.SNAPSHOT.within(60.seconds))) }

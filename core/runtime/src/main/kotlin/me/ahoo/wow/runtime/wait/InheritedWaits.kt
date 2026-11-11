@@ -95,7 +95,7 @@ internal class InheritedWaits(
      *   waited command's does ([WaitCoordinator.stream]): an HTTP request that is cancelled (its client gave up, its
      *   connection closed) does not cancel the command half-way through its commit, and a stopping node joins it
      *   ([WaitCoordinator.join]). It runs in the caller's trace.
-     * - Its plan's timeout bounds it: the admission's default wait timeout, capped by the maximum
+     * - Its plan's timeout bounds it: the admission's default wait timeout, at most the maximum
      *   ([WaitOptions.defaultTimeout], [WaitOptions.maxTimeout]). A command whose outcome is not known by then is
      *   answered FAILED with [ResultCodes.WAIT_TIMEOUT] at ACCEPTED and goes on executing, its outcome logged: the
      *   calling saga retries with the same request id, which the kernel deduplicates.
