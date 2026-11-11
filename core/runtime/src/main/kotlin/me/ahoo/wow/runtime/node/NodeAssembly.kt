@@ -231,7 +231,7 @@ internal class NodeAssembly(
     val waits: WaitRegistry = WaitRegistry()
 
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
-    val signals: SignalSender = LocalSignalSender(node, service, waits, remoteSignals)
+    val signals: SignalSender = LocalSignalSender(node, waits, service, remoteSignals)
 
     private val origin = Origin(node, address.orEmpty(), service)
 

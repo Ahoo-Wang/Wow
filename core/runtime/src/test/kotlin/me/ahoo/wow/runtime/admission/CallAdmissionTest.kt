@@ -108,7 +108,7 @@ class CallAdmissionTest {
         Executor(Kernel(log), laneCapacity = 4),
         registry,
         SubscriptionDirectory.NONE,
-        LocalSignalSender(origin.node, registry, SignalSender { _, signal, _ -> remote += signal }),
+        LocalSignalSender(origin.node, registry, remote = SignalSender { _, signal, _ -> remote += signal }),
         origin,
         WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
         router = CommandRouter { _, _, _, local ->

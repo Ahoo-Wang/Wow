@@ -140,6 +140,10 @@ class PartitionOwnership internal constructor(
      */
     membership: ServiceMembership? = null,
 ) {
+    /**
+     * With a fixed [address] where the internal constructor takes a supplier of it, and none of the parts only a node
+     * gives it: its command intake, timers, other groups and membership.
+     */
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
         group: LeaseGroup,

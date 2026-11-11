@@ -295,8 +295,6 @@ internal class DerivedCommands(
  */
 internal class DerivedCommandRejectedException(val rejected: List<Pair<Command<*>, Rejection>>) :
     HandlingRejectedException(rejected.first().second.toError(), messageOf(rejected)) {
-    constructor(command: Command<*>, rejection: Rejection) : this(listOf(command to rejection))
-
     /** The first rejected command. */
     val command: Command<*> get() = rejected.first().first
 

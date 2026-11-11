@@ -189,7 +189,7 @@ class DerivedCommandsTest {
         handed.ref.assert().isEqualTo(rejected.ref)
         handed.executionId.assert().isEqualTo(execution)
         handed.causation.assert().isEqualTo(root)
-        val failure = DerivedCommandRejectedException(rejected, rejection.rejection)
+        val failure = DerivedCommandRejectedException(listOf(rejected to rejection.rejection))
         failure.error.code.assert().isEqualTo(FORBIDDEN)
         failure.message!!.assert().contains("c-2", FORBIDDEN)
         // Several rejections no handler takes park once, listing every one.

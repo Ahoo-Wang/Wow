@@ -41,6 +41,10 @@ internal class SourcedEntry(
     val published: StateEventRecord? = null,
     val message: Any? = null,
 ) {
+    /**
+     * A log entry, whole: its position, stream and transport, which the primary constructor takes apart, as a topic's
+     * entries come.
+     */
     constructor(entry: LogEntry) : this(entry.position, entry.stream, entry.decodedTransport)
 }
 

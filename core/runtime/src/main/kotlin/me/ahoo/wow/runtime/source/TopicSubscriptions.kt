@@ -119,6 +119,10 @@ class TopicSubscriptions internal constructor(
     /** The node's fatal errors: its runtime's lanes record theirs, and its scopes' handler records what escapes them. */
     private val fatals: NodeFatals = NodeFatals.NONE,
 ) : SubscriptionPauses {
+    /**
+     * The subscriptions of a topic of published state events, read as [TopicEntries]; the internal constructor takes
+     * the entries of a topic of receipts or commands too, through a type it cannot expose.
+     */
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
         service: String,
