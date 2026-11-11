@@ -65,7 +65,7 @@ console.log(result.ref.id, result.version, result.status);
 
 命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `id` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，方法接收的命令体不含它，即 `Omit<Body, 'stockId'>`，由服务算出 ID。
 
-手写的 `CommandClient` 请求同样按这条路由发送这类命令：
+手写的 `CommandClient` 请求同样按这条路由发送这类命令。eShop 没有这类命令，所以这里发送的是[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)里的 `RestockProduct`：
 
 <!-- typecheck-context
 import type { CommandClient } from '@ahoo-wang/wow-client';
