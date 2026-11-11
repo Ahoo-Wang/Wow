@@ -27,6 +27,7 @@ import me.ahoo.wow.api.access.AccessPredicate.Denied
 import me.ahoo.wow.api.access.AccessPredicate.Not
 import me.ahoo.wow.api.access.AccessPredicate.Unknown
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -47,7 +48,9 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.querySchema
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import tools.jackson.databind.JsonNode
@@ -66,9 +69,10 @@ import java.util.UUID
  * and [space] (`ownerId` and `spaceId`; an event stream's `access.owner` and `access.space`), each declared attribute
  * under [fieldOf] it, `access.<name>` by default, its value as stored ([accessTree]: a string, an enum by its name, an
  * integer as a long, a boolean, a multiple attribute a sorted array of distinct values), an absent one left out: a
- * record written before the attribute was declared. A record not yet stamped has a null `access`. Every filter is
- * guarded by `IS_NOT_NULL` of [access], as the query assembly guards it, so a record not stamped is never read, not
- * even by a check of absence.
+ * record written before the attribute was declared. A record not yet stamped has a null `access`. On a store that keeps
+ * such records ([keepsUnstamped]) every filter is guarded by `IS_NOT_NULL` of [access], as the query assembly guards an
+ * events query, so a record not stamped is never read, not even by a check of absence; on a snapshot store, whose
+ * records are always stamped, there is no guard, as the assembly sends none for snapshots.
  *
  * The matrix covers each operator of one value and of several, negated or not, on present values, on values a record
  * lacks and on a record not stamped, with claims the caller holds and those it does not: a negation over a missing
@@ -129,6 +133,21 @@ abstract class AccessFilterSpec {
         return tree
     }
 
+    /**
+     * [record] as the snapshot of it a snapshot store writes, in [type]: its owner and space its scope, its declared
+     * attributes in their stored form, none on a record not stamped ([keepsUnstamped]).
+     */
+    protected fun snapshotOf(type: AggregateType, record: AccessRecord): SnapshotRecord = SnapshotRecord(
+        ref = type.ref(SNAPSHOT_TENANT, record.id),
+        version = 1,
+        schemaFingerprint = "tck",
+        state = "{}",
+        scope = Scope(record.owner, record.space),
+        firstEventTime = 0,
+        lastEventTime = 0,
+        access = AccessValues.of(accessTree(record)).orEmpty(),
+    )
+
     @TestFactory
     fun `access filter matrix`(): List<DynamicTest> {
         val records = if (keepsUnstamped) {
@@ -146,7 +165,8 @@ abstract class AccessFilterSpec {
                 val expected = records.filter { record ->
                     record.stamped && predicate.allows { valueOf(record, it) }
                 }.map { it.id }
-                val filter = AndFilter(listOf(IsNotNullFilter(access), AccessFilters.compile(predicate, ::fieldOf)))
+                val compiled = AccessFilters.compile(predicate, ::fieldOf)
+                val filter = if (keepsUnstamped) AndFilter(listOf(IsNotNullFilter(access), compiled)) else compiled
                 val actual = runBlocking {
                     backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = records.size + 1), schema))
                         .toList().map { it.path("aggregateId").stringValue() }
@@ -210,6 +230,7 @@ abstract class AccessFilterSpec {
 
     internal companion object {
         private const val ACCESS = "access"
+        private const val SNAPSHOT_TENANT = "tenant"
         private const val CONTEXT_SUFFIX = 12
 
         /** The matrix's documents, each with the attributes it holds now. */

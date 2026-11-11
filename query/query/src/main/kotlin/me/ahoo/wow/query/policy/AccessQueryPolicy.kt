@@ -157,8 +157,9 @@ class AccessPolicies private constructor(
  *   by no access policy: a service is trusted, bounded by the models `wow.callers.<service>.reads` lets it read. The
  *   tenant still bounds them.
  * - **Snapshots.** Each declared attribute is compared on `access.<name>`, [AccessAttribute.OWNER] and
- *   [AccessAttribute.SPACE] on the snapshot's owner and space, and a snapshot whose access attributes are not recorded
- *   (`access` absent) is never read.
+ *   [AccessAttribute.SPACE] on the snapshot's owner and space. A snapshot's attributes are always recorded, `{}` when it
+ *   holds none (`SnapshotRecord.access` is never null), so its filter carries no check that they are: a store that
+ *   indexes nothing for an empty object (Elasticsearch) would read such a check as false.
  * - **State reads.** The same filter, evaluated on the state's latest record
  *   ([me.ahoo.wow.query.QueryGateway.admitRecord]): its history, a version or a trace, is read by its current
  *   attributes.
@@ -210,10 +211,11 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         val filter = AccessFilters.compile(predicate) { attribute ->
             fields.of(attribute).takeIf { declares(type, attribute) }
         }
+        val recorded = fields.recorded ?: return filter
         return when (filter) {
             MatchNoneFilter -> MatchNoneFilter
-            MatchAllFilter -> fields.recorded
-            else -> AndFilter(listOf(fields.recorded, filter))
+            MatchAllFilter -> recorded
+            else -> AndFilter(listOf(recorded, filter))
         }
     }
 
@@ -260,14 +262,16 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
 
     /**
      * Where a model's records hold an aggregate's access attributes: each declared one under [access], the built-in
-     * ones under [owner] and [space]; [recorded] holds of a record whose attributes are recorded.
+     * ones under [owner] and [space]; [recorded] holds of a record whose attributes are recorded, null for a model whose
+     * records always hold them.
      */
     private class AccessFields(
         private val access: String,
         private val owner: QueryField<*>,
         private val space: QueryField<*>,
+        alwaysRecorded: Boolean,
     ) {
-        val recorded = IsNotNullFilter(QueryField(access))
+        val recorded: FilterExpression? = if (alwaysRecorded) null else IsNotNullFilter(QueryField(access))
 
         fun of(attribute: AccessAttribute<*, *>): QueryField<*> = when (attribute) {
             AccessAttribute.OWNER -> owner
@@ -279,18 +283,20 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
     private companion object {
         val logger = KotlinLogging.logger {}
 
-        /** A snapshot's: its owner and space are the snapshot's own. */
+        /** A snapshot's: its owner and space are the snapshot's own, and its attributes always recorded. */
         val SNAPSHOTS = AccessFields(
             SnapshotFields.ACCESS,
             QueryField(SnapshotFields.OWNER_ID),
             QueryField(SnapshotFields.SPACE_ID),
+            alwaysRecorded = true,
         )
 
-        /** A stream's: its owner and space among its access attributes, the aggregate's current ones. */
+        /** A stream's: its owner and space among its access attributes, the aggregate's current ones; null not stamped. */
         val STREAMS = AccessFields(
             EventStreamFields.ACCESS,
             QueryField("${EventStreamFields.ACCESS}.${AccessValues.OWNER}"),
             QueryField("${EventStreamFields.ACCESS}.${AccessValues.SPACE}"),
+            alwaysRecorded = false,
         )
     }
 }

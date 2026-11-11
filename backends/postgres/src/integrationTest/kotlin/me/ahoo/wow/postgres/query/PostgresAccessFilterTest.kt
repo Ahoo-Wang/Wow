@@ -14,13 +14,10 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.AccessFilterSpec
-import me.ahoo.wow.spi.access.AccessValues
-import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /** The access filter contract on PostgreSQL's snapshot queries: a policy's filter pushed down to the `access` column. */
 class PostgresAccessFilterTest : AccessFilterSpec() {
@@ -34,20 +31,4 @@ class PostgresAccessFilterTest : AccessFilterSpec() {
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!
-
-    /** [record] as the snapshot it is of: its attributes in their stored form, none on a record not stamped. */
-    private fun snapshotOf(type: AggregateType, record: AccessRecord): SnapshotRecord = SnapshotRecord(
-        ref = type.ref(TENANT, record.id),
-        version = 1,
-        schemaFingerprint = "tck",
-        state = "{}",
-        scope = Scope(record.owner, record.space),
-        firstEventTime = 0,
-        lastEventTime = 0,
-        access = AccessValues.of(accessTree(record)).orEmpty(),
-    )
-
-    private companion object {
-        const val TENANT = "tenant"
-    }
 }

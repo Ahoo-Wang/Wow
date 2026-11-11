@@ -129,6 +129,7 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
         access("o5@1").path("region").isNull.assert().isTrue()
         access("o5@1").path("teams").let { (it.isArray && it.isEmpty).assert().describedAs("$it").isTrue() }
         access("o2@1").isNull.assert().isTrue()
+        access("o6@1").isObject.assert().isTrue()
         Unit
     }
 
@@ -143,7 +144,7 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
             fixture.keys(EqualFilter(QueryField("access.owner"), "owner-1")).assert()
                 .containsExactly("o1@1", "o1@2", "o3@1", "o4@1", "o5@1")
             fixture.keys(IsNotNullFilter(QueryField("access"))).assert()
-                .containsExactly("o1@1", "o1@2", "o3@1", "o4@1", "o5@1")
+                .containsExactly("o1@1", "o1@2", "o3@1", "o4@1", "o5@1", "o6@1")
             fixture.count(EqualFilter(QueryField("access.teams"), "b")).assert().isEqualTo(3L)
             Unit
         }

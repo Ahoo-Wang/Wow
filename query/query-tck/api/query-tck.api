@@ -9,6 +9,7 @@ public abstract class me/ahoo/wow/query/tck/AccessFilterSpec {
 	protected fun getOwner ()Lme/ahoo/wow/api/query/QueryField;
 	protected fun getSpace ()Lme/ahoo/wow/api/query/QueryField;
 	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	protected final fun snapshotOf (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/tck/AccessFilterSpec$AccessRecord;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
 	protected abstract fun store (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

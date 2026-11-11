@@ -14,12 +14,9 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.AccessFilterSpec
-import me.ahoo.wow.spi.access.AccessValues
-import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
  * The access filter contract on the in-memory backend's snapshots as a snapshot store writes them: the attributes in
@@ -31,20 +28,7 @@ class InMemorySnapshotAccessFilterTest : AccessFilterSpec() {
     override val keepsUnstamped: Boolean = false
 
     override suspend fun store(type: AggregateType, records: List<AccessRecord>) {
-        records.forEach { record ->
-            storage.save(
-                SnapshotRecord(
-                    ref = type.ref("tenant", record.id),
-                    version = 1,
-                    schemaFingerprint = "tck",
-                    state = "{}",
-                    scope = Scope(record.owner, record.space),
-                    firstEventTime = 0,
-                    lastEventTime = 0,
-                    access = AccessValues.of(accessTree(record)).orEmpty(),
-                ),
-            )
-        }
+        records.forEach { storage.save(snapshotOf(type, it)) }
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(type)
