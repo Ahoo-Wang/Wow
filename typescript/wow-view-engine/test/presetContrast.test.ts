@@ -28,12 +28,8 @@ import { converter, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { measure } from './fixtures/presetPairs';
 import { contrastPairs, isPending, PENDING } from '../src/ui/theme/pairs';
-import {
-  presetVariables,
-  TOKEN_GROUPS,
-  type TokenEntry,
-  TOKENS,
-} from '../src/ui/theme/tokens';
+import { presetVariables, TOKENS } from '../src/ui/theme/tokens';
+import { TOKEN_GROUPS, type TokenEntry } from '../src/ui/theme/entry';
 import {
   CONVENTIONS,
   declared,

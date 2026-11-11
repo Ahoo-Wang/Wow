@@ -43,13 +43,8 @@ import {
 } from './fixtures/themeTokens';
 import { linesOf } from '../src/ui/theme/pairs';
 import { CHART_TOKENS } from '../src/ui/charts/theme';
-import {
-  hostVariables,
-  presetVariables,
-  TOKEN_GROUPS,
-  type TokenEntry,
-  TOKENS,
-} from '../src/ui/theme/tokens';
+import { hostVariables, presetVariables, TOKENS } from '../src/ui/theme/tokens';
+import { TOKEN_GROUPS, type TokenEntry } from '../src/ui/theme/entry';
 import { stylesSource } from '../scripts/styles.mjs';
 
 const ROOT = join(import.meta.dirname, '..');

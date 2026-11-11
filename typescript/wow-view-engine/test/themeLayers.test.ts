@@ -41,9 +41,9 @@ import {
 import {
   declaredVariable,
   presetVariables,
-  type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 
 const MODES: readonly Mode[] = ['light', 'dark'];
 

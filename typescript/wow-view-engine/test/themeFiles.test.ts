@@ -41,9 +41,9 @@ import {
   declaredVariable,
   hostVariables,
   presetVariables,
-  type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 import { presetSources } from '../scripts/themes.mjs';
 import {
   hostReads,

@@ -50,9 +50,9 @@ import {
   hostVariables,
   presetVariables,
   THEME_ATTRIBUTES,
-  type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
+import { type TokenEntry } from '../src/ui/theme/entry';
 import { checkTheme } from '../theme-check/check';
 import { registryData } from '../theme-check/registry';
 import { RESOLVER } from './fixtures/themeTokens';
