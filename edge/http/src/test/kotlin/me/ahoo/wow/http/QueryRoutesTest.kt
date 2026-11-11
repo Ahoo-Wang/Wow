@@ -239,6 +239,21 @@ class QueryRoutesTest {
     }
 
     @Test
+    fun `a cursor page naming no size should take the default list size, at most the page size`() {
+        val small = QueryNode(defaultListSize = 2)
+        (1..3).forEach { small.save("c-$it") }
+        small.query("""{"kind":"cursor"}""").body!!["list"].size().assert().isEqualTo(2)
+        small.query("""{"kind":"cursor","size":3}""").body!!["list"].size().assert().isEqualTo(3)
+        // A default list size above the HTTP page size pages by the page size.
+        val bounded = QueryNode(
+            entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 1)),
+            defaultListSize = 2,
+        )
+        (1..3).forEach { bounded.save("c-$it") }
+        bounded.query("""{"kind":"cursor"}""").body!!["list"].size().assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a list should stream as server-sent events`() {
         (1..3).forEach { node.save("c-$it", items = it) }
         val streamed = node.stream(

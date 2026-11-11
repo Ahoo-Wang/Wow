@@ -219,12 +219,15 @@ class QueryBudgetTest {
     }
 
     @Test
-    fun `a cursor page size defaults to the server's, at most the budget's page size`() {
-        QueryBudget.DEFAULT_CURSOR_SIZE.assert().isEqualTo(10)
-        QueryBudget(QueryBudget.HTTP_LABEL).cursorSize(CursorQuery()).assert().isEqualTo(10)
-        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).cursorSize(CursorQuery()).assert().isEqualTo(3)
-        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorSize(CursorQuery()).assert().isEqualTo(10)
-        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).cursorSize(CursorQuery(size = 2)).assert().isEqualTo(2)
+    fun `a cursor page that names no size takes the entry's default list size, at most the budget's page size`() {
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 100).cursorDefault(100).assert().isEqualTo(100)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 100).cursorDefault(20).assert().isEqualTo(20)
+        // A default list size above the page size gives the page size.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 50).cursorDefault(100).assert().isEqualTo(50)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorDefault(100).assert().isEqualTo(100)
+        // No default list size: the page size; neither: none, so the gateway pages by its own size.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 50).cursorDefault(0).assert().isEqualTo(50)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorDefault(0).assert().isNull()
         // A query that names no size is never out of the budget's range.
         QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).check(CursorQuery())
     }

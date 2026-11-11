@@ -36,7 +36,9 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  *
  * [defaultListSize] is the limit a `list` query that names none runs with over HTTP (a `limit` below 1 is refused
  * as the body is read), at most the HTTP budget's `maxListSize`; `0` gives no default, so such a query reads every
- * match where the budget allows it.
+ * match where the budget allows it. It is also the size of a `cursor` page that names none, at most the budget's
+ * `maxPageSize`, which a page takes when `0` gives no default
+ * ([me.ahoo.wow.query.admission.QueryBudget.cursorDefault]).
  *
  * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled: its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.

@@ -263,7 +263,10 @@ internal class QueryHandler(
             json(gateway.list(query, caller).toList(), rebuilding)
         }
         QueryKind.PAGED -> json(gateway.paged(body.query as PagedQuery, caller), rebuilding)
-        QueryKind.CURSOR -> json(gateway.cursor(body.query as CursorQuery, caller), rebuilding)
+        QueryKind.CURSOR -> {
+            val query = (body.query as CursorQuery).withCursorDefault(gateway.entryPolicy.http)
+            json(gateway.cursor(query, caller), rebuilding)
+        }
         QueryKind.SINGLE ->
             single(gateway.single(body.query as SingleQuery, caller), gateway.aggregateType, rebuilding)
         QueryKind.COUNT -> json(gateway.count(body.query as CountQuery, caller), rebuilding)
@@ -276,6 +279,12 @@ internal class QueryHandler(
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
         return if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)
+    }
+
+    /** This cursor query with the page size of [queries]' default list size under [budget] when it names none. */
+    private fun CursorQuery.withCursorDefault(budget: QueryBudget): CursorQuery {
+        val default = budget.cursorDefault(queries.defaultListSize)
+        return if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =

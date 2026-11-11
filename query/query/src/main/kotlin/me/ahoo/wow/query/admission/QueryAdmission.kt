@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.SortCapable
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
@@ -298,7 +299,7 @@ class QueryAdmission(
         @JvmStatic
         @JvmOverloads
         fun cursor(query: CursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            cursor(query, schema, entry, emptyList(), query.size ?: QueryBudget.DEFAULT_CURSOR_SIZE)
+            cursor(query, schema, entry, emptyList(), query.size ?: QueryGateway.DEFAULT_STREAM_CHUNK_SIZE)
 
         /** A count with the query's own limit; `null` counts exactly. */
         @JvmStatic
@@ -432,11 +433,15 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
                 QueryAdmission.Trusted.paged(query, schema, entry, trusted)
             }
 
-        /** A cursor page of the size the query names; else the budget's default, or the default an unbudgeted entry pages by. */
+        /**
+         * A cursor page of the size the query names, which its entry fills in from its default list size when the
+         * caller names none ([QueryBudget.cursorDefault]). One that reaches the gateway without either pages by the
+         * budget's page limit, else by a stream chunk ([QueryGateway.DEFAULT_STREAM_CHUNK_SIZE]).
+         */
         @JvmField
         val CURSOR =
             QueryOperation<CursorQuery>(QueryType.CURSOR, QueryBudget::check) { query, schema, entry, trusted, budget ->
-                val size = budget?.cursorSize(query) ?: query.size ?: QueryBudget.DEFAULT_CURSOR_SIZE
+                val size = query.size ?: budget?.cursorDefault(0) ?: QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
                 QueryAdmission.Trusted.cursor(query, schema, entry, trusted, size)
             }
 

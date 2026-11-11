@@ -323,7 +323,7 @@ outline: deep
 
 ### `cursor` {#cursor}
 
-游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），方向与最后一个排序字段相同，所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `invalid-cursor`）。无限滚动使用游标；它从不计数。
+游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录；第一页没有游标。不写 `size` 的一页取 `default-list-size`（100），至多 `max-page-size`（100），与不写 `limit` 的列表一样；没有默认列表大小时取 `max-page-size`。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），方向与最后一个排序字段相同，所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `invalid-cursor`）。无限滚动使用游标；它从不计数。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 

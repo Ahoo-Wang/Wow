@@ -30,6 +30,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `wow-query` in domain code | `wow-query-api`: the query types, the Kotlin DSL and the field annotations |
 | `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList`, built with their `of` factories or the DSL; code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>` |
 | `ListQuery(limit = 0)`, every match on the query gateway | `limit` left out takes the entry's default list size, and `0` is refused; every match is `queryApi.trusted().unbounded()` or `stream` |
+| `CursorQuery` without a `size`, a page of `CursorQuery.DEFAULT_SIZE` (10) | `size` left out takes the entry's default list size (`default-list-size`, 100), at most `max-page-size` (100); `DEFAULT_SIZE` is gone, so name `size = 10` to keep pages of 10 |
 | `limit(Int.MAX_VALUE)` for every match | Refused: an in-process list returns at most `max-list-size` (1,000), and a larger limit fails (`size-out-of-range`). Code that must see every match, such as a job, a backfill or a migration step, reads them with `NodeQueryApi.trusted().unbounded()` or streams them; a read for a caller pages instead |
 | An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `wow.query.too-many-groups` (400) |
 | `Pagination.offset()` as an `Int` | A `Long` |

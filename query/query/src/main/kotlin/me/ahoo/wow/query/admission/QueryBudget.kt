@@ -125,11 +125,15 @@ class QueryBudget(
     }
 
     /**
-     * The size of a cursor page of [query]: the one it names, or [DEFAULT_CURSOR_SIZE] at most [maxPageSize] when it
-     * names none.
+     * The size of a cursor page that names none, from the entry's configured [default] list size, the one a list that
+     * names no limit takes ([listDefault]): at most [maxPageSize]; [maxPageSize] when [default] is `0`; `null` when
+     * both are `0`, so the gateway pages by its own size ([me.ahoo.wow.query.QueryGateway.DEFAULT_STREAM_CHUNK_SIZE]).
      */
-    fun cursorSize(query: CursorQuery): Int =
-        query.size ?: if (maxPageSize == 0) DEFAULT_CURSOR_SIZE else DEFAULT_CURSOR_SIZE.coerceAtMost(maxPageSize)
+    fun cursorDefault(default: Int): Int? = when {
+        default > 0 -> if (maxPageSize == 0) default else default.coerceAtMost(maxPageSize)
+        maxPageSize > 0 -> maxPageSize
+        else -> null
+    }
 
     /**
      * A resumable stream of a list, run as keyset chunks of the server's size: bounded by time and
@@ -304,9 +308,6 @@ class QueryBudget(
 
         /** The default [countLimit]. */
         const val DEFAULT_COUNT_LIMIT: Int = 10_000
-
-        /** The size of a cursor page whose query names none ([CursorQuery.size] `null`): at most [maxPageSize]. */
-        const val DEFAULT_CURSOR_SIZE: Int = 10
 
         /** The default [timeout]. */
         val DEFAULT_TIMEOUT: Duration = 30.seconds

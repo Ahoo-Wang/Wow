@@ -475,7 +475,7 @@ The budget every query route runs under; a limit of `0` is off.
 | `wow.query.budgets.http.allow-exact-count` | `Boolean` | `false` | Whether a paged query may ask for an exact total, beyond `count-limit`. |
 | `wow.query.budgets.http.allow-expensive-operators` | `Boolean` | `true` | Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter. |
 | `wow.query.budgets.http.count-limit` | `Integer` | `10000` | The default and the largest limit of a count, and the bound of a paged query's total. |
-| `wow.query.budgets.http.default-list-size` | `Integer` | `100` | The limit of a list that names none, at most `max-list-size`. |
+| `wow.query.budgets.http.default-list-size` | `Integer` | `100` | The limit of a list that names none, at most `max-list-size`, and the size of a cursor page that names none, at most `max-page-size`. |
 | `wow.query.budgets.http.max-filter-nodes` | `Integer` | `128` | The most nodes a query's filter may have, the caller's scope included. |
 | `wow.query.budgets.http.max-filter-values` | `Integer` | `1000` | The most values one node of a query's filter may list, such as those of an `in`. |
 | `wow.query.budgets.http.max-list-size` | `Integer` | `1000` | The most results a list or an aggregation may ask for. |
@@ -494,7 +494,7 @@ The budget of the in-process queries, the typed me.ahoo.wow.api.read.QueryApi's,
 | `wow.query.budgets.in-process.allow-exact-count` | `Boolean` | `false` | Whether a paged query may ask for an exact total, beyond `count-limit`. |
 | `wow.query.budgets.in-process.allow-expensive-operators` | `Boolean` | `true` | Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter. |
 | `wow.query.budgets.in-process.count-limit` | `Integer` | `10000` | The default and the largest limit of a count, and the bound of a paged query's total. |
-| `wow.query.budgets.in-process.default-list-size` | `Integer` | `100` | The limit of a list that names none, at most `max-list-size`. |
+| `wow.query.budgets.in-process.default-list-size` | `Integer` | `100` | The limit of a list that names none, at most `max-list-size`, and the size of a cursor page that names none, at most `max-page-size`. |
 | `wow.query.budgets.in-process.max-filter-nodes` | `Integer` | `128` | The most nodes a query's filter may have, the caller's scope included. |
 | `wow.query.budgets.in-process.max-filter-values` | `Integer` | `1000` | The most values one node of a query's filter may list, such as those of an `in`. |
 | `wow.query.budgets.in-process.max-list-size` | `Integer` | `1000` | The most results a list or an aggregation may ask for. |

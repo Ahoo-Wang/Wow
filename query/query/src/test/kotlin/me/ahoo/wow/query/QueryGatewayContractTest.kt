@@ -91,11 +91,15 @@ class QueryGatewayContractTest {
     }
 
     @Test
-    fun `a cursor page that names no size is the server's default size`() {
+    fun `a cursor page that reaches the gateway with no size pages by the budget's page size, else by a chunk`() {
         runTest {
+            // The in-process entry has no budget by default: a stream chunk, and its one row of look-ahead.
             gateway.cursor(CursorQuery(), QueryCaller.IN_PROCESS)
-            // The page and its one row of look-ahead.
-            SnapshotBackend.keysetSize.assert().isEqualTo(QueryBudget.DEFAULT_CURSOR_SIZE + 1)
+            SnapshotBackend.keysetSize.assert().isEqualTo(QueryGateway.DEFAULT_STREAM_CHUNK_SIZE + 1)
+            gateway.cursor(CursorQuery(), QueryCaller(entry = QueryEntry.HTTP))
+            SnapshotBackend.keysetSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxPageSize + 1)
+            gateway.cursor(CursorQuery(size = 3), QueryCaller.IN_PROCESS)
+            SnapshotBackend.keysetSize.assert().isEqualTo(4)
         }
     }
 

@@ -41,8 +41,9 @@ export interface CursorQuery<FIELDS extends string = string> {
    */
   sort?: FieldSort<FIELDS>[];
   /**
-   * The rows of one page. Absent, the server's cursor page size: 10, or its
-   * page limit when that is lower.
+   * The rows of one page. Absent, the server's default list size, at most
+   * its page size: the descriptor's `limits.defaultListSize` and
+   * `limits.maxPageSize` (100 and 100 unless the server configures others).
    */
   size?: number;
   /**
@@ -75,7 +76,7 @@ export interface CursorPage<T> {
 /**
  * Builds the body of a cursor query, with the defaults filled in: every
  * record, all fields, no sort, from the start. A `size` is sent only when
- * given; absent, the server pages by its own size.
+ * given; absent, the server pages by its default list size.
  *
  * @throws TypeError when `filter` is `null`, `size` is not an integer from 1 to
  *   {@link MAX_CURSOR_SIZE}, or `sort` names more than

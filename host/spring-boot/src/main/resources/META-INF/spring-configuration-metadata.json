@@ -1018,7 +1018,7 @@
   }, {
     "name" : "wow.query.budgets.http.default-list-size",
     "type" : "java.lang.Integer",
-    "description" : "The limit of a list that names none, at most `max-list-size`.",
+    "description" : "The limit of a list that names none, at most `max-list-size`, and the size of a cursor page that names none, at most `max-page-size`.",
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Http",
     "defaultValue" : 100
   }, {
@@ -1090,7 +1090,7 @@
   }, {
     "name" : "wow.query.budgets.in-process.default-list-size",
     "type" : "java.lang.Integer",
-    "description" : "The limit of a list that names none, at most `max-list-size`.",
+    "description" : "The limit of a list that names none, at most `max-list-size`, and the size of a cursor page that names none, at most `max-page-size`.",
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$InProcess",
     "defaultValue" : 100
   }, {
