@@ -153,4 +153,3 @@ curl -X DELETE "http://<node>/actuator/cocache/wow.eshop-ordering.order/<tenantI
 - 属主与读方共用一个 Redis。缓存的名字、键和值（视图的 JSON）是服务之间的契约。视图的兼容性就是契约的兼容性：属主新增字段不会破坏任何读方，其余由兼容性闸门检查（[Manifest 与兼容性](../manifest)）。
 - 每个共享的状态，属主每次提交多一次 Redis 写入。
 - 缓存由 CoCache 自己的指标与健康检查报告（[可观测性](../../operate/observability)）。
-- 从基于 CoCache 6 的预发布版迁到 CoCache 8 时，属主与所有读方要在同一个发布窗口内切换（[升级部署](../../operate/upgrades#wow-cocache-on-cocache-8)）。

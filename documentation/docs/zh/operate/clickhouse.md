@@ -383,7 +383,7 @@ Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命�
 
 ## wow_catalog {#wow-catalog}
 
-Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `POLICY` 或 `DEFAULT`；较早版本写下的行为空）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略、或者行里没有说明的表。写入它失败只记日志，从不让 Sink 失败。`auto` 会给较早版本创建的 `wow_catalog` 补上 `access` 列；`validate` 拒绝没有这一列的表，补上之前它的写入都会失败（[升级部署](./upgrades#from-a-10-0-0-pre-release)）。
+Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `POLICY` 或 `DEFAULT`）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略的表。写入它失败只记日志，从不让 Sink 失败。
 
 ## 数据集 {#datasets}
 

@@ -153,4 +153,3 @@ The cache is not where a decision is made. A command decides on its own aggregat
 - The owner and its readers share one Redis. The cache's name, its keys and its value, the view's JSON, are a contract between services. The view's compatibility is the contract's: a field the owner adds breaks no reader, and the compatibility gate checks the rest ([The Manifest and Compatibility](../manifest)).
 - Each shared state costs the owner one Redis write per commit.
 - CoCache's own meters and health report the caches ([Observability](../../operate/observability)).
-- Moving from a pre-release on CoCache 6 to CoCache 8 is one release window for the owner and every reader ([Upgrade a Deployment](../../operate/upgrades#wow-cocache-on-cocache-8)).
