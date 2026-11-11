@@ -455,7 +455,13 @@ describe('defineView', () => {
         narrowed.definition.fields,
         {
           op: 'and',
-          children: [{ field: 'keyword', operator: 'SEARCH', value: 'late' }],
+          children: [
+            {
+              field: 'keyword',
+              operator: FilterOperator.SEARCH,
+              value: 'late',
+            },
+          ],
         },
         builtinFieldKinds,
         { now: new Date('2026-11-10T00:00:00Z'), timeZone: 'UTC' },
