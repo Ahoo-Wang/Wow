@@ -129,7 +129,7 @@ src/
     axes.css                  — Which way a change is coloured (`data-fve-change-colors`) and the density step with the lengths it drives
     registry.css              — The registry's table at the density, focus kept clear of its sticky bands, the two small type sizes pinned, an outline badge's edge
     roles.css                 — The roles applied to the vendored components by `data-slot` or the registry's group class (`@layer utilities`)
-    states.css                — A control under the pointer and pressed, and a segmented control's thumb
+    states.css                — The primary button's fill, a control under the pointer, a toolbar's outline button, a segmented control's track, thumb and corners, a title's weight
     tokens-dark.css           — The dark token block, off paper only
     reset.css                 — `@layer fve-reset`: every preset variable `initial` on whatever names a preset; its list is generated (`theme:docs`)
     base.css                  — The base layer (the default border, the surface's paint and type, a board's ground) and reduced motion

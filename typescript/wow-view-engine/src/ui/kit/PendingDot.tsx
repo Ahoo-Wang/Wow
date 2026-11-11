@@ -44,7 +44,8 @@ export function PendingDot({
   named,
   /**
    * `on-primary` for a dot drawn on a filled `primary` surface — the Apply
-   * button — where `primary` itself would be invisible.
+   * button — where `primary` itself would be invisible: it takes the
+   * button's own ink.
    */
   tone = 'primary',
   /** Layout only: where the dot is put, when it is put somewhere. */
@@ -61,7 +62,7 @@ export function PendingDot({
       aria-hidden={named ? undefined : 'true'}
       className={cn(
         'fve:size-1.5 fve:rounded-full',
-        tone === 'primary' ? 'fve:bg-primary' : 'fve:bg-primary-foreground',
+        tone === 'primary' ? 'fve:bg-primary' : 'fve:bg-current',
         className,
       )}
     >

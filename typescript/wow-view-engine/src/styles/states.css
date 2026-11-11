@@ -12,27 +12,48 @@
  */
 
 /*
- * A control under the pointer, pressed, and the thumb of a segmented control.
+ * The fills the controls wear: the primary button's, a button or a toggle
+ * under the pointer, a toolbar's outline button, and a segmented control's
+ * track, thumb and corners; and a title's weight.
  * A part of `styles.css`, which imports it in its place; the rules are in
  * the order they were written in one file.
  */
 
-/*
- * A button or a toggle under the pointer, where the registry fills it with
- * `muted` (a ghost or an outline button, a toggle): `control-hover`, the
- * ink at the hover strength. In the dark the registry's ghost and outline
- * buttons hover to other fills (`dark:hover:bg-muted/50`,
- * `dark:hover:bg-input/50`), so the same rule is said again for them under
- * the dark roots, the selectors the `dark` variant at the top of this file
- * names. An expanded or a pressed control keeps its own state's fill, and so
- * does a calendar day that is chosen — the single day, a range's two ends
- * and its middle: this rule is heavier than the registry's
- * `data-[selected-single=true]:bg-primary`, and once turned a hovered chosen
- * day into white words on `muted`. Only where hovering is real, as the
- * registry's own `hover:` is.
- */
 @layer utilities {
+  /*
+   * The primary button is the primary as a fill under words, `primary-fill`
+   * and its ink: in the dark a step deeper than the primary, which there is
+   * light enough to be text and too light to carry white words (D94). Under
+   * the pointer it keeps the registry's four fifths of its fill.
+   */
+  .fve\:group\/button:where(.fve\:bg-primary) {
+    background-color: var(--_fve-primary-fill);
+    color: var(--_fve-primary-fill-foreground);
+  }
+
   @media (hover: hover) {
+    .fve\:group\/button:where(.fve\:hover\:bg-primary\/80):hover {
+      background-color: color-mix(
+        in oklab,
+        var(--_fve-primary-fill) 80%,
+        transparent
+      );
+    }
+
+    /*
+     * A button or a toggle under the pointer, where the registry fills it
+     * with `muted` (a ghost or an outline button, a toggle): `control-hover`,
+     * the ink at the hover strength. In the dark the registry's ghost and
+     * outline buttons hover to other fills (`dark:hover:bg-muted/50`,
+     * `dark:hover:bg-input/50`), so the same rule is said again for them
+     * under the dark roots, the selectors `theme.css`'s `dark` variant
+     * names. An expanded or a pressed control keeps its own state's fill,
+     * and so does a calendar day that is chosen — the single day, a range's
+     * two ends and its middle: this rule is heavier than the registry's
+     * `data-[selected-single=true]:bg-primary`, and once turned a hovered
+     * chosen day into white words on `muted`. Only where hovering is real,
+     * as the registry's own `hover:` is.
+     */
     :is(.fve\:group\/button, .fve\:group\/toggle):where(
         .fve\:hover\:bg-muted
       ):hover:not(

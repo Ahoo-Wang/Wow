@@ -166,13 +166,14 @@ describe.each(MODES)('a link, in %s', mode => {
   });
 
   it('is the host’s to set on any preset, at any share', () => {
-    // neutral links nothing; a host links its highlight to the primary at
-    // half: the primary laid at 50% over what is under it.
+    // neutral links nothing; a host links its highlight to the primary's
+    // fill at half: the fill laid at 50% over what is under it. The fill is
+    // the primary in light and a step deeper in dark.
     const host = { '--fve-highlight-link': '50%' };
-    const primary = token('neutral', mode, 'primary', host);
+    const fill = token('neutral', mode, 'primary-fill', host);
     const highlight = token('neutral', mode, 'highlight', host);
-    expect(highlight.alpha).toBeCloseTo(primary.alpha * 0.5, 6);
-    expect(highlight.r).toBeCloseTo(primary.r, 6);
+    expect(highlight.alpha).toBeCloseTo(fill.alpha * 0.5, 6);
+    expect(highlight.r).toBeCloseTo(fill.r, 6);
   });
 
   it('leaves a role no link names as the preset wrote it', () => {
@@ -182,6 +183,54 @@ describe.each(MODES)('a link, in %s', mode => {
     expectSame(
       token('azure', mode, 'highlight', host),
       token('azure', mode, 'highlight'),
+    );
+  });
+});
+
+/**
+ * The primary as a fill under words (`primary-fill`, the primary button):
+ * the primary itself in light, and in the dark the primary's own hue a step
+ * deeper under white words, whatever gave the primary (D94).
+ */
+describe('the primary’s fill', () => {
+  const white = { r: 1, g: 1, b: 1, alpha: 1 };
+
+  it('is the primary under its own ink in light', () => {
+    expectSame(
+      token('neutral', 'light', 'primary-fill'),
+      token('neutral', 'light', 'primary'),
+    );
+    expectSame(
+      token('neutral', 'light', 'primary-fill-foreground'),
+      token('neutral', 'light', 'primary-foreground'),
+    );
+  });
+
+  it.each([
+    ['the stylesheet’s own primary', {}],
+    [
+      'a host’s own dark primary',
+      { '--fve-dark-primary': 'oklch(0.8 0.12 30deg)' },
+    ],
+    ['a brand colour', { '--fve-brand': VIOLET }],
+  ] as const)('is %s a step deeper under white words in dark', (_, host) => {
+    const primary = token('neutral', 'dark', 'primary', host);
+    const fill = token('neutral', 'dark', 'primary-fill', host);
+    expectHue(fill, hueOf(primary));
+    const { l } = toOklch({ mode: 'rgb', ...fill });
+    expect(l).toBeLessThan(toOklch({ mode: 'rgb', ...primary }).l);
+    expect(l).toBeCloseTo(0.52, 1);
+    expectSame(
+      token('neutral', 'dark', 'primary-fill-foreground', host),
+      white,
+    );
+  });
+
+  it('is what a preset says where it says so', () => {
+    // contrast fills with the primary itself in the dark too, under black.
+    expectSame(
+      token('contrast', 'dark', 'primary-fill'),
+      token('contrast', 'dark', 'primary'),
     );
   });
 });
