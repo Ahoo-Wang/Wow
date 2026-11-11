@@ -26,7 +26,9 @@ import me.ahoo.wow.api.access.AccessPredicate.Comparison
 import me.ahoo.wow.api.access.AccessPredicate.Denied
 import me.ahoo.wow.api.access.AccessPredicate.Not
 import me.ahoo.wow.api.access.AccessPredicate.Unknown
+import me.ahoo.wow.api.access.ScopeAccess
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
@@ -327,6 +329,10 @@ abstract class AccessFilterSpec {
             "not owner: no owner never" to Not(eq(AccessAttribute.OWNER, "alice")),
             "space in" to Comparison(AccessAttribute.SPACE, AccessOperator.IN, listOf("s1")),
             "space is null" to Comparison(AccessAttribute.SPACE, AccessOperator.IS_NULL),
+            // The default rule a policy restates (`ownerAndSpace`), of an owner's aggregate and of a tenant's.
+            "owner and space of an owner's aggregate" to ScopeAccess.of(Ownership.OWNER.scopeOf(Scope("alice", "s1"))),
+            "owner and space of a tenant's aggregate: the space alone" to
+                ScopeAccess.of(Ownership.TENANT.scopeOf(Scope("alice", "s1"))),
             "all of" to AllOf(listOf(SALES, SHARED_WITH_BOB)),
             "all of none" to AllOf(emptyList()),
             "any of" to AnyOf(listOf(SALES, SHARED_WITH_BOB, Unknown)),

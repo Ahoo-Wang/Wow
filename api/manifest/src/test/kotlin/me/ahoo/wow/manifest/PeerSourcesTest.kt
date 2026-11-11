@@ -93,7 +93,7 @@ class PeerSourcesTest {
     @Test
     fun `a fragment's event schemas read back from the tree, and a Manifest without them leaves them out`() {
         val manifest = service("ordering.OrderPaid")
-        ManifestTree.read(ManifestTree.write(manifest)).assert().isEqualTo(manifest)
+        ManifestTree.read(ManifestTree.write(manifest), ManifestTree.REFUSE).assert().isEqualTo(manifest)
         @Suppress("UNCHECKED_CAST")
         val source = (
             (ManifestTree.write(PeerSources.resolve(manifest, listOf(ordering)))["contexts"] as List<Map<String, Any?>>)

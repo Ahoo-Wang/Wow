@@ -118,5 +118,8 @@ internal object ManifestFragmentFixtures {
             .filter { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
             .toList()
 
-    fun read(file: File): Manifest = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+    fun read(file: File): Manifest = ManifestTree.read(
+        jacksonObjectMapper().readValue(file, Map::class.java),
+        ManifestTree.REFUSE
+    )
 }

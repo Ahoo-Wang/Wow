@@ -91,7 +91,7 @@ class HostClientsTest {
             .replace(Regex("\"" + Regex.escape(defs) + "(\\w+)\"")) {
                 "\"" + defs + "me.ahoo.wow.spring.boot." + it.groupValues[1] + "\""
             }
-        val manifest = ManifestTree.read(WowJson.mapper.readValue(text, Map::class.java))
+        val manifest = ManifestTree.read(WowJson.mapper.readValue(text, Map::class.java), ManifestTree.REFUSE)
         ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), listOf(ManifestFragment("bank-api", manifest)))
     }
 

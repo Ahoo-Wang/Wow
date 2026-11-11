@@ -103,7 +103,7 @@ class AccessTest {
             val file = compilation.workingDir.walkTopDown()
                 .filter { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
                 .single()
-            return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+            return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
         }
     }
 

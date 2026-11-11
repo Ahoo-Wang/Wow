@@ -163,15 +163,15 @@ fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
     read { caller ->
         allOf(
             DatasetWordingStateAccess.APP_ID eq caller.app,
-            ownerAndSpace(caller, Ownership.TENANT)
+            ownerAndSpace(caller)
         )
     }
-    write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+    write { caller -> ownerAndSpace(caller) }
 }
 ```
 
 - **`read` and `write`.** A policy gives both: `read { caller -> … }` says what the caller may read, `write { caller -> … }` what it may change, and `readWrite { caller -> … }` gives one predicate for both. Nothing is granted by omission, so a policy without a `write` is refused when it is built: `write { denyAll() }` makes an aggregate no caller changes explicit.
-- **It replaces the default rule.** The caller's owner and space are compared only where the policy compares them. `ownerAndSpace(caller)` is the default rule, to combine with the policy's own comparisons; an aggregate that belongs to its tenant compares no owner, `ownerAndSpace(caller, Ownership.TENANT)`, as the wording above does.
+- **It replaces the default rule.** The caller's owner and space are compared only where the policy compares them. `ownerAndSpace(caller)` is the default rule, to combine with the policy's own comparisons. It compares as the aggregate's ownership keeps the scope: an aggregate that belongs to its tenant records no owner, so it compares the space alone, as for the wording above.
 - **Several aggregates of one state.** A policy names the one it governs, `accessPolicy(aggregate = …)`, when several aggregates of the service share its state type.
 
 A predicate compares the aggregate's attributes, through the references of `<State>Access`, with the caller's claims:

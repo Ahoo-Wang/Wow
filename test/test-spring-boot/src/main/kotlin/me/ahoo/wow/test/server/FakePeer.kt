@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
+import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -182,7 +183,10 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
 
         /** The contract on [classLoader] that declares [context]; refused when none does. */
         fun contractOf(context: String, classLoader: ClassLoader): Manifest {
-            val contracts = ClassPathContracts.load(classLoader) { WowJson.mapper.readValue(it, Map::class.java) }
+            // A peer's api jar is built by the peer's Wow, which may be a minor ahead: what it holds unknown is logged.
+            val contracts = ClassPathContracts.load(classLoader, { contractsLogger.warn(it) }) {
+                WowJson.mapper.readValue(it, Map::class.java)
+            }
             return checkNotNull(contracts.map { it.manifest }.firstOrNull { it.contexts.any { it.name == context } }) {
                 "No contract on the class path declares the context $context: the test depends on its api module."
             }
@@ -311,3 +315,6 @@ class PeerAnswer private constructor(
         )
     }
 }
+
+/** The notices of the contracts on a test's class path, a peer's newer than this reader among them. */
+private val contractsLogger = LoggerFactory.getLogger(FakePeer::class.java)

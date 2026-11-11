@@ -62,14 +62,14 @@ fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
     read { caller ->
         allOf(
             DatasetWordingStateAccess.APP_ID eq caller.app,
-            ownerAndSpace(caller, Ownership.TENANT)
+            ownerAndSpace(caller)
         )
     }
-    write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+    write { caller -> ownerAndSpace(caller) }
 }
 ```
 
-- `read { }` and `write { }`, or `readWrite { }` for one predicate of both; a policy without `write` is refused (`write { denyAll() }` for a read-only aggregate). `ownerAndSpace(caller)` is the default rule, to restate inside a policy where it still holds; `ownerAndSpace(caller, Ownership.TENANT)` for an aggregate of its tenant. Several aggregates of one state: `accessPolicy(aggregate = …)`.
+- `read { }` and `write { }`, or `readWrite { }` for one predicate of both; a policy without `write` is refused (`write { denyAll() }` for a read-only aggregate). `ownerAndSpace(caller)` is the default rule, to restate inside a policy where it still holds; it compares as the aggregate's ownership keeps the scope, the space alone for an aggregate of its tenant. Several aggregates of one state: `accessPolicy(aggregate = …)`.
 - Predicates over `<State>Access` references: a single attribute `eq`, `isIn`, `startsWith` (a string, a materialized path), `isNull()`; a multiple one `contains`, `containsAny`, `isEmpty()`; `allOf`, `anyOf`, `not`; `allowIf(condition on the caller)`, `allowAll()`, `denyAll()`. The caller: `caller.subject`, `caller.app`, `caller.scope`, `caller.claim(name)` (first value or null), `caller.claims(name)` (values or none), `caller.hasRole(role)` (its `roles` claim). Claims are the principal's attributes as the `CallerResolver` resolved them (`hosting.md`).
 - **What is missing denies**: a comparison with a claim the caller lacks, or of a value the aggregate lacks, holds neither way, `not` included. Public data is said explicitly (`allowAll()`, or `A.isNull()` in an `anyOf`).
 - **Startup**: a node with an aggregate that declares access attributes and has no policy refuses to start, and so does one with a policy of no aggregate's state, of a state several aggregates share without naming one, or two policies of one aggregate. References are typed by the state; one the aggregate does not declare matches nothing (logged).

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.transport
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
@@ -25,6 +26,7 @@ import tools.jackson.databind.JsonNode
  * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
  * [of] gives null for a name this version does not know.
  */
+@WowSpi
 enum class EnvelopeKind {
     /** A [me.ahoo.wow.spi.state.StateEventRecord]: `id` is `ref@version`, `type` the aggregate type. */
     STATE_EVENT,

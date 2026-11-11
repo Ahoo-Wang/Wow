@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
@@ -41,7 +42,7 @@ fun contractsLoader(vararg names: String): ClassLoader = URLClassLoader(
 object ContractFixtures {
     /** The fixture peer contracts of `contract/inventory` (context inventory) and `contract/payment`. */
     val peers by lazy {
-        ClassPathContracts.load(contractsLoader("inventory", "payment")) {
+        ClassPathContracts.load(contractsLoader("inventory", "payment"), ManifestTree.REFUSE) {
             JsonMapper.builder().build().readValue(it, Map::class.java)
         }
     }

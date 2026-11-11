@@ -123,7 +123,7 @@
      * filter's chip and a segmented control are (D59 7, what D43 left for
      * next): porcelain fills it and drops its edge, as a macOS toolbar
      * does. Unset, the registry's own: `background` edged in `border`, and
-     * in the dark `input/30` edged in `input`, said again there. Its hover,
+     * in the dark no fill, edged in `input`, said again there. Its hover,
      * pressed, expanded, focus and invalid states stay the registry's: each
      * weighs a state beside its class and outweighs this rule.
      */
@@ -141,10 +141,7 @@
           .dark .fve-tokens :not(.fve-root, .fve-root *)
         ) {
         border-color: var(--_fve-control-edge, var(--input));
-        background-color: var(
-          --_fve-control,
-          color-mix(in oklab, var(--input) 30%, transparent)
-        );
+        background-color: var(--_fve-control, transparent);
       }
     }
   }

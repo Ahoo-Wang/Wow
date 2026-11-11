@@ -254,7 +254,11 @@ internal data class TargetConfig(
 /** Reads the V10 Manifests at [paths] as one: their contexts together. */
 internal fun readManifests(paths: List<String>): Manifest {
     val manifests = paths.map { path ->
-        ManifestTree.read(WowJson.mapper.readValue(Files.readString(Path.of(path)), Map::class.java))
+        // The service's own Manifest, which the migration must read whole.
+        ManifestTree.read(
+            WowJson.mapper.readValue(Files.readString(Path.of(path)), Map::class.java),
+            ManifestTree.REFUSE,
+        )
     }
     val contexts: List<ContextManifest> = manifests.flatMap { it.contexts }
     return Manifest(contexts = contexts)

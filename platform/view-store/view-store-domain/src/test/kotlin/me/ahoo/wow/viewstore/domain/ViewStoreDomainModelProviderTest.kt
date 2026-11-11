@@ -44,7 +44,7 @@ class ViewStoreDomainModelProviderTest {
     fun `the fragment should declare the ownership, the lifecycle and the errors of the view store`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val context = ManifestTree.read(tree).contexts.single()
+        val context = ManifestTree.read(tree, ManifestTree.REFUSE).contexts.single()
         val aggregates = context.aggregates.associateBy { it.name }
         aggregates.getValue(ViewStoreContract.View.NAME).lifecycle.assert()
             .containsExactlyInAnyOrder("wow.lifecycle.DeleteAggregate", "wow.lifecycle.TransferOwner")

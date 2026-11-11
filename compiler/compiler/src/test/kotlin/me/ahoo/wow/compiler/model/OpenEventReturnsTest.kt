@@ -160,7 +160,10 @@ class OpenEventReturnsTest {
         result.messages.assert().doesNotContain("not sealed")
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val commands = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val commands = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.single().commands.associate { it.name to it.produces }
         // The alias names the event, not itself; a type parameter says nothing, as Any does.
         commands["Pay"].assert().isEqualTo(listOf("Paid"))
@@ -182,7 +185,10 @@ class OpenEventReturnsTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val commands = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val commands = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.single().commands.associate { it.name to it.produces }
         commands["Place"].assert().isEqualTo(listOf("Placed"))
         commands["Pay"].assert().isEqualTo(listOf("Dispatched", "Packed"))

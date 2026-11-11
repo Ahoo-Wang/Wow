@@ -28,8 +28,7 @@
  *
  * Every pair is written as tokens and the opacity the call site gives them:
  * a selected row is its role, `row-selected`, over the rows' `content`; a
- * toned badge writes its token on a 10% wash of it (`ToneBadge`); the dark
- * theme gives a control a `bg-input/30` fill. A role
+ * toned badge writes its token on a 10% wash of it (`ToneBadge`). A role
  * (ui/theme.md「角色：引擎自己的面」) is a ground of its own here, so a theme
  * that parts it from the token it falls back to is measured on what it painted.
  */
@@ -104,8 +103,6 @@ export interface Ground {
   readonly name: string;
   readonly layers: readonly Layer[];
   readonly pairs: readonly InkSpec[];
-  /** Painted in dark alone: the `bg-input/30` a control wears there. */
-  readonly dark?: true;
   /**
    * Painted only where a theme sets this token: a filled control. The
    * arithmetic measures it then; the browser draws it always, and where the
@@ -420,36 +417,6 @@ export const GROUNDS: readonly Ground[] = [
     layers: one(fill),
     pairs: texts(`${fill}-foreground`),
   })),
-  // In the dark an outline control wears `bg-input/30`: its own words and
-  // its edge land on that wash over each ground a control sits on (axe in
-  // the gallery caught a select's value at 3.48:1, T2).
-  ...(
-    [
-      ['card', 'card'],
-      ['page', 'background'],
-      ['popover', 'popover'],
-      ['sidebar', 'sidebar'],
-    ] as const
-  ).map(([where, token]): Ground => ({
-    name: `input wash on ${where}`,
-    layers: washed(token, 'input', 0.3),
-    // The chart's options name a stage by a placeholder in quiet ink.
-    pairs: [...texts('foreground', 'muted-foreground'), ...QUIET, ...EDGES],
-    dark: true,
-  })),
-  // The same wash on the bands a checkbox stands on: the header's
-  // select-all box, and a selected row's own box.
-  ...(
-    [
-      ['header band', 'table-header'],
-      ['selected row', 'row-selected'],
-    ] as const
-  ).map(([where, token]): Ground => ({
-    name: `input wash on ${where}`,
-    layers: washed(token, 'input', 0.3),
-    pairs: EDGES,
-    dark: true,
-  })),
   // A theme that draws its controls filled (`control`, `control-thumb`):
   // the words a filter chip and a segmented control write on that fill,
   // and the focus mark that lands on it, over each ground a control stands
@@ -477,15 +444,6 @@ export const GROUNDS: readonly Ground[] = [
       layers: [{ token }, { token: 'control-thumb' }],
       pairs: texts('foreground'),
       requires: 'control-thumb',
-    },
-    // A select on a filter's chip wears its own `bg-input/30` in the dark,
-    // on the chip's fill: its value or its placeholder, and its edge.
-    {
-      name: `input wash on control over ${where}`,
-      layers: [{ token }, { token: 'control' }, { token: 'input', alpha: 0.3 }],
-      pairs: [...texts('foreground', 'muted-foreground'), ...EDGES],
-      dark: true,
-      requires: 'control',
     },
   ]),
 ];
@@ -543,28 +501,26 @@ export function expandPairs(
   grounds: readonly Ground[],
   mode: 'light' | 'dark',
 ): ContrastPair[] {
-  return grounds
-    .filter(ground => mode === 'dark' || !ground.dark)
-    .flatMap(({ name: where, layers, pairs, requires }) =>
-      pairs
-        .filter(spec => spec.mode === undefined || spec.mode === mode)
-        .map(({ ink, kind, alpha, wash }): ContrastPair => {
-          const what =
-            wash !== undefined
-              ? 'badge'
-              : `${alpha === undefined ? '' : `${Math.round(alpha * 100)}% `}${kind}`;
-          return {
-            name: `${ink} ${what} on ${where}`,
-            kind,
-            ink: alpha === undefined ? { token: ink } : { token: ink, alpha },
-            ground:
-              wash === undefined
-                ? layers
-                : [...layers, { token: ink, alpha: wash }],
-            ...(requires ? { requires } : {}),
-          };
-        }),
-    );
+  return grounds.flatMap(({ name: where, layers, pairs, requires }) =>
+    pairs
+      .filter(spec => spec.mode === undefined || spec.mode === mode)
+      .map(({ ink, kind, alpha, wash }): ContrastPair => {
+        const what =
+          wash !== undefined
+            ? 'badge'
+            : `${alpha === undefined ? '' : `${Math.round(alpha * 100)}% `}${kind}`;
+        return {
+          name: `${ink} ${what} on ${where}`,
+          kind,
+          ink: alpha === undefined ? { token: ink } : { token: ink, alpha },
+          ground:
+            wash === undefined
+              ? layers
+              : [...layers, { token: ink, alpha: wash }],
+          ...(requires ? { requires } : {}),
+        };
+      }),
+  );
 }
 
 /** Every pair a preset is measured on in one mode, in `GROUNDS`' order. */

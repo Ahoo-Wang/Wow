@@ -26,7 +26,8 @@ import java.util.zip.ZipFile
 object ManifestJson {
     private val mapper = jacksonObjectMapper()
 
-    fun read(input: InputStream): Manifest = ManifestTree.read(mapper.readValue(input, Map::class.java))
+    fun read(input: InputStream): Manifest =
+        ManifestTree.read(mapper.readValue(input, Map::class.java), ManifestTree.REFUSE)
 
     fun read(file: File): Manifest = file.inputStream().use(::read)
 

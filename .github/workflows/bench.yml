@@ -322,7 +322,8 @@ jobs:
           if [ -f "$dist/bench-dist-base/server.tgz" ]; then
             mkdir -p "$RUNNER_TEMP/install-base"
             tar -xzf "$dist/bench-dist-base/server.tgz" -C "$RUNNER_TEMP/install-base"
-            echo "INSTALL_BASE=$(ls -d "$RUNNER_TEMP/install-base"/*/)" >> "$GITHUB_ENV"
+            # Since #5928 the archive also holds benchmark-search-server: the base is its benchmark-server.
+            echo "INSTALL_BASE=$RUNNER_TEMP/install-base/benchmark-server/" >> "$GITHUB_ENV"
           fi
           ls repo/test/benchmarks/*/build/install/*/bin "$RUNNER_TEMP"/install-*/*/bin 2>/dev/null || true
       # The benchmark runs on JDK 25 (D393), the last listed and so JAVA_HOME: the servers and the load generator. JDK 21

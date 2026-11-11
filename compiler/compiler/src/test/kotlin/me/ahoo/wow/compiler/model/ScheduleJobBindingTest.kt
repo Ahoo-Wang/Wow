@@ -143,7 +143,10 @@ class ScheduleJobBindingTest {
 
             val fragment = compilation.workingDir.walkTopDown()
                 .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-            val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            val subscriptions = ManifestTree.read(
+                jacksonObjectMapper().readValue(fragment, Map::class.java),
+                ManifestTree.REFUSE
+            )
                 .contexts.single().subscriptions.associateBy { it.name }
             val manifest = subscriptions.getValue("BillingSaga.invoice")
             manifest.kind.assert().isEqualTo(SubscriptionKind.SAGA)

@@ -18,10 +18,8 @@ import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compiler.model.symbol.BoundedContextArguments
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /**
  * A `@BoundedContext` is read from its annotation's arguments, never through a proxy of the annotation class: a name
@@ -191,5 +189,5 @@ class BoundedContextArgumentsTest {
     /** The one context of the Manifest fragment [compilation] generated. */
     private fun context(compilation: KotlinCompilation) = compilation.workingDir.walkTopDown()
         .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        .let { ManifestTree.read(jacksonObjectMapper().readValue(it, Map::class.java)).contexts.single() }
+        .let { ManifestFragmentFixtures.read(it).contexts.single() }
 }

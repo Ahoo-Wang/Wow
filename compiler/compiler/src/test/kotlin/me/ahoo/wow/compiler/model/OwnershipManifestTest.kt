@@ -18,10 +18,8 @@ import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 
 /** `@AggregateRoot(ownership)` (decision D189): the model and the Manifest fragment say who an aggregate belongs to. */
@@ -44,7 +42,7 @@ class OwnershipManifestTest {
             .filter { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
             .toList()
 
-    private fun read(file: File): Manifest = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+    private fun read(file: File): Manifest = ManifestFragmentFixtures.read(file)
 
     @Test
     fun `@AggregateRoot(ownership) should reach the model and the fragment, without a transfer of the owner`() {

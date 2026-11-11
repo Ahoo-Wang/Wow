@@ -96,10 +96,13 @@ class RetiredEventsTest {
         // The Manifest records them (finding A4-12), as written.
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val manifest = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val manifest = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
         manifest.contexts.single().aggregates.single().retired
             .assert().containsExactly("Withdrawn", "legacy.ledger.Closed")
-        ManifestTree.read(ManifestTree.write(manifest)).assert().isEqualTo(manifest)
+        ManifestTree.read(ManifestTree.write(manifest), ManifestTree.REFUSE).assert().isEqualTo(manifest)
     }
 
     @Test

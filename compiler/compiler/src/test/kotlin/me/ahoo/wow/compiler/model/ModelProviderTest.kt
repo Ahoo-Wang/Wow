@@ -142,6 +142,7 @@ class ModelProviderTest {
 
     private fun fragment(compilation: KotlinCompilation): Manifest = ManifestTree.read(
         jacksonObjectMapper().readValue(generated(compilation, "bank-domain.json"), Map::class.java),
+        ManifestTree.REFUSE,
     )
 
     @Test

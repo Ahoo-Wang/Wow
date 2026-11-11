@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.cocache
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.ManifestFragment
@@ -39,7 +40,12 @@ internal object ContractViews {
     /** The view class of each aggregate type the contracts on [classLoader] name a view of. */
     fun onClassPath(classLoader: ClassLoader): Map<AggregateType, Class<*>> =
         of(
-            ClassPathContracts.load(classLoader) { bytes -> WowJson.mapper.readValue(bytes, Map::class.java) },
+            ClassPathContracts.load(classLoader, { contractsLogger.warn { it } }) { bytes ->
+                WowJson.mapper.readValue(bytes, Map::class.java)
+            },
             classLoader
         )
 }
+
+/** The contracts' notices, a peer's contract newer than this reader among them. */
+private val contractsLogger = KotlinLogging.logger(ContractViews::class.java.name)

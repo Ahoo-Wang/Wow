@@ -27,6 +27,7 @@ internal fun manifest(
     defs: Map<String, Any?> = emptyMap(),
 ): Manifest = ManifestTree.read(
     mapOf("format" to Manifest.FORMAT, "contexts" to contexts, "errors" to errors, "\$defs" to defs),
+    ManifestTree.REFUSE,
 )
 
 internal fun context(

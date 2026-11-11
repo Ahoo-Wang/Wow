@@ -163,7 +163,7 @@ import me.ahoo.wow.kernel.KernelOptions
     private fun fragment(compilation: KotlinCompilation): Manifest {
         val file = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
     }
 
     private val expectedRun = "journal.journal.EntryAdded{size=1}@[a] | " +

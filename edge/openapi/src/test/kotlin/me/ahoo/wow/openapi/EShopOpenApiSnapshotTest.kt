@@ -90,7 +90,10 @@ class EShopOpenApiSnapshotTest {
                 javaClass.classLoader.getResourceAsStream(source)
             ) { "$source is not on the class path" }
                 .use { it.readBytes() }
-            val fragment = ManifestTree.read(OpenApiChecks.mapper.readValue(bytes, Map::class.java))
+            val fragment = ManifestTree.read(
+                OpenApiChecks.mapper.readValue(bytes, Map::class.java),
+                ManifestTree.REFUSE
+            )
             return ManifestMerger.merge(
                 listOf(ManifestFragment(source, fragment)),
                 ServiceInfo("eshop-$context-service")

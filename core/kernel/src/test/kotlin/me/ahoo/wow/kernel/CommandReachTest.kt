@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.accessPolicy
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
@@ -128,6 +129,22 @@ class CommandReachTest {
         val moved = AccessValues.ofStream(emptyMap(), Scope("bob"))
         reach.retries(stream(moved), Scope("alice"), codec).assert().isTrue()
         reach.retries(stream(moved), Scope("carol"), codec).assert().isFalse()
+    }
+
+    @Test
+    fun `a policy's default rule on an aggregate of its tenant compares the caller's space alone`() {
+        val ledger = aggregate<Shelf>("store", "ledger") {
+            ownership(Ownership.TENANT)
+            initial { Shelf(it.id) }
+            decide<Stock> { _, body -> Decision.events(Stocked(body.tier)) }
+            evolve<Stocked> { tier = it.tier }
+        }
+        val owners = accessPolicy(Shelf::class.java, ledger.type) { readWrite { caller -> ownerAndSpace(caller) } }
+        // An owner-level caller: its scope names an owner, which a tenant's aggregate does not record.
+        val alice = Caller.of("acme", scope = Scope("alice", "s1"), subject = "alice")
+        val reach = CommandReach(ledger, owners, command(alice))
+        reach.writes(Scope(spaceId = "s1"), emptyMap()).assert().isTrue()
+        reach.writes(Scope(spaceId = "s2"), emptyMap()).assert().isFalse()
     }
 
     @Test
