@@ -323,7 +323,7 @@ class ParkedRoutesTest {
         )
         timers.put(timer).assert().isTrue()
         val parked = timer.copyWith(status = TimerStatus.PARKED, attempts = 10, outcome = "down")
-        timers.settle(listOf(TimerChange(timer, parked))).assert().isEqualTo(1)
+        timers.settle(listOf(TimerChange(timer, parked))).assert().containsExactly(true)
         ledger.park(
             ParkedAggregate(
                 SubscriptionId("shop", TimerOptions.PARKED_SUBSCRIPTION),
