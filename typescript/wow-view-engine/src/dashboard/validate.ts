@@ -15,13 +15,9 @@ import {
   DASHBOARD_GRID_COLUMNS,
   DASHBOARD_WIDTHS,
   DEFAULT_RUNTIME_LIMITS,
-  MAX_HEADING_LENGTH,
-  MAX_MARKDOWN_LENGTH,
-  MAX_PANEL_LINKS,
   audienceOf,
   isSystemScope,
   sameFilterType,
-  type DashboardContentPanel,
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
@@ -52,7 +48,9 @@ import {
   validateFilterFields,
   validateTimeGrouping,
 } from './validateFilters.js';
-import { isSafeContentUrl, isViewPanel } from './panels.js';
+import { isViewPanel } from './panels.js';
+import { validateContentPanel } from './validateContent.js';
+import { shape } from './shape.js';
 import { validateOpens, validatePresentation } from './panelLook.js';
 import { declaredView, missingView } from './declared.js';
 import { validateTabs } from './tabs.js';
@@ -245,13 +243,6 @@ function validateFixed(
     ...found,
     path: ['fixed', ...found.path],
   }));
-}
-
-function shape(
-  path: IssuePath,
-  expected: 'array' | 'object' | 'string' | 'true',
-): Issue {
-  return issue('dashboard.shape.invalid', path, { expected });
 }
 
 /** The id is the runtime's lookup key, the grid's key and where errors land. */
@@ -547,49 +538,6 @@ function validateBindings(
   return { issues };
 }
 
-function validateContentPanel(
-  panel: DashboardContentPanel,
-  path: IssuePath,
-): Issue[] {
-  switch (panel.kind) {
-    case 'heading':
-      return validateText(
-        panel.content,
-        [...path, 'content'],
-        MAX_HEADING_LENGTH,
-        'dashboard.heading.too-long',
-      );
-    case 'markdown':
-      return validateText(
-        panel.content,
-        [...path, 'content'],
-        MAX_MARKDOWN_LENGTH,
-        'dashboard.markdown.too-long',
-      );
-    case 'image':
-      return validateImage(panel, path);
-    case 'links':
-      return validateLinks(panel, path);
-    default:
-      return [
-        issue('dashboard.panel.unknown-kind', path, {
-          kind: (panel as DashboardPanel).kind,
-        }),
-      ];
-  }
-}
-
-/** A content panel's text: a string no longer than its kind holds. */
-function validateText(
-  content: unknown,
-  path: IssuePath,
-  max: number,
-  code: string,
-): Issue[] {
-  if (typeof content !== 'string') return [shape(path, 'string')];
-  return content.length > max ? [issue(code, path, { max })] : [];
-}
-
 /**
  * The tab a panel names. On a board without tabs a panel names none; on one
  * with tabs it names one of them. A panel that does not is shown on the
@@ -615,48 +563,6 @@ function validatePanelTab(
           'warning',
         ),
       ];
-}
-
-function validateImage(
-  panel: Extract<DashboardContentPanel, { kind: 'image' }>,
-  path: IssuePath,
-): Issue[] {
-  const issues: Issue[] = [];
-  if (typeof panel.src !== 'string' || !isSafeContentUrl(panel.src))
-    issues.push(issue('dashboard.url.unsupported-scheme', [...path, 'src']));
-  if (
-    panel.href !== undefined &&
-    (typeof panel.href !== 'string' || !isSafeContentUrl(panel.href))
-  )
-    issues.push(issue('dashboard.url.unsupported-scheme', [...path, 'href']));
-  return issues;
-}
-
-function validateLinks(
-  panel: Extract<DashboardContentPanel, { kind: 'links' }>,
-  path: IssuePath,
-): Issue[] {
-  if (!Array.isArray(panel.items)) return [shape([...path, 'items'], 'array')];
-  if (panel.items.length > MAX_PANEL_LINKS)
-    return [
-      issue('dashboard.links.too-many', [...path, 'items'], {
-        max: MAX_PANEL_LINKS,
-      }),
-    ];
-
-  const issues: Issue[] = [];
-  panel.items.forEach((item, index) => {
-    const at: IssuePath = [...path, 'items', index];
-    if (!isPlainObject(item)) {
-      issues.push(shape(at, 'object'));
-      return;
-    }
-    if (typeof item.label !== 'string' || item.label.trim().length === 0)
-      issues.push(issue('dashboard.link.label-empty', [...at, 'label']));
-    if (typeof item.href !== 'string' || !isSafeContentUrl(item.href))
-      issues.push(issue('dashboard.url.unsupported-scheme', [...at, 'href']));
-  });
-  return issues;
 }
 
 /**

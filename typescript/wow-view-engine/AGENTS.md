@@ -287,7 +287,9 @@ src/
     placeholders.ts           — `URL_PLACEHOLDER`, the `{{field}}` grammar of a page click that `click.ts` fills and `panelFieldNames.ts` renames; not re-exported by `index.ts`
     timeBindings.ts           — `withTimeBindings`: the board's one date filter wired to each data panel through its view's time field (`timeField`, a system view's own), never over a wire written by hand or a panel that reads whole (`ignoresTime`) — derived when read, never stored (D1): `storedTimeWires` takes them off for a save; `timeFilterOf`, `isDateFilter` (todo D)
     tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
-    validate.ts               — validateDashboard — grid, width, tabs, panels (saved or owned views, overrides of how they look), bindings, content
+    validate.ts               — validateDashboard — grid, width, tabs, panels (saved or owned views, overrides of how they look), bindings; content panels are `validateContent.ts`'s
+    validateContent.ts        — A content panel admitted: a heading's or markdown's text within its length, an image's addresses, a links panel's items, an unknown kind refused
+    shape.ts                  — `shape`: a value of the wrong shape in a board's config, said one way (`dashboard.shape.invalid`) for `validate.ts` and `validateContent.ts`
     validateFilters.ts        — The board's filters as declared (type, default, required, multiple, a list) and its time grouping
     wiring.ts                 — Which field of which panel a filter narrows (D22 G), over what of a panel says which view it shows (`DataPanelSource`: all a panel being added has) and that view's fields (`PanelFields`): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data; a search filter by search box, whatever its name), `unbindPanels`, `autoBindings` for a panel being added, the list the wired fields declare (`wiredOptions`), and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
