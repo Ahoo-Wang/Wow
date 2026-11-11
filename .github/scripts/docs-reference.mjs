@@ -6,11 +6,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import {
-  annotationOf,
-  annotationsOf,
-  markedDeclarations,
-} from './docs-reference-kotlin.mjs';
+import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 
 // The reference pages generated from the sources of truth, in English and
 // Chinese (the descriptions stay in the sources' English):
@@ -72,7 +68,6 @@ const WORDS = {
       intro: count =>
         `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`; each map's own keys are listed below it, its entry written \`<name>\` or \`[<context>.<aggregate>]\`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
       head: '| Key | Type | Default | Description |',
-      required: 'required',
     },
     moduleConfig: {
       title: 'Module Configuration Keys',
@@ -155,7 +150,6 @@ const WORDS = {
       intro: count =>
         `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`；每个映射自己的键列在它下面，条目写作 \`<name>\` 或 \`[<context>.<aggregate>]\`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
       head: '| 键 | 类型 | 默认值 | 说明 |',
-      required: '必填',
     },
     moduleConfig: {
       title: '模块配置项',
@@ -295,15 +289,6 @@ const defaultOf = value => {
   return text === '' ? '`""`' : `\`${text}\``;
 };
 
-/**
- * The Default cell of [property]: [required] for a key its description calls required, whose value in the metadata
- * is only the property's placeholder (a status of `0`); its default otherwise.
- */
-export const defaultCell = (property, required) =>
-  /\brequired\b/i.test(property.description ?? '')
-    ? required
-    : defaultOf(property.defaultValue);
-
 /** The configuration's groups, each with its properties: `[{ name, description, properties }]`. */
 export function configurationGroups(metadata) {
   const groups = metadata.groups.map(group => ({ ...group, properties: [] }));
@@ -362,7 +347,7 @@ function configurationSections(locale, metadata, level = '##') {
     body.push(words.head, '| --- | --- | --- | --- |');
     for (const property of group.properties) {
       body.push(
-        `| \`${property.name}\` | ${cell(`\`${javaType(property.type)}\``)} | ${cell(defaultCell(property, words.required))} | ${cell(plain(property.description ?? ''))} |`,
+        `| \`${property.name}\` | ${cell(`\`${javaType(property.type)}\``)} | ${cell(defaultOf(property.defaultValue))} | ${cell(plain(property.description ?? ''))} |`,
       );
     }
     body.push('');
@@ -903,5 +888,3 @@ if (
     );
   }
 }
-
-export { annotationOf, annotationsOf, markedDeclarations };

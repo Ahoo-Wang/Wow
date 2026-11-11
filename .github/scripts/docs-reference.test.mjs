@@ -7,11 +7,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  annotationOf,
-  annotationsOf,
   annotationsPage,
   configurationGroups,
-  defaultCell,
   firstSentence,
   frameworkErrors,
   javaType,
@@ -20,9 +17,9 @@ import {
   referencePages,
   staleMessage,
   manifestObjects,
-  markedDeclarations,
   publishedModules,
 } from './docs-reference.mjs';
+import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 
 test('prose loses the design records’ references, and a KDoc link reads as code outside code spans', () => {
   assert.equal(
@@ -131,31 +128,8 @@ test('the query codes, kebab-case as the source writes them, take the first sent
   ]);
 });
 
-test('a key its description calls required shows that, not the placeholder value of its property', () => {
-  assert.equal(
-    defaultCell(
-      {
-        defaultValue: 0,
-        description:
-          'The status, 400 to 599: required, an entry without it refuses the start.',
-      },
-      'required',
-    ),
-    'required',
-  );
-  assert.equal(
-    defaultCell({ defaultValue: 0, description: 'The status.' }, 'required'),
-    '`0`',
-  );
-  assert.equal(
-    defaultCell({ defaultValue: '', description: 'A name.' }, 'required'),
-    '`""`',
-  );
-  assert.equal(defaultCell({ description: 'No default.' }, 'required'), '');
-});
-
 test('an annotation gives its summary, targets and parameters, multi-line defaults included', () => {
-  const annotation = annotationOf(`package a
+  const [annotation] = annotationsOf(`package a
 
 /**
  * An aggregate root: the compiler binds it.
@@ -191,10 +165,11 @@ annotation class AggregateRoot(
     ],
   });
   assert.deepEqual(
-    annotationOf('/** A marker. */\nannotation class Blocking\n').parameters,
+    annotationsOf('/** A marker. */\nannotation class Blocking\n')[0]
+      .parameters,
     [],
   );
-  assert.equal(annotationOf('class NotAnAnnotation'), undefined);
+  assert.deepEqual(annotationsOf('class NotAnAnnotation'), []);
 });
 
 test('every annotation of a file is read, its parameters on one line or several, a vararg one included', () => {

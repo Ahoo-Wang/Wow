@@ -63,9 +63,6 @@ export function annotationsOf(source) {
   });
 }
 
-/** The first annotation a Kotlin source declares, or undefined. */
-export const annotationOf = source => annotationsOf(source)[0];
-
 const DECLARATION =
   /^(\s*)((?:(?:public|internal|private|protected|override|open|abstract|sealed|data|value|enum|annotation|inline|suspend|operator|infix|const|lateinit|expect|actual)\s+)*)(fun\s+interface|class|interface|object|fun|val|var|typealias|constructor)\b\s*(?:<[^>]*>\s*)?(?:[\w.<>?, ]+\.)?(\w+)?/;
 
