@@ -156,7 +156,7 @@ class DerivedCommandsTest {
             val carts = (1..20).map { "cart-$it" }
             fun add(id: String, cart: String) = Command(id, id, CART.ref(TENANT, cart), AddItems(listOf(id)))
             derived.execute(carts.map { add("open-$it", it) }, null)
-            derived.execute(listOf(Command("delete", "delete", CART.ref(TENANT, "cart-7"), DeleteAggregate)), null)
+            derived.execute(listOf(Command("delete", "delete", CART.ref(TENANT, "cart-7"), DeleteAggregate())), null)
                 .rejected.assert().isEmpty()
             val recompiled = carts.map { add("again-$it", it) }
             val executed = derived.execute(recompiled, null)

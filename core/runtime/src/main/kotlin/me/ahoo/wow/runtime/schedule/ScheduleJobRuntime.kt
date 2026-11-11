@@ -161,7 +161,7 @@ internal object ScheduleJobRuntime {
         } else {
             listOf(ScheduleJobModel.refOf(context, job.name) to null)
         }
-        instances.map { (ref, partition) -> ref to (if (enabled) EnableJob(job.name, null, partition) else DisableJob) }
+        instances.map { (ref, partition) -> ref to (if (enabled) EnableJob(job.name, null, partition) else DisableJob()) }
     }
 
     /**

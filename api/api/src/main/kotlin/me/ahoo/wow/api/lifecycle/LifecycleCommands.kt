@@ -19,13 +19,35 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * Marks the aggregate deleted ([AggregateDeleted]). A deleted aggregate refuses every command but [RestoreAggregate];
  * its events stay in the log.
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `DeleteAggregate` would compile as that object, a value equal to no DeleteAggregate, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `DeleteAggregate()`.
  */
 @Description("Marks the aggregate deleted; its events stay in the log.")
-data object DeleteAggregate
+class DeleteAggregate {
+    override fun equals(other: Any?): Boolean = this === other || other is DeleteAggregate
 
-/** Takes back the deletion of a deleted aggregate ([AggregateRestored]). */
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "DeleteAggregate"
+}
+
+/**
+ * Takes back the deletion of a deleted aggregate ([AggregateRestored]).
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `RestoreAggregate` would compile as that object, a value equal to no RestoreAggregate, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `RestoreAggregate()`.
+ */
 @Description("Takes back the deletion of a deleted aggregate.")
-data object RestoreAggregate
+class RestoreAggregate {
+    override fun equals(other: Any?): Boolean = this === other || other is RestoreAggregate
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "RestoreAggregate"
+}
 
 /** Gives the aggregate to the owner [ownerId], the owner part of its scope; see [OwnerTransferred]. */
 @Description("Gives the aggregate to the owner ownerId.")

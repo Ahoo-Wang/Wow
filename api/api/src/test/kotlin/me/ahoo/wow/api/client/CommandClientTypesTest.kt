@@ -129,11 +129,11 @@ class CommandClientTypesTest {
             .message.assert().contains("decided by no aggregate", "set CommandRequest.type")
         assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, other) } }
             .message.assert().contains("several aggregates", "shop.basket", "set CommandRequest.type")
-        assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(DeleteAggregate, "c-1")) { listOf(cart) } }
+        assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(DeleteAggregate(), "c-1")) { listOf(cart) } }
             .message.assert().isEqualTo(
                 "DeleteAggregate is a lifecycle command every aggregate takes: set CommandRequest.type."
             )
-        typeOf(CommandRequest.of(DeleteAggregate, "c-1", type = cart)) { emptyList() }.assert().isEqualTo(cart)
+        typeOf(CommandRequest.of(DeleteAggregate(), "c-1", type = cart)) { emptyList() }.assert().isEqualTo(cart)
     }
 
     @Test

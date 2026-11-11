@@ -48,7 +48,7 @@ class KernelDeclaredEventsTest {
             }
             // A composed lifecycle event is allowed when it is declared.
             decideSuspending<Close>(produces = setOf(Closed::class.java, AggregateDeleted::class.java)) { _, body ->
-                Decision.events(Closed(body.reason), AggregateDeleted)
+                Decision.events(Closed(body.reason), AggregateDeleted())
             }
             decideBlocking<Note>(produces = noteProduces) { _, body -> Decision.events(Noted(body.text), Audited) }
             after(include = setOf(Open::class.java), produces = auditProduces) { _, _ -> listOf(Audited) }

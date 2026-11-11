@@ -128,14 +128,36 @@ class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
     }
 }
 
-/** The system command `wow.schedule.Disable`: stops the job instance it is sent to. */
-data object DisableJob
+/**
+ * The system command `wow.schedule.Disable`: stops the job instance it is sent to.
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `DisableJob` would compile as that object, a value equal to no DisableJob, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `DisableJob()`.
+ */
+class DisableJob {
+    override fun equals(other: Any?): Boolean = this === other || other is DisableJob
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "DisableJob"
+}
 
 /**
  * The system command `wow.schedule.Tick`: the schedule of a job instance is due; the slot is the
  * command's [ScheduleContext]. Only a slot newer than the last one ticks.
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `TickJob` would compile as that object, a value equal to no TickJob, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `TickJob()`.
  */
-data object TickJob
+class TickJob {
+    override fun equals(other: Any?): Boolean = this === other || other is TickJob
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "TickJob"
+}
 
 /**
  * The system event `wow.JobEnabled`: the instance of [job] runs by [rule], [override] its own part of it.
@@ -189,8 +211,20 @@ class JobRescheduled @InternalWowApi constructor(val rule: ScheduleRule.Cron, va
     }
 }
 
-/** The system event `wow.JobDisabled`: the instance does not run until it is enabled again. */
-data object JobDisabled
+/**
+ * The system event `wow.JobDisabled`: the instance does not run until it is enabled again.
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `JobDisabled` would compile as that object, a value equal to no JobDisabled, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `JobDisabled()`.
+ */
+class JobDisabled {
+    override fun equals(other: Any?): Boolean = this === other || other is JobDisabled
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "JobDisabled"
+}
 
 /**
  * The system event `wow.Ticked`: the instance ran the [slot] of its [timer], due at [due], after [skipped] slots the

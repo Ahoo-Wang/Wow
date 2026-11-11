@@ -15,11 +15,35 @@ package me.ahoo.wow.api.lifecycle
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** The aggregate was deleted ([DeleteAggregate]). */
-data object AggregateDeleted
+/**
+ * The aggregate was deleted ([DeleteAggregate]).
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `AggregateDeleted` would compile as that object, a value equal to no AggregateDeleted, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `AggregateDeleted()`.
+ */
+class AggregateDeleted {
+    override fun equals(other: Any?): Boolean = this === other || other is AggregateDeleted
 
-/** The aggregate's deletion was taken back ([RestoreAggregate]). */
-data object AggregateRestored
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "AggregateDeleted"
+}
+
+/**
+ * The aggregate's deletion was taken back ([RestoreAggregate]).
+ *
+ * Fields may be added, each a constructor parameter with a default. It has no companion object on purpose:
+ * with one, a bare `AggregateRestored` would compile as that object, a value equal to no AggregateRestored, and as a `when`
+ * branch too; without one the compiler refuses it and names each place to write `AggregateRestored()`.
+ */
+class AggregateRestored {
+    override fun equals(other: Any?): Boolean = this === other || other is AggregateRestored
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "AggregateRestored"
+}
 
 /**
  * The aggregate now belongs to the owner [ownerId] ([TransferOwner]).

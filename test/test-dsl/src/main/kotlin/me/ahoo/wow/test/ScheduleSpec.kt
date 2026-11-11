@@ -163,7 +163,7 @@ class ScheduleSpec internal constructor(
 
     /** Disables [job]'s instance in [tenantId]. */
     fun disable(job: String, tenantId: String = DEFAULT_TENANT, partition: Int? = null) {
-        check(instance(job, tenantId, partition).sendCommand(DisableJob, OPERATOR), "disable $job")
+        check(instance(job, tenantId, partition).sendCommand(DisableJob(), OPERATOR), "disable $job")
     }
 
     /** The state of [job]'s instance in [tenantId], or null when it was never enabled. */

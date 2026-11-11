@@ -72,7 +72,7 @@ class ScheduleJobModelTest {
         aggregateSpec(model, id = "nightly", tenantId = Caller.DEFAULT_TENANT) {
             whenCommand(EnableJob("nightly")) {
                 expectEvents(JobEnabled("nightly", nightly.rule))
-                expectScheduled(ScheduleJobs.TICK_KEY, TickJob, nightly.rule)
+                expectScheduled(ScheduleJobs.TICK_KEY, TickJob(), nightly.rule)
                 expectState {
                     job.assert().isEqualTo("nightly")
                     enabled.assert().isTrue()
@@ -145,7 +145,7 @@ class ScheduleJobModelTest {
             whenCommand(EnableJob("invoice")) { expectUnchanged() }
             whenCommand(RescheduleJob()) {
                 expectEvents(JobRescheduled(monthly))
-                expectScheduled(ScheduleJobs.TICK_KEY, TickJob, monthly)
+                expectScheduled(ScheduleJobs.TICK_KEY, TickJob(), monthly)
             }
             whenCommand(RescheduleJob()) { expectUnchanged() }
             whenCommand(RescheduleJob(JobRule("0 0 0 15 * *"))) {
@@ -159,12 +159,12 @@ class ScheduleJobModelTest {
     fun `disabling cancels the tick, and enabling again schedules it anew`() {
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
-            whenCommand(DisableJob) {
-                expectEvents(JobDisabled)
+            whenCommand(DisableJob()) {
+                expectEvents(JobDisabled())
                 expectScheduleCancelled(ScheduleJobs.TICK_KEY)
                 expectState { enabled.assert().isFalse() }
             }
-            whenCommand(DisableJob) { expectUnchanged() }
+            whenCommand(DisableJob()) { expectUnchanged() }
             expectNothingDue(60.days)
             whenCommand(RescheduleJob()) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
@@ -225,24 +225,24 @@ class ScheduleJobModelTest {
     fun `a tick only of the instance's schedule, newer than the last, ticks`() {
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
-            whenCommand(TickJob) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
+            whenCommand(TickJob()) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             val timer = "${ScheduleJobModel.refOf("billing", "invoice", "acme")}#tick@1"
-            whenCommand(TickJob, headers = ScheduleContext(timer, "tick", 2, 7).headers()) {
+            whenCommand(TickJob(), headers = ScheduleContext(timer, "tick", 2, 7).headers()) {
                 expectEvents(Ticked(timer, 2, 0, 7))
             }
             // The same slot again, or an older one: nothing.
-            whenCommand(TickJob, headers = ScheduleContext(timer, "tick", 2, 7).headers()) { expectUnchanged() }
-            whenCommand(TickJob, headers = ScheduleContext(timer, "tick", 1, 5).headers()) { expectUnchanged() }
+            whenCommand(TickJob(), headers = ScheduleContext(timer, "tick", 2, 7).headers()) { expectUnchanged() }
+            whenCommand(TickJob(), headers = ScheduleContext(timer, "tick", 1, 5).headers()) { expectUnchanged() }
             // A timer of an earlier version: stale; of a later one, a reschedule's: ticks.
-            whenCommand(TickJob, headers = ScheduleContext("$timer-x@0", "tick", 9, 9).headers()) {
+            whenCommand(TickJob(), headers = ScheduleContext("$timer-x@0", "tick", 9, 9).headers()) {
                 expectUnchanged()
             }
             val later = "${ScheduleJobModel.refOf("billing", "invoice", "acme")}#tick@5"
-            whenCommand(TickJob, headers = ScheduleContext(later, "tick", 1, 9, 0).headers()) {
+            whenCommand(TickJob(), headers = ScheduleContext(later, "tick", 1, 9, 0).headers()) {
                 expectEvents(Ticked(later, 1, 0, 9))
             }
-            whenCommand(DisableJob) { expectEventTypes(JobDisabled::class) }
-            whenCommand(TickJob, headers = ScheduleContext(later, "tick", 2, 10).headers()) { expectUnchanged() }
+            whenCommand(DisableJob()) { expectEventTypes(JobDisabled::class) }
+            whenCommand(TickJob(), headers = ScheduleContext(later, "tick", 2, 10).headers()) { expectUnchanged() }
         }
     }
 
@@ -254,7 +254,7 @@ class ScheduleJobModelTest {
         val shanghai = JobRule(zone = "Asia/Shanghai")
         kernel.execute(model, Command("c-1", "r-1", ref, EnableJob("invoice", shanghai)))
         val timer = "$ref#tick@1"
-        val tick = Command("c-2", "r-2", ref, TickJob, headers = ScheduleContext(timer, "tick", 1, 900).headers())
+        val tick = Command("c-2", "r-2", ref, TickJob(), headers = ScheduleContext(timer, "tick", 1, 900).headers())
         // The node's default is now on the 15th: the instance keeps its own time zone over it.
         val changed = ScheduleJob("invoice", ScheduleRule.Cron("0 0 0 15 * *"), JobScope.TENANT)
         val outcome = kernel.execute(ScheduleJobModel.model("billing", listOf(changed)), tick)
@@ -266,9 +266,9 @@ class ScheduleJobModelTest {
             ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK, "{}"),
         )
         // A node without the job disables the instance on its next tick.
-        val next = Command("c-3", "r-3", ref, TickJob, headers = ScheduleContext(timer, "tick", 2, 950).headers())
+        val next = Command("c-3", "r-3", ref, TickJob(), headers = ScheduleContext(timer, "tick", 2, 950).headers())
         val disabled = kernel.execute(ScheduleJobModel.model("billing", emptyList()), next) as CommandOutcome.Committed
         disabled.stream.events.map { codec.decode(model, it) }.assert()
-            .containsExactly(JobDisabled, ScheduleCancelled(ScheduleJobs.TICK_KEY))
+            .containsExactly(JobDisabled(), ScheduleCancelled(ScheduleJobs.TICK_KEY))
     }
 }

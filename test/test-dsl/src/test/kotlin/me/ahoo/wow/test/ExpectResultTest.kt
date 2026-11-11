@@ -87,7 +87,7 @@ class ExpectResultTest {
             assertThrownBy<AssertionError> { expectDeleted() }
                 .hasMessageContaining("Expected the command to delete the aggregate")
         }
-        whenCommand(DeleteAggregate) {
+        whenCommand(DeleteAggregate()) {
             expectDeleted()
             expectVersion(2)
         }

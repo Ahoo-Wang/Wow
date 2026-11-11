@@ -60,8 +60,8 @@ class KernelCompositionTest {
             schedule("expire", ScheduleRule.after(30.minutes), Close("expired"))
             Decision.events(Opened(body.by))
         }
-        decide<Close> { _, body -> Decision.events(Closed(body.reason), AggregateDeleted) }
-        decide<Reopen>(onDeleted = true) { _, body -> Decision.events(Reopened(body.reason), AggregateRestored) }
+        decide<Close> { _, body -> Decision.events(Closed(body.reason), AggregateDeleted()) }
+        decide<Reopen>(onDeleted = true) { _, body -> Decision.events(Reopened(body.reason), AggregateRestored()) }
         decide<Note>(onDeleted = true) { _, body -> Decision.events(Noted(body.text)) }
         decide<Touch> { _, _ -> Decision.events(Touched) }
         evolve<Opened> { }
@@ -119,8 +119,8 @@ class KernelCompositionTest {
         decide<DeleteAggregate> { state, _ ->
             when {
                 state.reason == "keep" -> Decision.reject("ticket.kept", "A kept ticket is not deleted.")
-                transfer -> Decision.events(Closed("deleted"), AggregateDeleted, OwnerTransferred("mallory"))
-                else -> Decision.events(Closed("deleted"), AggregateDeleted)
+                transfer -> Decision.events(Closed("deleted"), AggregateDeleted(), OwnerTransferred("mallory"))
+                else -> Decision.events(Closed("deleted"), AggregateDeleted())
             }
         }
         evolve<Opened> { }
@@ -132,7 +132,7 @@ class KernelCompositionTest {
         runTest {
             val model = overriding()
             kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
-            val deleted = kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)).committed()
+            val deleted = kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate())).committed()
             deleted.stream.events.map { it.name }.assert()
                 .containsExactly("test.ticket.Closed", Lifecycle.AGGREGATE_DELETED)
             deleted.deleted.assert().isTrue()
@@ -143,7 +143,7 @@ class KernelCompositionTest {
         runTest {
             val model = overriding(transfer = true)
             kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
-            val failure = runCatching { kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)) }
+            val failure = runCatching { kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate())) }
             // A failure of the model, not a rejection.
             (failure.exceptionOrNull() as UndeclaredEventException).event.assert().isEqualTo(
                 OwnerTransferred::class.java
@@ -165,12 +165,12 @@ class KernelCompositionTest {
                     if (state.reason == "keep") {
                         Decision.reject("ticket.kept", "A kept ticket is not deleted.")
                     } else {
-                        Decision.events(Closed("deleted"), AggregateDeleted)
+                        Decision.events(Closed("deleted"), AggregateDeleted())
                     }
                 }
                 decideSuspending<Note>(onDeleted = true) { _, body -> Decision.events(Noted(body.text)) }
                 decideBlocking<Reopen>(onDeleted = true) { _, body ->
-                    Decision.events(Reopened(body.reason), AggregateRestored)
+                    Decision.events(Reopened(body.reason), AggregateRestored())
                 }
                 decideBlocking<Close> { _, body -> Decision.events(Closed(body.reason)) }
                 evolve<Opened> { }
@@ -182,9 +182,9 @@ class KernelCompositionTest {
             send(Open("ahoo"))
             // A rejection passes the override's check as it is.
             send(Close("keep"))
-            send(DeleteAggregate).rejection().assert().isEqualTo("ticket.kept")
+            send(DeleteAggregate()).rejection().assert().isEqualTo("ticket.kept")
             send(Close("done"))
-            send(DeleteAggregate).committed().deleted.assert().isTrue()
+            send(DeleteAggregate()).committed().deleted.assert().isTrue()
             send(Note("checked")).committed().deleted.assert().isTrue()
             send(Reopen("back")).committed().deleted.assert().isFalse()
             val blocking = DecideFunction.Suspending<Ticket>(Creation.NONE, true) { _, _ -> Decision.NoOp }

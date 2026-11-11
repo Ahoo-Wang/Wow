@@ -132,7 +132,7 @@ class OmittedRefsTest {
             .hasMessageContaining("Add the api module of the bounded context")
         assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(Shared("n"))) }
             .hasMessageContaining("several aggregate types decide it: inventory.stock, billing.ledger")
-        assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(DeleteAggregate, "o-1")) }
+        assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(DeleteAggregate(), "o-1")) }
             .hasMessageContaining("the lifecycle command")
             .hasMessageContaining("every aggregate type takes it")
         // Outside a node, a context built without the contracts knows none.

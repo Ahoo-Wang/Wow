@@ -108,9 +108,9 @@ class LifecycleCompositionTest {
         val source = ticket(
             """
             @OnCommand(produces = [Closed::class, AggregateDeleted::class])
-            fun onCommand(command: Close): Decision = Decision.events(Closed(command.reason), AggregateDeleted)
+            fun onCommand(command: Close): Decision = Decision.events(Closed(command.reason), AggregateDeleted())
             @OnCommand(onDeleted = true, produces = [Reopened::class, AggregateRestored::class])
-            fun onCommand(command: Reopen): Decision = Decision.events(Reopened(command.reason), AggregateRestored)
+            fun onCommand(command: Reopen): Decision = Decision.events(Reopened(command.reason), AggregateRestored())
             fun onCommand(command: Touch): Touched = Touched(command.by)
             """.trimIndent(),
             // The lifecycle commands are disabled: a command still composes their events.
@@ -139,7 +139,7 @@ class LifecycleCompositionTest {
         failing(
             """
             @OnCommand(produces = [Reopened::class, AggregateRestored::class])
-            fun onCommand(command: Reopen): Decision = Decision.events(Reopened(command.reason), AggregateRestored)
+            fun onCommand(command: Reopen): Decision = Decision.events(Reopened(command.reason), AggregateRestored())
             @OnCommand(onDeleted = true, produces = [Touched::class, OwnerTransferred::class])
             fun onCommand(command: Touch): Decision = Decision.NoOp
             """.trimIndent(),
