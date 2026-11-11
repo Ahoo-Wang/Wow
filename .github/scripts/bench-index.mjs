@@ -31,7 +31,7 @@ export function indexSuites(arm) {
       measure: 'index',
       arms: [arm],
       answers:
-        "What Elasticsearch's indices cost a document (D411): the eShop catalog's server on its `search` profile, its products' snapshots and events on Elasticsearch, seeded with 100,000 products, each created and then updated; then each index merged to one segment, and its store bytes a document, Elasticsearch's indexing time a document, and the `text` and `keyword` fields its mapping holds. Run at the commit before D411's mapping by the marker and at its merge, the two read what it saves.",
+        "What Elasticsearch's indices cost a document (D411): the eShop catalog's server on its `search` profile, its products' snapshots and events on Elasticsearch, seeded with 100,000 products, each created and then updated; then each index merged to one segment, and its documents, store bytes a document, Elasticsearch's indexing time a document and the `text` fields its mapping holds. Run at the commit before D411's mapping by the marker and at its merge, the two read what it saves.",
     },
   };
 }
@@ -68,53 +68,56 @@ export function runIndex(
 }
 
 /**
- * index's results from bench.sh's --out [dir]: the products and commits seeded, and per index its documents, store
- * bytes and indexing figures, a document each; undefined when index.json is missing.
+ * index's results from bench.sh's --out [dir]: the products and commits seeded, and per index its documents, its
+ * store's bytes and Elasticsearch's indexing time, a document each, and its mapping's `text` fields; undefined when
+ * index.json is missing.
  */
 export function readIndex(dir) {
   const figures = readJsonIfThere(join(dir, 'index.json'));
   if (!figures) return undefined;
+  const perDocument = (value, documents) =>
+    documents > 0 ? value / documents : null;
   return {
     products: Number(figures.products),
     commits: Number(figures.commits),
-    seedSeconds: Number(figures.seedSeconds),
     indices: (figures.indices ?? []).map(index => {
       const documents = Number(index.documents);
-      const indexTotal = Number(index.indexTotal);
       return {
         kind: index.kind,
         index: index.index,
         documents,
-        storeBytes: Number(index.storeBytes),
-        bytesPerDocument:
-          documents > 0 ? Number(index.storeBytes) / documents : null,
-        indexTotal,
-        indexTimeMillis: Number(index.indexTimeMillis),
-        indexMicrosPerOperation:
-          indexTotal > 0
-            ? (Number(index.indexTimeMillis) * 1000) / indexTotal
-            : null,
+        bytesPerDocument: perDocument(Number(index.storeBytes), documents),
+        indexMicrosPerDocument: perDocument(
+          Number(index.indexTimeMillis) * 1000,
+          documents,
+        ),
         textFields: Number(index.textFields),
-        keywordFields: Number(index.keywordFields),
       };
     }),
   };
 }
 
-/** index's table: per index, its documents, store bytes a document, indexing time an operation and mapped fields. */
+/**
+ * index's table: per index, its documents, store bytes a document, indexing time a document and `text` fields; the
+ * indexing time with the caution a shared runner's times take.
+ */
 export function indexTable(suite) {
   const run = suite.runs.find(it => it.status === 'ok');
   if (!run) return ['No run completed.'];
   const measured = run.measure;
+  const value = (number, digits) =>
+    number === null ? '-' : num(number, digits);
   return [
-    `${num(measured.products, 0)} products, ${num(measured.commits, 0)} commits, seeded and indexed in ${num(measured.seedSeconds, 0)} s; each index merged to one segment.`,
+    `${num(measured.products, 0)} products, each created and then updated (${num(measured.commits, 0)} commits); each index merged to one segment.`,
     '',
-    '| Index | Documents | Store | Bytes a document | Indexing operations | Indexing time | µs an operation | `text` fields | `keyword` fields |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Index | Documents | Store bytes a document | Indexing time a document | `text` fields |',
+    '| --- | ---: | ---: | ---: | ---: |',
     ...measured.indices.map(
       it =>
-        `| ${it.kind} (\`${it.index}\`) | ${num(it.documents, 0)} | ${num(it.storeBytes / 1048576, 1)} MiB | ${it.bytesPerDocument === null ? '-' : num(it.bytesPerDocument, 0)} | ${num(it.indexTotal, 0)} | ${num(it.indexTimeMillis / 1000, 1)} s | ${it.indexMicrosPerOperation === null ? '-' : num(it.indexMicrosPerOperation, 1)} | ${num(it.textFields, 0)} | ${num(it.keywordFields, 0)} |`,
+        `| ${it.kind} | ${num(it.documents, 0)} | ${value(it.bytesPerDocument, 0)} | ${value(it.indexMicrosPerDocument, 1)} µs | ${num(it.textFields, 0)} |`,
     ),
+    '',
+    "The store's bytes are the index's own, read the same way on any runner. The indexing time is Elasticsearch's (`_stats`) on a shared runner: compare it only with a run on the same runner type, as a direction rather than a figure.",
   ];
 }
 

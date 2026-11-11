@@ -64,7 +64,7 @@ test('the index group is the index figures, on the head on MongoDB', () => {
   );
 });
 
-test('the index figures run once, and read each index a document and an indexing operation', () => {
+test('the index figures run once, and read each index a document', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const suite = runSuite(
     'index-es',
@@ -82,18 +82,13 @@ test('the index figures run once, and read each index a document and an indexing
   );
   const [snapshot, events] = suite.runs[0].measure.indices;
   assert.equal(snapshot.bytesPerDocument, 2048);
-  assert.equal(snapshot.indexMicrosPerOperation, 500);
+  assert.equal(snapshot.indexMicrosPerDocument, 1000);
   assert.equal(events.bytesPerDocument, 1024);
-  assert.equal(events.indexMicrosPerOperation, 1500);
+  assert.equal(events.indexMicrosPerDocument, 1500);
   const text = renderSuite(suite);
-  assert.match(
-    text,
-    /\| snapshot \(`eshop_wow_snapshot__eshop_catalog__product`\) \| 100000 \| 195\.3 MiB \| 2048 \| 200000 \| 100\.0 s \| 500\.0 \| 2 \| 14 \|/,
-  );
-  assert.match(
-    text,
-    /\| events \(`eshop_wow_events__eshop_catalog__product`\) \| 200000 \| 195\.3 MiB \| 1024 \| 200000 \| 300\.0 s \| 1500\.0 \| 3 \| 15 \|/,
-  );
+  assert.match(text, /\| snapshot \| 100000 \| 2048 \| 1000\.0 µs \| 2 \|/);
+  assert.match(text, /\| events \| 200000 \| 1024 \| 1500\.0 µs \| 3 \|/);
+  assert.match(text, /compare it only with a run on the same runner type/);
   assert.deepEqual(anomalies(suite), []);
 });
 
