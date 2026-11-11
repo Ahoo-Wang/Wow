@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.wait
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -51,7 +50,6 @@ class WaitSagaChainTest : WaitCoordinatorFixtures() {
         sagaHop.derived.assert().containsExactly("${command.id}-reserve-1", "${command.id}-reserve-2")
         emitted[1].commandId.assert().isEqualTo("${command.id}-reserve-1")
         emitted[1].hop.assert().isEqualTo(Hop.committed("shop"))
-        delay(100)
         done.isCompleted.assert().isFalse()
         gate.complete(Unit)
         withTimeout(5.seconds) { done.await() }

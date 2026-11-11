@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
@@ -30,7 +29,6 @@ import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The intake's checkpoint against a command's outcome: a copy decided once, the checkpoint passing a command only once
@@ -57,8 +55,12 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
         val other = generateSequence(0) { it + 1 }.map { "i-$it" }
             .first { Partitioner.partitionOf(ITEM.ref(TENANT, it), PARTITIONS) == Partitioner.partitionOf(slow.ref, PARTITIONS) }
         reserve("c-other", 1, item = other)
-        eventually { "c-other" in stock.decided }
-        delay(100.milliseconds)
+        // The other command's entry is complete, counted in the intake's progress: the watermark, which the checkpoint
+        // saves, stays before the slow one.
+        val intake = node.context(STOCK).intake!!
+        eventually { intake.progress(CommandIntake.NAME, PARTITIONS) == 1L }
+        val partition = Partitioner.partitionOf(slow.ref, PARTITIONS)
+        intake.positions().single { it.partition == partition }.watermark.assert().isEqualTo(0L)
         checkpoint(node, slow.ref).assert().isEqualTo(0L)
         gate.complete(Unit)
         eventually { checkpoint(node, slow.ref) == 2L }
@@ -67,10 +69,12 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
 
     @Test
     fun `a receipt should be durable before the checkpoint passes the rejected command`(): Unit = runBlocking {
+        val sending = CompletableDeferred<Unit>()
         val held = CompletableDeferred<Unit>()
         val producer = object : TopicProducer {
             override suspend fun send(topic: String, messages: List<TopicMessage>) {
                 if (topic == RECEIPTS) {
+                    sending.complete(Unit)
                     held.await()
                 }
                 topics.send(topic, messages)
@@ -94,7 +98,9 @@ class CommandIntakeCheckpointTest : CommandIntakeFixtures() {
                 )
             )
         eventually { "c-r" in stock.decided }
-        delay(100.milliseconds)
+        // The receipt's send is held: the command's entry is not complete, so its checkpoint cannot pass it.
+        sending.await()
+        node.context(STOCK).intake!!.progress(CommandIntake.NAME, PARTITIONS).assert().isEqualTo(0L)
         checkpoint(node, command.ref).assert().isEqualTo(0L)
         topics.messages(RECEIPTS).assert().isEmpty()
         held.complete(Unit)

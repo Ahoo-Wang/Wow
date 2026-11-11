@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -47,7 +46,6 @@ import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The success receipts of commands a saga sends to another context (decision D192), between a sales service whose
@@ -253,10 +251,12 @@ class CommittedReceiptsTest {
     @Test
     fun `a success receipt should be durable before the checkpoint passes the committed command`(): Unit =
         runBlocking {
+            val sending = CompletableDeferred<Unit>()
             val held = CompletableDeferred<Unit>()
             val producer = object : TopicProducer {
                 override suspend fun send(topic: String, messages: List<TopicMessage>) {
                     if (topic == RECEIPTS) {
+                        sending.complete(Unit)
                         held.await()
                     }
                     topics.send(topic, messages)
@@ -266,7 +266,9 @@ class CommittedReceiptsTest {
             val command = Command("c-d", "r-c-d", ITEM.ref(TENANT, "i-d"), Reserve(1))
             send(command)
             eventually { "c-d" in stock.decided }
-            delay(100.milliseconds)
+            // The receipt's send is held: the command's entry is not complete, so its checkpoint cannot pass it.
+            sending.await()
+            stockNode.context(STOCK).intake!!.progress(CommandIntake.NAME, PARTITIONS).assert().isEqualTo(0L)
             checkpoint(command.ref).assert().isEqualTo(0L)
             topics.messages(RECEIPTS).assert().isEmpty()
             held.complete(Unit)

@@ -53,10 +53,11 @@ class SubscriptionCheckpointTest {
         repeat(9) { appender.append("fast") } // 3..11
         runtime.start(setOf(0))
 
-        eventually { handled.versionsOf("fast").size == 10 }
+        // The ten fast entries are complete, counted in the progress: the watermark, which the checkpoint saves, stays
+        // below the blocked one.
+        eventually { runtime.progress("watermark", 1) == 10L }
+        runtime.positions().single().watermark.assert().isEqualTo(1L)
         eventually { checkpoint("watermark") == 1L }
-        delay(50.milliseconds) // several checkpoint intervals: the entries above the blocked one do not count
-        checkpoint("watermark").assert().isEqualTo(1L)
 
         gate.complete(Unit)
         eventually { checkpoint("watermark") == 11L }

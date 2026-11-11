@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.snapshot
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -41,7 +40,6 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         // Versions 2 to 5 queue behind version 1, whose write is held.
         val later = (2..5).map { async { coordinator.execute(counter, add("a")) } }
         eventually { probed.count { it.first == "a" } == 5 }
-        delay(50)
         later.forEach { it.isCompleted.assert().isFalse() }
         gate.complete(Unit)
 
@@ -65,7 +63,6 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
             val ids = (1..8).map { "b$it" }
             val others = ids.map { async { coordinator.execute(counter, add(it)) } }
             eventually { ids.all { id -> probed.contains(id to 1) } }
-            delay(50)
             // No wait is answered before the write that covers it.
             (listOf(first) + others).forEach { it.isCompleted.assert().isFalse() }
             store.gate = null
@@ -93,7 +90,6 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         eventually { store.batches.size == 1 }
         // Partitions 4 and 8 wait for the write partition 0 leads, and are written together after it.
         val others = listOf(entry("p1", 4), entry("p2", 8))
-        delay(50)
         store.batches.size.assert().isEqualTo(1)
         store.gate = null
         gate.complete(Unit)

@@ -252,8 +252,10 @@ class CommandIntakeTest : CommandIntakeFixtures() {
         val gates = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
         try {
             items.forEach { reserve("c-$it", 1, item = it) }
-            delay(300.milliseconds)
-            node.context(STOCK).executor.commandsInFlight.assert().isEqualTo(2)
+            // Two commands hold the intakes' share while their gates do: the bound holds as long as they are held.
+            val executor = node.context(STOCK).executor
+            eventually { executor.commandsInFlight == 2 }
+            executor.commandsInFlight.assert().isEqualTo(2)
         } finally {
             gates.forEach { it.complete(Unit) }
         }

@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.wait
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -47,7 +46,8 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
         val gate = CompletableDeferred<Unit>().also { snapshotGate = it }
         val command = place()
         val result = async { coordinator.execute(order, command) }
-        delay(100)
+        // The snapshot subscription holds the committed entry: what the wait answers on is held.
+        eventually { snapshotHeld.get() == 1 }
         result.isCompleted.assert().isFalse()
         registry.size.assert().isEqualTo(1)
         gate.complete(Unit)

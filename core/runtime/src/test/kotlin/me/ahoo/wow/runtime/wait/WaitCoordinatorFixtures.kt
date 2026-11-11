@@ -126,8 +126,14 @@ abstract class WaitCoordinatorFixtures {
     protected var sagaGate: CompletableDeferred<Unit>? = null
     protected val snapshotted = CopyOnWriteArrayList<String>()
 
+    /** The entries the snapshot subscription has reached [snapshotGate] with, held or since let through. */
+    protected val snapshotHeld = AtomicInteger()
+
     protected val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
-        snapshotGate?.await()
+        snapshotGate?.let { gate ->
+            snapshotHeld.incrementAndGet()
+            gate.await()
+        }
         snapshotted += "${it.ref.id}@${it.version}"
     }
 
