@@ -98,10 +98,13 @@ internal interface TermsMixin : GroupExpressionMixin {
     val missingKey: String?
 }
 
-/** `dense` of DATE_HISTOGRAM and DATE_PART, written only when set. */
+/** `dense` of DATE_HISTOGRAM and DATE_PART, written only when set, and `timeZone`, written only when named. */
 internal interface DenseGroupMixin {
     @get:JsonInclude(JsonInclude.Include.NON_DEFAULT)
     val dense: Boolean
+
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val timeZone: String?
 }
 
 /** An expression without `type` is a FIELD; see [MissingExpressionTypeHandler]. */

@@ -76,7 +76,7 @@ class FilterExpressionJsonTest {
             read(mapper.writeValueAsString(filter)).assert().isEqualTo(filter)
         }
         mapper.writeValueAsString(YesterdayFilter(field)).assert().isEqualTo(
-            """{"field":"state.createTime","zoneId":null,"op":"yesterday"}""",
+            """{"field":"state.createTime","timeZone":null,"op":"yesterday"}""",
         )
     }
 
@@ -279,12 +279,21 @@ class FilterExpressionJsonTest {
 
     @Test
     fun `should round trip a relative time filter's zone`() {
-        val expression: FilterExpression = TodayFilter(QueryField("state.createTime"), zoneId = "UTC")
+        val expression: FilterExpression = TodayFilter(QueryField("state.createTime"), timeZone = "UTC")
 
         val decoded = read(mapper.writeValueAsString(expression)) as TodayFilter
 
         decoded.assert().isEqualTo(expression)
-        decoded.zoneId.assert().isEqualTo("UTC")
+        decoded.timeZone.assert().isEqualTo("UTC")
+    }
+
+    @Test
+    fun `a relative time filter's zone is timeZone, and 9x's zoneId names none`() {
+        (read("""{"op":"today","field":"state.createTime","timeZone":"Asia/Shanghai"}""") as TodayFilter)
+            .timeZone.assert().isEqualTo("Asia/Shanghai")
+        // This mapper skips an unknown property; the HTTP edge refuses it (QueryBodies, FAIL_ON_UNKNOWN_PROPERTIES).
+        (read("""{"op":"today","field":"state.createTime","zoneId":"Asia/Shanghai"}""") as TodayFilter)
+            .timeZone.assert().isNull()
     }
 
     @Test

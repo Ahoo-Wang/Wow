@@ -8,5 +8,5 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Treats 429 wow.query.busy as the store's query bulkhead being full: waits Retry-After seconds and retries the same query once, without changing it
-2. Builds the count with "kind": "count", a filter of EQ state.status PAID and YESTERDAY on the date field with zoneId Asia/Shanghai
+2. Builds the count with "kind": "count", a filter of EQ state.status PAID and YESTERDAY on the date field with timeZone Asia/Shanghai
 3. Reports the count with exact true or false (a lower bound when false) and the time zone, and hands a repeated 429 or a 5xx to wow-develop instead of looping

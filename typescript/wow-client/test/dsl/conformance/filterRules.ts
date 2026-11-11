@@ -125,14 +125,14 @@ export const filterRules: ConformanceRule[] = [
 
   // ---- RelativeTimeFilters ----------------------------------------------
   {
-    wow: 'zoneId cannot be blank.',
-    source: 'wow-api RelativeTimeFilters.kt requireZoneId',
-    violate: () => filter.today('a', { zoneId: '  ' }),
+    wow: 'timeZone cannot be blank.',
+    source: 'wow-api RelativeTimeFilters.kt requireTimeZone',
+    violate: () => filter.today('a', { timeZone: '  ' }),
   },
   {
-    wow: 'Unknown time-zone ID: $zoneId',
+    wow: 'Unknown time-zone ID: $timeZone',
     source:
-      'java.time ZoneRulesProvider.getProvider, from wow-api RelativeTimeFilters.kt requireZoneId',
+      'java.time ZoneRulesProvider.getProvider, from wow-api RelativeTimeFilters.kt requireTimeZone',
     serverOnly:
       'Region IDs come from the tz database of the server’s JVM, which changes with its version. This package checks offset IDs (`+08:00`, `UTC+8`) only.',
   },

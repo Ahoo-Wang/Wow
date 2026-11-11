@@ -25,10 +25,10 @@ class FilterExpressionTest {
         val field = QueryField("state.createTime")
 
         assertThrows<IllegalArgumentException> {
-            YesterdayFilter(field, zoneId = "")
+            YesterdayFilter(field, timeZone = "")
         }
         assertThrows<IllegalArgumentException> {
-            NextMonthFilter(field, zoneId = "Not/AZone")
+            NextMonthFilter(field, timeZone = "Not/AZone")
         }
     }
 
@@ -79,9 +79,18 @@ class FilterExpressionTest {
 
         filters.forEach { filter ->
             filter.field.assert().isEqualTo(field)
-            filter.zoneId.assert().isEqualTo("UTC")
-            filter.resolvedZoneId().assert().isEqualTo(java.time.ZoneId.of("UTC"))
+            filter.timeZone.assert().isEqualTo("UTC")
+            filter.resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("UTC"))
         }
+    }
+
+    @Test
+    fun `a relative time filter and a time group that name no zone are read in UTC alike`() {
+        val field = QueryField("state.createTime")
+        TodayFilter(field).resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("UTC"))
+        TodayFilter(field, "Asia/Shanghai").resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("Asia/Shanghai"))
+        val day = AggregationGroup.DateHistogram(field, "day", AggregationDateUnit.DAY)
+        java.time.ZoneId.of(day.effectiveTimeZone()).assert().isEqualTo(TodayFilter(field).resolvedTimeZone())
     }
 
     @Test

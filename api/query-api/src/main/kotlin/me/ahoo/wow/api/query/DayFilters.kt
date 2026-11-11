@@ -18,11 +18,11 @@ import java.time.LocalTime
 
 class TodayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
-    override fun withField(field: QueryField<*>): TodayFilter = TodayFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): TodayFilter = TodayFilter(field, timeZone)
 
     init {
         validateConfiguration()
@@ -32,17 +32,17 @@ class TodayFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): TodayFilter = TodayFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): TodayFilter = TodayFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is TodayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "TodayFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "TodayFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [TodayFilter] of the given values. */
@@ -50,19 +50,19 @@ class TodayFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): TodayFilter = TodayFilter(field, zoneId)
+            timeZone: String? = null,
+        ): TodayFilter = TodayFilter(field, timeZone)
     }
 }
 
 class BeforeTodayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
     val time: String,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
-    override fun withField(field: QueryField<*>): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
+    override fun withField(field: QueryField<*>): BeforeTodayFilter = BeforeTodayFilter(field, time, timeZone)
 
     init {
         try {
@@ -78,17 +78,17 @@ class BeforeTodayFilter @InternalWowApi constructor(
     fun copy(
         field: QueryField<*> = this.field,
         time: String = this.time,
-        zoneId: String? = this.zoneId,
-    ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
+        timeZone: String? = this.timeZone,
+    ): BeforeTodayFilter = BeforeTodayFilter(field, time, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is BeforeTodayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "BeforeTodayFilter(field=$field, time=$time, zoneId=$zoneId)"
+    override fun toString(): String = "BeforeTodayFilter(field=$field, time=$time, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, time, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, time, timeZone)
 
     companion object {
         /** A [BeforeTodayFilter] of the given values. */
@@ -97,18 +97,18 @@ class BeforeTodayFilter @InternalWowApi constructor(
         fun of(
             field: QueryField<*>,
             time: String,
-            zoneId: String? = null,
-        ): BeforeTodayFilter = BeforeTodayFilter(field, time, zoneId)
+            timeZone: String? = null,
+        ): BeforeTodayFilter = BeforeTodayFilter(field, time, timeZone)
     }
 }
 
 class TomorrowFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
-    override fun withField(field: QueryField<*>): TomorrowFilter = TomorrowFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): TomorrowFilter = TomorrowFilter(field, timeZone)
 
     init {
         validateConfiguration()
@@ -118,17 +118,17 @@ class TomorrowFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): TomorrowFilter = TomorrowFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): TomorrowFilter = TomorrowFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is TomorrowFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "TomorrowFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "TomorrowFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [TomorrowFilter] of the given values. */
@@ -136,18 +136,18 @@ class TomorrowFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): TomorrowFilter = TomorrowFilter(field, zoneId)
+            timeZone: String? = null,
+        ): TomorrowFilter = TomorrowFilter(field, timeZone)
     }
 }
 
 class YesterdayFilter @InternalWowApi constructor(
     override val field: QueryField<*>,
-    override val zoneId: String? = null,
+    override val timeZone: String? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
-    override fun withField(field: QueryField<*>): YesterdayFilter = YesterdayFilter(field, zoneId)
+    override fun withField(field: QueryField<*>): YesterdayFilter = YesterdayFilter(field, timeZone)
 
     init { validateConfiguration() }
 
@@ -155,17 +155,17 @@ class YesterdayFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         field: QueryField<*> = this.field,
-        zoneId: String? = this.zoneId,
-    ): YesterdayFilter = YesterdayFilter(field, zoneId)
+        timeZone: String? = this.timeZone,
+    ): YesterdayFilter = YesterdayFilter(field, timeZone)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is YesterdayFilter && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "YesterdayFilter(field=$field, zoneId=$zoneId)"
+    override fun toString(): String = "YesterdayFilter(field=$field, timeZone=$timeZone)"
 
-    private fun valueFields(): List<Any?> = listOf(field, zoneId)
+    private fun valueFields(): List<Any?> = listOf(field, timeZone)
 
     companion object {
         /** A [YesterdayFilter] of the given values. */
@@ -173,7 +173,7 @@ class YesterdayFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             field: QueryField<*>,
-            zoneId: String? = null,
-        ): YesterdayFilter = YesterdayFilter(field, zoneId)
+            timeZone: String? = null,
+        ): YesterdayFilter = YesterdayFilter(field, timeZone)
     }
 }

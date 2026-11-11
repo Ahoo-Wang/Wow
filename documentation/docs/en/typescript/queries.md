@@ -116,13 +116,13 @@ for (const record of statuses) console.log(record.aggregateId, record.state.tota
 
 ### Relative time and time zones
 
-`filter.beforeNow` and `filter.afterNow` compare a field with the server's clock plus an offset, never the browser's. Calendar filters (`today`, `thisWeek`, `lastMonth` and the others) read their days in a time zone: the `zoneId` you pass, else UTC. For the user's own days, pass their zone:
+`filter.beforeNow` and `filter.afterNow` compare a field with the server's clock plus an offset, never the browser's. Calendar filters (`today`, `thisWeek`, `lastMonth` and the others) read their days in a time zone: the `timeZone` you pass, else UTC. For the user's own days, pass their zone:
 
 ```ts
 import { filter } from '@ahoo-wang/wow-client/dsl';
 
-const zoneId = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const placedToday = filter.today('firstEventTime', { zoneId });
+const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const placedToday = filter.today('firstEventTime', { timeZone });
 ```
 
 ### Long lists

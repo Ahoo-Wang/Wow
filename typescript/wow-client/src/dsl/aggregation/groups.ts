@@ -226,7 +226,7 @@ export interface HistogramAggregationOptions extends AggregationGroupScopeOption
 export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
-  /** The zone the buckets are cut in, an IANA id. Defaults to `UTC`. */
+  /** The zone the buckets are cut in, an IANA id. Sent only when set; the server reads none as `UTC`. */
   timeZone?: string;
   /**
    * Whether the server fills in the empty buckets of the range. Only when
@@ -239,7 +239,7 @@ export interface DateHistogramAggregationOptions extends AggregationGroupScopeOp
 export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar part each row is grouped by. */
   part: AggregationDatePart;
-  /** The zone the part is read in, an IANA id. Defaults to `UTC`. */
+  /** The zone the part is read in, an IANA id. Sent only when set; the server reads none as `UTC`. */
   timeZone?: string;
   /**
    * Whether the server returns every key of the part's domain, the empty
@@ -372,12 +372,13 @@ export const groupBuilders = {
   },
   /**
    * Groups a time field into calendar buckets.
-   * `{ type: 'date-histogram', field, unit, alias, timeZone, dense? }`.
+   * `{ type: 'date-histogram', field, unit, alias, timeZone?, dense? }`.
    *
    * @param field - The time field (epoch milliseconds) to bucket.
    * @param alias - The name of the bucket column in the result rows.
    * @param options.unit - The calendar unit of a bucket.
-   * @param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.
+   * @param options.timeZone - The zone buckets are cut in. Sent only when
+   *   set; the server reads none as `UTC`.
    * @param options.dense - Whether the empty buckets of the range are filled
    *   in.
    * @param options.scope - What the field is relative to when the query
@@ -397,7 +398,7 @@ export const groupBuilders = {
   dateHistogram<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    { unit, timeZone = 'UTC', dense, scope }: DateHistogramAggregationOptions,
+    { unit, timeZone, dense, scope }: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS> {
     if (dense !== undefined && typeof dense !== 'boolean') {
       throw new TypeError('date histogram dense must be boolean.');
@@ -405,7 +406,10 @@ export const groupBuilders = {
     if (!Object.values(AggregationDateUnit).includes(unit)) {
       throw new TypeError('date histogram unit is invalid.');
     }
-    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+    if (
+      timeZone !== undefined &&
+      (typeof timeZone !== 'string' || !timeZone.trim())
+    ) {
       throw new TypeError('date histogram timeZone cannot be blank.');
     }
     return {
@@ -415,13 +419,13 @@ export const groupBuilders = {
       ...groupScope(scope, 'date-histogram', {}),
       unit,
       alias: aggregationAlias(alias),
-      timeZone,
+      ...(timeZone === undefined ? {} : { timeZone }),
     };
   },
   /**
    * Groups a time field by one calendar part of each instant, such as the
    * weekday or the hour, so records from different days share a bucket.
-   * `{ type: 'date-part', field, part, alias, timeZone, dense? }`.
+   * `{ type: 'date-part', field, part, alias, timeZone?, dense? }`.
    *
    * The group's keys in the result rows are integers: `DAY_OF_WEEK` is the
    * ISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;
@@ -433,8 +437,8 @@ export const groupBuilders = {
    * @param field - The time field (epoch milliseconds) to read the part of.
    * @param alias - The name of the part column in the result rows.
    * @param options.part - The calendar part to group by.
-   * @param options.timeZone - The zone the part is read in. Defaults to
-   *   `UTC`.
+   * @param options.timeZone - The zone the part is read in. Sent only when
+   *   set; the server reads none as `UTC`.
    * @param options.dense - Whether every key of the part's domain is
    *   returned.
    * @param options.scope - What the field is relative to when the query
@@ -454,7 +458,7 @@ export const groupBuilders = {
   datePart<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    { part, timeZone = 'UTC', dense, scope }: DatePartAggregationOptions,
+    { part, timeZone, dense, scope }: DatePartAggregationOptions,
   ): DatePartAggregationGroup<FIELDS> {
     if (dense !== undefined && typeof dense !== 'boolean') {
       throw new TypeError('date part dense must be boolean.');
@@ -462,7 +466,10 @@ export const groupBuilders = {
     if (!Object.values(AggregationDatePart).includes(part)) {
       throw new TypeError('date part is invalid.');
     }
-    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+    if (
+      timeZone !== undefined &&
+      (typeof timeZone !== 'string' || !timeZone.trim())
+    ) {
       throw new TypeError('date part timeZone cannot be blank.');
     }
     return {
@@ -472,7 +479,7 @@ export const groupBuilders = {
       ...groupScope(scope, 'date-part', {}),
       part,
       alias: aggregationAlias(alias),
-      timeZone,
+      ...(timeZone === undefined ? {} : { timeZone }),
     };
   },
 };

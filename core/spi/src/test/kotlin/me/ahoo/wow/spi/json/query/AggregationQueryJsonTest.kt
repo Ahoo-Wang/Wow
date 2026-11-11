@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -82,7 +83,9 @@ class AggregationQueryJsonTest {
         )
 
         val day = query.groupBy.single() as AggregationGroup.DateHistogram
-        day.timeZone.assert().isEqualTo("UTC")
+        // A group that names no zone is read in UTC.
+        day.timeZone.assert().isNull()
+        day.effectiveTimeZone().assert().isEqualTo("UTC")
         day.dense.assert().isFalse()
         val windows = query.metrics.filterIsInstance<AggregationMetric.Derived>().map { it.expression }
         windows.assert().containsExactly(
@@ -406,6 +409,19 @@ class AggregationQueryJsonTest {
     }
 
     @Test
+    fun `a time group that names UTC reads as before, and one that names none is read in UTC`() {
+        val json = """{"type":"date-part","field":"at","alias":"hour","part":"hour-of-day","timeZone":"UTC"}"""
+        val named = mapper.readValue(json, AggregationGroup::class.java) as AggregationGroup.DatePart
+        named.timeZone.assert().isEqualTo("UTC")
+        named.effectiveTimeZone().assert().isEqualTo("UTC")
+        mapper.writeValueAsString(named).assert().isEqualTo(json)
+        val unnamed = AggregationGroup.DatePart(QueryField("at"), "hour", AggregationDatePart.HOUR_OF_DAY)
+        unnamed.effectiveTimeZone().assert().isEqualTo("UTC")
+        AggregationGroup.DatePart(QueryField("at"), "hour", AggregationDatePart.HOUR_OF_DAY, "Asia/Shanghai")
+            .effectiveTimeZone().assert().isEqualTo("Asia/Shanghai")
+    }
+
+    @Test
     fun `bucket options should keep wire shapes additive`() {
         mapper.writeValueAsString(AggregationGroup.Terms(QueryField("productId"), "product"))
             .assert().isEqualTo("""{"type":"terms","field":"productId","alias":"product"}""")
@@ -415,12 +431,12 @@ class AggregationQueryJsonTest {
         mapper.writeValueAsString(
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY),
         ).assert().isEqualTo(
-            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day","timeZone":"UTC"}""",
+            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day"}""",
         )
         mapper.writeValueAsString(
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, dense = true),
         ).assert().isEqualTo(
-            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day","timeZone":"UTC","dense":true}""",
+            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day","dense":true}""",
         )
     }
 

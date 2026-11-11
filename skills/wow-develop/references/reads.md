@@ -89,7 +89,7 @@ fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
   - snapshot rebuild: `POST /<ctx>/<agg>/wow.snapshot.rebuild` with `{"ids": [...]}` (decision D172), refused on the public port unless a command authorizer allows it;
   - datasets under `/wow/dataset`, the parked entries under `/wow/ops/parked` (`wow.http.ops.enabled`), the Manifest at `GET /wow/manifest`, the OpenAPI document at `GET /wow/openapi`.
 
-The body of a query names its operation in `kind`; relative-time operators without `zoneId` read days in UTC, never the server's zone. Capabilities are not in the Manifest: they depend on the backend, so the `GET` descriptor is their authority, and the same query can be admitted on MongoDB and refused on PostgreSQL. Over HTTP: lists and pages are bounded (`wow.query.budgets.http.*`), totals are `BOUNDED` (an exact total is refused unless `allow-exact-count`), and a store's query bulkhead answers 429 `wow.query.busy` with `Retry-After`. Cross-tenant queries are off unless `wow.query.allow-cross-tenant`, for a `crossScope` caller only, and audited.
+The body of a query names its operation in `kind`; relative-time operators without `timeZone` read days in UTC, never the server's zone. Capabilities are not in the Manifest: they depend on the backend, so the `GET` descriptor is their authority, and the same query can be admitted on MongoDB and refused on PostgreSQL. Over HTTP: lists and pages are bounded (`wow.query.budgets.http.*`), totals are `BOUNDED` (an exact total is refused unless `allow-exact-count`), and a store's query bulkhead answers 429 `wow.query.busy` with `Retry-After`. Cross-tenant queries are off unless `wow.query.allow-cross-tenant`, for a `crossScope` caller only, and audited.
 
 ## HTTP headers and problems
 

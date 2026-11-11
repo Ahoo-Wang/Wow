@@ -28,11 +28,10 @@ import me.ahoo.wow.query.schema.boundSchemaFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
-    private val normalizer = FilterNormalizer(ZoneOffset.UTC)
+    private val normalizer = FilterNormalizer()
     private val noon = Instant.parse("2026-08-22T12:00:00Z")
     private val millis = Temporal.Epoch(TimeUnit.MILLISECONDS)
 
@@ -168,7 +167,7 @@ class FilterNormalizerTest {
     @Test
     fun `should emit numeric boundaries in the field's time unit`() {
         val normalized = normalizer.normalize(
-            BeforeTodayFilter(field = QueryField("createdAt"), time = "12:00:00.123456789", zoneId = "UTC"),
+            BeforeTodayFilter(field = QueryField("createdAt"), time = "12:00:00.123456789", timeZone = "UTC"),
             Temporal.Epoch(TimeUnit.NANOSECONDS),
         ) as LessThanFilter
 
@@ -178,18 +177,18 @@ class FilterNormalizerTest {
     @Test
     fun `should expand extended calendar filters in their local zone across leap year`() {
         val field = QueryField("createdAt")
-        val zoneId = "Asia/Shanghai"
+        val timeZone = "Asia/Shanghai"
         val leapDay = Instant.parse("2024-02-29T12:00:00Z")
         val cases = listOf(
-            YesterdayFilter(field, zoneId) to
+            YesterdayFilter(field, timeZone) to
                 (Instant.parse("2024-02-27T16:00:00Z") to Instant.parse("2024-02-28T16:00:00Z")),
-            NextMonthFilter(field, zoneId) to
+            NextMonthFilter(field, timeZone) to
                 (Instant.parse("2024-02-29T16:00:00Z") to Instant.parse("2024-03-31T16:00:00Z")),
-            LastYearFilter(field, zoneId) to
+            LastYearFilter(field, timeZone) to
                 (Instant.parse("2022-12-31T16:00:00Z") to Instant.parse("2023-12-31T16:00:00Z")),
-            ThisYearFilter(field, zoneId) to
+            ThisYearFilter(field, timeZone) to
                 (Instant.parse("2023-12-31T16:00:00Z") to Instant.parse("2024-12-31T16:00:00Z")),
-            NextYearFilter(field, zoneId) to
+            NextYearFilter(field, timeZone) to
                 (Instant.parse("2024-12-31T16:00:00Z") to Instant.parse("2025-12-31T16:00:00Z")),
         )
 
@@ -240,7 +239,7 @@ class FilterNormalizerTest {
             )
         normalizer.normalize(BeforeNowFilter(field, "PT1H"), Temporal.Epoch(TimeUnit.SECONDS)).assert()
             .isEqualTo(LessThanFilter(field, now.plusSeconds(3600).epochSecond))
-        normalizer.normalize(BeforeNowFilter(field, zoneId = "Asia/Shanghai"), Temporal.Formatted("yyyy-MM-dd HH:mm"))
+        normalizer.normalize(BeforeNowFilter(field, timeZone = "Asia/Shanghai"), Temporal.Formatted("yyyy-MM-dd HH:mm"))
             .assert()
             .isEqualTo(LessThanFilter(field, "2026-08-22 20:00"))
     }

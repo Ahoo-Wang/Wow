@@ -1694,7 +1694,7 @@ export interface RefusedResult<R = Record<string, unknown>> extends Omit<Command
 
 // @public
 interface RelativeTimeFilterOptions {
-    zoneId?: string;
+    timeZone?: string;
 }
 
 // @public

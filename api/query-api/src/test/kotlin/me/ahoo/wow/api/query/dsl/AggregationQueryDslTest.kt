@@ -432,7 +432,7 @@ class AggregationQueryDslTest {
             expand(QueryField("state.lines")) { QueryField("state.lines.quantity") gt 0 }
             terms(QueryField("sku"), "sku")
             histogram(price, 10.0, "price")
-            dateHistogram(created, AggregationDateUnit.DAY, "day", ZoneId.of("UTC"))
+            dateHistogram(created, AggregationDateUnit.DAY, "day")
             datePart(created, AggregationDatePart.HOUR_OF_DAY, "hour")
             any(QueryField("name"), "name")
             any(QueryField("name"), "paidName") { "status" eq "PAID" }
@@ -544,6 +544,9 @@ class AggregationQueryDslTest {
         query.groupBy.assert().hasSize(20)
         query.metrics.assert().hasSize(23)
         (query.groupBy[0] as AggregationGroup.Terms).assert().isEqualTo(AggregationGroup.Terms(QueryField("a"), "a"))
-        (query.groupBy[10] as AggregationGroup.DateHistogram).timeZone.assert().isEqualTo("UTC")
+        // A group left without a zone names none, and is read in UTC.
+        val histogram = query.groupBy[10] as AggregationGroup.DateHistogram
+        histogram.timeZone.assert().isNull()
+        histogram.effectiveTimeZone().assert().isEqualTo("UTC")
     }
 }

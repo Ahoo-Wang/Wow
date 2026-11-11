@@ -72,7 +72,7 @@ internal data class PreviousStep(
     val shift: Int,
     val period: AggregationDateUnit?,
 ) {
-    private val zone: ZoneId = ZoneId.of(along.timeZone)
+    private val zone: ZoneId = ZoneId.of(along.effectiveTimeZone())
     private val buckets = DateBuckets(along.unit, zone)
     private val unit: TemporalUnit = (period ?: along.unit).temporalUnit()
 

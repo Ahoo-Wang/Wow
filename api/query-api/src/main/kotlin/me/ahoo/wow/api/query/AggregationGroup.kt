@@ -141,14 +141,24 @@ sealed interface AggregationGroup {
         override val field: QueryField<*>,
         override val alias: String,
         val unit: AggregationDateUnit,
-        val timeZone: String = "UTC",
+        /**
+         * The time zone, an IANA region such as `Asia/Shanghai` or an offset such as `+08:00`; `null`, the default, is
+         * UTC, never the server's own zone.
+         */
+        val timeZone: String? = null,
         val dense: Boolean = false,
         override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
-            zoneIdOf(timeZone)
+            timeZone?.let(::zoneIdOf)
         }
+
+        /**
+         * The zone this group reads its instants in, as written, the text a backend writes: [timeZone], or `UTC` when
+         * it names none. A relative-time filter's [RelativeTimeFilter.resolvedTimeZone] is the same default, parsed.
+         */
+        fun effectiveTimeZone(): String = timeZone ?: UTC
 
         /** This DateHistogram with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
@@ -156,7 +166,7 @@ sealed interface AggregationGroup {
             field: QueryField<*> = this.field,
             alias: String = this.alias,
             unit: AggregationDateUnit = this.unit,
-            timeZone: String = this.timeZone,
+            timeZone: String? = this.timeZone,
             dense: Boolean = this.dense,
             scope: AggregationGroupScope? = this.scope,
         ): DateHistogram = DateHistogram(field, alias, unit, timeZone, dense, scope)
@@ -178,7 +188,7 @@ sealed interface AggregationGroup {
                 field: QueryField<*>,
                 alias: String,
                 unit: AggregationDateUnit,
-                timeZone: String = "UTC",
+                timeZone: String? = null,
                 dense: Boolean = false,
                 scope: AggregationGroupScope? = null,
             ): DateHistogram = DateHistogram(field, alias, unit, timeZone, dense, scope)
@@ -194,14 +204,24 @@ sealed interface AggregationGroup {
         override val field: QueryField<*>,
         override val alias: String,
         val part: AggregationDatePart,
-        val timeZone: String = "UTC",
+        /**
+         * The time zone, an IANA region such as `Asia/Shanghai` or an offset such as `+08:00`; `null`, the default, is
+         * UTC, never the server's own zone.
+         */
+        val timeZone: String? = null,
         val dense: Boolean = false,
         override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
-            zoneIdOf(timeZone)
+            timeZone?.let(::zoneIdOf)
         }
+
+        /**
+         * The zone this group reads its instants in, as written, the text a backend writes: [timeZone], or `UTC` when
+         * it names none. A relative-time filter's [RelativeTimeFilter.resolvedTimeZone] is the same default, parsed.
+         */
+        fun effectiveTimeZone(): String = timeZone ?: UTC
 
         /** This DatePart with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
@@ -209,7 +229,7 @@ sealed interface AggregationGroup {
             field: QueryField<*> = this.field,
             alias: String = this.alias,
             part: AggregationDatePart = this.part,
-            timeZone: String = this.timeZone,
+            timeZone: String? = this.timeZone,
             dense: Boolean = this.dense,
             scope: AggregationGroupScope? = this.scope,
         ): DatePart = DatePart(field, alias, part, timeZone, dense, scope)
@@ -231,7 +251,7 @@ sealed interface AggregationGroup {
                 field: QueryField<*>,
                 alias: String,
                 part: AggregationDatePart,
-                timeZone: String = "UTC",
+                timeZone: String? = null,
                 dense: Boolean = false,
                 scope: AggregationGroupScope? = null,
             ): DatePart = DatePart(field, alias, part, timeZone, dense, scope)

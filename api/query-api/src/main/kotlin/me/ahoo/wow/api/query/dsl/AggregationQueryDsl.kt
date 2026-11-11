@@ -105,7 +105,7 @@ class AggregationQueryDsl {
         field: String,
         unit: AggregationDateUnit,
         alias: String,
-        timeZone: ZoneId = UTC,
+        timeZone: ZoneId? = null,
         dense: Boolean = false,
         scope: AggregationGroupScope? = null,
     ) = dateHistogram(QueryField(field), unit, alias, timeZone, dense, scope)
@@ -114,18 +114,18 @@ class AggregationQueryDsl {
         field: QueryField<*>,
         unit: AggregationDateUnit,
         alias: String,
-        timeZone: ZoneId = UTC,
+        timeZone: ZoneId? = null,
         dense: Boolean = false,
         scope: AggregationGroupScope? = null,
     ) {
-        groups += AggregationGroup.DateHistogram(field, alias, unit, timeZone.id, dense, scope)
+        groups += AggregationGroup.DateHistogram(field, alias, unit, timeZone?.id, dense, scope)
     }
 
     fun datePart(
         field: String,
         part: AggregationDatePart,
         alias: String,
-        timeZone: ZoneId = UTC,
+        timeZone: ZoneId? = null,
         dense: Boolean = false,
         scope: AggregationGroupScope? = null,
     ) = datePart(QueryField(field), part, alias, timeZone, dense, scope)
@@ -134,11 +134,11 @@ class AggregationQueryDsl {
         field: QueryField<*>,
         part: AggregationDatePart,
         alias: String,
-        timeZone: ZoneId = UTC,
+        timeZone: ZoneId? = null,
         dense: Boolean = false,
         scope: AggregationGroupScope? = null,
     ) {
-        groups += AggregationGroup.DatePart(field, alias, part, timeZone.id, dense, scope)
+        groups += AggregationGroup.DatePart(field, alias, part, timeZone?.id, dense, scope)
     }
 
     fun count(alias: String) {
@@ -453,6 +453,3 @@ class HavingDsl {
     private fun String.condition(operator: ComparisonOperator, value: Double) =
         HavingExpression.Condition(this, operator, value)
 }
-
-/** The model's default zone, so a group naming none is the group its JSON without `timeZone` reads as. */
-private val UTC: ZoneId = ZoneId.of("UTC")

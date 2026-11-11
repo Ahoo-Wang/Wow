@@ -118,7 +118,7 @@ internal class ClickHouseAggregationCompiler(
      * negative fraction of a second toward zero.
      */
     private fun dateHistogram(group: AggregationGroup.DateHistogram): String {
-        val zone = group.timeZone.sqlTimeZone()
+        val zone = group.effectiveTimeZone().sqlTimeZone()
         val second = "toStartOfSecond(${filters.instant(group.field)})"
         val start = when (group.unit) {
             AggregationDateUnit.YEAR -> "toStartOfYear($second, $zone)"
@@ -126,12 +126,12 @@ internal class ClickHouseAggregationCompiler(
             AggregationDateUnit.MONTH -> "toStartOfMonth($second, $zone)"
             AggregationDateUnit.WEEK -> "toMonday($second, $zone)"
             AggregationDateUnit.DAY -> "toStartOfDay($second, $zone)"
-            AggregationDateUnit.HOUR -> if (group.timeZone.shiftsByWhole(Duration.ofHours(1))) {
+            AggregationDateUnit.HOUR -> if (group.effectiveTimeZone().shiftsByWhole(Duration.ofHours(1))) {
                 "toStartOfHour($second, $zone)"
             } else {
                 wallClockStart(second, zone, SECONDS_PER_HOUR)
             }
-            AggregationDateUnit.MINUTE -> if (group.timeZone.shiftsByWhole(Duration.ofMinutes(1))) {
+            AggregationDateUnit.MINUTE -> if (group.effectiveTimeZone().shiftsByWhole(Duration.ofMinutes(1))) {
                 "toStartOfMinute($second, $zone)"
             } else {
                 wallClockStart(second, zone, SECONDS_PER_MINUTE)
@@ -161,7 +161,7 @@ internal class ClickHouseAggregationCompiler(
     }
 
     private fun datePart(group: AggregationGroup.DatePart): String {
-        val local = "toTimeZone(${filters.instant(group.field)}, ${group.timeZone.sqlTimeZone()})"
+        val local = "toTimeZone(${filters.instant(group.field)}, ${group.effectiveTimeZone().sqlTimeZone()})"
         return when (group.part) {
             AggregationDatePart.DAY_OF_WEEK -> "toDayOfWeek($local)"
             AggregationDatePart.DAY_OF_MONTH -> "toDayOfMonth($local)"

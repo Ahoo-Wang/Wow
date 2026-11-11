@@ -130,7 +130,7 @@ class FilterStructureGuardTest {
             FilterOperator.DELETION -> DeletionFilter(DeletionState.DELETED)
             FilterOperator.ELEMENT_MATCH -> ElementMatchFilter(ITEMS, EqualFilter(SKU, VALUE))
             FilterOperator.SEARCH -> SearchFilter("text", setOf(SKU))
-            FilterOperator.TODAY -> TodayFilter(SKU, zoneId = "UTC")
+            FilterOperator.TODAY -> TodayFilter(SKU, timeZone = "UTC")
             FilterOperator.BEFORE_TODAY -> BeforeTodayFilter(SKU, "18:00")
             FilterOperator.TOMORROW -> TomorrowFilter(SKU)
             FilterOperator.THIS_WEEK -> ThisWeekFilter(SKU)

@@ -116,13 +116,13 @@ for (const record of statuses) console.log(record.aggregateId, record.state.tota
 
 ### 相对时间与时区 {#relative-time-and-time-zones}
 
-`filter.beforeNow` 和 `filter.afterNow` 把字段与服务器时钟加上一个偏移量比较，从不使用浏览器的时钟。日历过滤（`today`、`thisWeek`、`lastMonth` 等）在某个时区中读取它们的日期：你传入的 `zoneId`，否则是 UTC。要按用户自己的日期，就传入用户的时区：
+`filter.beforeNow` 和 `filter.afterNow` 把字段与服务器时钟加上一个偏移量比较，从不使用浏览器的时钟。日历过滤（`today`、`thisWeek`、`lastMonth` 等）在某个时区中读取它们的日期：你传入的 `timeZone`，否则是 UTC。要按用户自己的日期，就传入用户的时区：
 
 ```ts
 import { filter } from '@ahoo-wang/wow-client/dsl';
 
-const zoneId = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const placedToday = filter.today('firstEventTime', { zoneId });
+const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const placedToday = filter.today('firstEventTime', { timeZone });
 ```
 
 ### 长列表 {#long-lists}

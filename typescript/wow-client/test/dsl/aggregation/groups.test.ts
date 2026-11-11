@@ -45,7 +45,6 @@ describe('AggregationQuery', () => {
       field: 'createdAt',
       unit: 'day',
       alias: 'day',
-      timeZone: 'UTC',
       dense: true,
     });
   });
@@ -60,7 +59,6 @@ describe('AggregationQuery', () => {
       field: 'createdAt',
       part: 'day-of-week',
       alias: 'weekday',
-      timeZone: 'UTC',
     });
     expect(
       aggregation.datePart('createdAt', 'hour', {
@@ -195,7 +193,6 @@ describe('AggregationQuery', () => {
         field: 'createdAt',
         unit: 'month',
         alias: 'month',
-        timeZone: 'UTC',
       },
     ]);
   });

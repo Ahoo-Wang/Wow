@@ -167,7 +167,7 @@ outline: deep
 
 ### 相对时间 {#relative-time}
 
-每个操作符都接收 `field`，以及可选的 `zoneId`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）。过滤器不带编码：服务器按字段记时间的方式写出窗口的边界，即模型声明的方式（`@QueryTemporal`），纪元数字用它的单位，文本用它的模式。
+每个操作符都接收 `field`，以及可选的 `timeZone`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）。过滤器不带编码：服务器按字段记时间的方式写出窗口的边界，即模型声明的方式（`@QueryTemporal`），纪元数字用它的单位，文本用它的模式。
 
 | `op` | 其他属性 | 匹配 |
 | --- | --- | --- |
@@ -185,11 +185,11 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "timeZone": "Asia/Shanghai" }
 }
 ```
 
-时刻以时刻的形式传递：纪元数字，或带偏移量的 ISO-8601 字符串（`2026-10-21T08:00:00Z`）。在一天的边界有意义的地方，请求要指明它的时区；调用方给出时区时，TypeScript DSL 总会发送 `zoneId`。
+时刻以时刻的形式传递：纪元数字，或带偏移量的 ISO-8601 字符串（`2026-10-21T08:00:00Z`）。在一天的边界有意义的地方，请求要指明它的时区；调用方给出时区时，TypeScript DSL 总会发送 `timeZone`。
 
 ### 系统字段 {#system-fields}
 

@@ -167,7 +167,7 @@ The products without a brand:
 
 ### Relative time
 
-Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone). The filter carries no encoding: the server writes the window's bounds as the field keeps time, which its model declares (`@QueryTemporal`), an epoch in its unit or text in its pattern.
+Each takes `field`, and optionally `timeZone` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone). The filter carries no encoding: the server writes the window's bounds as the field keeps time, which its model declares (`@QueryTemporal`), an epoch in its unit or text in its pattern.
 
 | `op` | Further properties | Matches |
 | --- | --- | --- |
@@ -185,11 +185,11 @@ Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai
 ```json
 {
   "kind": "list",
-  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "timeZone": "Asia/Shanghai" }
 }
 ```
 
-Instants travel as instants: an epoch number, or an ISO-8601 string with its offset (`2026-10-21T08:00:00Z`). Where a day's boundaries matter, the request names its zone; the TypeScript DSL sends `zoneId` whenever the caller gives one.
+Instants travel as instants: an epoch number, or an ISO-8601 string with its offset (`2026-10-21T08:00:00Z`). Where a day's boundaries matter, the request names its zone; the TypeScript DSL sends `timeZone` whenever the caller gives one.
 
 ### System fields
 

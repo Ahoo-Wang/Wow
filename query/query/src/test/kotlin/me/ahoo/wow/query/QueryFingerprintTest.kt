@@ -79,7 +79,7 @@ class QueryFingerprintTest {
     fun `filter values never reach the shape and never change the fingerprint`() {
         val sameShapes = listOf(
             between(1234, 5678) to between(1, 2),
-            RecentDaysFilter(createTime, 7, zoneId = "Asia/Shanghai") to RecentDaysFilter(createTime, 30),
+            RecentDaysFilter(createTime, 7, timeZone = "Asia/Shanghai") to RecentDaysFilter(createTime, 30),
             BeforeTodayFilter(createTime, "18:45") to BeforeTodayFilter(createTime, "09:00"),
             BeforeNowFilter(createTime, "-PT45M") to BeforeNowFilter(createTime),
             ContainsFilter(amount, "secret-text") to ContainsFilter(amount, "other"),

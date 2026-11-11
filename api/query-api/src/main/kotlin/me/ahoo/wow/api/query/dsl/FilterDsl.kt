@@ -280,96 +280,97 @@ class FilterDsl internal constructor(
 
     infix fun QueryField<*>.search(query: String) = search(query, SearchMode.TERMS, this)
 
-    fun String.today(zoneId: ZoneId? = null) = add(TodayFilter(at(), zoneId?.id))
+    fun String.today(timeZone: ZoneId? = null) = add(TodayFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.today(zoneId: ZoneId? = null) = add(TodayFilter(at(), zoneId?.id))
+    fun QueryField<*>.today(timeZone: ZoneId? = null) = add(TodayFilter(at(), timeZone?.id))
 
-    fun String.yesterday(zoneId: ZoneId? = null) = add(YesterdayFilter(at(), zoneId?.id))
+    fun String.yesterday(timeZone: ZoneId? = null) = add(YesterdayFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.yesterday(zoneId: ZoneId? = null) = add(YesterdayFilter(at(), zoneId?.id))
+    fun QueryField<*>.yesterday(timeZone: ZoneId? = null) = add(YesterdayFilter(at(), timeZone?.id))
 
     /** `BEFORE_TODAY`: before [time] of today. */
     fun String.beforeToday(
         time: LocalTime,
-        zoneId: ZoneId? = null,
-    ) = add(BeforeTodayFilter(at(), time.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(BeforeTodayFilter(at(), time.toString(), timeZone?.id))
 
     fun QueryField<*>.beforeToday(
         time: LocalTime,
-        zoneId: ZoneId? = null,
-    ) = add(BeforeTodayFilter(at(), time.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(BeforeTodayFilter(at(), time.toString(), timeZone?.id))
 
-    fun String.tomorrow(zoneId: ZoneId? = null) = add(TomorrowFilter(at(), zoneId?.id))
+    fun String.tomorrow(timeZone: ZoneId? = null) = add(TomorrowFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.tomorrow(zoneId: ZoneId? = null) = add(TomorrowFilter(at(), zoneId?.id))
+    fun QueryField<*>.tomorrow(timeZone: ZoneId? = null) = add(TomorrowFilter(at(), timeZone?.id))
 
-    fun String.thisWeek(zoneId: ZoneId? = null) = add(ThisWeekFilter(at(), zoneId?.id))
+    fun String.thisWeek(timeZone: ZoneId? = null) = add(ThisWeekFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.thisWeek(zoneId: ZoneId? = null) = add(ThisWeekFilter(at(), zoneId?.id))
+    fun QueryField<*>.thisWeek(timeZone: ZoneId? = null) = add(ThisWeekFilter(at(), timeZone?.id))
 
-    fun String.nextWeek(zoneId: ZoneId? = null) = add(NextWeekFilter(at(), zoneId?.id))
+    fun String.nextWeek(timeZone: ZoneId? = null) = add(NextWeekFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.nextWeek(zoneId: ZoneId? = null) = add(NextWeekFilter(at(), zoneId?.id))
+    fun QueryField<*>.nextWeek(timeZone: ZoneId? = null) = add(NextWeekFilter(at(), timeZone?.id))
 
-    fun String.lastWeek(zoneId: ZoneId? = null) = add(LastWeekFilter(at(), zoneId?.id))
+    fun String.lastWeek(timeZone: ZoneId? = null) = add(LastWeekFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.lastWeek(zoneId: ZoneId? = null) = add(LastWeekFilter(at(), zoneId?.id))
+    fun QueryField<*>.lastWeek(timeZone: ZoneId? = null) = add(LastWeekFilter(at(), timeZone?.id))
 
-    fun String.thisMonth(zoneId: ZoneId? = null) = add(ThisMonthFilter(at(), zoneId?.id))
+    fun String.thisMonth(timeZone: ZoneId? = null) = add(ThisMonthFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.thisMonth(zoneId: ZoneId? = null) = add(ThisMonthFilter(at(), zoneId?.id))
+    fun QueryField<*>.thisMonth(timeZone: ZoneId? = null) = add(ThisMonthFilter(at(), timeZone?.id))
 
-    fun String.lastMonth(zoneId: ZoneId? = null) = add(LastMonthFilter(at(), zoneId?.id))
+    fun String.lastMonth(timeZone: ZoneId? = null) = add(LastMonthFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.lastMonth(zoneId: ZoneId? = null) = add(LastMonthFilter(at(), zoneId?.id))
+    fun QueryField<*>.lastMonth(timeZone: ZoneId? = null) = add(LastMonthFilter(at(), timeZone?.id))
 
-    fun String.nextMonth(zoneId: ZoneId? = null) = add(NextMonthFilter(at(), zoneId?.id))
+    fun String.nextMonth(timeZone: ZoneId? = null) = add(NextMonthFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.nextMonth(zoneId: ZoneId? = null) = add(NextMonthFilter(at(), zoneId?.id))
+    fun QueryField<*>.nextMonth(timeZone: ZoneId? = null) = add(NextMonthFilter(at(), timeZone?.id))
 
-    fun String.lastYear(zoneId: ZoneId? = null) = add(LastYearFilter(at(), zoneId?.id))
+    fun String.lastYear(timeZone: ZoneId? = null) = add(LastYearFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.lastYear(zoneId: ZoneId? = null) = add(LastYearFilter(at(), zoneId?.id))
+    fun QueryField<*>.lastYear(timeZone: ZoneId? = null) = add(LastYearFilter(at(), timeZone?.id))
 
-    fun String.thisYear(zoneId: ZoneId? = null) = add(ThisYearFilter(at(), zoneId?.id))
+    fun String.thisYear(timeZone: ZoneId? = null) = add(ThisYearFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.thisYear(zoneId: ZoneId? = null) = add(ThisYearFilter(at(), zoneId?.id))
+    fun QueryField<*>.thisYear(timeZone: ZoneId? = null) = add(ThisYearFilter(at(), timeZone?.id))
 
-    fun String.nextYear(zoneId: ZoneId? = null) = add(NextYearFilter(at(), zoneId?.id))
+    fun String.nextYear(timeZone: ZoneId? = null) = add(NextYearFilter(at(), timeZone?.id))
 
-    fun QueryField<*>.nextYear(zoneId: ZoneId? = null) = add(NextYearFilter(at(), zoneId?.id))
+    fun QueryField<*>.nextYear(timeZone: ZoneId? = null) = add(NextYearFilter(at(), timeZone?.id))
 
     /** `RECENT_DAYS`: within the last [days] days, today included. */
-    fun String.recentDays(days: Int, zoneId: ZoneId? = null) = add(RecentDaysFilter(at(), days, zoneId?.id))
+    fun String.recentDays(days: Int, timeZone: ZoneId? = null) = add(RecentDaysFilter(at(), days, timeZone?.id))
 
-    fun QueryField<*>.recentDays(days: Int, zoneId: ZoneId? = null) = add(RecentDaysFilter(at(), days, zoneId?.id))
+    fun QueryField<*>.recentDays(days: Int, timeZone: ZoneId? = null) = add(RecentDaysFilter(at(), days, timeZone?.id))
 
     /** `EARLIER_DAYS`: before the last [days] days. */
-    fun String.earlierDays(days: Int, zoneId: ZoneId? = null) = add(EarlierDaysFilter(at(), days, zoneId?.id))
+    fun String.earlierDays(days: Int, timeZone: ZoneId? = null) = add(EarlierDaysFilter(at(), days, timeZone?.id))
 
-    fun QueryField<*>.earlierDays(days: Int, zoneId: ZoneId? = null) = add(EarlierDaysFilter(at(), days, zoneId?.id))
+    fun QueryField<*>.earlierDays(days: Int, timeZone: ZoneId? = null) =
+        add(EarlierDaysFilter(at(), days, timeZone?.id))
 
     /** The field is before the server's `now + offset`; `offset` defaults to zero, i.e. before now. */
     fun String.beforeNow(
         offset: Duration = Duration.ZERO,
-        zoneId: ZoneId? = null,
-    ) = add(BeforeNowFilter(at(), offset.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(BeforeNowFilter(at(), offset.toString(), timeZone?.id))
 
     fun QueryField<*>.beforeNow(
         offset: Duration = Duration.ZERO,
-        zoneId: ZoneId? = null,
-    ) = add(BeforeNowFilter(at(), offset.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(BeforeNowFilter(at(), offset.toString(), timeZone?.id))
 
     /** The field is after the server's `now + offset`; a negative offset looks back, e.g. `Duration.ofMinutes(-30)`. */
     fun String.afterNow(
         offset: Duration = Duration.ZERO,
-        zoneId: ZoneId? = null,
-    ) = add(AfterNowFilter(at(), offset.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(AfterNowFilter(at(), offset.toString(), timeZone?.id))
 
     fun QueryField<*>.afterNow(
         offset: Duration = Duration.ZERO,
-        zoneId: ZoneId? = null,
-    ) = add(AfterNowFilter(at(), offset.toString(), zoneId?.id))
+        timeZone: ZoneId? = null,
+    ) = add(AfterNowFilter(at(), offset.toString(), timeZone?.id))
 
     internal fun build(): FilterExpression {
         require(expressions.isNotEmpty()) { "filter block cannot be empty." }
