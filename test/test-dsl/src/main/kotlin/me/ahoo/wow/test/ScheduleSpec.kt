@@ -49,7 +49,7 @@ import kotlin.time.Duration
  *
  * ```kotlin
  * scheduleSpec(billingSagaHandlers(), start = Instant.parse("2026-01-31T12:00:00Z")) {
- *     enable("monthly-invoice", tenantId = "acme", rule = JobRule(zone = "Asia/Shanghai"))
+ *     enable("monthly-invoice", tenantId = "acme", rule = JobRule(timeZone = "Asia/Shanghai"))
  *     advanceTime(1.days) {
  *         expectCommands(IssueInvoices("acme"))
  *     }

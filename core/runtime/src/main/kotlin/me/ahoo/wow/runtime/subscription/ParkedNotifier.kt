@@ -65,6 +65,11 @@ class ParkedNotice @InternalWowApi constructor(
     @InternalWowApi
     val subscription: SubscriptionId get() = entry.subscription
 
+    /**
+     * What befell the entry.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Kind {
         /** The subscription parked the aggregate: its handler kept failing, or a business rejection stopped it. */
         PARKED,

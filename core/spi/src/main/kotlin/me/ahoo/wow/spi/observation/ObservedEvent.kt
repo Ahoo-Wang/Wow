@@ -22,7 +22,9 @@ import me.ahoo.wow.api.result.Stage
  * Something the core noticed that has no duration of its own, told to [Observer.observed]: a refusal, a dropped
  * signal, a partition paused. An observer counts it, logs it or ignores it; the core goes on either way. The core
  * builds each, so their constructors are internal to Wow; an observer matches on the type (`when (event)`) and reads
- * the fields. Types may be added, so a `when` over them keeps an `else` branch.
+ * the fields.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  *
  * A field from a closed set is an enum whose [value] is its name in metrics and logs (`queue-full`); a field that is
  * open stays text, and its KDoc says why: an error code (an open vocabulary), a node's address, a failure's
@@ -75,7 +77,11 @@ sealed class ObservedEvent {
     class SignalDropped @InternalWowApi constructor(val origin: String, val reason: Reason) : ObservedEvent() {
         override fun fields() = listOf("origin" to origin, "reason" to reason)
 
-        /** Why a signal was dropped. */
+        /**
+         * Why a signal was dropped.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Reason(val value: String) {
             /** The origin's queue was full. */
             QUEUE_FULL("queue-full"),
@@ -98,7 +104,11 @@ sealed class ObservedEvent {
     class ForwardFailed @InternalWowApi constructor(val type: AggregateType, val outcome: Outcome) : ObservedEvent() {
         override fun fields() = listOf("type" to type, "outcome" to outcome)
 
-        /** What became of the command. */
+        /**
+         * What became of the command.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Outcome(val value: String) {
             /** It surely did not reach the owner, and ran here. */
             LOCAL("local"),
@@ -118,7 +128,11 @@ sealed class ObservedEvent {
     class StateCache @InternalWowApi constructor(val context: String, val outcome: Outcome) : ObservedEvent() {
         override fun fields() = listOf("context" to context, "outcome" to outcome)
 
-        /** What the cache did. */
+        /**
+         * What the cache did.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Outcome(val value: String) {
             /** The state was in the cache. */
             HIT("hit"),
@@ -152,7 +166,11 @@ sealed class ObservedEvent {
         override fun fields() =
             listOf("type" to type, "gated" to gated, "outcome" to outcome, "waitMillis" to waitMillis)
 
-        /** How a rebuild ended at the gate. */
+        /**
+         * How a rebuild ended at the gate.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Outcome(val value: String) {
             /** It read the log: at once, or once the gate gave it a permit. */
             RAN("ran"),
@@ -183,7 +201,11 @@ sealed class ObservedEvent {
     ) : ObservedEvent() {
         override fun fields() = listOf("type" to type, "cause" to cause, "streams" to streams, "millis" to millis)
 
-        /** Why a history was stamped. */
+        /**
+         * Why a history was stamped.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Cause(val value: String) {
             /** A commit changed the attributes: the streams before it take them. */
             CHANGE("change"),
@@ -216,7 +238,11 @@ sealed class ObservedEvent {
     ) : ObservedEvent() {
         override fun fields() = listOf("context" to context, "capability" to capability, "reason" to reason)
 
-        /** The optional store capabilities. */
+        /**
+         * The optional store capabilities.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Capability(val value: String) {
             /** A store's one-round-trip read of a snapshot with its log's tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
             SNAPSHOT_TAIL_READ("snapshot-tail-read"),
@@ -225,7 +251,11 @@ sealed class ObservedEvent {
             SNAPSHOT_REBUILD("snapshot-rebuild"),
         }
 
-        /** Why a store fell back. */
+        /**
+         * Why a store fell back.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Reason(val value: String) {
             /** The capability failed; the work was done the other way. */
             FAILED("failed"),
@@ -305,7 +335,11 @@ sealed class ObservedEvent {
     ) : ObservedEvent() {
         override fun fields() = listOf("context" to context, "partition" to partition, "reason" to reason)
 
-        /** Why a tail read the store. */
+        /**
+         * Why a tail read the store.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Reason(val value: String) {
             /** A tail opened behind the head. */
             START("start"),
@@ -358,7 +392,11 @@ sealed class ObservedEvent {
     ) : ObservedEvent() {
         override fun fields() = listOf("component" to component, "name" to name, "error" to error)
 
-        /** The part of the node whose work met the error. */
+        /**
+         * The part of the node whose work met the error.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
         enum class Component(val value: String) {
             /** A subscription's handling of an entry, in any of the node's subscription runtimes. */
             SUBSCRIPTION("subscription"),

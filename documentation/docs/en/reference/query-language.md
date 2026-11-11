@@ -58,7 +58,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 | `access` | object | Its declared access attributes; `access.<name>` names one, typed as the Manifest declares it |
 | `firstEventTime`, `lastEventTime` | integer | Its first and last event time, epoch milliseconds |
 | `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, crossScope}`; `null` for an anonymous caller. Filter on `operator.id` |
-| `schedules` | object | The schedules it keeps, each rule by its key: `type` (`at`, `after` or `cron`) with `epochMillis`, `millis`, or `expression`, `zone` and `misfire`; `schedules.<key>` names one |
+| `schedules` | object | The schedules it keeps, each rule by its key: `type` (`at`, `after` or `cron`) with `epochMillis`, `millis`, or `expression`, `timeZone` and `misfire`; `schedules.<key>` names one |
 | `state.*` | as the state schema says | The state, as the completed Manifest fragment's state schema describes it |
 
 A path the model does not know is 400 `wow.query.invalid`, `unknown-field`. The fields of a collection's elements are named only inside an `element-match` of that collection, relative to an element (`element-scope-required` otherwise). The [capability descriptor](#the-capability-descriptor) lists every path with the operators, sorts and aggregations it takes. A field's `aliases`, which the descriptor lists, are other paths a query may name it by, such as its name before a rename; they are input only: a response holds every field under its canonical `path`.

@@ -41,7 +41,11 @@ import me.ahoo.wow.spi.transport.TopicProducer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** Where a node runs a command. */
+/**
+ * Where a node runs a command.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class Routing {
     /** On the owner of its log partition, forwarded over the cluster channel; the default. */
     PARTITIONED,

@@ -142,17 +142,16 @@ rc 前的完整一次：2026-11-11 在 `a7c372ad3e` 上，PostgreSQL 与 MongoDB
 | 编号 | 级别 | 位置 | 现象 | 余下 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | EVO-1 | P1 | `api/`、`core/` 的 135 处 KDoc（61 个文件） | 记录的演进规则写「以后可加字段，新参数放最后并带默认值」；这样加字段会改变 `of$default` 的签名，只保证源码兼容。用户已定 D418：10.0.x 二进制兼容，10.x 源码兼容，所以这 135 句成立，不改 | API Levels 的措辞随 D418 改（参考页生成器的 WORDS，中英）；审查第二遍列出契约 jar 与生成代码所调用的入口，这些入口在次版本里加重载而不加参数，清单写进 `AGENTS.md` | 已定（D418），余措辞与清单 |
-| QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐 | QRY-3 已合并（#6069）；QRY-4 在做（query-bugs） |
+| QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐：游标不带 `size` 时取入口的列表默认值（`defaultListSize`，不超过最大页大小），不另设常量，不指定大小的游标页因此从 10 行变为 100 行；`filter` 的默认一律为全匹配 | QRY-3 已合并（#6069，调度的一半 #6085）；QRY-4 在做（query-bugs） |
+| QRY-7 | P3 | `Pagination.size`（TypeScript 的 `DEFAULT_PAGINATION`） | 分页大小的默认值 10 是客户端常量，与列表、游标取服务端默认不同；它每次都随请求发出，是值对象的默认而不是第二个服务端默认（做 QRY-4 时发现） | 定：保持，或同样改为空即取入口默认 | 已登记 |
 | SPI-2 | P2 | `EventLog.appendAll` | 入参是 `List<Pair<EventStreamRecord, ByteArray?>>`，热路径上唯一不能再加字段的 SPI 签名 | 换成以 `of` 构造的小记录，不增加分配 | 已派（kernel-writes-p1） |
-| SPI-5 | P3 | `core/spi` 的选项读取 | 存储、Sink、传输各写了一份相同的读取代码且已分叉，`Scope.PER_STORE` 三处含义不同 | 一个类型、一个含义 | 在审（#6076） |
-| API-2、API-6 | P2、P3 | 系统类型名 | 日志里的系统事件名与命令名有三种拼法（`wow.lifecycle.AggregateDeleted`、`wow.ScheduleSet`、`wow.Ticked`）；七个系统类型是 `data object`，永远加不了字段 | 一条规则 `wow.<namespace>.<ClassName>`；改成用无参构造器构造的类（D419 ②） | API-6 已合并（#6057）；API-2 在审（#6072） |
 | API-7、API-9、API-10 | P3 | `api/api` | 两个作用域里同一动作两种叫法；调度的命令在存储的事件里是字符串里的 JSON；五处小的内聚问题 | 各按报告修；API-9 先核对序列化 | 已派（kernel-writes-p1） |
 | RT-2、RT-3 | P2 | 访问遍历、快照重建 | 一个读不出的聚合让遍历或重建永远停在同一处：游标整页之后才前进，没有跳过、台账或指标，查询一直答 `rebuilding` | 记下该聚合后继续（台账或计数加跳过表）。不改形态 | 已登记；有会话空出时 GA 前修 |
 | RT-4 | P2 | 停放重试 | 重试一个仍在提交的停放聚合时把其后的全部流读进内存（`toList()`） | 并入路线图 §6 性能第 22 项 | 已登记 |
 | NAM-1 | P3 | 存储与线上的时间字段名 | 毫秒时间戳的字段有的以 `Time` 结尾、有的以 `At` 结尾；`firstEventTime` 等沿自 9.x | 协调者建议不改；GA 是最后一次可以免费改 | 待定（用户） |
-| SRC-1 | P1 | 公开的枚举与密封类型 | D418 把给用户穷尽匹配的类型加分支算作源码破坏；`api/` 里没有一个类型写明可以加分支，照此查询协议整个 10.x 加不了稳定的过滤 | D418 ⑥ 已定：KDoc 写明可加分支的为开放、其余封闭；各类型加上这句话，`:architecture` 的规则把守 | 已派（kernel-writes-p1、query-bugs、rt-subs-p1） |
+| SRC-1 | P1 | 公开的枚举与密封类型 | D418 把给用户穷尽匹配的类型加分支算作源码破坏；`api/` 里没有一个类型写明可以加分支，照此查询协议整个 10.x 加不了稳定的过滤 | D418 ⑥ 已定：KDoc 写明可加分支的为开放、其余封闭。两句话全仓库同文，`:architecture` 的 `CaseSetRules` 读 KDoc 把守，并以 ABI 清单核对枚举一个不漏。默认开放：10.x 里可能加分支的都开放，用户交给 Wow、只有 Wow 匹配的类型（配置、鉴权结论、命令体、查询协议）也开放，封闭要有理由（集合天然完整，如 `Ddl`）；Wow 自己的穷尽 `when` 不加 `else`，各模块一起发布，加分支时由编译器指出每一处 | 规则与 `core/spi`、`core/runtime` 已合并（#6084，26 个开放、1 个封闭）；余：`api/api`、`api/manifest`、`core/kernel`（kernel-writes-p1），`api/query-api`、`query/query`、`query/query-tck`（query-bugs），其余五个模块的九个类型（rt-subs-p1） |
 | SRC-2、SRC-3 | P2、P3 | `CommandValidator`、`MaskStrategy` | 用户实现的单方法接口，参数在 11.0 之前改不了：校验器拿不到调用方与租户，掩码只看得到值 | 校验器接收 `CommandCandidate`（类型、命令体、目标聚合、作用域、可空的操作者、可空的调用方；D419）；掩码接收一个可加字段的参数对象 | SRC-2 已合并（#6048）；SRC-3 已派（query-bugs） |
-| SRC-6、SRC-7 | P2、P3 | `Operator.crossScope`、`FunctionKind` | `crossScope` 在调用方上是权限、在操作者上是事实，后者存进每条流；`FunctionKind` 把「函数是什么」和「是哪个内置订阅」混在一起 | 操作者的改名 `actedElsewhere`；内置订阅共用一种，名字说明是哪个 | 名字已定（D419），在做（kernel-writes-p1） |
+| SRC-6、SRC-7 | P2、P3 | `Operator.crossScope`、`FunctionKind` | `crossScope` 在调用方上是权限、在操作者上是事实，后者存进每条流；`FunctionKind` 把「函数是什么」和「是哪个内置订阅」混在一起 | 操作者的改名 `actedElsewhere`；内置订阅共用一种，名字说明是哪个 | 在审（#6083）；访问标记、各 Sink 与三个消息订阅也归 `SYSTEM` |
 | SPI-8、SPI-10 | P2 | 失败台账的修订 | 台账对七种修订穷尽匹配，新增一种时旧台账没有分支；运维的标记、重试规格或请求作用于当时在那里的任何一次停放 | `ApplyRetrySpec` 改走通用路径（读、`amended`、按版本条件写），各存储以 `else` 收尾并写进 `amend` 的 KDoc；SPI-10 已登记 | SPI-8 已合并（#6063）；SPI-10 已登记 |
 | SRC-4、SRC-5、KER-6、KER-9 | P3 | 各处 | 六个只有本模块实现的接口没有封闭；四个 SPI 枚举没有标记；SPI 里一处 `java.time.Duration`；永不触发的 cron 被接受；两个没人用的 `HandlerRetry.of`；`ServiceNode.start` 的重载与装配类型的可见性；`WaitOptions` 接受超过上限的默认超时 | 各按报告修 | 已派；SRC-5 已合并（#6042） |
 | RT-9 | P2 | `wow.access` | 对每条提交要前一条流：缓存（每上下文 10 万个聚合）里没有就读一次日志；订阅是 beta.1 之后加的；已排除为 MongoDB 延迟信号的来源（只调大容量的对照，运行 43038596676：每次操作的 find 两臂都是 0.0023） | 等基准的语句计数；修法：内核在追加的条目上标明属性有没有变 | 已登记 |

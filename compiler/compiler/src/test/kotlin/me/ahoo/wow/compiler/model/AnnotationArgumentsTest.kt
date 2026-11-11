@@ -71,7 +71,7 @@ class AnnotationArgumentsTest {
         "START" to "OnEvent.Start.END",
         "JOB_NAME" to "Names.JOB",
         "JOB_CRON" to "Names.CRON",
-        "JOB_ZONE" to "Names.ZONE",
+        "JOB_TIME_ZONE" to "Names.ZONE",
         "ON_DELETED" to "Names.ON_DELETED",
         // A class is never another module's constant either: only a plain val can leave an array without a value.
         "AFTER_INCLUDE" to "[Open::class]",
@@ -208,7 +208,7 @@ class AnnotationArgumentsTest {
 
             @Saga
             object Nightly {
-                @OnSchedule(name = ${slot("JOB_NAME")}, cron = ${slot("JOB_CRON")}, zone = ${slot("JOB_ZONE")})
+                @OnSchedule(name = ${slot("JOB_NAME")}, cron = ${slot("JOB_CRON")}, timeZone = ${slot("JOB_TIME_ZONE")})
                 @Sends(derives = ${slot("SENDS")})
                 @Retry(maxAttempts = ${slot("RETRY_ATTEMPTS")})
                 fun nightly(tick: ScheduleTick): List<CommandRequest<Close>> = emptyList()
@@ -258,7 +258,7 @@ class AnnotationArgumentsTest {
         val job = nightly.job!!
         job.name.assert().isEqualTo("sweep")
         job.cron.assert().isEqualTo("0 */5 * * * *")
-        job.zone.assert().isEqualTo("Asia/Shanghai")
+        job.timeZone.assert().isEqualTo("Asia/Shanghai")
         val route = shop.routes.single()
         route.route.path.assert().endsWith("counts")
         route.parameters.map { it.name }.assert().containsExactly("status")
@@ -350,8 +350,8 @@ class AnnotationArgumentsTest {
         ),
         Unread(
             "@OnSchedule",
-            mapOf("JOB_ZONE" to "Local.text"),
-            listOf("@OnSchedule of sample.Nightly.nightly: KSP evaluated no value for its argument zone"),
+            mapOf("JOB_TIME_ZONE" to "Local.text"),
+            listOf("@OnSchedule of sample.Nightly.nightly: KSP evaluated no value for its argument timeZone"),
             missing = listOf("NightlySubscriptions.kt"),
         ),
         Unread(

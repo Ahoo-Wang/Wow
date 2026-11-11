@@ -22,8 +22,8 @@ import me.ahoo.wow.api.annotation.WowSpi
  * holds the same or a later version, or one of a higher state revision, which the save then marked stale), or
  * [Failed] alone, the others of the batch unaffected. A failure of the whole call is thrown instead.
  *
- * Cases may be added, so a `when` over them keeps an `else` branch, which reads [written]: a snapshot not written may
- * be saved again, the save being version-guarded.
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. The
+ * `else` reads [written]: a snapshot not written may be saved again, the save being version-guarded.
  */
 @WowSpi
 sealed interface SnapshotSaveOutcome {

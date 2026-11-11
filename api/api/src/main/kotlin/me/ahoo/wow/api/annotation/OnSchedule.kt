@@ -26,10 +26,11 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * other job's, to the handler, retried and parked as any subscription's.
  *
  * @param name the job's name, unique in its context: letters, digits, `_` and `-`. The host configures the job under
- *   `wow.schedules.<name>.*`, and only there: its rule (`cron`, `zone`, `misfire`), whether it is `enabled`, and its
- *   subscription's `retry` and `parked` retries.
+ *   `wow.schedules.<name>.*`, and only there: its rule (`cron`, `time-zone`, `misfire`), whether it is `enabled`, and
+ *   its subscription's `retry` and `parked` retries.
  * @param cron six fields, as Spring's `CronExpression` reads them (`0 0 3 * * *`: at 03:00 every day).
- * @param zone the time zone [cron] is read in, UTC by default.
+ * @param timeZone the time zone [cron] is read in, an IANA region such as `Asia/Shanghai` or an offset such as
+ *   `+08:00`; UTC by default, never the server's own zone.
  * @param scope who the job runs for ([JobScope]): one instance for the service, one per tenant, or one per log
  *   partition.
  * @param misfire what a slot missed while no node ran the job does: by default only the latest runs, and the tick
@@ -40,7 +41,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 annotation class OnSchedule(
     val name: String,
     val cron: String,
-    val zone: String = ScheduleRule.UTC,
+    val timeZone: String = ScheduleRule.UTC,
     val scope: JobScope = JobScope.SYSTEM,
     val misfire: Misfire = Misfire.COALESCE,
 )

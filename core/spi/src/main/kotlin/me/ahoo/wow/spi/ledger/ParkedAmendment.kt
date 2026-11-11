@@ -21,6 +21,8 @@ import me.ahoo.wow.api.ledger.Recoverable
 /**
  * A change of a parked entry's retry state ([FailureLedger.amend]), or, for [Restate] alone, of why it is parked and its
  * retry state at once.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 @WowSpi
 sealed interface ParkedAmendment {

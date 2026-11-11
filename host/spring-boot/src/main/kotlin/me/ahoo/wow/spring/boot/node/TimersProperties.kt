@@ -86,7 +86,7 @@ class TimersProperties {
 }
 
 /**
- * An `@OnSchedule` job's settings, the only place it is configured: its rule, the [cron], the time [zone] and the
+ * An `@OnSchedule` job's settings, the only place it is configured: its rule, the [cron], the [timeZone] and the
  * [misfire] policy, each unset to keep the annotation's (a tenant's own rule of a TENANT job comes before it);
  * [enabled] false disables a SYSTEM or a SHARDED job's instances at startup; and the [retry] and [parked] retries
  * of the subscriptions that run it, over its handler's `@Retry` and `wow.subscription.retry`, and over
@@ -98,7 +98,7 @@ class ScheduleProperties {
     var cron: String? = null
 
     /** The time zone its cron is read in, over its annotation's. */
-    var zone: String? = null
+    var timeZone: String? = null
 
     /** What a firing missed while no node ran it does, over its annotation's. */
     var misfire: Misfire? = null
@@ -114,7 +114,7 @@ class ScheduleProperties {
 
     /** These settings, the parked retries over [parkedBase], `wow.subscription.parked`'s. */
     fun options(parkedBase: ParkedRetrySpec): JobOptions =
-        JobOptions(cron, zone, misfire, enabled, retry.handlerRetry(), parked.specOver(parkedBase))
+        JobOptions(cron, timeZone, misfire, enabled, retry.handlerRetry(), parked.specOver(parkedBase))
 }
 
 /**

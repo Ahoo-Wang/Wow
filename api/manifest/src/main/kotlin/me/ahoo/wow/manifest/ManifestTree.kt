@@ -185,7 +185,7 @@ object ManifestTree {
             obj(
                 "name" to it.name,
                 "cron" to it.cron,
-                "zone" to it.zone,
+                "timeZone" to it.timeZone,
                 "scope" to WireNames.of(it.scope),
                 "misfire" to WireNames.of(it.misfire),
             )
@@ -429,7 +429,7 @@ object ManifestTree {
         return JobManifest(
             name = node.string("name"),
             cron = node.string("cron"),
-            zone = node.stringOrNull("zone") ?: "UTC",
+            timeZone = node.stringOrNull("timeZone") ?: "UTC",
             scope = scope,
             misfire = misfire,
         )

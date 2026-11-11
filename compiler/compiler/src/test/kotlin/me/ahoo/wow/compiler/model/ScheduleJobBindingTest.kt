@@ -75,7 +75,7 @@ class ScheduleJobBindingTest {
 
         @Saga
         class BillingSaga {
-            @OnSchedule(name = "invoice", cron = "0 0 0 1 * *", zone = "Asia/Shanghai", scope = JobScope.TENANT)
+            @OnSchedule(name = "invoice", cron = "0 0 0 1 * *", timeZone = "Asia/Shanghai", scope = JobScope.TENANT)
             @Retry(maxAttempts = 2)
             fun invoice(tick: ScheduleTick, context: SagaContext): CommandRequest<IssueInvoices> =
                 CommandRequest.to(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
@@ -186,7 +186,7 @@ class ScheduleJobBindingTest {
 
         @Saga
         object Wrong {
-            @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT)
+            @OnSchedule(name = "bad name", cron = "0 0 *", timeZone = "Mars/Olympus", scope = JobScope.TENANT)
             fun misnamed(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "twice", cron = "0 0 3 * * *")
