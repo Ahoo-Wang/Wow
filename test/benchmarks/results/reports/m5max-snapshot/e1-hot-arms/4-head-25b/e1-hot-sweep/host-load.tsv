@@ -1,0 +1,25 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794389255	12.85	12.33	10.67	154	Claude Helper (Renderer) 69, WindowServer 42, Claude Helper 11		112	0	0.5	
+1794389267	10.89	11.92	10.56	83	WindowServer 44, Claude Helper 13, Claude Helper (Renderer) 4		365	3	0.0	
+1794389280	9.51	11.59	10.46	109	WindowServer 38, Claude Helper (Renderer) 20, Claude Helper 11		209	4	0.1	
+1794389292	7.63	11.07	10.29	83	WindowServer 48, Claude Helper 17, Claude Helper (Renderer) 7		197	3	0.0	
+1794389304	6.92	10.81	10.20	69	WindowServer 35, Claude Helper 11, Stats 6		229	25	0.0	
+1794389316	6.63	10.61	10.14	50	WindowServer 26, Claude Helper 11, Claude Helper (Renderer) 6		453	7	0.0	
+1794389328	5.66	10.21	10.01	90	WindowServer 38, claude 20, Claude Helper 11		226	4	0.1	
+1794389341	5.87	10.10	9.97	56	WindowServer 35, Claude Helper 10, Claude Helper (Renderer) 3		278	4	0.1	
+1794389353	4.79	9.65	9.81	68	WindowServer 34, Claude Helper 9, Stats 5		448	6	0.0	
+1794389365	4.90	9.52	9.76	78	WindowServer 40, Claude Helper 13, Stats 8		274	4	1.3	
+1794389377	5.57	9.44	9.73	56	WindowServer 28, Claude Helper 8, claude 4		692	15	0.1	
+1794389389	6.31	9.46	9.73	51	WindowServer 33, Claude Helper 8, Claude Helper (Renderer) 3		503	11	0.0	
+1794389402	6.13	9.26	9.66	99	WindowServer 36, Claude Helper (Renderer) 24, Claude Helper 15		609	11	0.1	
+1794389414	7.31	9.40	9.70	60	WindowServer 34, Claude Helper 8, sysmond 4		549	12	0.0	
+1794389426	6.42	9.14	9.60	50	WindowServer 31, Claude Helper 9, Claude Helper (Renderer) 3		593	14	0.0	
+1794389438	7.73	9.34	9.67	52	WindowServer 31, Claude Helper 9, Claude Helper (Renderer) 3		587	14	0.1	
+1794389451	10.99	9.98	9.89	49	WindowServer 31, Claude Helper 8, Claude Helper (Renderer) 3		553	13	0.0	
+1794389463	9.17	9.62	9.77	53	WindowServer 33, Claude Helper 9, Claude Helper (Renderer) 3		689	16	0.1	
+1794389475	11.21	10.03	9.91	58	WindowServer 32, Claude Helper 10, Claude Helper (Renderer) 3		766	19	0.4	
+1794389487	10.25	9.90	9.86	64	WindowServer 31, Claude Helper 11, Claude Helper (Renderer) 4		522	10	0.0	
+1794389499	9.54	9.75	9.81	68	WindowServer 34, Claude Helper 13, Claude Helper (Renderer) 11		1327	42	0.1	
+1794389512	15.34	11.03	10.27	78	WindowServer 36, Claude Helper 14, launchd 13		1340	45	0.1	
+1794389524	16.50	11.44	10.42	88	WindowServer 46, Claude Helper 12, Claude Helper (Renderer) 6		1312	48	0.1	
+1794389536	15.79	11.46	10.44	112	WindowServer 53, Claude Helper 13, Claude Helper (Renderer) 12		1293	46	0.1	

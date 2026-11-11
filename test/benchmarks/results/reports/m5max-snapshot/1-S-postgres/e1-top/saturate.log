@@ -1,8 +1,8 @@
-1793691568 [settle] 1s: node-1 0.02
-1793691569 [settle] 2s: node-1 0.02
-1793691570 [settle] 3s: node-1 0.01
-1793691570 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1793691611 [saturate] E1: concurrency=4096 throughput=32303.0/s p50=123ms errors={}
-1793691652 [saturate] E1: concurrency=8192 throughput=20823.6/s p50=389ms errors={http-429-wow.command.busy=13373}
-1793691652 [saturate] saturation: 32303.0/s at concurrency 4096
-1793691652 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-top
+1794379167 [settle] 1s: node-1 0.01
+1794379168 [settle] 2s: node-1 0.03
+1794379169 [settle] 3s: node-1 0.01
+1794379169 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794379210 [saturate] E1: concurrency=4096 throughput=32879.1/s p50=121ms errors={}
+1794379250 [saturate] E1: concurrency=8192 throughput=18695.6/s p50=436ms errors={http-429-wow.command.busy=2993}
+1794379250 [saturate] saturation: 32879.1/s at concurrency 4096
+1794379251 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-top

@@ -1,25 +1,25 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793694010	19.35	10.11	9.09	72	WindowServer 24, sysmond 8, Claude Helper 7	cosec-redis 0.31%	86	0		
-1793694023	17.98	10.12	9.10	49	WindowServer 19, Claude Helper 7, sysmond 5	cosec-redis 0.13%	128	2		
-1793694035	14.60	9.76	8.99	3	Stats 1, claude 1, WindowServer 0	cosec-redis 0.14%	284	1		
-1793694047	12.50	9.47	8.90	6	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 1	cosec-redis 0.14%	145	1		
-1793694059	10.73	9.19	8.80	39	sysmond 12, Stats 8, Activity Monitor 6	cosec-redis 0.15%	143	2		
-1793694071	8.86	8.85	8.69	14	Stats 4, WindowServer 2, configd 2	cosec-redis 0.14%	209	2		
-1793694084	8.02	8.67	8.63	10	sysmond 3, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 2, Stats 2	cosec-redis 0.17%	199	1		
-1793694096	7.46	8.51	8.57	5	claude 2, Stats 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.14%	324	4		
-1793694108	7.94	8.59	8.60	5	sysmond 3, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 0	cosec-redis 0.13%	446	4		
-1793694120	7.42	8.43	8.54	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, claude 1, WindowServer 0	cosec-redis 0.13%	392	4		
-1793694132	6.89	8.29	8.49	11	Stats 3, sysmond 3, WindowServer 1	cosec-redis 0.14%	359	4		
-1793694144	6.51	8.16	8.44	6	Stats 2, WindowServer 1, configd 1	cosec-redis 0.15%	556	6		
-1793694157	5.74	7.91	8.34	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Stats 1, AppleCentauriAlpha 1	cosec-redis 0.12%	432	6		
-1793694169	5.60	7.81	8.30	5	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 1	cosec-redis 0.13%	590	5		
-1793694181	7.22	8.08	8.39	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, sysmond 1, AppleCentauriAlpha 0	cosec-redis 0.14%	845	7		
-1793694193	6.26	7.84	8.30	21	Stats 8, sysmond 4, WindowServer 2	cosec-redis 0.16%	710	6		
-1793694205	7.47	8.06	8.37	6	Stats 2, WindowServer 1, configd 1	cosec-redis 0.14%	740	8		
-1793694218	10.21	8.64	8.58	13	sysmond 3, dasd 2, WindowServer 1	cosec-redis 0.16%	950	11		
-1793694230	12.45	9.21	8.78	6	sysmond 4, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 0	cosec-redis 0.16%	857	4		
-1793694242	13.88	9.61	8.92	4	MacPacketTunnel 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WeChat 0	cosec-redis 0.16%	894	9		
-1793694254	12.68	9.49	8.89	16	sysmond 6, Activity Monitor 3, Stats 2	cosec-redis 0.24%	1562	47		
-1793694267	19.02	11.02	9.45	8	Stats 1, WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.66%	1393	29		
-1793694279	19.73	11.43	9.61	30	mds 23, Activity Monitor 2, mds_stores 2	cosec-redis 0.16%	1382	21		
-1793694291	21.32	12.19	9.91	9	Stats 4, configd 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.17%	1521	3		
+1794381686	23.80	13.89	11.84	79	WindowServer 55, Claude Helper 8, sysmond 4	chprobe 2.62%	252	0	0.0	
+1794381698	20.37	13.48	11.72	78	WindowServer 54, Claude Helper 17, Claude Helper (Renderer) 4	chprobe 1.59%	583	8	0.0	
+1794381711	16.51	12.96	11.57	70	WindowServer 51, Claude Helper 15, Claude Helper (Renderer) 3	chprobe 1.52%	281	8	0.0	
+1794381723	14.89	12.73	11.50	66	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 35.15%	212	2	0.0	
+1794381735	14.55	12.74	11.52	83	WindowServer 54, Claude Helper 13, Stats 7	chprobe 1.32%	314	7	0.0	
+1794381747	14.39	12.76	11.54	78	WindowServer 54, Claude Helper 16, Claude Helper (Renderer) 3	chprobe 1.76%	291	3	0.0	
+1794381759	13.49	12.64	11.52	77	WindowServer 52, Claude Helper 16, Claude Helper (Renderer) 4	chprobe 1.30%	339	3	0.0	
+1794381772	12.03	12.36	11.43	75	WindowServer 51, Claude Helper 14, claude 4	chprobe 27.14%	606	4	0.0	
+1794381784	13.47	12.66	11.56	15	Stats 5, sysmond 3, configd 2	chprobe 1.21%	328	3	0.0	
+1794381796	12.08	12.39	11.48	10	Stats 4, configd 2, WindowServer 1	chprobe 1.22%	281	2	0.0	
+1794381808	13.13	12.62	11.57	58	duetexpertd 39, biomesyncd 9, Stats 3	chprobe 1.32%	322	4	0.0	
+1794381820	12.21	12.45	11.52	7	Shadowrocket 2, claude 2, WindowServer 1	chprobe 35.45%	458	4	0.0	
+1794381833	11.41	12.27	11.47	2	launchd 1, Stats 0, claude 0	chprobe 16.38%	472	2	0.0	
+1794381845	9.62	11.83	11.33	17	Stats 5, sysmond 3, configd 3	chprobe 1.48%	524	5	0.0	
+1794381857	10.48	11.93	11.37	6	Stats 3, configd 2, WindowServer 1	chprobe 1.63%	730	6	0.0	
+1794381869	13.60	12.54	11.60	6	sysmond 3, Stats 2, configd 1	chprobe 1.60%	950	7	0.0	
+1794381881	15.76	13.02	11.77	1	Stats 0, configd 0, WindowServer 0	chprobe 1.51%	670	7	0.0	
+1794381894	14.25	12.79	11.71	37	biomesyncd 19, BiomeAgent 8, sysmond 3	chprobe 1.47%	833	9	0.0	
+1794381906	12.49	12.47	11.61	1	mdworker_shared 0, mds 0, claude 0	chprobe 1.65%	886	9	0.0	
+1794381918	15.26	13.09	11.84	7	Stats 3, WindowServer 1, configd 1	chprobe 1.74%	877	8	0.0	
+1794381930	17.69	13.70	12.08	6	sysmond 4, Stats 1, configd 1	chprobe 4.72%	1372	32	0.0	
+1794381942	16.56	13.59	12.06	6	sysmond 4, claude 2, Stats 0	chprobe 2.23%	937	3	0.0	
+1794381955	14.99	13.38	12.01	1	claude 0, claude 0, claude 0	chprobe 12.41%	1367	5	0.0	
+1794381967	14.30	13.29	11.99	12	sysmond 3, Stats 3, claude 3	chprobe 48.14%	1385	4	0.0	

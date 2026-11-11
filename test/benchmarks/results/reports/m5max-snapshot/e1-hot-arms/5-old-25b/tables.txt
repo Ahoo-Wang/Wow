@@ -1,0 +1,32 @@
+## before the sweep 2026-11-11T01:33:29-0800
+             relname             | n_tup_ins | n_tup_upd | n_tup_hot_upd | n_live_tup | n_dead_tup | autovacuum_count 
+---------------------------------+-----------+-----------+---------------+------------+------------+------------------
+ wow_checkpoint                  |       576 |     19968 |         14057 |        576 |       1144 |                1
+ wow_failure_ledger              |         0 |         0 |             0 |          0 |          0 |                0
+ wow_format                      |         9 |         0 |             0 |          9 |          0 |                0
+ wow_lease                       |        64 |       960 |           863 |         64 |        111 |                1
+ wow_lease_member                |         2 |        24 |            24 |          2 |         24 |                0
+ wow_log__transfer__account      |    200006 |         0 |             0 |     201690 |          0 |                1
+ wow_log__transfer__partition    |        64 |    161464 |        161076 |         64 |        993 |                1
+ wow_log_aggregate               |         1 |         0 |             0 |          1 |          0 |                0
+ wow_snapshot__transfer__account |    100000 |    100006 |         59730 |     100243 |      57200 |                1
+ wow_snapshot_table              |         1 |         1 |             1 |          1 |          1 |                0
+ wow_timer_aggregate             |         0 |         0 |             0 |          0 |          0 |                0
+(11 rows)
+
+## after the sweep 2026-11-11T01:38:15-0800
+             relname             | n_tup_ins | n_tup_upd | n_tup_hot_upd | n_live_tup | n_dead_tup | autovacuum_count 
+---------------------------------+-----------+-----------+---------------+------------+------------+------------------
+ wow_checkpoint                  |       576 |    150922 |        145011 |        576 |        849 |                6
+ wow_failure_ledger              |         0 |         0 |             0 |          0 |          0 |                0
+ wow_format                      |         9 |         0 |             0 |          9 |          0 |                0
+ wow_lease                       |        64 |      7104 |          7007 |         64 |        127 |                6
+ wow_lease_member                |         2 |       175 |           175 |          2 |         14 |                1
+ wow_log__transfer__account      |   2209528 |         0 |             0 |    2204627 |          0 |                6
+ wow_log__transfer__partition    |        64 |    944431 |        943180 |         64 |        752 |                6
+ wow_log_aggregate               |         1 |         0 |             0 |          1 |          0 |                0
+ wow_snapshot__transfer__account |    100000 |   1503246 |       1453780 |      99992 |      23090 |                2
+ wow_snapshot_table              |         1 |         1 |             1 |          1 |          1 |                0
+ wow_timer_aggregate             |         0 |         0 |             0 |          0 |          0 |                0
+(11 rows)
+

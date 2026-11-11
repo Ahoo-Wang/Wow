@@ -1,30 +1,30 @@
-## begin 2026-11-03T00:26:19-0800
-uptime:  0:26  up 2 days, 19:08, 1 user, load averages: 25.56 14.30 10.84
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+## begin 2026-11-10T23:27:33-0800
+uptime: 23:27  up 1 day, 23:01, 2 users, load averages: 18.81 14.26 12.45
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
 busiest other processes (% of one core):
-  8.9 1 launchd
-  3.3 420 WindowServer
-  2.2 879 Stats
-  1.6 86960 Shadowrocket
-  1.0 361 configd
-  0.9 401 dasd
-  0.8 38113 claude
-  0.7 55435 mdworker_shared
-allowed JVMs (% of one core): 67826 
+  1.5 1103 Stats
+  1.1 349 configd
+  1.0 42514 bash
+  0.8 377 opendirectoryd
+  0.5 50579 claude
+  0.5 338 UserEventAgent
+  0.4 633 cfprefsd
+  0.4 481 syspolicyd
+allowed JVMs (% of one core): 38528 77572 0.0
 other JVMs:
-## end 2026-11-03T00:31:13-0800
-uptime:  0:31  up 2 days, 19:13, 1 user, load averages: 31.61 20.80 14.26
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+## end 2026-11-10T23:32:18-0800
+uptime: 23:32  up 1 day, 23:06, 2 users, load averages: 35.48 21.84 15.77
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
 busiest other processes (% of one core):
-  6.0 495 symptomsd
-  3.9 614 sysmond
-  3.2 879 Stats
-  2.4 44932 Activity Monitor
-  2.1 420 WindowServer
-  1.6 86960 Shadowrocket
-  1.0 361 configd
-  0.7 397 locationd
-allowed JVMs (% of one core): 67826 
+  5.4 477 symptomsd
+  2.7 1103 Stats
+  0.9 349 configd
+  0.7 408 WindowServer
+  0.2 55777 claude
+  0.2 52644 claude
+  0.2 50579 claude
+  0.2 481 syspolicyd
+allowed JVMs (% of one core): 38528 77572 0.1
 other JVMs:

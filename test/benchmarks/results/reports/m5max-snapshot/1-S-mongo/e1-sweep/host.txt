@@ -1,30 +1,30 @@
-## begin 2026-11-03T00:02:31-0800
-uptime:  0:02  up 2 days, 18:44, 1 user, load averages: 11.52 10.88 9.94
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-mongo wow-e2e-bench-kafka cosec-redis 
+## begin 2026-11-10T23:01:43-0800
+uptime: 23:01  up 1 day, 22:36, 2 users, load averages: 9.74 10.40 9.75
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-kafka wow-e2e-bench-mongo chprobe 
 busiest other processes (% of one core):
-  3.2 614 sysmond
-  0.9 44932 Activity Monitor
-  0.9 420 WindowServer
-  0.8 879 Stats
-  0.7 86960 Shadowrocket
-  0.6 493 syspolicyd
-  0.6 352 fseventsd
-  0.6 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
-allowed JVMs (% of one core): 67826 0.1
+  71.8 365 mds
+  55.4 408 WindowServer
+  17.9 500 mds_stores
+  13.6 49150 Claude
+  12.5 49671 Claude Helper (Renderer)
+  11.6 854 MacPacketTunnel
+  10.8 731 corespotlightd
+  9.6 49784 Claude Helper
+allowed JVMs (% of one core): 38528 77572 0.0
 other JVMs:
-## end 2026-11-03T00:07:15-0800
-uptime:  0:07  up 2 days, 18:49, 1 user, load averages: 19.50 12.22 10.44
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-mongo wow-e2e-bench-kafka cosec-redis 
+## end 2026-11-10T23:06:27-0800
+uptime: 23:06  up 1 day, 22:40, 2 users, load averages: 24.67 14.93 11.52
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-kafka wow-e2e-bench-mongo chprobe 
 busiest other processes (% of one core):
-  2.4 879 Stats
-  1.3 420 WindowServer
-  1.3 361 configd
-  0.6 24191 claude
-  0.6 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
-  0.3 573 AppleCentauriAlpha
-  0.1 691 MenuBarAgent
-  0.1 625 wifip2pd
-allowed JVMs (% of one core): 67826 0.0
+  50.9 408 WindowServer
+  11.4 49671 Claude Helper (Renderer)
+  9.5 49159 Claude Helper
+  2.3 49150 Claude
+  1.5 34017 mdworker_shared
+  1.1 365 mds
+  1.0 477 symptomsd
+  0.9 500 mds_stores
+allowed JVMs (% of one core): 38528 77572 0.0
 other JVMs:

@@ -1,13 +1,13 @@
-1793694381 [settle] 1s: node-1 0.01, node-2 0.01, node-3 0.02
-1793694382 [settle] 2s: node-1 0.01, node-2 0.01, node-3 0.01
-1793694383 [settle] 3s: node-1 0.01, node-2 0.01, node-3 0.01
-1793694383 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1793694423 [saturate] E1: concurrency=1 throughput=838.8/s p50=1ms errors={}
-1793694463 [saturate] E1: concurrency=4 throughput=2044.7/s p50=1ms errors={}
-1793694503 [saturate] E1: concurrency=16 throughput=4744.1/s p50=3ms errors={}
-1793694543 [saturate] E1: concurrency=64 throughput=8856.8/s p50=6ms errors={}
-1793694583 [saturate] E1: concurrency=256 throughput=15320.7/s p50=16ms errors={}
-1793694624 [saturate] E1: concurrency=1024 throughput=19274.8/s p50=38ms errors={}
-1793694673 [saturate] E1: concurrency=4096 throughput=9837.1/s p50=53ms errors={http-503-wow.command.unknown=135, http-429-wow.command.busy=24075, http-504-wow.wait.timeout=9366}
-1793694673 [saturate] saturation: 19274.8/s at concurrency 1024
-1793694673 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/3-N-postgres/e1-sweep
+1794382054 [settle] 1s: node-1 0.02, node-2 0.01, node-3 0.02
+1794382056 [settle] 2s: node-1 0.01, node-2 0.03, node-3 0.01
+1794382057 [settle] 3s: node-1 0.02, node-2 0.02, node-3 0.02
+1794382057 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794382097 [saturate] E1: concurrency=1 throughput=532.4/s p50=1ms errors={}
+1794382137 [saturate] E1: concurrency=4 throughput=2089.0/s p50=1ms errors={}
+1794382177 [saturate] E1: concurrency=16 throughput=2939.2/s p50=4ms errors={}
+1794382217 [saturate] E1: concurrency=64 throughput=7805.9/s p50=6ms errors={}
+1794382257 [saturate] E1: concurrency=256 throughput=16187.6/s p50=15ms errors={}
+1794382297 [saturate] E1: concurrency=1024 throughput=21166.6/s p50=35ms errors={}
+1794382338 [saturate] E1: concurrency=4096 throughput=10759.0/s p50=94ms errors={}
+1794382338 [saturate] saturation: 21166.6/s at concurrency 1024
+1794382338 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/3-N-postgres/e1-sweep

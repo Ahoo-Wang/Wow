@@ -1,6 +1,6 @@
 # 3-N-postgres/e3-c1024: E3 (uniform), 3 node(s) on postgres
 
-Result 5,893.5/s at 1,024 clients.
+Result 6,122.7/s at 1,024 clients.
 Sustainable (the highest step with a p99 of 200 ms or less and no error): none.
 Failed more than 1% (not a peak): none.
 
@@ -8,6 +8,6 @@ Generator cores are the load generator's, of the 18 processors it had; Generator
 
 | Clients | Throughput (/s) | p50 (ms) | p99 (ms) | OK | Errors | Generator cores | Generator thread | Other CPU | Host CPU | Load (1 min, max) | |
 | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| 1,024 | 5,893.5 | 137.22 | 663.55 | 353,608 | 0 | 0.81 | 0.12 | 0.15 / 0.21 | 12.5 | 32.7 |  |
+| 1,024 | 6,122.7 | 130.05 | 712.70 | 367,360 | 0 | 0.79 | 0.12 | 0.06 / 0.13 | 12.6 | 38.3 |  |
 
-Load averages before: 27.51 24.95 18.33; after: 31.30 26.57 19.53.
+Load averages before: 33.44 25.48 19.69; after: 27.79 26.05 20.45.

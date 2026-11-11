@@ -1,13 +1,13 @@
-1793694011 [settle] 1s: node-1 0.08
-1793694012 [settle] 2s: node-1 0.06
-1793694014 [settle] 3s: node-1 0.06
-1793694014 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1793694054 [saturate] E3: concurrency=1 throughput=216.9/s p50=4ms errors={}
-1793694094 [saturate] E3: concurrency=4 throughput=527.8/s p50=6ms errors={}
-1793694134 [saturate] E3: concurrency=16 throughput=1509.2/s p50=9ms errors={}
-1793694174 [saturate] E3: concurrency=64 throughput=3330.3/s p50=18ms errors={}
-1793694214 [saturate] E3: concurrency=256 throughput=5100.5/s p50=48ms errors={}
-1793694254 [saturate] E3: concurrency=1024 throughput=7629.5/s p50=126ms errors={}
-1793694303 [saturate] E3: concurrency=4096 throughput=3547.0/s p50=569ms errors={http-429-wow.command.busy=311424, http-504-wow.wait.timeout=1493}
-1793694303 [saturate] saturation: 7629.5/s at concurrency 1024
-1793694303 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/1-S-mongo/e3-sweep
+1794381687 [settle] 1s: node-1 0.19
+1794381688 [settle] 2s: node-1 0.15
+1794381689 [settle] 3s: node-1 0.21
+1794381689 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794381730 [saturate] E3: concurrency=1 throughput=208.3/s p50=4ms errors={}
+1794381770 [saturate] E3: concurrency=4 throughput=586.7/s p50=6ms errors={}
+1794381810 [saturate] E3: concurrency=16 throughput=1218.3/s p50=10ms errors={}
+1794381850 [saturate] E3: concurrency=64 throughput=3118.8/s p50=18ms errors={}
+1794381890 [saturate] E3: concurrency=256 throughput=4436.5/s p50=53ms errors={}
+1794381930 [saturate] E3: concurrency=1024 throughput=7446.5/s p50=129ms errors={}
+1794381980 [saturate] E3: concurrency=4096 throughput=3541.6/s p50=204ms errors={http-429-wow.command.busy=4, http-504-wow.wait.timeout=5058}
+1794381980 [saturate] saturation: 7446.5/s at concurrency 1024
+1794381981 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/1-S-mongo/e3-sweep

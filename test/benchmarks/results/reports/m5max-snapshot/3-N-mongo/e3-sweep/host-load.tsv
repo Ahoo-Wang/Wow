@@ -1,25 +1,28 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1793695494	32.79	24.69	20.35	32	sysmond 12, WindowServer 3, Stats 3	cosec-redis 0.16%	221	0		
-1793695507	26.51	23.70	20.07	9	Stats 2, WindowServer 2, claude 1	cosec-redis 0.14%	191	5		
-1793695519	22.82	23.00	19.87	4	Activity Monitor 1, AppleCentauriAlpha 1, Stats 1	cosec-redis 0.15%	204	9		
-1793695531	18.63	22.07	19.59	30	runningboardd 15, PerfPowerServices 11, Activity Monitor 1	cosec-redis 0.14%	128	1		
-1793695543	16.29	21.46	19.40	21	Stats 7, WindowServer 4, sysmond 3	cosec-redis 0.15%	388	17		
-1793695555	13.85	20.66	19.15	9	Stats 3, WindowServer 2, configd 2	cosec-redis 0.16%	292	2		
-1793695568	13.14	20.29	19.04	4	Stats 1, AppleCentauriAlpha 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.16%	319	2		
-1793695580	11.67	19.74	18.86	5	Activity Monitor 1, claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.15%	668	3		
-1793695592	11.14	19.23	18.69	16	Stats 6, WindowServer 3, configd 3	cosec-redis 0.15%	934	5		
-1793695605	10.34	18.79	18.54	13	WindowServer 4, Stats 2, Shadowrocket 2	cosec-redis 0.14%	1015	5		
-1793695617	11.48	18.63	18.48	7	WindowServer 1, sysmond 1, Stats 1	cosec-redis 0.15%	968	6		
-1793695629	16.35	19.40	18.76	4	WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 1	cosec-redis 0.16%	1233	9		
-1793695641	20.49	20.17	19.04	20	Stats 6, WindowServer 4, configd 3	cosec-redis 0.17%	1116	11		
-1793695653	20.41	20.17	19.06	15	sysmond 5, Stats 2, WindowServer 2	cosec-redis 0.20%	1068	10		
-1793695666	23.96	21.00	19.38	9	WindowServer 2, Stats 1, AppleCentauriAlpha 1	cosec-redis 0.33%	1337	11		
-1793695678	23.19	20.94	19.37	9	sysmond 4, Activity Monitor 1, WindowServer 1	cosec-redis 0.18%	1291	10		
-1793695690	23.70	21.11	19.46	17	Stats 5, sysmond 4, configd 3	cosec-redis 0.17%	1309	9		
-1793695702	24.46	21.35	19.56	16	sysmond 4, WindowServer 2, symptomsd 2	cosec-redis 0.81%	1380	9		
-1793695715	24.44	21.46	19.62	7	WindowServer 1, AppleCentauriAlpha 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.20%	1357	9		
-1793695727	20.86	20.82	19.42	9	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, airportd 1, AppleCentauriAlpha 1	cosec-redis 0.15%	1345	12		
-1793695739	23.07	21.32	19.62	17	Stats 7, WindowServer 3, configd 3	cosec-redis 0.23%	1364	10		
-1793695751	25.15	21.92	19.86	10	WindowServer 3, Stats 2, Shadowrocket 1	cosec-redis 0.28%	1383	4		
-1793695764	24.82	21.95	19.90	9	Activity Monitor 4, WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.18%	1385	4		
-1793695776	35.58	24.43	20.82	5	WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, sysmond 1	cosec-redis 0.21%	1411	4		
+1794386368	34.96	19.37	16.41	74	WindowServer 38, Claude Helper 12, sysmond 9		1548	0	0.1	
+1794386380	34.29	19.76	16.59	78	WindowServer 35, Claude Helper (Renderer) 15, Claude Helper 12		1089	0	0.1	
+1794386393	30.49	19.60	16.58	53	WindowServer 35, Claude Helper 11, Claude Helper (Renderer) 4		760	0	0.1	
+1794386406	24.18	18.74	16.33	75	WindowServer 42, Claude Helper 14, Stats 6		428	0	0.0	
+1794386418	21.75	18.40	16.24	64	WindowServer 32, Claude Helper 10, Claude Helper (Renderer) 6		245	7	0.0	
+1794386430	19.47	18.03	16.13	83	WindowServer 40, Claude Helper 13, Claude Helper (Renderer) 8		261	2	0.0	
+1794386442	16.41	17.42	15.94	75	WindowServer 39, Claude Helper 11, SCIM_Extension 9		250	8	0.0	
+1794386455	14.87	17.06	15.83	67	WindowServer 34, Claude Helper 12, Claude Helper (Renderer) 4		423	2	0.0	
+1794386467	11.86	16.29	15.58	60	WindowServer 33, Claude Helper 10, Stats 5		365	2	0.0	
+1794386479	10.27	15.80	15.41	70	WindowServer 22, SCIM_Extension 11, Stats 10		307	2	0.0	
+1794386491	12.78	16.11	15.53	44	WindowServer 18, SCIM_Extension 6, Claude 4		892	5	0.0	
+1794386503	11.49	15.73	15.40	7	sysmond 3, bash 0, wifip2pd 0		864	6	0.0	
+1794386516	12.07	15.67	15.39	33	WindowServer 10, SCIM_Extension 9, Claude Helper (Renderer) 4		819	4	0.4	
+1794386528	13.86	15.96	15.50	27	WindowServer 5, Stats 4, SCIM_Extension 4		1162	9	0.1	
+1794386540	15.48	16.21	15.59	29	WindowServer 4, mdworker_shared 2, claude 2		1077	8	0.0	
+1794386552	16.31	16.39	15.66	10	WindowServer 2, Claude Helper (Renderer) 2, Claude 1		1173	9	0.1	
+1794386565	17.03	16.54	15.73	5	claude 1, claude 1, WindowServer 1		1353	10	27.4	
+1794386577	21.08	17.44	16.06	13	Stats 5, configd 2, WindowServer 2		1323	10	0.1	
+1794386589	22.00	17.77	16.20	27	WindowServer 8, Claude 3, Shadowrocket 3		1304	10	0.1	
+1794386601	28.80	19.39	16.79	9	WindowServer 3, Claude Helper 2, Claude Helper (Renderer) 1		1303	9	0.1	
+1794386614	30.15	19.97	17.03	4	AppleCentauriAlpha 1, WindowServer 1, Shadowrocket 1		1414	11	0.1	
+1794386626	33.00	21.09	17.48	19	Stats 4, WindowServer 3, configd 2		1419	13	0.1	
+1794386638	38.93	22.71	18.09	26	WindowServer 7, Claude 4, Shadowrocket 2		1401	12	0.1	
+1794386650	38.10	23.06	18.27	3	AppleCentauriAlpha 1, Stats 1, wifip2pd 0		1063	4	0.0	
+1794386663	41.06	24.45	18.85	17	WindowServer 6, SCIM_Extension 2, Claude 2		1474	4	0.1	
+1794386675	43.28	25.51	19.29	76	WindowServer 14, Claude 11, Stats 11		1066	4	0.0	
+1794386687	42.45	26.16	19.63	34	WindowServer 7, Claude 6, Claude Helper (Renderer) 5		1123	2	0.1	

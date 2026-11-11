@@ -1,30 +1,30 @@
-## begin 2026-11-02T23:39:27-0800
-uptime: 23:39  up 2 days, 18:21, 1 user, load averages: 22.14 13.61 8.24
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+## begin 2026-11-10T22:39:25-0800
+uptime: 22:39  up 1 day, 22:13, 2 users, load averages: 23.57 11.69 6.05
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
 busiest other processes (% of one core):
-  108.5 37674 Google Chrome Helper (Aperitif Renderer)
-  38.4 420 WindowServer
-  32.1 95459 Google Chrome
-  20.4 95465 Google Chrome Helper (Aperitif)
-  16.2 95466 Google Chrome Helper (Aperitif)
-  5.1 879 Stats
-  4.1 25573 MacPacketTunnel
-  3.7 96296 Claude
-allowed JVMs (% of one core): 67826 0.0
+  53.8 408 WindowServer
+  6.9 49159 Claude Helper
+  5.3 592 sysmond
+  2.7 49671 Claude Helper (Renderer)
+  2.6 597 AppleCentauriAlpha
+  1.7 854 MacPacketTunnel
+  1.5 55777 claude
+  1.5 52644 claude
+allowed JVMs (% of one core): 38528 77572 0.0
 other JVMs:
-## end 2026-11-02T23:40:52-0800
-uptime: 23:40  up 2 days, 18:23, 1 user, load averages: 18.17 14.95 9.30
-swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+## end 2026-11-10T22:40:51-0800
+uptime: 22:40  up 1 day, 22:15, 2 users, load averages: 24.74 15.04 7.86
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
 busiest other processes (% of one core):
-  4.8 879 Stats
-  3.1 420 WindowServer
-  2.5 1472 claude
-  2.3 361 configd
-  1.2 495 symptomsd
-  1.0 35243 Claude Helper (Renderer)
-  0.9 86960 Shadowrocket
-  0.8 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
-allowed JVMs (% of one core): 67826 0.0
+  51.1 408 WindowServer
+  9.0 49159 Claude Helper
+  6.9 477 symptomsd
+  3.4 49671 Claude Helper (Renderer)
+  3.1 597 AppleCentauriAlpha
+  3.0 592 sysmond
+  2.8 854 MacPacketTunnel
+  2.7 731 corespotlightd
+allowed JVMs (% of one core): 38528 77572 0.0
 other JVMs:
