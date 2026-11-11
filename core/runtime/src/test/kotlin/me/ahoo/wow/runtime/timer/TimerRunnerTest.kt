@@ -13,40 +13,21 @@
 
 package me.ahoo.wow.runtime.timer
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
-import me.ahoo.wow.kernel.memory.InMemoryTimerStore
-import me.ahoo.wow.runtime.CommandBusyException
-import me.ahoo.wow.runtime.health.NodeFatals
-import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.subscription.SubscriptionId
-import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZoneOffset
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -58,92 +39,7 @@ import kotlin.time.Duration.Companion.seconds
  * retries and the parking, an expiry, a cancel that wins the race, a handover, one query a round over every partition,
  * and the rate a backlog drains at.
  */
-class TimerRunnerTest {
-    private val clock = TestClock()
-    private val store = InMemoryTimerStore()
-    private val ledger = InMemoryFailureLedger()
-    private val fired = CopyOnWriteArrayList<String>()
-    private val firedAt = CopyOnWriteArrayList<Long>()
-
-    /** What the firer answers, by timer key; a throwable is thrown. */
-    private val answers = ConcurrentHashMap<String, Any>()
-
-    /** The due time each send carried for its slot, as its target reads it. */
-    private val sentDue = CopyOnWriteArrayList<Long>()
-
-    /** A send of a timer of that key waits for its gate before it answers. */
-    private val gates = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
-
-    /** A send of a timer of that key takes that long on the clock before it answers. */
-    private val takes = ConcurrentHashMap<String, Duration>()
-
-    private val firer = TimerFirer { timer ->
-        fired += timer.id
-        sentDue += timer.context.due
-        firedAt += System.nanoTime()
-        takes[timer.key]?.let(clock::advance)
-        gates[timer.key]?.await()
-        when (val answer = answers[timer.key] ?: TimerOutcomes.COMMITTED) {
-            is Throwable -> throw answer
-            else -> answer as String
-        }
-    }
-    private val loops = CopyOnWriteArrayList<TimerLoop>()
-    private val runners = CopyOnWriteArrayList<TimerRunner>()
-
-    @AfterEach
-    fun stop(): Unit = runBlocking {
-        runners.forEach { it.stop() }
-        loops.forEach { it.close() }
-    }
-
-    private fun loop(
-        expiresAfter: Duration? = null,
-        maxAttempts: Int = 3,
-        maxFireRate: Double? = null,
-        pollInterval: Duration = 5.milliseconds,
-        maxBusyRetries: Int = 20,
-        fatals: NodeFatals = NodeFatals.NONE,
-        parallelism: Int = TimerOptions().parallelism,
-    ): TimerLoop = TimerLoop(
-        TimerOptions(
-            pollInterval = pollInterval,
-            parallelism = parallelism,
-            lookahead = 1.seconds,
-            retry = RetryPolicy(maxAttempts = maxAttempts, initialBackoff = 1.seconds, maxBackoff = 1.minutes),
-            expiresAfter = expiresAfter,
-            maxFireRate = maxFireRate,
-            claimTimeout = CLAIM,
-            maxBusyRetries = maxBusyRetries,
-        ),
-        clock,
-        fatals = fatals,
-    ).also { loops += it }
-
-    private fun runner(
-        expiresAfter: Duration? = null,
-        timers: TimerStore = store,
-        loop: TimerLoop = loop(expiresAfter),
-    ): TimerRunner = TimerRunner(SHOP, timers, ledger, firer, loop).also { runners += it }
-
-    private fun timer(key: String, dueIn: Duration = Duration.ZERO, partition: Int = 0): Timer {
-        val dueAt = clock.millis() + dueIn.inWholeMilliseconds
-        return Timer(
-            id = "${order("o-1")}#$key@1",
-            owner = order("o-1"),
-            key = key,
-            version = 1,
-            partition = partition,
-            rule = ScheduleRule.At(dueAt),
-            dueAt = dueAt,
-            target = order("o-1"),
-            commandType = "shop.order.CancelOrder",
-            body = """{"reason":"unpaid"}""",
-        )
-    }
-
-    private suspend fun status(key: String): Timer = checkNotNull(store.find(order("o-1"), key))
-
+class TimerRunnerTest : TimerRunnerFixtures() {
     @Test
     fun `a timer is sent once it is due, and recorded fired with its outcome`(): Unit = runBlocking {
         store.put(timer("pay", dueIn = 500.milliseconds))
@@ -218,118 +114,6 @@ class TimerRunnerTest {
         status("remind").outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
         ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
     }
-
-    @Test
-    fun `a busy target is backpressure, sent again without spending an attempt`(): Unit = runBlocking {
-        // Review R2.1-1: the node's in-flight bound never parks a timer.
-        answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
-        store.put(timer("pay"))
-        runner().startPartition(0)
-        repeat(5) { round ->
-            eventually { fired.size == round + 1 && status("pay").status == TimerStatus.PENDING }
-            status("pay").attempts.assert().isEqualTo(0)
-            status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
-            clock.advance(1.seconds)
-        }
-        ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
-        answers.remove("pay")
-        eventually { status("pay").status == TimerStatus.FIRED }
-        status("pay").attempts.assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `a target that stays busy spends an attempt after each run of busy retries, and parks the timer`(): Unit =
-        runBlocking {
-            answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
-            store.put(timer("pay"))
-            runner(loop = loop(maxAttempts = 3, maxBusyRetries = 2)).startPartition(0)
-            // Two busy retries, then the third refusal spends an attempt; twice more, and the third attempt parks it.
-            listOf(0, 0, 1, 1, 1, 2, 2, 2).forEachIndexed { round, attempts ->
-                eventually { fired.size == round + 1 && status("pay").status == TimerStatus.PENDING }
-                status("pay").attempts.assert().isEqualTo(attempts)
-                clock.advance(2.seconds)
-            }
-            eventually { status("pay").status == TimerStatus.PARKED }
-            fired.size.assert().isEqualTo(9)
-            status("pay").attempts.assert().isEqualTo(3)
-            eventually { ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")) != null }
-        }
-
-    @Test
-    fun `an error or a cancellation the sending throws itself is a failed attempt, retried`(): Unit = runBlocking {
-        // Finding A1-12: neither may leave the timer stuck as being sent.
-        answers["pay"] = NoClassDefFoundError("shop/CancelOrder")
-        answers["remind"] = CancellationException("the target's own timeout")
-        store.put(timer("pay"))
-        store.put(timer("remind"))
-        runner().startPartition(0)
-        eventually { status("pay").attempts == 1 && status("remind").attempts == 1 }
-        status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
-        status("pay").outcome.assert().isEqualTo("java.lang.NoClassDefFoundError: shop/CancelOrder")
-        status("remind").status.assert().isEqualTo(TimerStatus.PENDING)
-        answers.clear()
-        clock.advance(1.seconds)
-        eventually { status("pay").status == TimerStatus.FIRED && status("remind").status == TimerStatus.FIRED }
-    }
-
-    @Test
-    fun `a fatal error is the node's, its timer sent again by the partition's next owner, never here`(): Unit =
-        runBlocking {
-            // X-80: nothing retries it in this process; the claim lapses for the next owner.
-            val fatals = NodeFatals("node-1")
-            answers["pay"] = OutOfMemoryError("not really")
-            store.put(timer("pay"))
-            val runner = runner(loop = loop(fatals = fatals))
-            runner.startPartition(0)
-            eventually { fired.size == 1 && fatals.isFatal }
-            fatals.first!!.component.assert().isEqualTo(Component.TIMER)
-            fatals.first!!.name.assert().isEqualTo(SHOP)
-            fatals.first!!.partition.assert().isEqualTo(0)
-            status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
-            answers.clear()
-            clock.advance(CLAIM)
-            delay(100)
-            fired.size.assert().isEqualTo(1)
-            ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
-            // Handed off: the partition's next owner sends it once the claim lapsed.
-            runner.stopPartition(0)
-            runner(loop = loop()).startPartition(0)
-            eventually { status("pay").status == TimerStatus.FIRED }
-            fired.size.assert().isEqualTo(2)
-        }
-
-    @Test
-    fun `a stack overflow the sending throws is a failed attempt, retried, never the node's`(): Unit = runBlocking {
-        val fatals = NodeFatals("node-1")
-        answers["pay"] = StackOverflowError()
-        store.put(timer("pay"))
-        runner(loop = loop(fatals = fatals)).startPartition(0)
-        eventually { status("pay").attempts == 1 }
-        status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
-        status("pay").outcome.assert().startsWith(StackOverflowError::class.java.name)
-        answers.clear()
-        clock.advance(1.seconds)
-        eventually { status("pay").status == TimerStatus.FIRED }
-        fatals.isFatal.assert().isFalse()
-    }
-
-    @Test
-    fun `a stack overflow outside the sending leaves the timer to the next load, never the node's`(): Unit =
-        runBlocking {
-            val fatals = NodeFatals("node-1")
-            val overflowing = AtomicBoolean(true)
-            val claiming = object : TimerStore by store {
-                override suspend fun settle(changes: List<TimerChange>): Int {
-                    if (overflowing.compareAndSet(true, false)) throw StackOverflowError()
-                    return store.settle(changes)
-                }
-            }
-            store.put(timer("pay"))
-            runner(timers = claiming, loop = loop(fatals = fatals)).startPartition(0)
-            eventually { status("pay").status == TimerStatus.FIRED }
-            fired.assert().containsExactly(timer("pay").id)
-            fatals.isFatal.assert().isFalse()
-        }
 
     @Test
     fun `a parking the store does not write leaves its ledger entry, which a retry resolves finding nothing parked`():
@@ -496,105 +280,6 @@ class TimerRunnerTest {
     }
 
     @Test
-    fun `one loop reads each store once a round, for every partition it owns, and survives a failed read`(): Unit =
-        runBlocking {
-            val reads = CopyOnWriteArrayList<Set<Int>>()
-            var failing = true
-            val counting = object : TimerStore by store {
-                override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
-                    reads += partitions
-                    if (failing) {
-                        failing = false
-                        throw IllegalStateException("The store is unreachable.")
-                    }
-                    return store.due(partitions, until, limit)
-                }
-            }
-            val other = InMemoryTimerStore()
-            val otherReads = CopyOnWriteArrayList<Set<Int>>()
-            val counted = object : TimerStore by other {
-                override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
-                    otherReads += partitions
-                    return other.due(partitions, until, limit)
-                }
-            }
-            val loop = loop()
-            val first = runner(timers = counting, loop = loop)
-            val second = runner(timers = counted, loop = loop)
-            (0 until 4).forEach { first.startPartition(it) }
-            second.startPartition(2)
-            store.put(timer("pay", partition = 3))
-            other.put(timer("remind", partition = 2))
-            eventually { status("pay").status == TimerStatus.FIRED }
-            eventually { other.find(order("o-1"), "remind")?.status == TimerStatus.FIRED }
-            val rounds = loop.rounds
-            rounds.assert().isGreaterThan(1)
-            // Never more than one read of a store per round, each of all the partitions it owns there.
-            reads.size.toLong().assert().isLessThanOrEqualTo(rounds)
-            reads.last().assert().containsExactlyInAnyOrder(0, 1, 2, 3)
-            otherReads.size.toLong().assert().isLessThanOrEqualTo(rounds)
-            otherReads.last().assert().containsExactly(2)
-        }
-
-    @Test
-    fun `a backlog of overdue timers drains at the partition's rate`(): Unit = runBlocking {
-        val backlog = (1..BACKLOG).map { timer("due-$it") }
-        backlog.forEach { store.put(it) }
-        clock.advance(10.minutes)
-        runner(loop = loop(maxFireRate = RATE)).startPartition(0)
-        eventually { fired.size == BACKLOG }
-        val spanMillis = (firedAt.max() - firedAt.min()) / 1_000_000
-        // BACKLOG firings at RATE a second take at least (BACKLOG - 1) / RATE seconds.
-        spanMillis.assert().isGreaterThanOrEqualTo(((BACKLOG - 1) * 1_000 / RATE).toLong() - TOLERANCE)
-        eventually { backlog.all { status(it.key).status == TimerStatus.FIRED } }
-    }
-
-    @Test
-    fun `a slow send keeps the partition's timers in its wheel, and they start at the rate once it ends`(): Unit =
-        runBlocking {
-            val gate = CompletableDeferred<Unit>().also { gates["due-1"] = it }
-            (1..BACKLOG).forEach { store.put(timer("due-$it")) }
-            val runner = runner(loop = loop(maxFireRate = RATE, parallelism = 1))
-            runner.startPartition(0)
-            eventually { fired.size == 1 }
-            // Longer than the rate's allowance for every other timer: none of them leaves the wheel meanwhile.
-            delay(((BACKLOG * 1_000) / RATE).toLong())
-            fired.size.assert().isEqualTo(1)
-            runner.loaded(0).assert().isEqualTo(BACKLOG - 1)
-            gate.complete(Unit)
-            eventually { fired.size == BACKLOG }
-            // Each send after the slow one starts at the rate, not at once.
-            firedAt.drop(1).zipWithNext { earlier, later -> (later - earlier) / 1_000_000 }
-                .assert().allMatch { it >= (1_000 / RATE).toLong() - TOLERANCE }
-        }
-
-    @Test
-    fun `a failed send is due again its backoff after it failed, however long it took`(): Unit = runBlocking {
-        answers["pay"] = IllegalStateException("down")
-        takes["pay"] = 5.seconds
-        val started = clock.millis()
-        store.put(timer("pay"))
-        runner().startPartition(0)
-        eventually { status("pay").attempts == 1 }
-        status("pay").dueAt.assert().isEqualTo(started + 5_000 + 1_000)
-        delay(50)
-        fired.size.assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `a busy target's refusal of a slow send is sent again the first backoff after the refusal`(): Unit =
-        runBlocking {
-            answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
-            takes["pay"] = 5.seconds
-            val started = clock.millis()
-            store.put(timer("pay"))
-            runner().startPartition(0)
-            eventually { fired.size == 1 && status("pay").status == TimerStatus.PENDING }
-            status("pay").dueAt.assert().isEqualTo(started + 5_000 + 1_000)
-            status("pay").attempts.assert().isEqualTo(0)
-        }
-
-    @Test
     fun `a rate is positive`() {
         assertThrows<IllegalArgumentException> { TimerOptions(maxFireRate = 0.0) }
     }
@@ -604,28 +289,4 @@ class TimerRunnerTest {
         assertThrows<IllegalArgumentException> { TimerOptions(maxEarlyWait = (-1).seconds) }
         TimerOptions(maxEarlyWait = Duration.ZERO).maxEarlyWait.assert().isEqualTo(Duration.ZERO)
     }
-
-    private companion object {
-        const val BACKLOG = 6
-        const val RATE = 20.0
-        const val TOLERANCE = 30L
-        val CLAIM = 2.seconds
-    }
-}
-
-/** A clock that stands still until a test moves it. */
-class TestClock(start: Long = 1_700_000_000_000L) : Clock() {
-    private val millis = AtomicLong(start)
-
-    fun advance(by: Duration) {
-        millis.addAndGet(by.inWholeMilliseconds)
-    }
-
-    override fun millis(): Long = millis.get()
-
-    override fun instant(): Instant = Instant.ofEpochMilli(millis())
-
-    override fun getZone(): ZoneId = ZoneOffset.UTC
-
-    override fun withZone(zone: ZoneId): Clock = this
 }
