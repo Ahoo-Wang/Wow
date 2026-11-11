@@ -87,8 +87,7 @@
    * words. A focused row's ring is an inset shadow, painted over the
    * background, so it covers the bar's inner `focus-width` while the row has
    * focus and the rest of the bar still shows. A record row says selected by `data-state`, an
-   * analysis group pressed by `data-pressed`. Unset, the gradient is
-   * invalid, `background-image` is `none`, and nothing is drawn.
+   * analysis group pressed by `data-pressed`.
    */
   [data-slot='table-row']:is([data-state='selected'], [data-pressed])
     > :first-child {
@@ -461,11 +460,11 @@
   }
 
   /*
-   * A toggle pressed — the registry's `muted` unless a theme says
-   * `control-pressed`. A segmented control's pressed item is a thumb on its
+   * A toggle pressed: `control-pressed`, the ink at the pressed strength,
+   * so it is not a hovered one's fill. A segmented control's pressed item is a thumb on its
    * track and takes `control-thumb` instead (below, later and heavier).
    */
   .fve\:group\/toggle:is([aria-pressed='true'], [data-state='on']) {
-    background-color: var(--_fve-control-pressed, var(--muted));
+    background-color: var(--_fve-control-pressed);
   }
 }

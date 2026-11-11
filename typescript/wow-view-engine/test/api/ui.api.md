@@ -7538,7 +7538,6 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "totals";
 }, {
-    readonly fallback: "muted";
     readonly brand: true;
     readonly tier: "role";
     readonly kind: "color";
@@ -7568,6 +7567,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "row-hover";
 }, {
+    readonly fallback: "primary";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7618,6 +7618,33 @@ const TOKENS: readonly [{
     readonly preset: true;
     readonly area: RoleArea;
     readonly name: "table-sort-idle";
+}, {
+    readonly kind: "number";
+    readonly tier: "role";
+    readonly modes: 2;
+    readonly block: true;
+    readonly own: true;
+    readonly preset: true;
+    readonly area: RoleArea;
+    readonly name: "state-hover";
+}, {
+    readonly kind: "number";
+    readonly tier: "role";
+    readonly modes: 2;
+    readonly block: true;
+    readonly own: true;
+    readonly preset: true;
+    readonly area: RoleArea;
+    readonly name: "state-pressed";
+}, {
+    readonly kind: "number";
+    readonly tier: "role";
+    readonly modes: 2;
+    readonly block: true;
+    readonly own: true;
+    readonly preset: true;
+    readonly area: RoleArea;
+    readonly name: "state-selected";
 }, {
     readonly fallback: "accent";
     readonly tier: "role";

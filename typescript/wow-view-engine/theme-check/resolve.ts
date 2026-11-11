@@ -524,14 +524,21 @@ export function createResolver({
       const mix = /^color-mix\(in oklab,\s*([\s\S]+)\)$/.exec(value);
       if (mix) {
         const [first, second] = splitArguments(mix[1]);
+        // A weight is a percentage, or a token that holds one: a state's
+        // strength (`var(--_fve-state-hover)`), as this call declares it.
         const weighted = (part: string) => {
-          const match = /^([\s\S]+?)\s+([\d.]+)%$/.exec(part);
-          return match
-            ? {
-                color: evaluate(match[1], seen),
-                weight: Number(match[2]) / 100,
-              }
-            : { color: evaluate(part, seen), weight: undefined };
+          const match = /^([\s\S]+?)\s+(?:([\d.]+)%|var\((--[\w-]+)\))$/.exec(
+            part,
+          );
+          if (!match) return { color: evaluate(part, seen), weight: undefined };
+          const share =
+            match[2] ?? /^([\d.]+)%$/.exec(text.get(match[3]) ?? '')?.[1];
+          if (share === undefined)
+            throw new Error(`${match[3]} is not a share of a mix`);
+          return {
+            color: evaluate(match[1], seen),
+            weight: Number(share) / 100,
+          };
         };
         const one = weighted(first);
         const other = weighted(second);

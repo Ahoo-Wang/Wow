@@ -173,7 +173,7 @@ export const TOKENS = [
   },
   { name: 'table-header-divider', ...role('table') },
   { name: 'totals', ...role('table'), fallback: 'muted' },
-  { name: 'row-selected', ...role('table'), fallback: 'muted', brand: true },
+  { name: 'row-selected', ...role('table'), brand: true },
   {
     name: 'row-selected-foreground',
     ...role('table'),
@@ -181,8 +181,8 @@ export const TOKENS = [
   },
   { name: 'row-hover', ...role('table') },
   // A mark on a selected row that is not its colour: a bar down its leading
-  // edge (none unset), for a table with no checkbox to say it (WCAG 1.4.1).
-  { name: 'row-selected-mark', ...role('table') },
+  // edge, for a table with no checkbox to say it (WCAG 1.4.1).
+  { name: 'row-selected-mark', ...role('table'), fallback: 'primary' },
   {
     name: 'row-selected-mark-link',
     ...link('table', 'row-selected-mark', 'primary'),
@@ -190,6 +190,12 @@ export const TOKENS = [
   { name: 'row-stripe', ...role('table'), fallback: 'content' },
   { name: 'row-divider', ...role('table'), fallback: 'border' },
   { name: 'table-sort-idle', ...measure('table', 'number') },
+  // How strongly a state shows, the numbers the states' built-in values are
+  // mixed by: how much of the ink a thing under the pointer and a pressed
+  // one take over their ground, and how much of the primary a selected one.
+  { name: 'state-hover', ...role('state'), kind: 'number' },
+  { name: 'state-pressed', ...role('state'), kind: 'number' },
+  { name: 'state-selected', ...role('state'), kind: 'number' },
   // What marks a state: a highlighted item, the view on screen, a control
   // under the pointer or pressed.
   { name: 'highlight', ...role('state'), fallback: 'accent' },

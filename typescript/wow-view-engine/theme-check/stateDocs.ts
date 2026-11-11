@@ -39,7 +39,33 @@ const linked = (role: string, to: string): TokenDoc => ({
   light: { en: 'unset: not linked', zh: '不设：不链接' },
 });
 
+/** A strength: a share, larger on a dark ground. */
+const strength = (en: string, zh: string, light: string, dark: string) =>
+  ({
+    role: { en, zh },
+    light: { en: `\`${light}\``, zh: `\`${light}\`` },
+    dark: { en: `\`${dark}\``, zh: `\`${dark}\`` },
+  }) satisfies TokenDoc;
+
 export const STATE_DOCS = {
+  'state-hover': strength(
+    'How much of the ink a thing under the pointer takes: a row, a button, a toggle',
+    '指针下的东西取多少墨色：行、按钮、切换',
+    '3%',
+    '6%',
+  ),
+  'state-pressed': strength(
+    'How much of the ink a pressed control takes',
+    '按下的控件取多少墨色',
+    '7%',
+    '12%',
+  ),
+  'state-selected': strength(
+    'How much of the primary a selected row takes',
+    '选中的行取多少主色',
+    '7%',
+    '12%',
+  ),
   highlight: {
     role: {
       en: 'The item a menu, a select or a combobox has under the keyboard or the pointer',
@@ -93,13 +119,17 @@ export const STATE_DOCS = {
       en: 'A button or a toggle under the pointer',
       zh: '指针下的按钮或切换',
     },
-    light: OWN_CONTROL,
-    dark: OWN_CONTROL,
+    light: {
+      en: '`foreground` at `state-hover`',
+      zh: '`foreground` 按 `state-hover`',
+    },
   },
   'control-pressed': {
     role: { en: 'A toggle pressed', zh: '按下的切换' },
-    light: { en: 'unset: `muted`', zh: '不设：`muted`' },
-    dark: { en: 'unset: `muted`', zh: '不设：`muted`' },
+    light: {
+      en: '`foreground` at `state-pressed`',
+      zh: '`foreground` 按 `state-pressed`',
+    },
   },
   'outline-hover-edge': {
     role: {
@@ -138,7 +168,7 @@ export const MARK_DOCS = {
       en: "A bar down a selected row's left edge: the selection said by more than its colour",
       zh: '选中行左边的一道色条：不只靠颜色说出选中',
     },
-    light: { en: 'unset: none', zh: '不设：没有' },
+    light: { en: '`primary`', zh: '`primary`' },
   },
   'row-selected-mark-link': linked('row-selected-mark', 'primary'),
 } as const satisfies Record<string, TokenDoc>;

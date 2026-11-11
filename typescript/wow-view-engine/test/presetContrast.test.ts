@@ -54,26 +54,24 @@ describe('the pairs measured', () => {
       const names = contrastPairs(mode).map(({ name }) => name);
       expect(new Set(names).size).toBe(names.length);
       // `porcelain` fills its controls, so every pair a filled control
-      // paints applies to it — all but the hover fill and the selected
-      // row's bar, which it leaves unset.
+      // paints applies to it.
       expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(
-        contrastPairs(mode)
-          .filter(
-            ({ requires }) =>
-              requires !== 'control-hover' && requires !== 'row-selected-mark',
-          )
-          .map(({ name }) => name),
+        contrastPairs(mode).map(({ name }) => name),
       );
-      // `contrast` draws the bar, so it is measured off the selected row.
-      expect(measure('contrast', mode).map(({ name }) => name)).toContain(
-        'row-selected-mark mark on marked selected row',
-      );
-      // `azure` gives the hover fill, so what is painted on it is measured.
-      expect(measure('azure', mode).map(({ name }) => name)).toContain(
-        'outline-hover-foreground text on hovered outline button on its hover fill',
-      );
-      // Where a theme leaves the control fill unset, those pairs are not
-      // painted, and the arithmetic has nothing to measure.
+      // The selected row's bar and a control's hover fill have a value in
+      // every theme (the primary; the ink at the hover strength), so each
+      // is measured in every theme.
+      for (const preset of PRESET_NAMES) {
+        const names = measure(preset, mode).map(({ name }) => name);
+        expect(names, preset).toContain(
+          'row-selected-mark mark on marked selected row',
+        );
+        expect(names, preset).toContain(
+          'outline-hover-foreground text on hovered outline button',
+        );
+      }
+      // Where a theme leaves the control fill unset, the pairs painted on
+      // it are not painted, and the arithmetic has nothing to measure.
       expect(measure('neutral', mode).map(({ name }) => name)).toEqual(
         contrastPairs(mode)
           .filter(({ requires }) => !requires)

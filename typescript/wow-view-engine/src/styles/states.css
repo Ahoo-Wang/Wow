@@ -19,8 +19,8 @@
 
 /*
  * A button or a toggle under the pointer, where the registry fills it with
- * `muted` (a ghost or an outline button, a toggle) — `control-hover`
- * unset. In the dark the registry's ghost and outline buttons hover to
+ * `muted` (a ghost or an outline button, a toggle): `control-hover`, the
+ * ink at the hover strength. In the dark the registry's ghost and outline buttons hover to
  * other fills (`dark:hover:bg-muted/50`, `dark:hover:bg-input/50`), so the
  * same rule is said again for them under the dark roots, the selectors the
  * `dark` variant at the top of this file names. An expanded or a pressed
@@ -43,7 +43,7 @@
         [data-range-middle='true'],
         [data-range-end='true']
       ) {
-      background-color: var(--_fve-control-hover, var(--muted));
+      background-color: var(--_fve-control-hover);
     }
 
     @media not print {
@@ -62,10 +62,7 @@
           [data-range-middle='true'],
           [data-range-end='true']
         ) {
-        background-color: var(
-          --_fve-control-hover,
-          color-mix(in oklab, var(--muted) 50%, transparent)
-        );
+        background-color: var(--_fve-control-hover);
       }
 
       :is(.fve\:group\/button, .fve\:group\/toggle):where(
@@ -83,10 +80,7 @@
           [data-range-middle='true'],
           [data-range-end='true']
         ) {
-        background-color: var(
-          --_fve-control-hover,
-          color-mix(in oklab, var(--input) 50%, transparent)
-        );
+        background-color: var(--_fve-control-hover);
       }
     }
 
