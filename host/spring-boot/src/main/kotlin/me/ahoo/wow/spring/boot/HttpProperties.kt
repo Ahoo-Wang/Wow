@@ -86,7 +86,7 @@ class HttpProperties {
 
     @InternalWowApi
     class Error {
-        /** The HTTP status the code is answered with. */
+        /** The HTTP status the code is answered with, 400 to 599: required, an entry without it refuses the start. */
         var status: Int = 0
     }
 

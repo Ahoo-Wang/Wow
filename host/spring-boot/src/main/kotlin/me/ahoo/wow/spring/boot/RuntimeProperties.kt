@@ -187,8 +187,8 @@ class StateCacheProperties {
      * full rings. Most aggregates commit few requests, so the default holds several times as many of them as a
      * count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the
      * cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a
-     * capacity times the average state size should stay well within the heap). The `wow.state-cache` counter
-     * (`hit`, `miss`, `evicted`) shows the fit.
+     * capacity times the average state size should stay well within the heap). The counters
+     * `wow.state_cache.lookups` (`hit`, `miss`) and `wow.state_cache.evictions` show the fit.
      */
     var capacity: Int? = null
 

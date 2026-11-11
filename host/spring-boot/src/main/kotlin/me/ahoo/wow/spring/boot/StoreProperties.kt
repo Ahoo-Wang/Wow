@@ -141,7 +141,7 @@ class SnapshotProperties {
     /**
      * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
      * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
-     * first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.
+     * first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`.
      */
     var stores: MutableList<String> = ArrayList()
 
