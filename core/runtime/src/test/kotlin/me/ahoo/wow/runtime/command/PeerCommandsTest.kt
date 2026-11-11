@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -331,6 +332,12 @@ class PeerCommandsTest {
             }
             // Authorized as the system command of that name, as the node's own lifecycle commands are.
             actions.map { it.type.name }.assert().containsOnly(Lifecycle.TRANSFER_OWNER)
+            // Its relay is the target context's command topic, which a failure to send it names.
+            val peers = PeerCommands(
+                ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+                CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics, PREFIX, topics)),
+            )
+            peers.relayOf(STOCK, Lifecycle.TRANSFER_OWNER)!!.topic.assert().isEqualTo(COMMANDS)
         }
 
     @Test
