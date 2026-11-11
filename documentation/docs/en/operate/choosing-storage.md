@@ -13,7 +13,7 @@ A service keeps its log, snapshots, timers, checkpoints, leases, failure ledger 
 | --- | --- | --- |
 | MongoDB | Everything: the log, snapshots, timers, checkpoints, leases, failure ledger and reservations; serves snapshot and `events` queries | The default. A replica set, sharded when one is not enough ([MongoDB](./mongodb#recommended-topology)) |
 | PostgreSQL | Everything, as MongoDB | An equal choice where PostgreSQL is what you run ([below](#when-postgresql)) |
-| Elasticsearch | A copy of an aggregate type's snapshots, and its events through a sink | Searching states and events: full text, fuzzy matching, aggregations over many dimensions ([Elasticsearch](./elasticsearch)) |
+| Elasticsearch | A copy of an aggregate type's snapshots, and its events through a sink | Searching states and events: full text over the fields marked `@QueryText`, aggregations over many dimensions ([Elasticsearch](./elasticsearch#full-text-search)) |
 | ClickHouse | Not a store: a sink of the published streams, and the datasets' warehouse | Analytics across services ([ClickHouse](./clickhouse)) |
 
 ## Place an aggregate type's data {#per-aggregate-type}

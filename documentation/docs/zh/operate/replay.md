@@ -58,11 +58,11 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild" \
 - **续跑。** 每页之后，遍历把进度记在日志的注册表里，所以重启后或换一个节点都从那里继续。一页的聚合数为按当前节奏约五秒能盖章的数量，至多 `wow.access.walk-batch`（默认 100）。
 - **观察。** 类型的遍历完成之前，`wow.access.walk.pending` 为 1，还没有遍历的类型不报告它；`wow.access.walk.walked` 是日志注册表记录的遍历已盖章的聚合数，每个节点报的值相同；`wow.access.walked` 计数本节点遍历过的聚合，`wow.access.stamped` 按原因计数盖过章的流（[指标](../reference/observability#metrics)）。遍历不统计类型的聚合数，所以没有指标给出剩余多少。估算时，先取该类型的聚合数：对它的快照做一次 `count` 查询（`{ "kind": "count", "filter": { "op": "match-all" } }`，[查询](../data/querying)），或者直接数日志（PostgreSQL 上 `SELECT count(*) FROM wow_log__<context>__<aggregate> WHERE version = 1`，MongoDB 上对该集合 `countDocuments({ version: 1 })`）；减去 `wow.access.walk.walked` 即剩余数，再除以最近几分钟遍历的速率（各节点 `rate(wow_access_walked_total[5m])` 之和）即还需的时间。注册表保存每个遍历的模式、日志头、游标、计数与是否完成：PostgreSQL 上用 `SELECT context, aggregate, access_walk FROM wow_log_aggregate`，MongoDB 上看 `wow_log_aggregate` 文档的 `access_walk` 字段。完成时，执行遍历的节点记录日志 `The access walk of <type> is completed: <n> aggregates stamped.`
 
-记录标签的版本建的 Sink 表在启动时会被拒绝，并指明是哪张表；它保存的都是日志里有的内容，所以删掉它，再重置这个 Sink 的订阅，它就会从日志重新填充。
-
 ## 数仓 {#the-warehouse}
 
 ClickHouse Sink 也是一个订阅：它的表从日志派生，同一次提交到达它两次时，它也能让表保持精确（[ClickHouse](./clickhouse#delivered-once-read-once)）。
+
+不是 Sink 以当前形状建的表（注释没有写明 Sink 的格式、列不同，或缺少计算列）会让 Sink 的写入失败，并指明是哪张表（[schema 管理](./clickhouse#schema-management)）。它保存的都是日志里有的内容，所以删掉它，再重置这个 Sink 的订阅，它就会从日志重新填充。
 
 ## 停放的聚合 {#parked-aggregates}
 

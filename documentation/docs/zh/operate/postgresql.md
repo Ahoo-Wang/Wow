@@ -47,7 +47,7 @@ spring:
 | `wow_reservation__<context>__<aggregate>` | 一种类型的聚合预留的唯一键：每个（租户、命名空间、键）一行，带着它的所有者 |
 | `wow_format` | 每个结构的格式版本 |
 
-日志表的键是位置（`partition`、`sequence`）、版本（`aggregate_id`、`tenant_id`、`version`）和请求（`tenant_id`、`request_id`）：数据库本身就会拒绝同一版本或同一请求的第二次提交。
+日志表的键是位置（`partition`、`sequence`）、版本（`tenant_id`、`aggregate_id`、`version`）和请求（`tenant_id`、`request_id`）：数据库本身就会拒绝同一版本或同一请求的第二次提交。
 
 **格式。** 每个结构在创建之前先在 `wow_format` 中声明它的格式版本。以另一个版本记录的结构，或者存在却没有记录的结构，都会被拒绝：一个 Wow 构建从不读写它不认识的布局。
 
