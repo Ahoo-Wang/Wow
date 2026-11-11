@@ -1087,7 +1087,14 @@
       "value": "PAID"
     },
     "projection": {},
-    "size": 10,
+    "sort": []
+  },
+  "cursorQuery (defaults)": {
+    "cursor": null,
+    "filter": {
+      "op": "match-all"
+    },
+    "projection": {},
     "sort": []
   },
   "cursorQuery (options)": {

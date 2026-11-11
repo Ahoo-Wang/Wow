@@ -49,7 +49,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `CountAggregationMetric` | interface | The number of rows in each group; `aggregation.count`. | — |
 | `CursorPage` | interface | One page of a cursor query. | — |
 | `CursorQuery` | interface | The body of a forward-only cursor query, which `QueryModelClient.cursor` sends; build it with `cursorQuery`. | — |
-| `DEFAULT_CURSOR_SIZE` | const | The page size `cursorQuery()` uses when none is given. | — |
+| `CursorQueryOptions` | type | What `cursorQuery` takes: a cursor query whose `filter` may be absent. | — |
 | `DEFAULT_PAGINATION` | const | Default pagination configuration. | — |
 | `DateDiffAggregationExpression` | interface | The time from the instant in `from` to the instant in `to`, `to − from`, in `unit`, as a signed decimal: negative when `to` is earlier, and no value when either is absent. | — |
 | `DateDiffUnit` | enum | The unit a `DATE_DIFF` measures elapsed time in. | — |
@@ -170,7 +170,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `WindowFunction` | enum | The window functions of derived expressions, as a storage declares them in `analysis.windows` of its descriptor. | — |
 | `aggregation` | const | Builders of an `AggregationQuery`: its elements, groups, metrics and the arithmetic expressions metrics compute over. | — |
 | `asc` | function | Creates a sort object with ascending direction for the specified field. | — |
-| `cursorQuery` | function | Builds the body of a cursor query, with the defaults filled in: all fields, no sort, a page of `DEFAULT_CURSOR_SIZE`, from the start. | — |
+| `cursorQuery` | function | Builds the body of a cursor query, with the defaults filled in: every record, all fields, no sort, from the start. | — |
 | `desc` | function | Creates a sort object with descending direction for the specified field. | — |
 | `filter` | const | Builders for `FilterExpression` values. | — |
 | `listQuery` | function | Builds the body of a `list` or `stream` query. | — |

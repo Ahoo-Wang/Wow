@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-import {
-  filter as filters,
-  type FilterCapable,
-  type FilterExpression,
-} from './filter/index.js';
+import { type FilterCapable } from './filter/index.js';
+import { queryFilter } from './queryFilter.js';
 import { type SortCapable } from './sort.js';
 import { DEFAULT_PAGINATION, type Pagination } from './pagination.js';
 import { type ProjectionCapable } from './projection.js';
@@ -79,15 +76,6 @@ export interface PagedList<T> {
 type QueryOptions<FIELDS extends string = string> = Partial<
   FilterQueryable<FIELDS>
 >;
-
-function queryFilter<FIELDS extends string>(
-  filter: FilterExpression<FIELDS> | undefined,
-): FilterExpression<FIELDS> {
-  if (filter === null) {
-    throw new TypeError('filter cannot be null.');
-  }
-  return filter ?? filters.matchAll();
-}
 
 /**
  * Builds the body of a `single` query.

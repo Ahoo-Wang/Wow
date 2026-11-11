@@ -106,6 +106,7 @@ public final class me/ahoo/wow/query/admission/QueryAdmission {
 public final class me/ahoo/wow/query/admission/QueryBudget {
 	public static final field Companion Lme/ahoo/wow/query/admission/QueryBudget$Companion;
 	public static final field DEFAULT_COUNT_LIMIT I
+	public static final field DEFAULT_CURSOR_SIZE I
 	public static final field DEFAULT_MAX_FILTER_NODES I
 	public static final field DEFAULT_MAX_FILTER_VALUES I
 	public static final field DEFAULT_MAX_RESIDUAL_GROUPS I
@@ -128,6 +129,7 @@ public final class me/ahoo/wow/query/admission/QueryBudget {
 	public final fun checkStream (Lme/ahoo/wow/api/query/CursorQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
 	public static synthetic fun checkStream$default (Lme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/api/query/CursorQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
 	public final fun countLimit (Lme/ahoo/wow/api/query/CountQuery;)Ljava/lang/Integer;
+	public final fun cursorSize (Lme/ahoo/wow/api/query/CursorQuery;)I
 	public final fun getAllowExactCount ()Z
 	public final fun getAllowExpensiveOperators ()Z
 	public final fun getCountLimit ()I

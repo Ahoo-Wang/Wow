@@ -296,7 +296,7 @@ outline: deep
 | `count` | `filter`、`limit` | `{"count": …, "exact": …}` |
 | `aggregate` | `filter`、`elements`、`groupBy`、`metrics`、`sort`、`limit`、`having` | 行组成的 JSON 数组 |
 
-除 `aggregate`（默认为 `match-all`）之外，每个种类都必须有 `filter`；`{"op":"match-all"}` 匹配每条记录。
+每个种类的 `filter` 都默认为 `match-all`，匹配每条记录；`filter` 为 `null` 会被拒绝。
 
 ### `list` {#list}
 

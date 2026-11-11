@@ -19,21 +19,21 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * A query for the page of results after a [cursor], in the order of [sort], with filtering and projection
  * ([Queryable]).
  *
- * @property filter The filter expression the results match.
+ * @property filter The filter expression the results match; [MatchAllFilter], every record, by default.
  * @property projection The fields the results include or exclude.
  * @property sort The order of the results, which the cursor follows.
- * @property size The most items on the page, at least 1.
+ * @property size The most items on the page, at least 1; `null`, the default, takes the server's cursor page size.
  * @property cursor Where the page starts: the previous page's next cursor, or `null` for the first page.
  */
 class CursorQuery @InternalWowApi constructor(
-    override val filter: FilterExpression,
+    override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    val size: Int = DEFAULT_SIZE,
+    val size: Int? = null,
     val cursor: String? = null,
 ) : Queryable<CursorQuery> {
     init {
-        require(size in 1 until Int.MAX_VALUE) {
+        require(size == null || size in 1 until Int.MAX_VALUE) {
             "size must be between 1 and ${Int.MAX_VALUE - 1}."
         }
         require(sort.size <= Sort.MAX_FIELDS) {
@@ -58,16 +58,14 @@ class CursorQuery @InternalWowApi constructor(
     )
 
     companion object {
-        const val DEFAULT_SIZE: Int = 10
-
         /** A [CursorQuery] of the given values. */
         @JvmStatic
         @JvmOverloads
         fun of(
-            filter: FilterExpression,
+            filter: FilterExpression = MatchAllFilter,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
-            size: Int = DEFAULT_SIZE,
+            size: Int? = null,
             cursor: String? = null,
         ): CursorQuery = CursorQuery(filter, projection, sort, size, cursor)
     }

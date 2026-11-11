@@ -219,6 +219,17 @@ class QueryBudgetTest {
     }
 
     @Test
+    fun `a cursor page size defaults to the server's, at most the budget's page size`() {
+        QueryBudget.DEFAULT_CURSOR_SIZE.assert().isEqualTo(10)
+        QueryBudget(QueryBudget.HTTP_LABEL).cursorSize(CursorQuery()).assert().isEqualTo(10)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).cursorSize(CursorQuery()).assert().isEqualTo(3)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorSize(CursorQuery()).assert().isEqualTo(10)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).cursorSize(CursorQuery(size = 2)).assert().isEqualTo(2)
+        // A query that names no size is never out of the budget's range.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).check(CursorQuery())
+    }
+
+    @Test
     fun `a count limit defaults to the budget's and is capped by it`() {
         QueryBudget.DEFAULT_COUNT_LIMIT.assert().isEqualTo(10_000)
         val budget = QueryBudget(QueryBudget.HTTP_LABEL)

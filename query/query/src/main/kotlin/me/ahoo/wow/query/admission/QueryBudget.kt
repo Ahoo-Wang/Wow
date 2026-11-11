@@ -116,11 +116,20 @@ class QueryBudget(
     }
 
     fun check(query: CursorQuery, scope: FilterExpression = MatchAllFilter) {
-        requireValid(query.size >= 1 && (maxPageSize == 0 || query.size <= maxPageSize)) {
-            QueryViolation.SizeOutOfRange(label, "cursor size", query.size.toLong(), 1, maxPageSize.toLong(), "size")
+        query.size?.let { size ->
+            requireValid(maxPageSize == 0 || size <= maxPageSize) {
+                QueryViolation.SizeOutOfRange(label, "cursor size", size.toLong(), 1, maxPageSize.toLong(), "size")
+            }
         }
         checkFilter(query.filter, scope, counting = false)
     }
+
+    /**
+     * The size of a cursor page of [query]: the one it names, or [DEFAULT_CURSOR_SIZE] at most [maxPageSize] when it
+     * names none.
+     */
+    fun cursorSize(query: CursorQuery): Int =
+        query.size ?: if (maxPageSize == 0) DEFAULT_CURSOR_SIZE else DEFAULT_CURSOR_SIZE.coerceAtMost(maxPageSize)
 
     /**
      * A resumable stream of a list, run as keyset chunks of the server's size: bounded by time and
@@ -295,6 +304,9 @@ class QueryBudget(
 
         /** The default [countLimit]. */
         const val DEFAULT_COUNT_LIMIT: Int = 10_000
+
+        /** The size of a cursor page whose query names none ([CursorQuery.size] `null`): at most [maxPageSize]. */
+        const val DEFAULT_CURSOR_SIZE: Int = 10
 
         /** The default [timeout]. */
         val DEFAULT_TIMEOUT: Duration = 30.seconds

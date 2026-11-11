@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.CursorPositionCodec
@@ -90,6 +91,15 @@ class QueryGatewayContractTest {
     }
 
     @Test
+    fun `a cursor page that names no size is the server's default size`() {
+        runTest {
+            gateway.cursor(CursorQuery(), QueryCaller.IN_PROCESS)
+            // The page and its one row of look-ahead.
+            SnapshotBackend.keysetSize.assert().isEqualTo(QueryBudget.DEFAULT_CURSOR_SIZE + 1)
+        }
+    }
+
+    @Test
     fun `the snapshot gateway answers the raw aggregation rows`() {
         runTest {
             val query = AggregationQuery(
@@ -109,13 +119,19 @@ class QueryGatewayContractTest {
         @Volatile
         var after: CursorPosition? = null
 
+        @Volatile
+        var keysetSize: Int? = null
+
         override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             emit(snapshotNode())
             emit(snapshotNode())
         }
 
         override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
-            if (window is PageWindow.Keyset) after = window.after
+            if (window is PageWindow.Keyset) {
+                after = window.after
+                keysetSize = window.limit
+            }
             return twoRows()
         }
 

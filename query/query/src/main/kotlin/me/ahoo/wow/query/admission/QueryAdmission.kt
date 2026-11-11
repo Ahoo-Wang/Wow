@@ -298,7 +298,7 @@ class QueryAdmission(
         @JvmStatic
         @JvmOverloads
         fun cursor(query: CursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            cursor(query, schema, entry, emptyList())
+            cursor(query, schema, entry, emptyList(), query.size ?: QueryBudget.DEFAULT_CURSOR_SIZE)
 
         /** A count with the query's own limit; `null` counts exactly. */
         @JvmStatic
@@ -342,8 +342,9 @@ class QueryAdmission(
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
+            size: Int,
         ): AdmittedQuery<CursorQuery> = resolve(schema, entry, trusted) {
-            cursor(query.withCanonicalSort(schema), schema.cursorUniqueKey())
+            cursor(query.withCanonicalSort(schema), schema.cursorUniqueKey(), size)
         }
 
         internal fun count(
@@ -431,10 +432,12 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
                 QueryAdmission.Trusted.paged(query, schema, entry, trusted)
             }
 
+        /** A cursor page of the size the query names; else the budget's default, or the default an unbudgeted entry pages by. */
         @JvmField
         val CURSOR =
-            QueryOperation<CursorQuery>(QueryType.CURSOR, QueryBudget::check) { query, schema, entry, trusted, _ ->
-                QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
+            QueryOperation<CursorQuery>(QueryType.CURSOR, QueryBudget::check) { query, schema, entry, trusted, budget ->
+                val size = budget?.cursorSize(query) ?: query.size ?: QueryBudget.DEFAULT_CURSOR_SIZE
+                QueryAdmission.Trusted.cursor(query, schema, entry, trusted, size)
             }
 
         /**
@@ -444,7 +447,7 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
         @JvmField
         val STREAM = QueryOperation<CursorQuery>(QueryType.LIST, QueryBudget::checkStream) {
                 query, schema, entry, trusted, _ ->
-            QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
+            QueryAdmission.Trusted.cursor(query, schema, entry, trusted, checkNotNull(query.size))
         }
 
         /** An unbudgeted entry counts as the query asks, exactly without a limit; a budgeted one at most its limit. */

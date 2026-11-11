@@ -18,7 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * A bounded count of the matches of [filter].
  *
- * @property filter The filter expression the counted items match.
+ * @property filter The filter expression the counted items match; [MatchAllFilter], every record, by default, which
+ * an entry whose budget asks for a filter refuses ([QueryErrorCodes.COUNT_REQUIRES_FILTER]).
  * @property limit The most matches to count, at least 1: the count is exact below it; otherwise it is [limit] with
  * [CountResult.exact] `false`. `null`, the default, uses the budget's default limit.
  *
@@ -27,7 +28,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * ```
  */
 class CountQuery @InternalWowApi constructor(
-    override val filter: FilterExpression,
+    override val filter: FilterExpression = MatchAllFilter,
     val limit: Int? = null,
 ) : FilterCapable<CountQuery> {
     init {
@@ -51,6 +52,6 @@ class CountQuery @InternalWowApi constructor(
         /** A [CountQuery] of the given values. */
         @JvmStatic
         @JvmOverloads
-        fun of(filter: FilterExpression, limit: Int? = null): CountQuery = CountQuery(filter, limit)
+        fun of(filter: FilterExpression = MatchAllFilter, limit: Int? = null): CountQuery = CountQuery(filter, limit)
     }
 }

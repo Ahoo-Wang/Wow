@@ -307,7 +307,13 @@ class QueryRoutesTest {
             QueryErrorCodes.UNKNOWN_PROPERTY,
             "condition"
         )
-        malformed("""{"kind":"list"}""", QueryErrorCodes.INVALID_VALUE, "filter")
+        malformed("""{"kind":"list","filter":null}""", QueryErrorCodes.INVALID_VALUE, "filter")
+        // 9.x's filter, without 10.x's: refused as unknown, never read as a query of every record.
+        malformed(
+            """{"kind":"count","condition":{"field":"state.status","operator":"eq","value":"PAID"}}""",
+            QueryErrorCodes.UNKNOWN_PROPERTY,
+            "condition"
+        )
         malformed("""{"kind":"list","filter":{"op":"NOPE"}}""", QueryErrorCodes.UNKNOWN_TYPE, "filter")
         malformed(
             """{"kind":"paged","filter":{"op":"match-all"},"total":"MAYBE"}""",

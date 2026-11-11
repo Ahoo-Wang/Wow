@@ -296,7 +296,7 @@ Records that tie on every sort field are ordered by the record's unique key (`te
 | `count` | `filter`, `limit` | `{"count": …, "exact": …}` |
 | `aggregate` | `filter`, `elements`, `groupBy`, `metrics`, `sort`, `limit`, `having` | A JSON array of rows |
 
-`filter` is required in every kind but `aggregate` (where it defaults to `match-all`); `{"op":"match-all"}` matches every record.
+`filter` defaults to `match-all` in every kind, which matches every record; a `null` filter is refused.
 
 ### `list`
 

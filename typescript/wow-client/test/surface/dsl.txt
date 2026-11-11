@@ -35,7 +35,7 @@ type  ConstraintDescriptor
 type  CountAggregationMetric
 type  CursorPage
 type  CursorQuery
-value DEFAULT_CURSOR_SIZE
+type  CursorQueryOptions
 value DEFAULT_PAGINATION
 type  DateDiffAggregationExpression
 value DateDiffUnit
