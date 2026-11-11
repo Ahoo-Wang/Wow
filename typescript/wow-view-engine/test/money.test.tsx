@@ -22,6 +22,7 @@ import {
   AggregationMetricType,
   AggregationExpressionType,
   QuerySemanticTypes,
+  TimeUnit,
   AggregationExpressionOperator,
   DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
@@ -44,7 +45,7 @@ import { compileSummaries, recordProjection } from '../src/record/compile.js';
 import { numberFormatOf } from '../src/model/fieldNumeric.js';
 import { pageSummaries, projectSummaries } from '../src/record/summaries.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
-import { numericOf, semanticText } from '../src/capabilities/fields.js';
+import { numericOf, semanticText } from '../src/capabilities/semantic.js';
 import { currencyIssues } from '../src/analysis/currency.js';
 import { cellText, csvCellText } from '../src/ui/kit/display.js';
 import { formatNumber } from '../src/ui/kit/numbers.js';
@@ -237,6 +238,28 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
         currencyField: 'currency',
       }),
     ).toBe('money by currency scale 2');
+  });
+
+  it('names a time semantic by its unit, milliseconds where it names none', () => {
+    expect(semanticText({ type: QuerySemanticTypes.TEMPORAL_EPOCH })).toBe(
+      'epoch MILLISECONDS',
+    );
+    expect(
+      semanticText({
+        type: QuerySemanticTypes.TEMPORAL_EPOCH,
+        timeUnit: TimeUnit.SECONDS,
+      }),
+    ).toBe('epoch SECONDS');
+    expect(
+      semanticText({
+        type: QuerySemanticTypes.TEMPORAL_FORMATTED,
+        pattern: 'yyyy-MM-dd',
+      }),
+    ).toBe('text yyyy-MM-dd');
+    // A semantic this engine does not know yet is named by its type.
+    expect(
+      semanticText({ type: QuerySemanticTypes.DURATION } as QuerySemanticType),
+    ).toBe('duration');
   });
 
   it('says so when a date field is described as money', () => {
