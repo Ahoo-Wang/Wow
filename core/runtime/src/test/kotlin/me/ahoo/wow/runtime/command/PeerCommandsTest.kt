@@ -290,8 +290,7 @@ class PeerCommandsTest {
         sales.gateway.execute(
             ServerCommandRequest(STOCK, "item", "Reserve", CommandBody.Value(Reserve(1)), clerk, "i", call = call),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        // A lifecycle command is refused before its body is read: its schema is keyed by its system name, no class, so
-        // the owner a transfer names needs no check on the peer path.
+        // The owner a lifecycle command transfers to is held to the ids' length, as at the node's own gateway.
         val long = "o".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
         sales.gateway.execute(
             ServerCommandRequest(
@@ -303,11 +302,36 @@ class PeerCommandsTest {
                 "i",
             ),
         ).error!!.let {
-            it.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-            it.message.assert().contains("${Lifecycle.TRANSFER_OWNER} is not on the class path")
+            it.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            it.message.assert()
+                .isEqualTo("The owner id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has 257.")
         }
         topics.messages(COMMANDS).assert().isEmpty()
     }
+
+    @Test
+    fun `a lifecycle command to a peer's aggregate should go through its command topic under its system name`(): Unit =
+        runBlocking {
+            val sales = started()
+            // By its system name, as a route names it, and as a command object, as a client builds it.
+            val byName = ServerCommandRequest.builder(
+                STOCK,
+                "item",
+                Lifecycle.TRANSFER_OWNER,
+                CommandBody.Value(TransferOwner("bob")),
+            ).caller(clerk).aggregateId("i-1").wait(WaitPlan.ACCEPTED).build()
+            val byObject = ServerCommandRequest.builder(TransferOwner("carol"), ITEM.ref(TENANT, "i-2"))
+                .caller(clerk).wait(WaitPlan.ACCEPTED).build()
+            listOf(byName, byObject).forEach { request ->
+                sales.gateway.execute(request).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            }
+            topics.messages(COMMANDS).map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }.let { sent ->
+                sent.map { it.type }.assert().containsOnly(Lifecycle.TRANSFER_OWNER)
+                sent.map { it.ref }.assert().containsExactlyInAnyOrder(ITEM.ref(TENANT, "i-1"), ITEM.ref(TENANT, "i-2"))
+            }
+            // Authorized as the system command of that name, as the node's own lifecycle commands are.
+            actions.map { it.type.name }.assert().containsOnly(Lifecycle.TRANSFER_OWNER)
+        }
 
     @Test
     fun `an unknown command or context stays unhandled`(): Unit = runBlocking {

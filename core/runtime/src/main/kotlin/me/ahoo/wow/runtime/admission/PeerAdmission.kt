@@ -70,7 +70,7 @@ internal class PeerAdmission(
             "The class of ${peer.name} is not on the class path: depend on the api module of ${type.context}, whose " +
                 "jar carries its contract and its commands.",
         )
-        val relay = peers.relayOf(peer.name) ?: return facts.refuse(
+        val relay = peers.relayOf(type.context, peer.name) ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
                 "topic, and this node has no command transport.",
@@ -127,6 +127,7 @@ internal class PeerAdmission(
             bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
         }
+        AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 6. Validation.
         val caller = actingCaller(request.caller, facts.ref, scope)
         val violations = validators.violationsOf {
