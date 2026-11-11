@@ -6,7 +6,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 # wow-view-engine 参考
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../typescript/view-engine/index.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。宿主常用的符号在下面的[专题页](#topics)里手写说明；每个入口导出的全部名字见生成的[符号索引](/reference/typescript/wow-view-engine/symbols)（英文）。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../typescript/compatibility.md#version-ranges)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。宿主常用的符号在下面的[专题页](#topics)里手写说明；每个入口导出的全部名字见生成的[符号索引](/reference/typescript/wow-view-engine/symbols)（英文）。
 :::
 
 引擎做什么，见[视图引擎指南](../../../typescript/view-engine/index.md)；从零接入一个业务对象的完整走读，见视图引擎入门。
@@ -39,17 +39,19 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 
 ```ts
 interface ViewStore {
-  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
   // 可选：没有它，视图管理器就没有「设为共享」「设为个人」。
   changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
+  // 只存在本浏览器里的存储设它：引擎随后不共享其中任何视图。
+  readonly local?: boolean;
 }
 ```
 

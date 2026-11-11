@@ -94,7 +94,7 @@ export interface ActionHarness {
   form(id: string): HarnessField[] | null;
   readonly ids: readonly string[];
   missing(id: string, input: ActionInput): string[];
-  run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
+  run(id: string, key: RecordKey, input?: ActionInput, options?: { signal?: AbortSignal }): Promise<unknown>;
   state(id: string, key: RecordKey, input?: ActionInput): HarnessState;
 }
 
@@ -134,7 +134,7 @@ A `ViewSource` over documents held in memory that answers each query the way a W
 
 | Option | Role |
 |---|---|
-| `now` | The service's clock, in epoch milliseconds, which `BEFORE_NOW` and `AFTER_NOW` compare against; a test pins it to the moment its data is built around, so "after now" answers the same on every run |
+| `now` | The service's clock, a function answering a `Date`, which `BEFORE_NOW` and `AFTER_NOW` compare against; the current time when left out; a test pins it to the moment its data is built around, so "after now" answers the same on every run |
 | `timeField` | A time column every document holds as epoch milliseconds, the way a Wow snapshot keeps `firstEventTime`. The documents are kept in its order, and a range on it in the filter's top-level AND is cut out by binary search first — for large sets |
 | `remember` | Answers a repeated aggregation from memory, keyed by the query, each caller getting its own copy. Only for documents that never change; off by default, so a test that edits a document sees the edit in the next answer |
 
@@ -193,9 +193,10 @@ describeViewStoreConformance({
 | `idempotentCreate` | A `create` replayed under its `requestId` answers the first outcome rather than making a second view. The Wow server does not deduplicate `create` (it generates the id), and `WowViewStore` keeps it within one store by asking the replay route first; a store that keeps it not even so declares `false`, and that case is skipped — every other write's replay stays mandatory |
 | `systemViews` | A definition the backend serves at least one read-only system view for; left out when it serves none, and the case that every write to one is refused is skipped |
 | `storedSystemViews` | The store keeps system views of its own: `create` with `scope: 'system'` makes one, answered and listed with `stored: true` |
+| `pageSize` | The store answers its list a page of at most this many at a time, with the cursor of the next: the case makes two pages and one view over and reads them all. Left out, the case is skipped |
 
 ## The full working version
 
 - Storybook's integration walk-through's [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts) holds the walk-through's declarations to `admit` and `actionHarness`.
-- The conformance suite: [`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), and `WowViewStore`'s [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts).
+- The conformance suite: [`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), and `WowViewStore`'s [`conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/conformance.test.ts).
 - Source files: [`src/testing/`](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/src/testing).

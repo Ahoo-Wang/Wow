@@ -17,7 +17,7 @@ Eight required methods and two optional ones (`changeAudience`, `permissions`); 
 |---|---|
 | Optimistic revision | Every write carries the `revision` it expects; a mismatch throws `ViewStoreError` with code `CONFLICT`, carrying the instance or preferences the server holds, and the UI offers reload, overwrite or save as |
 | Idempotent `requestId` | Each logical write has one `requestId` in `WriteOptions`; a retry after a timeout reuses it with the same payload, which is how the server deduplicates it |
-| A fixed list order | `list` answers summaries in a fixed order: the backend's system views first (as it declares them), then the shared views, then the user's personal ones, each audience oldest first. With no preferences, the first of the list is the view that opens by default, so every store answers the same one |
+| A fixed list order | `list` answers summaries in a fixed order: the backend's system views first (as it declares them), then the shared views, then the user's personal ones, each audience oldest first. It answers a page at a time: the first without a `cursor`, each next one with the `nextCursor` the page before answered, until that is `null`; the order holds across pages. With no preferences, the first of the list is the view that opens by default, so every store answers the same one |
 | Permissions drive buttons only | `permissions` only decides which buttons a UI enables, and is synchronous because the application fetched it before creating the engine. Authorization, visibility filtering and deduplication are the server's |
 
 | Method | What to know |
@@ -31,9 +31,10 @@ export interface ViewStore {
   changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
-  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  readonly local?: boolean;
   permissions?(definitionId: string): ViewPermissions;
   rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
@@ -98,8 +99,10 @@ What the current user may do with one definition's views. It drives buttons only
 export interface ViewPermissions {
   createPersonal: boolean;
   createShared: boolean;
+  editDatasetWording?: boolean;
   editSystem?: boolean;
   instance(id: string): InstancePermissions;
+  local?: boolean;
   reorder: boolean;
   setDefault: boolean;
 }
@@ -146,7 +149,8 @@ export declare class MemoryViewStore implements ViewStore {
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string): Promise<ViewInstance>;
   getPreferences(definitionId: string): Promise<ViewPreferences>;
-  list(definitionId: string): Promise<ViewInstanceSummary[]>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  readonly local?: boolean;
   readonly permissions?: (definitionId: string) => ViewPermissions;
   rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
@@ -155,6 +159,8 @@ export declare class MemoryViewStore implements ViewStore {
 
 export interface MemoryViewStoreOptions {
   instances?: ViewInstance[];
+  local?: boolean;
+  pageSize?: number;
   permissions?: (definitionId: string) => ViewPermissions;
   preferences?: Record<string, ViewPreferences>;
   snapshot?: MemorySnapshot;
@@ -195,5 +201,5 @@ export interface MemorySnapshot {
 
 ## The full working version
 
-- Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) keeps its views in a `MemoryViewStore`; the compensation console keeps them on the view store server through [`WowViewStore`](../wow-view-store/).
+- Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) keeps its views in a `MemoryViewStore`; a host with the view store server keeps them there through [`WowViewStore`](../wow-view-store/).
 - Source files: [`store/ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts), [`store/MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts), [`store/localStorageSnapshot.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/localStorageSnapshot.ts), [`model/storeError.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/storeError.ts).

@@ -5,7 +5,7 @@ description: 'Programmatic API — @ahoo-wang/wow-generator'
 
 # Programmatic API
 
-The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal resolveWowModel, analyze, the emitters, OutputStore, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
+The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `SchemaDocs`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal analyze, the emitters, OutputStore, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
 
 ## CodeGenerator
 
@@ -19,7 +19,7 @@ The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `Co
 
 | `GeneratorOptions` field | Default                          | Meaning                                                                        |
 | ------------------------ | -------------------------------- | ------------------------------------------------------------------------------ |
-| `inputPath`              | Required                         | Path or HTTP/HTTPS URL of the OpenAPI 3.x document                             |
+| `inputPath`              | Required                         | Path or HTTP/HTTPS URL of the Wow Manifest or OpenAPI 3.x document             |
 | `outputDir`              | Required                         | Directory the generated files are written to                                   |
 | `configPath`             | `DEFAULT_CONFIG_PATH` if present | Path or URL of the [configuration](./configuration); a named one has to exist  |
 | `tsConfigFilePath`       | None                             | The project's tsconfig, used to resolve the modules the output imports         |

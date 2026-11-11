@@ -17,23 +17,24 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 |---|---|
 | 乐观修订号 | 每次写入带着它期望的 `revision`；不匹配就抛 `ViewStoreError`，代码 `CONFLICT`，并带上服务端持有的实例或偏好，界面提供重新加载、覆盖或另存为 |
 | 幂等的 `requestId` | 每次逻辑写入在 `WriteOptions` 里有一个 `requestId`；超时后的重试复用它和同样的载荷，服务端据此去重 |
-| 固定的列表顺序 | `list` 按固定顺序答摘要：后端的系统视图在前（按它声明的顺序），然后共享视图，然后用户的个人视图，每个受众内最早创建的在前。没有偏好时列表第一项就是缺省打开的视图，所以每个存储答出同一个 |
+| 固定的列表顺序 | `list` 按固定顺序答摘要：后端的系统视图在前（按它声明的顺序），然后共享视图，然后用户的个人视图，每个受众内最早创建的在前。它一页一页地答：第一页不带 `cursor`，之后每页带上一页答出的 `nextCursor`，直到它为 `null`；顺序跨页保持。没有偏好时列表第一项就是缺省打开的视图，所以每个存储答出同一个 |
 | 权限只管按钮 | `permissions` 只决定界面启用哪些按钮，是同步的，因为应用在建引擎前就取好了它。授权、可见性过滤与去重都是服务端的责任 |
 
 | 方法 | 要点 |
 |---|---|
 | `create` | 为 `input` 指定的范围创建。`scope: 'system'` 创建**存储型系统视图**（「发布为系统视图」与授了 `editSystem` 时的另存为）并以 `stored: true` 回答；不保存系统视图的存储拒绝它（`FORBIDDEN` 或 `INVALID`）。发布是复制，原视图不动。引擎自己从不发 `stored`，由存储设置 |
 | `rename` | 存修剪后的标题。修剪后为空、或长于 `MAX_VIEW_TITLE_LENGTH` 的标题以 `INVALID` 拒绝——`create` 也一样；`create` 或 `save` 的配置超过 `MAX_VIEW_CONFIG_BYTES` 也是。引擎发送前就拒绝两者，存储为其他调用方保留这些检查 |
-| `changeAudience` | 可选。把视图就地移到另一个受众，id 不变，所以显示它的看板继续显示它。没有它的存储在管理器里就没有这一项，引擎在发送前拒绝该命令（`view.changeAudience.unsupported`）。它守其他实例写入的全部规则，外加两条：**不变就不写**——请求它已有的受众，原样回答，修订号不动（在修订号检查之后，所以过期的仍然冲突）；**共享看板显示的视图保持共享**——设为个人会让其他读者看到空面板，存储以 `INVALID` 拒绝，并在 **`boards` 里给出那些看板的标题**。删除这样的视图仍然允许 |
+| `changeAudience` | 可选。把视图就地移到另一个受众，id 不变，所以显示它的仪表盘继续显示它。没有它的存储在管理器里就没有这一项，引擎在发送前拒绝该命令（`view.changeAudience.unsupported`）。它守其他实例写入的全部规则，外加两条：**不变就不写**——请求它已有的受众，原样回答，修订号不动（在修订号检查之后，所以过期的仍然冲突）；**共享仪表盘显示的视图保持共享**——设为个人会让其他读者看到空面板，存储以 `INVALID` 拒绝，并在 **`boards` 里给出那些仪表盘的标题**。删除这样的视图仍然允许 |
 
 ```ts
 export interface ViewStore {
   changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
-  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  readonly local?: boolean;
   permissions?(definitionId: string): ViewPermissions;
   rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
@@ -57,7 +58,7 @@ export interface WriteOptions {
 | `CONFLICT` | 期望的修订号不再匹配 | `instance` 或 `preferences`：服务端持有的那份 |
 | `NOT_FOUND` | 视图不存在 | |
 | `FORBIDDEN` | 被拒绝——比如写一个配置声明的系统视图，或把系统视图换受众 | |
-| `INVALID` | 到达了但被拒：载荷不对 | `boards`：`changeAudience` 被拒时，让视图保持共享的那些看板的标题 |
+| `INVALID` | 到达了但被拒：载荷不对 | `boards`：`changeAudience` 被拒时，让视图保持共享的那些仪表盘的标题 |
 | `UNAVAILABLE` | 没到达，或到达了但结局未知。用同一个 `requestId` 重试是安全的 | `reachable`：服务端答了自己的错误（5xx、超时或它报告的拒绝），不是网络；`storage`：浏览器自己的存储不肯保存（满了或被关），写入从未离开设备 |
 | `UNSUPPORTED` | 后端根本没有视图存储（早于它发布的服务端），所以那里读写不了任何视图，也没有哪个是「不见了」 | |
 
@@ -98,8 +99,10 @@ export declare function isViewStoreError(error: unknown): error is ViewStoreErro
 export interface ViewPermissions {
   createPersonal: boolean;
   createShared: boolean;
+  editDatasetWording?: boolean;
   editSystem?: boolean;
   instance(id: string): InstancePermissions;
+  local?: boolean;
   reorder: boolean;
   setDefault: boolean;
 }
@@ -146,7 +149,8 @@ export declare class MemoryViewStore implements ViewStore {
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string): Promise<ViewInstance>;
   getPreferences(definitionId: string): Promise<ViewPreferences>;
-  list(definitionId: string): Promise<ViewInstanceSummary[]>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  readonly local?: boolean;
   readonly permissions?: (definitionId: string) => ViewPermissions;
   rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
@@ -155,6 +159,8 @@ export declare class MemoryViewStore implements ViewStore {
 
 export interface MemoryViewStoreOptions {
   instances?: ViewInstance[];
+  local?: boolean;
+  pageSize?: number;
   permissions?: (definitionId: string) => ViewPermissions;
   preferences?: Record<string, ViewPreferences>;
   snapshot?: MemorySnapshot;
@@ -195,5 +201,5 @@ export interface MemorySnapshot {
 
 ## 完整可运行版本
 
-- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)用 `MemoryViewStore` 保存视图；补偿控制台用 [`WowViewStore`](../wow-view-store/) 把视图存在视图存储服务里。
+- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)用 `MemoryViewStore` 保存视图；有视图存储服务的宿主用 [`WowViewStore`](../wow-view-store/) 把视图存在那里。
 - 源文件：[`store/ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts)、[`store/MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts)、[`store/localStorageSnapshot.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/localStorageSnapshot.ts)、[`model/storeError.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/storeError.ts)。

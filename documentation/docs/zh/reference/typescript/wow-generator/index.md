@@ -5,7 +5,7 @@ description: 'Generator 参考 — @ahoo-wang/wow-generator'
 
 # wow-generator 参考
 
-从 OpenAPI 文档生成 TypeScript 模型和装饰器客户端，可识别 Wow CQRS。包根导出 CodeGenerator、默认配置路径、日志器、错误类型与选项类型，见[符号索引](./symbols.md)。
+从 Wow Manifest（`GET /wow/manifest`）生成基于 `@ahoo-wang/wow-client` 的类型化客户端，或从 OpenAPI 3 文档生成它的模型与装饰器 API 客户端。包根导出 CodeGenerator、默认配置路径、日志器、错误类型与选项类型，见[符号索引](./symbols.md)。
 
 ## 安装
 
@@ -13,9 +13,9 @@ description: 'Generator 参考 — @ahoo-wang/wow-generator'
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/wow-client typescript
 ```
 
-包要求 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.5**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
+包要求 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.9**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
 
-包版本跟随 Wow，`@ahoo-wang/wow-client` 必须处于同一个小版本。从 `@ahoo-wang/fetcher-generator` 迁移过来？命令已改为 `wow-generator`，`fetcher-generator` 作为别名保留到 v10；配置文件改名为 `wow-generator.config.json`，v10 之前仍会读取 `fetcher-generator.config.json` 并给出弃用警告；生成的代码改为导入 `@ahoo-wang/wow-client`（Wow 8.10 schema 的 `Condition` 类型从 `@ahoo-wang/wow-client/legacy` 导入），因此需要重新生成已有产物，见迁移指南。
+包版本跟随 Wow，`@ahoo-wang/wow-client` 必须处于同一个小版本。从 `@ahoo-wang/fetcher-generator` 迁移过来？命令是 `wow-generator`，配置文件是 `wow-generator.config.json`，生成的代码导入 `@ahoo-wang/wow-client`，因此需要重新生成已有产物，见迁移指南。
 
 ## 最小示例
 

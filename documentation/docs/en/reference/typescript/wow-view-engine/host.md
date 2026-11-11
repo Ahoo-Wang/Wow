@@ -62,6 +62,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `engine` | The application's engine, built once. An inner host without one uses the outer one's |
 | `bindings` | What each resource does in this host (`bind`) — its route, how its records are read, the commands on its records; an inner host's wins by id |
 | `router` | The router port: `useReactRouter()` from `/react-router`, or two members over another router. With it the engine keeps the address: every way off a board or a view goes through the route of the resource it leads to; a workbench opens the address's `?view=` and writes it back; a bound resource's record detail follows `?id=`; a view handed over, and a board's filters and tab, travel as the history entry's state |
+| `boardsInAddress` | Whether a board's filters and tab are kept in the address's search too (`?boards=`), so a link opens the board on the same filters: the daily report sent as a link. Off by default, since a board's filters spelled into the search are long; the outer host's when left out; nothing without a `router` |
 | `navigate` | Every way off in the host's own hands instead of the router's: handed resolved through the route of the resource it leads to (`ViewRoute`); a URL, and a resource with no route, as it came |
 | `locale`, `messages` | The language port: the language values show in, and words merged over those in force — the engine's own and the definitions' keys (`text(key)`) alike. Changing them redraws every open view without reopening, re-querying or dirtying anything |
 | `tokenSource`, `preset`, `brand` | The theme's two paths: `tokenSource="host"` takes the host's own variables, its shadcn theme (the host imports `shadcn-bridge.css`), rather than a preset; or `preset` names a preset (its stylesheet imported), which the host's own chrome wears through `fve-tokens`. `brand` is the brand colour over the preset |
@@ -72,6 +73,7 @@ Theming in detail: [Theming the View Engine](../../../typescript/view-engine/the
 ```ts
 export interface ViewHostProps {
   bindings?: readonly ViewBinding[];
+  boardsInAddress?: boolean;
   brand?: string;
   children: import('react').ReactNode;
   colorMode?: HostColorMode;
@@ -163,7 +165,7 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | Member | Role |
 |---|---|
 | `id`, `label` | An id unique among the actions of one binding; the label may be `text(key)` |
-| `run(row, input)` | Sends the command for one record. It resolves once the read model reflects it — a Wow command waits for its snapshot, the default plan (or the hop the host's projection needs) — because the engine reads the view again right after. It throws when the command was refused; what it throws is read for the source's own reason. A command is a write, so make it idempotent: one that times out or loses the network has an outcome nobody knows, and the reader, told to check, may press again |
+| `run(row, input, options)` | Sends the command for one record. It resolves once the read model reflects it — a Wow command waits for its snapshot, the default plan (or the hop the host's projection needs) — because the engine reads the view again right after. It throws when the command was refused; what it throws is read for the source's own reason. A command is a write, so make it idempotent: one that times out or loses the network has an outcome nobody knows, and the reader, told to check, may press again. `options.signal` aborts when the engine stops waiting — past `timeout`, or when the reader stops the run — so a command not yet sent can be cancelled |
 | `available(row, context)` | `true` when the record takes the command now, else why not. Asked with the input where one is known, so a choice can refuse one option and offer the rest |
 | `hidden(row, context)` | The record does not show the action at all — the reader may not do it — as against `available`, which shows it disabled with why |
 | `changesAt(row, context)` | When `available` next changes on its own, as a `Date`; the engine asks again then, so the host keeps no timer |
@@ -173,6 +175,7 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | `on` | Where it is offered: `row`, `bulk`, `detail`; every place by default |
 | `primary` | The one a reader presses most: a button in the row, not in the menu |
 | `tone` | `default` or `danger` |
+| `done` | What the outcome line says of a record the command was done for, in place of "done": a key or words, said with `{count}` and `{record}`. For a command whose `run` resolves once it is requested rather than carried out, say so: `'{count} sent to the owning service'` |
 | `timeout` | How long one record's `run` is waited for, in milliseconds. Past it the engine stops waiting and reports the outcome as unknown — it may have taken the command — rather than holding the surface busy. No deadline by default |
 
 ```ts
@@ -182,6 +185,7 @@ export interface RecordAction {
   available?(row: RecordRow, context: ActionContext): Availability;
   changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
   readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+  readonly done?: string;
   readonly form?: ActionForm;
   hidden?(row: RecordRow, context: ActionContext): boolean;
   readonly id: string;
@@ -189,7 +193,7 @@ export interface RecordAction {
   readonly moves?: string;
   readonly on?: readonly ActionPlace[];
   readonly primary?: boolean;
-  run(row: RecordRow, input: ActionInput): Promise<unknown>;
+  run(row: RecordRow, input: ActionInput, options: { signal: AbortSignal }): Promise<unknown>;
   readonly timeout?: number;
   readonly tone?: ActionTone;
 }
@@ -261,4 +265,3 @@ export type MessageOverrides = Partial<Record<MessageKey, string>>;
 
 - Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs): the host, its bindings, two declared actions, words in two languages and an in-memory router.
 - Source files: [`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx), [`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts), [`memoryRouter.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/memoryRouter.ts).
-- A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views).

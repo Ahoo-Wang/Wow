@@ -76,27 +76,28 @@ One thing a host registers: a definition, and where its data comes from. A data 
 export interface ViewResource {
   definition: ViewDefinition;
   source?: ViewSource;
+  wording?: DatasetWordingEditor;
 }
 ```
 
 ## Data source {#api-ViewSource}
 
-`ViewSource` is three of `QueryApi`'s methods, so wow-client's snapshot query client satisfies it as it is; another backend, or a test, writes one by hand (a test uses [`/testing`'s `memorySource`](./testing#api-memorySource)).
+`ViewSource` is the reads of one Wow query route in wow-client's own shapes, so any `QueryModelClient` (a generated `…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)`) is a source as it is, with no adapter; another backend, or a test, writes one by hand (a test uses [`/testing`'s `memorySource`](./testing#api-memorySource)).
 
-- Cancellation is an `AbortController` rather than the `AbortSignal` the other ports take, because that is what `QueryApi` accepts, and this port exists so that a wow-client query client plugs in unchanged. The controller is the engine's: it aborts it when a newer request takes this one's place or the runtime is disposed. A source written by hand reads `abortController?.signal` and never aborts it.
-- `aggregate` answers `RecordData[]`: every value arrives as `unknown` and is read through a field's kind, rather than trusting a row type the caller asserts.
-- `describe` is optional: the source's capability descriptor. The engine reads it once per source before the first view over it runs, narrows each definition to what it admits and takes its limits, and checks it again on its own schedule; asked with the version already held, an unchanged one answers `notModified`. wow-client's `describeSnapshot` or `describeEventStream` fits it as it is. Left out, a view runs on the definition and the default limits alone.
+- Each read takes `options.signal` (`SourceOptions`, `{ readonly signal?: AbortSignal }`), aborted when a newer read takes this one's place or the view that asked is disposed. A source written by hand hands it on to its request.
+- Rows are `object`: a client's record type is an interface, and the engine reads every value through a field's path and kind rather than trusting a row type.
+- `describe` is optional: the source's capability descriptor. The engine reads it once per source before the first view over it runs, narrows each definition to what it admits and takes its limits, and checks it again on its own schedule; asked with the version already held, an unchanged one answers `notModified`. A wow-client query client's own `describe` is it. Left out, a view runs on the definition and the default limits alone.
 
 ```ts
 export interface ViewSource {
-  aggregate(query: AggregationQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<RecordData[]>;
-  cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
-  describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
-  paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+  aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
+  cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
+  describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
 }
 ```
 
-A source over a Wow service is Storybook's integration walk-through's [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts): each of the four methods handed to the snapshot query client and the descriptor client.
+A source over a Wow service is Storybook's integration walk-through's [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts): the `SnapshotQueryClient` itself, as it is.
 
 ## Runtime environment {#api-RuntimeEnvironment}
 
@@ -147,12 +148,12 @@ export declare class ViewEngine {
   readonly environment: RuntimeEnvironment;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
-  list(definitionId: string): Promise<ViewListing>;
+  list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
   open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
   openRuntimes(): readonly ViewRuntime[];
   pendingWrites(): ReadonlyMap<string, WriteState>;
   permissions(definitionId: string): ViewPermissions;
-  preferences(definitionId: string): Promise<ViewPreferences>;
+  preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   publishAsSystem(id: string): Promise<ViewInstance>;
   rename(id: string, title: string): Promise<ViewInstance>;
   reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
@@ -162,6 +163,7 @@ export declare class ViewEngine {
   saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
   setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
   setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
+  setText(text: TextResolver | undefined, language?: string): void;
   readonly store: ViewStore;
   subscribe(listener: ViewChangeListener): () => void;
 }
@@ -171,6 +173,7 @@ export declare class ViewEngine {
 
 - `scopeFilter`: an outer condition in the view's own field names, admitted with the config — an order page scoped to one customer never lets an unscoped query leave, and never shows a row outside its scope.
 - `definitionId`: the definition whose views the caller draws; an instance of another is refused before anything runs (`view.open.other-definition`).
+- `signal`: cancels the opening; the reads it waits on are aborted, and a view opened by then is disposed rather than handed back.
 - `tab`, `filters`, `held`: for a dashboard only — the tab it opens on, what its filters start at, the filters the host holds.
 
 ```ts
@@ -179,6 +182,7 @@ export interface OpenOptions {
   filters?: DashboardFilters | null;
   held?: HeldFilters | null;
   scopeFilter?: FilterTree | null;
+  signal?: AbortSignal;
   tab?: string | null;
 }
 ```
@@ -198,6 +202,7 @@ export interface CreateInput<C extends ViewConfig> {
 
 ```ts
 export interface ViewListing {
+  cut?: number;
   failed: Issue | null;
   items: ViewInstanceSummary[];
 }

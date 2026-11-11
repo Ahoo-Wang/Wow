@@ -7,7 +7,7 @@ description: 'defineView 与它的规格、text 键、FieldKind 与字段类型�
 
 定义是代码：它随应用发布，说清一个业务对象能被怎样观察——哪些字段、各是什么类型、能怎样筛选、排序和汇总，以及随定义一起发布的系统视图。用户保存的每个视图都按它校验。`defineView` 从来源的查询描述构建一份数据定义：描述给出事实，规格在其中挑选、命名、收窄。
 
-相关指南：[写好一份定义](../../../typescript/view-engine/definitions.md)（从描述符出发逐项选择、措辞、系统视图与看板）、[视图引擎的核心概念](../../../typescript/view-engine/index.md)（定义在模型里的位置）、视图引擎入门（第 5 步的一份完整定义）。
+相关指南：[写好一份定义](../../../typescript/view-engine/definitions.md)（从描述符出发逐项选择、措辞、系统视图与仪表盘）、[视图引擎的核心概念](../../../typescript/view-engine/index.md)（定义在模型里的位置）、视图引擎入门（第 5 步的一份完整定义）。
 
 ## defineView {#api-defineView}
 
@@ -63,7 +63,7 @@ export const ordersDefinition = defineView(ordersDescriptor, {
 | `fieldGroups` | 字段选择器列出字段时用的分组，按此顺序 |
 | `record` | 记录能力：行键与分页缺省取描述的（它的标识；能分页处分页，否则用游标），以表格显示。`false` 不提供记录 |
 | `analysis` | 分析能力，按描述提供的；`false` 不提供 |
-| `timeField` | 看板的时间筛选通过它到达面板；必须是 `fields` 里列出的日期字段 |
+| `timeField` | 仪表盘的时间筛选通过它到达面板；必须是 `fields` 里列出的日期字段 |
 | `views` | 随定义发布的系统视图：人人可见、无人可覆盖、谁都能另存一份 |
 
 ```ts
@@ -155,7 +155,7 @@ export interface DefineViewOptions {
 
 ### SystemView {#api-SystemView}
 
-随定义发布的基线视图。`id` 在定义内唯一，且不含 `:`。`timeField` 是这个视图读记录时的时刻（不同于定义的 `timeField` 时）；`null` 表示整体读取的视图，看板的时间筛选够不到它。
+随定义发布的基线视图。`id` 在定义内唯一，且不含 `:`。`timeField` 是这个视图读记录时的时刻（不同于定义的 `timeField` 时）；`null` 表示整体读取的视图，仪表盘的时间筛选够不到它。
 
 ```ts
 export interface SystemView {
@@ -170,7 +170,7 @@ export interface SystemView {
 
 定义写 `text('orders.title')`，而不是某种语言里的「订单」，这样一份定义服务所有语言，由宿主的措辞目录去说它。
 
-- 键以字符串旅行：定义、系统视图与看板的每个标签位都是 `string`，键夹在两个任何措辞都不用的字符之间（私用区 U+E000 与 U+E001）。所以键也能出现在代码拼出的长字符串里，在那里同样被说出来。字面字符串仍是标签，给只有一种语言的宿主。
+- 键以字符串旅行：定义、系统视图与仪表盘的每个标签位都是 `string`，键夹在两个任何措辞都不用的字符之间（私用区 U+E000 与 U+E001）。所以键也能出现在代码拼出的长字符串里，在那里同样被说出来。字面字符串仍是标签，给只有一种语言的宿主。
 - **键在叶子处才说出**：定义、保存的配置、每个运行时的状态和快照都保持键；只有在显示或离开引擎的地方——渲染出的标签、图表选项、导出、可访问名称、标题——才按当时生效的 Provider 的措辞说出，没有 Provider 就用引擎构建时的（`ViewEngineOptions.text`）。所以一个引擎服务所有语言，换语言只是重画。
 - 缺措辞的键读作键本身，并被报告（`definition.text.unknown`、`definition.text.fallback`，见 [Issue code](./issues)）。测试里用 [`admit`](./testing#api-admit) 连同措辞一起检查。
 

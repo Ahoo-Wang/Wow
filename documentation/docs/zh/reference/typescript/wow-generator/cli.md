@@ -5,13 +5,13 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 
 # 生成器 CLI
 
-`wow-generator generate` 读取 JSON/YAML 并写入 TypeScript 模型和装饰器客户端。输出不取决于运行目录装了哪些包，但编译输出的项目需要安装它们，见[生成产物](./generated-output)。
+`wow-generator generate` 读取 JSON 或 YAML 格式的 Wow Manifest 或 OpenAPI 3.x 文档并写入 TypeScript：Manifest 生成基于 `@ahoo-wang/wow-client` 的类型化客户端，OpenAPI 文档生成它的模型与装饰器 API 客户端。输出不取决于运行目录装了哪些包，但编译输出的项目需要安装它们，见[生成产物](./generated-output)。
 
 ## 选项
 
 | 选项                               | 必填/默认值                   | 含义                                                                        |
 | ---------------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| `-i, --input <file>`               | 必填                          | OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL                                 |
+| `-i, --input <file>`               | 必填                          | Wow Manifest（`GET /wow/manifest`）或 OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL |
 | `-o, --output <path>`              | `src/generated`               | 输出根目录，相对当前工作目录解析                                            |
 | `-c, --config <file>`              | `./wow-generator.config.json` | 生成器配置，见[配置](./configuration)；显式指定的文件必须存在               |
 | `-t, --ts-config-file-path <file>` | 不指定                        | ts-morph 项目配置；应提供启用装饰器的 tsconfig                              |
@@ -38,7 +38,7 @@ pnpm exec wow-generator generate -i https://api.example.com/v3/api-docs \
 默认只输出警告、错误和一行摘要，摘要包含文件数、输出目录、读取的配置和警告数：
 
 ```text
-Generated 3 files into ./src/generated with /work/app/wow-generator.config.json, 1 warning
+Generated 3 files into ./src/generated with wow-generator.config.json, 1 warning
 ```
 
 `--verbose` 输出每一步并带时间戳；`--quiet` 不输出摘要。只有在终端（TTY）且未设置 `NO_COLOR` 时才带符号，CI 日志和管道保持纯文本。
@@ -132,7 +132,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 仓库 fixture 构建后，从 `typescript/wow-generator` 目录运行：
 
 ```bash
-node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generated -t tsconfig.json
+node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated -t tsconfig.json
 ```
 
 ## 失败与退出码

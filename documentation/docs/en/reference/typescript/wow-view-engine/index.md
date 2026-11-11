@@ -6,7 +6,7 @@ description: 'Entries, concepts, persistence port, and extension points of the @
 # wow-view-engine reference
 
 ::: info On npm since Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../typescript/view-engine/index.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model. The symbols a host uses most are described by hand in the [topic pages](#topics) below; every name each entry exports is in the generated [symbol index](./symbols).
+`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../typescript/compatibility.md#version-ranges)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model. The symbols a host uses most are described by hand in the [topic pages](#topics) below; every name each entry exports is in the generated [symbol index](./symbols).
 :::
 
 For what the engine does, read the [View Engine guide](../../../typescript/view-engine/index.md); for a walkthrough that wires one business object from zero, Getting Started with the View Engine.
@@ -39,17 +39,19 @@ Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`,
 
 ```ts
 interface ViewStore {
-  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
   save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
   // Optional: without it the view manager offers no "Make shared" / "Make personal".
   changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
-  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
+  // Set by a store kept in this browser alone: the engine then shares none of its views.
+  readonly local?: boolean;
 }
 ```
 
