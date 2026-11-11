@@ -14,13 +14,18 @@
 package me.ahoo.wow.api.id
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The ids domain code takes, from a decide function ([me.ahoo.wow.api.decide.DecideScope.ids]) or a
  * saga's handler ([me.ahoo.wow.api.subscribe.SagaContext.ids]) instead of a static generator: on a node they are its
  * deployment's generators' (UUIDv7 by default, CosId with wow-cosid), in the test DSL ids that are the same on every
  * run.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface Ids {
     /** A new global id, such as the id of a line, a payment attempt or a correlation key. */
     fun next(): String

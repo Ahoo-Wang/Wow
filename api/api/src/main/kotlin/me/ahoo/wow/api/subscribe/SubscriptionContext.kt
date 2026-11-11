@@ -88,7 +88,11 @@ class ExecutionId @InternalWowApi constructor(
  * What every subscription handler can ask of the runtime besides the [StateEvent] it handles: the context of a
  * [me.ahoo.wow.api.annotation.Projection]'s or a [me.ahoo.wow.api.annotation.Reactor]'s handler, and what every other
  * context adds to.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface SubscriptionContext {
     /**
      * This execution: stable across every time the same commit is handled by the same subscription. It is per stream:
@@ -144,7 +148,11 @@ interface SubscriptionContext {
  *
  * The handler of a receipt finds the aggregate whose commit derived the command in [CommandReceipt.source], and a
  * job's handler its tick in the [ScheduleTick] it takes.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface SagaContext : SubscriptionContext {
     /**
      * The ids this execution takes: the node's generators, each aggregate type's the one the host

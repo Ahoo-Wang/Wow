@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -30,7 +31,11 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * A decide function may also schedule a command for later: [schedule] and [cancelSchedule] add
  * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
  * them, and the runtime sends the command each time it is due. A decision that only schedules commits those events.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface DecideScope {
     /** The command being decided, with what admission learned about its request. */
     val command: Command<*>
