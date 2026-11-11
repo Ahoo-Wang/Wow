@@ -65,6 +65,7 @@ import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.fingerprintOf
+import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
@@ -408,6 +409,48 @@ class QueryGatewayObservationTest {
                 gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
             }
             told.assert().containsExactly("q SINGLE end", "q LIST end", "q LIST failed", "q LIST end")
+        }
+    }
+
+    /** An observation that throws when it is told the outcome, the failure or the end. */
+    private class Throwing : Observation {
+        override fun outcome(outcome: ObservedOutcome) = error("The meter is closed.")
+
+        override fun failed(error: Throwable) = error("The tracer is closed.")
+
+        override fun end() = error("The span is closed.")
+    }
+
+    @Test
+    fun `an observation that throws should fail no query and keep no other observation from ending`() {
+        runTest {
+            val told = CopyOnWriteArrayList<String>()
+            val throwing = object : QueryObserver {
+                override fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation =
+                    Throwing()
+            }
+            val alone = QueryObserver.of(listOf(throwing))
+            val beside = QueryObserver.of(listOf(throwing, startingObserver("q", told)))
+            val rows = GatewayBackend(rows = { flowOf(snapshotNode()) }, row = { snapshotNode() })
+            val failing = GatewayBackend(rows = { flow { error("The store is down.") } })
+            for (observer in listOf(alone, beside)) {
+                gateway(rows, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                    .assert().isNotNull()
+                gateway(rows, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+                    .assert().hasSize(1)
+                assertThrows<QueryExecutionException> {
+                    gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                        .toList()
+                }
+            }
+            told.assert().containsExactly("q SINGLE end", "q LIST end", "q LIST failed", "q LIST end")
+            val observation = alone.started(AGGREGATE, QueryType.COUNT, QueryModel.SNAPSHOT)
+            observation.outcome(ObservedOutcome.OK)
+            observation.failed(IllegalStateException("boom"))
+            observation.end()
+            val traced = QueryObserver.of(listOf(startingObserver("t", told)))
+            val trace = traced.started(AGGREGATE, QueryType.LIST, QueryModel.SNAPSHOT).trace
+            trace.assert().isEqualTo(mapOf("traceparent" to "t LIST"))
         }
     }
 

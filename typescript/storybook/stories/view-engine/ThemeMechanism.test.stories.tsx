@@ -35,7 +35,11 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { converter, parse } from 'culori';
+import { Button } from '@/ui/components/button';
+import { Checkbox } from '@/ui/components/checkbox';
+import { Input } from '@/ui/components/input';
 import { FOCUS_CARD, FOCUS_PANEL, FOCUS_ROW } from '@/ui/kit/frames';
+import { MixedCheckbox } from '@/ui/kit/MixedCheckbox';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -470,3 +474,56 @@ const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
 export const FocusMarksReadTheThemeInContrast: Story = focusMarks('contrast');
 export const FocusMarksReadTheThemeInAzure: Story = focusMarks('azure');
 export const FocusMarksKeepTheRegistryInNeutral: Story = focusMarks('neutral');
+
+/**
+ * 暗色下控件没有自己的淡底（D94）。registry 在暗色里给输入框、勾选框与描边
+ * 按钮铺一层 `input` 的 30%；引擎拿掉它，控件立在所在的面上。给控件填色的
+ * 主题（porcelain 的 `control`）工具栏上的描边按钮仍是那层填色，neutral 没有；
+ * 勾上的与半选的勾选框仍是主色的填色。
+ */
+const NO_FILL = 'rgba(0, 0, 0, 0)';
+
+const darkControlsWearNoWash = (preset: 'neutral' | 'porcelain'): Story => ({
+  ...DisplayWithData,
+  render: () => (
+    <div className="fve-root" data-fve-preset={preset} data-theme="dark">
+      <Input aria-label="字段" />
+      <Checkbox aria-label="勾选" />
+      <Checkbox aria-label="已勾" defaultChecked />
+      <MixedCheckbox aria-label="部分" indeterminate />
+      <Button variant="outline">按钮</Button>
+      <div role="toolbar" aria-label="工具栏">
+        <Button variant="outline">工具</Button>
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const root = canvasElement.querySelector<HTMLElement>('.fve-root')!;
+    const fillOf = (element: HTMLElement) =>
+      getComputedStyle(element).backgroundColor;
+    await expect(fillOf(canvas.getByRole('textbox'))).toBe(NO_FILL);
+    await expect(fillOf(canvas.getByRole('checkbox', { name: '勾选' }))).toBe(
+      NO_FILL,
+    );
+    // A ticked box and a mixed one keep their fill: only the wash at rest
+    // goes.
+    for (const name of ['已勾', '部分'])
+      await expect(
+        rgbOf(fillOf(canvas.getByRole('checkbox', { name }))),
+        name,
+      ).toBe(colorOf(root, '--primary'));
+    await expect(fillOf(canvas.getByRole('button', { name: '按钮' }))).toBe(
+      NO_FILL,
+    );
+    const tool = fillOf(canvas.getByRole('button', { name: '工具' }));
+    if (preset === 'porcelain')
+      await expect(rgbOf(tool)).toBe(colorOf(root, '--_fve-control'));
+    else await expect(tool).toBe(NO_FILL);
+  },
+});
+
+export const DarkControlsWearNoWashInNeutral: Story =
+  darkControlsWearNoWash('neutral');
+export const DarkControlsWearNoWashInPorcelain: Story =
+  darkControlsWearNoWash('porcelain');
