@@ -1,0 +1,268 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The preset reset: every preset variable `initial` on whatever names a preset. Its list is generated (`theme:docs`).
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * A preset pinned on an element replaces the one around it, whole
+ * (theme-architecture.md 3.2). Every element that names a preset starts from
+ * an empty preset layer — every `--fvp-*` a preset may write, back to
+ * `initial` — and the preset's own block, outside any layer, puts back what it
+ * says. So a preset writes only what it changes, `neutral` writes nothing,
+ * and a preset pinned inside another never shows what the outer one gave and
+ * it did not: a group it leaves out is the built-in value, not the outer
+ * preset's. The host's `--fve-*` are not touched: they still win.
+ *
+ * Zero weight and the lowest layer, so any preset block wins — a built-in
+ * one, a host's own, the shadcn bridge. A host that writes its preset inside
+ * an `@layer` of its own, declared before this file's, would lose to it:
+ * write presets outside any layer. It is the one rule of this file outside
+ * the two boundaries: it sets variables that paint nothing, on whatever names
+ * a preset — `<html>`, a wrapper, a surface (`scripts/verify-package.mjs`).
+ *
+ * The list is the registry's preset layer (`src/ui/theme/tokens.ts`),
+ * written by `pnpm --filter @ahoo-wang/wow-view-engine theme:docs` and held
+ * to it by `test/themeFiles.test.ts`.
+ */
+@layer fve-reset {
+  :where([data-fve-preset]) {
+    /* fve-reset:begin */
+    --fvp-background: initial;
+    --fvp-dark-background: initial;
+    --fvp-foreground: initial;
+    --fvp-dark-foreground: initial;
+    --fvp-card: initial;
+    --fvp-dark-card: initial;
+    --fvp-card-foreground: initial;
+    --fvp-dark-card-foreground: initial;
+    --fvp-popover: initial;
+    --fvp-dark-popover: initial;
+    --fvp-popover-foreground: initial;
+    --fvp-dark-popover-foreground: initial;
+    --fvp-primary: initial;
+    --fvp-dark-primary: initial;
+    --fvp-primary-foreground: initial;
+    --fvp-dark-primary-foreground: initial;
+    --fvp-secondary: initial;
+    --fvp-dark-secondary: initial;
+    --fvp-secondary-foreground: initial;
+    --fvp-dark-secondary-foreground: initial;
+    --fvp-muted: initial;
+    --fvp-dark-muted: initial;
+    --fvp-muted-foreground: initial;
+    --fvp-dark-muted-foreground: initial;
+    --fvp-accent: initial;
+    --fvp-dark-accent: initial;
+    --fvp-accent-foreground: initial;
+    --fvp-dark-accent-foreground: initial;
+    --fvp-sidebar: initial;
+    --fvp-dark-sidebar: initial;
+    --fvp-sidebar-foreground: initial;
+    --fvp-dark-sidebar-foreground: initial;
+    --fvp-sidebar-accent: initial;
+    --fvp-dark-sidebar-accent: initial;
+    --fvp-sidebar-accent-foreground: initial;
+    --fvp-dark-sidebar-accent-foreground: initial;
+    --fvp-sidebar-border: initial;
+    --fvp-dark-sidebar-border: initial;
+    --fvp-destructive: initial;
+    --fvp-dark-destructive: initial;
+    --fvp-success: initial;
+    --fvp-dark-success: initial;
+    --fvp-warning: initial;
+    --fvp-dark-warning: initial;
+    --fvp-border: initial;
+    --fvp-dark-border: initial;
+    --fvp-input: initial;
+    --fvp-dark-input: initial;
+    --fvp-ring: initial;
+    --fvp-dark-ring: initial;
+    --fvp-destructive-foreground: initial;
+    --fvp-dark-destructive-foreground: initial;
+    --fvp-quiet-foreground: initial;
+    --fvp-dark-quiet-foreground: initial;
+    --fvp-primary-fill: initial;
+    --fvp-dark-primary-fill: initial;
+    --fvp-primary-fill-foreground: initial;
+    --fvp-dark-primary-fill-foreground: initial;
+    --fvp-chart-1: initial;
+    --fvp-dark-chart-1: initial;
+    --fvp-chart-2: initial;
+    --fvp-dark-chart-2: initial;
+    --fvp-chart-3: initial;
+    --fvp-dark-chart-3: initial;
+    --fvp-chart-4: initial;
+    --fvp-dark-chart-4: initial;
+    --fvp-chart-5: initial;
+    --fvp-dark-chart-5: initial;
+    --fvp-chart-6: initial;
+    --fvp-dark-chart-6: initial;
+    --fvp-chart-7: initial;
+    --fvp-dark-chart-7: initial;
+    --fvp-chart-8: initial;
+    --fvp-dark-chart-8: initial;
+    --fvp-radius: initial;
+    --fvp-font-sans: initial;
+    --fvp-chart-patterns: initial;
+    --fvp-brand-l-min: initial;
+    --fvp-dark-brand-l-min: initial;
+    --fvp-brand-l-max: initial;
+    --fvp-dark-brand-l-max: initial;
+    --fvp-brand-c-max: initial;
+    --fvp-dark-brand-c-max: initial;
+    --fvp-brand-ring-l-min: initial;
+    --fvp-dark-brand-ring-l-min: initial;
+    --fvp-brand-ring-l-max: initial;
+    --fvp-dark-brand-ring-l-max: initial;
+    --fvp-brand-primary-fill-l-min: initial;
+    --fvp-dark-brand-primary-fill-l-min: initial;
+    --fvp-brand-primary-fill-l-max: initial;
+    --fvp-dark-brand-primary-fill-l-max: initial;
+    --fvp-brand-accent-lc: initial;
+    --fvp-dark-brand-accent-lc: initial;
+    --fvp-brand-sidebar-accent-lc: initial;
+    --fvp-dark-brand-sidebar-accent-lc: initial;
+    --fvp-brand-row-selected-lc: initial;
+    --fvp-dark-brand-row-selected-lc: initial;
+    --fvp-brand-chart-1-lc: initial;
+    --fvp-dark-brand-chart-1-lc: initial;
+    --fvp-preset-density: initial;
+    --fvp-shadow-sm: initial;
+    --fvp-dark-shadow-sm: initial;
+    --fvp-shadow-md: initial;
+    --fvp-dark-shadow-md: initial;
+    --fvp-shadow-lg: initial;
+    --fvp-dark-shadow-lg: initial;
+    --fvp-canvas: initial;
+    --fvp-dark-canvas: initial;
+    --fvp-content: initial;
+    --fvp-dark-content: initial;
+    --fvp-card-edge: initial;
+    --fvp-dark-card-edge: initial;
+    --fvp-card-shadow: initial;
+    --fvp-dark-card-shadow: initial;
+    --fvp-scrim: initial;
+    --fvp-dark-scrim: initial;
+    --fvp-table-header: initial;
+    --fvp-dark-table-header: initial;
+    --fvp-table-header-foreground: initial;
+    --fvp-dark-table-header-foreground: initial;
+    --fvp-table-header-weight: initial;
+    --fvp-table-header-divider: initial;
+    --fvp-dark-table-header-divider: initial;
+    --fvp-totals: initial;
+    --fvp-dark-totals: initial;
+    --fvp-row-selected: initial;
+    --fvp-dark-row-selected: initial;
+    --fvp-row-selected-foreground: initial;
+    --fvp-dark-row-selected-foreground: initial;
+    --fvp-row-hover: initial;
+    --fvp-dark-row-hover: initial;
+    --fvp-row-selected-mark: initial;
+    --fvp-dark-row-selected-mark: initial;
+    --fvp-row-selected-mark-link: initial;
+    --fvp-row-stripe: initial;
+    --fvp-dark-row-stripe: initial;
+    --fvp-row-divider: initial;
+    --fvp-dark-row-divider: initial;
+    --fvp-table-sort-idle: initial;
+    --fvp-highlight: initial;
+    --fvp-dark-highlight: initial;
+    --fvp-highlight-foreground: initial;
+    --fvp-dark-highlight-foreground: initial;
+    --fvp-highlight-link: initial;
+    --fvp-highlight-foreground-link: initial;
+    --fvp-item-selected: initial;
+    --fvp-dark-item-selected: initial;
+    --fvp-item-selected-foreground: initial;
+    --fvp-dark-item-selected-foreground: initial;
+    --fvp-item-selected-weight: initial;
+    --fvp-item-selected-link: initial;
+    --fvp-nav-current: initial;
+    --fvp-dark-nav-current: initial;
+    --fvp-nav-current-foreground: initial;
+    --fvp-dark-nav-current-foreground: initial;
+    --fvp-nav-current-edge: initial;
+    --fvp-dark-nav-current-edge: initial;
+    --fvp-nav-current-shadow: initial;
+    --fvp-dark-nav-current-shadow: initial;
+    --fvp-nav-current-link: initial;
+    --fvp-nav-current-foreground-link: initial;
+    --fvp-control-hover: initial;
+    --fvp-dark-control-hover: initial;
+    --fvp-control-pressed: initial;
+    --fvp-dark-control-pressed: initial;
+    --fvp-outline-hover-edge: initial;
+    --fvp-dark-outline-hover-edge: initial;
+    --fvp-outline-hover-foreground: initial;
+    --fvp-dark-outline-hover-foreground: initial;
+    --fvp-outline-hover-edge-link: initial;
+    --fvp-outline-hover-foreground-link: initial;
+    --fvp-focus-width: initial;
+    --fvp-focus-offset: initial;
+    --fvp-focus-style: initial;
+    --fvp-focus-halo: initial;
+    --fvp-dark-focus-halo: initial;
+    --fvp-control: initial;
+    --fvp-dark-control: initial;
+    --fvp-control-edge: initial;
+    --fvp-dark-control-edge: initial;
+    --fvp-control-thumb: initial;
+    --fvp-dark-control-thumb: initial;
+    --fvp-control-thumb-shadow: initial;
+    --fvp-dark-control-thumb-shadow: initial;
+    --fvp-control-height: initial;
+    --fvp-control-height-sm: initial;
+    --fvp-filter-height: initial;
+    --fvp-edge-width: initial;
+    --fvp-badge-edge: initial;
+    --fvp-badge-fill: initial;
+    --fvp-radius-card: initial;
+    --fvp-radius-control: initial;
+    --fvp-radius-popover: initial;
+    --fvp-radius-badge: initial;
+    --fvp-radius-checkbox: initial;
+    --fvp-title-weight: initial;
+    --fvp-strong-weight: initial;
+    --fvp-tooltip: initial;
+    --fvp-dark-tooltip: initial;
+    --fvp-tooltip-foreground: initial;
+    --fvp-dark-tooltip-foreground: initial;
+    --fvp-chart-grid: initial;
+    --fvp-dark-chart-grid: initial;
+    --fvp-chart-grid-width: initial;
+    --fvp-chart-axis: initial;
+    --fvp-dark-chart-axis: initial;
+    --fvp-chart-text-size: initial;
+    --fvp-chart-label-size: initial;
+    --fvp-chart-line-width: initial;
+    --fvp-chart-area-opacity: initial;
+    --fvp-chart-bar-radius: initial;
+    --fvp-chart-bar-min-width: initial;
+    --fvp-chart-bar-max-width: initial;
+    --fvp-chart-slice-border: initial;
+    --fvp-chart-map-edge: initial;
+    --fvp-dark-chart-map-edge: initial;
+    --fvp-chart-tooltip: initial;
+    --fvp-dark-chart-tooltip: initial;
+    --fvp-chart-tooltip-foreground: initial;
+    --fvp-dark-chart-tooltip-foreground: initial;
+    --fvp-chart-tooltip-shadow: initial;
+    --fvp-dark-chart-tooltip-shadow: initial;
+    /* fve-reset:end */
+  }
+}

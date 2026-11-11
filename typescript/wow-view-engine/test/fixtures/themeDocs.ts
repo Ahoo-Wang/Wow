@@ -40,6 +40,7 @@ import {
   TOKENS,
 } from '../../src/ui/theme/tokens';
 import { declared, type Mode, tokenVariable } from './themeTokens';
+import { stylesSource } from '../../scripts/styles.mjs';
 
 export const ROOT = join(import.meta.dirname, '..', '..');
 
@@ -114,11 +115,9 @@ let sourceReads: HostRead[] | undefined;
 export function hostReads(): readonly HostRead[] {
   if (sourceReads) return sourceReads;
   const reads: HostRead[] = [];
-  postcss
-    .parse(readFileSync(join(ROOT, 'src', 'styles.css'), 'utf8'))
-    .walkDecls(decl => {
-      reads.push(...readsIn(decl.value, 'src/styles.css'));
-    });
+  postcss.parse(stylesSource()).walkDecls(decl => {
+    reads.push(...readsIn(decl.value, 'src/styles.css'));
+  });
   // The registry spells the variables rather than reading them.
   const registry = join(ROOT, 'src', 'ui', 'theme');
   for (const path of sourceFiles(join(ROOT, 'src', 'ui'))) {
@@ -161,7 +160,7 @@ let stylesText: string | undefined;
  * every read: `var(--fvp-[dark-]<name>, <default>)`.
  */
 function readDefault(entry: TokenEntry, mode: Mode): string | undefined {
-  stylesText ??= readFileSync(join(ROOT, 'src', 'styles.css'), 'utf8')
+  stylesText ??= stylesSource()
     .replace(/\s+/g, ' ')
     .replace(/\(\s+/g, '(')
     .replace(/\s+\)/g, ')');
@@ -320,21 +319,24 @@ export async function renderThemePage(
   return text;
 }
 
+/** The part of the stylesheet that holds the reset rule (`scripts/styles.mjs`). */
+export const RESET_PART = join(ROOT, 'src', 'styles', 'reset.css');
+
 /**
- * `styles.css` with its reset rule's list written from the registry — every
+ * `styles/reset.css` with its reset rule's list written from the registry — every
  * preset variable back to `initial` (ui/theme.md「三层变量」) — between
  * its `fve-reset:begin` / `fve-reset:end` comments, formatted as the
  * repository formats CSS: what the file should be.
  */
 export async function renderStyles(): Promise<string> {
-  const path = join(ROOT, 'src', 'styles.css');
+  const path = RESET_PART;
   const text = readFileSync(path, 'utf8');
   const begin = '/* fve-reset:begin */';
   const end = '/* fve-reset:end */';
   const from = text.indexOf(begin);
   const to = text.indexOf(end);
   if (from < 0 || to < from)
-    throw new Error(`src/styles.css has no ${begin} … ${end} region`);
+    throw new Error(`src/styles/reset.css has no ${begin} … ${end} region`);
   const list = ENTRIES.flatMap(presetVariables)
     .map(variable => `${variable}: initial;`)
     .join('\n');

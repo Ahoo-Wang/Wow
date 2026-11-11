@@ -1,0 +1,819 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The tokens, light: shadcn's names, the engine's own, the roles and the charts' roles. One rule, declared once for both boundaries.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * The tokens, declared once for both boundaries: a host's chrome gets exactly
+ * what a surface gets, down to `color-scheme`, so a `Card` in the host's own
+ * header is the same card it would be inside a view. What the tokens boundary
+ * does *not* get is the paint below — `--background` and `--foreground` are
+ * values it offers, not a background it imposes.
+ */
+.fve-root,
+.fve-tokens {
+  color-scheme: light;
+
+  --background: var(--fve-background, var(--fvp-background, oklch(1 0 0deg)));
+  --foreground: var(
+    --fve-foreground,
+    var(--fvp-foreground, oklch(0.145 0 0deg))
+  );
+  --card: var(--fve-card, var(--fvp-card, oklch(1 0 0deg)));
+  --card-foreground: var(
+    --fve-card-foreground,
+    var(--fvp-card-foreground, oklch(0.145 0 0deg))
+  );
+  --popover: var(--fve-popover, var(--fvp-popover, oklch(1 0 0deg)));
+  --popover-foreground: var(
+    --fve-popover-foreground,
+    var(--fvp-popover-foreground, oklch(0.145 0 0deg))
+  );
+  --primary: var(
+    --fve-primary,
+    var(--_fve-brand-primary, var(--fvp-primary, oklch(0.205 0 0deg)))
+  );
+  --primary-foreground: var(
+    --fve-primary-foreground,
+    var(--fvp-primary-foreground, oklch(0.985 0 0deg))
+  );
+  --secondary: var(--fve-secondary, var(--fvp-secondary, oklch(0.97 0 0deg)));
+  --secondary-foreground: var(
+    --fve-secondary-foreground,
+    var(--fvp-secondary-foreground, oklch(0.205 0 0deg))
+  );
+  --muted: var(--fve-muted, var(--fvp-muted, oklch(0.97 0 0deg)));
+  --muted-foreground: var(
+    --fve-muted-foreground,
+    var(--fvp-muted-foreground, oklch(0.556 0 0deg))
+  );
+  --accent: var(
+    --fve-accent,
+    var(--_fve-brand-accent, var(--fvp-accent, oklch(0.97 0 0deg)))
+  );
+  --accent-foreground: var(
+    --fve-accent-foreground,
+    var(--fvp-accent-foreground, oklch(0.205 0 0deg))
+  );
+
+  /*
+   * The navigation column's own ground, under shadcn's own token names so a
+   * host that already themes a shadcn sidebar themes this one with the same
+   * words. Only the five the column actually paints with are declared — a
+   * token nothing reads is a contract nothing keeps.
+   *
+   * The three greys have to stay apart from each other *and* from the work
+   * area, which is the whole reason the column exists: the ground is the
+   * `muted` step, the open view is `--background` on top of it, and hover is
+   * a step *darker* than the ground rather than lighter, so it can never be
+   * mistaken for the open one. The registry's own `0.985` sidebar measures
+   * 1.03:1 against a white work area — a grey nobody can see is not a grey.
+   */
+  --sidebar: var(--fve-sidebar, var(--fvp-sidebar, oklch(0.97 0 0deg)));
+  --sidebar-foreground: var(
+    --fve-sidebar-foreground,
+    var(--fvp-sidebar-foreground, oklch(0.145 0 0deg))
+  );
+  --sidebar-accent: var(
+    --fve-sidebar-accent,
+    var(
+      --_fve-brand-sidebar-accent,
+      var(--fvp-sidebar-accent, oklch(0.922 0 0deg))
+    )
+  );
+  --sidebar-accent-foreground: var(
+    --fve-sidebar-accent-foreground,
+    var(--fvp-sidebar-accent-foreground, oklch(0.205 0 0deg))
+  );
+  --sidebar-border: var(
+    --fve-sidebar-border,
+    var(--fvp-sidebar-border, oklch(0.898 0 0deg))
+  );
+  --destructive: var(
+    --fve-destructive,
+    var(--fvp-destructive, oklch(0.505 0.213 27.518deg))
+  );
+
+  /*
+   * Status colours, reserved for an outcome or a state and never for a chart
+   * series, which carries its own slots. Only `destructive` has a registry
+   * variant; the other two are applied by class. Light takes Tailwind's 800
+   * steps — `destructive` the 700, because red is the darkest hue of the
+   * three at any one lightness — picked so the colour clears 4.5:1 as text
+   * on the surface with room to spare; dark takes the 400 steps.
+   *
+   * **The light steps were one step lighter and passed by a hair** (P-21).
+   * The 700/600 steps measured 4.94:1 (success), 5.05 (warning) and 4.77
+   * (destructive) against the page — over 1.4.3's 4.5, and over it by 6% in
+   * the worst case, which is not a margin: the badge these write is set in
+   * the one small size (13px) and is the smallest text on the surface, and
+   * a host nudging `--fve-warning` half a step lighter takes the whole set
+   * under the bar without touching anything that looks like a contrast
+   * decision. One step down the same palette measures **7.09 / 7.13 /
+   * 6.42** (`ToneBadgeInk*`, measured in the browser), and it is still the
+   * palette's own step rather than a colour picked here.
+   *
+   * **Dark is quiet** (phase 5, Q44; settles D18 item 12). It took the 400
+   * steps, whose chroma of 0.19–0.21 glared on a dark ground — a soft badge
+   * read louder than the row it sat in. The three keep their hues at a
+   * chroma of 0.15: success and warning at the 400 steps' own lightness,
+   * `destructive` lifted from 0.704 to 0.76, which is what lets a danger
+   * badge write in the token itself on a selected row. It measured 3.92:1
+   * there under the registry's 20% wash and needed a mix toward the
+   * foreground in `ui/kit/variants.tsx`; plain, on its 10% wash over the band,
+   * it now reads 5.48:1 on the neutral dark ground (4.56:1 on porcelain's,
+   * the tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
+   * status pair of every preset to 4.5:1 and the chroma to 0.14–0.16.
+   *
+   * **A fill and its ink are a pair.** What is filled with a status colour
+   * writes in that fill's own `-foreground`, defaulting to the surface
+   * colour, so a host moving the fill has the ink to move with it. Only
+   * `destructive` has one: the confirm button of a destructive dialog
+   * (`DestructiveAction`) is the one solid status fill left. The toned
+   * badges that used to fill with `success` and `warning` are the soft
+   * recipe since the 2026-09-23 visual draft — the token as a 10% tint and
+   * as the writing (`ToneBadge`, `ui/kit/variants.tsx`) — and the two
+   * `-foreground`s went with them, because a token nothing reads is a
+   * contract nothing keeps.
+   *
+   * **There is no `info`** (phase 5, Q45). It was declared and registered
+   * as a utility, and nothing ever read it: a note is not a status, and the
+   * info tone of a callout (`LineAlert`, `ui/kit/alerts.tsx`) writes in the
+   * page's own quiet grey, `muted-foreground`, with the `border` edge —
+   * yellow and red are kept for when something is wrong. A blue `info` comes
+   * back with the first thing that reads it, not before.
+   */
+  --success: var(
+    --fve-success,
+    var(--fvp-success, oklch(0.448 0.119 151.328deg))
+  );
+  --warning: var(
+    --fve-warning,
+    var(--fvp-warning, oklch(0.473 0.137 46.201deg))
+  );
+  --destructive-foreground: var(
+    --fve-destructive-foreground,
+    var(--fvp-destructive-foreground, var(--background))
+  );
+
+  /*
+   * A change by its direction — a rise and a fall — rather than by whether
+   * it is good (themes.md 2.6, D35 Q61). A waterfall's steps wear these
+   * always, and a metric card's change wears them once the host names a
+   * convention by direction (`data-fve-change-colors`, below). They are
+   * derived, not set: the convention's pair (`--_fve-convention-rise` /
+   * `--_fve-convention-fall`, the status colours of this mode, crossed under
+   * `red-up`) unless the host gives its own. Not a preset's either
+   * (`scripts/verify-package.mjs`): a market's convention is the host's,
+   * and one preset writing a rise colour would undo `red-up` under it.
+   */
+  --_fve-rise: var(--fve-rise, var(--_fve-convention-rise));
+  --_fve-fall: var(--fve-fall, var(--_fve-convention-fall));
+  --border: var(--fve-border, var(--fvp-border, oklch(0.922 0 0deg)));
+
+  /*
+   * The record table's own two colours, which used to be written out at the
+   * call site in `record/columns.ts`.
+   *
+   * `row-hover` is the registry's `bg-muted/50` made opaque. A pinned cell
+   * takes its colour from the row (`bg-inherit`), and over a scrolling
+   * table what sits under a pinned cell is the column it is holding the
+   * place of — a wash let that column's text show through the moment the
+   * pointer arrived. The same shade mixed in rather than laid over is
+   * opaque, and being a token it moves with a host's `--fve-muted`.
+   *
+   * `quiet-foreground` is the quiet half of a summary row — the scope, and
+   * each function's name. It dims the foreground rather than reaching for
+   * `muted-foreground`, which is toned against the page and lands at 4.34:1
+   * on the muted layer those rows are drawn on. It is derived from
+   * `--foreground` (70% of it), not written out: it was `oklch(0.145 …/70%)`,
+   * a copy of the foreground's value, so a host that set `--fve-foreground`
+   * moved every word on the surface but the summary rows' (phase 5, 5A).
+   */
+  --_fve-row-hover: var(
+    --fve-row-hover,
+    var(
+      --fvp-row-hover,
+      color-mix(in oklab, var(--muted) 50%, var(--background))
+    )
+  );
+  --_fve-quiet-foreground: var(
+    --fve-quiet-foreground,
+    var(
+      --fvp-quiet-foreground,
+      color-mix(in oklab, var(--foreground) 70%, transparent)
+    )
+  );
+  /*
+   * The primary as a filled area under words (`primary-fill`): what a
+   * menu's highlighted item is linked to (ui/theme.md, D76).
+   * The primary itself unless a preset gives a deeper step — in the dark,
+   * where the primary is light enough to be text on the dark grounds and
+   * so too light to carry white words. With a brand colour it is derived
+   * only where the preset gives its band, as the ring is.
+   */
+  --_fve-primary-fill: var(
+    --fve-primary-fill,
+    var(--_fve-brand-primary-fill, var(--fvp-primary-fill, var(--primary)))
+  );
+  --_fve-primary-fill-foreground: var(
+    --fve-primary-fill-foreground,
+    var(--fvp-primary-fill-foreground, var(--primary-foreground))
+  );
+
+  /*
+   * The soft half of a pinned column's edge — the part that says the table
+   * continues beneath it, under the `--border` hairline that says where the
+   * column ends.
+   *
+   * Black at 30% over a white card reads 2.11:1 against it, which is a
+   * shadow. Over the dark card (`oklch(0.205)`) black is a colour the eye
+   * cannot find: at 30% it comes to 1.18:1, and *pure* black — the whole
+   * range spent — still only reaches 1.48:1. In the dark the thing that
+   * casts an edge is light, so the dark half of this token is white at 25%,
+   * which measures 2.18:1 on that card: the same edge, as visible as the
+   * light one. It was `rgb(0 0 0/0.3)` written into a class, in both
+   * themes, which is why the held columns had no frame in the dark at all.
+   *
+   * **Then it was halved** (2026-09-23 visual review): at 30% / 25%, cast
+   * 12px, the two held columns wore a grey band each, and a table with a
+   * pinned key and pinned actions read as three panels rather than one
+   * table. The hairline already says where a column ends; the shadow only
+   * has to say "and the rows go under it", which a short 8px falloff at
+   * 12% black / 10% white says without drawing a band. The reasoning above
+   * — black in the light, light in the dark — is unchanged.
+   */
+  --_fve-pin-shadow: var(--fve-pin-shadow, oklch(0 0 0deg / 12%));
+
+  /*
+   * `input` is the edge of a control, not a divider: an unticked checkbox is
+   * *only* this ring, so WCAG 1.4.11 asks it for 3:1 against the surface
+   * behind it — the registry's own step measured 1.26:1 on a card. This grey
+   * measures 3.64:1 on the card and 3.52:1 on the editor band's tint, and a
+   * host overriding `--fve-input` owes its own theme the same. Held by
+   * `ControlBordersInLightTheme` / `ControlBordersInDarkTheme` in
+   * `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx`, which measure the
+   * cascaded colour in a real browser. `border` (dividers) is a separate
+   * question and keeps the registry's value.
+   */
+  --input: var(--fve-input, var(--fvp-input, oklch(0.62 0 0deg)));
+  /*
+   * The focus indicator is the 1px `border-ring` a focused control puts on;
+   * the 3px `ring-ring/50` halo around it is emphasis, not the indicator.
+   * At the registry's `0.708` that border measured 2.59:1 on white, under
+   * the 3:1 WCAG 1.4.11 asks of a focus indicator; this grey measures the
+   * same ≥3:1 as `input`. Held by `FocusIndicatorsInLightTheme` /
+   * `FocusIndicatorsInDarkTheme` in the record workbench stories, which
+   * focus a control and measure the cascaded colour.
+   */
+  --ring: var(
+    --fve-ring,
+    var(--_fve-brand-ring, var(--fvp-ring, oklch(0.62 0 0deg)))
+  );
+
+  /*
+   * The eight chart slots carry the same hues in both modes — blue, orange,
+   * aqua, yellow, magenta, green, violet, red — so a series keeps its
+   * identity when the surface changes. The dark steps are picked for the
+   * dark surface rather than flipped from these, and the whole set was
+   * validated for colour-vision-deficiency separation and for contrast on
+   * both card surfaces (white, and the dark card's `0.205`): every
+   * neighbouring pair — the eighth and the first too, as a pie closes its
+   * circle — stays at least 8 apart in OKLab ×100 under culori's simulated
+   * protanopia and deuteranopia at full strength (worst 10.5 light, 8.9
+   * dark), at least 6 under tritanopia (7.5, 6.1) and at least 15 to a
+   * full-colour eye (19.6, 19.3); `test/paletteDistance.test.ts` holds this
+   * palette, and any a preset brings, to those lines. Every dark slot clears 3:1 on
+   * the dark card; in light, aqua, yellow and magenta sit under it (2.8,
+   * 2.2, 2.7), which the chart answers with its reading table and the
+   * table layout rather than with darker hues that would crowd the others.
+   * Slots are handed out in this fixed order, so the first series is always
+   * the blue one — the order is what keeps neighbours apart. A slot is an
+   * ordinal, "the third series", not a hue: a preset may bring eight of its
+   * own (all sixteen or none, D35 Q62), held to the same gates, so what
+   * says good or bad, up or down, reads a status token or `--_fve-rise` /
+   * `--_fve-fall`, never a slot.
+   *
+   * Eight, not five: with five the sixth category of a pie or a split took
+   * blue again, and two wedges one colour is a legend that cannot say which
+   * is which. Past eight a pie folds its tail into a grey "Other"
+   * (`CHART_COLOR_SLOTS`) rather than invent a ninth hue.
+   *
+   * Written in `oklch` like every other colour in this file rather than in
+   * the hex they were picked as: one notation for the whole palette, so a
+   * host tuning a slot reads its lightness beside the lightness of
+   * everything around it instead of translating. The values round-trip to
+   * the same sRGB bytes — these are the colours that were validated.
+   *
+   * The first blue is a step darker than it was picked (0.5753 → 0.565,
+   * user's call 2026-09-23): a number written inside a bar takes whichever
+   * of the page's two inks stands off the segment more (`inkOn`), and on
+   * the old blue neither reached 4.5:1 (dark 4.48, white 4.41). White now
+   * reads at 4.61; every other slot, light and dark, already had an ink
+   * over 4.5.
+   */
+  --chart-1: var(
+    --fve-chart-1,
+    var(
+      --_fve-brand-chart-1,
+      var(--fvp-chart-1, oklch(0.565 0.1626 255.532deg))
+    )
+  );
+  --chart-2: var(
+    --fve-chart-2,
+    var(--fvp-chart-2, oklch(0.6708 0.175 40.642deg))
+  );
+  --chart-3: var(
+    --fve-chart-3,
+    var(--fvp-chart-3, oklch(0.669 0.1408 162.111deg))
+  );
+  --chart-4: var(
+    --fve-chart-4,
+    var(--fvp-chart-4, oklch(0.7644 0.1612 75.116deg))
+  );
+  --chart-5: var(
+    --fve-chart-5,
+    var(--fvp-chart-5, oklch(0.7163 0.1412 357.389deg))
+  );
+  --chart-6: var(
+    --fve-chart-6,
+    var(--fvp-chart-6, oklch(0.5285 0.1798 142.495deg))
+  );
+  --chart-7: var(
+    --fve-chart-7,
+    var(--fvp-chart-7, oklch(0.4331 0.1671 283.624deg))
+  );
+  --chart-8: var(
+    --fve-chart-8,
+    var(--fvp-chart-8, oklch(0.6226 0.1909 24.912deg))
+  );
+  --radius: var(--fve-radius, var(--fvp-radius, 0.625rem));
+
+  /*
+   * The Tailwind steps read by name rather than through a utility: the
+   * radius the vendored components put in arbitrary values
+   * (`rounded-[min(var(--radius-md),12px)]`), and the two leadings the
+   * metric rules below set. The theme is inlined and declares no variable
+   * (`theme(inline reference)` above: with the `fve` prefix its variables
+   * would be named `--fve-*`, the host's namespace), so these are declared
+   * here, with the values the theme gives them. The leadings stay variables
+   * rather than `--theme()` because the minifier folds a `calc()` written in
+   * a declaration to five decimals, and `24px × 1.33333` is not 32px.
+   */
+  --radius-md: calc(var(--radius) * 0.8);
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-2xl--line-height: calc(2 / 1.5);
+
+  /*
+   * The one step under the body size — 13px, and there is only one of it.
+   *
+   * The surface used to hold four sizes at once: 16 (headings), 14
+   * (`text-sm`, the body), 12.8 (`text-[0.8rem]`, which is what the
+   * registry's `sm` control size is — the sidebar's view items, every small
+   * button) and 12 (`text-xs`, the group labels, the column headers, the
+   * badges). The last two are 0.8px apart: too close to read as a rank, so
+   * a sidebar item and the group label above it looked like one size drawn
+   * badly rather than two; and 12.8px is off the pixel grid, which is what
+   * made 中文 at that size render blurry. One step of 13px replaces both, and
+   * the scale is three rungs — 13 / 14 / 16 — each a step the eye can name.
+   *
+   * It is a length rather than a colour, so the dark block does not
+   * redeclare it, exactly as `radius` does not. `ui/kit/layout.ts` exports
+   * `TEXT_UI`, the class our own labels wear; the rule below is for the
+   * vendored controls, which cannot be asked at the call site.
+   */
+  --_fve-text-ui: var(--fve-text-ui, 0.8125rem);
+
+  /*
+   * The three lifts — a card raised, a popup, a panel being dragged
+   * (themes.md 2.4). The built-in values are Tailwind's own `shadow-sm`,
+   * `-md` and `-lg`, so nothing moves until a preset or a host says
+   * otherwise; a preset gives all six (both modes) or none. What wears a
+   * shadow is not the theme's to change, only the shadow — bar a card's own
+   * lift, `card-shadow` below (D43).
+   */
+  --shadow-sm: var(
+    --fve-shadow-sm,
+    var(
+      --fvp-shadow-sm,
+      0 1px 3px 0 oklch(0 0 0deg / 10%),
+      0 1px 2px -1px oklch(0 0 0deg / 10%)
+    )
+  );
+  --shadow-md: var(
+    --fve-shadow-md,
+    var(
+      --fvp-shadow-md,
+      0 4px 6px -1px oklch(0 0 0deg / 10%),
+      0 2px 4px -2px oklch(0 0 0deg / 10%)
+    )
+  );
+  --shadow-lg: var(
+    --fve-shadow-lg,
+    var(
+      --fvp-shadow-lg,
+      0 10px 15px -3px oklch(0 0 0deg / 10%),
+      0 4px 6px -4px oklch(0 0 0deg / 10%)
+    )
+  );
+
+  /*
+   * The roles (theme-architecture.md 4, S3): one surface of the engine's
+   * own each — the ground a board stands on, the rows, the header and the
+   * totals bands, a selected row, a highlighted item, focus, the controls,
+   * the corners part by part, the weights, the tooltip, the scrim. A host
+   * writes `--fve-<role>`, a preset `--fvp-<role>`, and the engine reads
+   * `--_fve-<role>`, which falls back to a semantic token or to exactly
+   * what was drawn before the role existed — so a theme that sets no role
+   * paints the same pixels, and one that moves `muted` still moves the
+   * bands and the selected row with it. Our own recipes read them as
+   * utilities (`bg-table-header`, `ui/record/sticky.ts`); the vendored
+   * components take them through the `data-slot` rules below, and
+   * `ui/components/**` stays upstream's.
+   *
+   * The grounds and the cards on them. `canvas` is the ground a board's
+   * panels stand on — the grouped background of a layout made of cards —
+   * and `content` the ground rows and a result are written on: one colour
+   * could not say both, since a grey page lifts white cards and the same
+   * grey under a table is a grey table. `card-edge` and `card-shadow` are
+   * how a card stands off what it sits on: the registry's hairline ring
+   * (the foreground at 10%) and no shadow, or no line and a soft lift. A
+   * warning still takes the ring in its own colour (`PanelCard`). `scrim`
+   * dims the page behind a dialog or a sheet — the registry's black at 10%.
+   */
+  --_fve-canvas: var(--fve-canvas, var(--fvp-canvas, var(--background)));
+  --_fve-content: var(--fve-content, var(--fvp-content, var(--background)));
+  --_fve-card-edge: var(
+    --fve-card-edge,
+    var(
+      --fvp-card-edge,
+      color-mix(in oklab, var(--foreground) 10%, transparent)
+    )
+  );
+  --_fve-card-shadow: var(--fve-card-shadow, var(--fvp-card-shadow, 0 0 #0000));
+  --_fve-scrim: var(--fve-scrim, var(--fvp-scrim, oklch(0 0 0deg / 10%)));
+
+  /*
+   * The tables. The header band and the totals band are one grey unless a
+   * theme parts them (P-21: they bracket the rows); the header's words, its
+   * weight — the strong weight unless said — and a divider between its
+   * columns, transparent until a theme draws one. A selected row and its
+   * words, and a stripe on every other row, which is the row's own ground
+   * — off — until a theme turns it on (theme-architecture.md 10.1).
+   */
+  --_fve-table-header: var(
+    --fve-table-header,
+    var(--fvp-table-header, var(--muted))
+  );
+  --_fve-table-header-foreground: var(
+    --fve-table-header-foreground,
+    var(--fvp-table-header-foreground, var(--foreground))
+  );
+  --_fve-table-header-weight: var(
+    --fve-table-header-weight,
+    var(--fvp-table-header-weight, var(--_fve-strong-weight))
+  );
+  --_fve-table-header-divider: var(
+    --fve-table-header-divider,
+    var(--fvp-table-header-divider, transparent)
+  );
+  /*
+   * The line between two body rows (`row-divider`), the border's by
+   * default. A preset whose rows are striped can clear it: a desktop list
+   * separates its rows by the stripe or by a line, not both.
+   */
+  --_fve-row-divider: var(
+    --fve-row-divider,
+    var(--fvp-row-divider, var(--border))
+  );
+  /*
+   * How much a sortable column's idle mark shows (`table-sort-idle`), 1 by
+   * default. Only where a pointer can hover: a preset may keep it for the
+   * pointer (0), and a touch screen, which has no hover, always shows it.
+   */
+  --_fve-table-sort-idle: var(
+    --fve-table-sort-idle,
+    var(--fvp-table-sort-idle, 1)
+  );
+  --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
+  --_fve-row-selected: var(
+    --fve-row-selected,
+    var(--_fve-brand-row-selected, var(--fvp-row-selected, var(--muted)))
+  );
+  --_fve-row-selected-foreground: var(
+    --fve-row-selected-foreground,
+    var(--fvp-row-selected-foreground, var(--foreground))
+  );
+  /*
+   * A bar down a selected row's left edge (`row-selected-mark`), so the
+   * selection is said by more than its colour where no checkbox says it
+   * (WCAG 1.4.1) — none unset: the value is invalid and the rule that
+   * draws it paints nothing. A link can draw it in the primary.
+   */
+  --_fve-row-selected-mark: var(
+    --fve-row-selected-mark,
+    var(--_fve-link-row-selected-mark, var(--fvp-row-selected-mark))
+  );
+  --_fve-row-selected-mark-link: var(
+    --fve-row-selected-mark-link,
+    var(--fvp-row-selected-mark-link)
+  );
+  --_fve-row-stripe: var(
+    --fve-row-stripe,
+    var(--fvp-row-stripe, var(--_fve-content))
+  );
+
+  /*
+   * What marks a state. `highlight` is the item a menu, a select or a
+   * combobox has under the keyboard or the pointer — the registry's
+   * `accent`, a tint; under the keyboard it wears the focus mark too (the
+   * highlight rule below). `item-selected` is the item it holds chosen (nothing
+   * unset: the check alone marks it), in `item-selected-weight` (the
+   * item's own unset). `nav-current` is the view on screen in the view
+   * list, a sheet of the work area's own ground with an edge and a lift
+   * (`nav-current-edge`, `nav-current-shadow`: the registry's `border` and
+   * `shadow-xs`). An outline button under the pointer keeps its edge and
+   * takes `foreground` unless `outline-hover-edge` and
+   * `outline-hover-foreground` say otherwise. `control-hover` and
+   * `control-pressed` have no built-in value: unset, each control keeps
+   * the fill it was drawn with (its rule below carries it), because they
+   * were never one value.
+   *
+   * A role that is another token of the surface — a highlight in the
+   * primary fill, the view on screen in a selected row's tint — says so by
+   * its link (`<role>-link`, theme-architecture.md 9.3), read between the
+   * host and the preset: see the links' rule below the blocks.
+   */
+  --_fve-highlight: var(
+    --fve-highlight,
+    var(--_fve-link-highlight, var(--fvp-highlight, var(--accent)))
+  );
+  --_fve-highlight-foreground: var(
+    --fve-highlight-foreground,
+    var(
+      --_fve-link-highlight-foreground,
+      var(--fvp-highlight-foreground, var(--accent-foreground))
+    )
+  );
+  --_fve-highlight-link: var(--fve-highlight-link, var(--fvp-highlight-link));
+  --_fve-highlight-foreground-link: var(
+    --fve-highlight-foreground-link,
+    var(--fvp-highlight-foreground-link)
+  );
+  --_fve-item-selected: var(
+    --fve-item-selected,
+    var(--_fve-link-item-selected, var(--fvp-item-selected, transparent))
+  );
+  --_fve-item-selected-foreground: var(
+    --fve-item-selected-foreground,
+    var(--fvp-item-selected-foreground, var(--popover-foreground))
+  );
+  --_fve-item-selected-weight: var(
+    --fve-item-selected-weight,
+    var(--fvp-item-selected-weight)
+  );
+  --_fve-item-selected-link: var(
+    --fve-item-selected-link,
+    var(--fvp-item-selected-link)
+  );
+  --_fve-nav-current: var(
+    --fve-nav-current,
+    var(--_fve-link-nav-current, var(--fvp-nav-current, var(--background)))
+  );
+  --_fve-nav-current-foreground: var(
+    --fve-nav-current-foreground,
+    var(
+      --_fve-link-nav-current-foreground,
+      var(--fvp-nav-current-foreground, var(--foreground))
+    )
+  );
+  --_fve-nav-current-edge: var(
+    --fve-nav-current-edge,
+    var(--fvp-nav-current-edge, var(--border))
+  );
+  --_fve-nav-current-shadow: var(
+    --fve-nav-current-shadow,
+    var(--fvp-nav-current-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05))
+  );
+  --_fve-nav-current-link: var(
+    --fve-nav-current-link,
+    var(--fvp-nav-current-link)
+  );
+  --_fve-nav-current-foreground-link: var(
+    --fve-nav-current-foreground-link,
+    var(--fvp-nav-current-foreground-link)
+  );
+  --_fve-control-hover: var(--fve-control-hover, var(--fvp-control-hover));
+  --_fve-control-pressed: var(
+    --fve-control-pressed,
+    var(--fvp-control-pressed)
+  );
+  --_fve-outline-hover-edge: var(
+    --fve-outline-hover-edge,
+    var(--_fve-link-outline-hover-edge, var(--fvp-outline-hover-edge))
+  );
+  --_fve-outline-hover-foreground: var(
+    --fve-outline-hover-foreground,
+    var(
+      --_fve-link-outline-hover-foreground,
+      var(--fvp-outline-hover-foreground, var(--foreground))
+    )
+  );
+  --_fve-outline-hover-edge-link: var(
+    --fve-outline-hover-edge-link,
+    var(--fvp-outline-hover-edge-link)
+  );
+  --_fve-outline-hover-foreground-link: var(
+    --fve-outline-hover-foreground-link,
+    var(--fvp-outline-hover-foreground-link)
+  );
+
+  /*
+   * Focus. The registry marks a focused control with its 1px `border-ring`
+   * and a 3px halo of `ring` at 50%; `focus-halo` is that halo's colour
+   * (`transparent` takes it away). `focus-width` has no built-in value:
+   * unset, the outline rule below is invalid and the control keeps the
+   * registry's `outline-none`, exactly as before; set, the control draws an
+   * outline of that width in `ring`, in `focus-style`, `focus-offset` from
+   * its edge (WCAG 2.4.13 asks 2px for AAA).
+   */
+  --_fve-focus-width: var(--fve-focus-width, var(--fvp-focus-width));
+  --_fve-focus-offset: var(--fve-focus-offset, var(--fvp-focus-offset, 0px));
+  --_fve-focus-style: var(--fve-focus-style, var(--fvp-focus-style, solid));
+  --_fve-focus-halo: var(
+    --fve-focus-halo,
+    var(--fvp-focus-halo, color-mix(in oklab, var(--ring) 50%, transparent))
+  );
+
+  /*
+   * The controls. `control`, `control-edge` and `control-thumb` are the
+   * rest fill, the edge and the pressed fill of a control its own words or
+   * icons name — a segmented control, a board filter's chip — so a theme
+   * can draw them filled rather than outlined; they have no built-in value
+   * (each rule carries what the control was drawn with), and a field one
+   * types into keeps `input`, which owes 3:1 (WCAG 1.4.11).
+   * `control-thumb-shadow` lifts the thumb off its track. The heights are
+   * the registry's two steps (`h-8`, `h-7`); a board filter's chip is its
+   * controls, 2px round them and its two 1px edges — 34px round the small
+   * step, 38px round a text box — unless `filter-height` gives it one
+   * height, which its controls then fill. `edge-width` is the width of a
+   * control's edge — only a control's: a divider stays 1px. `badge-edge`
+   * and `badge-fill` are how much of its tone a toned badge's edge and wash
+   * take; the edge is kept by default (D46 10.5).
+   */
+  --_fve-control: var(--fve-control, var(--fvp-control));
+  --_fve-control-edge: var(--fve-control-edge, var(--fvp-control-edge));
+  --_fve-control-thumb: var(--fve-control-thumb, var(--fvp-control-thumb));
+  --_fve-control-thumb-shadow: var(
+    --fve-control-thumb-shadow,
+    var(--fvp-control-thumb-shadow, 0 0 #0000)
+  );
+  --_fve-control-height: var(
+    --fve-control-height,
+    var(--fvp-control-height, 2rem)
+  );
+  --_fve-control-height-sm: var(
+    --fve-control-height-sm,
+    var(--fvp-control-height-sm, 1.75rem)
+  );
+  --_fve-filter-height: var(--fve-filter-height, var(--fvp-filter-height));
+  --_fve-edge-width: var(--fve-edge-width, var(--fvp-edge-width, 1px));
+  --_fve-badge-edge: var(--fve-badge-edge, var(--fvp-badge-edge, 30%));
+  --_fve-badge-fill: var(--fve-badge-fill, var(--fvp-badge-fill, 10%));
+
+  /*
+   * The corners, part by part: a card (and a dialog, a card of its own),
+   * a control, a popup, a badge and a checkbox. Each is the multiple of
+   * `radius` the registry drew it with, so moving `radius` still moves them
+   * all, and a theme can give one part its own — a desktop's 6px controls
+   * beside 10px cards, a square style's square checkbox.
+   */
+  --_fve-radius-card: var(
+    --fve-radius-card,
+    var(--fvp-radius-card, calc(var(--radius) * 1.4))
+  );
+  --_fve-radius-control: var(
+    --fve-radius-control,
+    var(--fvp-radius-control, var(--radius))
+  );
+  --_fve-radius-popover: var(
+    --fve-radius-popover,
+    var(--fvp-radius-popover, var(--radius))
+  );
+  --_fve-radius-badge: var(
+    --fve-radius-badge,
+    var(--fvp-radius-badge, calc(var(--radius) * 2.6))
+  );
+  --_fve-radius-checkbox: var(
+    --fve-radius-checkbox,
+    var(--fvp-radius-checkbox, 4px)
+  );
+
+  /*
+   * The weights: a view's, a card's and a dialog's title, and what is
+   * strong beside the text around it — a table's header and its totals.
+   * Values the dark block does not redeclare. The size stays the scale's
+   * (themes.md 1.2).
+   */
+  --_fve-title-weight: var(--fve-title-weight, var(--fvp-title-weight, 500));
+  --_fve-strong-weight: var(--fve-strong-weight, var(--fvp-strong-weight, 500));
+
+  /* A tooltip: the registry's inverted chip, the foreground as its ground. */
+  --_fve-tooltip: var(--fve-tooltip, var(--fvp-tooltip, var(--foreground)));
+  --_fve-tooltip-foreground: var(
+    --fve-tooltip-foreground,
+    var(--fvp-tooltip-foreground, var(--background))
+  );
+
+  /*
+   * The charts (theme-architecture.md 6, S5). The library draws on its own
+   * SVG, which no cascade reaches, so `readChartTheme` reads each of these
+   * back off the chart's element through a probe the browser computes — a
+   * colour, a length, a number — and the chart is drawn in what it read.
+   * Unset, each is what the charts were drawn with before it existed: the
+   * gridlines and the axes' rules in `border`, 1px; the ticks and the axis
+   * titles in `muted-foreground`; the chart's text a step and a value label
+   * two steps under `text-ui` (12 and 11px); a line 2px, an area under it at
+   * 0.2; a bar no narrower than the plot makes it and no wider than 80px —
+   * as wide as a pair of bars stands side by side, where the 48px it was
+   * left one series' bars a sliver in a wide band (the 2026-09-25 visual
+   * review) — its end rounded as `radius-sm` is but never past 2px, so a
+   * square style's bars are square with no word from it; and a seam of the
+   * ground 1px wide between two slices. The tooltip is the popups' surface:
+   * the popover and its lift.
+   */
+  --_fve-chart-grid: var(
+    --fve-chart-grid,
+    var(--fvp-chart-grid, var(--border))
+  );
+  --_fve-chart-grid-width: var(
+    --fve-chart-grid-width,
+    var(--fvp-chart-grid-width, 1px)
+  );
+  --_fve-chart-axis: var(
+    --fve-chart-axis,
+    var(--fvp-chart-axis, var(--muted-foreground))
+  );
+  --_fve-chart-text-size: var(
+    --fve-chart-text-size,
+    var(--fvp-chart-text-size, calc(var(--_fve-text-ui) - 1px))
+  );
+  --_fve-chart-label-size: var(
+    --fve-chart-label-size,
+    var(--fvp-chart-label-size, calc(var(--_fve-text-ui) - 2px))
+  );
+  --_fve-chart-line-width: var(
+    --fve-chart-line-width,
+    var(--fvp-chart-line-width, 2px)
+  );
+  --_fve-chart-area-opacity: var(
+    --fve-chart-area-opacity,
+    var(--fvp-chart-area-opacity, 0.2)
+  );
+  --_fve-chart-bar-radius: var(
+    --fve-chart-bar-radius,
+    var(--fvp-chart-bar-radius, min(2px, calc(var(--radius) * 0.6)))
+  );
+  --_fve-chart-bar-min-width: var(
+    --fve-chart-bar-min-width,
+    var(--fvp-chart-bar-min-width)
+  );
+  --_fve-chart-bar-max-width: var(
+    --fve-chart-bar-max-width,
+    var(--fvp-chart-bar-max-width, 80px)
+  );
+  --_fve-chart-slice-border: var(
+    --fve-chart-slice-border,
+    var(--fvp-chart-slice-border, 1px)
+  );
+  --_fve-chart-map-edge: var(
+    --fve-chart-map-edge,
+    var(--fvp-chart-map-edge, var(--_fve-chart-axis))
+  );
+  --_fve-chart-tooltip: var(
+    --fve-chart-tooltip,
+    var(--fvp-chart-tooltip, var(--popover))
+  );
+  --_fve-chart-tooltip-foreground: var(
+    --fve-chart-tooltip-foreground,
+    var(--fvp-chart-tooltip-foreground, var(--popover-foreground))
+  );
+  --_fve-chart-tooltip-shadow: var(
+    --fve-chart-tooltip-shadow,
+    var(--fvp-chart-tooltip-shadow, var(--shadow-md))
+  );
+}

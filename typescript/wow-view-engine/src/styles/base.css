@@ -1,0 +1,119 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The base layer — the default border, the surface's paint, a board's ground — and reduced motion.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+@layer base {
+  /*
+   * A `border` utility with no colour would draw in `currentColor`, so the
+   * default belongs to both boundaries: the host's chrome uses the same
+   * `Card` and the same `Separator`, and a hairline in the text colour is
+   * not a hairline.
+   */
+  .fve-root,
+  .fve-root *,
+  .fve-root *::before,
+  .fve-root *::after,
+  .fve-tokens,
+  .fve-tokens *,
+  .fve-tokens *::before,
+  .fve-tokens *::after {
+    @apply fve:border-border fve:outline-ring/50;
+  }
+
+  /*
+   * The surface paints its page; the tokens boundary paints nothing.
+   *
+   * Its type is the host's unless a preset or the host names a system font
+   * stack (`--fve-font-sans`, themes.md 2.4). Unset, the declaration is
+   * invalid when computed and `font-family`, an inherited property, is then
+   * the parent's — the host's type, as it always was — so no `inherit`
+   * fallback is written. A chart reads the computed family, and follows.
+   *
+   * A popup is a root too, but its parent is `<body>`, whose type need not
+   * be the host's: a host that sets it on an application frame leaves the
+   * body at the browser's serif. So `ui/kit/popups.tsx` writes the surface's
+   * computed family into `--_fve-surface-font` on the popup, and a root set in it
+   * reads exactly as the surface it opened from. Every root starts it at
+   * `initial` (unset), so a surface never takes a value of that name from
+   * the host's page, and only the popup's own inline value sets it.
+   */
+  .fve-root {
+    @apply fve:bg-background fve:text-foreground;
+
+    --_fve-surface-font: initial;
+
+    font-family: var(
+      --_fve-surface-font,
+      var(--fve-font-sans, var(--fvp-font-sans))
+    );
+  }
+
+  /*
+   * A board is laid out in cards, so it stands on the grouped ground
+   * (`--_fve-canvas`), which is `--background` until a theme separates the two:
+   * a grey page under white panels, where a record or an analysis keeps
+   * writing on `--background`. The kind is said on the root by whatever
+   * opened it (`WorkbenchShell`, `EmbedFrame`).
+   */
+  .fve-root[data-kind='dashboard'] {
+    background-color: var(--_fve-canvas);
+  }
+}
+
+/*
+ * A user who has asked their system for less motion gets less of it here.
+ *
+ * Everything that moves on this surface moves because a vendored component
+ * says so: every popup zooms and slides in (`data-open:animate-in
+ * zoom-in-95 slide-in-from-top-2`, 100ms), every dialog zooms with a fading
+ * backdrop, and `transition-all` is on every button, badge and row. None of
+ * it is worn at a call site, so the concession is made once here rather
+ * than asked of 300 class lists — the same reason the two vendored font
+ * sizes are pinned above, and `ui/components/**` is upstream's either way.
+ *
+ * **Reduce is not remove.** Two animations on this surface carry meaning
+ * rather than decorate: the spinner says a write or a query is still in
+ * flight, and the skeleton's pulse says what is on screen is not data yet.
+ * Stopping those turns "working" into "hung", so they are excluded by the
+ * slot upstream puts on them; a looping indicator is what
+ * `prefers-reduced-motion` guidance leaves alone.
+ *
+ * Not zero: a Base UI popup unmounts on the end of its own exit animation,
+ * so the duration is cut to something imperceptible rather than taken away.
+ * `!important` because what it overrides is a utility class of the same
+ * specificity that comes later in the sheet.
+ *
+ * Both boundaries, like every other scope in this file: the host's chrome
+ * draws the same buttons and the same popups, and a concession made on one
+ * side of the pair and not the other is half a concession.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .fve-root,
+  .fve-root *:not([data-slot='spinner'], [data-slot='skeleton']),
+  .fve-root *::before,
+  .fve-root *::after,
+  .fve-tokens,
+  .fve-tokens *:not([data-slot='spinner'], [data-slot='skeleton']),
+  .fve-tokens *::before,
+  .fve-tokens *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}

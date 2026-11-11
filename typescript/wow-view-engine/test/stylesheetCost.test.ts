@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
+import { stylesSource } from '../scripts/styles.mjs';
 
 /**
  * What a selector costs the browser, read off the stylesheet.
@@ -29,10 +27,7 @@ import { describe, expect, it } from 'vitest';
  * thousand bars then took seconds to style, and its story timed out in CI.
  * So a `:has()` left of a combinator stands next to a key of its own.
  */
-const STYLESHEET = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
-  'utf8',
-);
+const STYLESHEET = stylesSource();
 
 /** A selector's compounds, split at the combinators outside any parentheses. */
 function compounds(selector: string): string[] {

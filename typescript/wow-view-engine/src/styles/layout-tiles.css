@@ -1,0 +1,143 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * What a board draws: a metric tile and its figure's fit, and the cells while it is built.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * A number on a dashboard is a tile one row tall.
+ *
+ * A metric panel's whole job is its label and its number, and the grid's row
+ * (80px) is the size that says so; at 3xl the number's 36px line did not fit
+ * the 28px the panel leaves under its title, so a tile had either to scroll
+ * or to take two rows (170px) of mostly nothing — which is what the home
+ * page's tiles were, and read as too tall (the user's 2026-09-23 review).
+ * The number steps down to 2xl on a panel, as shadcn's own dashboard cards
+ * start their figure at `text-2xl`, and drops the line's leading: one line
+ * of digits has nothing to space from. A workbench's metric has the whole
+ * result to stand in and keeps its 3xl.
+ */
+.fve-root [data-slot='dashboard-panel'] [data-slot='metric-value'] {
+  --_fve-metric-size: --theme(--text-2xl);
+  line-height: 1;
+}
+
+/*
+ * A metric tile is not scrolling content: its trend takes the height its
+ * words leave, down to none, and never pushes past the tile.
+ *
+ * On its own the card's trend keeps 4rem at least (`min-h-16`), the least a
+ * line still reads in, which is its height where nothing gives the card one.
+ * A tile does: two of the board's rows, with a period over the figure, left
+ * the words 118px and the trend 4rem of the 124px they needed — the body
+ * scrolled 6px, the line was cut at its foot and the cue 「下面还有内容」 sat
+ * on it (second review, R3-P1-1, the compensation console's overview). In a
+ * panel the floor goes, so the trend shrinks to the room there is; the
+ * panel's body never counts a metric card as more below
+ * (`dashboard/scrollMore.ts`).
+ */
+.fve-root
+  [data-slot='dashboard-panel']
+  [data-slot='metric-card']
+  > [data-chart='sparkline'] {
+  min-height: 0;
+}
+
+/*
+ * A metric's figure fits its card on one line (review 2026-09-26 P1-4: at
+ * 390px wide 「¥175,324.65」 ran past a tile half the phone wide and was
+ * cut). Each place says the size the figure is set at — 3xl, 2xl on a card
+ * narrower than 16rem or on a dashboard tile, 5xl in a workbench — as
+ * `--_fve-metric-size`, and the figure takes that size or, where it would
+ * not fit the card's width at it, the size at which it does. How wide the
+ * figure is, in ems, the card writes (`--_fve-metric-ems`, `figureEms`):
+ * each character at its advance in the widest face a page is likely to fall
+ * back to — DejaVu Sans Bold, which Linux draws a semibold in, digits
+ * 0.696em where Geist's are 0.6 — and a little over it, so the figure
+ * never wraps and never runs out, whichever font the host gives it. At
+ * 0.62em a character, the first cut, a Linux runner's 「¥175,324.65」 ran
+ * 4px past a 132px card (#3663). A short figure keeps its size; only a long
+ * one on a narrow card steps down.
+ */
+.fve-root [data-slot='metric-value'] {
+  --_fve-metric-size: --theme(--text-3xl);
+  font-size: min(var(--_fve-metric-size), 100cqi / var(--_fve-metric-ems, 1));
+  white-space: nowrap;
+}
+
+@container metric (width < 16rem) {
+  /* Weighs less than a tile's and a workbench's own rules, which win there. */
+  .fve-root [data-slot='metric-value'] {
+    --_fve-metric-size: --theme(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+  }
+}
+
+/*
+ * On a card under 10rem — a tile half a phone wide — the change badge shows
+ * its share alone: 「-¥1,382.92 · -18.6%」 is wider than the card, and wrapped
+ * to two lines it pushed the trend under it out of the tile (P1-4). The
+ * words stay the badge's text, set at no size, for a screen reader, and the
+ * whole change is its title for a pointer; the share is drawn from the
+ * badge's `data-share`, with no text of its own for a screen reader to read
+ * twice. A change with
+ * no share keeps its amount on screen. A card of 10rem or more (a 190px
+ * tile at 1280px fits the whole change) is drawn as it always was.
+ */
+@container metric (width < 10rem) {
+  /* The words set at no size, still the badge's text; the share drawn. */
+  .fve-root [data-slot='badge'][data-share] {
+    font-size: 0;
+  }
+
+  .fve-root [data-slot='badge'][data-share]::after {
+    content: attr(data-share) / '';
+    font-size: --theme(--text-xs);
+    line-height: var(--text-xs--line-height);
+  }
+}
+
+/*
+ * The board's cells while it is built (the user's 2026-09-24 walk-throughs:
+ * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D34).
+ *
+ * A soft block, filled and a little rounded, in each column of each row: the
+ * 80px row cut into the number of blocks that comes nearest a square, so a
+ * panel's edges always land on a block's (`blockHeight`). The shape is the
+ * grid's own, measured and drawn in the page (`gridBlocks`,
+ * `ui/dashboard/GridBlocksLayer.tsx`): one row of blocks as an SVG pattern,
+ * repeated down from the grid's padding — in the page, not a `data:` image,
+ * which a strict policy's `img-src` refuses (D74). The colour is here, a
+ * token, so it follows the mode and the preset. One layer under the grid
+ * (`dashboard-grid-blocks`, `aria-hidden`): it takes no pointer and is not
+ * in the accessibility tree. There only while the board is built, and not
+ * in the one-column reading.
+ */
+.fve-root [data-slot='dashboard-grid-blocks'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* The divider's grey, thinned to a wash: in the light modes about the muted
+   surface, in the dark about a card — a ruler under the panels, never a
+   second set of cards competing with them. */
+.fve-root [data-slot='dashboard-grid-blocks'] pattern rect {
+  fill: color-mix(in oklab, var(--border) 45%, transparent);
+}

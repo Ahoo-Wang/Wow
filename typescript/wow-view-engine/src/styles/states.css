@@ -1,0 +1,260 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * A control under the pointer, pressed, and the thumb of a segmented control.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * A button or a toggle under the pointer, where the registry fills it with
+ * `muted` (a ghost or an outline button, a toggle) — `control-hover`
+ * unset. In the dark the registry's ghost and outline buttons hover to
+ * other fills (`dark:hover:bg-muted/50`, `dark:hover:bg-input/50`), so the
+ * same rule is said again for them under the dark roots, the selectors the
+ * `dark` variant at the top of this file names. An expanded or a pressed
+ * control keeps its own state's fill, and so does a calendar day that is
+ * chosen — the single day, a range's two ends and its middle: this rule is
+ * heavier than the registry's `data-[selected-single=true]:bg-primary`, and
+ * once turned a hovered chosen day into white words on `muted`. Only where
+ * hovering is real, as the registry's own `hover:` is.
+ */
+@layer utilities {
+  @media (hover: hover) {
+    :is(.fve\:group\/button, .fve\:group\/toggle):where(
+        .fve\:hover\:bg-muted
+      ):hover:not(
+        [aria-expanded='true'],
+        [aria-pressed='true'],
+        [data-state='on'],
+        [data-selected-single='true'],
+        [data-range-start='true'],
+        [data-range-middle='true'],
+        [data-range-end='true']
+      ) {
+      background-color: var(--_fve-control-hover, var(--muted));
+    }
+
+    @media not print {
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(
+          .fve\:dark\:hover\:bg-muted\/50
+        ):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-pressed='true'],
+          [data-state='on'],
+          [data-selected-single='true'],
+          [data-range-start='true'],
+          [data-range-middle='true'],
+          [data-range-end='true']
+        ) {
+        background-color: var(
+          --_fve-control-hover,
+          color-mix(in oklab, var(--muted) 50%, transparent)
+        );
+      }
+
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(
+          .fve\:dark\:hover\:bg-input\/50
+        ):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-pressed='true'],
+          [data-state='on'],
+          [data-selected-single='true'],
+          [data-range-start='true'],
+          [data-range-middle='true'],
+          [data-range-end='true']
+        ) {
+        background-color: var(
+          --_fve-control-hover,
+          color-mix(in oklab, var(--input) 50%, transparent)
+        );
+      }
+    }
+
+    /*
+     * An outline button under the pointer — the registry's outline variant,
+     * found by its `border-border` (a button says no variant on the
+     * element): its edge in `outline-hover-edge`, the registry's own
+     * `border` unset, and its words in `outline-hover-foreground`, the
+     * registry's `hover:text-foreground` unset. Not while it is expanded,
+     * focused or invalid, whose edges are theirs. In the dark the registry's
+     * edge is `input`, so the rule is said again there, as above.
+     */
+    .fve\:group\/button:where(.fve\:border-border):hover:not(
+        [aria-expanded='true'],
+        [aria-invalid='true'],
+        :focus-visible
+      ) {
+      border-color: var(--_fve-outline-hover-edge, var(--border));
+      color: var(--_fve-outline-hover-foreground);
+    }
+
+    @media not print {
+      .fve\:group\/button:where(.fve\:border-border):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-invalid='true'],
+          :focus-visible
+        ) {
+        border-color: var(--_fve-outline-hover-edge, var(--input));
+      }
+    }
+
+    /*
+     * An outline button on a toolbar — its word or its icon says what it
+     * does — in the theme's `control` fill and `control-edge`, as a board
+     * filter's chip and a segmented control are (D59 7, what D43 left for
+     * next): porcelain fills it and drops its edge, as a macOS toolbar
+     * does. Unset, the registry's own: `background` edged in `border`, and
+     * in the dark `input/30` edged in `input`, said again there. Its hover,
+     * pressed, expanded, focus and invalid states stay the registry's: each
+     * weighs a state beside its class and outweighs this rule.
+     */
+    .fve\:group\/button:where(.fve\:border-border):where([role='toolbar'] *) {
+      border-color: var(--_fve-control-edge, var(--border));
+      background-color: var(--_fve-control, var(--background));
+    }
+
+    @media not print {
+      .fve\:group\/button:where(.fve\:border-border):where(
+          [role='toolbar'] *
+        ):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ) {
+        border-color: var(--_fve-control-edge, var(--input));
+        background-color: var(
+          --_fve-control,
+          color-mix(in oklab, var(--input) 30%, transparent)
+        );
+      }
+    }
+  }
+}
+
+/*
+ * A joined toggle group rounds like the controls it stands beside.
+ *
+ * `ToggleGroup spacing={0}` is the registry's own segmented control — no
+ * gap, square inner corners, one shared seam — and the three call sites ask
+ * for it by that prop rather than hand-writing the look. Its one loose end
+ * is the outer corner: the group's own box is size-aware
+ * (`data-[size=sm]:rounded-[min(var(--radius-md),10px)]`) while the first
+ * and last *items*, which are what actually paints, keep the default
+ * `rounded-l-lg` / `rounded-r-lg` whatever the size. At `sm` that is 10px
+ * beside 8px `sm` buttons — the segmented switch in the result toolbar sits
+ * in a row of them, and two radii in one row read as two families of
+ * control. `ui/components/**` is upstream's, so the seam is closed here,
+ * the same place the two small font sizes are pinned; a group at the
+ * default size is untouched, since there the vendored radius is already the
+ * one its neighbours wear.
+ */
+.fve-root
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:first-child,
+.fve-tokens
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:first-child {
+  border-start-start-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  border-end-start-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+}
+
+.fve-root
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:last-child,
+.fve-tokens
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:last-child {
+  border-start-end-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  border-end-end-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+}
+
+/*
+ * The segmented control a theme can draw filled rather than outlined
+ * (`control`, `control-edge`, `control-thumb` in the token blocks): its
+ * items as one filled track, the pressed one a thumb on it. Unset, each
+ * falls back to exactly what the registry draws — transparent, edged in
+ * `input`, pressed in `muted` — so a theme without the group draws it as
+ * before. A board filter's chip, the other control the group reaches, is
+ * this package's own (`ControlFrame`) and reads the tokens in its recipe.
+ *
+ * An item is found as the group's child by its variant, not by its slot:
+ * an item a tooltip explains is rendered by the tooltip's trigger, which
+ * writes its own `data-slot` over the item's. In the utilities layer, after
+ * the registry's own classes, and weighing one attribute: that wins the tie
+ * with the item's rest classes (one class each under the scope's `:where`)
+ * and loses to its hover, focus and invalid variants, which weigh a class
+ * and a state and keep theirs. The pressed rule says two attributes, so it
+ * outweighs the rest rule and ties the registry's `aria-pressed:bg-muted`,
+ * which it then wins by order.
+ * Both boundaries, as every rule here (`scripts/verify-package.mjs`): a
+ * host's chrome that draws the same registry control gets the same one.
+ */
+@layer utilities {
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline'] {
+    border-color: var(--_fve-control-edge, var(--input));
+    background-color: var(--_fve-control, transparent);
+  }
+
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline'][aria-pressed='true'] {
+    background-color: var(--_fve-control-thumb, var(--muted));
+  }
+
+  /*
+   * The thumb sits inside the track: its edge, and a second pixel inside
+   * it, are the track's fill, so the pressed item reads as a thumb on the
+   * track rather than a hole in it. One attribute and a `:where`, so a
+   * focused item's `border-ring` and halo still win; unset, the edge is the
+   * registry's `input` and the inner pixel transparent.
+   */
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline']:where([aria-pressed='true']) {
+    border-color: var(--_fve-control, var(--input));
+    box-shadow:
+      inset 0 0 0 1px var(--_fve-control, transparent),
+      var(--_fve-control-thumb-shadow);
+  }
+
+  /*
+   * A view's title and a card's — a board panel's, a record card's — and a
+   * dialog's, a confirmation's and a sheet's, in the theme's title weight
+   * (`--_fve-title-weight`, 500 unset: the registry's `font-medium` all of them
+   * are drawn with). One attribute, after the registry's class, so it wins
+   * that tie; the size stays the scale's (themes.md 1.2).
+   */
+  :where(.fve-root, .fve-tokens) [data-slot='view-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='card-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='dialog-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='alert-dialog-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='sheet-title'] {
+    font-weight: var(--_fve-title-weight);
+  }
+}

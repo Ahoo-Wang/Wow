@@ -1,0 +1,67 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The grid adapter's own rules, repainted in the theme's colours.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+@layer components {
+  /*
+   * A record detail with another opened over it (G20, a row of an embed in
+   * its section): dimmed as the page behind it is. Base UI draws no
+   * backdrop for a nested dialog, so without this the layer underneath
+   * reads as live; the overlay's own tint (the registry's `bg-black/10`)
+   * says it is not. The layer on top stands in from it (`RecordDetail`).
+   */
+  .fve-root[data-slot='record-detail'][data-nested-dialog-open]::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    pointer-events: none;
+    background: var(--_fve-scrim);
+  }
+
+  /* Upstream paints the drop placeholder red; the theme owns that colour. */
+  .fve-root .react-grid-item.react-grid-placeholder {
+    @apply fve:bg-primary;
+  }
+
+  /*
+   * A new width lays the panels out at once (#3721): upstream eases a panel
+   * from its old place and size, which a drag or a drop wants, but after a
+   * width change that drew the panels past their grid for 200ms
+   * (`useGridWidth` marks the container meanwhile).
+   */
+  .fve-root [data-grid-reflowing] .react-grid-item {
+    transition: none;
+  }
+
+  /* Upstream draws the resize handle in translucent black; the theme owns that colour. */
+  .fve-root .react-grid-item > .react-resizable-handle::after {
+    border-color: var(--muted-foreground);
+  }
+
+  /*
+   * The corner is a real control now, and upstream only paints it while a
+   * pointer is over the panel — so a keyboard reaching it would land on a
+   * 20px square of nothing. Focus shows it, and rings it like every other
+   * control here.
+   */
+  .fve-root .react-grid-item > .react-resizable-handle:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+}

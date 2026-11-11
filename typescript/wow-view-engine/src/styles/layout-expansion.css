@@ -1,0 +1,166 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * A view filling the screen.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * A view filling the screen, pinned where it already stands.
+ *
+ * Unlayered on purpose: it has to outrank whatever utility gave the surface
+ * its place in the host's page, and a layer would put it under them. It is
+ * the whole of the visual change — expanding is one attribute, written by
+ * `useViewExpansion` onto the `.fve-root` at or above the element it was
+ * pointed at, because nothing may be re-parented: a portal would recreate
+ * every node under it and take focus, the scroll position and any IME
+ * composition with them.
+ *
+ * The four `--_fve-expanded-*` properties are normally absent, and the
+ * fallbacks below are then plain `inset: 0` written the long way: for a fixed
+ * box with no ancestor containing block, `100%` *is* the viewport. When an
+ * ancestor has made itself the containing block — `transform`, `filter`,
+ * `contain` and the rest — `useViewExpansion` measures the box the browser
+ * actually gave us and writes the difference into these four, so the surface
+ * lands on the viewport either way rather than on the ancestor.
+ *
+ * The surface itself never scrolls: it is a definite-height flex box whose
+ * parts each take their share, and what scrolls is the result.
+ * `overscroll-behavior: contain` stops a scroll that reaches its end from
+ * being handed to the page underneath — which is locked while this is open
+ * and has nowhere to go with it.
+ *
+ * `z-index: 0` — a stacking context of its own, and not one step higher.
+ *
+ * The popups are settled elsewhere: `ui/kit/popups.tsx` puts
+ * `z-index: var(--fve-popup-z-index, 50)` on every positioner it portals, so
+ * they stay in front of this whatever it takes. What is left for this number
+ * to say is how an expanded surface ranks against the *host's* page, and
+ * level 0 is the whole of the bargain a view that stays in the normal layer
+ * makes: it covers the host's ordinary content, and whatever the host raised
+ * deliberately — a sticky bar at `z-index: 10` — still covers it. The
+ * stacking context is for the parts inside, the sticky exit below among
+ * them, which are then ranked against each other rather than against the
+ * host's.
+ *
+ * `--fve-expanded-z-index` is the host's way to say otherwise. A shadcn
+ * shell's sidebar is `position: fixed` at `z-index: 10`, so a view filling
+ * the screen beside it would leave its first columns under the sidebar; such
+ * a host sets the variable on `:root` above its chrome and below
+ * `--fve-popup-z-index`, so the popups stay in front.
+ */
+.fve-root[data-view-expanded='true'] {
+  /* The viewport is the container; the workbench's floor is not a reason to
+     run past it on a short screen. */
+  min-height: 0;
+  position: fixed;
+  top: var(--_fve-expanded-y, 0);
+  left: var(--_fve-expanded-x, 0);
+  z-index: var(--fve-expanded-z-index, 0);
+  margin: 0;
+  width: var(--_fve-expanded-w, 100%);
+  height: var(--_fve-expanded-h, 100%);
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Filling the screen is for the rows, so the rows get the height.
+ *
+ * A taller viewport buys nothing while the result stops at its own
+ * `max-height` and the space below it stays blank — the expansion would be
+ * more columns and not one more row. So the chain from the surface down to
+ * the table becomes a definite-height flex column, and each part says what
+ * it does with the height it is handed.
+ */
+.fve-root[data-view-expanded='true'] > [data-slot='view-sidebar'],
+.fve-root[data-view-expanded='true'] > [data-slot='view-panel'],
+.fve-root[data-view-expanded='true'] > [data-slot='workbench-main'] {
+  /* `min-height: auto` is the default for a flex item, so without this the
+     column refuses to shrink below its content and the surface's own
+     `overflow: hidden` clips it instead of letting it scroll. */
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Everything the parts above did not take belongs to the result. */
+.fve-root[data-view-expanded='true'] [data-slot='result-block'] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * And the table fills the result instead of stopping at 70vh — but only the
+ * variant that is its own scrollport. A `scrolls={false}` table inside a
+ * dashboard panel holds its sticky layers against the panel, and giving it a
+ * height here would put a second scrollport back under them. An embedded
+ * analysis draws its table inside the analysis result, which takes the
+ * height first.
+ */
+.fve-root[data-view-expanded='true']
+  :is([data-slot='record-table'], [data-slot='analysis-table'])[data-scrolls] {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.fve-root[data-view-expanded='true']
+  > [data-slot='analysis-result']:has(> [data-slot='analysis-table']) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * An embedded view has no work column to hand the height to.
+ *
+ * The rules above give the height to a workbench's column and, inside it, to
+ * the table that is its own scrollport. An `EmbeddedView` draws the result
+ * straight onto the root — there is no work column, and `RecordCards`, a
+ * chart and `DashboardGrid` match nothing here — so a tall result
+ * would be cut off at the fold by the root's own `overflow: hidden`, with the
+ * page behind it locked and no way to reach the rest. The root is the
+ * scrollport in that shape. A record or an analysis table inside an embed
+ * still takes the rules above and scrolls itself, so this one only ever
+ * carries what those do not.
+ */
+.fve-root[data-view-expanded='true']:not(:has(> [data-slot='workbench-main'])) {
+  overflow-y: auto;
+}
+
+/*
+ * The way out of a surface whose control is underneath it.
+ *
+ * `ViewSurface` renders one on every surface; `useViewExpansion` un-hides it
+ * only when the control governing this expansion is outside the element. It
+ * takes a row of its own rather than floating over the content — a button
+ * laid on top of somebody's first table row is the chrome an embed exists not
+ * to add — and sticks to the top, because the root above is the scrollport in
+ * exactly the shape this appears in, and an exit that scrolls away is not one.
+ */
+.fve-root [data-slot='view-exit'][hidden] {
+  display: none;
+}
+
+.fve-root[data-view-expanded='true'] > [data-slot='view-exit'] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  order: -1;
+  align-self: flex-end;
+}
