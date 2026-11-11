@@ -535,10 +535,12 @@ export function createResolver({
             part,
           );
           if (!match) return { color: evaluate(part, seen), weight: undefined };
-          const share =
-            match[2] ?? /^([\d.]+)%$/.exec(text.get(match[3]) ?? '')?.[1];
+          const found = text.get(match[3]);
+          const share = match[2] ?? /^([\d.]+)%$/.exec(found ?? '')?.[1];
           if (share === undefined)
-            throw new Error(`${match[3]} is not a share of a mix`);
+            throw new Error(
+              `${match[3].replace(/^--(_fve-)?/, '')} is ${found}, not a percentage`,
+            );
           return {
             color: evaluate(match[1], seen),
             weight: Number(share) / 100,

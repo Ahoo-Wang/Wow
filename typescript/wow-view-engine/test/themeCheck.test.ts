@@ -325,7 +325,7 @@ describe('each check fires on what it names', () => {
   it('says so when a strength is not a percentage', () => {
     expect(
       check(':root { --fve-state-hover: 0.03; }').map(({ message }) => message),
-    ).toContain('neutral/light: --_fve-state-hover is not a share of a mix');
+    ).toContain('neutral/light: state-hover is 0.03, not a percentage');
   });
 });
 
