@@ -107,8 +107,10 @@ class MaskRule private constructor(
     val mask: QueryMask,
     val compiled: MaskStrategy,
 ) {
-    /** A rule masked by the built-in mask, or by a custom strategy [resolver] supplies. */
-    @JvmOverloads
+    /**
+     * A rule masked by the built-in mask, or by a custom strategy [resolver] supplies: it compiles [mask], where the
+     * private constructor takes the strategy already compiled.
+     */
     constructor(
         level: SensitivityLevel,
         mask: QueryMask = QueryMask.FULL,

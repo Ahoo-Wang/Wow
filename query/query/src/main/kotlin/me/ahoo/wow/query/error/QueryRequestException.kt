@@ -31,6 +31,7 @@ class QueryRequestException(
     /** The problem the request answers when it is not the generic one of its kind. */
     problem: String? = null,
 ) : IllegalArgumentException(errorMsg, cause), QueryError {
+    /** The request that breaks [violation]: its message, code and location are the violation's. */
     constructor(violation: QueryViolation, problem: String? = null) : this(
         violation.message,
         violation.code,
