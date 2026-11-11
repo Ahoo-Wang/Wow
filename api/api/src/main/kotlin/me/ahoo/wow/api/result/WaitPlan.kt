@@ -45,7 +45,7 @@ enum class Stage {
 
 /**
  * One hop of a wait chain: a [stage], in a bounded [context], of a [subscription] when the stage is
- * [Stage.HANDLED].
+ * [Stage.HANDLED]. A stage a newer writer added reads as [Stage.UNKNOWN], with the subscription it names, if any.
  *
  * A null [context] means the context of the command the wait started with. Build one with [accepted], [committed],
  * [handled] or [snapshot]; fields may be added, so the constructor is internal to Wow.
@@ -57,10 +57,13 @@ class Hop @InternalWowApi constructor(
 ) {
     init {
         require(context == null || context.isNotBlank()) { "A hop's context, when present, is not blank." }
-        if (stage == Stage.HANDLED) {
-            require(!subscription.isNullOrBlank()) { "A HANDLED hop names its subscription." }
-        } else {
-            require(subscription == null) { "Only a HANDLED hop names a subscription." }
+        when (stage) {
+            Stage.HANDLED -> require(!subscription.isNullOrBlank()) { "A HANDLED hop names its subscription." }
+            // A newer writer's stage, read as UNKNOWN, may name a subscription: it is kept, not refused.
+            Stage.UNKNOWN -> require(subscription == null || subscription.isNotBlank()) {
+                "A hop's subscription, when present, is not blank."
+            }
+            else -> require(subscription == null) { "Only a HANDLED hop names a subscription." }
         }
     }
 

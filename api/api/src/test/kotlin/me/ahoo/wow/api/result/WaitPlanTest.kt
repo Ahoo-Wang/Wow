@@ -70,8 +70,16 @@ class WaitPlanTest {
     fun `only a HANDLED hop names a subscription, and it must`() {
         Hop.handled("projector.on-placed", "sales").toString().assert().isEqualTo("handled(sales/projector.on-placed)")
         assertThrownBy<IllegalArgumentException> { Hop(Stage.HANDLED) }
+        assertThrownBy<IllegalArgumentException> { Hop(Stage.HANDLED, subscription = " ") }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.COMMITTED, subscription = "snapshot") }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.ACCEPTED, context = " ") }
+    }
+
+    @Test
+    fun `an UNKNOWN hop, a newer writer's stage, keeps a subscription or none, never a blank one`() {
+        Hop(Stage.UNKNOWN, "shop", "carts.onPaid").toString().assert().isEqualTo("unknown(shop/carts.onPaid)")
+        Hop(Stage.UNKNOWN).subscription.assert().isNull()
+        assertThrownBy<IllegalArgumentException> { Hop(Stage.UNKNOWN, subscription = " ") }
     }
 
     @Test
