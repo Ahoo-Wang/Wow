@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.backend.QueryBackendStorages
@@ -81,9 +82,14 @@ abstract class DatasetAccessSpec {
 
     /**
      * Stores [records] as the commits of [aggregate] that the storage keeps its current access records of, in order:
-     * each replaces the record of its tenant and aggregate id unless that one is of a later version.
+     * each replaces the record of its tenant and aggregate id unless that one is of a later version. [attributes] are
+     * the aggregate's declared access attributes ([ATTRIBUTES]), for a storage that keeps a column of each.
      */
-    protected abstract suspend fun storeAccess(aggregate: AggregateType, records: List<AccessRecord>)
+    protected abstract suspend fun storeAccess(
+        aggregate: AggregateType,
+        attributes: List<AccessAttributeManifest>,
+        records: List<AccessRecord>,
+    )
 
     /** The access attributes after an aggregate's commit of [version]: null for a commit that recorded none. */
     class AccessRecord @InternalWowApi constructor(
@@ -199,6 +205,7 @@ abstract class DatasetAccessSpec {
         )
         storeAccess(
             aggregate,
+            ATTRIBUTES,
             listOf(
                 AccessRecord(QueryDatasetScope.PLATFORM_TENANT, "d1", 1, mapOf("department" to "sales")),
                 AccessRecord(T1, "d2", 1, mapOf("department" to "sales")),
@@ -218,7 +225,7 @@ abstract class DatasetAccessSpec {
     /** The documents' dataset, its rows and the records of their aggregates loaded, as [Gateway]. */
     private suspend fun documents(): Gateway {
         val storage = createTable(TABLE)
-        storeAccess(aggregate, accessRecords())
+        storeAccess(aggregate, ATTRIBUTES, accessRecords())
         val dataset = QueryDataset.of(AggregateType(CONTEXT, TABLE.name)) {
             tenant(TENANT)
             identity(ID)
@@ -276,30 +283,44 @@ abstract class DatasetAccessSpec {
         )
     }
 
-    private companion object {
-        const val CONTEXT = "tck"
-        const val ID = "id"
-        const val TENANT = "tenant_id"
-        const val DOCUMENT_ID = "document_id"
-        const val T1 = "t1"
-        const val T2 = "t2"
-        const val MAX_LIST = 100
-        const val CONTEXT_SUFFIX = 12
+    companion object {
+        /**
+         * The documents' declared access attributes, as their aggregate's Manifest lists them (the built-in owner and
+         * space excluded), in declaration order: the attributes [AccessFilterSpec]'s matrix reads. A backend whose
+         * storage keeps a column for each declared attribute creates it from these ([storeAccess]).
+         */
+        val ATTRIBUTES: List<AccessAttributeManifest> = listOf(
+            AccessAttributeManifest("department", AccessAttributeManifest.Type.STRING),
+            AccessAttributeManifest("org", AccessAttributeManifest.Type.STRING),
+            AccessAttributeManifest("level", AccessAttributeManifest.Type.STRING),
+            AccessAttributeManifest("pages", AccessAttributeManifest.Type.INTEGER),
+            AccessAttributeManifest("published", AccessAttributeManifest.Type.BOOLEAN),
+            AccessAttributeManifest("sharedWith", AccessAttributeManifest.Type.STRING, multiple = true),
+        )
 
-        val DEPARTMENT: AccessAttribute.Single<AccessFilterSpec.Document, String> =
+        private const val CONTEXT = "tck"
+        private const val ID = "id"
+        private const val TENANT = "tenant_id"
+        private const val DOCUMENT_ID = "document_id"
+        private const val T1 = "t1"
+        private const val T2 = "t2"
+        private const val MAX_LIST = 100
+        private const val CONTEXT_SUFFIX = 12
+
+        private val DEPARTMENT: AccessAttribute.Single<AccessFilterSpec.Document, String> =
             AccessAttribute.single("department", String::class.java)
-        val SALES = AccessPredicate.Comparison(DEPARTMENT, AccessOperator.EQUAL, listOf("sales"))
-        val LEGAL = AccessPredicate.Comparison(DEPARTMENT, AccessOperator.EQUAL, listOf("legal"))
+        private val SALES = AccessPredicate.Comparison(DEPARTMENT, AccessOperator.EQUAL, listOf("sales"))
+        private val LEGAL = AccessPredicate.Comparison(DEPARTMENT, AccessOperator.EQUAL, listOf("legal"))
 
         /** A row of the documents' dataset: its [id], its [tenant] and the [document] it is of. */
-        class Row(val id: String, val tenant: String, val document: String)
+        private class Row(val id: String, val tenant: String, val document: String)
 
         /** Two rows of each document in the caller's tenant, one of d7, which has no record, and d1 in another tenant. */
-        val ROWS: List<Row> = (AccessFilterSpec.RECORDS.map { it.id } + "d7").flatMap { document ->
+        private val ROWS: List<Row> = (AccessFilterSpec.RECORDS.map { it.id } + "d7").flatMap { document ->
             listOf(Row("$document-1", T1, document), Row("$document-2", T1, document))
         } + Row("d1-t2", T2, "d1")
 
-        val TABLE = DatasetTable(
+        private val TABLE = DatasetTable(
             "access_documents",
             listOf(
                 DatasetColumn(ID, DatasetColumn.Type.STRING),
@@ -309,26 +330,29 @@ abstract class DatasetAccessSpec {
             ROWS.map { mapOf(ID to it.id, TENANT to it.tenant, DOCUMENT_ID to it.document) },
         )
 
-        fun callerOf(tenant: String) = QueryCaller(Caller(tenantId = tenant), entry = QueryEntry.HTTP)
+        private fun callerOf(tenant: String) = QueryCaller(Caller(tenantId = tenant), entry = QueryEntry.HTTP)
 
         /** The restriction a node appends for [predicate], compiled on the access record's fields. */
-        fun restrictionOf(predicate: AccessPredicate): FilterExpression =
+        private fun restrictionOf(predicate: AccessPredicate): FilterExpression =
             DatasetAccess.restriction(AccessFilters.compile(predicate, DatasetAccess::fieldOf))
 
         /** [record]'s attributes as a stream records them: the owner and space, then each declared one it holds. */
-        fun accessOf(record: AccessFilterSpec.AccessRecord): Map<String, Any?> =
+        private fun accessOf(record: AccessFilterSpec.AccessRecord): Map<String, Any?> =
             linkedMapOf<String, Any?>("owner" to record.owner, "space" to record.space) +
                 record.values.mapValues { (_, value) -> value?.let { written(AccessFilterSpec.stored(it)) } }
 
         /** [value] as JSON writes it: an enum by its name, a collection's values each so. */
-        fun written(value: Any): Any = when (value) {
+        private fun written(value: Any): Any = when (value) {
             is Enum<*> -> WowJson.mapper.valueToTree<JsonNode>(value).stringValue()
             is Collection<*> -> value.map { written(it!!) }
             else -> value
         }
 
         /** [attribute]'s value in [record], as the kernel derives it: null where the record lacks it. */
-        fun valueOf(record: AccessFilterSpec.AccessRecord, attribute: AccessAttribute<*, *>): Any? = when (attribute) {
+        private fun valueOf(
+            record: AccessFilterSpec.AccessRecord,
+            attribute: AccessAttribute<*, *>
+        ): Any? = when (attribute) {
             AccessAttribute.OWNER -> record.owner
             AccessAttribute.SPACE -> record.space
             else -> record.values[attribute.name]

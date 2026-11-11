@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SnapshotProperties
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
@@ -164,14 +165,18 @@ abstract class AccessFilterSpec {
         ).schema()
     }
 
-    /** The declared attributes' fields, as the Manifest types them. */
+    /** The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them. */
     private fun declaration(): QuerySchemaDeclaration = querySchema {
-        listOf(Attributes.DEPARTMENT, Attributes.ORG, Attributes.LEVEL).forEach {
-            field(fieldOf(it.name).path) { types(QueryValueType.STRING) }
+        DatasetAccessSpec.ATTRIBUTES.forEach { attribute ->
+            val type = when (attribute.type) {
+                AccessAttributeManifest.Type.STRING -> QueryValueType.STRING
+                AccessAttributeManifest.Type.INTEGER -> QueryValueType.INTEGER
+                AccessAttributeManifest.Type.BOOLEAN -> QueryValueType.BOOLEAN
+            }
+            field(fieldOf(attribute.name).path) {
+                if (attribute.multiple) items { types(type) } else types(type)
+            }
         }
-        field(fieldOf(Attributes.PAGES.name).path) { types(QueryValueType.INTEGER) }
-        field(fieldOf(Attributes.PUBLISHED.name).path) { types(QueryValueType.BOOLEAN) }
-        field(fieldOf(Attributes.SHARED_WITH.name).path) { items { types(QueryValueType.STRING) } }
     }
 
     /** The attributes of the matrix's documents. */
@@ -179,6 +184,7 @@ abstract class AccessFilterSpec {
 
     class Document
 
+    /** The matrix's predicates' attributes: those of [DatasetAccessSpec.ATTRIBUTES], typed. */
     private object Attributes {
         val DEPARTMENT = AccessAttribute.single<Document, String>("department", String::class.java)
         val ORG = AccessAttribute.single<Document, String>("org", String::class.java)

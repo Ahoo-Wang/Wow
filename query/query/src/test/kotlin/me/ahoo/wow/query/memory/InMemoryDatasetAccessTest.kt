@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.tck.DatasetAccessSpec
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
@@ -35,7 +36,12 @@ class InMemoryDatasetAccessTest : DatasetAccessSpec() {
             },
         )
 
-    override suspend fun storeAccess(aggregate: AggregateType, records: List<AccessRecord>) {
+    /** The in-memory storage keeps each record's attributes as they are, so it has no use for the declared ones. */
+    override suspend fun storeAccess(
+        aggregate: AggregateType,
+        attributes: List<AccessAttributeManifest>,
+        records: List<AccessRecord>,
+    ) {
         records.forEach { storage.putAccess(aggregate, it.tenantId, it.aggregateId, it.version, it.access) }
     }
 }
