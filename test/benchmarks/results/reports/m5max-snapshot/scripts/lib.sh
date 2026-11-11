@@ -377,5 +377,6 @@ curate() {
     --include='up-prime.json' --include='up-settle.json' --include='log-digest.md' --include='*-peak.md' \
     --include='saturate.log' --include='run.log' --include='saturation.json' --include='result.json' \
     --include='settle.json' --include='settle.log' --include='summary.md' --include='pg-statements.txt' \
+    --include='hot-version.tsv' --include='tables.txt' --include='explain.txt' \
     --include='allowed-jvms.txt' --exclude='*' "$1/" "$2/"
 }
