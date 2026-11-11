@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
@@ -19,9 +19,6 @@ import { HEADLINES, performancePages } from './docs-performance.mjs';
 //   and the codes of rejected query requests (api/query-api QueryErrorCodes).
 // - reference/annotations: the annotations of the programming model
 //   (api/api me.ahoo.wow.api.annotation), from their declarations and KDoc.
-//
-// It also writes the figures block of operate/performance, a hand-written page,
-// from the benchmark reports' headline.json (docs-performance.mjs).
 //
 // `node .github/scripts/docs-reference.mjs` fails when a committed page is not
 // what the sources give; `--write` (`pnpm docs:reference`) writes them.
@@ -867,12 +864,9 @@ if (
   const write = process.argv.includes('--write');
   const stale = [];
   for (const [path, text] of Object.entries(pages)) {
-    let current;
-    try {
-      current = readFileSync(join(ROOT, path), 'utf8');
-    } catch {
-      current = undefined;
-    }
+    const current = existsSync(join(ROOT, path))
+      ? readFileSync(join(ROOT, path), 'utf8')
+      : undefined;
     if (current === text) continue;
     stale.push(path);
     if (write) writeFileSync(join(ROOT, path), text);
