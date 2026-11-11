@@ -28,6 +28,7 @@ import {
 } from '../model/index.js';
 import { issue, isPlainObject } from '../filter/index.js';
 import { isSafeContentUrl } from './panels.js';
+import { shape } from './shape.js';
 
 export function validateContentPanel(
   panel: DashboardContentPanel,
@@ -112,12 +113,4 @@ function validateLinks(
       issues.push(issue('dashboard.url.unsupported-scheme', [...at, 'href']));
   });
   return issues;
-}
-
-/** A value of the wrong shape, said as `validate.ts` says it. */
-function shape(
-  path: IssuePath,
-  expected: 'array' | 'object' | 'string',
-): Issue {
-  return issue('dashboard.shape.invalid', path, { expected });
 }

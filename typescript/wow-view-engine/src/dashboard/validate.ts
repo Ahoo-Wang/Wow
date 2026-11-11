@@ -50,6 +50,7 @@ import {
 } from './validateFilters.js';
 import { isViewPanel } from './panels.js';
 import { validateContentPanel } from './validateContent.js';
+import { shape } from './shape.js';
 import { validateOpens, validatePresentation } from './panelLook.js';
 import { declaredView, missingView } from './declared.js';
 import { validateTabs } from './tabs.js';
@@ -242,13 +243,6 @@ function validateFixed(
     ...found,
     path: ['fixed', ...found.path],
   }));
-}
-
-function shape(
-  path: IssuePath,
-  expected: 'array' | 'object' | 'string' | 'true',
-): Issue {
-  return issue('dashboard.shape.invalid', path, { expected });
 }
 
 /** The id is the runtime's lookup key, the grid's key and where errors land. */
