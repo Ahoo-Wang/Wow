@@ -160,6 +160,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'Spring Cloud 服务发现', link: 'spring-cloud'},
                 {text: '健康、指标与追踪', link: 'observability'},
                 {text: '伸缩与容量', link: 'scaling'},
+                {text: '性能', link: 'performance'},
                 {text: 'Elasticsearch', link: 'elasticsearch'},
                 {text: '备份与恢复', link: 'backup'},
                 {text: '重建与重放', link: 'replay'},
