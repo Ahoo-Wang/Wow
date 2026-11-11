@@ -1829,18 +1829,19 @@ public final class me/ahoo/wow/api/subscribe/CommandReceipt$Rejected : me/ahoo/w
 }
 
 public final class me/ahoo/wow/api/subscribe/ExecutionId {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun component3 ()I
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public static synthetic fun copy$default (Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public static final field Companion Lme/ahoo/wow/api/subscribe/ExecutionId$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getSubscription ()Ljava/lang/String;
 	public final fun getVersion ()I
 	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/subscribe/ExecutionId$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/api/subscribe/ExecutionId;
 }
 
 public final class me/ahoo/wow/api/subscribe/PublishedEvent {

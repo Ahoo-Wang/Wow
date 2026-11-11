@@ -67,7 +67,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 class CommandMessagesTest {
     private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
     private val ref = ITEM.ref(TENANT, "i-1")
-    private val execution = ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 3)
+    private val execution = ExecutionId(ORDER.context, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 3)
     private val wait = WaitContext(
         "w-1",
         Origin("sales-1", "sales-1:9090", SALES_SERVICE),

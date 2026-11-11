@@ -221,19 +221,22 @@ A `BigDecimal` of the body or the answer reads as text, as everywhere in the gen
 
 ## Test a route
 
-A handler is tested by calling it with a call of the test's own; the queries can be a real query side over snapshots held in memory (`memoryQueries` of `wow-test-query`):
+A handler is tested by calling it with a call the test DSL builds, `routeCall(caller, queries, commands, requestId)` of `wow-test`: it acts in its caller's tenant and scope, and a handler that reads or sends what the test gave none of fails, saying what to give. The queries can be a real query side over snapshots held in memory (`memoryQueries` of `wow-test-query`), and the commands an `answeringCommandClient { call -> … }`, which answers each request and keeps it in `calls` ([Testing](./testing#service-routes)):
 
 <!-- sample: examples/eshop/catalog/catalog-domain/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/StorefrontTest.kt#call -->
 
 ```kotlin
-/** A shopper's call: its reads run on [queries] as the anonymous caller. */
-private class Call(override val queries: Queries) : RouteCall {
-    override val caller: Caller = Caller.ANONYMOUS
-    override val tenantId: String = caller.tenantId
-    override val scope: Scope = caller.scope
-    override val requestId: String = "r1"
-    override val commands: CommandClient get() = error("The storefront sends no command.")
-}
+/** A shopper's call: its reads run on a query side in memory as the anonymous caller; it sends no command. */
+private val call = routeCall(
+    queries = memoryQueries {
+        snapshot(model, "mug", created("8.50"), ProductPublished)
+        snapshot(model, "cup", created("5.00"), ProductPublished)
+        snapshot(model, "bowl", created("7.00"), ProductPublished)
+        snapshot(model, "plate", created("3.00", categoryId = "plates"), ProductPublished)
+        snapshot(model, "draft", created("1.00"))
+        snapshot(model, "old", created("2.00"), ProductPublished, ProductDelisted("Out of season"))
+    }.of(Caller.ANONYMOUS),
+)
 ```
 
 `StorefrontTest` gives it `memoryQueries { snapshot(productModel(), "mug", ProductCreated(...), ProductPublished) }.of(Caller.ANONYMOUS)`, so each product's state is the one its own events build, and asserts each route's answer and refusal. `CatalogEndToEndTest` calls the routes over HTTP on the started server: the `204`, the listing and the `400` problem.

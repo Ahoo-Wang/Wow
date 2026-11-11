@@ -27,21 +27,19 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.test.routeCall
 import org.junit.jupiter.api.Test
 import java.io.IOException
 
@@ -49,14 +47,7 @@ import java.io.IOException
 class DatasetReferenceActionsTest {
     private val caller = Caller.of(tenantId = "t1", subject = "mary")
 
-    private val call = object : RouteCall {
-        override val caller: Caller = this@DatasetReferenceActionsTest.caller
-        override val tenantId: String = "t1"
-        override val scope: Scope = Scope.NONE
-        override val requestId: String = "r-1"
-        override val commands: CommandClient = mockk()
-        override val queries: Queries = mockk()
-    }
+    private val call = routeCall(caller = caller, queries = mockk(), commands = mockk(), requestId = "r-1")
     private val reference = DatasetReference("crm", "member")
 
     private fun state(status: DatasetStatus = DatasetStatus.PUBLISHED, current: Int = 1): DatasetState {

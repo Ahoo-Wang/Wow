@@ -55,7 +55,7 @@ class SagaCallTest {
         causation = Causation("root", "shop.order/t/o-0@1"),
         operator = Operator("alice", "t"),
     )
-    private val execution = ExecutionId("OrderSaga.onPlaced", event.ref, 3)
+    private val execution = ExecutionId(event.ref.type.context, "OrderSaga.onPlaced", event.ref, 3)
 
     private fun result(command: Command<*>, status: CommandResult.Status) = CommandResult(
         commandId = command.id,
@@ -80,6 +80,7 @@ class SagaCallTest {
         val called = mutableListOf<Command<*>>()
         val context = contextOf(
             FunctionKind.SAGA,
+            execution.context,
             execution.subscription,
             event,
             calls = CommandCalls {

@@ -224,10 +224,12 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
 
     @Test
     fun `validators' violations refuse the command together`(): Unit = runBlocking {
-        val positive = CommandValidator { _, body ->
+        val positive = CommandValidator { command ->
+            val body = command.body
             if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "min", "At least 1."))
         }
-        val known = CommandValidator { _, body ->
+        val known = CommandValidator { command ->
+            val body = command.body
             if ((body as AddItem).sku == "apple") emptyList() else listOf(Violation("sku", "Known", "Unknown sku."))
         }
         val result = gateway(validators = listOf(positive, known))
@@ -250,7 +252,8 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
                     input.headers + ("App" to "web"),
                 )
             }
-            val validator = CommandValidator { _, body ->
+            val validator = CommandValidator { command ->
+                val body = command.body
                 if ((body as AddItem).quantity == 5) emptyList() else listOf(Violation("quantity", "Five", "Not 5."))
             }
             val result = gateway(transformers = listOf(defaults), validators = listOf(validator)).execute(

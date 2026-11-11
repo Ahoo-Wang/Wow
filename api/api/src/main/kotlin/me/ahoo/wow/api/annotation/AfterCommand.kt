@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
@@ -30,8 +29,7 @@ import kotlin.reflect.KClass
  *   the aggregate, or a compile error.
  * @param exclude the commands it does not run after.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class AfterCommand(
     val include: Array<KClass<*>> = [],

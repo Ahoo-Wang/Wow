@@ -353,7 +353,7 @@ A saga whose handlers read through the query API gets its reads from `givenQueri
 A handler that throws fails the spec unless the step's checks expect it: `expectError<T>`, `expectRetried` or `expectParked`. The spec decides what the runtime would do with the failure as the runtime's subscriptions do:
 
 - A rejection the handling met parks the aggregate at once, without a retry: the rejection of a call the handler let through, or of a derived command that no `@OnRejected` handler takes ([Rejections and receipts](#rejections-and-receipts)). A rejection is a business outcome, which no retry changes.
-- Any other failure is classified: the handler's `@Retry(recoverable, unrecoverable)` first, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down or pushes back is retried without spending the budget; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
+- Any other failure is classified: Wow's own failures first, then the handler's `@Retry(recoverable, unrecoverable)`, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down or pushes back is retried without spending the budget; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
 - A handling that runs longer than its `@Retry(timeout)` is cancelled and counts as a failed attempt. That time is real, not the spec's clock.
 
 `expectRetried(attempt)` passes when the runtime retries the handling after that attempt, the first by default; `expectParked(attempt)` when it parks it then. Both return what was thrown. The spec does not wait out the backoff between attempts, and it uses neither the parked retries nor the application's own `FailureClassifier` beans: test those beside the classifier. [Test a failure](./failures#test-it) shows a reactor retried, then handed the same commit again.
@@ -399,6 +399,10 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`,
 | `answerCalls { … }`, `givenQueries(queries)` | As in a saga spec. |
 
 Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's morning tick.
+
+## Service routes
+
+A service route's handler is tested by calling it, as a decide function is: with a call the test DSL builds, `routeCall(caller, queries, commands, requestId)`. The call acts in its caller's tenant and scope. Left out, the caller is anonymous, the request id is `request-1`, and a handler that reads or sends fails the test, saying what to give. The commands are an `answeringCommandClient { call -> … }`: each request it takes, through `send`, `wait` or `stream` and as whichever caller `of` gave, goes to the lambda and is kept in `calls`. The lambda answers with `call.committed(version)`, `call.rejected(code)` or `call.failed(code)`, which a real client returns or throws. [Test a route](./service-routes#test-a-route) shows the storefront's tests. `RouteCall` and `CommandClient` are Wow's to implement: a test that writes its own needs `@OptIn(InternalWowApi::class)`, and breaks when Wow adds a member.
 
 ## Access policies
 

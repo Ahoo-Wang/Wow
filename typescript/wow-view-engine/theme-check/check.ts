@@ -644,8 +644,9 @@ function paletteGates(
       });
   }
   const card = tokens.get('--card')!;
-  const page = tokens.get('--background')!;
-  const ink = tokens.get('--foreground')!;
+  const inks = ['dark', 'light'].map(ink =>
+    tokens.get(`--_fve-chart-ink-${ink}`)!,
+  );
   palette.forEach((color, index) => {
     const ratio = contrast(color, card);
     if (ratio < 3)
@@ -654,15 +655,10 @@ function paletteGates(
         message: `slot ${index + 1} stands ${ratio.toFixed(2)}:1 off the card (< 3:1)${mode === 'light' ? ': a light slot under it is yours to accept, answered by the reading table and the patterns' : ''}`,
       });
     const opaque = { ...color, alpha: 1 };
-    if (
-      [page, card].some(
-        ground =>
-          Math.max(contrast(ink, opaque), contrast(ground, opaque)) < 4.5,
-      )
-    )
+    if (Math.max(...inks.map(ink => contrast(ink, opaque))) < 4.5)
       problems.push({
         severity: 'error',
-        message: `slot ${index + 1}: neither the foreground nor the ground reads 4.5:1 inside it`,
+        message: `slot ${index + 1}: neither chart-ink-dark nor chart-ink-light reads 4.5:1 inside it`,
       });
   });
   return problems;

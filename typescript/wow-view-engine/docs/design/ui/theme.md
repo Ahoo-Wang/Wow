@@ -167,7 +167,8 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 - **图表的角色**（`area: 'chart'`）：`chart-grid`、`chart-grid-width`、`chart-axis`（图里弱一级的字）、`chart-text-size`／`chart-label-size`（跟随 `text-ui`）、`chart-line-width`、`chart-area-opacity`、`chart-bar-radius`（跟随 `radius`、但不超过 2px，`radius` 为 0 的方角风格柱子自己就方了）、`chart-bar-min-width`／`chart-bar-max-width`（最宽 80px，并排两根柱那么宽）、`chart-slice-border`、`chart-map-edge`（[D54](../decisions.md#d54-地图的区域靠边界线与底色分开2026-09-26)），以及图表提示框的 `chart-tooltip`、`-foreground`、`-shadow`（落回弹层那一组 `popover` 与 `shadow-md`）。选项构造函数里不写字号、圆角、线宽与柱宽的字面量（`test/chartTheme.test.tsx` 读语法树守着）。
 - **何时重读**：`ViewSurface` 的观察者盯着根与每一层祖先上的 `THEME_ATTRIBUTES`（明暗、预设、涨跌约定、密度、`data-fve-brand-chart` 的属性，加上 `style`），每次变动在根上读一遍 `CHART_TOKENS` 与两种底色，读数的 key 变了才经 `useSurfaceTokens()` 往下送；`EChart` 以它为依赖就地重画、不重挂载，key 相同就不重画。只换样式表、不动任何属性的切换观察不到，所以换主题请改属性（指南写明）。系统的明暗与「提高对比度」由各自的 `matchMedia` 监听。（见 test/chartTheme.test.tsx「redraws when the host swaps its tokens and the mode stays」，浏览器故事「组件状态/分析工作台/图型/回归」的 `ChartFollowsHostTokens`）
 - **兜底色**：jsdom 读不到样式表时用 `CHART_FALLBACK`，它是亮色 token 的第二份拼写，由测试逐值对齐 `styles.css`（颜色、长度与数字都对）。（见 test/chartTheme.test.tsx「falls back to the stylesheet’s own light tokens」）
-- **色板**：八色按两种明暗、按色觉间距校过，顺序固定、按序发（顺序本身就是相邻两色分得开的保证）。顺序色（热力图、矩形树图、日历、地图）由第一色向底色混，不设 token；发散色今天没有读者，不加 token。悬停色（`emphasized`）、柱内字色（`inkOn`）、热力格的浅端（`mixColor`）都从读回的值算。
+- **色板**：八色按两种明暗、按色觉间距校过，顺序固定、按序发（顺序本身就是相邻两色分得开的保证）。顺序色（热力图、矩形树图、日历、地图）由第一色向底色混，不设 token；发散色今天没有读者，不加 token。悬停色（`emphasized`）、热力格的浅端（`mixColor`）从读回的值算。
+- **图形上的字有图表自己的两种墨色**（D94）：柱内、段内、格上的数取 `chart-ink-dark` 与 `chart-ink-light` 里离图形颜色更远的那个（`inkOn`），内置值是黑与白，亮暗同一对——定墨色的是图形的颜色，不是明暗；黑白是两端，任何颜色离其中一个都不低于 4.58:1，所以用内置墨色时任何色板的这道门都过，门只在主题自己设了较软的墨色时才起作用。原先借的是页面的正文色与图表所在的底：那两者是为彼此调的，正文色浅一点、暗色的底亮一点，中间调的色位上两种就都不到 4.5:1（按 D94 的色值，亮色第八色 4.16、暗色第六色 4.27）。宿主与预设都能设这两个角色，色板的门按设了之后的值量。
 - **打印时重读一次**：图表是脚本画的，媒体查询够不到；`charts/print.ts` 的 `usePrinting` 在打印开始与结束时让 `EChart` 重读，纸上的图是亮色、带花纹的。
 
 ## 打印与强制颜色
@@ -181,13 +182,13 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 - **对比度矩阵**：`test/presetContrast.test.ts` 按两份样式表解析出的值，对每套 × 每种明暗 × 每种涨跌约定量登记表的每一对（字 ≥4.5:1、控件边与焦点 ≥3:1、标记，`contrast` 按 `PRESET_LINES` 更高），底包括页底、分组底、卡片、弹层、内容底、表头带、合计带、选中行、隔行、悬停行、侧栏、菜单高亮（字对高亮底；高亮项的焦点标记 `ring` 对弹层底 ≥3:1——高亮的填色在多数预设里只是浅色，不当标记量）、提示框与控件填色；新预设按名字自动进矩阵。浏览器里的矩阵（`ThemeContrast.stories.tsx`）量级联后的真实颜色，抓得到 jsdom 看不到的（阴影描边、相对颜色真的解析了没有）；页面上能粘贴一段 `--fve-*` 当场一起量。
 - **色板门**（`test/paletteDistance.test.ts`，每套自带的与默认八色、每种明暗；相邻含第 8 与第 1 色，饼图首尾相接；culori 的色觉模拟，强度 1）：
 
-  | 检查                | 门槛                                                                   |
-  | ------------------- | ---------------------------------------------------------------------- |
-  | 相邻色，正常视觉    | OKLab×100 ≥15                                                          |
-  | 红色弱、绿色弱模拟  | ≥8                                                                     |
-  | 蓝色弱模拟          | ≥6                                                                     |
-  | 对卡片底            | 暗色每色 ≥3:1；亮色 ≥3:1，例外逐色列在测试里                           |
-  | 柱内字色（`inkOn`） | 每色都有一种墨色 ≥4.5:1，页底与卡片各量一次（test/paletteInk.test.ts） |
+  | 检查                | 门槛                                                                                                        |
+  | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+  | 相邻色，正常视觉    | OKLab×100 ≥15                                                                                               |
+  | 红色弱、绿色弱模拟  | ≥8                                                                                                          |
+  | 蓝色弱模拟          | ≥6                                                                                                          |
+  | 对卡片底            | 暗色每色 ≥3:1；亮色 ≥3:1，例外逐色列在测试里                                                                |
+  | 柱内字色（`inkOn`） | 每色上，图表自己的两种墨色（`chart-ink-dark`／`chart-ink-light`）里有一种 ≥4.5:1（test/paletteInk.test.ts） |
 
   亮色允许例外，因为有补救：花纹（D33 Q57）与读屏表；新增一个例外就是一次有意的改动。蓝色弱取 6 而不是 8：默认八色暗色只有 6.1，定 8 等于否定一套上线的、另两种色弱都过的色板。
 

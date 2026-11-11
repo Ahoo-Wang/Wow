@@ -105,16 +105,16 @@ class StateEventTest {
 
     @Test
     fun `an execution id is the idempotency key of one handler for one commit`() {
-        val id = ExecutionId("cart-projection.onEvent", ref, 3)
-        id.toString().assert().isEqualTo("cart-projection.onEvent:example.cart/tenant/c-1@3")
-        id.assert().isEqualTo(ExecutionId("cart-projection.onEvent", ref, 3))
-        assertThrownBy<IllegalArgumentException> { ExecutionId(" ", ref, 3) }
-        assertThrownBy<IllegalArgumentException> { ExecutionId("s", ref, 0) }
+        val id = ExecutionId(ref.type.context, "cart-projection.onEvent", ref, 3)
+        id.toString().assert().isEqualTo("example.cart-projection.onEvent:example.cart/tenant/c-1@3")
+        id.assert().isEqualTo(ExecutionId(ref.type.context, "cart-projection.onEvent", ref, 3))
+        assertThrownBy<IllegalArgumentException> { ExecutionId(ref.type.context, " ", ref, 3) }
+        assertThrownBy<IllegalArgumentException> { ExecutionId(ref.type.context, "s", ref, 0) }
     }
 
     @Test
     fun `contexts give the execution id and a saga derives commands`() {
-        val execution = ExecutionId("payment-saga.onEvent", ref, 3)
+        val execution = ExecutionId(ref.type.context, "payment-saga.onEvent", ref, 3)
         val project = object : SubscriptionContext {
             override val executionId = execution
             override val queries: SubscriptionQueries get() = error("No queries in this test.")

@@ -40,7 +40,7 @@ class CommittedBindingTest {
     private class ReserveAll : Reserve()
     private class Release : StockCommand
 
-    private val execution = ExecutionId("OrderSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
+    private val execution = ExecutionId(order.context, "OrderSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
     private val committed = CommandReceipt.Committed<Reserve>(
         commandId = "c-1",
         commandType = "inventory.stock.Reserve",
@@ -133,7 +133,9 @@ class CommittedBindingTest {
                 listOf(CommandRequest.to(execution.ref, "confirm ${receipt.ref.id}"))
             }
             val context = committedContextOf(handler, committed)
-            context.executionId.assert().isEqualTo(ExecutionId("OrderSaga.onReserved", execution.ref, 3))
+            context.executionId.assert().isEqualTo(
+                ExecutionId(execution.ref.type.context, "OrderSaga.onReserved", execution.ref, 3)
+            )
             val command = handler.invoke(committed, context).single()
             command.body.assert().isEqualTo("confirm s-1")
             command.id.assert().isEqualTo(

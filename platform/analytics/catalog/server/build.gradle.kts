@@ -60,6 +60,7 @@ dependencies {
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
+    testImplementation("me.ahoo.wow:wow-test")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // The generator of the configuration metadata of the service's own keys (design rule K8).
     testImplementation(testFixtures(project(":spring-boot")))

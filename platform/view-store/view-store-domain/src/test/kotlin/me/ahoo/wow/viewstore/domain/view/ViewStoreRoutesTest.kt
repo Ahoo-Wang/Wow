@@ -17,12 +17,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.test.routeCall
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewAudience
@@ -34,18 +32,15 @@ import org.junit.jupiter.api.Test
 
 /** The view store's own reads: in the caller's application, a view by id read personal first, then shared, then system. */
 class ViewStoreRoutesTest {
-    private class Call(owner: String?, app: String? = APP) : RouteCall {
-        override val caller: Caller = Caller.of(
+    /** A call of [owner] in [app]: the view store's reads send no command and run no query of the node. */
+    private fun call(owner: String?, app: String? = APP) = routeCall(
+        caller = Caller.of(
             tenantId = TENANT,
             scope = Scope(ownerId = owner),
             attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
-        )
-        override val tenantId: String = TENANT
-        override val scope: Scope = caller.scope
-        override val requestId: String = "r1"
-        override val commands: CommandClient get() = error("The view store's reads send no command.")
-        override val queries: Queries get() = error("The view store's reads run no query of the node.")
-    }
+        ),
+        requestId = "r1",
+    )
 
     /** Reads over [saved], by owner, and [system]: what each read was asked is kept in [asked]. */
     private class Reads(
@@ -103,9 +98,9 @@ class ViewStoreRoutesTest {
         val all = ViewStoreRoutes(
             Reads(mapOf("alice" to personal, ViewStoreContext.SHARED_OWNER_ID to shared), listOf(system)),
         )
-        all.view(Call("alice"), ID).assert().isEqualTo(personal)
-        all.view(Call("bob"), ID).assert().isEqualTo(shared)
-        ViewStoreRoutes(Reads(system = listOf(system))).view(Call("alice"), ID).assert().isEqualTo(
+        all.view(call("alice"), ID).assert().isEqualTo(personal)
+        all.view(call("bob"), ID).assert().isEqualTo(shared)
+        ViewStoreRoutes(Reads(system = listOf(system))).view(call("alice"), ID).assert().isEqualTo(
             ViewEntry(
                 id = ID,
                 definitionId = "orders",
@@ -124,8 +119,8 @@ class ViewStoreRoutesTest {
     fun `a caller without an owner or acting as a reserved one should read no personal view`() = runBlocking<Unit> {
         val reads = Reads(mapOf(ViewStoreContext.SHARED_OWNER_ID to shared))
         val routes = ViewStoreRoutes(reads)
-        routes.view(Call(null), ID).assert().isEqualTo(shared)
-        routes.view(Call(ViewStoreContext.SHARED_OWNER_ID), ID).assert().isEqualTo(shared)
+        routes.view(call(null), ID).assert().isEqualTo(shared)
+        routes.view(call(ViewStoreContext.SHARED_OWNER_ID), ID).assert().isEqualTo(shared)
         reads.asked.assert().containsExactly(
             "savedViews($TENANT, $APP, $ID, [(shared)])",
             "savedViews($TENANT, $APP, $ID, [(shared)])",
@@ -135,9 +130,9 @@ class ViewStoreRoutesTest {
     @Test
     fun `no view, or no application, should be refused with its code`() {
         val routes = ViewStoreRoutes(Reads())
-        refusal { routes.view(Call("alice"), ID) }.assert().isEqualTo(ViewStoreRejections.NOT_FOUND)
-        refusal { routes.view(Call("alice", app = null), ID) }.assert().isEqualTo(ViewStoreRejections.APP_REQUIRED)
-        refusal { routes.systemViews(Call("alice", app = null), null) }.assert()
+        refusal { routes.view(call("alice"), ID) }.assert().isEqualTo(ViewStoreRejections.NOT_FOUND)
+        refusal { routes.view(call("alice", app = null), ID) }.assert().isEqualTo(ViewStoreRejections.APP_REQUIRED)
+        refusal { routes.systemViews(call("alice", app = null), null) }.assert()
             .isEqualTo(ViewStoreRejections.APP_REQUIRED)
     }
 
@@ -149,9 +144,9 @@ class ViewStoreRoutesTest {
     fun `the system views should be every definition's when the definition is absent or blank`() = runBlocking<Unit> {
         val reads = Reads(system = listOf(system))
         val routes = ViewStoreRoutes(reads)
-        routes.systemViews(Call("alice"), null).assert().containsExactly(system)
-        routes.systemViews(Call("alice"), " ").assert().containsExactly(system)
-        routes.systemViews(Call("alice"), "other").assert().isEmpty()
+        routes.systemViews(call("alice"), null).assert().containsExactly(system)
+        routes.systemViews(call("alice"), " ").assert().containsExactly(system)
+        routes.systemViews(call("alice"), "other").assert().isEmpty()
         reads.asked.assert().containsExactly(
             "systemViews($TENANT, $APP, null)",
             "systemViews($TENANT, $APP, null)",

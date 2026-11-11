@@ -68,6 +68,11 @@ export interface ChartTheme {
   muted: string;
   /** What the chart stands on, drawn around a value label as its halo. */
   ground: string;
+  /**
+   * The two inks a label written on a mark takes one of, whichever stands
+   * further from the mark (`chart-ink-dark`, `chart-ink-light`; `inkOn`).
+   */
+  ink: { dark: string; light: string };
   /** Gridlines and axis rules: their colour and width (`chart-grid`). */
   grid: { color: string; width: number };
   /**
@@ -166,6 +171,7 @@ export const CHART_FALLBACK = {
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
   ground: 'rgb(255, 255, 255)',
+  ink: { dark: 'rgb(0, 0, 0)', light: 'rgb(255, 255, 255)' },
   grid: { color: 'rgb(229, 229, 229)', width: 1 },
   axis: { color: 'rgb(115, 115, 115)' },
   text: { family: 'sans-serif', size: 12, labelSize: 11 },
@@ -227,23 +233,25 @@ export function emphasized(theme: ChartTheme, fill: string): string {
 }
 
 /**
- * The ink a label written on `fill` wears: the foreground or the ground,
- * whichever stands further from it (WCAG contrast). A number inside a
- * stacked bar's segment or on a heatmap's cell sits on the mark rather
- * than on the page, and one colour for all of them wrote dark digits on
- * the deep end of the scale, with a halo that only blurred them (2026-09-23
- * audit). The mark decides, so a label is legible on every shade in either
- * mode, and needs no halo.
+ * The ink a label written on `fill` wears: the chart's dark ink or its
+ * light one, whichever stands further from it (WCAG contrast). A number
+ * inside a stacked bar's segment or on a heatmap's cell sits on the mark
+ * rather than on the page, and one colour for all of them wrote dark digits
+ * on the deep end of the scale, with a halo that only blurred them
+ * (2026-09-23 audit). The mark decides, so a label is legible on every
+ * shade in either mode, and needs no halo. The two inks are the chart's
+ * own, not the page's words and ground: those are chosen to read on each
+ * other, and a softer ink or a lighter dark ground left a mid-tone slot
+ * with neither at 4.5:1.
  */
 export function inkOn(theme: ChartTheme, fill: string): string {
   const under = parse(fill);
-  if (!under) return theme.foreground;
-  const dark = parse(theme.foreground);
-  const light = parse(theme.ground);
-  if (!dark || !light) return theme.foreground;
+  const dark = parse(theme.ink.dark);
+  const light = parse(theme.ink.light);
+  if (!under || !dark || !light) return theme.ink.dark;
   return wcagContrast(under, dark) >= wcagContrast(under, light)
-    ? theme.foreground
-    : theme.ground;
+    ? theme.ink.dark
+    : theme.ink.light;
 }
 
 /** The colour of nothing, as `concreteColor` writes it. */
@@ -333,6 +341,8 @@ const ROLE = {
   barMaxWidth: '--_fve-chart-bar-max-width',
   sliceBorder: '--_fve-chart-slice-border',
   mapEdge: '--_fve-chart-map-edge',
+  inkDark: '--_fve-chart-ink-dark',
+  inkLight: '--_fve-chart-ink-light',
 } as const;
 
 export function readChartTheme(element: Element): ChartTheme {
@@ -370,6 +380,10 @@ export function readChartTheme(element: Element): ChartTheme {
     foreground: token('--foreground') ?? FALLBACK.foreground,
     muted: token('--muted-foreground') ?? FALLBACK.muted,
     ground: groundOf(element) ?? FALLBACK.ground,
+    ink: {
+      dark: token(ROLE.inkDark) ?? FALLBACK.ink.dark,
+      light: token(ROLE.inkLight) ?? FALLBACK.ink.light,
+    },
     grid: {
       color: token(ROLE.grid) ?? FALLBACK.grid.color,
       width: least(ROLE.gridWidth, FALLBACK.grid.width),

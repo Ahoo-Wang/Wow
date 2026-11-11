@@ -67,7 +67,7 @@ class OmittedRefsTest {
         override fun aggregateIdOf(target: AggregateType, command: Any): String? = (command as Restock).productId
     }
 
-    private val execution = ExecutionId("OrderSaga.onOrderPlaced", order.ref("acme", "o-1"), 3)
+    private val execution = ExecutionId(order.context, "OrderSaga.onOrderPlaced", order.ref("acme", "o-1"), 3)
     private val event = StateEvent(
         order.ref("acme", "o-1"),
         3,
@@ -223,7 +223,12 @@ class OmittedRefsTest {
         val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
         // A job's handler gets the saga context of the job instance's commit, as an @OnEvent handler does.
         val saga =
-            ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
+            ExecutionSagaContext(
+                ExecutionId(instance.type.context, "StockSaga.onNightly", instance, 2),
+                ticked,
+                IdGenerators.DEFAULT,
+                types
+            )
         saga.derive(CommandRequest.of(Reserve("o-1"), "mug")).ref.assert().isEqualTo(stock.ref("acme", "mug"))
         saga.derive(CommandRequest.of(Reserve("o-2"))).ref.assert().isEqualTo(stock.unassigned("acme"))
         saga.derive(CommandRequest.to(stock.ref("acme", "all"), Reserve("o-3"))).ref.assert()

@@ -183,6 +183,7 @@ class SubscriptionBindingTest {
     }
 
     private fun execution(handler: ProcessorBinding<*>, event: StateEvent<*>) = ExecutionId(
+        event.ref.type.context,
         handler.name,
         event.ref,
         event.version
@@ -243,7 +244,7 @@ class SubscriptionBindingTest {
         rows.assert().isEqualTo(
             mapOf("sync" to "o-1", "mono" to "shop.order/t/o-1@2", "blocking" to "false"),
         )
-        audit.assert().isEqualTo(mapOf("suspend" to "OrderProjection.withContext:shop.order/t/o-1@2"))
+        audit.assert().isEqualTo(mapOf("suspend" to "shop.OrderProjection.withContext:shop.order/t/o-1@2"))
         val seen = result.classLoader.loadClass("sample.shop.Notifier").getField("INSTANCE").get(null)
             .let { it.javaClass.getMethod("getSeen").invoke(it) as List<*> }
         seen.assert().containsExactly("notifier.onEvent")
@@ -302,7 +303,7 @@ class SubscriptionBindingTest {
             AggregateType("shop", "cart").ref("t", "alice"),
             ErrorInfo("cart.forbidden", "No."),
             Causation("root", "shop.order/t/o-1@2"),
-            ExecutionId("CartSaga.onEvent", event.ref, event.version),
+            ExecutionId(event.ref.type.context, "CartSaga.onEvent", event.ref, event.version),
         )
         val compensations = onRemove.invoke(rejected, rejectionContextOf(onRemove, rejected))
         compensations.single().body.toString().assert().isEqualTo("Restore(commandId=c-9)")

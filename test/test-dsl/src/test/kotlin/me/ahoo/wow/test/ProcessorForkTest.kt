@@ -214,7 +214,7 @@ class ProcessorForkTest {
             .containsExactly("fails/whenRejected(Reserve, x)", "whenEvent(Cancel)")
     }
 
-    private fun executionOf() = ExecutionId("OrderSaga.onOrder", order, 1)
+    private fun executionOf() = ExecutionId(order.type.context, "OrderSaga.onOrder", order, 1)
 
     @Test
     fun `projections and reactors run as trees of tests`() {

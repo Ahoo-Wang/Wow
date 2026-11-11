@@ -92,7 +92,7 @@ Not every failure is the aggregate's own, so each one is classified before it is
 | Systemic | A class in the handler's `systemic`; a store, a broker or a connection that is down; a broker that refuses the node's credentials; 3 aggregates of a partition failing within 10 seconds with no success between (`wow.subscription.systemic.*`) | The whole partition pauses: one attempt at a time probes it, from 1 s apart up to 30 s, until a handling goes through. Meanwhile no aggregate spends its budget or is parked |
 | Backpressure | A command refused as busy (`wow.command.busy`), a wait that ran out, a query store's bulkhead, a 429 with `Retry-After` | The entry is retried from 100 ms up to 10 s apart, with jitter and at least the `Retry-After`, spending none of the handler's attempts. Each refusal halves the partition's concurrency and each success raises it again. After 20 refusals of one entry (`wow.subscription.backpressure.max-attempts`) the aggregate is parked |
 
-The handler's own `recoverable`, `unrecoverable` and `systemic` lists come first, and they match the exception the handler threw. When a class is in several, the nearer one in its class hierarchy decides; on a tie, `recoverable`, then `systemic`. Then the classifiers read the exception and each of its causes in turn: the application's `FailureClassifier` beans, then the modules' (the PostgreSQL module's for its driver, the client's for the network), then Wow's own rules, which know its stores, brokers and queries. An application's classifier returns a class for the failures it knows and null for the rest: the exceptions of a driver or a client its handlers call directly, say. A failure nothing classifies is recoverable.
+Wow's own failures come first, whatever the lists name: a saga that sends a command its `@Sends` does not declare, or derives what is no command request, and a Wow API used in a way it cannot serve, park at once; an attempt past its `timeout` is retried. Several of them are `IllegalStateException`s, so a list that names that class does not turn the code's mistake into retries. Then the handler's own `recoverable`, `unrecoverable` and `systemic` lists, which match the exception the handler threw. When a class is in several, the nearer one in its class hierarchy decides; on a tie, `recoverable`, then `systemic`. Then the classifiers read the exception and each of its causes in turn: the application's `FailureClassifier` beans, then the modules' (the PostgreSQL module's for its driver, the client's for the network), then Wow's own rules, which know its stores, brokers and queries. An application's classifier returns a class for the failures it knows and null for the rest: the exceptions of a driver or a client its handlers call directly, say. A failure nothing classifies is recoverable.
 
 The failures counted towards a pause did spend their attempts; once the partition is paused, nothing does. A pause is not a retry budget: a partition stays paused as long as the outage lasts.
 
@@ -157,7 +157,8 @@ fun `a failed notification should be asked for again with the same key`() = reac
     }
     // The retry hands the same commit again: the same key, so the mail service sends it once.
     whenRedelivered()
-    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
+    sent.single().third.assert()
+        .isEqualTo("${order.ref.type.context}.ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```
 

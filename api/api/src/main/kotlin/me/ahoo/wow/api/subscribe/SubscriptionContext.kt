@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.id.Ids
@@ -26,23 +27,61 @@ import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 
 /**
- * One execution of a subscription's handler for one commit: the [subscription] (`processor.function`),
- * the aggregate [ref] and the committed [version]. It is deterministic: handling the same commit again,
- * after a retry, a replay or a lease handover, gives the same id. It is per stream: the idempotency key of an outside
- * call is [SubscriptionContext.invocationKey], which tells apart the calls of a handler for each event.
+ * One execution of a subscription's handler for one commit: the subscription, by its bounded [context] and its
+ * [subscription] name there (`processor.function`, unique within the context alone), the aggregate [ref] and the
+ * committed [version]. It is deterministic: handling the same commit again, after a retry, a replay or a lease
+ * handover, gives the same id. It is per stream: the idempotency key of an outside call is
+ * [SubscriptionContext.invocationKey], which tells apart the calls of a handler for each event.
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-data class ExecutionId(val subscription: String, val ref: AggregateRef, val version: Int) {
+class ExecutionId @InternalWowApi constructor(
+    val context: String,
+    val subscription: String,
+    val ref: AggregateRef,
+    val version: Int,
+) {
     init {
+        require(context.isNotBlank() && context.none { it in CONTEXT_RESERVED }) {
+            "An execution names its context, which holds no '.', ':' or '%': $context"
+        }
         require(subscription.isNotBlank()) { "An execution names its subscription." }
         require(version >= 1) { "A committed version starts at 1." }
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ExecutionId && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
     /**
-     * `subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`: the
-     * subscription with its `%` and `:` percent-escaped and the ref as its own text writes it ([Escapes]), so no two
-     * executions share a text.
+     * `context.subscription:ref@version`, such as `example.cart-projection.onEvent:example.cart/tenant/c-1@3`: the
+     * context, which holds no `.`, `:` or `%`, the subscription with its `%` and `:` percent-escaped and the ref as its
+     * own text writes it ([Escapes]), so no two executions share a text, even of two contexts' subscriptions of one
+     * name.
      */
-    override fun toString(): String = "${Escapes.escaped(subscription, "%:")}:$ref@$version"
+    override fun toString(): String = "$context.${Escapes.escaped(subscription, "%:")}:$ref@$version"
+
+    private fun valueFields(): List<Any?> = listOf(context, subscription, ref, version)
+
+    /** This ExecutionId with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        subscription: String = this.subscription,
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+    ): ExecutionId = ExecutionId(context, subscription, ref, version)
+
+    companion object {
+        /** What a context never holds, so the text's first `.` ends it: a bounded context's name holds none of them. */
+        private const val CONTEXT_RESERVED = ".:%"
+
+        /** An ExecutionId of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(context: String, subscription: String, ref: AggregateRef, version: Int): ExecutionId =
+            ExecutionId(context, subscription, ref, version)
+    }
 }
 
 /**

@@ -216,7 +216,10 @@ data object MatchNoneFilter : FilterExpression {
     override val operator: FilterOperator = FilterOperator.MATCH_NONE
 }
 
-class AndFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
+class AndFilter @InternalWowApi constructor(operands: List<FilterExpression>) : FilterExpression {
+    /** Its operands, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val operands: List<FilterExpression> = operands.copied()
+
     override val operator: FilterOperator = FilterOperator.AND
 
     init {
@@ -239,7 +242,10 @@ class AndFilter @InternalWowApi constructor(val operands: List<FilterExpression>
     }
 }
 
-class OrFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
+class OrFilter @InternalWowApi constructor(operands: List<FilterExpression>) : FilterExpression {
+    /** Its operands, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val operands: List<FilterExpression> = operands.copied()
+
     override val operator: FilterOperator = FilterOperator.OR
 
     init {
@@ -262,7 +268,10 @@ class OrFilter @InternalWowApi constructor(val operands: List<FilterExpression>)
     }
 }
 
-class NorFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
+class NorFilter @InternalWowApi constructor(operands: List<FilterExpression>) : FilterExpression {
+    /** Its operands, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val operands: List<FilterExpression> = operands.copied()
+
     override val operator: FilterOperator = FilterOperator.NOR
 
     init {
@@ -348,9 +357,12 @@ class ElementMatchFilter @InternalWowApi constructor(
 
 class SearchFilter @InternalWowApi constructor(
     val query: String,
-    val fields: Set<QueryField<*>> = emptySet(),
+    fields: Set<QueryField<*>> = emptySet(),
     val mode: SearchMode = SearchMode.TERMS,
 ) : FilterExpression {
+    /** The fields it searches, in their order, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val fields: Set<QueryField<*>> = fields.copied()
+
     override val operator: FilterOperator = FilterOperator.SEARCH
 
     init {

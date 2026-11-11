@@ -73,7 +73,7 @@ class TypedEventsTest {
     @Test
     fun `each event of the type should be handed over in order, keyed per call`(): Unit = runBlocking {
         val keys = mutableListOf<String>()
-        val context = contextOf(FunctionKind.REACT, "Auditor.onPlaced", stream)
+        val context = contextOf(FunctionKind.REACT, stream.ref.type.context, "Auditor.onPlaced", stream)
         val items = eachEvent(stream, Placed::class.java, context) { typed, invocation ->
             keys += invocation.invocationKey
             invocation.executionId.assert().isEqualTo(context.executionId)
@@ -81,13 +81,18 @@ class TypedEventsTest {
         }
         items.assert().containsExactly("mug", "hat")
         keys.assert().containsExactly(
-            "Auditor.onPlaced:shop.order/t/o-1@4:0",
-            "Auditor.onPlaced:shop.order/t/o-1@4:2",
+            "shop.Auditor.onPlaced:shop.order/t/o-1@4:0",
+            "shop.Auditor.onPlaced:shop.order/t/o-1@4:2",
         )
-        context.invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4")
+        context.invocationKey.assert().isEqualTo("shop.Auditor.onPlaced:shop.order/t/o-1@4")
         // Each kind of context keeps its kind.
         (invocationOf(context, 1) is SubscriptionContext).assert().isTrue()
-        (invocationOf(contextOf(FunctionKind.PROJECT, "Board.onPlaced", stream), 1) is SubscriptionContext).assert()
+        (
+            invocationOf(
+                contextOf(FunctionKind.PROJECT, stream.ref.type.context, "Board.onPlaced", stream),
+                1
+            ) is SubscriptionContext
+            ).assert()
             .isTrue()
         val plain = object : SubscriptionContext {
             override val executionId = context.executionId
@@ -96,7 +101,7 @@ class TypedEventsTest {
         invocationOf<SubscriptionContext>(
             plain,
             2
-        ).invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4:2")
+        ).invocationKey.assert().isEqualTo("shop.Auditor.onPlaced:shop.order/t/o-1@4:2")
         eachEvent(stream, Long::class.javaObjectType, context) { _, _ -> error("no event is a Long") }.assert()
             .isEmpty()
     }
@@ -127,6 +132,7 @@ class TypedEventsTest {
         val succeeded = mockk<CommandResult> { every { status } returns CommandResult.Status.SUCCEEDED }
         fun context() = contextOf(
             FunctionKind.SAGA,
+            stream.ref.type.context,
             binding.name,
             stream,
             calls = CommandCalls {

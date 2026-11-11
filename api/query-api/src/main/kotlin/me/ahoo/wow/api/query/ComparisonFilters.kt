@@ -15,7 +15,10 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-class EqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
+class EqualFilter @InternalWowApi constructor(override val field: QueryField<*>, value: Any?) : FieldPredicate {
+    /** Its value, a list of an array equality, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val value: Any? = if (value is List<*>) value.copied() else value
+
     override val operator: FilterOperator = FilterOperator.EQ
 
     override fun withField(field: QueryField<*>): EqualFilter = EqualFilter(field, value)
@@ -47,7 +50,10 @@ class EqualFilter @InternalWowApi constructor(override val field: QueryField<*>,
     }
 }
 
-class NotEqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
+class NotEqualFilter @InternalWowApi constructor(override val field: QueryField<*>, value: Any?) : FieldPredicate {
+    /** Its value, a list of an array equality, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val value: Any? = if (value is List<*>) value.copied() else value
+
     override val operator: FilterOperator = FilterOperator.NE
 
     override fun withField(field: QueryField<*>): NotEqualFilter = NotEqualFilter(field, value)

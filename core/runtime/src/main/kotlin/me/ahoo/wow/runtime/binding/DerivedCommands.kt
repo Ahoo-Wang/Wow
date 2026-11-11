@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.candidateOf
 import me.ahoo.wow.runtime.admission.violationsOf
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -162,7 +163,7 @@ internal class DerivedCommands(
      */
     private fun invalid(model: AggregateModel<*>, derived: Command<*>): Outcome? {
         val type = model.commandType(derived.body.javaClass)
-        val violations = validators.violationsOf(type, derived.body)
+        val violations = validators.violationsOf { candidateOf(type, derived) }
         if (violations.isEmpty()) {
             return null
         }

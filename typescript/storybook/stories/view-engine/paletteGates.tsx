@@ -40,8 +40,8 @@ import { MEASURED_MODES, type MeasuredMode } from './themeContrast.js';
  *   have three, answered by the reading table and the patterns — and a
  *   palette's author says which ones it accepts.
  * - **A number inside a mark reads** at 4.5:1 in one of the two inks the
- *   chart writes with there: the foreground, or the ground it stands on —
- *   the page in a workbench, the card in a board's panel.
+ *   chart writes with there (`chart-ink-dark`, `chart-ink-light`): its own,
+ *   whatever the page's words and ground are.
  */
 
 const SLOTS = 8;
@@ -67,7 +67,7 @@ export interface PaletteReading {
   closest: Record<Vision, { apart: number; slots: [number, number] }>;
   /** Slots under 3:1 on the card, 1-based. */
   underCard: number[];
-  /** Slots where neither ink reads 4.5:1, on the page or on the card. */
+  /** Slots where neither of the chart's inks reads 4.5:1. */
   inkless: number[];
 }
 
@@ -103,8 +103,7 @@ function read(root: HTMLElement, preset: string, mode: MeasuredMode) {
     probe(`chart-${index + 1}`),
   );
   const card = probe('card');
-  const page = probe('background');
-  const ink = probe('foreground');
+  const inks = INKS.map(probe);
   const closest = Object.fromEntries(
     Object.entries(VISION).map(([vision, { see }]) => {
       let worst = { apart: Infinity, slots: [0, 0] as [number, number] };
@@ -124,20 +123,18 @@ function read(root: HTMLElement, preset: string, mode: MeasuredMode) {
     mode,
     closest,
     underCard: slots(color => wcagContrast(color, card) < 3),
-    inkless: slots(color =>
-      [page, card].some(
-        ground =>
-          Math.max(wcagContrast(ink, color), wcagContrast(ground, color)) < 4.5,
-      ),
+    inkless: slots(
+      color => Math.max(...inks.map(ink => wcagContrast(ink, color))) < 4.5,
     ),
   } satisfies PaletteReading;
 }
 
+const INKS = ['_fve-chart-ink-dark', '_fve-chart-ink-light'];
+
 const TOKENS = [
   ...Array.from({ length: SLOTS }, (_, index) => `chart-${index + 1}`),
   'card',
-  'background',
-  'foreground',
+  ...INKS,
 ];
 
 /**

@@ -267,7 +267,7 @@ class SagaCallBindingTest {
         val all = place("o-1", "alice", chain).toList()
         val handled = all.first { it.hop.stage == Stage.HANDLED }
         handled.status.assert().describedAs(all.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
-        val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-1"), 1)
+        val execution = ExecutionId(ORDER.context, saga.name, ORDER.ref(TENANT, "o-1"), 1)
         handled.derived.assert().containsExactly(
             ExecutionSagaContext.derivedId(execution, BOX.ref(TENANT, "alice"), Deliver::class.java),
             ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), AddItems::class.java),
@@ -405,7 +405,7 @@ class SagaCallBindingTest {
                 caller = shop.caller,
             )
             val cart = CART.ref(TENANT, "ivy")
-            val execution = ExecutionId(mailingOnCommitted.name, ORDER.ref(TENANT, "o-w"), 1)
+            val execution = ExecutionId(ORDER.context, mailingOnCommitted.name, ORDER.ref(TENANT, "o-w"), 1)
             val committed = CommandReceipt.Committed<Any>(
                 "c-1",
                 "shop.cart.AddItems",

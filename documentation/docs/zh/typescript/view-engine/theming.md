@@ -364,13 +364,13 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 - **Tailwind v3 的 HSL 通道**——写成或读到 `222.2 47.4% 11.2%` 的颜色，或桥接会读到的 v3 shadcn 主题——并给出要的 `hsl()` 写法；
 - **你改了的品牌色边界**（`--fve-brand-*`，或你的预设里的 `--fvp-brand-*`）：越界或上下颠倒，以及一遍扫过整个 sRGB 的品牌色，因为边界是对任何颜色的承诺；
 - **对比度**：`src/ui/theme/pairs.ts` 的每一对，两种明暗、每种涨跌约定，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（不用 `--preset` 点名就是全部）；给了品牌色时两种回到色域的方式都量；
-- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过它的三道门：相邻色在每种视觉（正常、红色盲、绿色盲、蓝色盲）下都分得开，每一色离卡片 3:1，图表两种墨色之一在每个标记内 4.5:1。
+- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过它的三道门：相邻色在每种视觉（正常、红色盲、绿色盲、蓝色盲）下都分得开，每一色离卡片 3:1，图表两种墨色（`chart-ink-dark`、`chart-ink-light`）之一在每个标记内 4.5:1。
 
 有错误退出码是 1，只有警告是 0；`--json` 把结果打成数据。它读 `dist/theme-tokens.json`、`dist/theme-source.css`（`styles.css` 里原样的 token 规则）与 `dist/themes.css`，在 Node 22.12 及以上运行，不需要页面。它看不见页面运行时做的事——脚本里设的变量、它不知道是你的选择器——所以浏览器里画出来的样子仍以 Storybook 的对比度矩阵为准。
 
 ## 图表颜色
 
-图表的八个色位按两种明暗调过相邻色位（第八与第一也算相邻）之间的色觉缺陷间距，以及每个标记上标签墨色的可读性，不桥接。预设可以带自己的八色——两种明暗共十六个，全带或全不带——过同一套门。色位是序数，「第三个系列」，不是色相：写 `var(--chart-3)` 的图换预设会换色；要表达好坏、涨跌，改写状态色或 `--rise`／`--fall`。宿主仍可以设 `--fve-chart-1` … `--fve-chart-8` 及其 `--fve-dark-` 一半，这时就欠自己的色板这些测量。图表配置里保存的颜色由代码声明。
+图表的八个色位按两种明暗调过相邻色位（第八与第一也算相邻）之间的色觉缺陷间距，以及每个标记上标签墨色的可读性，不桥接。标记上的数用图表自己的两种墨色（`chart-ink-dark` 黑、`chart-ink-light` 白，亮暗同一对），取离标记颜色更远的那个，与页面的正文色和底色无关；带自己色板的主题可以一并设这两个。预设可以带自己的八色——两种明暗共十六个，全带或全不带——过同一套门。色位是序数，「第三个系列」，不是色相：写 `var(--chart-3)` 的图换预设会换色；要表达好坏、涨跌，改写状态色或 `--rise`／`--fall`。宿主仍可以设 `--fve-chart-1` … `--fve-chart-8` 及其 `--fve-dark-` 一半，这时就欠自己的色板这些测量。图表配置里保存的颜色由代码声明。
 
 ## 涨跌色
 
@@ -545,6 +545,8 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `chart-bar-max-width`           | 柱最宽画多宽                                                                                                                        | `80px`                                         | —                                 |
 | `chart-slice-border`            | 饼图扇区之间的缝，颜色取图表的底                                                                                                    | `1px`                                          | —                                 |
 | `chart-map-edge`                | 地图的边界线，有数与没数的区域都描                                                                                                  | `chart-axis`                                   | `chart-axis`                      |
+| `chart-ink-dark`                | 写在浅色图形上的数：柱、段、格                                                                                                      | `oklch(0 0 0deg)`                              | —                                 |
+| `chart-ink-light`               | 写在深色图形上的数                                                                                                                  | `oklch(1 0 0deg)`                              | —                                 |
 | `chart-tooltip`                 | 图表提示框的底                                                                                                                      | `popover`                                      | `popover`                         |
 | `chart-tooltip-foreground`      | 图表提示框里的数                                                                                                                    | `popover-foreground`                           | `popover-foreground`              |
 | `chart-tooltip-shadow`          | 图表提示框的浮起                                                                                                                    | `shadow-md`                                    | `shadow-md`                       |

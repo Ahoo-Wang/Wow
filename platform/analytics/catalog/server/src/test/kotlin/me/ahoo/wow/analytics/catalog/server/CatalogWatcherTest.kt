@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
-import io.mockk.every
-import io.mockk.mockk
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
@@ -23,14 +20,10 @@ import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.problem.Retry
-import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.test.answeringCommandClient
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
@@ -39,37 +32,18 @@ import java.util.concurrent.CopyOnWriteArrayList
 class CatalogWatcherTest {
     private val sent = CopyOnWriteArrayList<Pair<Caller?, CommandRequest<*>>>()
 
-    /** Succeeds for table `ok`, rejects `bad`, fails `down` while [down]. */
-    private inner class Commands(private val caller: Caller? = null) : CommandClient {
-        var down = true
+    /** Whether table `down` fails. */
+    private var down = true
 
-        override fun of(caller: Caller): CommandClient = Commands(caller).also { it.down = down }
-
-        override suspend fun send(request: CommandRequest<*>): CommandResult = error("The watcher waits.")
-
-        override suspend fun wait(request: CommandRequest<*>): CommandResult {
-            val sync = request.command as SyncSource
-            sent += caller to request
-            val ref = AnalyticsCatalogContract.Source.ref(caller!!.tenantId, request.id!!)
-            return when (sync.table) {
-                "bad" -> throw CommandRejectedException(result(ref, CommandResult.Status.REJECTED))
-                "down" -> if (down) {
-                    throw WowProblemException("wow.storage.unavailable", 503, Retry.SAME_REQUEST, null, "Down.")
-                } else {
-                    result(ref, CommandResult.Status.SUCCEEDED)
-                }
-
-                else -> result(ref, CommandResult.Status.SUCCEEDED)
-            }
+    /** Succeeds for table `ok`, rejects `bad`, fails `down` while [down]; every request is kept in [sent]. */
+    private fun commands() = answeringCommandClient { call ->
+        sent += call.caller to call.request
+        val ref = AnalyticsCatalogContract.Source.ref(call.caller!!.tenantId, call.request.id!!)
+        when ((call.request.command as SyncSource).table) {
+            "bad" -> call.rejected("analytics.source.bad", ref = ref)
+            "down" -> if (down) call.failed("wow.storage.unavailable", ref = ref) else call.committed(ref = ref)
+            else -> call.committed(ref = ref)
         }
-
-        override fun stream(request: CommandRequest<*>): Flow<CommandResult> = error("The watcher waits.")
-    }
-
-    // A result as the node answers it; its constructor is Wow's own.
-    private fun result(ref: AggregateRef, status: CommandResult.Status): CommandResult = mockk(relaxed = true) {
-        every { this@mockk.ref } returns ref
-        every { this@mockk.status } returns status
     }
 
     private val catalog = object : WarehouseCatalog by WarehouseCatalog.NONE {
@@ -82,7 +56,7 @@ class CatalogWatcherTest {
 
     @Test
     fun `a table is synced until its SyncSource succeeds, as the catalog administrator`(): Unit = runBlocking {
-        val commands = Commands()
+        val commands = commands()
         val watcher = CatalogWatcher(catalog, { commands }, Duration.ofSeconds(1), NONE)
         watcher.look().assert().isEqualTo(1)
         sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("ok", "bad", "down")
@@ -91,7 +65,7 @@ class CatalogWatcherTest {
         sent.first().second.assert()
             .isEqualTo(CommandRequest.of(SyncSource("db", "ok"), AnalyticsCatalogContext.sourceIdOf("ch", "db", "ok")))
         sent.clear()
-        commands.down = false
+        down = false
         // The table that synced is not sent again; the two that did not are.
         watcher.look().assert().isEqualTo(1)
         sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("bad", "down")
@@ -99,7 +73,7 @@ class CatalogWatcherTest {
 
     @Test
     fun `a table whose columns change in the same second as the last look is synced again`(): Unit = runBlocking {
-        val commands = Commands().apply { down = false }
+        val commands = commands().also { down = false }
         var fingerprint = "f-1"
         val altered = object : WarehouseCatalog by WarehouseCatalog.NONE {
             override val connection: String = "ch"
@@ -119,7 +93,7 @@ class CatalogWatcherTest {
     @Test
     fun `a table dropped while the catalog was down is synced at the first look after it starts`(): Unit =
         runBlocking {
-            val commands = Commands().apply { down = false }
+            val commands = commands().also { down = false }
             var listed = listOf("ok", "orders")
             val warehouse = object : WarehouseCatalog by WarehouseCatalog.NONE {
                 override val connection: String = "ch"
@@ -152,14 +126,14 @@ class CatalogWatcherTest {
 
     @Test
     fun `a dropped table whose sync failed is synced again at the next look`(): Unit = runBlocking {
-        val commands = Commands()
+        val commands = commands()
         val warehouse = object : WarehouseCatalog by WarehouseCatalog.NONE {
             override val connection: String = "ch"
             override val databases: List<String> = listOf("db")
         }
         val watcher = CatalogWatcher(warehouse, { commands }, Duration.ofSeconds(1)) { _, _ -> setOf("down") }
         watcher.look().assert().isEqualTo(0)
-        commands.down = false
+        down = false
         watcher.look().assert().isEqualTo(1)
         sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("down", "down")
     }

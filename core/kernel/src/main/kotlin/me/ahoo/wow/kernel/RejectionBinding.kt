@@ -129,7 +129,8 @@ fun rejectionContextOf(
     queries: ContextQueries = ContextQueries.NONE,
     calls: CommandCalls = CommandCalls.NONE,
 ): SagaContext = ExecutionReceiptContext(
-    ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
+    // The receipt comes back to the saga's own context, which its execution names.
+    ExecutionId(rejected.executionId.context, handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
     rejected.causation,
     rejected.operator,

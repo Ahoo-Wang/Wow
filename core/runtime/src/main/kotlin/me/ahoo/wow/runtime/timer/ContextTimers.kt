@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.candidateOf
 import me.ahoo.wow.runtime.admission.violationsOf
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -123,7 +124,7 @@ internal class ContextTimerFirer(
         val command = checkNotNull(ClusterCodec.command(model, wire)) {
             "${model.type} has no command type ${timer.commandType}, which the timer ${timer.id} sends."
         }
-        val violations = validators.violationsOf(model.commandType(command.body.javaClass), command.body)
+        val violations = validators.violationsOf { candidateOf(model.commandType(command.body.javaClass), command) }
         if (violations.isNotEmpty()) {
             logger.info {
                 "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which the node's validators " +

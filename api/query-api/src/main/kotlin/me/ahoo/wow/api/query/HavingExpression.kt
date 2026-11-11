@@ -62,8 +62,11 @@ sealed interface HavingExpression {
 
     class In @InternalWowApi constructor(
         val metric: String,
-        val values: List<Double>,
+        values: List<Double>,
     ) : HavingExpression {
+        /** Its values, copied: a collection its caller changes later changes neither this expression nor its hash. */
+        val values: List<Double> = values.copied()
+
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is In && valueFields() == other.valueFields()
 
@@ -99,8 +102,11 @@ sealed interface HavingExpression {
     }
 
     class And @InternalWowApi constructor(
-        val operands: List<HavingExpression>,
+        operands: List<HavingExpression>,
     ) : HavingExpression {
+        /** Its operands, copied: a collection its caller changes later changes neither this expression nor its hash. */
+        val operands: List<HavingExpression> = operands.copied()
+
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is And && valueFields() == other.valueFields()
 
@@ -118,8 +124,11 @@ sealed interface HavingExpression {
     }
 
     class Or @InternalWowApi constructor(
-        val operands: List<HavingExpression>,
+        operands: List<HavingExpression>,
     ) : HavingExpression {
+        /** Its operands, copied: a collection its caller changes later changes neither this expression nor its hash. */
+        val operands: List<HavingExpression> = operands.copied()
+
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is Or && valueFields() == other.valueFields()
 

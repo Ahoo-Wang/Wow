@@ -47,8 +47,9 @@ class ServiceNodeConfigurationTest : ServiceNodeFixtures() {
                 )
             )
         }
-        // The application's subscriptions and the built-in ones may be configured (decision D154).
-        node("node-1", options = starts("plain", "wow.snapshot"), subscriptions = plain)
+        // The application's subscriptions and the built-in ones may be configured (decision D154), the access
+        // stamping's that every context runs included.
+        node("node-1", options = starts("plain", "wow.snapshot", "wow.access"), subscriptions = plain)
         assertThrows<WowConfigurationException> {
             node("node-2", options = starts("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("subscription $BANK.Plain.typo", "plain")
@@ -64,7 +65,7 @@ class ServiceNodeConfigurationTest : ServiceNodeFixtures() {
                 )
             it.copyWith(subscription = it.subscription.copyWith(parked = parked))
         }
-        val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
+        val node = node("node-1", options = specs("plain", "wow.snapshot", "wow.access"), subscriptions = plain)
         node.parked.subscriptions.assert().contains(SubscriptionId(BANK, "wow.snapshot"))
         assertThrows<WowConfigurationException> {
             node("node-2", options = specs("Plain.typo"), subscriptions = plain)
@@ -81,7 +82,7 @@ class ServiceNodeConfigurationTest : ServiceNodeFixtures() {
                 )
             )
         }
-        node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)
+        node("node-1", options = retries("plain", "wow.snapshot", "wow.access"), subscriptions = plain)
         assertThrows<WowConfigurationException> {
             node("node-2", options = retries("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("retry budget", "subscription $BANK.Plain.typo", "plain")

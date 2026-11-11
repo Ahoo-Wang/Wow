@@ -119,7 +119,7 @@ class EshopSyncCallTest {
                 // order: the ordering answers it with the same order and number, which it does not submit twice.
                 val replay = ordering.call(
                     "/eshop-ordering/order/submit-order",
-                    ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "bob"), 2),
+                    ExecutionId.of(BASKET.context, CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "bob"), 2),
                     Scope(ownerId = "bob"),
                     SERVICE,
                 )
@@ -135,7 +135,7 @@ class EshopSyncCallTest {
     @Test
     fun `only the basket service should assert the root command of a call`() {
         ordering().use { ordering ->
-            val execution = ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "carol"), 2)
+            val execution = ExecutionId.of(BASKET.context, CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "carol"), 2)
             // The public port refuses a call, even naming the basket service.
             val public = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",

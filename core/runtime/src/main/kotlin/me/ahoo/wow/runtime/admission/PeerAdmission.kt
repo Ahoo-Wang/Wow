@@ -129,7 +129,10 @@ internal class PeerAdmission(
         }
         AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 6. Validation.
-        val violations = validators.violationsOf(commandType, decoded.value)
+        val caller = actingCaller(request.caller, facts.ref, scope)
+        val violations = validators.violationsOf {
+            CommandCandidate(commandType, decoded.value, facts.ref, scope, origin.operator, caller)
+        }
         if (violations.isNotEmpty()) {
             return facts.refuse(FrameworkCodes.COMMAND_INVALID, "${peer.name} is invalid.", violations = violations)
         }
@@ -152,7 +155,7 @@ internal class PeerAdmission(
             headers = request.headers,
             operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
-            caller = actingCaller(request.caller, facts.ref, scope),
+            caller = caller,
         )
         return Admission.Relayed(admitted, facts.function, relay)
     }

@@ -353,7 +353,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 抛出异常的处理函数会让规格失败，除非这一步的检查预期了它：`expectError<T>`、`expectRetried` 或 `expectParked`。规格像运行时的订阅那样，判断运行时会如何处理这次失败：
 
 - 处理中遇到的拒绝会立即停放聚合，不重试：处理函数放行的同步调用拒绝，或者没有 `@OnRejected` 处理函数接收的派生命令的拒绝（[拒绝与回执](#rejections-and-receipts)）。拒绝是业务结果，重试改变不了它。
-- 其他失败要先分类：先看处理函数的 `@Retry(recoverable, unrecoverable)`，再看类路径上各模块的失败分类器，最后是内置规则（[失败如何分类](./failures#how-a-failure-is-classified)）。不可恢复的失败立即停放；宕机或施加背压的下游会重试，且不消耗预算；其余失败会一直重试，直到这次处理用完 `@Retry(maxAttempts)`，默认是 5 次。
+- 其他失败要先分类：先看 Wow 自己的失败，再看处理函数的 `@Retry(recoverable, unrecoverable)`，然后看类路径上各模块的失败分类器，最后是内置规则（[失败如何分类](./failures#how-a-failure-is-classified)）。不可恢复的失败立即停放；宕机或施加背压的下游会重试，且不消耗预算；其余失败会一直重试，直到这次处理用完 `@Retry(maxAttempts)`，默认是 5 次。
 - 运行时间超过 `@Retry(timeout)` 的处理会被取消，算作一次失败的尝试。这个时间是真实时间，不是规格的时钟。
 
 `expectRetried(attempt)` 在运行时会于这次尝试之后重试处理时通过，默认是第一次尝试；`expectParked(attempt)` 在运行时会于那时停放它时通过。两者都返回抛出的异常。规格不等待尝试之间的退避，也不使用停放后的重试和应用自己的 `FailureClassifier` Bean：在分类器旁边测试它们。[测试失败](./failures#test-it)给出了一个先被重试、再收到同一次提交的反应器。
@@ -399,6 +399,10 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec(handlers, start)` 测试，
 | `answerCalls { … }`、`givenQueries(queries)` | 与 Saga 规格中相同。 |
 
 一次越过多个时间槽时只运行最近的那个，其余的计入触发的 `skipped`，除非任务的规则要求补跑。失败的触发按它的任务的 `@Retry` 重试或停放，见[失败、重试与停放](#failures-retries-and-parking)。`scheduleSpecTests` 让每个带检查的 `advanceTime` 和每个 `whenTick` 各成为一个测试。[测试定时任务](./scheduling#test-it)给出了一个任务早晨的触发。
+
+## 服务路由 {#service-routes}
+
+服务路由的处理函数像决策函数一样，直接调用来测试：用测试 DSL 构建的调用 `routeCall(caller, queries, commands, requestId)`。这个调用在调用方的租户与作用域中行事。省略时，调用方是匿名的，请求 ID 为 `request-1`；处理函数若读取或发送，测试就会失败并说明要提供什么。命令用 `answeringCommandClient { call -> … }`：它经 `send`、`wait` 或 `stream`、以 `of` 给出的任一调用方接收的每个请求，都交给这个 lambda，并记入 `calls`。lambda 用 `call.committed(version)`、`call.rejected(code)` 或 `call.failed(code)` 应答，真实的客户端会返回或抛出它们。[测试路由](./service-routes#test-a-route)给出了店面的测试。`RouteCall` 与 `CommandClient` 由 Wow 实现：自己编写它们的测试需要 `@OptIn(InternalWowApi::class)`，并会在 Wow 新增成员时失效。
 
 ## 访问策略 {#access-policies}
 
