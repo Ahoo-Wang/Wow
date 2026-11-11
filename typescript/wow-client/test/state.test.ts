@@ -183,7 +183,11 @@ describe('StateClient', () => {
               revision: 1,
               body: { title: 'Pear' },
             },
-            { name: 'wow.schedule.ScheduleCancelled', revision: 1, body: { key: 'k' } },
+            {
+              name: 'wow.schedule.ScheduleCancelled',
+              revision: 1,
+              body: { key: 'k' },
+            },
           ]),
         ],
       }),
