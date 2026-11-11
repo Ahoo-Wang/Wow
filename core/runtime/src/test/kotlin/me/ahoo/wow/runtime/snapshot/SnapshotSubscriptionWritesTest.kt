@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.snapshot
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -90,6 +91,9 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         eventually { store.batches.size == 1 }
         // Partitions 4 and 8 wait for the write partition 0 leads, and are written together after it.
         val others = listOf(entry("p1", 4), entry("p2", 8))
+        // A time, not an event: a write that wrongly leads its own batch shows only after its yield, and the queue it
+        // would skip is the subscription's own. A check at once, and the end's batches, pass without the shared lane.
+        delay(50)
         store.batches.size.assert().isEqualTo(1)
         store.gate = null
         gate.complete(Unit)
