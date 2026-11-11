@@ -54,18 +54,20 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         TYPE,
 
         /**
-         * Only on one store instance (`wow.stores.<name>.<key>`), such as the name of the resource it opens
-         * over; only stores have instances of their own, so other providers read it as [TYPE].
+         * Only in one instance's own settings, never for the type under `wow.<type>.<key>`: a store's
+         * (`wow.stores.<name>.<key>`, such as the name of the resource it opens over), or those the host gives one sink
+         * (the ClickHouse Sink's per-aggregate history). A provider whose instances have no settings of their own (a
+         * transport, a dataset, a peer discovery) has nowhere to set one, so it declares none.
          */
-        PER_STORE,
+        INSTANCE,
     }
 
     /** Whether this option is a prefix of free sub-keys ([map]). */
     val isMap: Boolean get() = type == Map::class.java
 
-    /** This option, settable only on one store instance ([Scope.PER_STORE]). */
-    open fun perStore(): ProviderOption<T> =
-        ProviderOption(key, description, type, default, Scope.PER_STORE, values, parser)
+    /** This option, set only in one instance's own settings ([Scope.INSTANCE]). */
+    open fun instance(): ProviderOption<T> =
+        ProviderOption(key, description, type, default, Scope.INSTANCE, values, parser)
 
     /** An option with a [default]: a config reads its value, set or not, as a `T`. */
     class Defaulted<T : Any> @InternalWowApi constructor(
@@ -77,8 +79,8 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         values: List<String> = emptyList(),
         parser: (String) -> T,
     ) : ProviderOption<T>(key, description, type, default, scope, values, parser) {
-        override fun perStore(): Defaulted<T> =
-            Defaulted(key, description, type, default, Scope.PER_STORE, values, parser)
+        override fun instance(): Defaulted<T> =
+            Defaulted(key, description, type, default, Scope.INSTANCE, values, parser)
     }
 
     /** [text] as this option's value; fails naming [where], the key it was set under, when it is not one. */

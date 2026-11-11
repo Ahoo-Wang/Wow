@@ -60,6 +60,9 @@ import me.ahoo.wow.spi.timer.TimerStore
 internal class ElasticsearchStoreProvider : StoreProvider {
     override val type: String = TYPE
 
+    /** An Elasticsearch store is named by a store, never chosen for `wow.backend=auto`. */
+    override fun available(config: StoreConfig): Boolean = false
+
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
     override val options: List<ProviderOption<*>> =
@@ -68,13 +71,13 @@ internal class ElasticsearchStoreProvider : StoreProvider {
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
             Rest5Client::class.java,
-            config.option(CLIENT),
+            config.settings.option(CLIENT),
             "${config.key}.${CLIENT.key}"
         )
-        val queryClient = config.option(QUERY_CLIENT)?.let {
+        val queryClient = config.settings.option(QUERY_CLIENT)?.let {
             config.resources.resource(Rest5Client::class.java, it, "${config.key}.${QUERY_CLIENT.key}")
         }
-        val rewriteRate = config.option(REINDEX_REQUESTS_PER_SECOND)
+        val rewriteRate = config.settings.option(REINDEX_REQUESTS_PER_SECOND)
         configCheck(
             rewriteRate > 0 || rewriteRate == -1,
             "${config.key}.${REINDEX_REQUESTS_PER_SECOND.key}",
@@ -84,8 +87,8 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         return ElasticsearchStore(
             config,
             restClient,
-            ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
-            config.option(REFRESH).refresh,
+            ElasticsearchNames(config.settings.option(INDEX_PREFIX).orEmpty()),
+            config.settings.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
             rewriteRate = rewriteRate,
         )
@@ -98,14 +101,14 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         val CLIENT = ProviderOption.string(
             "client",
             "the name of the Rest5Client bean the store opens over; the only one when not set.",
-        ).perStore()
+        ).instance()
 
         /** The option naming the `Rest5Client` bean of the store's queries, when they have a pool of their own. */
         val QUERY_CLIENT = ProviderOption.string(
             "query-client",
             "the name of the Rest5Client bean the store's queries use, so they draw on a connection pool of their " +
                 "own instead of the one the snapshot writes use; the store's client when not set.",
-        ).perStore()
+        ).instance()
 
         /** The option of the prefix of the store's index names. */
         val INDEX_PREFIX = ProviderOption.string(

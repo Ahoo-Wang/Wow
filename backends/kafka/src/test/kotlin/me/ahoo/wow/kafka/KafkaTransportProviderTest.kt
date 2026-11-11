@@ -56,9 +56,9 @@ class KafkaTransportProviderTest {
     @Test
     fun `an offset gap fails the read unless it is set to read on from the earliest offset`() {
         val gap = KafkaTransportProvider.OFFSET_GAP
-        config().option(gap).assert().isEqualTo(OffsetGapPolicy.FAIL)
-        config("offset-gap" to "EARLIEST").option(gap).assert().isEqualTo(OffsetGapPolicy.EARLIEST)
-        assertThrows<WowConfigurationException> { config("offset-gap" to "skip").option(gap) }
+        config().settings.option(gap).assert().isEqualTo(OffsetGapPolicy.FAIL)
+        config("offset-gap" to "EARLIEST").settings.option(gap).assert().isEqualTo(OffsetGapPolicy.EARLIEST)
+        assertThrows<WowConfigurationException> { config("offset-gap" to "skip").settings.option(gap) }
             .message.assert().contains("wow.kafka.offset-gap").contains("fail, earliest")
     }
 

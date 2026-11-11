@@ -168,7 +168,7 @@ abstract class StoreTck {
         provider.open(config)
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
-        config.optionsRead.assert().describedAs("the options the store read").isSubsetOf(declared)
+        config.settings.read.assert().describedAs("the options the store read").isSubsetOf(declared)
     }
 
     @Test

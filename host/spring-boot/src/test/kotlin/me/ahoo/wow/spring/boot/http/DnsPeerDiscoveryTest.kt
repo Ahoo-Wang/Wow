@@ -237,7 +237,7 @@ class DnsPeerDiscoveryTest {
         dns.options.map { it.key }.assert().containsExactly("name-template", "namespace", "namespaces")
         val set = PeerDiscoveryConfig.of("dns", mapOf("name-template" to "_api._tcp.{service}.mesh."))
         (dns.open(set) as DnsPeerTargets).nameOf("bank").assert().isEqualTo("_api._tcp.bank.mesh.")
-        set.optionsRead.assert().isSubsetOf(dns.options.map { it.key })
+        set.settings.read.assert().isSubsetOf(dns.options.map { it.key })
         // The node's namespace: the service account's, unless set.
         (dns.open(PeerDiscoveryConfig.of("dns")) as DnsPeerTargets).nameOf("bank").assert()
             .isEqualTo("_internal._tcp.bank-cluster.shop.svc")
@@ -250,7 +250,7 @@ class DnsPeerDiscoveryTest {
             nameOf("mail").assert().isEqualTo("_internal._tcp.mail-cluster.mail.svc")
             nameOf("blank").assert().isEqualTo("_internal._tcp.blank-cluster.payments.svc")
         }
-        placed.optionsRead.assert().isSubsetOf(dns.options.map { it.key })
+        placed.settings.read.assert().isSubsetOf(dns.options.map { it.key })
         // Off Kubernetes, nothing set: the start goes on, and only a call that needs the namespace fails.
         val nowhere = DnsPeerDiscovery(namespaceFile = dir.resolve("absent")).open(PeerDiscoveryConfig.of("dns"))
         assertThrows<Misuse.State> { (nowhere as DnsPeerTargets).nameOf("bank", "bank") }
@@ -305,7 +305,7 @@ class DnsPeerDiscoveryTest {
                     seen += config.options
                     return object : PeerTargets {
                         override suspend fun targetsOf(service: String, context: String): List<URI> =
-                            listOf(URI.create("http://$service.${config.option(domain)}:9090"))
+                            listOf(URI.create("http://$service.${config.settings.option(domain)}:9090"))
                     }
                 }
             }

@@ -24,7 +24,7 @@ class ProviderOptionTest {
     private val timeout = ProviderOption.duration("append-timeout", "how long an append may take.", 5.seconds)
     private val size = ProviderOption.int("batch.size", "how many records a batch holds.")
     private val enabled = ProviderOption.boolean("enabled", "whether it runs.", true)
-    private val client = ProviderOption.string("client", "the client bean.").perStore()
+    private val client = ProviderOption.string("client", "the client bean.").instance()
 
     @Test
     fun `each factory should parse its type and keep its default and scope`() {
@@ -36,7 +36,7 @@ class ProviderOptionTest {
         timeout.default.assert().isEqualTo(5.seconds)
         size.default.assert().isNull()
         timeout.scope.assert().isEqualTo(ProviderOption.Scope.TYPE)
-        client.scope.assert().isEqualTo(ProviderOption.Scope.PER_STORE)
+        client.scope.assert().isEqualTo(ProviderOption.Scope.INSTANCE)
         client.key.assert().isEqualTo("client")
         timeout.toString().assert()
             .isEqualTo("ProviderOption(key=append-timeout, type=Duration, default=5s, scope=TYPE)")
@@ -55,13 +55,13 @@ class ProviderOptionTest {
         refresh.values.assert().containsExactly("wait-for", "immediate")
         refresh.parse(" Wait-For ", "k").assert().isEqualTo(Refresh.WAIT_FOR)
         refresh.default.assert().isEqualTo(Refresh.WAIT_FOR)
-        refresh.perStore().values.assert().containsExactly("wait-for", "immediate")
+        refresh.instance().values.assert().containsExactly("wait-for", "immediate")
         val failure = assertThrows<WowConfigurationException> { refresh.parse("wait_for", "wow.stores.a.refresh") }
         failure.key.assert().isEqualTo("wow.stores.a.refresh")
         failure.message.assert().contains("not one of wait-for, immediate")
         val optional = ProviderOption.enumeration("mode", "the mode.", Refresh::class.java)
         optional.default.assert().isNull()
-        optional.perStore().values.assert().containsExactly("wait-for", "immediate")
+        optional.instance().values.assert().containsExactly("wait-for", "immediate")
         ProviderOption.valueOf(Refresh.IMMEDIATE).assert().isEqualTo("immediate")
         size.values.assert().isEmpty()
     }
@@ -69,21 +69,21 @@ class ProviderOptionTest {
     @Test
     fun `an option given a default should be read as a value that is always there, per store too`() {
         val region: ProviderOption.Defaulted<String> = ProviderOption.string("region", "the region.", "eu-1")
-        val perStore: ProviderOption.Defaulted<String> = region.perStore()
-        perStore.scope.assert().isEqualTo(ProviderOption.Scope.PER_STORE)
-        perStore.default.assert().isEqualTo("eu-1")
+        val instance: ProviderOption.Defaulted<String> = region.instance()
+        instance.scope.assert().isEqualTo(ProviderOption.Scope.INSTANCE)
+        instance.default.assert().isEqualTo("eu-1")
         val retries: ProviderOption.Defaulted<Int> = ProviderOption.int("retries", "how many retries.", 3)
         val on: ProviderOption.Defaulted<Boolean> = ProviderOption.boolean("on", "whether it is on.", false)
         val set = StoreConfig.of("a", "t", options = mapOf("region" to "us-2", "retries" to " "))
-        val region2: String = set.option(region)
+        val region2: String = set.settings.option(region)
         region2.assert().isEqualTo("us-2")
-        val defaulted: Int = set.option(retries)
+        val defaulted: Int = set.settings.option(retries)
         defaulted.assert().isEqualTo(3)
-        set.option(on).assert().isFalse()
-        set.option(timeout).assert().isEqualTo(5.seconds)
+        set.settings.option(on).assert().isFalse()
+        set.settings.option(timeout).assert().isEqualTo(5.seconds)
         // Without a default, the value may be missing.
-        set.option(size).assert().isNull()
-        size.perStore().default.assert().isNull()
+        set.settings.option(size).assert().isNull()
+        size.instance().default.assert().isNull()
     }
 
     @Test
@@ -114,19 +114,19 @@ class ProviderOptionTest {
             "t",
             options = mapOf("settings.max_threads" to "2", "settings.mode" to "fast", "settingsx" to "no"),
         )
-        config.options(settings).assert().isEqualTo(mapOf("max_threads" to "2", "mode" to "fast"))
-        config.optionsRead.assert().containsExactly("settings")
+        config.settings.options(settings).assert().isEqualTo(mapOf("max_threads" to "2", "mode" to "fast"))
+        config.settings.read.assert().containsExactly("settings")
     }
 
     @Test
     fun `a store should read an option through its declaration, its default when unset`() {
         val config = StoreConfig.of("a", "t", options = mapOf("append-timeout" to "2s", "batch.size" to " "))
-        config.option(timeout).assert().isEqualTo(2.seconds)
-        config.option(size).assert().isNull()
-        config.option(enabled).assert().isTrue()
-        config.optionsRead.assert().containsExactlyInAnyOrder("append-timeout", "batch.size", "enabled")
+        config.settings.option(timeout).assert().isEqualTo(2.seconds)
+        config.settings.option(size).assert().isNull()
+        config.settings.option(enabled).assert().isTrue()
+        config.settings.read.assert().containsExactlyInAnyOrder("append-timeout", "batch.size", "enabled")
         assertThrows<WowConfigurationException> {
-            StoreConfig.of("a", "t", options = mapOf("batch.size" to "x")).option(size)
+            StoreConfig.of("a", "t", options = mapOf("batch.size" to "x")).settings.option(size)
         }.key.assert().isEqualTo("wow.stores.a.batch.size")
     }
 }

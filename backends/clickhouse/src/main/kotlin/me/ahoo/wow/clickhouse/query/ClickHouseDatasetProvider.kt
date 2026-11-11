@@ -44,20 +44,21 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
         SETTINGS,
     )
 
-    override fun available(config: QueryDatasetConfig): Boolean = config.option(ENABLED) &&
-        (config.resources.has(Client::class.java) || config.option(ClickHouseClients.ENDPOINT) != null)
+    override fun available(config: QueryDatasetConfig): Boolean = config.settings.option(ENABLED) &&
+        (config.resources.has(Client::class.java) || config.settings.option(ClickHouseClients.ENDPOINT) != null)
 
     override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> {
-        val client = ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse datasets", config::option)
+        val client =
+            ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse datasets", config.settings::option)
         val bindings = ClickHouseDatasetBindings(client.client, optionsOf(config))
         return if (client.owned) OwnedClientBindings(bindings, client) else bindings
     }
 
     /** The dataset options [config] gives: its database, the metadata's time to live and the statements' settings. */
     fun optionsOf(config: QueryDatasetConfig): ClickHouseDatasetOptions = ClickHouseDatasetOptions(
-        database = config.option(ClickHouseClients.DATABASE),
-        metadataTtl = config.option(METADATA_TTL).toJavaDuration(),
-        settings = config.options(SETTINGS),
+        database = config.settings.option(ClickHouseClients.DATABASE),
+        metadataTtl = config.settings.option(METADATA_TTL).toJavaDuration(),
+        settings = config.settings.options(SETTINGS),
     )
 
     /** [bindings] over a [client] of their own, which closing them closes. */

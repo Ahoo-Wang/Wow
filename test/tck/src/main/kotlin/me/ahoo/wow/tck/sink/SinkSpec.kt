@@ -81,7 +81,7 @@ abstract class SinkSpec {
         provider.open(config).close()
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
-        config.optionsRead.assert().describedAs("the options the sink read").isSubsetOf(declared)
+        config.settings.read.assert().describedAs("the options the sink read").isSubsetOf(declared)
     }
 
     private val sink: Sink by lazy { createSink() }

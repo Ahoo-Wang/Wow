@@ -67,7 +67,9 @@ import kotlin.time.Duration.Companion.seconds
 open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider {
     open override val options: List<ProviderOption<*>> = listOf(REGION)
 
-    override fun open(config: StoreConfig): Store = AcmeStore(config).also { config.option(REGION) }
+    override fun available(config: StoreConfig): Boolean = false
+
+    override fun open(config: StoreConfig): Store = AcmeStore(config).also { config.settings.option(REGION) }
 
     companion object {
         /** Where an `acme` store lives: `wow.acme.region` for every one, or a store's own. */
@@ -155,7 +157,7 @@ class ThirdPartyStoreTest {
             },
         ).getValue("acme")
         open().config.options.assert().isEqualTo(mapOf("region" to "us-1"))
-        open("region" to "eu-1").config.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
+        open("region" to "eu-1").config.settings.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
         assertThrows<WowConfigurationException> { open("colour" to "red") }.key.assert()
             .isEqualTo("wow.stores.acme.colour")
     }
@@ -166,8 +168,8 @@ class ThirdPartyStoreTest {
             override val options: List<ProviderOption<*>> = listOf(
                 REGION,
                 ProviderOption.map("properties", "the client's properties."),
-                ProviderOption.string("secret", "a store's own secret.").perStore(),
-                ProviderOption.map("labels", "a store's own labels.").perStore(),
+                ProviderOption.string("secret", "a store's own secret.").instance(),
+                ProviderOption.map("labels", "a store's own labels.").instance(),
             )
         }
         val providers = StoreProviders.load(javaClass.classLoader, beans = listOf(mapped))

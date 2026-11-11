@@ -36,7 +36,6 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
-import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
@@ -55,20 +54,20 @@ internal class PostgresStoreProvider : StoreProvider {
 
     override val requirement: String = "wow-postgres on the classpath and a DataSource bean"
 
-    override fun available(resources: StoreResources): Boolean = resources.has(DataSource::class.java)
+    override fun available(config: StoreConfig): Boolean = config.resources.has(DataSource::class.java)
 
     override val options: List<ProviderOption<*>> = listOf(DATA_SOURCE, QUERY_DATA_SOURCE, OPERATION_TIMEOUT)
 
     override fun open(config: StoreConfig): Store {
         val dataSource = config.resources.resource(
             DataSource::class.java,
-            config.option(DATA_SOURCE),
+            config.settings.option(DATA_SOURCE),
             "${config.key}.${DATA_SOURCE.key}",
         )
-        val queries = config.option(QUERY_DATA_SOURCE)?.let { name ->
+        val queries = config.settings.option(QUERY_DATA_SOURCE)?.let { name ->
             config.resources.resource(DataSource::class.java, name, "${config.key}.${QUERY_DATA_SOURCE.key}")
         }
-        val timeout = config.option(OPERATION_TIMEOUT)
+        val timeout = config.settings.option(OPERATION_TIMEOUT)
         return PostgresStore(config, dataSource, queries ?: dataSource, timeout)
     }
 
@@ -79,7 +78,7 @@ internal class PostgresStoreProvider : StoreProvider {
         val DATA_SOURCE = ProviderOption.string(
             "data-source",
             "the name of the DataSource bean the store opens over; the only one when not set.",
-        ).perStore()
+        ).instance()
 
         /**
          * The option naming the `DataSource` bean the store's snapshot and `events` queries read through:
@@ -89,7 +88,7 @@ internal class PostgresStoreProvider : StoreProvider {
             "query-data-source",
             "the name of the DataSource bean the store's snapshot and events queries read through, so they do not " +
                 "take the appends' connections; the store's data-source when not set.",
-        ).perStore()
+        ).instance()
 
         /** The option bounding each of the store's calls besides the schema's and the queries'. */
         val OPERATION_TIMEOUT = ProviderOption.duration(
