@@ -37,7 +37,7 @@ internal data class Baseline(val manifest: Manifest, val line: Int?) {
 
         fun read(file: File): Baseline {
             val tree = mapper.readValue(file, Map::class.java)
-            return Baseline(ManifestTree.read(tree), (tree[LINE] as? Number)?.toInt())
+            return Baseline(ManifestTree.read(tree, ManifestTree.REFUSE), (tree[LINE] as? Number)?.toInt())
         }
 
         /** [manifest] as a baseline records it: without its service's version. */

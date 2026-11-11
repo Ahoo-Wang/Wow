@@ -284,7 +284,10 @@ class ProducedEventsTest {
             .assert().isEqualTo("[created, Bumped(by=2), Cleared]")
         val fragment = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val aggregate = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        val aggregate = ManifestTree.read(
+            jacksonObjectMapper().readValue(fragment, Map::class.java),
+            ManifestTree.REFUSE
+        )
             .contexts.single().aggregates.single()
         aggregate.events.map { it.name }.assert().containsExactly("Bumped", "Cleared", "Created")
         aggregate.commands.single { it.name == "Bump" }.produces.assert().isEqualTo(listOf("Bumped", "Cleared"))

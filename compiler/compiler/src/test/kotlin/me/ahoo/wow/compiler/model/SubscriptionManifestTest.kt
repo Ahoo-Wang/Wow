@@ -24,7 +24,6 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
@@ -32,7 +31,6 @@ import me.ahoo.wow.manifest.SubscriptionStart
 import me.ahoo.wow.manifest.copyWith
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
-import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 import java.net.URLClassLoader
 
@@ -147,9 +145,8 @@ class SubscriptionManifestTest {
     private fun generated(compilation: KotlinCompilation, name: String): File? =
         compilation.workingDir.walkTopDown().firstOrNull { it.isFile && it.name == name }
 
-    private fun fragment(compilation: KotlinCompilation): Manifest = ManifestTree.read(
-        jacksonObjectMapper().readValue(generated(compilation, "shop-domain.json")!!, Map::class.java),
-    )
+    private fun fragment(compilation: KotlinCompilation): Manifest =
+        ManifestFragmentFixtures.read(generated(compilation, "shop-domain.json")!!)
 
     private fun provider(compilation: KotlinCompilation, result: JvmCompilationResult): ModelProvider {
         val services = generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!

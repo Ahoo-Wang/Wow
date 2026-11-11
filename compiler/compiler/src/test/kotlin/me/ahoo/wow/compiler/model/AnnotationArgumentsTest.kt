@@ -28,14 +28,12 @@ import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionStart
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
-import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 
 /**
@@ -488,7 +486,9 @@ class AnnotationArgumentsTest {
     /** The one context of the Manifest fragment [compilation] generated. */
     private fun context(compilation: KotlinCompilation): ContextManifest = compilation.workingDir.walkTopDown()
         .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        .let { ManifestTree.read(jacksonObjectMapper().readValue(it, Map::class.java)).contexts.single() }
+        .let {
+            ManifestFragmentFixtures.read(it).contexts.single()
+        }
 
     private fun generated(compilation: KotlinCompilation, name: String): File? =
         compilation.workingDir.walkTopDown().firstOrNull { it.isFile && it.name == name }

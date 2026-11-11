@@ -28,13 +28,13 @@ object ClassPathContracts {
     /**
      * The contracts on [classLoader], each parsed by [parse]; a [ContractException] listing every contract that cannot
      * be read, is not JSON ([parse] throws) or does not read as a Manifest. A contract of a peer newer than this reader
-     * may hold values it does not know: they are read leniently ([ManifestTree.read]) and told to [warn].
+     * may hold values it does not know: they are read leniently ([ManifestTree.read]) and told to [warn], which the
+     * caller logs.
      */
     @JvmStatic
-    @JvmOverloads
     fun load(
         classLoader: ClassLoader,
-        warn: (String) -> Unit = {},
+        warn: (String) -> Unit,
         parse: (ByteArray) -> Any?,
     ): List<ManifestFragment> {
         val problems = mutableListOf<String>()

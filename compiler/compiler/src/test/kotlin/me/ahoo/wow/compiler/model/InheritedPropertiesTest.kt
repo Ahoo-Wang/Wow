@@ -212,7 +212,7 @@ class InheritedPropertiesTest {
     private fun KotlinCompilation.fragment(): Manifest {
         val file = workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
     }
 
     /** The paths of the generated object's own constants. */

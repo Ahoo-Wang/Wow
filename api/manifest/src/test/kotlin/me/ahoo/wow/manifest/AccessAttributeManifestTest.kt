@@ -58,7 +58,10 @@ class AccessAttributeManifestTest {
                 mapOf("name" to "published", "type" to "boolean"),
             ),
         )
-        val read = ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java))
+        val read = ManifestTree.read(
+            mapper.readValue(mapper.writeValueAsString(tree), Map::class.java),
+            ManifestTree.REFUSE
+        )
         read.assert().isEqualTo(manifest)
         read.contexts.single().aggregates[1].access.assert().isEqualTo(document.access)
         document.access[1].toString()
@@ -79,7 +82,7 @@ class AccessAttributeManifestTest {
     fun `an access attribute whose name breaks the rule refuses the Manifest`() {
         listOf("Region", "region_code", "region-code", "owner", "space", "x".repeat(41)).forEach { name ->
             assertThrows<IllegalArgumentException> {
-                ManifestTree.read(withAccess(mapOf("name" to name, "type" to "string")))
+                ManifestTree.read(withAccess(mapOf("name" to name, "type" to "string")), ManifestTree.REFUSE)
             }.message.assert().contains("access attribute name \"$name\"")
         }
     }

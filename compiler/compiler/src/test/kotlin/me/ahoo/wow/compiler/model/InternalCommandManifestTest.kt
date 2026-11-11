@@ -84,7 +84,12 @@ class InternalCommandManifestTest {
             .filter { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
             .single()
         val tree = jacksonObjectMapper().readValue(fragment, Map::class.java)
-        val commands = ManifestTree.read(tree).contexts.single().aggregates.single().commands.associateBy { it.name }
+        val commands = ManifestTree.read(
+            tree,
+            ManifestTree.REFUSE
+        ).contexts.single().aggregates.single().commands.associateBy {
+            it.name
+        }
 
         val confirm = commands.getValue("ConfirmPayment")
         confirm.internal.assert().isTrue()

@@ -29,7 +29,12 @@ class PaymentDomainModelProviderTest {
     fun `the fragment should mount the chargeback callback under the payment, with and without an id (D182)`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val commands = ManifestTree.read(tree).contexts.single().aggregates.single().commands.associateBy { it.name }
+        val commands = ManifestTree.read(
+            tree,
+            ManifestTree.REFUSE
+        ).contexts.single().aggregates.single().commands.associateBy {
+            it.name
+        }
         val chargeback = commands.getValue("ChargebackNotified")
         chargeback.mounted.assert().isTrue()
         chargeback.transformsTo.assert().containsExactly("eshop-payment.payment.RefundPayment")

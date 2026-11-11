@@ -229,7 +229,8 @@ class MemoryQueries @InternalWowApi constructor(
             val bytes = checkNotNull(classLoader.getResourceAsStream(source)?.use { it.readBytes() }) {
                 "The Manifest fragment $source is not on the class path."
             }
-            return ManifestFragment(source, ManifestTree.read(WowJson.mapper.readValue(bytes, Map::class.java)))
+            val tree = WowJson.mapper.readValue(bytes, Map::class.java)
+            return ManifestFragment(source, ManifestTree.read(tree, ManifestTree.REFUSE))
         }
     }
 }

@@ -115,7 +115,7 @@ class ProducesAndErrorCodeTest {
     private fun fragment(compilation: KotlinCompilation): Manifest {
         val file = compilation.workingDir.walkTopDown()
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+        return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java), ManifestTree.REFUSE)
     }
 
     @Test
