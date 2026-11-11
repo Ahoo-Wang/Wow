@@ -134,6 +134,7 @@ protected final class me/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion {
 }
 
 public abstract class me/ahoo/wow/tck/log/EventLogAccessCases : me/ahoo/wow/tck/log/EventLogRecordCases {
+	public final fun a log told its node's schema records the walk completed as it creates a type's store, an existing one kept ()V
 	public final fun a page's stamps are written together, each under its own guard, the later of two that overlap kept ()V
 	public final fun a stamp writes the attributes over its range but the streams stamped later, however often it runs ()V
 	public final fun a type the log holds no history of has no walk and claims none, and its first append creates its store ()V
