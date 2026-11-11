@@ -201,8 +201,7 @@ public abstract interface class me/ahoo/wow/kernel/EventUpgrade {
 }
 
 public final class me/ahoo/wow/kernel/ExecutionContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
-	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;)V
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun toString ()Ljava/lang/String;
@@ -210,8 +209,8 @@ public final class me/ahoo/wow/kernel/ExecutionContext : me/ahoo/wow/api/subscri
 
 public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/subscribe/SagaContext {
 	public static final field Companion Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;
-	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;Lme/ahoo/wow/kernel/CommandTypes;Lme/ahoo/wow/kernel/EventCodec;Lme/ahoo/wow/kernel/CommandCalls;Lme/ahoo/wow/kernel/ContextQueries;Lme/ahoo/wow/kernel/SagaSends;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;Lme/ahoo/wow/kernel/CommandTypes;Lme/ahoo/wow/kernel/EventCodec;Lme/ahoo/wow/kernel/CommandCalls;Lme/ahoo/wow/kernel/ContextQueries;Lme/ahoo/wow/kernel/SagaSends;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
