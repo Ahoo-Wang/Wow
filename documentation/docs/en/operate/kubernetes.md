@@ -113,7 +113,7 @@ Every object is named after `service.name`, the service's `spring.application.na
 | PodDisruptionBudget | `<name>` | How many nodes a voluntary disruption may take |
 | ServiceAccount | `<name>` | No token mounted: the nodes call no Kubernetes API |
 | HorizontalPodAutoscaler or ScaledObject | `<name>` | Optional: [Scale](#scale) |
-| ServiceMonitor or PodMonitor | `<name>` | Optional: [Monitor](#monitor) |
+| ServiceMonitor or PodMonitor | `<name>` | Optional: [Monitor](#monitor); a ServiceMonitor comes with a headless Service `<name>-metrics` |
 
 ## The image
 

@@ -13,7 +13,7 @@ description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可
 | --- | --- | --- |
 | MongoDB | 全部：日志、快照、定时器、检查点、租约、失败台账和预留；提供快照查询和 `events` 查询 | 默认选择。一个副本集，不够时分片（[MongoDB](./mongodb#recommended-topology)） |
 | PostgreSQL | 全部，与 MongoDB 相同 | 你运行的是 PostgreSQL 时，同样可选（[见下文](#when-postgresql)） |
-| Elasticsearch | 某个聚合类型快照的一份副本，以及通过 Sink 写入的事件 | 检索状态和事件：全文、模糊匹配、多维度聚合（[Elasticsearch](./elasticsearch)） |
+| Elasticsearch | 某个聚合类型快照的一份副本，以及通过 Sink 写入的事件 | 检索状态和事件：对标了 `@QueryText` 的字段做全文检索、多维度聚合（[Elasticsearch](./elasticsearch#full-text-search)） |
 | ClickHouse | 不是存储：发布流的 Sink，以及数据集的数据仓库 | 跨服务的分析（[ClickHouse](./clickhouse)） |
 
 ## 安排聚合类型的数据 {#per-aggregate-type}

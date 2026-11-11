@@ -113,7 +113,7 @@ chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service` 和 `oci://regist
 | PodDisruptionBudget | `<name>` | 一次自愿中断可以带走几个节点 |
 | ServiceAccount | `<name>` | 不挂载令牌：节点不调用 Kubernetes API |
 | HorizontalPodAutoscaler 或 ScaledObject | `<name>` | 可选：[伸缩](#scale) |
-| ServiceMonitor 或 PodMonitor | `<name>` | 可选：[监控](#monitor) |
+| ServiceMonitor 或 PodMonitor | `<name>` | 可选：[监控](#monitor)；ServiceMonitor 另带一个 headless Service `<name>-metrics` |
 
 ## 镜像 {#the-image}
 
