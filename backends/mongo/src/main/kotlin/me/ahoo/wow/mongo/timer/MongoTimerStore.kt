@@ -236,14 +236,14 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = dispatcher.mongo {
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Int): Boolean = dispatcher.mongo {
         collectionOf(owner.type).timers.updateOne(
             Filters.and(keyFilter(owner, key), cancellable(version)),
             cancelled(version),
         ).matchedCount == 1L
     }
 
-    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = dispatcher.mongo {
+    override suspend fun cancelAll(owner: AggregateRef, version: Int): Int = dispatcher.mongo {
         collectionOf(owner.type).timers
             .updateMany(Filters.and(ownerFilter(owner), cancellable(version)), cancelled(version))
             .matchedCount.toInt()
@@ -254,61 +254,84 @@ class MongoTimerStore(
             ?.let { timerOf(it, owner.type.name) }
     }
 
-    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
-        require(limit >= 1) { "A page holds at least one timer." }
+    override suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer> {
+        require(perPartition >= 1) { "A page holds at least one timer of each partition." }
         if (partitions.isEmpty()) {
             return emptyList()
         }
-        return dispatcher.mongo { unioned(dueBranch(partitions, until), limit) }
+        val branches = dueBranches(partitions, until, perPartition)
+        return dispatcher.mongo { unioned(branches, perPartition, perPartition = true) }
     }
 
-    /** Each collection's share of the due read: its due timers of [partitions] by [until], earliest first. */
-    private fun dueBranch(partitions: Set<Int>, until: Long): List<Bson> = listOf(
-        Aggregates.match(
-            Filters.and(
-                Filters.`in`(PARTITION, partitions),
-                Filters.`in`(STATUS, DUE_STATUSES),
-                Filters.lte(DUE_AT, until),
+    /**
+     * Each collection's share of the due read: for each of [partitions], its first [limit] timers due by [until],
+     * earliest first, each read over the collection's partial index.
+     */
+    private fun dueBranches(partitions: Set<Int>, until: Long, limit: Int): List<List<Bson>> = partitions.map {
+        listOf(
+            Aggregates.match(
+                Filters.and(
+                    Filters.eq(PARTITION, it),
+                    Filters.`in`(STATUS, DUE_STATUSES),
+                    Filters.lte(DUE_AT, until),
+                ),
             ),
-        ),
-        Aggregates.sort(DUE_ORDER),
-    )
+            Aggregates.sort(DUE_ORDER),
+            Aggregates.limit(limit),
+        )
+    }
 
     /**
-     * The due read's aggregation over [known]: the registry's count of the context's collections, then each
-     * collection's first timers by [branch] (and [limit]), each tagged with the collection's index in [known], merged
-     * by due time. A test asserts its plan: each branch over the collection's partial index.
+     * The aggregation over [known]: the registry's count of the context's collections, then each of [branches] over
+     * each collection, each tagged with the collection's index in [known], merged by due time; the first [limit]
+     * timers, or, [perPartition], the first [limit] of each partition. A test asserts the due read's plan: each
+     * branch over the collection's partial index.
      */
-    private fun pipeline(known: List<TimerCollection>, branch: List<Bson>, limit: Int?): List<Bson> = buildList {
+    private fun pipeline(
+        known: List<TimerCollection>,
+        branches: List<List<Bson>>,
+        limit: Int?,
+        perPartition: Boolean = false,
+    ): List<Bson> = buildList {
         add(Aggregates.match(Filters.eq(CONTEXT, context)))
         add(Aggregates.count(REGISTERED))
         known.forEachIndexed { index, collection ->
-            val read = branch + listOfNotNull(limit?.let(Aggregates::limit)) +
-                Aggregates.set(Field(BRANCH, index))
-            add(Aggregates.unionWith(collection.name, read))
+            branches.forEach { branch ->
+                add(Aggregates.unionWith(collection.name, branch + Aggregates.set(Field(BRANCH, index))))
+            }
+        }
+        if (limit != null && perPartition) {
+            // Each partition's first [limit] in due order; the count has no partition, a group of its own.
+            add(Aggregates.sort(DUE_ORDER))
+            val first = Document("\$firstN", Document("input", "\$\$ROOT").append("n", limit))
+            add(Document("\$group", Document("_id", "\$$PARTITION").append(PARTITION_TIMERS, first)))
+            add(Aggregates.unwind("\$$PARTITION_TIMERS"))
+            add(Aggregates.replaceRoot("\$$PARTITION_TIMERS"))
         }
         // The count has no due time: it sorts first.
         add(Aggregates.sort(DUE_ORDER))
-        limit?.let { add(Aggregates.limit(it + 1)) }
+        if (limit != null && !perPartition) {
+            add(Aggregates.limit(limit + 1))
+        }
     }
 
     /** The due read's aggregation as this store runs it now, for [partitions] and [until]: a test explains it. */
-    internal fun duePipeline(partitions: Set<Int>, until: Long, limit: Int): List<Bson> =
-        pipeline(known(), dueBranch(partitions, until), limit)
+    internal fun duePipeline(partitions: Set<Int>, until: Long, perPartition: Int): List<Bson> =
+        pipeline(known(), dueBranches(partitions, until, perPartition), perPartition, perPartition = true)
 
     /** The registry, which the due read aggregates over: a test explains it. */
     internal val registryCollection: MongoCollection<Document> get() = registry
 
     /**
-     * Runs [branch] over every timer collection of the context in one aggregation; when the registry holds other
+     * Runs [branches] over every timer collection of the context in one aggregation; when the registry holds other
      * collections than those read, reads the registry and runs it once more.
      */
-    private fun unioned(branch: List<Bson>, limit: Int?): List<Timer> {
+    private fun unioned(branches: List<List<Bson>>, limit: Int?, perPartition: Boolean = false): List<Timer> {
         var known = known()
         while (true) {
             var count = 0
             val timers = buildList {
-                registry.aggregate(pipeline(known, branch, limit)).forEach { document ->
+                registry.aggregate(pipeline(known, branches, limit, perPartition)).forEach { document ->
                     val branchIndex = document.getInteger(BRANCH)
                     if (branchIndex == null) {
                         count = document.getInteger(REGISTERED)
@@ -328,40 +351,77 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun settle(changes: List<TimerChange>): Int {
+    /**
+     * One unordered `bulkWrite` per collection. Its matched count says which changes were written when it is all of
+     * them, none, or the batch is one change: nearly every settle, and every claim. A short count of several, two
+     * writers of the same timers at once, reads the batch's documents back ([landed]).
+     */
+    override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
         if (changes.isEmpty()) {
-            return 0
+            return emptyList()
         }
-        return dispatcher.mongo {
-            changes.groupBy { it.loaded.owner.type }.entries.sumOf { (type, ofType) ->
-                val writes = ofType.map { change ->
-                    val loaded = change.loaded
-                    val next = change.next
-                    UpdateOneModel<Document>(
-                        Filters.and(
-                            keyFilter(loaded.owner, loaded.key),
-                            Filters.eq(TIMER_ID, loaded.id),
-                            Filters.eq(STATUS, loaded.status.name),
-                            Filters.eq(SLOT, loaded.slot),
-                            Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
-                            Filters.eq(ATTEMPTS, loaded.attempts),
-                            Filters.eq(DUE_AT, loaded.dueAt),
-                        ),
-                        Updates.combine(
-                            Updates.set(STATUS, next.status.name),
-                            Updates.set(SLOT, next.slot),
-                            Updates.set(SLOT_DUE_AT, next.slotDueAt),
-                            Updates.set(SKIPPED, next.skipped),
-                            Updates.set(DUE_AT, next.dueAt),
-                            Updates.set(ATTEMPTS, next.attempts),
-                            Updates.set(OUTCOME, next.outcome),
-                        ),
-                    )
+        val written = BooleanArray(changes.size)
+        dispatcher.mongo {
+            changes.withIndex().groupBy { it.value.loaded.owner.type }.forEach { (type, ofType) ->
+                val collection = collectionOf(type)
+                val batch = ofType.map { it.value }
+                val matched = collection.timers.bulkWrite(batch.map(::writeOf), BulkWriteOptions().ordered(false))
+                    .matchedCount
+                val landed = when (matched) {
+                    batch.size -> batch.map { true }
+                    0 -> batch.map { false }
+                    else -> landed(collection, batch, matched)
                 }
-                collectionOf(type).timers.bulkWrite(writes, BulkWriteOptions().ordered(false)).matchedCount
+                ofType.forEachIndexed { at, (index, _) -> written[index] = landed[at] }
             }
         }
+        return written.toList()
     }
+
+    /** The conditional write of [change]: its next state, while the document holds its timer as loaded. */
+    private fun writeOf(change: TimerChange): UpdateOneModel<Document> {
+        val loaded = change.loaded
+        val next = change.next
+        return UpdateOneModel(
+            Filters.and(
+                keyFilter(loaded.owner, loaded.key),
+                Filters.eq(TIMER_ID, loaded.id),
+                Filters.eq(STATUS, loaded.status.name),
+                Filters.eq(SLOT, loaded.slot),
+                Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
+                Filters.eq(ATTEMPTS, loaded.attempts),
+                Filters.eq(DUE_AT, loaded.dueAt),
+            ),
+            Updates.combine(
+                Updates.set(STATUS, next.status.name),
+                Updates.set(SLOT, next.slot),
+                Updates.set(SLOT_DUE_AT, next.slotDueAt),
+                Updates.set(SKIPPED, next.skipped),
+                Updates.set(DUE_AT, next.dueAt),
+                Updates.set(ATTEMPTS, next.attempts),
+                Updates.set(OUTCOME, next.outcome),
+            ),
+        )
+    }
+
+    /**
+     * Which of [batch], a `bulkWrite` that matched [matched] of them, the store holds after the call, read back in one
+     * query: each change whose document holds its next state, when that is [matched] of them, else none. A write does
+     * not mark its writer: a change found may be another writer's identical one, the same outcome recorded once, and a
+     * change this call wrote that another replaced before the read is not found, and is claimed or settled again.
+     */
+    private fun landed(collection: TimerCollection, batch: List<TimerChange>, matched: Int): List<Boolean> {
+        val held = collection.timers.find(Filters.or(batch.map { keyFilter(it.loaded.owner, it.loaded.key) }))
+            .map { timerOf(it, collection.aggregate) }
+            .associateBy { it.owner to it.key }
+        val holds = batch.map { change -> held[change.next.owner to change.next.key]?.holds(change.next) == true }
+        return if (holds.count { it } == matched) holds else batch.map { false }
+    }
+
+    /** Whether this timer, as read back, holds [next]'s settled fields. */
+    private fun Timer.holds(next: Timer): Boolean =
+        id == next.id && status == next.status && slot == next.slot && slotDueAt == next.slotDueAt &&
+            skipped == next.skipped && dueAt == next.dueAt && attempts == next.attempts && outcome == next.outcome
 
     override suspend fun parked(target: AggregateRef): List<Timer> = dispatcher.mongo {
         val filter = Filters.and(
@@ -371,7 +431,7 @@ class MongoTimerStore(
             Filters.eq(TARGET_ID, target.id),
             Filters.eq(STATUS, TimerStatus.PARKED.name),
         )
-        unioned(listOf(Aggregates.match(filter)), null)
+        unioned(listOf(listOf(Aggregates.match(filter))), null)
     }
 
     private fun partitionOf(owner: AggregateRef): Int = Partitioner.partitionOf(owner, partitions)
@@ -388,12 +448,12 @@ class MongoTimerStore(
         Filters.eq(KEY, key)
     )
 
-    private fun cancellable(version: Long): Bson = Filters.and(
+    private fun cancellable(version: Int): Bson = Filters.and(
         Filters.`in`(STATUS, TimerStatus.PENDING.name, TimerStatus.FIRING.name, TimerStatus.PARKED.name),
         Filters.lte(VERSION, version),
     )
 
-    private fun cancelled(version: Long): Bson =
+    private fun cancelled(version: Int): Bson =
         Updates.combine(Updates.set(STATUS, TimerStatus.CANCELLED.name), Updates.max(VERSION, version))
 
     private fun timerOf(document: Document, aggregate: String) = Timer(
@@ -402,7 +462,7 @@ class MongoTimerStore(
             AggregateType(context, aggregate).ref(owner.getString(TENANT_ID), owner.getString(ID))
         },
         key = document.getString(KEY),
-        version = document.getLong(VERSION),
+        version = document.getInteger(VERSION),
         partition = document.getInteger(PARTITION),
         rule = MongoRules.of(document.get(RULE, Document::class.java)),
         slot = document.getLong(SLOT),
@@ -440,6 +500,9 @@ class MongoTimerStore(
         const val CONTEXT = "context"
         const val REGISTERED = "registered"
         const val BRANCH = "branch"
+
+        /** The due read's merge: a partition's first due timers, grouped. */
+        const val PARTITION_TIMERS = "partition_timers"
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
         const val PARKED_INDEX = "timer_parked"

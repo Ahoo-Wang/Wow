@@ -60,7 +60,6 @@ import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -132,7 +131,7 @@ class ScheduleJobsNodeTest {
     }
 
     private suspend fun ServiceNode.tickTimer(ref: AggregateRef): Timer? =
-        context(SHOP).backends.timers!!.find(Timers.ownerOf(ref), ScheduleJobs.TICK_KEY)
+        context(SHOP).backends.timers!!.find(ref, ScheduleJobs.TICK_KEY)
 
     @Test
     fun `a SYSTEM job is enabled at startup and its handler gets each slot`(): Unit = runBlocking {
@@ -328,7 +327,7 @@ class ScheduleJobsNodeTest {
      * as a loaded node's firing loop may: the slot's command, and the tick its handler gets, come first.
      */
     private class SlowOutcomes(private val store: TimerStore) : TimerStore by store {
-        override suspend fun settle(changes: List<TimerChange>): Int {
+        override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
             if (changes.any { it.loaded.status == TimerStatus.FIRING }) {
                 delay(OUTCOME_DELAY)
             }

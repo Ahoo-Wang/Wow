@@ -31,7 +31,6 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.Timers
 
 /**
  * The built-in `timers` subscription of one bounded [context]: writes the timers the context's
@@ -77,8 +76,8 @@ class TimersSubscription(
 
     private suspend fun write(entry: SubscribedEntry) {
         val stream = entry.stream
-        val owner = Timers.ownerOf(stream.ref)
-        val version = stream.version.toLong()
+        val owner = stream.ref
+        val version = stream.version
         if (stream.events.any { it.name == Lifecycle.AGGREGATE_DELETED }) {
             store.cancelAll(owner, version)
         }

@@ -44,7 +44,7 @@ import org.junit.jupiter.api.Test
 class TimersSubscriptionTest {
     private val store = InMemoryTimerStore()
     private val timers = TimersSubscription(SHOP, store, PARTITIONS)
-    private val owner = Timers.ownerOf(order("o-1"))
+    private val owner = order("o-1")
 
     private fun stream(version: Int, vararg events: EventRecord, headers: Map<String, String> = mapOf("app" to "web")) =
         EventStreamRecord(
@@ -150,7 +150,7 @@ class TimersSubscriptionTest {
             val set = ScheduleSet(ScheduleJobs.TICK_KEY, ScheduleRule.Cron("0 0 0 1 * *"), job, ScheduleJobs.TICK, "{}")
             val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copyWith(ref = job)
             timers.subscription.handle(SubscribedEntry(stream, null, stream.events))
-            val timer = checkNotNull(store.find(Timers.ownerOf(job), ScheduleJobs.TICK_KEY))
+            val timer = checkNotNull(store.find(job, ScheduleJobs.TICK_KEY))
             timer.operator.assert().isEqualTo(Operator.system(ScheduleJobs.COMPONENT, "acme"))
             timer.headers.assert().isEmpty()
             timer.scope.assert().isEqualTo(Scope.NONE)

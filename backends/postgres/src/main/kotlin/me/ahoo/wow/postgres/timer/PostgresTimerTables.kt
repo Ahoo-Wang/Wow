@@ -60,14 +60,16 @@ internal class PostgresTimerTables(private val context: String) {
 
     /**
      * The due timers across [tables], in one statement: how many tables the registry holds for the context (`registered`,
-     * on every row, and on one row with no timer when none is due), and the first `limit` due timers, merged by due time
-     * from each table's first `limit`, each table's read over its partial index. Each timer's `branch` is the index of its
-     * table in [tables]. A `registered` other than the tables read tells the store to read the registry again.
+     * on every row, and on one row with no timer when none is due), and the first `limit` due timers of each partition,
+     * merged by due time from each table's first `limit` of each partition, each partition's read over its table's
+     * partial index. Each timer's `branch` is the index of its table in [tables]. A `registered` other than the tables
+     * read tells the store to read the registry again.
      * Parameters: the context, then per table the partitions (an `integer[]`), until, limit; then limit.
      */
-    fun due(tables: List<AggregateTimerTable>): String = unioned(tables) { table ->
-        "SELECT $COLUMNS FROM ${table.table} WHERE partition = ANY(?) AND status IN ('PENDING', 'FIRING') " +
-            "AND due_at <= ? ORDER BY due_at, timer_id LIMIT ?"
+    fun due(tables: List<AggregateTimerTable>): String = unioned(tables, perPartition = true) { table ->
+        "SELECT due.* FROM unnest(?::integer[]) AS owned(partition) CROSS JOIN LATERAL (SELECT $COLUMNS " +
+            "FROM ${table.table} WHERE partition = owned.partition AND status IN ('PENDING', 'FIRING') " +
+            "AND due_at <= ? ORDER BY due_at, timer_id LIMIT ?) AS due"
     }
 
     /**
@@ -79,7 +81,15 @@ internal class PostgresTimerTables(private val context: String) {
             "AND target_tenant_id = ? AND target_id = ? AND status = 'PARKED'"
     }
 
-    private fun unioned(tables: List<AggregateTimerTable>, branch: (AggregateTimerTable) -> String): String {
+    /**
+     * [branch] over every table of [tables], merged by due time: the first `limit` rows, or, [perPartition], the first
+     * `limit` of each partition.
+     */
+    private fun unioned(
+        tables: List<AggregateTimerTable>,
+        perPartition: Boolean = false,
+        branch: (AggregateTimerTable) -> String,
+    ): String {
         if (tables.isEmpty()) {
             // No table to read: only the count, on one row with no timer.
             return "SELECT count(*) AS registered, NULL::integer AS branch, NULL::text AS timer_id FROM $REGISTRY " +
@@ -88,9 +98,15 @@ internal class PostgresTimerTables(private val context: String) {
         val branches = tables.withIndex().joinToString(" UNION ALL ") { (index, table) ->
             "(SELECT $index AS branch, * FROM (${branch(table)}) AS timers)"
         }
+        val merged = if (perPartition) {
+            "SELECT * FROM (SELECT *, row_number() OVER (PARTITION BY partition ORDER BY due_at, timer_id) " +
+                "AS partition_rank FROM ($branches) AS merged) AS ranked WHERE partition_rank <= ?"
+        } else {
+            "SELECT * FROM ($branches) AS merged ORDER BY due_at, timer_id LIMIT ?"
+        }
         return "SELECT counter.registered, timer.* FROM (SELECT count(*) AS registered FROM $REGISTRY " +
-            "WHERE context = ?) AS counter LEFT JOIN LATERAL (SELECT * FROM ($branches) AS merged " +
-            "ORDER BY due_at, timer_id LIMIT ?) AS timer ON true ORDER BY timer.due_at, timer.timer_id"
+            "WHERE context = ?) AS counter LEFT JOIN LATERAL ($merged) AS timer ON true " +
+            "ORDER BY timer.due_at, timer.timer_id"
     }
 
     companion object {
@@ -128,7 +144,7 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
             owner_id text COLLATE "C" NOT NULL,
             key text COLLATE "C" NOT NULL,
             timer_id text COLLATE "C" NOT NULL,
-            version bigint NOT NULL,
+            version integer NOT NULL,
             partition integer NOT NULL,
             rule jsonb NOT NULL,
             slot bigint NOT NULL,

@@ -134,7 +134,7 @@ class TimerRunner(
             store.parked(target).map {
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
-        )
+        ).count { it }
         ledger.resolveAnywhere(parkedSubscription, target)
         return retried
     }
@@ -150,7 +150,7 @@ class TimerRunner(
             store.parked(target).map {
                 TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
-        )
+        ).count { it }
         ledger.resolveAnywhere(parkedSubscription, target)
         return skipped
     }
@@ -284,7 +284,8 @@ class TimerRunner(
             status = TimerStatus.FIRING,
             dueAt = now + options.claimTimeout.inWholeMilliseconds
         )
-        if (quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))) } != 1) {
+        val won = quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))).single() }
+        if (won != true) {
             part.sending.remove(timer.id)
             part.busy.remove(timer.id)
             return

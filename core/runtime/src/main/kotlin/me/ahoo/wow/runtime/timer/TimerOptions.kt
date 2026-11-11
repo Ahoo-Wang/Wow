@@ -34,7 +34,8 @@ import kotlin.time.Duration.Companion.seconds
  *   parks the timer after its attempts, as a subscription's backpressure does.
  * - [expiresAfter]: a timer found due longer ago than this, after an outage, is not sent but cancelled with the
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
- * - [batch]: the most timers one read of a store loads; [parallelism]: the most commands a partition sends at once.
+ * - [batch]: the most timers of each partition one read of a store loads, so a backlog in one partition never keeps
+ *   another's due timers waiting; [parallelism]: the most commands a partition sends at once.
  * - [claimTimeout]: how long a claim on a timer being sent holds: a claim whose node died lapses after
  *   it, and the next owner of the partition sends the timer again; longer than a send takes.
  * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue

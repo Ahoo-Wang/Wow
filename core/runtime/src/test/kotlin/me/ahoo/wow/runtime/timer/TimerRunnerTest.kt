@@ -129,8 +129,12 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         Unit = runBlocking {
         answers["pay"] = IllegalStateException("down")
         val refusing = object : TimerStore by store {
-            override suspend fun settle(changes: List<TimerChange>): Int =
-                if (changes.any { it.next.status == TimerStatus.PARKED }) 0 else store.settle(changes)
+            override suspend fun settle(changes: List<TimerChange>): List<Boolean> =
+                if (changes.any { it.next.status == TimerStatus.PARKED }) {
+                    changes.map { false }
+                } else {
+                    store.settle(changes)
+                }
         }
         store.put(timer("pay"))
         val runner = runner(timers = refusing, loop = loop(maxAttempts = 1))
@@ -172,7 +176,7 @@ class TimerRunnerTest : TimerRunnerFixtures() {
             answers["pay"] = IllegalStateException("down")
             // The node dies between the two writes: the ledger records the target, the timer stays claimed.
             val dying = object : TimerStore by store {
-                override suspend fun settle(changes: List<TimerChange>): Int =
+                override suspend fun settle(changes: List<TimerChange>): List<Boolean> =
                     if (changes.any { it.next.status == TimerStatus.PARKED }) {
                         error("The node died.")
                     } else {
@@ -199,7 +203,7 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         store.put(timer("pay", dueIn = 500.milliseconds))
         val claims = AtomicInteger()
         val claiming = object : TimerStore by store {
-            override suspend fun settle(changes: List<TimerChange>): Int {
+            override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
                 if (changes.any { it.next.status == TimerStatus.FIRING }) {
                     claims.incrementAndGet()
                 }
@@ -284,7 +288,7 @@ class TimerRunnerTest : TimerRunnerFixtures() {
             @Volatile
             var failed = false
 
-            override suspend fun settle(changes: List<TimerChange>): Int {
+            override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
                 if (!failed && changes.any { it.next.status == TimerStatus.FIRED }) {
                     failed = true
                     throw IllegalStateException("The store is unreachable.")

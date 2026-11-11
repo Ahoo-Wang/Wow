@@ -55,7 +55,6 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.TimerStatus
-import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -197,11 +196,11 @@ class LogGroupsTest {
         val node = node("node-1").also { it.start() }
         node.send(ORDER.ref(TENANT, "o-3"), Place(delayMillis = 100))
         node.send(INVOICE.ref(TENANT, "i-3"), Issue(delayMillis = 100))
-        eventually { stores.default.timers.find(Timers.ownerOf(ORDER.ref(TENANT, "o-3")), DUE)?.status == TimerStatus.FIRED }
+        eventually { stores.default.timers.find(ORDER.ref(TENANT, "o-3"), DUE)?.status == TimerStatus.FIRED }
         eventually {
-            stores.invoices.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE)?.status == TimerStatus.FIRED
+            stores.invoices.timers.find(INVOICE.ref(TENANT, "i-3"), DUE)?.status == TimerStatus.FIRED
         }
-        stores.default.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE).assert().isNull()
+        stores.default.timers.find(INVOICE.ref(TENANT, "i-3"), DUE).assert().isNull()
         stores.invoices.log.read(INVOICE.ref(TENANT, "i-3")).toList().flatMap { it.events.map { event -> event.name } }
             .assert().containsExactly("$CONTEXT.invoice.Issued", "wow.ScheduleSet", "$CONTEXT.invoice.Closed")
         node.context(CONTEXT).ownership.owned.forEach { partition ->
@@ -226,8 +225,8 @@ class LogGroupsTest {
             }
             val second = node("node-2").also { it.start() }
             eventually {
-                stores.invoices.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-4")), DUE)?.status == TimerStatus.FIRED &&
-                    stores.default.timers.find(Timers.ownerOf(ORDER.ref(TENANT, "o-4")), DUE)?.status == TimerStatus.FIRED
+                stores.invoices.timers.find(INVOICE.ref(TENANT, "i-4"), DUE)?.status == TimerStatus.FIRED &&
+                    stores.default.timers.find(ORDER.ref(TENANT, "o-4"), DUE)?.status == TimerStatus.FIRED
             }
             eventually { projected.containsAll(listOf("order:o-4@2", "invoice:i-4@2")) }
             // Neither group's first entries were handled again: each group's checkpoint was saved on the hand-off.
