@@ -120,7 +120,27 @@ Every source file is listed; `test/agentsStructure.test.ts` fails when one is ad
 src/
   index.ts                    — Root entry — model, four kernels, runtime, store port
   styles.ts                   — Build entry that carries styles.css into dist
-  styles.css                  — Theme; consumers import it explicitly. Its one `@supports (color: oklch(from red l c h))` block derives the brand's colours (`--_fve-brand-*`) from a host's `--fve-brand` and the bounds a preset gives (`--fvp-brand-*`), read between the host's layer and the preset's by the tokens the registry marks `brand` (docs/design/ui/theme.md, S4)
+  styles.css                  — Theme; consumers import it explicitly. The entry: the layers, the libraries' imports, one `@import` a part of `styles/` in the order their rules were written as one file, and what Tailwind scans; Tailwind inlines the parts, so one `styles.css` ships. Read whole through `scripts/styles.mjs` (`stylesSource`)
+  styles/                     — The stylesheet's parts, one responsibility each
+    theme.css                 — The `dark` variant, decided once for both boundaries, and the `@theme inline reference` map from the utilities to the tokens
+    brand.css                 — The one `@supports (color: oklch(from red l c h))` block: the brand's colours (`--_fve-brand-*`) derived from a host's `--fve-brand` within the bounds a preset gives (`--fvp-brand-*`), read between the host's layer and the preset's by the tokens the registry marks `brand` (docs/design/ui/theme.md, S4)
+    links.css                 — The links' rule: a role drawn in another token the surface has resolved (`--_fve-link-*`)
+    tokens.css                — The light token block, one rule for both boundaries: shadcn's names, the engine's own, the roles and the charts' roles, each `var(--fve-x, var(--fvp-x, <built-in>))`
+    axes.css                  — Which way a change is coloured (`data-fve-change-colors`) and the density step with the lengths it drives
+    registry.css              — The registry's table at the density, focus kept clear of its sticky bands, the two small type sizes pinned, an outline badge's edge
+    roles.css                 — The roles applied to the vendored components by `data-slot` or the registry's group class (`@layer utilities`)
+    states.css                — A control under the pointer and pressed, and a segmented control's thumb
+    tokens-dark.css           — The dark token block, off paper only
+    reset.css                 — `@layer fve-reset`: every preset variable `initial` on whatever names a preset; its list is generated (`theme:docs`)
+    base.css                  — The base layer (the default border, the surface's paint and type, a board's ground) and reduced motion
+    print.css                 — On paper: the light half, no shadows, patterns on, what only a hand can use left off
+    forced-colors.css         — Forced colours: focus, selection, the chosen control and a popup's edge in system colours
+    layout-workbench.css      — The workbench fills its container: the editor's cap, the narrow screen, the result's scroll, the cards' rows, a funnel's height
+    layout-tiles.css          — A metric tile on a board and the figure's fit to its card; the board's cells while it is built
+    layout-drawings.css       — A chart's drawing at its box's size, the gutters a drawing keeps and a table gives up, the workbench's metric card
+    layout-embed.css          — An embed that fills its container (`size="fill"`)
+    layout-expansion.css      — A view filling the screen, pinned where it stands, and its way out
+    grid.css                  — The grid adapter's drop placeholder and resize handle in the theme's colours (`@layer components`)
   themes.css                  — The presets' index: the rules every preset keeps, and one `@import` per preset in the order every list follows; the build (`scripts/themes.mjs`) ships `themes.css` and `themes/<name>.css` from it, the notes taken out
   themes/                     — One file per preset: `--fve-*` values keyed by `data-fve-preset`, the colours always and the optional groups (chart colours, shadows, font stack) whole or not at all, with the notes on each value; only the host's documented contract (`test/themeFiles.test.ts`)
     neutral.css               — The stylesheet's own look: every variable `initial`, a full reset

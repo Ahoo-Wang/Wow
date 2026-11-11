@@ -50,6 +50,7 @@ import {
   type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
+import { stylesSource } from '../scripts/styles.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -255,20 +256,18 @@ describe('each role is painted with', () => {
   // a chart's — read back off the chart's element (`CHART_TOKENS`, which
   // `test/chartTheme.test.tsx` holds to what `readChartTheme` reads).
   const reads = new Set<string>();
-  postcss
-    .parse(readFileSync(join(ROOT, 'src', 'styles.css'), 'utf8'))
-    .walkDecls(decl => {
-      if (decl.prop.startsWith('--_fve-')) {
-        const rule = decl.parent;
-        const selector =
-          rule?.type === 'rule' ? rule.selector.replace(/\s+/g, ' ') : '';
-        // A token block declares the roles; it does not paint with them.
-        if (/^\.fve-root, \.fve-tokens$|^\.dark \.fve-root/.test(selector))
-          return;
-      }
-      for (const match of decl.value.matchAll(/--_fve-[\w-]+/g))
-        reads.add(match[0]);
-    });
+  postcss.parse(stylesSource()).walkDecls(decl => {
+    if (decl.prop.startsWith('--_fve-')) {
+      const rule = decl.parent;
+      const selector =
+        rule?.type === 'rule' ? rule.selector.replace(/\s+/g, ' ') : '';
+      // A token block declares the roles; it does not paint with them.
+      if (/^\.fve-root, \.fve-tokens$|^\.dark \.fve-root/.test(selector))
+        return;
+    }
+    for (const match of decl.value.matchAll(/--_fve-[\w-]+/g))
+      reads.add(match[0]);
+  });
   const recipes = uiSources();
 
   it.each(ROLES.map(({ name }) => name))('%s', name => {

@@ -34,9 +34,10 @@ import { run } from '../theme-check/cli';
 import { registryData } from '../theme-check/registry';
 import { createResolver, themeSource } from '../theme-check/resolve';
 import { CONVENTIONS, PRESET_NAMES, RESOLVER } from './fixtures/themeTokens';
+import { stylesSource } from '../scripts/styles.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
-const STYLES = readFileSync(join(ROOT, 'src/styles.css'), 'utf8');
+const STYLES = stylesSource();
 const REGISTRY = registryData();
 const ACME = readFileSync(
   join(ROOT, '../storybook/stories/view-engine/host-theme/acme.css'),

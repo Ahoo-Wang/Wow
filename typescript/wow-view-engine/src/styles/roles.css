@@ -1,0 +1,471 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The roles on the vendored components, by `data-slot` or the registry's own group class.
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * The roles on the vendored components (theme-architecture.md 4.2, S3).
+ * `ui/components/**` is upstream's and is never edited, so a role reaches a
+ * registry component through a rule here, by the component's own
+ * `data-slot` — or, where a call site may write its own slot over the
+ * component's (a tooltip's trigger renders the button it explains), by the
+ * registry's own group class (`group/button`, `group/toggle`,
+ * `group/badge`), as the outline badge above is found.
+ *
+ * Every rule's built-in value is what the registry drew, so a theme that
+ * sets no role paints the same pixels. Where a rule has to stand beside a
+ * call site's own choice it names the registry's class it replaces
+ * (`:where(.h-8)`, `:where(.rounded-lg)`): a call site that asked for
+ * another height or corner has had that class merged away (`cn`), so the
+ * rule no longer matches it and the call site keeps what it asked for.
+ * That is the same exposure to a registry rename as the two small type
+ * sizes pinned above, and `shadcn add --diff` is read for it.
+ *
+ * In the utilities layer, after the registry's own classes: a rule that
+ * weighs what the class it replaces weighs wins that tie by order.
+ */
+@layer utilities {
+  /*
+   * The scrim behind a dialog and a sheet. The overlay is a root of its
+   * own (`ui/kit/popups.tsx`), so the rule names no ancestor. A destructive
+   * confirmation keeps its heavier dim (`ALERT_DIALOG_BACKDROP_DIM`): it
+   * is asked over a page that is already dimmed.
+   */
+  [data-slot='dialog-overlay'] {
+    background-color: var(--_fve-scrim);
+  }
+
+  /*
+   * The header band's words, their weight — the sort button's too, which
+   * is where a sortable column's name is written — and the divider between
+   * its columns: a line of the divider's colour down the cell's end, 1.6em
+   * tall and centred, transparent until a theme draws it. Not after the
+   * last column, nor into the filler that takes the table's spare width.
+   */
+  [data-sticky='top'] > tr > [data-slot='table-head'] {
+    color: var(--_fve-table-header-foreground);
+    font-weight: var(--_fve-table-header-weight);
+  }
+
+  [data-sticky='top'] > tr > [data-slot='table-head'] > .fve\:group\/button {
+    font-weight: var(--_fve-table-header-weight);
+  }
+
+  [data-sticky='top']
+    > tr
+    > [data-slot='table-head']:not(
+      :last-child,
+      [data-column='filler'],
+      :has(+ [data-column='filler'])
+    ) {
+    background-image: linear-gradient(
+      var(--_fve-table-header-divider),
+      var(--_fve-table-header-divider)
+    );
+    background-position: 100% 50%;
+    background-repeat: no-repeat;
+    background-size: 1px 1.6em;
+  }
+  /*
+   * A selected row's mark that is not its colour (`row-selected-mark`,
+   * D76): a 3px bar down the left edge of its first cell (the engine lays
+   * out left to right only), a background image so it sits under the cell's
+   * words. A focused row's ring is an inset shadow, painted over the
+   * background, so it covers the bar's inner `focus-width` while the row has
+   * focus and the rest of the bar still shows. A record row says selected by `data-state`, an
+   * analysis group pressed by `data-pressed`. Unset, the gradient is
+   * invalid, `background-image` is `none`, and nothing is drawn.
+   */
+  [data-slot='table-row']:is([data-state='selected'], [data-pressed])
+    > :first-child {
+    background-image: linear-gradient(
+      var(--_fve-row-selected-mark),
+      var(--_fve-row-selected-mark)
+    );
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    background-size: 3px 100%;
+  }
+
+  /* The line between body rows, the preset's (`row-divider`). */
+  [data-slot='table-body'] > [data-slot='table-row'] {
+    border-bottom-color: var(--_fve-row-divider);
+  }
+
+  /*
+   * A sortable column's idle mark, where a pointer can hover: as much as the
+   * preset shows (`table-sort-idle`), and whole under the pointer or the
+   * keyboard, where it says the header can be pressed. Its room is always
+   * kept, so the header never shifts; a touch screen shows it always.
+   */
+  @media (hover: hover) {
+    [data-slot='sort-available'] {
+      opacity: var(--_fve-table-sort-idle);
+    }
+
+    [data-slot='table-head']:hover [data-slot='sort-available'],
+    [data-slot='table-head']:focus-within [data-slot='sort-available'] {
+      opacity: 1;
+    }
+  }
+
+  /* The totals band, in the strong weight (the registry's `font-medium`). */
+  [data-sticky='bottom'] {
+    font-weight: var(--_fve-strong-weight);
+  }
+
+  /* A tooltip's chip and its arrow. */
+  [data-slot='tooltip-content'] {
+    background-color: var(--_fve-tooltip);
+    color: var(--_fve-tooltip-foreground);
+  }
+
+  [data-slot='tooltip-content'] > .fve\:fill-foreground {
+    background-color: var(--_fve-tooltip);
+    fill: var(--_fve-tooltip);
+  }
+
+  /*
+   * The item a menu, a select or a combobox holds chosen — a select's and a
+   * combobox's selected option, a menu's checked item — whether or not it
+   * is under the pointer: `item-selected` behind it, transparent unset, in
+   * `item-selected-foreground` and `item-selected-weight`. Unset the weight
+   * is invalid and the item inherits, as before. Two attributes, so the
+   * highlighted item (a state as well, three) still paints over it; the
+   * weight it keeps.
+   *
+   * These rules read an item by its role, not its `data-slot`: a menu item
+   * the engine names for itself (`data-slot="panel-open"`, `drill-…`,
+   * `export-…`) dropped out of a slot list and was highlighted in the
+   * registry's tint, 1.2:1 off the popup in contrast (second-round review).
+   */
+  [role='option'][data-selected],
+  :is([role='menuitemcheckbox'], [role='menuitemradio'])[data-checked] {
+    background-color: var(--_fve-item-selected);
+    color: var(--_fve-item-selected-foreground);
+    font-weight: var(--_fve-item-selected-weight, inherit);
+  }
+
+  /*
+   * The item a menu, a select or a combobox has under the keyboard or the
+   * pointer, and every word and icon inside it — where the registry colours
+   * those too. A destructive item keeps its own red. A combobox's option
+   * is marked, not focused: the keyboard stays in its input.
+   */
+  :is([role='menuitem'], [role='option']):not(
+      [data-variant='destructive']
+    ):focus,
+  :is([role='menuitemcheckbox'], [role='menuitemradio']):focus,
+  [role='menuitem']:is([data-open], [data-popup-open]),
+  [data-slot='combobox-item']:not(
+      [data-variant='destructive']
+    )[data-highlighted] {
+    background-color: var(--_fve-highlight);
+    color: var(--_fve-highlight-foreground);
+  }
+
+  :is([role='menuitem'], [role='option']):not(
+      [data-variant='destructive']
+    ):focus
+    *,
+  :is([role='menuitemcheckbox'], [role='menuitemradio']):focus *,
+  [role='menuitem']:is([data-open], [data-popup-open]) *,
+  [data-slot='combobox-item']:not(
+      [data-variant='destructive']
+    )[data-highlighted]
+    * {
+    color: var(--_fve-highlight-foreground);
+  }
+
+  /*
+   * The item a menu, a select or a combobox has under the keyboard wears
+   * the focus mark: 2px of `ring` inside its edge, over whatever fill the theme gives the highlight. The fill alone
+   * was the only mark, and in neutral and azure it is a tint 1.03–1.07:1
+   * off the popup (second-round review; D76 as amended); the ring is held
+   * to 3:1 off the popup by the contrast matrix ('highlighted item’s focus
+   * mark on its popup'). Keyboard only — `:focus-visible` — as every other
+   * focus mark here: the pointer is its own mark of where it is. A
+   * combobox's option is marked, not focused (the keyboard stays in its
+   * input), so it wears the mark whenever it is the highlighted one.
+   */
+  :is(
+    [role='menuitem'],
+    [role='menuitemcheckbox'],
+    [role='menuitemradio'],
+    [role='option']
+  ):focus-visible,
+  [data-slot='combobox-item'][data-highlighted] {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  /*
+   * Focus on a registry control — every one that marks focus with the
+   * 3px halo and no outline of its own (`FOCUS_CARD` and `FOCUS_PANEL`
+   * draw theirs). Unset, `focus-width` makes the outline invalid and the
+   * control keeps `outline-none`; set, it draws an outline in `ring`. The
+   * halo takes `focus-halo` wherever it is the registry's `ring` at 50%,
+   * which leaves a destructive or an invalid control's red alone.
+   */
+  :is(.fve\:focus-visible\:ring-3, .fve\:focus-visible\:ring-\[3px\]):not(
+      .fve\:focus-visible\:outline-solid,
+      .fve\:outline-hidden
+    ):focus-visible {
+    outline: var(--_fve-focus-width) var(--_fve-focus-style) var(--ring);
+    outline-offset: var(--_fve-focus-offset);
+  }
+
+  :where(.fve\:focus-visible\:ring-ring\/50):focus-visible:not(
+      [aria-invalid='true']
+    ) {
+    --tw-ring-color: var(--_fve-focus-halo);
+  }
+
+  /*
+   * The focus mark is there the moment the keyboard lands, not 150ms
+   * later. The registry's controls carry `transition-all`, so the edge,
+   * the halo and a dimmed control's opacity (the applied bar's ✕ rests at
+   * 60%) used to fade in — and a transition only moves on a rendered
+   * frame: until the next one the control is drawn, and computed, as it
+   * was before focus. Safari on a busy machine draws a frame every few
+   * hundred ms, so its ✕ measured 1.00:1 there — a ghost button's
+   * transparent edge on the badge (nightly WebKit, 2026-10-01). Leaving
+   * focus still fades out: this rule holds only while focus is here.
+   */
+  :is(
+    .fve\:focus-visible\:ring-3,
+    .fve\:focus-visible\:ring-\[3px\]
+  ):focus-visible {
+    transition-duration: 0s;
+  }
+
+  /*
+   * The two heights of a control, on every registry control drawn at them:
+   * a button, a toggle, a text box, a group around one, a select.
+   */
+  :is(
+    .fve\:group\/button,
+    .fve\:group\/toggle,
+    [data-slot='input'],
+    [data-slot='input-group']
+  ):where(.fve\:h-8),
+  .fve\:group\/button:where(.fve\:size-8),
+  [data-slot='select-trigger'][data-size='default'] {
+    height: var(--_fve-control-height);
+  }
+
+  :is(.fve\:group\/button, .fve\:group\/toggle):where(.fve\:h-7),
+  .fve\:group\/button:where(.fve\:size-7),
+  [data-slot='select-trigger'][data-size='sm'] {
+    height: var(--_fve-control-height-sm);
+  }
+
+  .fve\:group\/button:where(.fve\:size-8),
+  .fve\:group\/toggle:where(.fve\:min-w-8) {
+    min-width: var(--_fve-control-height);
+  }
+
+  .fve\:group\/button:where(.fve\:size-7),
+  .fve\:group\/toggle:where(.fve\:min-w-7) {
+    min-width: var(--_fve-control-height-sm);
+  }
+
+  .fve\:group\/button:where(.fve\:size-8) {
+    width: var(--_fve-control-height);
+  }
+
+  .fve\:group\/button:where(.fve\:size-7) {
+    width: var(--_fve-control-height-sm);
+  }
+
+  /*
+   * A board filter's chip (`ControlFrame`) at `filter-height`, and the
+   * controls on it filling it: the chip's height less its 2px of padding
+   * and its two 1px edges. Unset, every one of the three is invalid — a
+   * height of `auto`, no minimum, no maximum — so the chip is its controls
+   * and its padding, 34px or 38px, as before.
+   */
+  [data-control-frame] {
+    height: var(--_fve-filter-height);
+  }
+
+  [data-control-frame]
+    :is(
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(.fve\:h-8, .fve\:h-7),
+      [data-slot='input'],
+      [data-slot='input-group'],
+      [data-slot='select-trigger'],
+      [data-slot='combobox-chips']
+    ) {
+    min-height: calc(var(--_fve-filter-height) - 0.25rem - 2px);
+    max-height: calc(var(--_fve-filter-height) - 0.25rem - 2px);
+  }
+
+  /*
+   * The width of a control's edge — one that draws an edge: a transparent
+   * border (a ghost button, a control inside a condition's pill) is room,
+   * not an edge, and is left as it is.
+   */
+  :is(
+      .fve\:group\/button,
+      .fve\:group\/toggle,
+      [data-slot='input'],
+      [data-slot='textarea'],
+      [data-slot='select-trigger'],
+      [data-slot='input-group'],
+      [data-slot='checkbox'],
+      [data-slot='radio-group-item'],
+      [data-slot='combobox-chips']
+    ):where(.fve\:border):not(.fve\:border-transparent) {
+    border-width: var(--_fve-edge-width);
+  }
+
+  /*
+   * The corners, part by part. A control's small step is the registry's
+   * `min(radius-md, 12px)` (`10px` for the smallest), `radius-md` being
+   * 0.8 of the control's corner.
+   */
+  :is(
+    .fve\:group\/button,
+    .fve\:group\/toggle,
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger'],
+    [data-slot='input-group'],
+    [data-slot='combobox-chips']
+  ):where(.fve\:rounded-lg) {
+    border-radius: var(--_fve-radius-control);
+  }
+
+  :is(.fve\:group\/button, .fve\:group\/toggle):where(
+    .fve\:rounded-\[min\(var\(--radius-md\)\,12px\)\]
+  ) {
+    border-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  }
+
+  .fve\:group\/button:where(.fve\:rounded-\[min\(var\(--radius-md\)\,10px\)\]),
+  [data-slot='select-trigger'][data-size='sm'] {
+    border-radius: min(calc(var(--_fve-radius-control) * 0.8), 10px);
+  }
+
+  :is(
+    [data-slot='card'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content']
+  ):where(.fve\:rounded-xl) {
+    border-radius: var(--_fve-radius-card);
+  }
+
+  [data-slot='card-header']:where(.fve\:rounded-t-xl) {
+    border-start-start-radius: var(--_fve-radius-card);
+    border-start-end-radius: var(--_fve-radius-card);
+  }
+
+  :is(
+    [data-slot='card-footer'],
+    [data-slot='dialog-footer'],
+    [data-slot='alert-dialog-footer']
+  ):where(.fve\:rounded-b-xl) {
+    border-end-start-radius: var(--_fve-radius-card);
+    border-end-end-radius: var(--_fve-radius-card);
+  }
+
+  :is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='combobox-content']
+  ):where(.fve\:rounded-lg) {
+    border-radius: var(--_fve-radius-popover);
+  }
+
+  .fve\:group\/badge:where(.fve\:rounded-4xl) {
+    border-radius: var(--_fve-radius-badge);
+  }
+
+  [data-slot='checkbox']:where(.fve\:rounded-\[4px\]) {
+    border-radius: var(--_fve-radius-checkbox);
+  }
+
+  /*
+   * A toned badge's wash and edge, as much of its tone as the theme says
+   * (`ToneBadge`, `ChangeBadge` in `ui/kit/variants.tsx`, which say the tone on
+   * the element). The dark wash is the same 10%, which is why the registry's
+   * `dark:bg-destructive/20` is set aside there.
+   */
+  .fve\:group\/badge[data-tone='success'] {
+    border-color: color-mix(
+      in oklab,
+      var(--success) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--success) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .fve\:group\/badge[data-tone='warning'] {
+    border-color: color-mix(
+      in oklab,
+      var(--warning) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--warning) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .fve\:group\/badge[data-tone='danger'] {
+    border-color: color-mix(
+      in oklab,
+      var(--destructive) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--destructive) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .fve\:group\/badge[data-change]:not([data-tone='neutral']) {
+    border-color: color-mix(
+      in oklab,
+      var(--_fve-change) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--_fve-change) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  /*
+   * A toggle pressed — the registry's `muted` unless a theme says
+   * `control-pressed`. A segmented control's pressed item is a thumb on its
+   * track and takes `control-thumb` instead (below, later and heavier).
+   */
+  .fve\:group\/toggle:is([aria-pressed='true'], [data-state='on']) {
+    background-color: var(--_fve-control-pressed, var(--muted));
+  }
+}

@@ -1,0 +1,146 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The `dark` variant, decided once for both boundaries, and the map from the utilities to the tokens (`@theme inline reference`).
+ * A part of `styles.css`, which imports it in its place; the rules are in
+ * the order they were written in one file.
+ */
+
+/*
+ * Light and dark are decided once, in one set of selectors: this variant and
+ * the token block further down must name the same roots, or a host would get
+ * the utilities of one mode with the tokens of the other, and
+ * `scripts/verify-package.mjs` checks the built stylesheet for exactly that.
+ * A surface follows its host through a `.dark` class on any ancestor, or pins
+ * itself with `data-theme` — which is what `ViewSurface`'s `colorMode` sets.
+ *
+ * The tokens boundary follows the same `.dark`, and that is all it reads: it
+ * has no `data-theme` of its own. Its descendants are every element inside it
+ * *except* the ones a surface answers for (`:not(.fve-root, .fve-root *)`),
+ * which is what lets a view pinned to the opposite mode sit inside a host's
+ * chrome: the two entries above already cover a surface and everything under
+ * it, each according to its own mode, so a boundary that also claimed them
+ * would paint a light-pinned view with dark utilities. That is precisely the
+ * failure nesting two roots has, and the reason this class exists.
+ *
+ * Paper is light (themes.md 4.6): a page printed while the screen is dark is
+ * printed in the light half of its preset, so both halves of the decision —
+ * this variant and the dark token block — hold only off paper.
+ */
+@custom-variant dark {
+  @media not print {
+    &:where(
+      .fve-root[data-theme='dark'],
+      .fve-root[data-theme='dark'] *,
+      .dark .fve-root:not([data-theme='light']),
+      .dark .fve-root:not([data-theme='light']) *,
+      .dark .fve-tokens,
+      .dark .fve-tokens :not(.fve-root, .fve-root *)
+    ) {
+      @slot;
+    }
+  }
+}
+
+@theme inline reference {
+  /*
+   * The ink on a filled destructive surface, and the two colours the record
+   * table draws itself with. They are registered here so a call site can
+   * name them as utilities (`text-destructive-foreground`, `bg-row-hover`,
+   * `text-quiet-foreground`) rather than reaching into `var()` by hand.
+   */
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-row-hover: var(--_fve-row-hover);
+  --color-quiet-foreground: var(--_fve-quiet-foreground);
+
+  /*
+   * A change's colour, which the stylesheet decides from the convention
+   * and the change's direction and tone (below the token blocks), never the
+   * component: `bg-change/10 text-change` on the badge that says it.
+   */
+  --color-change: var(--_fve-change);
+
+  /*
+   * The three shadows the surface lifts things with, read from the token
+   * blocks so a preset and the dark mode can say their own (`--fve-shadow-*`,
+   * themes.md 2.4). Inlined like the colours, so a `shadow-md` is
+   * `var(--shadow-md)` and not Tailwind's literal; the other steps (`xs`,
+   * `xl`) keep Tailwind's own.
+   */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --color-chart-8: var(--chart-8);
+  --color-chart-7: var(--chart-7);
+  --color-chart-6: var(--chart-6);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-canvas: var(--_fve-canvas);
+
+  /*
+   * The roles our own recipes paint with (theme-architecture.md 4, S3), as
+   * utilities: `bg-content`, `bg-table-header`, `bg-row-selected`… The
+   * roles a vendored component wears are applied by the `data-slot` rules
+   * further down instead, so `ui/components/**` stays upstream's.
+   */
+  --color-content: var(--_fve-content);
+  --color-table-header: var(--_fve-table-header);
+  --color-totals: var(--_fve-totals);
+  --color-row-selected: var(--_fve-row-selected);
+  --color-row-selected-foreground: var(--_fve-row-selected-foreground);
+  --color-row-stripe: var(--_fve-row-stripe);
+  --color-nav-current: var(--_fve-nav-current);
+  --color-nav-current-foreground: var(--_fve-nav-current-foreground);
+  --color-nav-current-edge: var(--_fve-nav-current-edge);
+  --shadow-nav-current: var(--_fve-nav-current-shadow);
+  --color-chart-tooltip: var(--_fve-chart-tooltip);
+  --color-chart-tooltip-foreground: var(--_fve-chart-tooltip-foreground);
+  --shadow-chart-tooltip: var(--_fve-chart-tooltip-shadow);
+  --radius-popover: var(--_fve-radius-popover);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}

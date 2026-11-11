@@ -22,6 +22,7 @@ import { scopeUtilities } from './scripts/scope-utilities.mjs';
 import { buildThemes, presetSources } from './scripts/themes.mjs';
 import { registryData } from './theme-check/registry';
 import { themeSource } from './theme-check/resolve';
+import { stylesParts, stylesSource } from './scripts/styles.mjs';
 
 /**
  * The optional stylesheets, carried into `dist` beside `styles.css`:
@@ -74,6 +75,7 @@ function optionalStylesheets(): Plugin {
       this.addWatchFile(BRIDGE);
       this.addWatchFile(`${SOURCE}/themes.css`);
       this.addWatchFile(`${SOURCE}/styles.css`);
+      for (const { path } of stylesParts(SOURCE)) this.addWatchFile(path);
       for (const { path } of presetSources(SOURCE)) this.addWatchFile(path);
     },
     generateBundle() {
@@ -96,7 +98,7 @@ function optionalStylesheets(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'theme-source.css',
-        source: themeSource(readFileSync(`${SOURCE}/styles.css`, 'utf8')),
+        source: themeSource(stylesSource()),
       });
     },
   };
