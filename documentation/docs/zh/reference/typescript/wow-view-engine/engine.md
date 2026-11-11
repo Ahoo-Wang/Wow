@@ -38,7 +38,7 @@ export const engine = new ViewEngine({
 
 | 选项 | 作用 |
 |---|---|
-| `resources` | 宿主登记的全部资源：每份定义，以及它的数据来源。看板的定义没有来源——它自己不查询 |
+| `resources` | 宿主登记的全部资源：每份定义，以及它的数据来源。仪表盘的定义没有来源——它自己不查询 |
 | `store` | 保存视图与偏好的端口（[持久化端口](./store)） |
 | `resolveOptions` | `reference` 字段远端候选值的来源，按同一个键查 |
 | `kinds` | 字段类型登记表；缺省是内置类型（[定义与字段类型](./definitions#api-FieldKind)） |
@@ -48,7 +48,7 @@ export const engine = new ViewEngine({
 | `newId` | 生成幂等键；测试里覆盖它，让键好读 |
 | `onIssue` | 没有调用方可拒绝、背后也没有抛出的发现：定义的准入、被丢掉的列表项、抛了错的变更监听。查询、存储、导出、渲染这些失败走 `environment.onError`。缺省时开发构建（`NODE_ENV` 为 `development`）把它们按资源分组写到控制台，附修正办法；其他构建丢弃 |
 
-**给 fetcher 设置超时。** `@ahoo-wang/fetcher` 默认不设超时，引擎也不给查询计时：服务端接受了连接却一直不应答，视图就会一直处于打开中；几个这样的查询会占满引擎队列的全部槽位（`maxConcurrentQueries`），看板的其他面板就再也发不出请求。在来源与存储所用的 fetcher 上设置超时——`fetcher.timeout = 60_000`，或者 `new Fetcher({ timeout })`——超时的查询会像其他失败一样失败，并可重试。引擎自己限时的只有第一次读取来源的查询描述：超过十秒，视图按声明的定义打开，与读取失败时一样，描述到达后再据此收窄。
+**给 fetcher 设置超时。** `@ahoo-wang/fetcher` 默认不设超时，引擎也不给查询计时：服务端接受了连接却一直不应答，视图就会一直处于打开中；几个这样的查询会占满引擎队列的全部槽位（`maxConcurrentQueries`），仪表盘的其他面板就再也发不出请求。在来源与存储所用的 fetcher 上设置超时——`fetcher.timeout = 60_000`，或者 `new Fetcher({ timeout })`——超时的查询会像其他失败一样失败，并可重试。引擎自己限时的只有第一次读取来源的查询描述：超过十秒，视图按声明的定义打开，与读取失败时一样，描述到达后再据此收窄。
 
 **导出的文件会中和公式。** CSV 离开页面后会在电子表格里打开，打开它的往往不是导出的人，所以每次导出——记录视图的行，以及分析的**导出数据…**——都会给以 `=`、`+`、`-`、`@`、制表符或回车开头的单元格文本前面加上 `'`（OWASP，CSV 注入），表头也一样。值是数字的单元格、以及文本是普通数字（如 `-12.5`）的单元格保持原样。文件不会进入电子表格时，用 `limits: { exportNeutralizeFormulas: false }` 关闭它；自己调用 `serializeCsv` 时用 `{ neutralizeFormulas: false }`。
 
@@ -70,33 +70,38 @@ export interface ViewEngineOptions {
 
 ### ViewResource {#api-ViewResource}
 
-宿主登记的一项：一份定义，以及它的数据从哪里来。数据定义的 `source` 是行的来源；看板没有。
+宿主登记的一项：一份定义，以及它的数据从哪里来。数据定义的 `source` 是行的来源；仪表盘没有。
 
 ```ts
 export interface ViewResource {
   definition: ViewDefinition;
   source?: ViewSource;
+  wording?: DatasetWordingEditor;
 }
 ```
 
 ## 数据来源 {#api-ViewSource}
 
-`ViewSource` 是 `QueryApi` 的三个方法，所以 wow-client 的快照查询客户端原样就满足它；别的后端或测试可以手写一个（测试用 [`/testing` 的 `memorySource`](./testing#api-memorySource)）。
+`ViewSource` 是一条 Wow 查询路由的读取，用 wow-client 自己的形状，所以任何 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的 `DatasetClient.dataset(…)`）原样就是来源，不用适配；别的后端或测试可以手写一个（测试用 [`/testing` 的 `memorySource`](./testing#api-memorySource)）。
 
-- 取消用的是 `AbortController`，而不是其他端口用的 `AbortSignal`，因为 `QueryApi` 收的就是它，这个端口要让 wow-client 的查询客户端不经改写插进来。控制器归引擎：有更新的请求取代这一个、或运行时被释放时，引擎去 abort；手写的来源只读 `abortController?.signal`，自己不 abort。
-- `aggregate` 返回 `RecordData[]`，每个值都以 `unknown` 到达，经字段类型读取，而不是信任调用方断言的行类型。
-- `describe` 可选：来源的能力描述。引擎在第一个视图运行前读一次，按它收窄每份定义、取它的限额，之后按自己的节奏复查；带着已有版本问时，没变就答 `notModified`。wow-client 的 `describeSnapshot` 或 `describeEventStream` 原样就合用。不提供时，视图只凭定义和缺省限额运行。
+- 每次读取都带 `options.signal`：有更新的读取取代这一个、或发起它的视图被释放时，它被 abort。手写的来源把它转给自己的请求。
+- 行是 `object`：客户端的记录类型是接口，引擎经字段的路径与类型读每个值，而不是信任行类型。
+- `describe` 可选：来源的能力描述。引擎在第一个视图运行前读一次，按它收窄每份定义、取它的限额，之后按自己的节奏复查；带着已有版本问时，没变就答 `notModified`。wow-client 查询客户端自己的 `describe` 就是它。不提供时，视图只凭定义和缺省限额运行。
 
 ```ts
 export interface ViewSource {
-  aggregate(query: AggregationQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<RecordData[]>;
-  cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
-  describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
-  paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+  aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
+  cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
+  describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
+}
+
+export interface SourceOptions {
+  readonly signal?: AbortSignal;
 }
 ```
 
-接 Wow 服务的来源，见 Storybook 接入导览的 [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts)：四个方法各转给快照查询客户端和查询描述客户端。
+接 Wow 服务的来源，见 Storybook 接入导览的 [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts)：就是 `SnapshotQueryClient` 本身，原样。
 
 ## 运行环境 {#api-RuntimeEnvironment}
 
@@ -147,12 +152,12 @@ export declare class ViewEngine {
   readonly environment: RuntimeEnvironment;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
-  list(definitionId: string): Promise<ViewListing>;
+  list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
   open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
   openRuntimes(): readonly ViewRuntime[];
   pendingWrites(): ReadonlyMap<string, WriteState>;
   permissions(definitionId: string): ViewPermissions;
-  preferences(definitionId: string): Promise<ViewPreferences>;
+  preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   publishAsSystem(id: string): Promise<ViewInstance>;
   rename(id: string, title: string): Promise<ViewInstance>;
   reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
@@ -162,6 +167,7 @@ export declare class ViewEngine {
   saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
   setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
   setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
+  setText(text: TextResolver | undefined, language?: string): void;
   readonly store: ViewStore;
   subscribe(listener: ViewChangeListener): () => void;
 }
@@ -171,7 +177,8 @@ export declare class ViewEngine {
 
 - `scopeFilter`：一个外层条件，用视图自己的字段名写，与配置一起准入——按客户限定的订单页不会让一个未限定的查询发出去，也不会显示范围外的行。
 - `definitionId`：调用方画的是哪份定义的视图；别的定义的实例在运行前就被拒（`view.open.other-definition`）。
-- `tab`、`filters`、`held`：只对看板有意义——打开在哪个页签、筛选初值、宿主固定住的筛选。
+- `signal`：取消这次打开；它等待的读取被 abort，那时已打开的视图被释放而不交回。
+- `tab`、`filters`、`held`：只对仪表盘有意义——打开在哪个页签、筛选初值、宿主固定住的筛选。
 
 ```ts
 export interface OpenOptions {
@@ -179,6 +186,7 @@ export interface OpenOptions {
   filters?: DashboardFilters | null;
   held?: HeldFilters | null;
   scopeFilter?: FilterTree | null;
+  signal?: AbortSignal;
   tab?: string | null;
 }
 ```
@@ -198,6 +206,7 @@ export interface CreateInput<C extends ViewConfig> {
 
 ```ts
 export interface ViewListing {
+  cut?: number;
   failed: Issue | null;
   items: ViewInstanceSummary[];
 }

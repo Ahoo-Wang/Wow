@@ -83,6 +83,7 @@ export declare function useViewManager(engine: ViewEngine, definitionId: string,
 
 export interface ViewListState {
   all: ViewInstanceSummary[];
+  cut?: number;
   defaultInstanceId: string | null;
   error: Issue | null;
   items: ViewInstanceSummary[];
@@ -139,7 +140,7 @@ export interface WorkbenchOptions {
 ```ts
 export declare function useFilterEditor(runtime: ViewRuntime | null): FilterEditorController;
 export declare function useRecordTable(runtime: RecordViewRuntime | null): RecordTableController;
-export declare function useAnalysisEditor(runtime: ViewRuntime | null): AnalysisEditorController;
+export declare function useAnalysisEditor(runtime: AnalysisViewRuntime | null): AnalysisEditorController;
 export declare function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, options: AnalysisResultOptions): AnalysisResultController;
 export declare function useDashboard(runtime: DashboardRuntime | null): DashboardController;
 ```
@@ -161,6 +162,7 @@ export declare function useSaveCommands(engine: ViewEngine, runtime: ViewRuntime
 | `table` | The table the actions sit on (`useRecordTable`'s controller satisfies it) |
 | `actions` | The declared actions; none leaves only the runner |
 | `concurrency` | How many records are in flight at once; a handful by default |
+| `environment` | Whose clock (`now`) the rules are asked at: the engine's (`runtime.environment`), so a pinned environment pins the actions too; the current time when left out |
 | `refresh` | What reading the view again after a command means here: the table's own by default; a board's record panel reads the whole board again |
 | `also` | Records shown beyond the table's page — a record detail opened by a link — whose actions are drawn and whose availability can change on its own as well |
 | `onError` | Told of what a command threw on a record, as it was thrown — not of an action's own refusal, nor of an abort |
@@ -174,6 +176,7 @@ export interface RecordActionsOptions {
   actions?: RecordActions;
   also?: readonly RecordRow[];
   concurrency?: number;
+  environment?: Pick<RuntimeEnvironment, 'now'>;
   onError?(error: unknown, context: ActionFailureContext): void;
   refresh?(): void;
   table: RecordActionTable;

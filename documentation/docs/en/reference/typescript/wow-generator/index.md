@@ -5,7 +5,7 @@ description: 'Generator reference — @ahoo-wang/wow-generator'
 
 # wow-generator reference
 
-Generate TypeScript models and decorator clients from an OpenAPI document, with optional Wow CQRS discovery. The package root exports CodeGenerator, its configuration default, loggers, errors and option types; see the [symbol index](./symbols.md).
+Generate TypeScript from a Wow Manifest (`GET /wow/manifest`), the typed clients on `@ahoo-wang/wow-client`, or from an OpenAPI 3 document, its models and decorator API clients. The package root exports CodeGenerator, its configuration default, loggers, errors and option types; see the [symbol index](./symbols.md).
 
 ## Install
 
@@ -13,9 +13,9 @@ Generate TypeScript models and decorator clients from an OpenAPI document, with 
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/wow-client typescript
 ```
 
-The package requires Node **>=22.12.0**; repository development additionally pins pnpm **10.34.5**. The command includes all recursive peers (wow-generator → wow-client/Decorator/EventStream → Fetcher) and the compiler used below. ts-morph, commander and yaml install automatically as regular dependencies. These are generation-time dependencies; generated clients need their imported packages installed as runtime dependencies in the consuming application, as listed under [generated output](./generated-output.md).
+The package requires Node **>=22.12.0**; repository development additionally pins pnpm **10.34.9**. The command includes all recursive peers (wow-generator → wow-client/Decorator/EventStream → Fetcher) and the compiler used below. ts-morph, commander and yaml install automatically as regular dependencies. These are generation-time dependencies; generated clients need their imported packages installed as runtime dependencies in the consuming application, as listed under [generated output](./generated-output.md).
 
-The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same minor version. Coming from `@ahoo-wang/fetcher-generator`? The command is now `wow-generator`, with `fetcher-generator` kept as an alias until v10; the configuration file is now `wow-generator.config.json`, with `fetcher-generator.config.json` still read with a deprecation warning until v10; and generated code now imports `@ahoo-wang/wow-client` (and `@ahoo-wang/wow-client/legacy` for the `Condition` types of Wow 8.10 schemas), so regenerate existing output; see the migration guide.
+The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same minor version. Coming from `@ahoo-wang/fetcher-generator`? The command is `wow-generator`, the configuration file `wow-generator.config.json`, and generated code imports `@ahoo-wang/wow-client`, so regenerate existing output; see the migration guide.
 
 ## Minimal example
 

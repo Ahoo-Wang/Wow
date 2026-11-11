@@ -32,7 +32,7 @@ export type IssuePath = (string | number)[];
 
 下面的表就是 `test/surface/issues.txt`——引擎能报的每个 code——连同简体中文目录给它的缺省措辞。改名或删掉一个 code，和删掉一个导出一样是破坏性变更，只出现在次版本里，并写进发布说明；新增一个 code 随时可以。
 
-这份清单包括 `issue('…')` 直接报出的 code，也包括经辅助函数报出的：`defineView` 的准入发现（`definition.field.undescribed`、`definition.field.unlabelled`、`definition.field.*-wider` 等）、看板点击的警告、失败命令的基码（`view.open.failed` 等）。
+这份清单包括 `issue('…')` 直接报出的 code，也包括经辅助函数报出的：`defineView` 的准入发现（`definition.field.undescribed`、`definition.field.unlabelled`、`definition.field.*-wider` 等）、仪表盘点击的警告、失败命令的基码（`view.open.failed` 等）。
 
 **失败命令的 code 可能带后缀。** 存储或写入失败时，引擎在命令的基码后面接上发生了什么：存储的结局 `.conflict`、`.not_found`、`.forbidden`、`.invalid`、`.unavailable`、`.unavailable.server`、`.unsupported`，或写入的状态 `.conflict`、`.unknown`——比如 `view.open.failed.not_found`。表里只列目录为之单独措辞的组合；其余的沿着点号回落到基码的句子。所以按失败分支时用前缀：`issue.code.startsWith('view.open.failed')`。
 

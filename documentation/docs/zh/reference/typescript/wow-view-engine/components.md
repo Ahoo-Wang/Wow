@@ -5,14 +5,14 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 
 # 工作台与嵌入
 
-`/ui` 给宿主四个现成的界面，按两条轴分：**改变怎样观察**还是**展示别人定好的**，以及**数据视图**还是**看板**。
+`/ui` 给宿主四个现成的界面，按两条轴分：**改变怎样观察**还是**展示别人定好的**，以及**数据视图**还是**仪表盘**。
 
-| | 数据视图（记录与分析） | 看板 |
+| | 数据视图（记录与分析） | 仪表盘 |
 |---|---|---|
 | 工作台：列表、编辑、保存 | `DataWorkbench` | `DashboardWorkbench` |
 | 嵌入：只读，放进业务页面 | `EmbeddedView` | `EmbeddedDashboard` |
 
-工作台让用户改变观察的方式；嵌入让一个页面展示某人已经决定好的东西，所以嵌入没有视图列表、没有条件编辑器、不保存——它做的任何事都不写到任何地方。按资源分开的原因相同：宿主嵌入看板时要说出来，把记录视图交给看板入口会被当作它显示不了的视图拒绝。
+工作台让用户改变观察的方式；嵌入让一个页面展示某人已经决定好的东西，所以嵌入没有视图列表、没有条件编辑器、不保存——它做的任何事都不写到任何地方。按资源分开的原因相同：宿主嵌入仪表盘时要说出来，把记录视图交给仪表盘入口会被当作它显示不了的视图拒绝。
 
 四个组件都可以省略 `engine`、`messages`、`locale`：缺省取上方 [`ViewHost`](./host#api-ViewHost) 的。
 
@@ -36,8 +36,8 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 | `record` | 宿主对记录视图说的话（[`RecordViewProps`](#api-RecordViewProps)）：业务操作、单元格读法、能否选行、空结果说什么。绑定（`bind` 的 `actions`、`slots`、`reading`）是各项的缺省，这里给的优先 |
 | `features` | 工作台自己的哪些控件出现在屏幕上：`export`、`layouts`、`columns`、`sort`、`search`、`visualization`、`manage`。缺省全开；关掉的是不存在，不是禁用 |
 | `templates` | 新建各种视图时从什么开始，缺省是 `defaultRecordConfig` 与 `defaultAnalysisConfig`。视图仍然以未保存打开，首次保存时问名字和受众 |
-| `handOver` | 看板或嵌入交给宿主路由的一个视图，按它来的样子在这里打开：保存的视图带着读者在看板上设的条件（「已修改」，可逐个去掉，「还原」全部去掉），或没人保存过的视图。每个新对象经离开确认打开一次 |
-| `onNavigate` | 回到交出视图的那个看板的路：有了它，工作台在标题栏下画「返回〈仪表盘〉」。缺省用 `ViewHost` 的路由 |
+| `handOver` | 仪表盘或嵌入交给宿主路由的一个视图，按它来的样子在这里打开：保存的视图带着读者在仪表盘上设的条件（「已修改」，可逐个去掉，「还原」全部去掉），或没人保存过的视图。每个新对象经离开确认打开一次 |
+| `onNavigate` | 回到交出视图的那个仪表盘的路：有了它，工作台在标题栏下画「返回〈仪表盘〉」。缺省用 `ViewHost` 的路由 |
 | `expandable` | 是否提供铺满屏幕，缺省开 |
 | `landmark` | 工作列是什么地标：缺省 `main`；页面已经有自己的 `<main>` 时写 `region` |
 | `defaultSidebarOpen`、`onSidebarOpenChange` | 侧栏起始状态：视图状态，不保存、离开确认也不问。缺省窄于 `md` 时折叠 |
@@ -101,16 +101,16 @@ export interface RecordViewProps {
 
 ## DashboardWorkbench {#api-DashboardWorkbench}
 
-一份看板定义的工作台：浏览、编辑、保存看板。看板上的筛选值属于读者，从不写进看板的配置——宿主想把它们放进地址，就听 `onFiltersChange`、`onTabChange`；包本身从不碰地址。
+一份仪表盘定义的工作台：浏览、编辑、保存仪表盘。仪表盘上的筛选值属于读者，从不写进仪表盘的配置——宿主想把它们放进地址，就听 `onFiltersChange`、`onTabChange`；包本身从不碰地址。
 
 | 属性 | 作用 |
 |---|---|
 | `instanceId`、`onInstanceChange` | 同 `DataWorkbench` |
-| `initialTab`、`onTabChange` | 打开在哪个页签，按宿主路由给的；不写或看板没有该页签时，打开在读者上次读它的地方 |
-| `initialFilters`、`onFiltersChange` | 筛选打开时的值，按宿主地址给的；不写时每个筛选从缺省开始，看板不接受的部分被略过 |
-| `onNavigate` | 离开看板的每条路——面板上的「在工作台中打开」、分组上的追问菜单、面板的自定义目的地——都经过它。没有它这些都不存在：除非面板做交叉筛选，按一个分组什么也不发生 |
-| `features` | 只有 `manage`（视图管理器）与 `export`（记录面板的「导出数据…」）；数据不能离开页面的看板关掉 `export` |
-| `template` | 新看板从什么开始，缺省为空看板 |
+| `initialTab`、`onTabChange` | 打开在哪个页签，按宿主路由给的；不写或仪表盘没有该页签时，打开在读者上次读它的地方 |
+| `initialFilters`、`onFiltersChange` | 筛选打开时的值，按宿主地址给的；不写时每个筛选从缺省开始，仪表盘不接受的部分被略过 |
+| `onNavigate` | 离开仪表盘的每条路——面板上的「在工作台中打开」、分组上的追问菜单、面板的自定义目的地——都经过它。没有它这些都不存在：除非面板做交叉筛选，按一个分组什么也不发生 |
+| `features` | 只有 `manage`（视图管理器）与 `export`（记录面板的「导出数据…」）；数据不能离开页面的仪表盘关掉 `export` |
+| `template` | 新仪表盘从什么开始，缺省为空仪表盘 |
 
 其余属性（`definitionId`、`expandable`、`landmark`、侧栏、外观、`onRenderFailure`）与 `DataWorkbench` 相同。
 
@@ -149,7 +149,7 @@ export declare function DashboardWorkbench(props: DashboardWorkbenchProps): impo
 
 | 属性 | 作用 |
 |---|---|
-| `instanceId` | 要显示的保存视图或看板；代码声明的系统视图也行 |
+| `instanceId` | 要显示的保存视图或仪表盘；代码声明的系统视图也行 |
 | `interaction` | 读者能走多远（[`EmbedInteraction`](#api-EmbedInteraction)），缺省 `static` |
 | `withTitle`、`headingLevel` | 是否以 `headingLevel` 级标题画出它的标题（缺省关：页面通常用自己的话称呼嵌入的东西）；级别缺省 `2`，只有宿主知道自己的大纲 |
 | `autoRefresh` | 是否按作者保存的间隔自刷新，缺省开。关掉时计时器从不运行，界面上也不再提供 |
@@ -184,10 +184,10 @@ export interface EmbedBaseProps {
 
 ### 交互档 {#api-EmbedInteraction}
 
-两档都不写任何东西：嵌入从不保存视图、看板或偏好。
+两档都不写任何东西：嵌入从不保存视图、仪表盘或偏好。
 
-- `static`——页面显示的就是作者保存的样子：行、图或看板，以及取数时的条件；上面没有东西能筛选、排序、翻页、重画或通往别处。这是缺省，因为业务页面显示的是别人设好的东西。
-- `interactive`——读者可以凑近看，仅限这次浏览：改看板的筛选、按表头排序、翻页、在表格与图表之间切换、按一个分组（追问菜单、看板的交叉筛选）、在宿主提供时铺满屏幕、在工作台中打开。都不保存；离开页面的路走宿主的路由。
+- `static`——页面显示的就是作者保存的样子：行、图或仪表盘，以及取数时的条件；上面没有东西能筛选、排序、翻页、重画或通往别处。这是缺省，因为业务页面显示的是别人设好的东西。
+- `interactive`——读者可以凑近看，仅限这次浏览：改仪表盘的筛选、按表头排序、翻页、在表格与图表之间切换、按一个分组（追问菜单、仪表盘的交叉筛选）、在宿主提供时铺满屏幕、在工作台中打开。都不保存；离开页面的路走宿主的路由。
 
 ```ts
 export type EmbedInteraction = 'static' | 'interactive';
@@ -205,7 +205,7 @@ export type EmbedInteraction = 'static' | 'interactive';
 | `detail` | 从行打开的记录详情（缺省关）：`true` 按宿主对定义的读法（`bind` 的 `reading`）打开，打开的记录归这个嵌入自己，不写宿主地址；`RecordDetailOptions` 让宿主握住打开哪条并加自己的分节。仅记录视图、仅交互档；只读 |
 | `rowActions` | 宿主在记录视图一行上提供的东西；这里没有可以命令的视图，所以插槽只拿到行 |
 
-`scopeFilter` 与锁定的看板筛选都**不是安全边界**：它们决定页面显示什么，不决定读者被允许读什么——授权归服务端。
+`scopeFilter` 与锁定的仪表盘筛选都**不是安全边界**：它们决定页面显示什么，不决定读者被允许读什么——授权归服务端。
 
 ```ts
 export interface EmbeddedViewProps extends EmbedBaseProps {
@@ -221,7 +221,7 @@ export declare function EmbeddedView(given: EmbeddedViewProps): import('react').
 
 ## EmbeddedDashboard {#api-EmbeddedDashboard}
 
-业务页面里的一个保存的看板：看板、它的筛选条（每个筛选按页面给的模式），以及宿主打开的开关。它读看板，从不写：没有「编辑」、没有保存、没有另存为、没有偏好——读者改的东西只活在这次浏览里。搭建看板是 `DashboardWorkbench` 的事。
+业务页面里的一个保存的仪表盘：仪表盘、它的筛选条（每个筛选按页面给的模式），以及宿主打开的开关。它读仪表盘，从不写：没有「编辑」、没有保存、没有另存为、没有偏好——读者改的东西只活在这次浏览里。搭建仪表盘是 `DashboardWorkbench` 的事。
 
 | 属性 | 作用 |
 |---|---|
@@ -233,7 +233,7 @@ export declare function EmbeddedView(given: EmbeddedViewProps): import('react').
 | `withPanelTitles` | 是否画面板标题，缺省开 |
 | `withRefresh` | 第一行的「更新于 10:32」，交互档里旁边还有刷新按钮（缺省关）；不提供间隔，间隔归作者和 `autoRefresh` |
 | `withExport` | 面板「⋯」里的「导出数据…」（缺省关）；静态档无效 |
-| `caption` | 看板铺满屏幕时画在标题下的说明，宿主的话；页面上由宿主自己画在自己的标题旁 |
+| `caption` | 仪表盘铺满屏幕时画在标题下的说明，宿主的话；页面上由宿主自己画在自己的标题旁 |
 
 ```ts
 export interface EmbeddedDashboardProps extends EmbedBaseProps {

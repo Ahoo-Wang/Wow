@@ -5,7 +5,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 # 程序化 API
 
-包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 resolveWowModel、analyze、各发射器、OutputStore、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
+包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`SchemaDocs`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 analyze、各发射器、OutputStore、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
 
 ## CodeGenerator
 
@@ -19,7 +19,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 | `GeneratorOptions` 字段 | 默认值                         | 含义                                                         |
 | ----------------------- | ------------------------------ | ------------------------------------------------------------ |
-| `inputPath`             | 必填                           | OpenAPI 3.x 文档的路径或 HTTP/HTTPS URL                      |
+| `inputPath`             | 必填                           | Wow Manifest 或 OpenAPI 3.x 文档的路径或 HTTP/HTTPS URL      |
 | `outputDir`             | 必填                           | 生成文件的写入目录                                           |
 | `configPath`            | 存在时为 `DEFAULT_CONFIG_PATH` | [配置](./configuration)的路径或 URL；显式指定的必须存在      |
 | `tsConfigFilePath`      | 无                             | 项目的 tsconfig，用于解析输出所导入的模块                    |

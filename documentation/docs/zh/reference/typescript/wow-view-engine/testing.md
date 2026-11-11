@@ -46,7 +46,7 @@ test('只有已付款的订单能发货，并说明原因', () => {
 
 引擎对 `definitions` 在 `descriptors`（快照，按 `DataViewDefinition.source` 索引）之上会有的每条发现，各带它所属的定义；宿主的声明都成立时答 `[]`。
 
-每份定义都像在引擎里登记时那样被准入——它的键用 `text` 说出、它自己的规则、它的看板对照其他每份定义，判的都是声明时的原样（键仍是键）——每份数据定义都像来源会做的那样被收窄到它的描述，收窄拿掉的东西也说出来。没给描述的来源上的定义也会被指出，因为它的能力没被检查。它接受资源列表原样传入（`{ definition, source }`）。传入的资源里至少有一份带着 `source` 时，作为资源传入的数据定义还要过引擎启动时的那道检查：传入的某份资源在它的 `source` 键下登记了数据源，否则报 `definition.source.unregistered`。只有 `{ definition }` 或只传定义的列表没说数据从哪来，不查这一条。
+每份定义都像在引擎里登记时那样被准入——它的键用 `text` 说出、它自己的规则、它的仪表盘对照其他每份定义，判的都是声明时的原样（键仍是键）——每份数据定义都像来源会做的那样被收窄到它的描述，收窄拿掉的东西也说出来。没给描述的来源上的定义也会被指出，因为它的能力没被检查。它接受资源列表原样传入（`{ definition, source }`）。传入的资源里至少有一份带着 `source` 时，作为资源传入的数据定义还要过引擎启动时的那道检查：传入的某份资源在它的 `source` 键下登记了数据源，否则报 `definition.source.unregistered`。只有 `{ definition }` 或只传定义的列表没说数据从哪来，不查这一条。
 
 ```ts
 export declare function admit(definitions: readonly Admissible[], descriptors: Readonly<Record<string, QueryModelDescriptor>>, options?: AdmitOptions): AdmitFinding[];
@@ -94,7 +94,7 @@ export interface ActionHarness {
   form(id: string): HarnessField[] | null;
   readonly ids: readonly string[];
   missing(id: string, input: ActionInput): string[];
-  run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
+  run(id: string, key: RecordKey, input?: ActionInput, options?: { signal?: AbortSignal }): Promise<unknown>;
   state(id: string, key: RecordKey, input?: ActionInput): HarnessState;
 }
 
@@ -134,7 +134,7 @@ export declare class ActionRefusedError extends Error {
 
 | 选项 | 作用 |
 |---|---|
-| `now` | 服务端的时钟（epoch 毫秒），`BEFORE_NOW` 与 `AFTER_NOW` 拿它比较；测试把它钉在数据围绕的那一刻，让「晚于现在」每次运行都答一样 |
+| `now` | 服务端的时钟，一个答出 `Date` 的函数，`BEFORE_NOW` 与 `AFTER_NOW` 拿它比较；不写时取当前时间；测试把它钉在数据围绕的那一刻，让「晚于现在」每次运行都答一样 |
 | `timeField` | 每份文档都以 epoch 毫秒持有的时间列，像 Wow 快照的 `firstEventTime`。文档按它排序，筛选顶层 AND 里对它的范围先用二分查找截出来——给大数据集 |
 | `remember` | 按查询记住重复的聚合答案，每个调用方拿自己的副本。只用于从不变化的文档；缺省关，所以改了文档的测试在下一次回答里就看到改动 |
 
@@ -193,9 +193,10 @@ describeViewStoreConformance({
 | `idempotentCreate` | 以同一个 `requestId` 重放的 `create` 答第一次的结局而不是再建一个。Wow 服务端不对 `create` 去重（由它生成 id），`WowViewStore` 在同一个存储内靠先问重放路由来守住它；连这都守不住的存储声明 `false`，该用例跳过，其他写入的重放仍是必需 |
 | `systemViews` | 后端为之提供至少一个只读系统视图的定义；没有就省略，「写系统视图被拒」的用例跳过 |
 | `storedSystemViews` | 存储保存自己的系统视图：`create` 带 `scope: 'system'` 创建一个，以 `stored: true` 回答和列出 |
+| `pageSize` | 存储一次至多答这么多条列表，并给出下一页的游标：这个用例造出两页多一个视图，再全部读回。不写时跳过这个用例 |
 
 ## 完整可运行版本
 
 - Storybook 接入导览的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts) 用 `admit` 和 `actionHarness` 钉住导览里的声明。
-- 一致性测试：[`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，以及 `WowViewStore` 的 [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts)。
+- 一致性测试：[`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，以及 `WowViewStore` 的 [`conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/conformance.test.ts)。
 - 源文件：[`src/testing/`](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/src/testing)。

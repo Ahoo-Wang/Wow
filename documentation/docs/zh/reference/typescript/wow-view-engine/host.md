@@ -5,7 +5,7 @@ description: 'ViewHost、bind、路由端口、声明的操作 actions() 与措�
 
 # 宿主接线
 
-宿主在页面外面写一次 `ViewHost`，把几个端口填上：数据（`engine`）、路由（`router`）、主题、语言、每个资源在这个宿主里的行为（`bindings`）。其下的每个界面——工作台、嵌入、看板——只取自己所在处不同的东西：`<DataWorkbench definitionId="orders" />`。路由、国际化与主题仍然归宿主，端口只是通向它们的桥。
+宿主在页面外面写一次 `ViewHost`，把几个端口填上：数据（`engine`）、路由（`router`）、主题、语言、每个资源在这个宿主里的行为（`bindings`）。其下的每个界面——工作台、嵌入、仪表盘——只取自己所在处不同的东西：`<DataWorkbench definitionId="orders" />`。路由、国际化与主题仍然归宿主，端口只是通向它们的桥。
 
 相关指南：[把视图引擎接进宿主](../../../typescript/view-engine/host.md)（`ViewHost`、[`bind`](../../../typescript/view-engine/host.md#bind)、[路由端口](../../../typescript/view-engine/host.md#router-port)、[措辞与语言](../../../typescript/view-engine/host.md#messages)）、[声明式操作](../../../typescript/view-engine/actions.md)（怎样[声明一个操作](../../../typescript/view-engine/actions.md#declare)、放在哪、确认与结局）。
 
@@ -34,7 +34,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
   const bindings = useMemo(
     () => [
       bind('orders', {
-        // 去订单的每条路——链接、看板的追问、导航——都走这条路由。
+        // 去订单的每条路——链接、仪表盘的追问、导航——都走这条路由。
         route: view => (view === null ? '/orders' : `/orders?${new URLSearchParams({ view })}`),
         actions: orderActions,
       }),
@@ -61,7 +61,8 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 |---|---|
 | `engine` | 应用的引擎，建一次。没有它的内层宿主用外层的 |
 | `bindings` | 每个资源在这个宿主里的行为（`bind`）——路由、记录的读法、记录上的命令；内层宿主按 id 覆盖 |
-| `router` | 路由端口：`/react-router` 的 `useReactRouter()`，或在别的路由上写两个成员。有了它引擎管地址：离开看板或视图的每条路都走目标资源的路由；工作台打开地址里的 `?view=` 并写回；绑定资源的记录详情跟随 `?id=`；交接的视图、看板的筛选与页签作为历史条目的 state 旅行 |
+| `router` | 路由端口：`/react-router` 的 `useReactRouter()`，或在别的路由上写两个成员。有了它引擎管地址：离开仪表盘或视图的每条路都走目标资源的路由；工作台打开地址里的 `?view=` 并写回；绑定资源的记录详情跟随 `?id=`；交接的视图、仪表盘的筛选与页签作为历史条目的 state 旅行 |
+| `boardsInAddress` | 仪表盘的筛选与页签是否也写进地址的查询串（`?boards=`），让链接在同样的筛选上打开仪表盘：当链接发出的日报。缺省关，因为写进查询串的筛选很长；不写时取外层宿主的；没有 `router` 时无效 |
 | `navigate` | 每条离开的路交给宿主自己处理，而不是交给路由器：经目标资源的路由解析后交出（`ViewRoute`）；URL 与没有路由的资源原样交出 |
 | `locale`、`messages` | 语言端口：值显示用的语言，以及合并在当前生效措辞之上的措辞——引擎自己的和定义的键（`text(key)`）一样。换了它，每个打开的视图重画，不重开、不重查、不变脏 |
 | `tokenSource`、`preset`、`brand` | 主题的两条路：`tokenSource="host"` 取宿主自己的变量，即它的 shadcn 主题（宿主导入 `shadcn-bridge.css`），而不是预设；或 `preset` 命名一套预设（导入它的样式表），宿主自己的界面经 `fve-tokens` 穿上它。`brand` 是盖在预设上的品牌色 |
@@ -72,6 +73,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 ```ts
 export interface ViewHostProps {
   bindings?: readonly ViewBinding[];
+  boardsInAddress?: boolean;
   brand?: string;
   children: import('react').ReactNode;
   colorMode?: HostColorMode;
@@ -93,8 +95,8 @@ export declare function ViewHost(input: ViewHostProps): import('react').JSX.Elem
 
 | 选项 | 作用 |
 |---|---|
-| `route` | 这份定义的视图或看板在宿主地址里的位置：打开 `instanceId` 的页面路径——`null` 表示没人保存过的视图（分组上的追问、看板自己的分析），它在页面的缺省视图上打开并整体交接。引擎把路径连同页面打开所需的东西（`ViewRoute.state`）交给路由器或 `navigate`；没有路由的定义原样交出。`useViewNavigation` 问链接时不带 `target` |
-| `actions` | 它的记录能接受的命令，用 [`actions()`](#api-actions) 声明：引擎把它们放到记录出现的每个地方——工作台的行、选择、详情，以及建在它上面的看板记录面板——先问、几条几条地执行、再报告结果 |
+| `route` | 这份定义的视图或仪表盘在宿主地址里的位置：打开 `instanceId` 的页面路径——`null` 表示没人保存过的视图（分组上的追问、仪表盘自己的分析），它在页面的缺省视图上打开并整体交接。引擎把路径连同页面打开所需的东西（`ViewRoute.state`）交给路由器或 `navigate`；没有路由的定义原样交出。`useViewNavigation` 问链接时不带 `target` |
+| `actions` | 它的记录能接受的命令，用 [`actions()`](#api-actions) 声明：引擎把它们放到记录出现的每个地方——工作台的行、选择、详情，以及建在它上面的仪表盘记录面板——先问、几条几条地执行、再报告结果 |
 | `slots` | 宿主自己的标记，画在声明的操作之后——视图上方一个、选择上一个、每行一个：声明说不了的东西的出口，比如一个外链 |
 | `reading` | 一条记录怎样读：详情自己的读法、标题、分节、谁握着打开哪条记录——即 `DataWorkbench` 的 `record.detail`，也是 `EmbeddedView` 的 `detail` 打开时用的 |
 
@@ -117,7 +119,7 @@ export interface ViewBinding extends ViewBindingOptions {
 
 ## 路由端口 {#api-ViewRouter}
 
-`ViewRouter` 是宿主的路由器在引擎眼里的样子，不管用的是哪个库。它的合同在对象的身份上：**`location` 变了就是一个新的 `ViewRouter` 对象，没变就是同一个。** `ViewHost` 经 context 把它往下传，读地址的一切——打开的视图、打开的记录、看板的筛选与页签——在且仅在对象换新时重读。原地修改的路由器永远看不到移动；每次渲染都新建的会每次都重读地址。用 `useMemo` 按 location 的各部分建它，`useReactRouter` 就是这样做的。`go` 在调用那一刻读取，所以每次都可以是新函数。
+`ViewRouter` 是宿主的路由器在引擎眼里的样子，不管用的是哪个库。它的合同在对象的身份上：**`location` 变了就是一个新的 `ViewRouter` 对象，没变就是同一个。** `ViewHost` 经 context 把它往下传，读地址的一切——打开的视图、打开的记录、仪表盘的筛选与页签——在且仅在对象换新时重读。原地修改的路由器永远看不到移动；每次渲染都新建的会每次都重读地址。用 `useMemo` 按 location 的各部分建它，`useReactRouter` 就是这样做的。`go` 在调用那一刻读取，所以每次都可以是新函数。
 
 `useReactRouter()`（`/react-router` 入口）把 React Router 交给 `ViewHost` 的 `router`，要放在它的 `RouterProvider`（或任何路由组件）里面：路径相对于它的 `basename`，和它自己的链接一样。React Router 是可选的 peer，只有这个入口加载它。
 
@@ -163,7 +165,7 @@ export const orderActions = actions([
 | 成员 | 作用 |
 |---|---|
 | `id`、`label` | 在同一个绑定的操作里唯一的 id；标签可以是 `text(key)` |
-| `run(row, input)` | 给一条记录发命令。要在读模型反映它之后才 resolve——Wow 命令等它的快照，即默认的等待计划（或宿主投影需要的那一跳）——因为引擎紧接着会重读视图。命令被拒时抛出，抛出的东西按来源自己的原因读。命令是写入，所以要幂等：超时或断网后结局无人知道，读者被告知去核对，可能再按一次 |
+| `run(row, input, options)` | 给一条记录发命令。要在读模型反映它之后才 resolve——Wow 命令等它的快照，即默认的等待计划（或宿主投影需要的那一跳）——因为引擎紧接着会重读视图。命令被拒时抛出，抛出的东西按来源自己的原因读。命令是写入，所以要幂等：超时或断网后结局无人知道，读者被告知去核对，可能再按一次。引擎不再等待时——过了 `timeout`，或读者停下这次运行——`options.signal` 被 abort，所以还没发出的命令可以取消 |
 | `available(row, context)` | 记录现在能接受命令时为 `true`，否则说明原因。已知输入时带着输入问，所以一个选择可以拒绝某个选项、提供其余的 |
 | `hidden(row, context)` | 这条记录根本不显示这个操作——读者无权做——区别于 `available` 显示为禁用并说明原因 |
 | `changesAt(row, context)` | `available` 下一次自己变化的时刻（`Date`）；引擎到时重问，宿主不用自己的计时器 |
@@ -173,6 +175,7 @@ export const orderActions = actions([
 | `on` | 在哪里提供：`row`、`bulk`、`detail`；缺省处处都有 |
 | `primary` | 读者最常按的那个：行里的按钮，不在菜单里 |
 | `tone` | `default` 或 `danger` |
+| `done` | 结局行对命令已完成的记录说什么，代替「已完成」：一个键或一句话，用 `{count}` 与 `{record}` 说。`run` 在命令被请求、而非执行完时就 resolve 的，照实说：`'{count} 已发往所属服务'` |
 | `timeout` | 一条记录的 `run` 等多久（毫秒）。过了就不再等，把结局报告为未知——它可能已经接受了命令——而不是让界面一直忙着。缺省不设期限 |
 
 ```ts
@@ -182,6 +185,7 @@ export interface RecordAction {
   available?(row: RecordRow, context: ActionContext): Availability;
   changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
   readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+  readonly done?: string;
   readonly form?: ActionForm;
   hidden?(row: RecordRow, context: ActionContext): boolean;
   readonly id: string;
@@ -189,7 +193,7 @@ export interface RecordAction {
   readonly moves?: string;
   readonly on?: readonly ActionPlace[];
   readonly primary?: boolean;
-  run(row: RecordRow, input: ActionInput): Promise<unknown>;
+  run(row: RecordRow, input: ActionInput, options: { signal: AbortSignal }): Promise<unknown>;
   readonly timeout?: number;
   readonly tone?: ActionTone;
 }

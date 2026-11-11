@@ -5,13 +5,13 @@ description: 'Generator CLI — @ahoo-wang/wow-generator'
 
 # Generator CLI
 
-`wow-generator generate` reads JSON/YAML and writes TypeScript models and decorator clients. The output does not depend on the packages installed where it runs, but the project that compiles it needs them; see [generated output](./generated-output).
+`wow-generator generate` reads a Wow Manifest or an OpenAPI 3.x document, as JSON or YAML, and writes TypeScript: from a Manifest the typed clients on `@ahoo-wang/wow-client`, from an OpenAPI document its models and decorator API clients. The output does not depend on the packages installed where it runs, but the project that compiles it needs them; see [generated output](./generated-output).
 
 ## Options
 
 | Option                             | Required/default              | Meaning                                                                                                  |
 | ---------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of an OpenAPI 3.x document                                                  |
+| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of a Wow Manifest (`GET /wow/manifest`) or an OpenAPI 3.x document           |
 | `-o, --output <path>`              | `src/generated`               | Output root, resolved relative to working directory                                                      |
 | `-c, --config <file>`              | `./wow-generator.config.json` | Generator configuration; see [configuration](./configuration). A named file has to exist                 |
 | `-t, --ts-config-file-path <file>` | Omitted                       | ts-morph project configuration; supply your decorator-enabled tsconfig                                   |
@@ -38,7 +38,7 @@ pnpm exec wow-generator generate -i https://api.example.com/v3/api-docs \
 By default the CLI prints warnings, errors and one summary line naming the file count, the output directory, the configuration it read and the number of warnings:
 
 ```text
-Generated 3 files into ./src/generated with /work/app/wow-generator.config.json, 1 warning
+Generated 3 files into ./src/generated with wow-generator.config.json, 1 warning
 ```
 
 `--verbose` prints every step with a timestamp; `--quiet` drops the summary. Lines carry symbols only on a terminal (TTY) without `NO_COLOR`, so CI logs and pipes stay plain.
@@ -132,7 +132,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 For a repository fixture, after building, run from `typescript/wow-generator`:
 
 ```bash
-node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generated -t tsconfig.json
+node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated -t tsconfig.json
 ```
 
 ## Failures and exit codes

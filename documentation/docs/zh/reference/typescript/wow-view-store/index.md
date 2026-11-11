@@ -6,7 +6,7 @@ description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 Vi
 # wow-view-store 参考
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-store` 从 Wow 9.2.0 起在 npm 上，与 [wow-view-engine](../wow-view-engine/) 一起，同一个 tag、同一个版本号发布。补丁版本不破坏它的公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤（[版本范围](../../../typescript/compatibility.md#版本范围)）。以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
+`@ahoo-wang/wow-view-store` 从 Wow 9.2.0 起在 npm 上，与 [wow-view-engine](../wow-view-engine/) 一起，同一个 tag、同一个版本号发布。补丁版本不破坏它的公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤（[版本范围](../../../typescript/compatibility.md#version-ranges)）。以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
 :::
 
 `WowViewStore` 在[视图存储服务](https://github.com/Ahoo-Wang/Wow/tree/main/platform/view-store)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，通过根据服务 Manifest 生成的客户端访问。同一个包还为视图引擎提供基于 Wow 服务的数据集目录，以及保存租户对数据集措辞的存储。
@@ -85,7 +85,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | `view-store.invalid` | 400 | 写入无效：它的配置、标题、偏好或措辞 |
 | `view-store.owner-required` | 400 | 写入没有所有者：视图由用户、`(shared)` 或 `(platform)` 下的 `(system)` 保存 |
 | `view-store.not-found` | 404 | 聚合属于另一个应用，读起来就像不存在 |
-| `view-store.referenced-by-shared-dashboard` | 409 | 认领一个共享看板展示着的视图，它保持共享；problem 在 `boards` 里列出这些看板 |
+| `view-store.referenced-by-shared-dashboard` | 409 | 认领一个共享仪表盘展示着的视图，它保持共享；problem 在 `boards` 里列出这些仪表盘 |
 | `view-store.system-view-read-only` | 403 | 共享或认领系统视图，系统视图从不改变受众 |
 
 ## 合同 {#contract}
@@ -99,7 +99,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | 错误 | 按 problem 的 `code` 映射到 `CONFLICT`、`NOT_FOUND`、`FORBIDDEN`、`INVALID` 与 `UNAVAILABLE`；只有没回来已知错误码时才看 HTTP 状态；服务不提供该路由时为 `UNSUPPORTED`。错误把错误码保留在 `detail.code` |
 | 列表顺序 | 系统视图，然后共享，然后个人，每个受众内最早的在前；一次一页，每页 `pageSize` 个视图，用一个跨受众的游标 |
 | 系统视图 | 配置的只读；存储的带 `stored: true`，以 `(platform)` 的 `(system)` 身份新建（以副本发布）、保存、重命名与删除，从不共享或认领。它们的 `revision` 是内容哈希；store 在旁边发送它读到的版本。引擎的 `editSystem` 由宿主给出，不说就关闭 |
-| 共享看板 | 共享看板展示着的视图保持共享：认领为 `INVALID`，它的 `boards` 是这些看板存储时的标题，视图引擎用自己的话说出来 |
+| 共享仪表盘 | 共享仪表盘展示着的视图保持共享：认领为 `INVALID`，它的 `boards` 是这些仪表盘存储时的标题，视图引擎用自己的话说出来 |
 
 ## 请求 {#requests}
 
@@ -140,7 +140,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 每个 `ViewStoreError` 都保留它从哪里读来：请求的失败作为 `cause`，problem 的错误码作为 `detail.code`，所以宿主能分清 `view-store.app-required` 与 `view-store.invalid`，两者都是 `INVALID`。
 
-服务因为有共享看板展示视图而拒绝认领时，错误的 `boards` 带着这些看板存储时的**标题**，视图引擎用自己的话把拒绝说在它们周围：写成键的标题仍是键，在显示拒绝的地方说出来。`message` 保留服务的原话，供日志使用。
+服务因为有共享仪表盘展示视图而拒绝认领时，错误的 `boards` 带着这些仪表盘存储时的**标题**，视图引擎用自己的话把拒绝说在它们周围：写成键的标题仍是键，在显示拒绝的地方说出来。`message` 保留服务的原话，供日志使用。
 
 ## 宿主与网关 {#hosts-and-the-gateway}
 
