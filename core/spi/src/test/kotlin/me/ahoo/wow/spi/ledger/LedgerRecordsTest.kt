@@ -15,6 +15,10 @@ package me.ahoo.wow.spi.ledger
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.LedgerAggregate
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
 import org.junit.jupiter.api.Test

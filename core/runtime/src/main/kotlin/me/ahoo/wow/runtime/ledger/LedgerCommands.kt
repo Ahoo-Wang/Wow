@@ -18,19 +18,17 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.wire.WireNames
-import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
-import me.ahoo.wow.spi.ledger.LedgerResolution
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import tools.jackson.core.JacksonException
 import kotlin.time.Duration
@@ -63,7 +61,9 @@ internal class LedgerCommands(
         val type = Ledger.COMMANDS[wire.type]
             ?: return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, "${wire.type} is not a ledger command.")
         val command = try {
-            ClusterCodec.mapper.treeToValue(wire.body, type)
+            // A request is read strictly: an unknown value, such as a recoverable mark, is refused, never taken for
+            // `unknown` as a reader older than its writer takes it.
+            WowJson.mapper.treeToValue(wire.body, type)
         } catch (malformed: JacksonException) {
             return ErrorInfo(
                 FrameworkCodes.COMMAND_MALFORMED,
@@ -116,15 +116,8 @@ internal class LedgerCommands(
                 }
                 settled(subscription, ref, outcome, LedgerResolution.SKIPPED)
             }
-            is MarkParkedRecoverable -> {
-                val recoverable = WireNames.entryOf<Recoverable>(command.recoverable)
-                    ?: return ErrorInfo(
-                        FrameworkCodes.COMMAND_MALFORMED,
-                        "Not a recoverable: '${command.recoverable}'; one of " +
-                            "${WireNames.namesOf<Recoverable>().joinToString()}.",
-                    )
-                amended(subscription, ref, parked.markRecoverable(subscription, ref, recoverable))
-            }
+            is MarkParkedRecoverable ->
+                amended(subscription, ref, parked.markRecoverable(subscription, ref, command.recoverable))
 
             is ApplyParkedRetrySpec -> {
                 if (current == null) {

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlingRejectedException
@@ -30,7 +31,6 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -66,8 +66,8 @@ import kotlin.random.Random
  *
  * The [source] is the context's log or another context's topic. A park records where the entry lies
  * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a retry re-scans from there,
- * and one whose position the topic no longer retains marks the entry unrecoverable ([ParkedAggregate.UNRECOVERABLE]),
- * so it can only be skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
+ * and one whose position the topic no longer retains marks the entry skip-only ([ParkedAggregate.skipOnly]): it is
+ * never retried, by hand either, whatever an operator marked it, only skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
  * an aggregate's version it handled already, as long as it remembers the aggregate ([REMEMBERED] of them, the most
  * recently handled).
  *
@@ -427,7 +427,7 @@ internal class SubscriptionWorker(
                     parking.resolved(ref)
                     return false
                 }
-                if (entry.unrecoverable) {
+                if (entry.skipOnly) {
                     return false
                 }
                 val item = Item.Retry(entry, CompletableDeferred())

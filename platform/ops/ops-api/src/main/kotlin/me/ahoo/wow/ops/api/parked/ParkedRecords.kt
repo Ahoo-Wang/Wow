@@ -41,7 +41,8 @@ data class EntryRetrySpec(
 
 /**
  * [subscription] of [service] parks [aggregate], as its ledger holds it now: where ([fromVersion], [fromPosition]),
- * why and when it last failed ([reason], [failedAt]), its [retries] and the last one's start ([retryAt]), the
+ * whether it can only be skipped, its source no longer holding what it is parked from ([skipOnly]), why and when it
+ * last failed ([reason], [failedAt]), its [retries] and the last one's start ([retryAt]), the
  * [retrySpec] it is retried by and its [nextRetryAt], what an operator marked it ([recoverable]) or asked of it
  * ([request]), its [status] (`scheduled`, `exhausted` or `unrecoverable`) and when the service published it
  * ([recordedAt]); the entry's command topic is [context]'s.
@@ -53,6 +54,7 @@ data class ParkedEntry(
     val aggregate: EntryAggregate,
     val fromVersion: Int,
     val fromPosition: Long? = null,
+    val skipOnly: Boolean = false,
     val reason: String,
     val failedAt: Long,
     val retries: Int = 0,

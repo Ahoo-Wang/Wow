@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -24,11 +26,10 @@ import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.ledger.amendByRevision
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.sql.Connection
 import java.sql.PreparedStatement
@@ -48,8 +49,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
- * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row at the next revision, conditional on the revision read when it claims, takes or schedules. The table holds the
+ * existing row; a resolve is one delete returning the removed row; an amendment with a statement of its own is one
+ * update returning the amended row at the next revision, conditional on the revision read when it claims, takes or
+ * schedules, and any other one ([amendByRevision]) a read and an update of the whole row conditional on the revision
+ * it read. The table holds the
  * source partition and position of the entry, the retry state and the revision among its columns. A table of
  * another format, or without a format record, is refused ([PostgresFormat]): nothing is converted.
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
@@ -80,30 +83,17 @@ class PostgresFailureLedger(
     override suspend fun park(entry: ParkedAggregate): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.park).use { park ->
             park.setKey(entry.subscription, entry.ref)
-            park.setInt(KEY_COLUMNS + 1, entry.partition)
-            park.setInt(KEY_COLUMNS + 2, entry.fromVersion)
-            park.setString(KEY_COLUMNS + 3, entry.reason)
-            park.setLong(KEY_COLUMNS + 4, entry.failedAt)
-            park.setNullableLong(KEY_COLUMNS + 5, entry.fromPosition)
-            park.setInt(KEY_COLUMNS + 6, entry.retries)
-            park.setNullableLong(KEY_COLUMNS + 7, entry.retryAt)
-            park.setSpec(KEY_COLUMNS + 8, entry.retrySpec)
-            park.setString(KEY_COLUMNS + 11, entry.recoverable.name)
-            park.setString(KEY_COLUMNS + 12, entry.request?.name)
-            park.setNullableLong(KEY_COLUMNS + 13, entry.nextAttemptAt)
+            park.setPlace(KEY_COLUMNS + 1, entry)
+            park.setRetryState(KEY_COLUMNS + PLACE_COLUMNS + 1, entry)
             park.executeQuery().use { rows -> rows.next() }
         }
     }
 
     override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.repark).use { repark ->
-            repark.setInt(1, entry.partition)
-            repark.setInt(2, entry.fromVersion)
-            repark.setString(3, entry.reason)
-            repark.setLong(4, entry.failedAt)
-            repark.setNullableLong(5, entry.fromPosition)
-            repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
-            repark.setInt(REPARK_VALUES + KEY_COLUMNS + 1, from)
+            repark.setPlace(1, entry)
+            repark.setKey(entry.subscription, entry.ref, first = PLACE_COLUMNS + 1)
+            repark.setInt(PLACE_COLUMNS + KEY_COLUMNS + 1, from)
             repark.executeUpdate() > 0
         }
     }
@@ -212,70 +202,98 @@ class PostgresFailureLedger(
         subscription: SubscriptionId,
         ref: AggregateRef,
         amendment: ParkedAmendment,
-    ): ParkedAggregate? = jdbc { connection ->
-        connection.prepareStatement(sqlOf(amendment)).use { update ->
-            update.bind(amendment, subscription, ref)
-            update.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+    ): ParkedAggregate? {
+        val (sql, bind) = statementOf(amendment, subscription, ref)
+            ?: return amendByRevision(amendment, { parked(subscription, ref) }, ::replace)
+        return jdbc { connection ->
+            connection.prepareStatement(sql).use { update ->
+                update.bind()
+                update.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+            }
         }
     }
 
-    /** The statement of [amendment]. */
-    private fun sqlOf(amendment: ParkedAmendment): String = when (amendment) {
-        is ParkedAmendment.ClaimRetry -> tables.claimRetry
-        is ParkedAmendment.MarkRecoverable -> tables.markRecoverable
-        is ParkedAmendment.ApplyRetrySpec -> tables.applyRetrySpec
-        is ParkedAmendment.Request -> tables.request
-        is ParkedAmendment.Schedule -> tables.schedule
-        is ParkedAmendment.TakeRequest -> tables.takeRequest
-        is ParkedAmendment.Restate -> tables.restate
+    /**
+     * The statement of [amendment] of [subscription]'s entry of [ref], with what binds its parameters; null for one
+     * that takes the generic path ([amendByRevision]): an operator's retry spec, sent for one entry at a time, and any
+     * amendment a later version adds.
+     */
+    private fun statementOf(
+        amendment: ParkedAmendment,
+        subscription: SubscriptionId,
+        ref: AggregateRef,
+    ): Pair<String, PreparedStatement.() -> Unit>? = when (amendment) {
+        is ParkedAmendment.ClaimRetry -> tables.claimRetry to {
+            setLong(1, amendment.at)
+            setKey(subscription, ref, first = 2)
+            setLong(KEY_COLUMNS + 2, amendment.revision)
+        }
+
+        is ParkedAmendment.MarkRecoverable -> tables.markRecoverable to {
+            setString(1, amendment.recoverable.name)
+            setKey(subscription, ref, first = 2)
+        }
+
+        is ParkedAmendment.Request -> tables.request to {
+            setString(1, amendment.request.name)
+            setKey(subscription, ref, first = 2)
+        }
+
+        is ParkedAmendment.Schedule -> tables.schedule to {
+            setLong(1, amendment.at)
+            setKey(subscription, ref, first = 2)
+            setLong(KEY_COLUMNS + 2, amendment.revision)
+        }
+
+        is ParkedAmendment.TakeRequest -> tables.takeRequest to {
+            setKey(subscription, ref)
+            setLong(KEY_COLUMNS + 1, amendment.revision)
+        }
+
+        is ParkedAmendment.Restate -> tables.restate to {
+            setString(1, amendment.reason)
+            setLong(2, amendment.failedAt)
+            setInt(3, amendment.retries)
+            setNullableLong(4, amendment.retryAt)
+            setSpec(RESTATE_SPEC, amendment.retrySpec)
+            setString(RESTATE_SPEC + SPEC_COLUMNS, amendment.recoverable.name)
+            setKey(subscription, ref, first = RESTATE_SPEC + SPEC_COLUMNS + 1)
+            setLong(RESTATE_SPEC + SPEC_COLUMNS + KEY_COLUMNS + 1, amendment.revision)
+        }
+
+        else -> null
     }
 
-    /** Binds [amendment] of [subscription]'s entry of [ref] to its statement ([sqlOf]). */
-    private fun PreparedStatement.bind(amendment: ParkedAmendment, subscription: SubscriptionId, ref: AggregateRef) {
-        when (amendment) {
-            is ParkedAmendment.ClaimRetry -> {
-                setLong(1, amendment.at)
-                setKey(subscription, ref, first = 2)
-                setLong(KEY_COLUMNS + 2, amendment.revision)
-            }
-
-            is ParkedAmendment.MarkRecoverable -> {
-                setString(1, amendment.recoverable.name)
-                setKey(subscription, ref, first = 2)
-            }
-
-            is ParkedAmendment.ApplyRetrySpec -> {
-                setSpec(1, amendment.spec)
-                setKey(subscription, ref, first = SPEC_COLUMNS + 1)
-            }
-
-            is ParkedAmendment.Request -> {
-                setString(1, amendment.request.name)
-                setKey(subscription, ref, first = 2)
-            }
-
-            is ParkedAmendment.Schedule -> {
-                setLong(1, amendment.at)
-                setKey(subscription, ref, first = 2)
-                setLong(KEY_COLUMNS + 2, amendment.revision)
-            }
-
-            is ParkedAmendment.TakeRequest -> {
-                setKey(subscription, ref)
-                setLong(KEY_COLUMNS + 1, amendment.revision)
-            }
-
-            is ParkedAmendment.Restate -> {
-                setString(1, amendment.reason)
-                setLong(2, amendment.failedAt)
-                setInt(3, amendment.retries)
-                setNullableLong(4, amendment.retryAt)
-                setSpec(RESTATE_SPEC, amendment.retrySpec)
-                setString(RESTATE_SPEC + SPEC_COLUMNS, amendment.recoverable.name)
-                setKey(subscription, ref, first = RESTATE_SPEC + SPEC_COLUMNS + 1)
-                setLong(RESTATE_SPEC + SPEC_COLUMNS + KEY_COLUMNS + 1, amendment.revision)
-            }
+    /** Stores [amended] whole while the stored entry is at [revision]: the generic path's write. */
+    private suspend fun replace(amended: ParkedAggregate, revision: Long): Boolean = jdbc { connection ->
+        connection.prepareStatement(tables.replace).use { update ->
+            update.setPlace(1, amended)
+            update.setRetryState(PLACE_COLUMNS + 1, amended)
+            update.setLong(PLACE_COLUMNS + RETRY_STATE_COLUMNS + 1, amended.revision)
+            update.setKey(amended.subscription, amended.ref, first = PLACE_COLUMNS + RETRY_STATE_COLUMNS + 2)
+            update.setLong(PLACE_COLUMNS + RETRY_STATE_COLUMNS + KEY_COLUMNS + 2, revision)
+            update.executeUpdate() > 0
         }
+    }
+
+    /** Binds where [entry] is parked and why to the [PLACE_COLUMNS] parameters from [first]. */
+    private fun PreparedStatement.setPlace(first: Int, entry: ParkedAggregate) {
+        setInt(first, entry.partition)
+        setInt(first + 1, entry.fromVersion)
+        setString(first + 2, entry.reason)
+        setLong(first + 3, entry.failedAt)
+        setNullableLong(first + 4, entry.fromPosition)
+        setBoolean(first + 5, entry.skipOnly)
+    }
+
+    /** Binds [entry]'s retry state to the [RETRY_STATE_COLUMNS] parameters from [first]. */
+    private fun PreparedStatement.setRetryState(first: Int, entry: ParkedAggregate) {
+        setInt(first, entry.retries)
+        setNullableLong(first + 1, entry.retryAt)
+        setSpec(first + 2, entry.retrySpec)
+        setString(first + 2 + SPEC_COLUMNS, entry.recoverable.name)
+        setString(first + 3 + SPEC_COLUMNS, entry.request?.name)
+        setNullableLong(first + 4 + SPEC_COLUMNS, entry.nextAttemptAt)
     }
 
     /**
@@ -302,8 +320,13 @@ class PostgresFailureLedger(
         const val DEFAULT_SERVICE = ""
         const val SUBSCRIPTION_COLUMNS = 3
         const val KEY_COLUMNS = 7
-        const val REPARK_VALUES = 5
         const val SPEC_COLUMNS = 3
+
+        /** Where an entry is parked and why: its partition, from version, reason, time, position, skip-only. */
+        const val PLACE_COLUMNS = 6
+
+        /** Its retry state: the retries, the last one's start, the spec's columns, the mark, the request, the next. */
+        const val RETRY_STATE_COLUMNS = 5 + SPEC_COLUMNS
 
         /** The first parameter of a restate's spec: after its reason, failure time, retries and last retry's start. */
         const val RESTATE_SPEC = 5
@@ -341,6 +364,7 @@ class PostgresFailureLedger(
             reason = row.getString("reason"),
             failedAt = row.getLong("failed_at"),
             fromPosition = row.nullableLong("from_position"),
+            skipOnly = row.getBoolean("skip_only"),
             retries = row.getInt("retries"),
             retryAt = row.nullableLong("retry_at"),
             retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->

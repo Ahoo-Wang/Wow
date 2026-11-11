@@ -28,6 +28,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoTimeouts
@@ -36,11 +38,10 @@ import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.ledger.amendByRevision
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -59,10 +60,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest
  * without a transaction; a repark is one `updateOne` without upsert, both setting the source position of a
  * Kafka-sourced subscription's entry, null for the log's; a resolve is one `findOneAndDelete`. A park
- * writes the retry state only when it inserts the document, at revision 0 (one pipeline update); an amendment is one
- * `findOneAndUpdate` returning the amended document at the next revision, its filter carrying the revision read when
- * it claims, takes or schedules. No collation is set: MongoDB then compares strings by their UTF-8 bytes, which is
- * code point order, so [list] pages in the order the contract asks for.
+ * writes the retry state only when it inserts the document, at revision 0 (one pipeline update); an amendment with an
+ * update of its own is one `findOneAndUpdate` returning the amended document at the next revision, its filter carrying
+ * the revision read when it claims, takes or schedules, and any other one ([amendByRevision]) a read and an
+ * `updateOne` of the whole entry whose filter carries the revision it read. No collation is set: MongoDB then
+ * compares strings by their UTF-8 bytes, which is code point order, so [list] pages in the order the contract asks for.
  *
  * Besides the key index, [DUE_INDEX] on (service, subscription, partition, next attempt) answers [due], and
  * [TENANT_INDEX] on (service, subscription, tenant, then the key) answers a tenant's [list] in its order, a
@@ -144,6 +146,7 @@ class MongoFailureLedger(
             .append(REASON, literal(entry.reason))
             .append(FAILED_AT, literal(entry.failedAt))
             .append(FROM_POSITION, literal(entry.fromPosition))
+            .append(SKIP_ONLY, literal(entry.skipOnly))
             .append(RETRIES, kept(RETRIES, entry.retries))
             .append(RETRY_AT, kept(RETRY_AT, entry.retryAt))
             .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
@@ -164,6 +167,7 @@ class MongoFailureLedger(
             Updates.set(REASON, entry.reason),
             Updates.set(FAILED_AT, entry.failedAt),
             Updates.set(FROM_POSITION, entry.fromPosition),
+            Updates.set(SKIP_ONLY, entry.skipOnly),
             UNSCHEDULED,
             NEXT_REVISION,
         )
@@ -256,9 +260,6 @@ class MongoFailureLedger(
             is ParkedAmendment.MarkRecoverable ->
                 key to Updates.combine(Updates.set(RECOVERABLE, amendment.recoverable.name), UNSCHEDULED)
 
-            is ParkedAmendment.ApplyRetrySpec ->
-                key to Updates.combine(Updates.set(RETRY_SPEC, specOf(amendment.spec)), UNSCHEDULED)
-
             is ParkedAmendment.Request -> key to Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
             is ParkedAmendment.Schedule -> at(key, amendment.revision) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
             is ParkedAmendment.TakeRequest -> at(key, amendment.revision) to Updates.set(REQUEST, null)
@@ -271,6 +272,8 @@ class MongoFailureLedger(
                 Updates.set(RECOVERABLE, amendment.recoverable.name),
                 UNSCHEDULED,
             )
+            // An operator's retry spec, sent for one entry at a time, and any amendment a later version adds.
+            else -> return amendByRevision(amendment, { parked(subscription, ref) }, ::replace)
         }
         return dispatcher.mongo {
             ledger.findOneAndUpdate(
@@ -279,6 +282,26 @@ class MongoFailureLedger(
                 FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
             )?.let { entryOf(it) }
         }
+    }
+
+    /** Stores [amended] whole while the stored entry is at [revision]: the generic path's write. */
+    private suspend fun replace(amended: ParkedAggregate, revision: Long): Boolean = dispatcher.mongo {
+        val update = Updates.combine(
+            Updates.set(PARTITION, amended.partition),
+            Updates.set(FROM_VERSION, amended.fromVersion),
+            Updates.set(REASON, amended.reason),
+            Updates.set(FAILED_AT, amended.failedAt),
+            Updates.set(FROM_POSITION, amended.fromPosition),
+            Updates.set(SKIP_ONLY, amended.skipOnly),
+            Updates.set(RETRIES, amended.retries),
+            Updates.set(RETRY_AT, amended.retryAt),
+            Updates.set(RETRY_SPEC, specOf(amended.retrySpec)),
+            Updates.set(RECOVERABLE, amended.recoverable.name),
+            Updates.set(REQUEST, amended.request?.name),
+            Updates.set(NEXT_ATTEMPT_AT, amended.nextAttemptAt),
+            Updates.set(REVISION, amended.revision),
+        )
+        ledger.updateOne(at(keyFilter(amended.subscription, amended.ref), revision), update).matchedCount > 0
     }
 
     /** [key] at [revision]. */
@@ -325,6 +348,7 @@ class MongoFailureLedger(
         reason = document.getString(REASON),
         failedAt = document.getLong(FAILED_AT),
         fromPosition = document.getLong(FROM_POSITION),
+        skipOnly = document.getBoolean(SKIP_ONLY),
         retries = document.getInteger(RETRIES),
         retryAt = document.getLong(RETRY_AT),
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
@@ -356,7 +380,8 @@ class MongoFailureLedger(
         /**
          * The layout version of the collection: an entry is keyed by service and by its subscription's context and
          * name (`subscription_context`), in the key and both indexes; it holds its partition, its next attempt and its
-         * revision; an applied spec's claim TTL is `claim_ttl_millis`, an operator's request to retry `RETRY`.
+         * revision; an applied spec's claim TTL is `claim_ttl_millis`, an operator's request to retry `RETRY`;
+         * `skip_only` is whether the source no longer holds what the entry is parked from.
          */
         const val FORMAT = 1
         const val LEDGER_KEY = "ledger_key"
@@ -373,6 +398,9 @@ class MongoFailureLedger(
         const val REASON = "reason"
         const val FAILED_AT = "failed_at"
         const val FROM_POSITION = "from_position"
+
+        /** Whether the source no longer holds what the entry is parked from, a boolean every document has. */
+        const val SKIP_ONLY = "skip_only"
         const val RETRIES = "retries"
         const val RETRY_AT = "retry_at"
         const val RETRY_SPEC = "retry_spec"

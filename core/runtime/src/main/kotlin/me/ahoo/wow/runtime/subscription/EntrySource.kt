@@ -127,13 +127,14 @@ internal fun requireUnmoved(topic: String, parked: ParkedAggregate, partition: I
 /**
  * [parked], whose aggregate's key maps to partition [now] of [topic] since the topic gained partitions, as the owner
  * of [now] re-homes it ([me.ahoo.wow.spi.ledger.FailureLedger.repark]): parked there, with no position to re-scan
- * from, and unrecoverable, so it is only skipped. Its from version stays: its aggregate's later entries in [now] are
+ * from, and skip-only ([ParkedAggregate.skipOnly]). Its from version stays: its aggregate's later entries in [now] are
  * held back from it on.
  */
 internal fun rehomed(topic: String, parked: ParkedAggregate, now: Int): ParkedAggregate = parked.copyWith(
     partition = now,
     fromPosition = null,
-    reason = "${ParkedAggregate.UNRECOVERABLE}: ${movedReason(topic, parked, now)}",
+    reason = movedReason(topic, parked, now),
+    skipOnly = true,
 )
 
 private fun movedReason(topic: String, parked: ParkedAggregate, now: Int): String =

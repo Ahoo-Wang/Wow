@@ -19,6 +19,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.LedgerAggregate
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -34,11 +38,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.spi.ledger.LedgerAggregate
-import me.ahoo.wow.spi.ledger.LedgerEntry
-import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -109,6 +109,18 @@ class LedgerPublisherTest {
             record.retrySpec.initialBackoff.assert().isEqualTo("PT1H")
             record.retrySpec.applied.assert().isFalse()
             record.nextRetryAt.assert().isEqualTo(record.failedAt + 1.hours.inWholeMilliseconds)
+            record.skipOnly.assert().isFalse()
+
+            // An entry its source no longer holds is published so, by the field: never retried, only skipped.
+            val parked = checkNotNull(ledger.parked(SubscriptionId("shop", NAME), cart("x1")))
+            ledger.repark(parked.copyWith(reason = "gone", skipOnly = true)).assert().isTrue()
+            publisher.scan()
+            ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).let {
+                it.skipOnly.assert().isTrue()
+                it.reason.assert().isEqualTo("gone")
+                it.status.assert().isEqualTo("unrecoverable")
+                it.nextRetryAt.assert().isNull()
+            }
             runtime.stop()
         }
 

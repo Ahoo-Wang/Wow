@@ -44,7 +44,10 @@ function aggregateOf(context: string, id: string) {
   return { context, name: "payment", tenantId: "(0)", id };
 }
 
-/** Publishes an entry of `context`'s payment `aggregateId`, parked as `status`. */
+/**
+ * Publishes an entry of `context`'s payment `aggregateId`, parked as `status`;
+ * `skipOnly` when its source no longer holds what it is parked from.
+ */
 export async function publish(
   request: APIRequestContext,
   context: string,
@@ -52,6 +55,7 @@ export async function publish(
   status: Status,
   hoursLater = 0,
   reason = connectionRefused(aggregateId),
+  skipOnly = false,
 ): Promise<Parked> {
   const failedAt = FAILED_AT + hoursLater * HOUR;
   const answer = await request.post("/testing/ledger/parked", {
@@ -61,6 +65,7 @@ export async function publish(
       subscription: SAGA,
       aggregate: aggregateOf(context, aggregateId),
       fromVersion: 2,
+      skipOnly,
       reason,
       failedAt,
       retries: 3,

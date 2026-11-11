@@ -241,8 +241,8 @@ class SkipParked @InternalWowApi constructor(
 }
 
 /**
- * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`
- * or `UNKNOWN`.
+ * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`). On the wire the value is spelled
+ * `recoverable`, `unrecoverable` or `unknown` ([me.ahoo.wow.api.wire.WireNames]); any other spelling is refused.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -252,7 +252,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
     override val aggregate: String,
     override val tenantId: String,
     override val id: String,
-    val recoverable: String,
+    val recoverable: Recoverable,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is MarkParkedRecoverable && valueFields() == other.valueFields()
@@ -272,7 +272,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
             aggregate: String,
             tenantId: String,
             id: String,
-            recoverable: String,
+            recoverable: Recoverable,
         ): MarkParkedRecoverable = MarkParkedRecoverable(subscription, context, aggregate, tenantId, id, recoverable)
 
         /** A MarkParkedRecoverable of [subscription]'s entry of [ref], [recoverable]. */
@@ -280,7 +280,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
         fun of(
             subscription: String,
             ref: AggregateRef,
-            recoverable: String,
+            recoverable: Recoverable,
         ): MarkParkedRecoverable =
             MarkParkedRecoverable(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, recoverable)
     }
@@ -366,4 +366,28 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
                 claimTtl
             )
     }
+}
+
+/** What an operator marked a parked entry (9.x `RecoverableType`); only [UNRECOVERABLE] stops its automatic retries. */
+enum class Recoverable {
+    /** Nobody said: retried automatically. */
+    UNKNOWN,
+
+    /** Retried automatically. */
+    RECOVERABLE,
+
+    /** Not retried automatically; an operator can still retry or skip it. */
+    UNRECOVERABLE,
+}
+
+/**
+ * An operator's request on a parked entry, left in the ledger by a node that does not own the entry's partition:
+ * the owner takes it (the ledger's `ParkedAmendment.TakeRequest`) and runs it.
+ */
+enum class LedgerRequest {
+    /** Handle the aggregate again from where it is parked. */
+    RETRY,
+
+    /** Resolve the entry without handling what was parked. */
+    SKIP,
 }

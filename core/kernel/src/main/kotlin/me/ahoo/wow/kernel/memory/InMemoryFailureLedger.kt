@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
-import me.ahoo.wow.spi.ledger.amended
+import me.ahoo.wow.spi.ledger.amendByRevision
 import me.ahoo.wow.spi.ledger.dueIn
 import me.ahoo.wow.spi.ledger.placedAs
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -52,15 +52,17 @@ class InMemoryFailureLedger : FailureLedger {
         true
     }
 
+    /** It has no statements: every amendment takes the generic path ([amendByRevision]), as a later one would. */
     override suspend fun amend(
         subscription: SubscriptionId,
         ref: AggregateRef,
         amendment: ParkedAmendment,
-    ): ParkedAggregate? = lock.withLock {
-        val parked = subscriptions[subscription] ?: return null
-        val amended = parked[ref]?.amended(amendment) ?: return null
-        parked[ref] = amended
-        amended
+    ): ParkedAggregate? = amendByRevision(amendment, { parked(subscription, ref) }) { amended, revision ->
+        lock.withLock {
+            val parked = subscriptions[subscription]?.takeIf { it[ref]?.revision == revision } ?: return@withLock false
+            parked[ref] = amended
+            true
+        }
     }
 
     override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =

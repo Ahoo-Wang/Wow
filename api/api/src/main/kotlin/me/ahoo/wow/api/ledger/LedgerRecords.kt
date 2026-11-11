@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spi.ledger
+package me.ahoo.wow.api.ledger
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * [Ledger.RECORD_PARKED], and a [LedgerResolution] as the member [Ledger.RESOLUTION] of [Ledger.RECORD_RESOLVED].
  * Fields are only ever added; a reader ignores the ones it does not know. Enumerated values travel as their names, so
  * a reader of an older version reads a value a newer writer added. They are the publication form of the ledger's
- * [ParkedAggregate], internal to Wow: a reader such as the ops service reads them from their JSON with
+ * `ParkedAggregate`, internal to Wow: a reader such as the ops service reads them from their JSON with
  * types of its own.
  */
 
@@ -31,8 +31,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * [subscription] of [service] parks [aggregate], as its ledger holds it now (`FailureLedger`'s entry with the retry
  * spec it is retried by); the entry's command topic is [context]'s, the context of the subscription.
  *
- * - [fromVersion] and [fromPosition]: where the aggregate is parked; [reason] and [failedAt] (epoch milliseconds): why
- *   and when it last failed, which also tells one parking of the aggregate from the next.
+ * - [fromVersion] and [fromPosition]: where the aggregate is parked; [skipOnly] when the source no longer holds what it
+ *   is parked from, so it is never retried, only skipped; [reason] and [failedAt] (epoch milliseconds): why and when it
+ *   last failed, which also tells one parking of the aggregate from the next.
  * - [retries] made so far, the last started at [retryAt]; [retrySpec], the spec it is retried by; [nextRetryAt] the next
  *   automatic retry, null when there is none.
  * - [recoverable]: `unknown`, `recoverable` or `unrecoverable`, what an operator marked it; [request]: `retry` or
@@ -54,6 +55,7 @@ class LedgerEntry @InternalWowApi constructor(
     val aggregate: LedgerAggregate,
     val fromVersion: Int,
     val fromPosition: Long? = null,
+    val skipOnly: Boolean = false,
     val reason: String,
     val failedAt: Long,
     val retries: Int = 0,
@@ -74,6 +76,7 @@ class LedgerEntry @InternalWowApi constructor(
         aggregate: LedgerAggregate = this.aggregate,
         fromVersion: Int = this.fromVersion,
         fromPosition: Long? = this.fromPosition,
+        skipOnly: Boolean = this.skipOnly,
         reason: String = this.reason,
         failedAt: Long = this.failedAt,
         retries: Int = this.retries,
@@ -91,6 +94,7 @@ class LedgerEntry @InternalWowApi constructor(
         aggregate,
         fromVersion,
         fromPosition,
+        skipOnly,
         reason,
         failedAt,
         retries,
@@ -110,13 +114,13 @@ class LedgerEntry @InternalWowApi constructor(
 
     override fun toString(): String =
         "LedgerEntry(service=$service, context=$context, subscription=$subscription, aggregate=$aggregate, " +
-            "fromVersion=$fromVersion, fromPosition=$fromPosition, reason=$reason, failedAt=$failedAt, " +
-            "retries=$retries, retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, " +
+            "fromVersion=$fromVersion, fromPosition=$fromPosition, skipOnly=$skipOnly, reason=$reason, " +
+            "failedAt=$failedAt, retries=$retries, retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, " +
             "request=$request, status=$status, nextRetryAt=$nextRetryAt, recordedAt=$recordedAt)"
 
     private fun valueFields(): List<Any?> = listOf(
-        service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
-        retrySpec, recoverable, request, status, nextRetryAt, recordedAt
+        service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
+        retryAt, retrySpec, recoverable, request, status, nextRetryAt, recordedAt
     )
 
     @InternalWowApi

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
@@ -27,7 +28,6 @@ import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -176,9 +176,9 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
                 growing.ownership?.owned == setOf(0, 1) && ledger.parked(BOARD_ID, order(id))?.partition == 1
             }
             val rehomed = ledger.parked(BOARD_ID, order(id))!!
-            rehomed.unrecoverable.assert().isTrue()
-            rehomed.reason.assert().contains(
-                "$topic gained partitions",
+            rehomed.skipOnly.assert().isTrue()
+            // The reason is the text alone: the field says it can only be skipped.
+            rehomed.reason.assert().startsWith("$topic gained partitions").contains(
                 "partition 0 from offset ${parked.fromPosition}"
             )
             rehomed.fromPosition.assert().isNull()
@@ -221,7 +221,7 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
             val id = ids.first { topics.partitionOf(topic, order(it).toString()) in new.ownership!!.owned }
             val now = topics.partitionOf(topic, order(id).toString())
             eventually { ledger.parked(BOARD_ID, order(id))?.partition == now }
-            ledger.parked(BOARD_ID, order(id))!!.unrecoverable.assert().isTrue()
+            ledger.parked(BOARD_ID, order(id))!!.skipOnly.assert().isTrue()
             broken.set(false)
             // Its later version waits on the new owner.
             topics.publish(orderRecord(id, 2), topic = topic)

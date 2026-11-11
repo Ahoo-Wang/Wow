@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "b73ee8eacc4c226f32bdea7f8ee9191e27609538f3e297f442fd5023ec256a37"
+        "fingerprint" : "3ffcb5caaca90105942e1da8641b60cf52cbc4c9bdca65fb67254a74662d7370"
       },
       "snapshot" : {
         "enabled" : true
@@ -455,7 +455,9 @@
           "type" : "string"
         },
         "recoverable" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "recoverable", "unrecoverable" ],
+          "x-wow-class" : "me.ahoo.wow.api.ledger.Recoverable"
         },
         "subscription" : {
           "type" : "string"
@@ -683,6 +685,9 @@
         },
         "service" : {
           "type" : "string"
+        },
+        "skipOnly" : {
+          "type" : "boolean"
         },
         "status" : {
           "type" : "string"
@@ -939,6 +944,9 @@
         "service" : {
           "type" : "string"
         },
+        "skipOnly" : {
+          "type" : "boolean"
+        },
         "status" : {
           "type" : "string"
         },
@@ -946,7 +954,7 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "resolved", "retries", "retrySpec", "service", "status", "subscription" ],
+      "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "resolved", "retries", "retrySpec", "service", "skipOnly", "status", "subscription" ],
       "x-wow-class" : "me.ahoo.wow.ops.domain.parked.ParkedState"
     },
     "wow.snapshot.Rebuild" : {

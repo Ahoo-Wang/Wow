@@ -161,8 +161,6 @@ class ParkedSpec {
 
     @Test
     fun `the error type is what the reason names before its message, else the whole reason`() {
-        ParkedState.errorTypeOf("wow.subscription.unrecoverable: offset 3 is gone").assert()
-            .isEqualTo("wow.subscription.unrecoverable")
         ParkedState.errorTypeOf("java.lang.IllegalStateException: a: b").assert()
             .isEqualTo("java.lang.IllegalStateException")
         ParkedState.errorTypeOf("The gateway is down.").assert().isEqualTo("The gateway is down.")
@@ -171,6 +169,24 @@ class ParkedSpec {
             val other = entry("reason" to "The gateway is down again.", "recordedAt" to 300)
             whenCommand(RecordParked(other)) {
                 expectState { errorType.assert().isEqualTo("The gateway is down again.") }
+            }
+        }
+    }
+
+    @Test
+    fun `an entry its source no longer holds is skip-only, its error type said by the field, not by its reason`() {
+        parkedSpec {
+            given(ParkedRecorded(ENTRY))
+            val gone = entry(
+                "skipOnly" to true,
+                "reason" to "orders gained partitions while the order was parked: it cannot be retried.",
+                "recordedAt" to 300,
+            )
+            whenCommand(RecordParked(gone)) {
+                expectState {
+                    skipOnly.assert().isTrue()
+                    errorType.assert().isEqualTo(ParkedState.SKIP_ONLY)
+                }
             }
         }
     }

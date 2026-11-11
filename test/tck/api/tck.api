@@ -116,8 +116,10 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun a subscription's parked aggregates are listed in pages, in aggregate order ()V
 	public final fun a tenant's parked aggregates are listed alone, in pages, in aggregate order ()V
 	public final fun amending an aggregate that is not parked writes nothing ()V
+	public final fun an entry that can only be skipped is parked so and stays so through every amendment ()V
 	public final fun an operator's retry spec and recoverability are applied and cleared ()V
 	public final fun concurrent parks of one aggregate keep the earliest from version ()V
+	public final fun concurrent retry specs all land, a revision each, the one applied last stored ()V
 	protected abstract fun createLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 	public final fun every amendment is classified, as conditional on a revision read or as an unconditional write ()V
 	public final fun every stored change of an entry gives it the next revision ()V

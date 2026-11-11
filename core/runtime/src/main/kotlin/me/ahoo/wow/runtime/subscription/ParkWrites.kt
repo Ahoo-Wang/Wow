@@ -15,12 +15,12 @@ package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
@@ -124,8 +124,8 @@ internal class ParkWrites(
         logger.error {
             "Subscription $subscription cannot retry ${parked.ref}: ${gone.message} It can only be skipped."
         }
-        val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
-        repark(parked.copyWith(reason = reason, failedAt = clock.millis()), parked.partition)
+        val skipOnly = parked.copyWith(reason = gone.message.orEmpty(), failedAt = clock.millis(), skipOnly = true)
+        repark(skipOnly, parked.partition)
     }
 
     /**

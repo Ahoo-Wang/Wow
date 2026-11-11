@@ -16,16 +16,16 @@ package me.ahoo.wow.runtime.node
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.SubscriptionId
 
@@ -408,7 +408,7 @@ data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val
 
     val status: Status
         get() = when {
-            entry.unrecoverable || entry.recoverable == Recoverable.UNRECOVERABLE -> Status.UNRECOVERABLE
+            entry.skipOnly || entry.recoverable == Recoverable.UNRECOVERABLE -> Status.UNRECOVERABLE
             entry.exhausted(spec) -> Status.EXHAUSTED
             else -> Status.SCHEDULED
         }

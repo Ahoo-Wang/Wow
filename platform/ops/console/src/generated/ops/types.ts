@@ -86,6 +86,7 @@ export interface ParkedEntry {
   retryAt?: string | null;
   retrySpec: EntryRetrySpec;
   service: string;
+  skipOnly?: boolean;
   status: string;
   subscription: string;
 }
@@ -135,6 +136,7 @@ export interface ParkedState {
   retryAt?: string | null;
   retrySpec: EntryRetrySpec;
   service: string;
+  skipOnly: boolean;
   status: string;
   subscription: string;
 }

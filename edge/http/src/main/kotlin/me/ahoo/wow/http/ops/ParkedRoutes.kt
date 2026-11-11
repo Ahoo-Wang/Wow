@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
@@ -43,7 +44,6 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.springframework.http.HttpStatus

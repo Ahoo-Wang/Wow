@@ -15,6 +15,8 @@ package me.ahoo.wow.spi.ledger
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
 
 /**
  * A change of a parked entry's retry state ([FailureLedger.amend]), or, for [Restate] alone, of why it is parked and its

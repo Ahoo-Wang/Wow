@@ -18,6 +18,7 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.migrate.example.NineXCompensationExample
@@ -39,7 +40,6 @@ import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.containers.WowContainers
