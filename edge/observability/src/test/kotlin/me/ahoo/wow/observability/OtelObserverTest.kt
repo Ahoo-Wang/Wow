@@ -298,6 +298,33 @@ class OtelObserverTest {
         }
 
     @Test
+    fun `a shared state's rebuild should count by whether the gate held it and how it ended, timing a gated wait`() {
+        observer.observed(ObservedEvent.StateRebuilt(ORDER, false, ObservedEvent.StateRebuilt.Outcome.RAN, 0))
+        observer.observed(ObservedEvent.StateRebuilt(ORDER, true, ObservedEvent.StateRebuilt.Outcome.RAN, 30))
+        observer.observed(ObservedEvent.StateRebuilt(ORDER, true, ObservedEvent.StateRebuilt.Outcome.REFUSED, 200))
+        val meters = telemetry.meters
+        fun rebuilds(kind: String, outcome: String) = meters.get(WowMetrics.SHARED_STATE_REBUILDS.name).tags(
+            WowMetrics.CONTEXT,
+            ORDER.context,
+            WowMetrics.AGGREGATE,
+            ORDER.name,
+            WowMetrics.KIND,
+            kind,
+            WowMetrics.OUTCOME,
+            outcome,
+        ).counter().count()
+        rebuilds("ungated", "ran").assert().isEqualTo(1.0)
+        rebuilds("gated", "ran").assert().isEqualTo(1.0)
+        rebuilds("gated", "refused").assert().isEqualTo(1.0)
+        fun waited(outcome: String) =
+            meters.get(WowMetrics.SHARED_STATE_REBUILD_WAIT.name).tags(WowMetrics.OUTCOME, outcome).timer()
+        // Only a gated rebuild waits for a permit: the ungated one is not timed.
+        waited("ran").count().assert().isEqualTo(1)
+        waited("ran").totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(30.0)
+        waited("refused").totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(200.0)
+    }
+
+    @Test
     fun `every value of a closed set should tag its meter as it always has`() {
         ObservedEvent.SignalDropped.Reason.entries.forEach { observer.observed(ObservedEvent.SignalDropped("n", it)) }
         ObservedEvent.ForwardFailed.Outcome.entries.forEach {

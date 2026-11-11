@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.state
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -26,6 +27,9 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.runtime.Stripes
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.VersionPages
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import java.util.TreeMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -120,9 +124,11 @@ class SharedStateOptions @InternalWowApi constructor(
  *   base of its next entry; and in any case once it is older than [SharedStateOptions.maxAge] or the views exceed
  *   [SharedStateOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
  *   parked never holds views for long. A view missing for any reason costs its reader a rebuild, never a wrong state.
- * - **Rebuilding**: a reader's rebuild of a state from the snapshot store and the log runs one an aggregate at a time,
- *   under the [gate] ([rebuild]): the readers that miss the same hot aggregate at once replay its log once, not once
- *   each, and then evolve the view the rebuild left.
+ * - **Rebuilding**: a reader's rebuild of a state from the snapshot store and the log runs one an aggregate at a time
+ *   ([rebuild]): the readers that miss the same hot aggregate at once replay its log once, not once each, and then
+ *   evolve the view the rebuild left. A rebuild that replays more than one page of the log ([VersionPages.SIZE]
+ *   streams) runs under the [gate]; one of a page or less is one statement, as the executor's own load of a state on a
+ *   cache miss, and runs at once. Each is told to the [observer] ([ObservedEvent.StateRebuilt]).
  */
 @InternalWowApi
 class SharedStates(
@@ -131,10 +137,13 @@ class SharedStates(
     private val options: SharedStateOptions = SharedStateOptions(),
     private val timeSource: TimeSource = TimeSource.Monotonic,
     /**
-     * How a rebuild replays the log: the node's gate, the query bulkhead of the log's store, so the rebuilds of the
-     * subscriptions cannot take every connection the appends draw from; [ReplayGate.OPEN] runs each at once.
+     * How a rebuild that replays more than a page of the log runs: the node's gate, the query bulkhead of the log's
+     * store, so the long replays of the subscriptions cannot take every connection the appends draw from;
+     * [ReplayGate.OPEN] runs each at once.
      */
     val gate: ReplayGate = ReplayGate.OPEN,
+    /** Told of each rebuild, whether the gate held it, and how it ended. */
+    private val observer: Observer = Observer.NONE,
 ) {
     /** The readers, by name, with the aggregate types each reads. */
     val readers: Map<String, Set<AggregateType>> = readers.mapValues { it.value.toSet() }
@@ -254,26 +263,60 @@ class SharedStates(
     val rebuilds: Int get() = rebuilding.size
 
     /**
-     * Runs [replay], a reader's rebuild of [ref]'s state, under the [gate], and returns what it gives, unless another
-     * reader's rebuild of [ref] runs already: then it waits for that one to end, however it ends, and returns null, so
+     * Runs [replay], a reader's rebuild of [ref]'s state that reads [streams] streams of its log, and returns what it
+     * gives, unless another reader's rebuild of [ref] runs already: then it waits for that one to end, however it ends, and returns null, so
      * the caller looks again for the view that rebuild left, and rebuilds itself only without one. A rebuild that
      * fails, is cancelled or is refused by the gate ends like one that succeeds: one of the readers that waited
      * for it rebuilds next, and the others wait for that one; none fails with it.
      *
      * A wait is cancellable: a reader's own timeout, or the end of its lane, ends it, not the rebuild it waits for.
+     *
+     * A replay of more than one page ([VersionPages.SIZE] streams) runs under the [gate], which may make it wait for a
+     * permit, or refuse it; one of a page or less runs at once.
      */
-    suspend fun <T : Any> rebuild(ref: AggregateRef, replay: suspend () -> T): T? {
+    suspend fun <T : Any> rebuild(ref: AggregateRef, streams: Int, replay: suspend () -> T): T? {
         val mine = CompletableDeferred<Unit>()
         rebuilding.putIfAbsent(ref, mine)?.let { running ->
             running.await()
             return null
         }
         try {
-            return gate.replay(ref, replay)
+            if (streams <= VersionPages.SIZE) {
+                observer.observed(
+                    ObservedEvent.StateRebuilt(ref.type, gated = false, ObservedEvent.StateRebuilt.Outcome.RAN, 0),
+                )
+                return replay()
+            }
+            return gated(ref, replay)
         } finally {
             rebuilding.remove(ref, mine)
             mine.complete(Unit)
         }
+    }
+
+    /** Runs [replay] of [ref] under the [gate], told with how long it waited for a permit and whether it got one. */
+    @Suppress("TooGenericExceptionCaught") // Whatever the gate refuses with is rethrown, once it is told.
+    private suspend fun <T : Any> gated(ref: AggregateRef, replay: suspend () -> T): T {
+        val asked = timeSource.markNow()
+        var admitted = false
+        try {
+            return gate.replay(ref) {
+                admitted = true
+                observed(ref, ObservedEvent.StateRebuilt.Outcome.RAN, asked)
+                replay()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (refused: Exception) {
+            if (!admitted) {
+                observed(ref, ObservedEvent.StateRebuilt.Outcome.REFUSED, asked)
+            }
+            throw refused
+        }
+    }
+
+    private fun observed(ref: AggregateRef, outcome: ObservedEvent.StateRebuilt.Outcome, asked: TimeMark) {
+        observer.observed(ObservedEvent.StateRebuilt(ref.type, true, outcome, asked.elapsedNow().inWholeMilliseconds))
     }
 
     /** One stripe of the views: at most [capacity] of them and [maxBytes] of their states, under its own lock. */

@@ -17,6 +17,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -54,18 +56,24 @@ class PeerCommands(
         contracts.aggregatesOf(Manifest.schemaRef(command.name)).filterNot { contracts.isLocal(it.context) }
 
     /**
-     * The command type of [aggregate], of [type], that [command] names: its name (`AddItem`), its full name
+     * The command type of [aggregate], of [type], that [request] names: its name (`AddItem`), its full name
      * (`ctx.agg.AddItem`), one of its former names, or, for a request built from a command object, its class's binary
      * name. A mounted command is an edge's only and is never sent. Null when none matches.
+     *
+     * A system command, such as a lifecycle one, is named by its system name (`wow.lifecycle.TransferOwner`) and sent
+     * under it, as a saga's is ([CommandSender.typeOf]); its schema is keyed by that name, not a class, so its class is
+     * the one the framework names it for ([systemClassOf]).
      */
-    fun resolve(type: AggregateType, aggregate: AggregateManifest, command: String): PeerCommand? {
+    fun resolve(type: AggregateType, aggregate: AggregateManifest, request: String): PeerCommand? {
+        // A system command built from its object is named by its class: the framework names it by its system name.
+        val command = SYSTEM_COMMANDS.entries.firstOrNull { it.value.name == request }?.key ?: request
         val schema = Manifest.schemaRef(command)
         val manifest = aggregate.commands.filterNot { it.mounted }.firstOrNull { it.names(type, command) }
             ?: aggregate.commands.filterNot { it.mounted }.firstOrNull { it.schema == schema }
             ?: return null
         return PeerCommand(
-            "$type.${manifest.name}",
-            classOf(manifest.schema),
+            if (manifest.system) manifest.name else "$type.${manifest.name}",
+            if (manifest.system) systemClassOf(manifest.name) else classOf(manifest.schema),
             when (manifest.creation) {
                 Creation.NONE -> Creation.NONE
                 Creation.REQUIRED -> Creation.REQUIRED
@@ -75,11 +83,14 @@ class PeerCommands(
         )
     }
 
-    /** Where a command of the command type [name] (`ctx.agg.Command`) is written; null without a transport. */
-    fun relayOf(name: String): CommandRelay? {
+    /**
+     * Where a command of the command type [name] (`ctx.agg.Command`, or a system command's system name) to an aggregate
+     * of [context] is written: that context's command topic; null without a transport.
+     */
+    fun relayOf(context: String, name: String): CommandRelay? {
         val commands = sender ?: return null
         return object : CommandRelay {
-            override val topic: String = commands.topicOf(name.substringBefore('.'))
+            override val topic: String = commands.topicOf(context)
 
             override suspend fun send(command: Command<*>, wait: WaitContext?) =
                 commands.send(ClusterCodec.wire(name, command), wait)
@@ -88,6 +99,9 @@ class PeerCommands(
 
     private fun CommandManifest.names(type: AggregateType, command: String): Boolean =
         (aliases + name).any { it == command || "$type.$it" == command || it == "$type.$command" }
+
+    /** The class of the system command [name], as [CommandSender.typeOf] names its class; null for one it names not. */
+    private fun systemClassOf(name: String): Class<*>? = SYSTEM_COMMANDS[name]
 
     private fun classOf(schema: String): Class<*>? = try {
         Class.forName(Manifest.schemaKey(schema), false, classLoader)
@@ -98,8 +112,12 @@ class PeerCommands(
     }
 }
 
+/** The system commands a peer's aggregate takes by their names, as [CommandSender.typeOf] names them. */
+private val SYSTEM_COMMANDS: Map<String, Class<*>> = Lifecycle.COMMANDS + Schedules.COMMANDS
+
 /**
- * A command type of a peer context's contract: its full [name] (`ctx.agg.Command`), its class, when on the class path
+ * A command type of a peer context's contract: its full [name] (`ctx.agg.Command`, or a system command's system name,
+ * `wow.lifecycle.TransferOwner`), its class, when on the class path
  * ([type]), whether it creates its aggregate ([creation]), and the property of its body that holds its aggregate's id
  * ([idProperty]; null for one whose request names it).
  */

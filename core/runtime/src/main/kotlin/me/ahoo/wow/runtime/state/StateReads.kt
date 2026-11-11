@@ -104,11 +104,17 @@ interface StateReads {
 }
 
 /**
- * How a node's state reads that replay the log run: [KernelStateReads] replays an
- * aggregate's latest state without a snapshot, a state at a version or a time, and a trace inside [replay], which the
- * host runs under the query bulkhead of the aggregate's log store, so that point reads cannot take every connection
- * the store's appends draw from. Background replays (the access walk's) also ask whether that store's writes are
- * pressed ([pressed]), and give way while they are.
+ * How a node's replays of the log that could take every connection the store's appends draw from run, inside
+ * [replay], which the host runs under the query bulkhead of the aggregate's log store:
+ *
+ * - the point reads of [KernelStateReads]: an aggregate's latest state without a snapshot, a state at a version or a
+ *   time, and a trace;
+ * - a subscription's rebuild of a shared state ([SharedStates.rebuild]) that replays more than one page of the log
+ *   ([me.ahoo.wow.spi.log.VersionPages.SIZE] streams). A rebuild of a page or less is one statement, as the executor's
+ *   own load of a state on a cache miss, and does not run inside it.
+ *
+ * Background replays (the access walk's) also ask whether that store's writes are pressed ([pressed]), and give way
+ * while they are.
  */
 @InternalWowApi
 interface ReplayGate {

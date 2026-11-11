@@ -100,6 +100,7 @@ class ObserverTest {
             ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
             ObservedEvent.ForwardFailed(cart, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),
             ObservedEvent.StateCache("shop", ObservedEvent.StateCache.Outcome.HIT),
+            ObservedEvent.StateRebuilt(cart, true, ObservedEvent.StateRebuilt.Outcome.REFUSED, 200),
             ObservedEvent.ReservationLost("shop"),
             ObservedEvent.StoreFellBack(
                 "shop",
