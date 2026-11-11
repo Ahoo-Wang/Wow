@@ -27,15 +27,17 @@ import { stylesSource } from '../../scripts/styles.mjs';
 export {
   at,
   contrast,
+  type Gamut,
+  over,
+  type Rgba,
+} from '../../theme-check/colour';
+export {
   CONVENTIONS,
   type Convention,
-  type Gamut,
   type HostVariables,
   type Mode,
-  over,
   type Placement,
   presetBlocks,
-  type Rgba,
 } from '../../theme-check/resolve';
 
 /** The resolver over the package's own sources. */
