@@ -45,7 +45,8 @@ internal object QuerySchemaValidationFixtures {
     /** The cursor's own sort: its first field stands in for the tie-breaker admission appends. */
     fun validateQuery(query: CursorQuery, schema: QueryModelSchema): CursorQuery = query.also {
         val tieBreaker = it.sort.firstOrNull()?.field ?: schema.requireIdentityField()
-        QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker), it.size ?: QueryGateway.DEFAULT_STREAM_CHUNK_SIZE)
+        val size = it.size ?: QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
+        QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker), size)
     }
 
     fun validateQuery(query: FilterExpression, schema: QueryModelSchema): FilterExpression =
