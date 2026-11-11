@@ -19,9 +19,9 @@ export type Retry = 'none' | 'same-request' | 'new-request';
 export const FrameworkErrorCodes = {
   /** 401 Unauthenticated: The request carries no valid credentials. */
   AUTH_UNAUTHENTICATED: 'wow.auth.unauthenticated',
-  /** 403 Command forbidden: The caller may not send this command. */
+  /** 403 Forbidden: The caller may not do what the request asks: send this command, call this route, or act or read across scopes. */
   AUTH_FORBIDDEN: 'wow.auth.forbidden',
-  /** 403 Aggregate out of scope: The aggregate is outside the caller's scope. */
+  /** 403 Aggregate change forbidden: The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach. */
   AGGREGATE_FORBIDDEN: 'wow.aggregate.forbidden',
   /** 400 Malformed request: A request header or parameter does not parse, or names what Wow does not take. */
   REQUEST_MALFORMED: 'wow.request.malformed',
@@ -33,7 +33,7 @@ export const FrameworkErrorCodes = {
   WAIT_INVALID: 'wow.wait.invalid',
   /** 400 Command not handled: The aggregate does not handle this command. */
   COMMAND_UNHANDLED: 'wow.command.unhandled',
-  /** 404 Aggregate not found: The aggregate does not exist. */
+  /** 404 Aggregate not found: The aggregate does not exist, or is outside the caller's reach. */
   AGGREGATE_NOT_FOUND: 'wow.aggregate.not-found',
   /** 409 Aggregate exists: The aggregate already exists. */
   AGGREGATE_EXISTS: 'wow.aggregate.exists',
@@ -75,7 +75,7 @@ export const FrameworkErrorCodes = {
   ROUTE_MALFORMED: 'wow.route.malformed',
   /** 400 Malformed query: The query body cannot be read as a query. */
   QUERY_MALFORMED: 'wow.query.malformed',
-  /** 400 Invalid query: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...). */
+  /** 400 Invalid query: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...). */
   QUERY_INVALID: 'wow.query.invalid',
   /** 500 Query failed: The query backend failed to run the query. */
   QUERY_FAILED: 'wow.query.failed',

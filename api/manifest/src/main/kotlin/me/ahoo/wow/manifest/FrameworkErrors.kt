@@ -106,8 +106,18 @@ object FrameworkErrors {
     /** Every framework code, in the order of the status table, each with what a retry may do. */
     val ALL: List<ErrorManifest> = listOf(
         ErrorManifest(AUTH_UNAUTHENTICATED, 401, "The request carries no valid credentials."),
-        ErrorManifest(AUTH_FORBIDDEN, 403, "The caller may not send this command."),
-        ErrorManifest(AGGREGATE_FORBIDDEN, 403, "The aggregate is outside the caller's scope."),
+        ErrorManifest(
+            AUTH_FORBIDDEN,
+            403,
+            "The caller may not do what the request asks: send this command, call this route, or act or read across " +
+                "scopes.",
+        ),
+        ErrorManifest(
+            AGGREGATE_FORBIDDEN,
+            403,
+            "The caller may read the aggregate but may not change it, or the command would create one outside the " +
+                "caller's reach.",
+        ),
         ErrorManifest(
             REQUEST_MALFORMED,
             400,
@@ -117,7 +127,7 @@ object FrameworkErrors {
         ErrorManifest(COMMAND_INVALID, 400, "The command failed validation; the problem lists the violations."),
         ErrorManifest(WAIT_INVALID, 400, "The wait is not a chain the runtime can follow; the command was not run."),
         ErrorManifest(COMMAND_UNHANDLED, 400, "The aggregate does not handle this command."),
-        ErrorManifest(AGGREGATE_NOT_FOUND, 404, "The aggregate does not exist."),
+        ErrorManifest(AGGREGATE_NOT_FOUND, 404, "The aggregate does not exist, or is outside the caller's reach."),
         ErrorManifest(AGGREGATE_EXISTS, 409, "The aggregate already exists."),
         ErrorManifest(
             AGGREGATE_VERSION_MISMATCH,
@@ -224,7 +234,7 @@ object FrameworkErrors {
         ErrorManifest(
             QUERY_INVALID,
             400,
-            "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+            "The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).",
         ),
         ErrorManifest(QUERY_FAILED, 500, "The query backend failed to run the query."),
         ErrorManifest(
@@ -285,8 +295,8 @@ object FrameworkErrors {
      */
     val TITLES: Map<String, String> = mapOf(
         AUTH_UNAUTHENTICATED to "Unauthenticated",
-        AUTH_FORBIDDEN to "Command forbidden",
-        AGGREGATE_FORBIDDEN to "Aggregate out of scope",
+        AUTH_FORBIDDEN to "Forbidden",
+        AGGREGATE_FORBIDDEN to "Aggregate change forbidden",
         REQUEST_MALFORMED to "Malformed request",
         COMMAND_MALFORMED to "Malformed command",
         COMMAND_INVALID to "Invalid command",

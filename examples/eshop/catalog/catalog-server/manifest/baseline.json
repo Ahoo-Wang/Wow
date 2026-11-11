@@ -518,11 +518,11 @@
   }, {
     "code" : "wow.auth.forbidden",
     "status" : 403,
-    "description" : "The caller may not send this command."
+    "description" : "The caller may not do what the request asks: send this command, call this route, or act or read across scopes."
   }, {
     "code" : "wow.aggregate.forbidden",
     "status" : 403,
-    "description" : "The aggregate is outside the caller's scope."
+    "description" : "The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach."
   }, {
     "code" : "wow.request.malformed",
     "status" : 400,
@@ -546,7 +546,7 @@
   }, {
     "code" : "wow.aggregate.not-found",
     "status" : 404,
-    "description" : "The aggregate does not exist."
+    "description" : "The aggregate does not exist, or is outside the caller's reach."
   }, {
     "code" : "wow.aggregate.exists",
     "status" : 409,
@@ -646,7 +646,7 @@
   }, {
     "code" : "wow.query.invalid",
     "status" : 400,
-    "description" : "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...)."
+    "description" : "The query failed admission; the problem lists the violations, each with its code (unknown-field, ...)."
   }, {
     "code" : "wow.query.failed",
     "status" : 500,

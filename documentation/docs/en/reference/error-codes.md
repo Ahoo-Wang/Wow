@@ -14,14 +14,14 @@ Every code the framework answers a request with, as `code` of the `application/p
 | Code | Status | Retry | Title | Meaning |
 | --- | --- | --- | --- | --- |
 | `wow.auth.unauthenticated` | 401 | `none` | Unauthenticated | The request carries no valid credentials. |
-| `wow.auth.forbidden` | 403 | `none` | Command forbidden | The caller may not send this command. |
-| `wow.aggregate.forbidden` | 403 | `none` | Aggregate out of scope | The aggregate is outside the caller's scope. |
+| `wow.auth.forbidden` | 403 | `none` | Forbidden | The caller may not do what the request asks: send this command, call this route, or act or read across scopes. |
+| `wow.aggregate.forbidden` | 403 | `none` | Aggregate change forbidden | The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach. |
 | `wow.request.malformed` | 400 | `none` | Malformed request | A request header or parameter does not parse, or names what Wow does not take. |
 | `wow.command.malformed` | 400 | `none` | Malformed command | The command body cannot be read as the command type. |
 | `wow.command.invalid` | 400 | `none` | Invalid command | The command failed validation; the problem lists the violations. |
 | `wow.wait.invalid` | 400 | `none` | Invalid wait | The wait is not a chain the runtime can follow; the command was not run. |
 | `wow.command.unhandled` | 400 | `none` | Command not handled | The aggregate does not handle this command. |
-| `wow.aggregate.not-found` | 404 | `none` | Aggregate not found | The aggregate does not exist. |
+| `wow.aggregate.not-found` | 404 | `none` | Aggregate not found | The aggregate does not exist, or is outside the caller's reach. |
 | `wow.aggregate.exists` | 409 | `none` | Aggregate exists | The aggregate already exists. |
 | `wow.aggregate.version-mismatch` | 409 | `none` | Version mismatch | The aggregate is not at the expected version (412 when the request carried If-Match). |
 | `wow.command.request-id-reused` | 409 | `none` | Request id reused | The request id was used by another command. |
@@ -42,7 +42,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.wait.timeout` | 504 | `same-request` | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
 | `wow.route.malformed` | 400 | `none` | Malformed route request | A service route's parameter or body cannot be read as its type; the violation names the parameter. |
 | `wow.query.malformed` | 400 | `none` | Malformed query | The query body cannot be read as a query. |
-| `wow.query.invalid` | 400 | `none` | Invalid query | The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...). |
+| `wow.query.invalid` | 400 | `none` | Invalid query | The query failed admission; the problem lists the violations, each with its code (unknown-field, ...). |
 | `wow.query.failed` | 500 | `none` | Query failed | The query backend failed to run the query. |
 | `wow.query.not-found` | 404 | `none` | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
 | `wow.query.dataset-not-found` | 404 | `none` | Dataset not found | No dataset of that name is served to the caller. |
