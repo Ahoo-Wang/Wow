@@ -21,7 +21,7 @@
 
 各轮审查之外的发现：CI 与夜间运行、基准、端到端验证、文档核对、各会话的收尾笔记。
 
-本节共 113 项，89 项已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
+本节共 115 项，92 项已处理（明细见 git 历史，压缩前的最后一版为 `2c08f318ea`），余下：
 
 | 编号 | 级别 | 位置 | 现象 | 余下 | 状态 |
 | --- | --- | --- | --- | --- | --- |
@@ -48,6 +48,7 @@
 | X-110 | P3 | 事件日志拆分的收尾 | 收尾笔记的各项已处理 | 三个未做的候选：两个存储在一次调用的后一部分只捕获各自的存储异常，不属于存储失败的拒绝仍会抛出；给 SPI 增加「未写入、重试可能成功」的追加结果；两个存储的测试夹具各有一份照 TCK 抄的 `stream`，是否由 TCK 开放给后端自己的测试 | 已处理，留三个候选 |
 | X-113 | P3 | 测试里的存量 | 运行时的测试以 `delay(…)` 等待；`compiler/compiler` 的测试包里 22 份相同的 `options` 辅助函数；两处类注释只覆盖类里的一部分测试（`SubscriptionCompatibilityTest`、`ServiceRoleTest`）；`AggregateCompatibilityTest` 的 `byId` 与 `CompatibilityFixtures.ROUTE` 同值；`TypeArgumentsTest` 的 `completed` 每个测试实例都重建；`QueryBulkhead.kt:180` 是否被覆盖取决于线程时序 | 运行时测试里真实时间上的 73 处等待分五类处理（会话 rt-subs-p1）：轮询、等时钟或某一步、闸门后的缺席、「不再发生」四类只改测试；「若干轮后的缺席」25 处逐组件定，没有现成信号可数的不为测试给产品代码加钩子。所有权的测试以 `abort()` 收尾随同一批。其余未排 | 进行中 |
 | X-114 | P3 | 代码与工作流里的注释 | 约 130 处注释以「roadmap <编号>」引用路线图的工作包或 §6 的条目，另有 4 处引用文档方案的 DG-6；这些编号所指的条目做完后已从路线图删去，注释指向的东西不再存在 | 逐处改为说明原因本身，或引用决定编号；随各模块下一次改动或一次专门的清理做 | 已登记 |
+| X-115 | P3 | 访问遍历对 Elasticsearch Sink 的盖章 | 遍历对每个聚合发一个 `_update_by_query`（`AccessWalking.stampCurrent`），Sink 按页成批的 `stampAll` 没有被用到；一次遍历是一次性的，按 `walkShare` 限速。实测：1,000 个账户的遍历是 999 个请求 | 遍历把一页交给目标的 `stampAllIn`；属运行时与查询两侧的改动，未排 | 已登记 |
 
 ## 4. 第三轮架构审查 R3（2026-10-19，基线 `751c87569d`，只读）
 
@@ -133,7 +134,7 @@
 
 | 编号 | 级别 | 后端 | 发现 | 余下 | 格式 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| CH-1、ES-2 | P1、P2 | ClickHouse、Elasticsearch | Sink 的订阅每条记录调用一次写入：ClickHouse 一次 INSERT 在三张表各生成一个 part，Elasticsearch 的事件 Sink 每次提交一个 `_bulk`、一次 translog 落盘 | Sink 的订阅成批交给 Sink；改前改后在 Actions 上量每个 part 的行数与每个 `_bulk` 的文档数。改前（`sink-ch`，run 42925482067）：ClickHouse 每次 INSERT 约 3 个提交，三张表各一个 part | 否 | 进行中（D413：运行时一侧已合并，余 Sink 一侧） |
+| CH-1、ES-2 | P1、P2 | ClickHouse、Elasticsearch | Sink 的订阅每条记录调用一次写入。实测（Actions，`sink-ch` 与 `sink-es`）：稳定的每秒 200 个提交下，ClickHouse 每次 INSERT 约 3 个提交、Elasticsearch 每个 `_bulk` 1 个；排空 13,000 个提交的积压时，ClickHouse 靠 Sink 自己的队列已到每次 INSERT 142.9 个提交，Elasticsearch 仍是每个 `_bulk` 1 个（13,000 个请求） | D413 的 Sink 一侧（#5951）：订阅层的组提交。四条写入车道的版本把 Elasticsearch 的积压提到每个 `_bulk` 101.6 个提交，却把 ClickHouse 降到 75.1 个，改为每个 Sink 一条写入车道后重测；合并的条件是 ClickHouse 的积压不低于 142.9、稳定负载不变差 | 否 | 进行中（会话 p1-sweep-edges） |
 | ES-1 | P1（属性常变时） | Elasticsearch | 一次提交改了访问属性，就对整个索引强制刷新一次，再用 `_update_by_query` 重写该聚合此前的全部版本；属性常变时一个聚合一生是平方级 | 随成批：一批一次刷新、一次盖章；文档写明这类属性的代价 | 否 | 进行中（D413，Sink 一侧） |
 | CH-3 | P1 | ClickHouse | 分析目录编译出的数据集视图把每个会合并的来源写成 `(SELECT * FROM t FINAL)`，租户条件只加在主体上；右表能否被下推过滤取决于服务器版本，未验证 | 先在 Actions 上用 `EXPLAIN indexes=1` 看右表的主键条件；不下推就把视图做成带租户参数的，或在来源子查询里显式加租户条件 | 否 | 待测 |
 | ES-4 | P2 | Elasticsearch | 快照写入默认 `wait_for`：每批要等到下一次刷新才返回，最长约 1 秒；命令的 SNAPSHOT 等待是否包含这次写入未能读定 | 非主存储的快照默认不等刷新，需要读己之写的查询再开 | 否（默认值） | 待定 |
