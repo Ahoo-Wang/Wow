@@ -172,18 +172,19 @@
 
     /*
      * The dark half of the same rule: 15% white measured 1.47:1 on the dark
-     * card, and 40% measures 3.29:1 at its worst — against the control's own
-     * `bg-input/30` fill, which this value lifts with it, being the same token
-     * at another opacity.
+     * card. 40% was set to hold 3:1 on the wash a control wore then (3.29:1,
+     * the wash being this token at 30%); the wash is gone (D94) and the edge
+     * stands on the plain grounds, each darker than the wash was.
      */
     --input: var(
       --fve-dark-input,
       var(--fvp-dark-input, oklch(1 0 0deg / 40%))
     );
     /*
-     * Lifted with the toolbar's functions turning into outline buttons: their
-     * `bg-input/30` wash is lighter than the card, and the ring at 0.556 read
-     * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
+     * Lifted with the toolbar's functions turning into outline buttons: the
+     * wash they wore then was lighter than the card, and the ring at 0.556
+     * read 2.67:1 against it. 0.66 cleared 3:1 on the wash, and clears it on
+     * the card and the page, which are what a control stands on now (D94).
      */
     --ring: var(
       --fve-dark-ring,
