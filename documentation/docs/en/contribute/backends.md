@@ -194,10 +194,10 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`, `binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)` | `semanticDivergences` |
-| `AccessFilterSpec` | `wow-query-tck` | `store(type, records)`, `binding(type)` | |
+| `AccessFilterSpec` | `wow-query-tck` | `store(type, records)`, `binding(type)` | `keepsUnstamped` |
 | `DatasetAccessSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)`, `storeAccess(…)` | |
 
-Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, the in-memory backend runs `StoreTck`, the seven store specs with `FailureLedgerContextsSpec`, `TopicTransportSpec` and the five query specs; PostgreSQL and MongoDB run the seven store specs, `FailureLedgerContextsSpec`, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec`, `DatasetQueryBackendSpec` and `DatasetAccessSpec`.
+Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, the in-memory backend runs `StoreTck`, the seven store specs with `FailureLedgerContextsSpec`, `TopicTransportSpec` and the five query specs; PostgreSQL and MongoDB run the seven store specs, `FailureLedgerContextsSpec`, `QueryBackendSpec`, `EventQueryBackendSpec` and `AccessFilterSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec`, `DatasetQueryBackendSpec` and `DatasetAccessSpec`.
 
 ### Capabilities and skipped tests {#capabilities}
 

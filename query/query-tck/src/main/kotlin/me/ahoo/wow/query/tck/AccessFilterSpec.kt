@@ -59,7 +59,8 @@ import java.util.UUID
  * kernel evaluates the policy ([AccessPredicate.allows]), so a policy grants the same aggregates whether a query, a
  * point read or a command asks. A backend's test extends it, stores the records each test gives in [store], and
  * supplies its binding of an aggregate type in [binding]; on the in-memory backend it is the matrix that holds the
- * kernel's evaluator to the point reads', on the others the access attributes' push-down.
+ * kernel's evaluator to the point reads', on the others the access attributes' push-down. A snapshot store keeps no
+ * record not stamped ([keepsUnstamped]).
  *
  * Each record holds an aggregate's access attributes as its snapshot does: the built-in owner and space as [owner]
  * and [space] (`ownerId` and `spaceId`; an event stream's `access.owner` and `access.space`), each declared attribute
@@ -85,6 +86,14 @@ abstract class AccessFilterSpec {
 
     /** The field the attribute [name] is stored under: `access.<name>`. */
     protected open fun fieldOf(name: String): QueryField<*> = QueryField("${access.path}.$name")
+
+    /**
+     * Whether the store keeps a record not yet stamped, one whose `access` is null. A snapshot store does not: a
+     * snapshot's attributes are always recorded (`SnapshotRecord.access` is never null, and a table's column is
+     * `NOT NULL DEFAULT '{}'`), so it stores the matrix's record not stamped as one stamped with no attributes, and the
+     * matrix expects for it what the kernel grants that record.
+     */
+    protected open val keepsUnstamped: Boolean = true
 
     /** The field of the built-in owner: a snapshot's `ownerId`. */
     protected open val owner: QueryField<*> = SnapshotProperties.OWNER_ID
@@ -122,19 +131,24 @@ abstract class AccessFilterSpec {
 
     @TestFactory
     fun `access filter matrix`(): List<DynamicTest> {
+        val records = if (keepsUnstamped) {
+            RECORDS
+        } else {
+            RECORDS.map { if (it.stamped) it else AccessRecord(it.id, it.owner, it.space, it.values) }
+        }
         val schema = runBlocking {
-            store(type, RECORDS)
+            store(type, records)
             schemaOf(binding(type))
         }
         val backend = binding(type).backend
         return CASES.map { (name, predicate) ->
             DynamicTest.dynamicTest(name) {
-                val expected = RECORDS.filter { record ->
+                val expected = records.filter { record ->
                     record.stamped && predicate.allows { valueOf(record, it) }
                 }.map { it.id }
                 val filter = AndFilter(listOf(IsNotNullFilter(access), AccessFilters.compile(predicate, ::fieldOf)))
                 val actual = runBlocking {
-                    backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = RECORDS.size + 1), schema))
+                    backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = records.size + 1), schema))
                         .toList().map { it.path("aggregateId").stringValue() }
                 }
                 actual.toSet().assert().describedAs("$name as $filter").isEqualTo(expected.toSet())
