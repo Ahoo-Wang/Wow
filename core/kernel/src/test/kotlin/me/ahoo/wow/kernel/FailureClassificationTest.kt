@@ -85,7 +85,8 @@ class FailureClassificationTest {
             IllegalStateException("wrapped", UndeclaredSendException("shop.saga", String::class.java, "derives")),
         ).forEach { classification.classify(it, retryAll).assert().isEqualTo(FailureClass.UNRECOVERABLE) }
         val parkAll = HandlerRetry(unrecoverable = listOf(IllegalStateException::class.java))
-        val late = HandlerTimeoutException("shop.saga", AggregateType("shop", "cart").ref("tenant", "c-1"), 3, 5.seconds)
+        val cart = AggregateType("shop", "cart").ref("tenant", "c-1")
+        val late = HandlerTimeoutException("shop.saga", cart, 3, 5.seconds)
         classification.classify(late, parkAll).assert().isEqualTo(FailureClass.RECOVERABLE)
         // The handler's own failure of the same class is still its list's.
         classification.classify(IllegalStateException("mine"), parkAll).assert().isEqualTo(FailureClass.UNRECOVERABLE)
