@@ -195,6 +195,18 @@ describe('memorySource: filters and readings', () => {
       ).resolves.toEqual(['soon']);
     });
 
+    it('reads the current time when no clock is given', () => {
+      const overdue = {
+        op: FilterOperator.BEFORE_NOW,
+        field: 'timeoutAt',
+        offset: 'PT0S',
+      } as FilterExpression;
+      expect(matches({ timeoutAt: 0 }, overdue)).toBe(true);
+      expect(matches({ timeoutAt: Number.MAX_SAFE_INTEGER }, overdue)).toBe(
+        false,
+      );
+    });
+
     it('lowers the clock in a metric’s own filter too', async () => {
       const [row] = await source.aggregate(
         query([
