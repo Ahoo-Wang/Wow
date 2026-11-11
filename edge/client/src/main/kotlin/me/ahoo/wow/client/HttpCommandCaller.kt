@@ -71,9 +71,9 @@ class HttpCommandCaller internal constructor(
 ) : CommandCaller {
     /**
      * The caller of the contexts' internal ports at the fixed [endpoints], as the service named [service], on
-     * [client], each call answered within [timeout] and routed as [contracts] list its command.
+     * [client], each call answered within [timeout] and routed as [contracts] list its command. It takes fixed URLs
+     * where the other takes a resolver, and has one timeout for every context.
      */
-    @JvmOverloads
     constructor(
         endpoints: Map<String, URI>,
         service: String? = null,
@@ -84,9 +84,9 @@ class HttpCommandCaller internal constructor(
 
     /**
      * The caller of the contexts' internal ports [endpoints] finds, as the service named [service], each call answered
-     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command.
+     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command. It builds
+     * what the internal constructor takes: the transport from the endpoints, and the command index from the contracts.
      */
-    @JvmOverloads
     constructor(
         endpoints: EndpointResolver,
         service: String?,
