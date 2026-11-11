@@ -159,6 +159,9 @@ internal class SubscriptionWorker(
         random,
         importedThrough,
     )
+
+    /** How a lane runs its live entries together, null for a subscription that runs each alone. */
+    private val runs = if (subscription.runsTogether) LaneRuns(subscription, source, handling, hops, Ops()) else null
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
@@ -297,7 +300,7 @@ internal class SubscriptionWorker(
             } ?: return
             try {
                 when (item) {
-                    is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
+                    is Item.Live -> runs?.live(item, lane) ?: runLive(item)
                     is Item.Retry -> runRetry(ref, item)
                     is Item.Skip -> runSkip(ref, item)
                 }
@@ -329,40 +332,37 @@ internal class SubscriptionWorker(
         hops.signal(entry, handled, skipped && parked)
     }
 
-    /**
-     * Runs [first] and the live entries queued behind it in its [lane] as one batch, for a subscription that
-     * [Subscription.coalesces]: the handler gets only the latest entry it does not skip. When it fails, the aggregate
-     * is parked from the earliest such entry, since none of them is reflected. Then every entry of the batch
-     * completes and is signalled.
-     */
-    private suspend fun runBatch(first: Item.Live, lane: Lane) {
-        val batch = synchronized(this) {
-            val items = arrayListOf(first)
-            while (lane.items.firstOrNull() is Item.Live) {
-                items += lane.items.removeFirst() as Item.Live
+    /** The worker's side of [runs]: its monitor sections, its path of an entry alone, and its parking. */
+    private inner class Ops : LaneOps<Item.Live, Lane> {
+        override fun take(first: Item.Live, lane: Lane, max: Int): List<Taken<Item.Live>> {
+            synchronized(this@SubscriptionWorker) {
+                val items = arrayListOf(first)
+                while (items.size < max && lane.items.firstOrNull() is Item.Live) {
+                    items += lane.items.removeFirst() as Item.Live
+                }
+                // In version order, as skippedInLane expects.
+                return items.map { Taken(it, it.entry, skippedInLane(it.entry), parkedAt(it.entry)) }
             }
-            // In version order, as skippedInLane expects.
-            items.map { Batched(it, skippedInLane(it.entry), parkedAt(it.entry)) }
         }
-        val handled = batch.filterNot { it.skipped }
-        val result = handled.lastOrNull()?.let { latest -> handling.handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
-        result.exceptionOrNull()?.let { park(handled.first().item.entry, it) }
-        synchronized(this) {
-            if (result.isSuccess) {
-                handled.forEach { remember(it.item.entry) }
+
+        override fun settle(done: List<Taken<Item.Live>>, handled: Boolean, lane: Lane, rest: List<Taken<Item.Live>>) {
+            synchronized(this@SubscriptionWorker) {
+                if (handled) {
+                    done.filterNot { it.skipped }.forEach { remember(it.entry) }
+                }
+                done.forEach { complete(it.item.slot) }
+                // Actions go first in a lane and live entries last, so the first live entry ends the actions.
+                val behindActions = lane.items.indexOfFirst { it is Item.Live }.takeIf { it >= 0 } ?: lane.items.size
+                lane.items.addAll(behindActions, rest.map { it.item })
             }
-            batch.forEach { complete(it.item.slot) }
         }
-        batch.forEach {
-            if (it.skipped) {
-                hops.signal(it.item.entry, Result.success(HandledEntry.NOTHING), it.parked)
-            } else {
-                hops.signal(it.item.entry, result)
-            }
+
+        override suspend fun handleAlone(item: Item.Live) = runLive(item)
+
+        override suspend fun park(entry: SourcedEntry, failure: Throwable) {
+            this@SubscriptionWorker.park(entry, failure)
         }
     }
-
-    private class Batched(val item: Item.Live, val skipped: Boolean, val parked: Boolean)
 
     /**
      * Called under the monitor. Within a lane, entries arrive in their ordinal order ([EntrySource.ordinalOf]), except
