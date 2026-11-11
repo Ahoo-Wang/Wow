@@ -236,11 +236,11 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             parked.reason.assert().startsWith("Partition ").contains("no longer retains offset $position")
             parked.fromVersion.assert().isEqualTo(2)
             parked.fromPosition.assert().isEqualTo(position)
-            // Marked once: a retry no longer tries, whatever an operator marks the entry.
+            // Marked once: a retry no longer tries, whatever an operator marks the entry; the entry stays as it is.
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            ledger.amend(BOARD_ID, order("o-1"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
+            val marked = ledger.amend(BOARD_ID, order("o-1"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            ledger.parked(BOARD_ID, order("o-1"))!!.skipOnly.assert().isTrue()
+            ledger.parked(BOARD_ID, order("o-1")).assert().isEqualTo(marked)
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
             topics.publish(orderRecord("o-1", 4))
