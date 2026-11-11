@@ -169,6 +169,41 @@ class SinkWritesTest {
     }
 
     @Test
+    fun `a leader cancelled while its batch is written run by run puts back only the runs not ended`(): Unit =
+        runBlocking {
+            // The three runs together fail; written alone, a's and b's succeed and c's waits for the gate.
+            val gate = CompletableDeferred<Unit>()
+            val writes = CopyOnWriteArrayList<List<String>>()
+            val sink = Sink { records ->
+                val names = records.map { "${it.ref.id}@${it.version}" }
+                writes += names
+                require(names.size != 3) { "refused together" }
+                if (names == listOf("c@1") && !gate.isCompleted) gate.await()
+            }
+            val sinkWrites = SinkWrites(sink, 8)
+            val leader = async { sinkWrites.write(run("a", 1)) }
+            val b = async { sinkWrites.write(run("b", 1)) }
+            val c = async { sinkWrites.write(run("c", 1)) }
+            eventually { writes.lastOrNull() == listOf("c@1") }
+            // Cancelled inside c's write alone, b's already ended: b is not the leader's own, and must not go back.
+            leader.cancelAndJoin()
+            b.await().done.assert().isEqualTo(1)
+            gate.complete(Unit)
+            withTimeout(5.seconds) { c.await() }.done.assert().isEqualTo(1)
+            // b is not written again: the next leader writes c, and a write arriving afterwards is written too.
+            writes.assert().containsExactly(
+                listOf("a@1", "b@1", "c@1"),
+                listOf("a@1"),
+                listOf("b@1"),
+                listOf("c@1"),
+                listOf("c@1"),
+            )
+            withTimeout(5.seconds) { sinkWrites.write(run("d", 1)) }.done.assert().isEqualTo(1)
+            writes.last().assert().containsExactly("d@1")
+            sinkWrites.waiting.assert().isEqualTo(0)
+        }
+
+    @Test
     fun `a leader cancelled before its first batch leaves the queue, and the next run is written`(): Unit =
         runBlocking {
             val writes = SinkWrites(sink, 8)

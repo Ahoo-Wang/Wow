@@ -47,7 +47,8 @@ internal class Written(val done: Int, val failure: Throwable?)
  *   run that fails alone is written record by record: it answers the records written before the one that failed, and
  *   that one's failure, so only its aggregate is retried and parked, from that record. A fatal error fails every run.
  * - **Cancellation**: a leader cancelled (its lane stopped, or its run timed out) leaves the queue if no batch took its
- *   own run yet, puts the runs it took back in front and hands the lead on; a waiting run cancelled leaves the queue.
+ *   own run yet, puts the runs it took and has not ended back in front and hands the lead on; a waiting run cancelled
+ *   leaves the queue.
  */
 internal class SinkWrites(private val sink: Sink, private val maxBatch: Int) {
     init {
@@ -109,8 +110,9 @@ internal class SinkWrites(private val sink: Sink, private val maxBatch: Int) {
             synchronized(this) {
                 // Cancelled at the yield, its own run still heads the queue: handed the lead, it would lead nobody.
                 queue.remove(own)
-                // Cancelled in a write, before it ended any run of its batch: the others go back in front.
-                taken.filter { it !== own }.asReversed().forEach(queue::addFirst)
+                // Cancelled in a write: the runs of its batch not ended yet go back in front. A batch written run by run
+                // after a failure ends each run as its write returns, so some may have ended already.
+                taken.filter { it !== own && !it.result.isCompleted }.asReversed().forEach(queue::addFirst)
             }
             throw cancelled
         } finally {
