@@ -295,6 +295,7 @@ class ServiceNode @InternalWowApi constructor(
      * Publishes the node's failure ledger to the ops context when [ServiceNodeOptions.ledger] says
      * where: the entries whose partitions the node runs, through that context's command topic.
      */
+    @InternalWowApi
     val ledgerPublisher: LedgerPublisher? get() = assembly.ledgerPublisher
 
     /**
@@ -305,6 +306,7 @@ class ServiceNode @InternalWowApi constructor(
      * contract lists commands, where the gateway sends them: that topic is the peer's, so
      * it is checked, never created. None without [topics].
      */
+    @InternalWowApi
     val topicRequirements: List<TopicRequirement> get() = assembly.topicRequirements
 
     private val lifecycle = NodeLifecycle(assembly, listener)

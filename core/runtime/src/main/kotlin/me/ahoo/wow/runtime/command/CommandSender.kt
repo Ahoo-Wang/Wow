@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.command
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.Ledger
@@ -48,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   it has not, and the caller retries with the same command, which the target does not decide twice.
  * - **Trace**: the message carries the trace the sender runs in, which the target's intake continues.
  */
+@InternalWowApi
 class CommandSender(private val contracts: ContractDirectory, private val topics: SourceTopics) {
     private val producer: TopicProducer = requireNotNull(topics.producer) { "Commands are sent through a producer." }
     private val partitions = ConcurrentHashMap<String, Int>()
