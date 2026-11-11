@@ -647,7 +647,6 @@ describe('date kinds', () => {
       op: FilterOperator.BEFORE_NOW,
       field: 'value',
       offset: 'PT0S',
-      timeUnit: TimeUnit.MILLISECONDS,
     });
     expect(
       compile(dateTimeFieldKind, leaf(FilterOperator.AFTER_NOW, null), def),
@@ -655,9 +654,9 @@ describe('date kinds', () => {
       op: FilterOperator.AFTER_NOW,
       field: 'value',
       offset: 'PT0S',
-      timeUnit: TimeUnit.MILLISECONDS,
     });
-    // A time kept in seconds is compared in seconds.
+    // A time kept in seconds sends no unit either: the service reads it from
+    // the field's schema.
     const seconds = field({
       kind: 'datetime',
       temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
@@ -668,9 +667,10 @@ describe('date kinds', () => {
         leaf(FilterOperator.BEFORE_NOW, null),
         seconds,
       ),
-    ).toMatchObject({
+    ).toEqual({
       op: FilterOperator.BEFORE_NOW,
-      timeUnit: TimeUnit.SECONDS,
+      field: 'value',
+      offset: 'PT0S',
     });
     expect(
       dateTimeFieldKind.describe({

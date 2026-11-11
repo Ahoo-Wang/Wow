@@ -123,12 +123,7 @@ describe('the wire spelling of the types', () => {
       new URL('./golden/dsl-wire.json', import.meta.url),
       'utf8',
     );
-    for (const value of [
-      'PAID',
-      'UTC',
-      'Asia/Shanghai',
-      'PT0S',
-    ])
+    for (const value of ['PAID', 'UTC', 'Asia/Shanghai', 'PT0S'])
       expect(golden).toContain(`"${value}"`);
   });
 

@@ -257,8 +257,8 @@ describe('4.1 fields', () => {
         path: ['fields', 5],
         params: {
           field: 'shippedAt',
-          declared: 'epoch SECONDS',
-          described: 'epoch MILLISECONDS',
+          declared: 'epoch seconds',
+          described: 'epoch milliseconds',
         },
       },
       {

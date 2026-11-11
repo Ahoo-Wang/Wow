@@ -1326,6 +1326,7 @@ interface MapSpec {
 // @public
 export function matches(document: RecordData, filter: FilterExpression, options?: {
     now?: () => Date;
+    timeUnits?: Readonly<Record<string, TimeUnit>>;
 }): boolean;
 
 // @public
@@ -1336,6 +1337,7 @@ export interface MemorySourceOptions {
     now?: () => Date;
     remember?: boolean;
     timeField?: string;
+    timeUnits?: Readonly<Record<string, TimeUnit>>;
 }
 
 // @public

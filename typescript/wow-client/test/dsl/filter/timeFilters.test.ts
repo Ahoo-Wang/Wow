@@ -158,8 +158,7 @@ describe('filter', () => {
     },
     {
       name: 'after now, looking back',
-      create: () =>
-        filter.afterNow('createdAt', '-PT30M', { zoneId: 'UTC' }),
+      create: () => filter.afterNow('createdAt', '-PT30M', { zoneId: 'UTC' }),
       expected: {
         op: FilterOperator.AFTER_NOW,
         field: 'createdAt',

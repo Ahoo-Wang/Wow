@@ -16,6 +16,7 @@ import {
   DEFAULT_PAGINATION,
   FilterOperator,
   SortDirection,
+  type TimeUnit,
   type AggregationQuery,
   type FieldSort,
   type FilterExpression,
@@ -48,6 +49,13 @@ export interface MemorySourceOptions {
    * order they came in.
    */
   timeField?: string;
+  /**
+   * The unit of each time field the documents hold in another unit than
+   * epoch milliseconds, by its path, as the service's query schema declares
+   * it: `BEFORE_NOW` and `AFTER_NOW` count the moment in it, as the service
+   * does. A filter does not carry it.
+   */
+  timeUnits?: Readonly<Record<string, TimeUnit>>;
   /**
    * Answer a repeated aggregation from memory, keyed by the query, each
    * caller getting its own copy. Only for documents that never change under
@@ -85,10 +93,11 @@ export function memorySource(
   const table = tableOf(documents, options.timeField);
   const answers = new Map<string, RecordData[]>();
   const clock = options.now;
+  const units = options.timeUnits;
   return {
     paged: asked =>
       settled(() => {
-        const query = atNow(asked, clock);
+        const query = atNow(asked, clock, units);
         const matched = matchedIn(table, query.filter, query.sort);
         const { index, size } = query.pagination ?? DEFAULT_PAGINATION;
         const start = (index - 1) * size;
@@ -101,7 +110,7 @@ export function memorySource(
       }),
     cursor: asked =>
       settled(() => {
-        const query = atNow(asked, clock);
+        const query = atNow(asked, clock, units);
         const matched = matchedIn(table, query.filter, query.sort);
         const start = Number(query.cursor ?? 0);
         const end = start + (query.size ?? matched.length);
@@ -113,7 +122,7 @@ export function memorySource(
     aggregate: asked =>
       settled(() => {
         // Keyed by the moment asked about, not by the words 「晚于现在」.
-        const query = atNow(asked, clock);
+        const query = atNow(asked, clock, units);
         if (!options.remember) return aggregateOver(table, query);
         const key = JSON.stringify(query);
         let answer = answers.get(key);
