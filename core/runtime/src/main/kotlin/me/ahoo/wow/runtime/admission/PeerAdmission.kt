@@ -127,7 +127,6 @@ internal class PeerAdmission(
             bodies.decode(request.body, commandType.type)
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
         }
-        AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 6. Validation.
         val caller = actingCaller(request.caller, facts.ref, scope)
         val violations = validators.violationsOf {
