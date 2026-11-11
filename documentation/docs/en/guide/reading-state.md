@@ -46,11 +46,11 @@ A command that waits for its snapshot, the default wait, already returns after t
 
 ## Replaying is bounded
 
-Only the latest state is kept, in the snapshot. A read of an older version, an instant or a trace rebuilds the state it answers from the log, from version 1, since the snapshot is past it. Such reads run under the query bulkhead of the aggregate's log store (`429 wow.query.busy` when it is full), and replay at most `wow.query.state.max-replay` commits, 10,000 by default: a state further away answers `400 wow.query.invalid` with the violation `replay-too-long`. A trace returns 100 commits per page by default, and at most 1,000. The caller is checked on the latest state before anything is replayed.
+Only the latest state is kept, in the snapshot. A read of an older version, an instant or a trace rebuilds the state it answers from the log, from version 1, since the snapshot is past it. Such reads, and a latest state read from the log (before the first snapshot, or catching a lagging one up for `?minVersion=`), run under the query bulkhead of the aggregate's log store (`429 wow.query.busy` when it is full), and replay at most `wow.query.state.max-replay` commits, 10,000 by default: a state further away answers `400 wow.query.invalid` with the violation `replay-too-long`. A trace returns 100 commits per page by default, and at most 1,000. The caller is checked on the latest state before anything is replayed.
 
 - **Why the bound.** One read of an old state of a long-lived aggregate would otherwise replay its whole history on the node that serves it.
 - **When to raise it.** A deployment that reads states far back in long histories, an audit view of an aggregate's ten-thousandth version say, raises `wow.query.state.max-replay`; each such read then costs up to that many commits.
-- **What it does not bound.** The events: an aggregate's event history, however long, is read page by page through the events query ([Query Event Streams](./event-queries)). Only a state at an older version or an instant, and a trace, which carries the state after each commit, are bounded.
+- **What it does not bound.** The events: an aggregate's event history, however long, is read page by page through the events query ([Query Event Streams](./event-queries)). Only a read that replays the log is bounded: a state at an older version or an instant, a trace, which carries the state after each commit, and a latest state read from the log.
 
 ## In Kotlin
 
@@ -79,7 +79,7 @@ basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-
 - `snapshots<OrderStateView>()` reads another context's aggregate, its state decoded as the view its api generates (`<State>View`, the state's fields; free-shape content an `ObjectNode`); `snapshots<ProductState>()` reads a type of this service, its state decoded as the class. `snapshots(type)` reads a type by its name, its state as JSON.
 - A typed read reads whole states. A query that projects fields reads its rows through `dynamic<ObjectNode>()` (or a `Map`, or a class of the projected fields): a projection leaves out fields the view requires.
 - `state(id)` answers `null` for a state the caller may not see, alike to a missing one. `state(id, minVersion)` reads your own write, and throws `MinVersionNotReachedException` when the version is not reached in time.
-- `trusted()` reads as trusted code: no tenant, owner or space restricts it, and no policy that reads the caller, such as a role check, applies. Use it for system jobs, never for a request that has a caller.
+- `trusted()`, on the node's `NodeQueryApi` (the type of the host's bean; a client's `QueryApi` has none), reads as trusted code: no tenant, owner or space restricts it, and no policy that reads the caller, such as a role check, applies. Use it for system jobs, never for a request that has a caller.
 - A peer listed under `wow.peers` is read over HTTP with the same calls ([Call Other Services](./calling-services#configure-a-peer-over-http)).
 - In a saga, a projection or a reactor, `context.queries` reads the whole tenant of the commit being handled: no owner, space, attribute or role restricts it.
 

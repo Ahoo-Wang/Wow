@@ -175,6 +175,7 @@ Manifest 中上下文的 `routes` 列出每条路由（[Manifest 参考](../refe
 | `responseOptional` | 应答可能缺席（`null` 答 `204`）时为 `true` |
 | `errors` | 路由拒绝时用的错误码 |
 | `description` | 函数的 KDoc |
+| `deprecated` | 函数标注 `@Deprecated` 时为 `true` |
 
 兼容检查按名字把路由与基线比较（[Manifest 与兼容](./manifest)）：
 
