@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.timer
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.CommandBusyException
@@ -103,7 +102,9 @@ class TimerRunnerFailuresTest : TimerRunnerFixtures() {
             status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
             answers.clear()
             clock.advance(CLAIM)
-            delay(100)
+            // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
+            // maybe after the next round starts.
+            rounds(3)
             fired.size.assert().isEqualTo(1)
             ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), order("o-1")).assert().isNull()
             // Handed off: the partition's next owner sends it once the claim lapsed.

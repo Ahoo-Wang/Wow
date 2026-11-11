@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.timer
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.Misfire
@@ -197,8 +196,9 @@ class RecurringTimerRunnerTest {
         val due = timer(EVERY_SECOND, key = "due")
         runner.offer(due)
         runner.offer(due)
+        // Not due: it stays in the wheel, which a timer leaves only to be sent. Checked at once: the loop's rounds
+        // after an offer read no store, so nothing counts them.
         runner.loaded(0).assert().isEqualTo(1)
-        delay(20)
         sent.assert().isEmpty()
     }
 

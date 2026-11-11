@@ -20,6 +20,7 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStore
@@ -102,6 +103,16 @@ abstract class TimerRunnerFixtures {
         timers: TimerStore = store,
         loop: TimerLoop = loop(expiresAfter),
     ): TimerRunner = TimerRunner(SHOP, timers, ledger, firer, loop).also { runners += it }
+
+    /**
+     * Waits until [loop] has run [count] more rounds that read the stores ([TimerLoop.rounds], counted as a round
+     * starts): each round but the last has read the timers and dispatched what was due by the clock as the test left
+     * it.
+     */
+    protected suspend fun rounds(count: Int, loop: TimerLoop = loops.single()) {
+        val from = loop.rounds
+        eventually { loop.rounds >= from + count }
+    }
 
     protected fun timer(key: String, dueIn: Duration = Duration.ZERO, partition: Int = 0): Timer {
         val dueAt = clock.millis() + dueIn.inWholeMilliseconds
