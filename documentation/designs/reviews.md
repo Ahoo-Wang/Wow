@@ -136,3 +136,32 @@ rc 前的完整一次：2026-11-11 在 `a7c372ad3e` 上，PostgreSQL 与 MongoDB
 | 其余 | P3 | 各后端 | PG-6（访问遍历重写它盖章的每一行日志，遍历后建议 VACUUM）、PG-14（只存取不查询的列用了 jsonb）、MG-12（冲突路径与遍历多取了字段）、MG-13、CH-8（偏移不设上限、带总数时扫两遍）、CH-10、ES-5（新增映射字段无限速地重写全索引）、ES-6（事件索引单主分片、无滚动）、ES-7（包含与后缀匹配是前导通配符）、ES-9 | 逐项排期；ES-5 加限速与分片并行，ES-6、ES-7 写进运维与查询文档 | 多数否 | 已登记 |
 
 须实测才能定的：有多个候选计划时计划器的选择（PG-8、MG-7）、Sink 订阅的并发（决定 CH-1、ES-1、ES-2 的批次）、ClickHouse 的版本对 JOIN 下推与 `FINAL` 下跳数索引的处理（CH-2、CH-3）。
+
+## 14. api 与 core 的深度架构审查（2026-11-11，基线 `6de85af3c5`，只读）
+
+用户要求在 GA 前深度审查 `api/*` 与 `core/*`（459 个主源码文件）：公开面、SPI、线上格式与热路径，按内聚、耦合、性能、扩展、伸缩、可用、易用与精炼逐模块看，重点是 GA 之后再改即为破坏性变更的地方。第一遍 38 项发现，没有 P0；写路径的结论是内核与执行器没有随聚合历史增长的开销。尚未读到的部分（等待协调、分区属主、订阅运行时的车道与节流、节点装配、聚合模型与编解码等）与未核实的线索在第二遍里补。
+
+定为不改的三项：API-8（`CommandRequest` 的 Builder 与 `timeout`：D337，用户 2026-11-11 确认保留）、SPI-4（发布的记录在 10.0 保持 JSON 树，D269 ④ 以此了结；SPI 一级可在次版本变）、KER-1 的问题（命令无论历史多长都服务，读才受 `max-replay` 限制）。
+
+| 编号 | 级别 | 位置 | 现象 | 余下 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| EVO-1 | P1 | `api/`、`core/` 的 135 处 KDoc（61 个文件） | 记录的演进规则写「以后可加字段，新参数放最后并带默认值」。Kotlin 调用方省略默认参数时调的是 `of$default`，签名含全部参数，加一个参数即二进制不兼容。文档的承诺是补丁版保持 ABI、次版本可变（API Levels、`AGENTS.md`），所以这句话只保证源码兼容；而 D48 要相邻次版本的服务并存，一个服务的 `-api` jar 会被另一个次版本的服务使用 | 用户定：契约模块（`:annotations`、`:api`、`:query-api`、`:manifest`）跨次版本是否承诺二进制兼容；定了再改 135 句与 `AGENTS.md` | 待定（用户） |
+| QRY-1、QRY-2 | P2 | `api/query-api` 的 16 个相对时间过滤 | 各带 `datePattern`、`dateFormatter`、`timeUnit`：准入拒绝前两个，对 `timeUnit` 不报错地改写；`timeUnit` 是 JDK 枚举，大写上线 | 只留 `zoneId`；工厂、DSL、线上格式、TS 构建器同改 | 已派（query-bugs） |
+| QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐 | 已派（query-bugs） |
+| MAN-1 | P2 | `api/manifest` | Manifest 自留一份编程模型的词汇（`Creation`、`Ownership`、`AggregateIdSource`、`FunctionKind`、40 个错误码常量）；D294 的理由（`:manifest` 不依赖 `:api`）自 D366 ② 起不成立；`JobManifest.scope`、`misfire` 是任意字符串 | 改用 `:api` 的枚举与 `FrameworkCodes`，双向对照测试删去 | 已派（kernel-writes-p1） |
+| MAN-2、MAN-4 | P2、P3 | `ManifestTree.read` | 读到不认识的枚举值即丢掉整条命令、聚合或订阅，提示默认进空函数，五个调用方都用默认；`format` 为 `1.5` 时按 1 读 | `warn` 不设默认：节点自己的 Manifest 启动即失败，对端的记日志；非整数的 `format` 拒绝 | 已派（kernel-writes-p1） |
+| MAN-3 | P2 | `api/manifest` 的构建侧辅助 | 契约的装配、打包、冲突检测是公开 API，只有 Wow 自己的工具用 | 标 `@InternalWowApi`；`CommandRoutes` 的路径规则另定 | 已派（kernel-writes-p1） |
+| SPI-1、API-1 | P2 | 失败台账 | 「不可恢复」有三种说法，其一由自由文本 `reason` 的前缀推出；`MarkParkedRecoverable.recoverable` 是 `String`，文档写的拼法运行时拒绝 | 「来源已不持有、只能跳过」成为有类型的字段并单独存储；台账的线上词汇移到 `:api` | 已派（rt-subs-p1） |
+| SPI-2 | P2 | `EventLog.appendAll` | 入参是 `List<Pair<EventStreamRecord, ByteArray?>>`，热路径上唯一不能再加字段的 SPI 签名 | 换成以 `of` 构造的小记录，不增加分配 | 已派（kernel-writes-p1） |
+| SPI-3、SPI-6 | P2、P3 | `TimerStore` | `due` 对所有分区共用一个上限，一个分区的积压会挤掉别处已到期的定时器；`settle` 只返回个数；版本在定时器端口是 `Long`，别处是 `Int` | 按分区限量；`settle` 返回写入了哪些；版本改 `Int`；TCK 同改 | 已派（rt-subs-p1） |
+| SPI-5 | P3 | `core/spi` 的选项读取 | 存储、Sink、传输各写了一份相同的读取代码且已分叉，`Scope.PER_STORE` 三处含义不同 | 一个类型、一个含义 | 已派（rt-subs-p1） |
+| API-2、API-6 | P2、P3 | 系统类型名 | 日志里的系统事件名与命令名有三种拼法（`wow.lifecycle.AggregateDeleted`、`wow.ScheduleSet`、`wow.Ticked`）；七个系统类型是 `data object`，永远加不了字段 | 一条规则 `wow.<namespace>.<ClassName>`；改成带 `of()` 的类 | 已派（kernel-writes-p1），先交新旧名对照 |
+| API-3 | P2 | `ExecutionId` | 只含订阅名、不含上下文；它的文本是交给外部系统的幂等键，同一服务的两个上下文里同名的处理器会得到同一个键 | 带上上下文，不再是 `data class` | 已派（kernel-writes-p1） |
+| API-4 | P2 | 十四个聚合侧注解 | 仍带 `@Inherited` 与 `ANNOTATION_CLASS`，编译器不认而运行时的反射认，子类上两者不一致（D372 S18 已在订阅侧去掉） | 去掉，并以测试证明两者一致 | 已派（kernel-writes-p1） |
+| API-5 | P2 | `DecideScope`、`SubscriptionContext`、`SagaContext`、`StateEvent`、`CommandClient`、`QueryModels`、`RowQueries` | 没有写明用户能否实现；稳定接口上有实验性的抽象成员 | 定为「Wow 实现、用户调用」并写进 KDoc；实验性成员给默认实现或移到子接口 | 已派（kernel-writes-p1） |
+| API-7、API-9、API-10 | P3 | `api/api` | 两个作用域里同一动作两种叫法；调度的命令在存储的事件里是字符串里的 JSON；五处小的内聚问题 | 各按报告修；API-9 先核对序列化 | 已派（kernel-writes-p1） |
+| RT-1、RT-8 | P3 | `core/runtime` | 两个宿主装配类型是公开的；`SnapshotSubscription` 的容量从不跟随 `wow.shared-states.capacity`（恒为 4,096） | 标 `@InternalWowApi`；容量接上配置并加测试 | 已派（rt-subs-p1） |
+| RT-2、RT-3 | P2 | 访问遍历、快照重建 | 一个读不出的聚合让遍历或重建永远停在同一处：游标整页之后才前进，没有跳过、台账或指标，查询一直答 `rebuilding` | 记下该聚合后继续（台账或计数加跳过表）。不改形态 | 已登记；有会话空出时 GA 前修 |
+| RT-4 | P2 | 停放重试 | 重试一个仍在提交的停放聚合时把其后的全部流读进内存（`toList()`） | 并入路线图 §6 性能第 22 项 | 已登记 |
+| NAM-1 | P3 | 存储与线上的时间字段名 | 毫秒时间戳的字段有的以 `Time` 结尾、有的以 `At` 结尾；`firstEventTime` 等沿自 9.x | 协调者建议不改；GA 是最后一次可以免费改 | 待定（用户） |
+| 其余 | P3 | 各处 | RT-5（后台循环只捕获 `Exception`，遇 `Error` 即止而健康检查仍为 UP）、RT-6（一次重建请求按快照目标各重放一遍日志）、RT-7（每条等待的命令分配五个很少用到的集合）、KER-2、SPI-7、DOC-1（几处不再相符的文字，随 KDoc 的 PR 改） | 逐项排期 | 已登记 |
