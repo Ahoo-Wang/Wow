@@ -1,7 +1,7 @@
 -- The access scale check's warehouse (bench.sh measure): 100,000 accounts in each of two tenants, the caller's `(0)`
--- and another, in the Sink's `_state` (its DDL without the history: its stored columns and its access columns, which
--- the access restriction reads; its flat columns, which no query here reads, left out), and 1,000,000 rows of a
--- dataset over them in each tenant, ten rows an account. An account's owner is one of 100 (`u0` to `u99`), and half
+-- and another, in the Sink's `_state` (its DDL without the history and without its flat columns, which no query here
+-- reads: its stored columns and the access columns the access restriction reads, held to the Sink's by
+-- ScaleCheckDdlTest), and 1,000,000 rows of a dataset over them in each tenant, ten rows an account. An account's owner is one of 100 (`u0` to `u99`), and half
 -- of the accounts have a second commit that moved them to another owner, in a part of its own that merges stay off,
 -- so `FINAL` merges them on every query. Statements end with a semicolon at the end of a line.
 

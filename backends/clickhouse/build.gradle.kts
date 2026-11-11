@@ -18,3 +18,10 @@ dependencies {
     // The shared ClickHouse container (decision D196).
     integrationTestImplementation(project(":tck-containers"))
 }
+
+tasks.test {
+    // ScaleCheckDdlTest holds the access scale check's hand-made `_state` (bench.sh measure) to the Sink's.
+    val scaleCheck = rootProject.file("test/benchmarks/harness/measure/dataset-access.sql")
+    inputs.file(scaleCheck).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("scaleCheckSql")
+    systemProperty("wow-test.clickhouse.scale-check-sql", scaleCheck.absolutePath)
+}
