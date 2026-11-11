@@ -135,11 +135,17 @@ class ScheduleJobBindingTest {
 
             val ref = ScheduleJobs.typeOf("billing").ref("acme", "invoice")
             val event = tick(ref, "invoice", 3)
-            val derived = invoice.invoke(event, contextOf(FunctionKind.SAGA, invoice.name, event))
+            val derived = invoice.invoke(
+                event,
+                contextOf(FunctionKind.SAGA, event.ref.type.context, invoice.name, event)
+            )
             derived.single().body.toString().assert().isEqualTo("IssueInvoices(tenantId=acme, slot=3)")
             val sweep = bindings.getValue("BillingSaga.sweep")
             val shard = tick(ref, "sweep", 1)
-            sweep.invoke(shard, contextOf(FunctionKind.SAGA, sweep.name, shard)).assert().isEmpty()
+            sweep.invoke(
+                shard,
+                contextOf(FunctionKind.SAGA, shard.ref.type.context, sweep.name, shard)
+            ).assert().isEmpty()
 
             val fragment = compilation.workingDir.walkTopDown()
                 .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }

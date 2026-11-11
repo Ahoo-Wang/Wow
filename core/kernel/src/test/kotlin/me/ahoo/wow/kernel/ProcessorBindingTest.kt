@@ -135,22 +135,26 @@ class ProcessorBindingTest {
                 listOf(derived)
             },
         )
-        val results = bindings.map { it.invoke(event, contextOf(it.kind, it.name, event)) }
+        val results = bindings.map { it.invoke(event, contextOf(it.kind, event.ref.type.context, it.name, event)) }
         results.take(2).forEach { it.assert().isEmpty() }
         results[2].single().let {
             it.ref.assert().isEqualTo(cart.ref("t", "alice"))
             it.body.assert().isEqualTo("x")
         }
-        (seen[0] as SubscriptionContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
+        (seen[0] as SubscriptionContext).executionId.assert().isEqualTo(
+            ExecutionId(event.ref.type.context, "View.onEvent", event.ref, 3)
+        )
         seen[1].assert().isEqualTo("o-1")
         (seen[2] as SubscriptionContext).executionId.subscription.assert().isEqualTo("Mail.send")
         (seen[3] as SagaContext).executionId.subscription.assert().isEqualTo("Saga.derive")
-        assertThrownBy<IllegalArgumentException> { contextOf(FunctionKind.SNAPSHOT, "snapshot", event) }
+        assertThrownBy<IllegalArgumentException> {
+            contextOf(FunctionKind.SNAPSHOT, event.ref.type.context, "snapshot", event)
+        }
     }
 
     @Test
     fun `a retry whose reads answer in another order should derive each target's request again`() {
-        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        val execution = ExecutionId(event.ref.type.context, "CartSaga.onOrderPlaced", event.ref, event.version)
 
         // The handler derives one command per target a read returns: the read answers in another order on the retry.
         fun derive(targets: List<String>) = ExecutionSagaContext(execution, event).let { context ->
@@ -167,7 +171,7 @@ class ProcessorBindingTest {
 
     @Test
     fun `two commands of one type to one target in one execution should be two requests`() {
-        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        val execution = ExecutionId(event.ref.type.context, "CartSaga.onOrderPlaced", event.ref, event.version)
         fun derive() = ExecutionSagaContext(execution, event).commandsOf(
             listOf(
                 CommandRequest.to(cart.ref("t", "alice"), "add"),
@@ -190,7 +194,7 @@ class ProcessorBindingTest {
 
     @Test
     fun `a saga context should derive deterministic requests linked to the commit`() {
-        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        val execution = ExecutionId(event.ref.type.context, "CartSaga.onOrderPlaced", event.ref, event.version)
         val first = ExecutionSagaContext(execution, event)
         val again = ExecutionSagaContext(execution, event)
         val commands = listOf(
@@ -219,16 +223,16 @@ class ProcessorBindingTest {
             ExecutionSagaContext.derivedId(execution, cart.unassigned("t"), String::class.java)
         )
         ExecutionSagaContext.derivedId(
-            execution.copy(version = 4),
+            execution.copyWith(version = 4),
             alice,
             String::class.java
         ).assert().isNotEqualTo(commands[0].id)
-        ExecutionSagaContext.derivedId(execution.copy(subscription = "Other.saga"), alice, String::class.java)
+        ExecutionSagaContext.derivedId(execution.copyWith(subscription = "Other.saga"), alice, String::class.java)
             .assert().isNotEqualTo(commands[0].id)
         assertThrownBy<IllegalArgumentException> {
             ExecutionSagaContext.derivedId(execution, alice, String::class.java, -1)
         }
-        assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copy(version = 2), event) }
+        assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copyWith(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.
         val root = event.copyWith(causation = null)
         ExecutionSagaContext(
@@ -240,7 +244,7 @@ class ProcessorBindingTest {
 
     @Test
     fun `a saga's command should inherit only the commit's request facts that propagate`() {
-        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        val execution = ExecutionId(event.ref.type.context, "CartSaga.onOrderPlaced", event.ref, event.version)
         val requested = event.copyWith(
             headers = mapOf(
                 RequestFacts.APP_ID to "console",

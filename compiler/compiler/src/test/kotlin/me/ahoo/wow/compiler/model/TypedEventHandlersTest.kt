@@ -181,24 +181,24 @@ class TypedEventHandlersTest {
         }
         val saga = bindings.getValue("OrderSaga.onPlaced")
         saga.eventType.assert().isEqualTo(placed)
-        val derived = saga.invoke(stream, contextOf(FunctionKind.SAGA, saga.name, stream))
+        val derived = saga.invoke(stream, contextOf(FunctionKind.SAGA, stream.ref.type.context, saga.name, stream))
         // Two calls, one per OrderPlaced, in order; one context: the commands are the stream's 0th and 1st.
         derived.map { it.body.toString() }.assert().containsExactly(
             "CancelOrder(reason=mug)",
             "CancelOrder(reason=hat)"
         )
         derived.map { it.id }.distinct().assert().hasSize(2)
-        val again = saga.invoke(stream, contextOf(FunctionKind.SAGA, saga.name, stream))
+        val again = saga.invoke(stream, contextOf(FunctionKind.SAGA, stream.ref.type.context, saga.name, stream))
         again.map { it.id }.assert().isEqualTo(derived.map { it.id })
         seen.take(2).assert().containsExactly(
-            "saga:0:mug:OrderSaga.onPlaced:shop.order/t/o-1@2:0",
-            "saga:2:hat:OrderSaga.onPlaced:shop.order/t/o-1@2:2",
+            "saga:0:mug:shop.OrderSaga.onPlaced:shop.order/t/o-1@2:0",
+            "saga:2:hat:shop.OrderSaga.onPlaced:shop.order/t/o-1@2:2",
         )
         seen.clear()
         val bare = bindings.getValue("OrderSaga.onCancelled")
-        bare.invoke(stream, contextOf(FunctionKind.SAGA, bare.name, stream)).assert().isEmpty()
+        bare.invoke(stream, contextOf(FunctionKind.SAGA, stream.ref.type.context, bare.name, stream)).assert().isEmpty()
         val board = bindings.getValue("OrderBoard.onOrder")
-        board.invoke(stream, contextOf(FunctionKind.PROJECT, board.name, stream))
+        board.invoke(stream, contextOf(FunctionKind.PROJECT, stream.ref.type.context, board.name, stream))
         seen.assert().containsExactly(
             "bare:late",
             "board:OrderPlaced(item=mug)",

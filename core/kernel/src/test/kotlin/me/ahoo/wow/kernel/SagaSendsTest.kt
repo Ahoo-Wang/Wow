@@ -68,7 +68,14 @@ class SagaSendsTest {
     }
 
     private fun contextOf(handler: ProcessorBinding<*>) =
-        contextOf(FunctionKind.SAGA, handler.name, placed, calls = calls, sends = handler.sends)
+        contextOf(
+            FunctionKind.SAGA,
+            placed.ref.type.context,
+            handler.name,
+            placed,
+            calls = calls,
+            sends = handler.sends
+        )
 
     private suspend fun SagaContext.sendEach(event: Any) {
         schedule("remind", ScheduleRule.after(1.hours), CommandRequest.to(cart.ref("t", "alice"), Remove("mug")))
@@ -145,7 +152,7 @@ class SagaSendsTest {
                 cart.ref("t", "alice"),
                 ErrorInfo("cart.full", "Full."),
                 Causation("root", "shop.order/t/o-1@2"),
-                ExecutionId("CartSaga.onPlaced", order.ref("t", "o-1"), 2),
+                ExecutionId(order.context, "CartSaga.onPlaced", order.ref("t", "o-1"), 2),
             )
             val onRejected = RejectionBinding.of(
                 "CartSaga",
@@ -187,7 +194,10 @@ class SagaSendsTest {
                 JobState().apply { this.job = "nightly" },
                 Ticked("t", 1, 0, 0),
             )
-            job.invoke(tick, contextOf(FunctionKind.SAGA, job.name, tick, calls = calls, sends = job.sends))
+            job.invoke(
+                tick,
+                contextOf(FunctionKind.SAGA, tick.ref.type.context, job.name, tick, calls = calls, sends = job.sends)
+            )
                 .map { it.body::class }.assert().containsExactly(SetSchedule::class, CancelSchedule::class)
             called.assert().hasSize(2)
         }

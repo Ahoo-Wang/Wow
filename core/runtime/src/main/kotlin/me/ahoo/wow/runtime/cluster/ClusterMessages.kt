@@ -174,7 +174,7 @@ class ReplyTo @InternalWowApi constructor(
     }
 
     /** The saga's execution that derived the command. */
-    fun executionId(): ExecutionId = ExecutionId(subscription, ref, version)
+    fun executionId(): ExecutionId = ExecutionId(context, subscription, ref, version)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ReplyTo && valueFields() == other.valueFields()

@@ -167,9 +167,15 @@ class DomainIdsTest {
     fun `a saga's context should take its ids from the generators it is given, UUIDv7 by default`() {
         val order = model.type.ref("tenant", "order-1")
         val event = stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))
-        val execution = ExecutionId("ShipmentSaga.onPlaced", order, 1)
+        val execution = ExecutionId(order.type.context, "ShipmentSaga.onPlaced", order, 1)
         val fixed = IdGenerators(GlobalIdGenerator { "g" }, AggregateIdGenerator { "a-${it.name}" })
-        val context = contextOf(FunctionKind.SAGA, execution.subscription, event, fixed) as SagaContext
+        val context = contextOf(
+            FunctionKind.SAGA,
+            execution.context,
+            execution.subscription,
+            event,
+            fixed
+        ) as SagaContext
         context.ids.assert().isSameAs(fixed)
         ShipmentSaga().onPlaced(event, context)!!.id.assert().isEqualTo("a-shipment")
         UUID.fromString(ExecutionSagaContext(execution, event).ids.next()).version().assert().isEqualTo(7)

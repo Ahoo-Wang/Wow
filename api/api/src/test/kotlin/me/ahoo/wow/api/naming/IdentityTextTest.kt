@@ -58,8 +58,13 @@ class IdentityTextTest {
         AggregateType("shop", "order").ref("(0)", "订单-1@x:y").toString().assert()
             .isEqualTo("shop.order/(0)/订单-1@x:y")
         AggregateType("shop", "order").unassigned("t").toString().assert().isEqualTo("shop.order/t/(none)")
-        ExecutionId("cart-projection.onEvent", AggregateType("example", "cart").ref("tenant", "c-1"), 3).toString()
-            .assert().isEqualTo("cart-projection.onEvent:example.cart/tenant/c-1@3")
+        ExecutionId(
+            "example",
+            "cart-projection.onEvent",
+            AggregateType("example", "cart").ref("tenant", "c-1"),
+            3
+        ).toString()
+            .assert().isEqualTo("example.cart-projection.onEvent:example.cart/tenant/c-1@3")
     }
 
     @Test
@@ -75,11 +80,11 @@ class IdentityTextTest {
     fun `no two executions share a text`() {
         val subscriptions = names(2)
         val executions = subscriptions.flatMap { subscription ->
-            refs.take(400).flatMap { ref -> listOf(1, 12).map { ExecutionId(subscription, ref, it) } }
+            refs.take(400).flatMap { ref -> listOf(1, 12).map { ExecutionId(ref.type.context, subscription, ref, it) } }
         }
         executions.map { it.toString() }.toSet().size.assert().isEqualTo(executions.toSet().size)
-        ExecutionId("s:t", AggregateType("x", "y").ref("t", "i"), 1).toString().assert()
-            .isEqualTo("s%3At:x.y/t/i@1")
+        ExecutionId("x", "s:t", AggregateType("x", "y").ref("t", "i"), 1).toString().assert()
+            .isEqualTo("x.s%3At:x.y/t/i@1")
     }
 
     @Test
@@ -101,5 +106,15 @@ class IdentityTextTest {
 
     private companion object {
         val TOKENS = listOf("a", "/", "%", "@", ":", ".", "1", "é", "中")
+    }
+
+    @Test
+    fun `two contexts' subscriptions of one name execute under two texts, as their invocation keys`() {
+        val ref = AggregateType("shop", "order").ref("t", "o-1")
+        val billing = ExecutionId("billing", "Audit.onPlaced", ref, 2)
+        val shipping = ExecutionId("shipping", "Audit.onPlaced", ref, 2)
+        billing.assert().isNotEqualTo(shipping)
+        billing.toString().assert().isEqualTo("billing.Audit.onPlaced:shop.order/t/o-1@2")
+        shipping.toString().assert().isNotEqualTo(billing.toString())
     }
 }

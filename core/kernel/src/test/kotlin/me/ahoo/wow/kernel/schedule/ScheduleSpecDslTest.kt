@@ -251,7 +251,7 @@ class ScheduleSpecDslTest {
         // Its subscription reads its job's instances alone (ScheduleJobModel.instanceIds): each tick is its job's.
         val ref = ScheduleJobModel.refOf("billing", "invoice", "acme")
         val own = stateEvent(ref, JobState().apply { job = "invoice" }, Ticked("t", 1, 0, 0))
-        handler.invoke(own, contextOf(FunctionKind.SAGA, handler.name, own)).assert().hasSize(1)
+        handler.invoke(own, contextOf(FunctionKind.SAGA, own.ref.type.context, handler.name, own)).assert().hasSize(1)
     }
 
     @Test

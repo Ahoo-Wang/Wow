@@ -64,7 +64,7 @@ class ProcessorAdapterTest {
     @Test
     fun `a blocking handler should run on a virtual thread, the others inline`(): Unit = runBlocking {
         var virtual: Boolean? = null
-        val execution = ExecutionId("View.onEvent", event.ref, event.version)
+        val execution = ExecutionId(event.ref.type.context, "View.onEvent", event.ref, event.version)
         val blocking = ProcessorBinding.project("View", "onEvent", OrderState::class.java, blocking = true) { _, _ ->
             virtual = Thread.currentThread().isVirtual
         }

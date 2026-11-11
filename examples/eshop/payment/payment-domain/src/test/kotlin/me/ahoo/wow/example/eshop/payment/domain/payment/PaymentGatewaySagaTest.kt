@@ -77,7 +77,10 @@ class PaymentGatewaySagaTest {
         requested("100.00") {
             // The charge's key is the call's: the execution and the PaymentRequested's index (decision D264).
             val payment = EshopPaymentContract.Payment.ref(DEFAULT_TENANT, ORDER)
-            expectCommand(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}:0"), to = payment)
+            expectCommand(
+                ConfirmPayment("simulated-${ExecutionId.of(payment.type.context, HANDLER, payment, 1)}:0"),
+                to = payment
+            )
             // Handling the commit again charges with the same key, and derives the same request.
             expectDeterministic()
         }

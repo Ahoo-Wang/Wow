@@ -247,7 +247,7 @@ class ScheduledCommandsTest {
         set.requestId.assert()
             .isEqualTo(
                 ExecutionSagaContext.scheduleId(
-                    ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1),
+                    ExecutionId((order("o-1")).type.context, "ReminderSaga.onOrderPlaced", order("o-1"), 1),
                     order("o-1"),
                     SetSchedule::class.java,
                     "remind",

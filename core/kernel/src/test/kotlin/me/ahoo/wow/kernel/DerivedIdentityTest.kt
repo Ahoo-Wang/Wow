@@ -35,7 +35,12 @@ class DerivedIdentityTest {
     class Refund
 
     private val type = AggregateType("billing", "invoice")
-    private val execution = ExecutionId("billing.saga.onPaid", AggregateType("billing", "payment").ref("t", "p-1"), 3)
+    private val execution = ExecutionId(
+        "billing",
+        "billing.saga.onPaid",
+        AggregateType("billing", "payment").ref("t", "p-1"),
+        3
+    )
 
     /** Every string of up to [length] tokens, the separators, the digits and the length prefix's ':' among them. */
     private fun strings(length: Int): List<String> =
@@ -92,11 +97,21 @@ class DerivedIdentityTest {
         id(type.ref("t", "x#y"), "k").assert().isNotEqualTo(id(type.ref("t", "x"), "y#k"))
         id(type.ref("t", "1:a"), "k").assert().isNotEqualTo(id(type.ref("t", "1"), ":a#k"))
         // The execution's own names too: a commit of another aggregate never derives this one's ids.
-        val shifted = ExecutionId(execution.subscription, AggregateType("billing", "payment").ref("t/p", "1"), 3)
+        val shifted = ExecutionId(
+            "billing",
+            execution.subscription,
+            AggregateType("billing", "payment").ref("t/p", "1"),
+            3
+        )
         ExecutionSagaContext.derivedId(shifted, type.ref("t", "c"), Charge::class.java).assert()
             .isNotEqualTo(
                 ExecutionSagaContext.derivedId(
-                    ExecutionId(execution.subscription, AggregateType("billing", "payment").ref("t", "p/1"), 3),
+                    ExecutionId(
+                        "billing",
+                        execution.subscription,
+                        AggregateType("billing", "payment").ref("t", "p/1"),
+                        3
+                    ),
                     type.ref("t", "c"),
                     Charge::class.java,
                 ),
@@ -128,7 +143,12 @@ class DerivedIdentityTest {
 
         /** The id of each schedule command one execution records, by its kind and key; a key with `-` cancels. */
         fun handled(order: List<String>): Map<String, String> {
-            val context = contextOf(FunctionKind.SAGA, execution.subscription, event) as ExecutionSagaContext
+            val context = contextOf(
+                FunctionKind.SAGA,
+                execution.context,
+                execution.subscription,
+                event
+            ) as ExecutionSagaContext
             order.forEach { key ->
                 if (key.startsWith("-")) {
                     context.cancel(key.drop(1), target)

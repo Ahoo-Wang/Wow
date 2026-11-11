@@ -120,7 +120,8 @@ fun committedContextOf(
     queries: ContextQueries = ContextQueries.NONE,
     calls: CommandCalls = CommandCalls.NONE,
 ): SagaContext = ExecutionReceiptContext(
-    ExecutionId(handler.name, committed.executionId.ref, committed.executionId.version),
+    // The receipt comes back to the saga's own context, which its execution names.
+    ExecutionId(committed.executionId.context, handler.name, committed.executionId.ref, committed.executionId.version),
     committed.commandId,
     committed.causation,
     committed.operator,

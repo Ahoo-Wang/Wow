@@ -224,7 +224,7 @@ class CommittedManifestTest {
                     signalTime = 1L,
                 ),
                 causation = Causation("root", "$order@1"),
-                executionId = ExecutionId("OrderSaga.onPlaced", order, 1),
+                executionId = ExecutionId(order.type.context, "OrderSaga.onPlaced", order, 1),
             )
             val derived = onReserved.invoke(committed, committedContextOf(onReserved, committed)).single()
             derived.ref.assert().isEqualTo(order)
@@ -252,7 +252,7 @@ class CommittedManifestTest {
         val order = AggregateType("shop", "order").ref("t", "o-1")
         val stock = AggregateType("inventory", "stock").ref("t", "s-1")
         val causation = Causation("root", "$order@1")
-        val execution = ExecutionId("OrderSaga.onPlaced", order, 1)
+        val execution = ExecutionId(order.type.context, "OrderSaga.onPlaced", order, 1)
         val committed = CommandReceipt.Committed<Any>(
             commandId = "c-9",
             commandType = "inventory.stock.ReleaseStock",

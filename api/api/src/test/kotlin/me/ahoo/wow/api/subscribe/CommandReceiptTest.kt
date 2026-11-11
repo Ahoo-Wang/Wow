@@ -50,7 +50,7 @@ class CommandReceiptTest {
         ref = stock,
         error = ErrorInfo("stock.insufficient", "Not enough stock"),
         causation = Causation("cmd-1", "$order@1"),
-        executionId = ExecutionId("OrderSaga.onOrderCreated", order, 1),
+        executionId = ExecutionId(order.type.context, "OrderSaga.onOrderCreated", order, 1),
     )
 
     private fun committed(): CommandReceipt.Committed<ReserveStock> = CommandReceipt.Committed(
@@ -60,7 +60,7 @@ class CommandReceiptTest {
         version = 3,
         result = result(),
         causation = Causation("cmd-1", "$order@1"),
-        executionId = ExecutionId("OrderSaga.onOrderCreated", order, 1),
+        executionId = ExecutionId(order.type.context, "OrderSaga.onOrderCreated", order, 1),
     )
 
     /** What a handler of both receipts makes of one: the fields they share, and each one's own. */
@@ -75,7 +75,7 @@ class CommandReceiptTest {
         rejected.ref.assert().isEqualTo(stock)
         rejected.error.code.assert().isEqualTo("stock.insufficient")
         rejected.causation.correlationId.assert().isEqualTo("cmd-1")
-        rejected.executionId.toString().assert().isEqualTo("OrderSaga.onOrderCreated:shop.order/tenant/o-1@1")
+        rejected.executionId.toString().assert().isEqualTo("shop.OrderSaga.onOrderCreated:shop.order/tenant/o-1@1")
         rejected.source.assert().isEqualTo(order)
         // A command refused before any decision answers no version.
         rejected.version.assert().isNull()

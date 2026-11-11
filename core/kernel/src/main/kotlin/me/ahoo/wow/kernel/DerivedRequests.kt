@@ -85,8 +85,9 @@ internal class DerivedRequests {
         /** The discriminator of the [occurrence]-th request (from 0) of a target and type without a business key. */
         fun occurrence(occurrence: Int): String = DerivedIds.encoded(OCCURRENCE, occurrence.toString())
 
-        /** The fields of [execution]: its subscription, the commit's aggregate, and its version. */
+        /** The fields of [execution]: its subscription's context and name, the commit's aggregate, and its version. */
         fun executionOf(execution: ExecutionId): String = DerivedIds.encoded(
+            execution.context,
             execution.subscription,
             execution.ref.type.context,
             execution.ref.type.name,

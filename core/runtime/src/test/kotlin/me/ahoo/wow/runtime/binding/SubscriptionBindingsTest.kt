@@ -158,7 +158,7 @@ class SubscriptionBindingsTest {
         event.state.items.assert().containsExactly("apple", "pear")
         event.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         event.causation.assert().isNull()
-        execution.assert().isEqualTo("OrderView.onEvent:shop.order/t/o-1@1")
+        execution.assert().isEqualTo("shop.OrderView.onEvent:shop.order/t/o-1@1")
         eventually { everything.contains("order@1:Audit.onEvent") }
     }
 
@@ -187,7 +187,7 @@ class SubscriptionBindingsTest {
             results.collect { all += it }
             val handled = all.single { it.hop.stage == Stage.HANDLED }
             handled.function.kind.assert().isEqualTo(FunctionKind.SAGA)
-            val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-2"), 1)
+            val execution = ExecutionId(ORDER.context, saga.name, ORDER.ref(TENANT, "o-2"), 1)
             val derived = ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), RemoveItems::class.java)
             handled.derived.assert().containsExactly(derived)
             val last = all.last()
@@ -305,7 +305,7 @@ class SubscriptionBindingsTest {
             ).collect { }
             eventually { removed.isNotEmpty() }
             // The cart's first commit holds no ItemsRemoved: skipped. Its second holds one, at index 0.
-            removed.assert().containsExactly("[apple]:Removals.onRemoved:shop.cart/t/alice@2:0")
+            removed.assert().containsExactly("[apple]:shop.Removals.onRemoved:shop.cart/t/alice@2:0")
         } finally {
             typedNode.stop()
         }
