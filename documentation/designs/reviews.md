@@ -148,12 +148,12 @@ rc 前的完整一次：2026-11-11 在 `a7c372ad3e` 上，PostgreSQL 与 MongoDB
 | QRY-3、QRY-4 | P3 | `api/query-api` | 时区有三个名字、两种默认；`CursorQuery.size` 是客户端常量 10 而其余查询为空即取服务端默认，`filter` 的默认各查询不一 | 一个名字；默认对齐 | 已派（query-bugs） |
 | SPI-1、API-1 | P2 | 失败台账 | 「不可恢复」有三种说法，其一由自由文本 `reason` 的前缀推出；`MarkParkedRecoverable.recoverable` 是 `String`，文档写的拼法运行时拒绝 | 「来源已不持有、只能跳过」成为有类型的字段并单独存储；台账的线上词汇移到 `:api` | 已派（rt-subs-p1） |
 | SPI-2 | P2 | `EventLog.appendAll` | 入参是 `List<Pair<EventStreamRecord, ByteArray?>>`，热路径上唯一不能再加字段的 SPI 签名 | 换成以 `of` 构造的小记录，不增加分配 | 已派（kernel-writes-p1） |
-| SPI-3、SPI-6 | P2、P3 | `TimerStore` | `due` 对所有分区共用一个上限，一个分区的积压会挤掉别处已到期的定时器；`settle` 只返回个数；版本在定时器端口是 `Long`，别处是 `Int` | 按分区限量；`settle` 返回写入了哪些；版本改 `Int`；TCK 同改 | 已派（rt-subs-p1） |
+| SPI-3、SPI-6 | P2、P3 | `TimerStore` | `due` 对所有分区共用一个上限，一个分区的积压会挤掉别处已到期的定时器；`settle` 只返回个数；版本在定时器端口是 `Long`，别处是 `Int` | 按分区限量；`settle` 返回调用之后存储里已是所求内容的变更（单条的批即本次写入，认领都是单条；MongoDB 在计数不足时读回核对）；版本改 `Int`；TCK 同改 | 本地已通过，待开 PR（rt-subs-p1） |
 | SPI-5 | P3 | `core/spi` 的选项读取 | 存储、Sink、传输各写了一份相同的读取代码且已分叉，`Scope.PER_STORE` 三处含义不同 | 一个类型、一个含义 | 已派（rt-subs-p1） |
-| API-2、API-6 | P2、P3 | 系统类型名 | 日志里的系统事件名与命令名有三种拼法（`wow.lifecycle.AggregateDeleted`、`wow.ScheduleSet`、`wow.Ticked`）；七个系统类型是 `data object`，永远加不了字段 | 一条规则 `wow.<namespace>.<ClassName>`；改成带 `of()` 的类 | 名字已定（D419），在做（kernel-writes-p1） |
+| API-2、API-6 | P2、P3 | 系统类型名 | 日志里的系统事件名与命令名有三种拼法（`wow.lifecycle.AggregateDeleted`、`wow.ScheduleSet`、`wow.Ticked`）；七个系统类型是 `data object`，永远加不了字段 | 一条规则 `wow.<namespace>.<ClassName>`；改成用无参构造器构造的类（D419 ②） | 名字已定（D419），在做（kernel-writes-p1） |
 | API-3 | P2 | `ExecutionId` | 只含订阅名、不含上下文；它的文本是交给外部系统的幂等键，同一服务的两个上下文里同名的处理器会得到同一个键 | 带上上下文，不再是 `data class` | 已派（kernel-writes-p1） |
 | API-4 | P2 | 十四个聚合侧注解 | 仍带 `@Inherited` 与 `ANNOTATION_CLASS`，编译器不认而运行时的反射认，子类上两者不一致（D372 S18 已在订阅侧去掉） | 去掉，并以测试证明两者一致 | 已派（kernel-writes-p1） |
-| API-5 | P2 | `DecideScope`、`SubscriptionContext`、`SagaContext`、`StateEvent`、`CommandClient`、`QueryModels`、`RowQueries` | 没有写明用户能否实现；稳定接口上有实验性的抽象成员 | 定为「Wow 实现、用户调用」并写进 KDoc；实验性成员给默认实现或移到子接口 | 已派（kernel-writes-p1） |
+| API-5 | P2 | `DecideScope`、`SubscriptionContext`、`SagaContext`、`StateEvent`、`CommandClient`、`QueryModels`、`RowQueries` | 没有写明用户能否实现；稳定接口上有实验性的抽象成员 | 定为「Wow 实现、用户调用」并写进 KDoc；实验性成员给默认实现或移到子接口 | 已定（D419 ⑩），在做（kernel-writes-p1） |
 | API-7、API-9、API-10 | P3 | `api/api` | 两个作用域里同一动作两种叫法；调度的命令在存储的事件里是字符串里的 JSON；五处小的内聚问题 | 各按报告修；API-9 先核对序列化 | 已派（kernel-writes-p1） |
 | RT-2、RT-3 | P2 | 访问遍历、快照重建 | 一个读不出的聚合让遍历或重建永远停在同一处：游标整页之后才前进，没有跳过、台账或指标，查询一直答 `rebuilding` | 记下该聚合后继续（台账或计数加跳过表）。不改形态 | 已登记；有会话空出时 GA 前修 |
 | RT-4 | P2 | 停放重试 | 重试一个仍在提交的停放聚合时把其后的全部流读进内存（`toList()`） | 并入路线图 §6 性能第 22 项 | 已登记 |
