@@ -56,7 +56,7 @@ class ManifestReaderTest {
         listOf(1.5, 4_294_967_297L).forEach { format ->
             assertThrows<IllegalArgumentException> {
                 ManifestTree.read(ManifestTree.write(manifest) + ("format" to format), ManifestTree.REFUSE)
-            }.message.assert().contains("format is not a whole number: $format")
+            }.message.assert().contains("format is not a whole number an Int holds: $format")
         }
         // A whole number written as a decimal is the format.
         ManifestTree.read(

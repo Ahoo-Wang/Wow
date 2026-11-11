@@ -479,7 +479,7 @@ object ManifestTree {
             val value = required(field, typed<Number>(field, "a number"))
             val number = value.toDouble()
             require(number % 1.0 == 0.0 && number >= Int.MIN_VALUE && number <= Int.MAX_VALUE) {
-                "$path.$field is not a whole number: $value"
+                "$path.$field is not a whole number an Int holds: $value"
             }
             return number.toInt()
         }
