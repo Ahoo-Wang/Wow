@@ -176,7 +176,7 @@ class ServiceInfo @InternalWowApi constructor(val name: String, val version: Str
  * rejects with, and a `wow.*` code is not the context's.
  *
  * [commands] are the context's own [system][CommandManifest.system] commands, which no aggregate of it names: the
- * commands of its schedule jobs (`wow.schedule.Enable`, ...), when a subscription of it runs a job. An aggregate's
+ * commands of its schedule jobs (`wow.schedule.EnableJob`, ...), when a subscription of it runs a job. An aggregate's
  * system commands are among its own [AggregateManifest.commands]. [routes] are its service routes:
  * routes whose handler is the service's own code, neither a command nor a query.
  *

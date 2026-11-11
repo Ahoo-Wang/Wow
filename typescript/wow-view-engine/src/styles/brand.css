@@ -75,6 +75,17 @@
       --fve-dark-brand-l-max,
       var(--fvp-dark-brand-l-max, 0.8)
     );
+    /*
+     * The primary as a fill under words where the primary is light, the
+     * dark: its own hue and chroma a step deeper, under white words, so
+     * the primary button follows whatever gave the primary — the theme, a
+     * host's `--fve-dark-primary`, a brand colour. 0.52 is the lightest
+     * that carries white words at 4.5:1 in every hue (the brand sweep).
+     * Read by the dark block alone; where relative colours are not
+     * supported the fill is the primary under its own ink.
+     */
+    --_fve-derived-primary-fill: oklch(from var(--primary) 0.52 c h);
+    --_fve-derived-primary-fill-foreground: oklch(1 0 0deg);
     --_fve-brand-primary: oklch(
       from var(--fve-brand)
         clamp(var(--_fve-brand-l-min), l, var(--_fve-brand-l-max))

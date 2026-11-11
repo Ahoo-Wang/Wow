@@ -64,7 +64,7 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
  * aggregate's live entries waiting together, at most [maxRun], in version order, and each entry it answers done
  * completes and is signalled on its own. The entry a run failed at is handled alone, by the handler, as a retry is.
  *
- * A stream that only changes schedules, its events all the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`,
+ * A stream that only changes schedules, its events all the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`,
  * is the application's to see only as a position: its subscriptions pass it over like an entry
  * outside their filter. The built-in subscriptions ([builtIn], and the snapshot's [coalescing] one) take it, so the
  * timers are written, the snapshot keeps the aggregate's version and schedules, and the reservations it made are

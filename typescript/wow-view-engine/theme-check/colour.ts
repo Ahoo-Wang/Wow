@@ -93,12 +93,20 @@ export function splitArguments(text: string): string[] {
  * as the stylesheet writes it: each channel a number, the origin's own
  * channel (`l`, `c`, `h`), or `clamp()` / `min()` / `max()` of those.
  */
-export function relativeOklch(value: string): Color | undefined {
+export function relativeOklch(
+  value: string,
+  token: (variable: string) => Rgba,
+): Color | undefined {
   const match = /^oklch\(from\s+([\s\S]+)\)$/.exec(value);
   if (!match) return undefined;
   const words = splitWords(match[1]);
   const [l, c, h] = words.slice(-3);
-  const origin = parse(words.slice(0, -3).join(' '));
+  const source = words.slice(0, -3).join(' ');
+  // The origin is a colour, or a token the caller resolves: `var(--primary)`.
+  const named = /^var\((--[\w-]+)\)$/.exec(source);
+  const origin: Color | undefined = named
+    ? { mode: 'rgb', ...token(named[1]) }
+    : parse(source);
   if (!origin) throw new Error(`unreadable origin in ${value}`);
   const from = toOklch(origin);
   const channels: Record<string, number> = {

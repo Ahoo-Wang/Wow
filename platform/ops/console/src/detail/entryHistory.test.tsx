@@ -151,7 +151,7 @@ describe("an entry's history", () => {
   it("reads an owning service's refusal of the last request (D226)", () => {
     const [refused] = historyOf([
       stream(8, "ActionRefused", {
-        action: "wow.ledger.Retry",
+        action: "wow.ledger.RetryParked",
         code: "wow.auth.forbidden",
         reason: "Taken from the ops context's saga alone.",
       }),
@@ -159,7 +159,7 @@ describe("an entry's history", () => {
     expect(refused).toMatchObject({
       kind: "actionRefused",
       facts: {
-        refusedAction: "wow.ledger.Retry",
+        refusedAction: "wow.ledger.RetryParked",
         refusalCode: "wow.auth.forbidden",
         reason: "Taken from the ops context's saga alone.",
       },

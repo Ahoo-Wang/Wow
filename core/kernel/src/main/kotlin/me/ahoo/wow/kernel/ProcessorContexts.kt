@@ -67,7 +67,7 @@ class ExecutionContext @InternalWowApi constructor(
  * directly.
  *
  * Its schedules are commands too: [schedule] and [cancel] record the system commands
- * `wow.schedule.Set` and `wow.schedule.Cancel` to their target, keyed with the other commands, the command they
+ * `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule` to their target, keyed with the other commands, the command they
  * schedule named by [commandTypes] and written by [codec]; [commandsOf] puts them after the returned ones.
  *
  * Its [ids] are the node's generators; a domain module's test gives fixed ones.
@@ -155,8 +155,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
             derivedIdOf(execution, ref, commandType, DerivedRequests.keyed(requestId))
 
         /**
-         * The id, and request id, of the [occurrence]-th schedule command (from 0) of [commandType], `wow.schedule.Set`
-         * ([me.ahoo.wow.api.schedule.SetSchedule]) or `wow.schedule.Cancel`, to [ref] for the schedule [key] derived by
+         * The id, and request id, of the [occurrence]-th schedule command (from 0) of [commandType], `wow.schedule.SetSchedule`
+         * ([me.ahoo.wow.api.schedule.SetSchedule]) or `wow.schedule.CancelSchedule`, to [ref] for the schedule [key] derived by
          * [execution]: keyed by the schedule's key, whatever other schedules the execution sets or cancels and in
          * whatever order.
          */
@@ -200,8 +200,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
  * names its target scope, [headers], [causation] and [operator]. Handling the same thing again derives the same
  * request for each command it derives again, in whatever order, which the kernel does not decide twice.
  *
- * Its schedules are commands too: [schedule] and [cancel] record the system commands `wow.schedule.Set` and
- * `wow.schedule.Cancel` to their target, keyed by the schedule's key rather than their order
+ * Its schedules are commands too: [schedule] and [cancel] record the system commands `wow.schedule.SetSchedule` and
+ * `wow.schedule.CancelSchedule` to their target, keyed by the schedule's key rather than their order
  * ([DerivedRequests.nextScheduled]), the command they schedule named by [commandTypes] and written by [codec];
  * [commandsOf] puts them after the returned ones. Its synchronous [call]s go through [calls]. With [sends], the
  * handler's declarations ([SagaSends]), each command it returns, schedules or calls is one of them, or the handling

@@ -43,9 +43,9 @@ class StoreSpiTest {
             service = "orders-service",
         )
         config.key.assert().isEqualTo("wow.stores.orders")
-        config.option("region").assert().isEqualTo("eu-1")
-        config.option("blank").assert().isNull()
-        config.option("missing").assert().isNull()
+        config.settings.option("region").assert().isEqualTo("eu-1")
+        config.settings.option("blank").assert().isNull()
+        config.settings.option("missing").assert().isNull()
         config.ddl.assert().isEqualTo(Ddl.VALIDATE)
         config.polling.assert().isEqualTo(TailPolling.DEFAULT)
         config.service.assert().isEqualTo("orders-service")
@@ -74,10 +74,11 @@ class StoreSpiTest {
         val provider = object : StoreProvider {
             override val type: String = "acme"
 
+            override fun available(config: StoreConfig): Boolean = false
+
             override fun open(config: StoreConfig): Store = Unopened(config)
         }
         provider.requirement.assert().isEqualTo("its resources")
-        provider.available(StoreResources.NONE).assert().isFalse()
         val store = provider.open(StoreConfig.of("a", "acme"))
         store.name.assert().isEqualTo("a")
         store.type.assert().isEqualTo("acme")

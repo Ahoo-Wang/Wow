@@ -30,10 +30,10 @@ class QueryDatasetConfigTest {
             mapOf("database" to "bi", "query.settings.max_threads" to "4", "query.enabled" to "maybe"),
         )
         config.key.assert().isEqualTo("wow.clickhouse")
-        config.option(database).assert().isEqualTo("bi")
-        QueryDatasetConfig.of("clickhouse").option(database).assert().isEqualTo("default")
-        config.options("query.settings").assert().isEqualTo(mapOf("max_threads" to "4"))
-        assertThrows<WowConfigurationException> { config.option(enabled) }.key.assert()
+        config.settings.option(database).assert().isEqualTo("bi")
+        QueryDatasetConfig.of("clickhouse").settings.option(database).assert().isEqualTo("default")
+        config.settings.options("query.settings").assert().isEqualTo(mapOf("max_threads" to "4"))
+        assertThrows<WowConfigurationException> { config.settings.option(enabled) }.key.assert()
             .isEqualTo("wow.clickhouse.query.enabled")
         config.toString().assert().isEqualTo(
             "QueryDatasetConfig(type=clickhouse, options=[database, query.settings.max_threads, query.enabled])",

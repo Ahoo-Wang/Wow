@@ -39,15 +39,23 @@ class SnapshotRebuildRoutesTest {
     @Test
     fun `a rebuild request of an aggregate type's snapshots is a command of the rebuild aggregate`() {
         val node = HttpNode(rebuilds = true, authorizer = operatorsOnly)
-        val requested = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1","c-2"]}""", user = OPERATOR)
+        val requested = node.post(
+            "/shop/cart/wow.snapshot.rebuild-snapshot",
+            """{"ids":["c-1","c-2"]}""",
+            user = OPERATOR
+        )
         requested.status.assert().withFailMessage { requested.body.toString() }.isEqualTo(200)
         requested.body!!["ref"]["id"].asString().assert().isEqualTo("cart")
-        val unknown = node.post("/shop/order/wow.snapshot.rebuild", """{"ids":["o-1"]}""", user = OPERATOR)
+        val unknown = node.post("/shop/order/wow.snapshot.rebuild-snapshot", """{"ids":["o-1"]}""", user = OPERATOR)
         unknown.status.assert().isEqualTo(404)
-        node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":[]}""", user = OPERATOR).status.assert().isEqualTo(400)
-        val buyer = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = "alice")
+        node.post(
+            "/shop/cart/wow.snapshot.rebuild-snapshot",
+            """{"ids":[]}""",
+            user = OPERATOR
+        ).status.assert().isEqualTo(400)
+        val buyer = node.post("/shop/cart/wow.snapshot.rebuild-snapshot", """{"ids":["c-1"]}""", user = "alice")
         buyer.status.assert().isEqualTo(403)
-        buyer.body!!["detail"].asString().assert().contains("Only an operator sends wow.snapshot.Rebuild")
+        buyer.body!!["detail"].asString().assert().contains("Only an operator sends wow.snapshot.RebuildSnapshot")
     }
 
     @Test
@@ -55,15 +63,15 @@ class SnapshotRebuildRoutesTest {
         val bare = HttpNode(rebuilds = true)
         listOf(
             HttpNode(rebuilds = true, callers = CallerResolver.ANONYMOUS)
-                .post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = null),
-            bare.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = "alice"),
-            bare.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = OPERATOR),
+                .post("/shop/cart/wow.snapshot.rebuild-snapshot", """{"ids":["c-1"]}""", user = null),
+            bare.post("/shop/cart/wow.snapshot.rebuild-snapshot", """{"ids":["c-1"]}""", user = "alice"),
+            bare.post("/shop/cart/wow.snapshot.rebuild-snapshot", """{"ids":["c-1"]}""", user = OPERATOR),
         ).forEach { refused ->
             refused.status.assert().withFailMessage { refused.body.toString() }.isEqualTo(403)
             refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
             refused.body!!["detail"].asString().assert()
                 .isEqualTo(
-                    "wow.snapshot.Rebuild is refused on the public port: the service has no CommandAuthorizer for " +
+                    "wow.snapshot.RebuildSnapshot is refused on the public port: the service has no CommandAuthorizer for " +
                         "Wow's system commands (CoSec's, wow.cosec.authorizer.enabled, or the application's own).",
                 )
         }
@@ -82,7 +90,7 @@ class SnapshotRebuildRoutesTest {
                 callRoutes(cartManifest(), node.gateway, tokens, permits = permits)
             )
             .build()
-            .post().uri("/shop/cart/wow.snapshot.rebuild")
+            .post().uri("/shop/cart/wow.snapshot.rebuild-snapshot")
             .header(WowHeaders.SERVICE, "ops-service")
             .header(WowHeaders.CALL, call)
             .header("Content-Type", "application/json")
@@ -91,7 +99,7 @@ class SnapshotRebuildRoutesTest {
         val unlisted = rebuild(CallPermits(emptyMap()))
         unlisted.status.assert().isEqualTo(403)
         unlisted.body!!["code"].asString().assert().isEqualTo(CallPermits.COMMAND_FORBIDDEN)
-        val listed = rebuild(CallPermits(mapOf("ops-service" to listOf(SnapshotRebuilds.REBUILD))))
+        val listed = rebuild(CallPermits(mapOf("ops-service" to listOf(SnapshotRebuilds.REBUILD_SNAPSHOT))))
         listed.status.assert().withFailMessage { listed.body.toString() }.isEqualTo(200)
         listed.body!!["ref"]["id"].asString().assert().isEqualTo("cart")
     }
@@ -105,14 +113,14 @@ class SnapshotRebuildRoutesTest {
                         aggregates = context.aggregates.map { aggregate ->
                             aggregate.copyWith(
                                 snapshot = SnapshotManifest(false),
-                                commands = aggregate.commands.filterNot { it.name == SnapshotRebuilds.REBUILD },
+                                commands = aggregate.commands.filterNot { it.name == SnapshotRebuilds.REBUILD_SNAPSHOT },
                             )
                         },
                     )
                 },
             )
         }
-        HttpNode(manifest = manifest).post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""")
+        HttpNode(manifest = manifest).post("/shop/cart/wow.snapshot.rebuild-snapshot", """{"ids":["c-1"]}""")
             .status.assert().isEqualTo(404)
     }
 

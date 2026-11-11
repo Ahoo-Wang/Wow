@@ -153,7 +153,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 
 按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设——所以每一套预设上都要量：这里的主色够深，过得了 `contrast` 的 7:1，也过得了其余各套的 4.5:1；你的主题也由 [`theme-check`](#检查一套主题) 这样量。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
 
-有一个 token 不会自己跟着你的主色：`primary-fill`，主色作为承载文字的填色（菜单的高亮项）。预设可以在主色浅到托不住白字的地方给它更深一档——`porcelain` 的暗色就给了，是一个固定的颜色——所以在这样的预设上，写暗色主色时也写上它，并像任何一对那样在它的字下量：
+`primary-fill` 是主色作为承载文字的填色：主按钮，以及链到它的菜单高亮项。亮色就是主色本身；暗色的主色浅到能在暗底上当字，也就托不住白字，所以暗色是主色自己的色相深一档、配白字——从你的 `--fve-dark-primary` 算出来，不用另写。有一处例外：预设把这一档写成固定的颜色时（`porcelain` 的暗色）它不跟着你的主色，在这样的预设上写暗色主色时也写上它，并像任何一对那样在它的字下量：
 
 ```css
 :root {
@@ -236,7 +236,7 @@ declare const engine: ViewEngine;
 }
 ```
 
-写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 就是主色本身，除非预设在主色浅到托不住白字的地方给了更深一档（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条，`azure` 链了当前视图、已选项与描边按钮悬停时的边——所以它们会跟着品牌色。
+写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 亮色就是主色本身，暗色是主色的色相深一档；预设可以把这一档写成固定的颜色（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条，`azure` 链了当前视图、已选项与描边按钮悬停时的边——所以它们会跟着品牌色。
 
 ## 图表的角色
 
@@ -436,8 +436,8 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `ring`                          | 焦点环                                                                                                                       | `oklch(0.5 0.19 264deg)`                       | `oklch(0.77 0.133 264deg)`        |
 | `destructive-foreground`        | 危险填充上的文字（推导）                                                                                                     | `background`                                   | `background`                      |
 | `quiet-foreground`              | 汇总行里弱的那一半（推导）                                                                                                   | `foreground` 的 70%                            | 同左                              |
-| `primary-fill`                  | 主色作为承载文字的填色——链到它的高亮项；主色浅到托不住白字时（暗色）由预设给更深一档                                         | `primary`                                      | `primary`                         |
-| `primary-fill-foreground`       | 那块填色上的文字                                                                                                             | `primary-foreground`                           | `primary-foreground`              |
+| `primary-fill`                  | 主色作为承载文字的填色——主按钮，以及链到它的高亮项；主色浅到托不住白字时（暗色）深一档                                       | `primary`                                      | `primary` 的色相与彩度，亮度 0.52 |
+| `primary-fill-foreground`       | 那块填色上的文字                                                                                                             | `primary-foreground`                           | 白                                |
 | `pin-shadow`                    | 冻结列的柔边；归明暗，不归预设                                                                                               | `oklch(0 0 0deg / 12%)`                        | `oklch(1 0 0deg / 10%)`           |
 | `chart-1`                       | 图表第 1 个色位：第 1 个系列                                                                                                 | `oklch(0.565 0.1626 255.532deg)`               | `oklch(0.6221 0.1612 255.053deg)` |
 | `chart-2`                       | 图表第 2 个色位：第 2 个系列                                                                                                 | `oklch(0.6708 0.175 40.642deg)`                | `oklch(0.6221 0.1726 40.112deg)`  |

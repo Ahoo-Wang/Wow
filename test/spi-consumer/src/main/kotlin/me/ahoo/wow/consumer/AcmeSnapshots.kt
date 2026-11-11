@@ -41,9 +41,12 @@ import java.util.concurrent.ConcurrentHashMap
 class AcmeSnapshotsProvider : StoreProvider {
     override val type: String = TYPE
 
+    /** A store a store names, never chosen for `wow.backend=auto`. */
+    override fun available(config: StoreConfig): Boolean = false
+
     override val options: List<ProviderOption<*>> = listOf(REGION)
 
-    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config, config.option(REGION))
+    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config, config.settings.option(REGION))
 
     companion object {
         const val TYPE: String = "acme-snapshots"

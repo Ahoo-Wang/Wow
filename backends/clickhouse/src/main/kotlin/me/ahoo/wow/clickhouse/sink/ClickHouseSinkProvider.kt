@@ -55,11 +55,12 @@ class ClickHouseSinkProvider : SinkProvider {
         AGGREGATES,
     )
 
-    override fun available(config: SinkConfig): Boolean = config.option(ENABLED)
+    override fun available(config: SinkConfig): Boolean = config.settings.option(ENABLED)
 
     override fun open(config: SinkConfig): StreamSinks {
         val manifest = config.resources.resource(Manifest::class.java, null, config.key)
-        val client = ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse Sink", config::option)
+        val client =
+            ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse Sink", config.settings::option)
         // Which aggregates an access policy governs, as the host's query engine says: recorded in wow_catalog.
         val governed = GovernedAggregates::class.java.takeIf(config.resources::has)
             ?.let { config.resources.resource(it, null, config.key) }
@@ -124,7 +125,7 @@ class ClickHouseSinkProvider : SinkProvider {
             "aggregates",
             "each aggregate type's history settings, <context>.<aggregate>.history.enabled and .ttl, given by the " +
                 "host from wow.aggregates.[<context>.<aggregate>].clickhouse.history.",
-        ).perStore()
+        ).perInstance()
 
         private const val HISTORY = ".history."
 
@@ -133,19 +134,19 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {
-            val ddl = config.option(DDL) ?: DEFAULT_DDL
+            val ddl = config.settings.option(DDL) ?: DEFAULT_DDL
             return ClickHouseSinkOptions(
-                database = config.option(ClickHouseClients.DATABASE),
+                database = config.settings.option(ClickHouseClients.DATABASE),
                 ddl = ddl,
-                batchSize = config.option(BATCH_SIZE),
-                deduplicationWindow = config.option(DEDUPLICATION_WINDOW),
+                batchSize = config.settings.option(BATCH_SIZE),
+                deduplicationWindow = config.settings.option(DEDUPLICATION_WINDOW),
                 aggregates = aggregates(config),
             )
         }
 
         /** Each aggregate type's history settings, `aggregates.<context>.<aggregate>.history.*`. */
         private fun aggregates(config: SinkConfig): Map<AggregateType, AggregateSinkOptions> =
-            histories(config, config.options(AGGREGATES)).mapValues { (_, history) ->
+            histories(config, config.settings.options(AGGREGATES)).mapValues { (_, history) ->
                 AggregateSinkOptions(
                     history = history["enabled"]?.toBooleanStrict() ?: true,
                     historyTtl = history["ttl"]?.let(::duration),

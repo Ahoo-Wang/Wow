@@ -297,15 +297,19 @@ class SchemaIntrospectorTest {
     }
 
     @Test
+    fun `the Manifest should name the snapshot rebuild as the operator's command is named`() {
+        SystemCommands.REBUILD_SNAPSHOT.assert().isEqualTo(SnapshotRebuilds.REBUILD_SNAPSHOT)
+    }
+
+    @Test
     fun `the bodies of the snapshot rebuild and the job commands should be definitions keyed by their names`() {
         val aggregate = fragment().contexts.single().aggregates.single()
             .let { cart -> cart.copyWith(commands = cart.commands + SystemCommands.rebuild("shop", cart.name)) }
         val context = ContextManifest("shop", aggregates = listOf(aggregate), commands = SystemCommands.jobs("shop"))
         val defs = introspector.complete(fragment().copyWith(contexts = listOf(context))).defs
-        SystemCommands.REBUILD.assert().isEqualTo(SnapshotRebuilds.REBUILD)
         defs.keys.filter { it.startsWith("wow.") }.assert()
-            .containsExactlyInAnyOrder(SystemCommands.REBUILD, *SystemCommands.JOBS.toTypedArray())
-        (defs[SystemCommands.REBUILD] as Map<*, *>)["required"].assert().isEqualTo(listOf("ids"))
+            .containsExactlyInAnyOrder(SystemCommands.REBUILD_SNAPSHOT, *SystemCommands.JOBS.toTypedArray())
+        (defs[SystemCommands.REBUILD_SNAPSHOT] as Map<*, *>)["required"].assert().isEqualTo(listOf("ids"))
     }
 
     /** A state of every value a plain JSON type does not tell apart. */

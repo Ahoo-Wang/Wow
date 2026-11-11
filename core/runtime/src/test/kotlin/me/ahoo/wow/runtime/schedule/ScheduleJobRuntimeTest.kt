@@ -58,7 +58,7 @@ class ScheduleJobRuntimeTest {
             correlationId = "c",
             ref = ref,
             hop = Hop.committed("shop"),
-            function = FunctionInfo(FunctionKind.COMMAND, "shop", ScheduleJobs.AGGREGATE, ScheduleJobs.ENABLE),
+            function = FunctionInfo(FunctionKind.COMMAND, "shop", ScheduleJobs.AGGREGATE, ScheduleJobs.ENABLE_JOB),
             status = status,
             error = code?.let { ErrorInfo(it, it) },
             signalTime = 0,

@@ -55,7 +55,7 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 
 运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
-Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable`、`reschedule` 和 `disable`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild`）。没有命令授权器时，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。有授权器时由授权器决定：在 CoSec 下，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，需要自己的授权器才能放行它们。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
+Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable-job`、`reschedule` 和 `disable`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`）。没有命令授权器时，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。有授权器时由授权器决定：在 CoSec 下，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，需要自己的授权器才能放行它们。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
 
 客户端永远不该发送的命令，例如由 Saga 记录的支付网关答复，应标注 `@InternalCommand`，而不是只靠策略挡住：漏配一条规则就会失守。公开端口不挂它的路由：无论调用方是谁、策略怎样，请求它都答 `404`，与任何未知路径的 problem 相同；CoSec 的路由映射也不含它（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。内部端口照常受理 `wow.callers.<service>.commands` 许可的服务发来的调用，节点的授权器与对任何命令一样裁决它。
 
@@ -67,8 +67,8 @@ Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任�
 | --- | --- | --- |
 | 命令 | `<context>:<command>`，命令在 Manifest 中列出的名字：`eshop-ordering:CreateOrder`、`shop:wow.lifecycle.DeleteAggregate` | `<aggregate>/<id>`：`order/o-1` |
 | 不带聚合 ID 的命令路由，例如创建 | `<context>:<command>` | `<aggregate>`：`order` |
-| 一个聚合类型的快照重建 | `<context>:wow.snapshot.Rebuild` | `snapshot/<aggregate>` |
-| 定时任务的命令 | `<context>:wow.schedule.Enable` 及其他任务命令 | `schedule/<job>` |
+| 一个聚合类型的快照重建 | `<context>:wow.snapshot.RebuildSnapshot` | `snapshot/<aggregate>` |
+| 定时任务的命令 | `<context>:wow.schedule.EnableJob` 及其他任务命令 | `schedule/<job>` |
 | 服务路由 | `<context>:<route>` | `route/<route>` |
 | 查询或状态路由 | `http:<METHOD>` | 它的路径 |
 

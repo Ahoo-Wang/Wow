@@ -326,7 +326,7 @@ class CommandMessagesTest {
             )
             sender.typeOf(Command("c", "r", ref, Reserve(1))).assert().isEqualTo("stock.item.Reserve")
             // A system command is every aggregate's, by its system name (decision D198).
-            sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL)
+            sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL_SCHEDULE)
             sender.typeOf(Command("c", "r", ref, DeleteAggregate())).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
                 .message.assert().contains("depend on the api module of stock")
@@ -433,7 +433,7 @@ class CommandMessagesTest {
         receipts.handle(rejected)
         handled.assert().containsExactly("c-1" to Reserve::class.java)
         // A ledger command no Manifest declares, refused back to the ops saga that sent it (decision D226).
-        receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RETRY))
+        receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RETRY_PARKED))
         handled.last().assert().isEqualTo("c-ledger" to RetryParked::class.java)
         handled.removeLast()
         // No handler takes it: logged and passed over, once.

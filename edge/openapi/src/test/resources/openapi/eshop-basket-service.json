@@ -1692,12 +1692,12 @@
         }
       }
     },
-    "/eshop-basket/basket/wow.snapshot.rebuild" : {
+    "/eshop-basket/basket/wow.snapshot.rebuild-snapshot" : {
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
-        "summary" : "Rebuild",
-        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
-        "operationId" : "eshop-basket.basket.wow.snapshot.Rebuild",
+        "summary" : "RebuildSnapshot",
+        "description" : "Sends `wow.snapshot.RebuildSnapshot`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-basket.basket.wow.snapshot.RebuildSnapshot",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
         }, {
@@ -1721,7 +1721,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+                "$ref" : "#/components/schemas/wow.snapshot.RebuildSnapshot"
               }
             }
           }
@@ -3656,7 +3656,7 @@
         },
         "required" : [ "ownerId" ]
       },
-      "wow.schedule.Enable" : {
+      "wow.schedule.EnableJob" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
         "properties" : {
@@ -3665,7 +3665,7 @@
           },
           "rule" : {
             "anyOf" : [ {
-              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+              "$ref" : "#/components/schemas/wow.JobRule"
             }, {
               "type" : "null"
             } ]
@@ -3677,25 +3677,25 @@
         },
         "required" : [ "job" ]
       },
-      "wow.schedule.Reschedule" : {
+      "wow.schedule.RescheduleJob" : {
         "type" : "object",
         "description" : "Overrides the instance's rule; null follows the job's default again.",
         "properties" : {
           "rule" : {
             "anyOf" : [ {
-              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+              "$ref" : "#/components/schemas/wow.JobRule"
             }, {
               "type" : "null"
             } ]
           }
         }
       },
-      "wow.schedule.Disable" : {
+      "wow.schedule.DisableJob" : {
         "type" : "object",
         "description" : "Stops the job instance.",
         "properties" : { }
       },
-      "wow.schedule.JobRule" : {
+      "wow.JobRule" : {
         "type" : "object",
         "description" : "An instance's own rule of a job; each part that is null follows the job's default.",
         "properties" : {
@@ -3711,7 +3711,7 @@
           }
         }
       },
-      "wow.snapshot.Rebuild" : {
+      "wow.snapshot.RebuildSnapshot" : {
         "type" : "object",
         "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the caller's tenant.",
         "properties" : {

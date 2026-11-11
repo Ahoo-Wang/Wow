@@ -65,7 +65,7 @@ abstract class TopicTransportSpec {
         val declared = TopicTransportOptions.of(provider)
         declared.map { it.key }.assert().describedAs("option keys, the topic transports' among them")
             .doesNotHaveDuplicates()
-        config.optionsRead.assert().describedAs("the options the transport read").isSubsetOf(declared.map { it.key })
+        config.settings.read.assert().describedAs("the options the transport read").isSubsetOf(declared.map { it.key })
     }
 
     private suspend fun read(topic: String, partition: Int, from: Long, count: Int): List<SourceMessage> =

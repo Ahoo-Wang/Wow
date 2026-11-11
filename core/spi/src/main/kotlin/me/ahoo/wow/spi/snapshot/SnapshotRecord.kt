@@ -37,7 +37,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * - [operator] and [firstOperator] are the operators of its last stream and of its first, the one
  *   that created it; each null when that stream's caller was anonymous. Both are queryable system fields.
  * - [schedules] are the schedules the aggregate keeps, each rule by its key: those its streams set
- *   (`wow.ScheduleSet`) and did not cancel (`wow.ScheduleCancelled`), fired or not; a deleted aggregate keeps none.
+ *   (`wow.schedule.ScheduleSet`) and did not cancel (`wow.schedule.ScheduleCancelled`), fired or not; a deleted aggregate keeps none.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */

@@ -104,7 +104,7 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
 
     /**
      * The full type name of [command], as the contracts give its class; a system command by its system name: a
-     * lifecycle one or a schedule's `wow.schedule.Set` or `Cancel`, which every aggregate decides, or
+     * lifecycle one or a schedule's `wow.schedule.SetSchedule` or `CancelSchedule`, which every aggregate decides, or
      * a ledger's `wow.ledger.*`, which the target's intake runs.
      */
     fun typeOf(command: Command<*>): String {

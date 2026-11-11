@@ -111,6 +111,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.config.ProviderOption` | class | `wow-spi` |
+| `me.ahoo.wow.spi.config.ProviderSettings` | class | `wow-spi` |
 | `me.ahoo.wow.spi.id.GlobalIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |

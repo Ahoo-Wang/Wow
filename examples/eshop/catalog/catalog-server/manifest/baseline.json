@@ -73,13 +73,13 @@
         } ],
         "system" : true
       }, {
-        "name" : "wow.snapshot.Rebuild",
+        "name" : "wow.snapshot.RebuildSnapshot",
         "aliases" : [ ],
-        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "schema" : "#/$defs/wow.snapshot.RebuildSnapshot",
         "creation" : "none",
         "routes" : [ {
           "method" : "POST",
-          "path" : "/eshop-catalog/brand/wow.snapshot.rebuild"
+          "path" : "/eshop-catalog/brand/wow.snapshot.rebuild-snapshot"
         } ],
         "system" : true
       } ],
@@ -182,13 +182,13 @@
         } ],
         "system" : true
       }, {
-        "name" : "wow.snapshot.Rebuild",
+        "name" : "wow.snapshot.RebuildSnapshot",
         "aliases" : [ ],
-        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "schema" : "#/$defs/wow.snapshot.RebuildSnapshot",
         "creation" : "none",
         "routes" : [ {
           "method" : "POST",
-          "path" : "/eshop-catalog/category/wow.snapshot.rebuild"
+          "path" : "/eshop-catalog/category/wow.snapshot.rebuild-snapshot"
         } ],
         "system" : true
       } ],
@@ -335,13 +335,13 @@
         } ],
         "system" : true
       }, {
-        "name" : "wow.snapshot.Rebuild",
+        "name" : "wow.snapshot.RebuildSnapshot",
         "aliases" : [ ],
-        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "schema" : "#/$defs/wow.snapshot.RebuildSnapshot",
         "creation" : "none",
         "routes" : [ {
           "method" : "POST",
-          "path" : "/eshop-catalog/product/wow.snapshot.rebuild"
+          "path" : "/eshop-catalog/product/wow.snapshot.rebuild-snapshot"
         } ],
         "system" : true
       } ],
@@ -1136,7 +1136,7 @@
       "description" : "Moves the aggregate to the space spaceId.",
       "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferSpace"
     },
-    "wow.snapshot.Rebuild" : {
+    "wow.snapshot.RebuildSnapshot" : {
       "type" : "object",
       "properties" : {
         "ids" : {

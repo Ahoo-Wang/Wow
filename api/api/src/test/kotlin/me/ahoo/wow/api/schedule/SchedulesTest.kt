@@ -69,13 +69,13 @@ class SchedulesTest {
 
     @Test
     fun `the system commands and events have system names`() {
-        Schedules.nameOf(SetSchedule::class.java).assert().isEqualTo(Schedules.SET)
-        Schedules.nameOf(CancelSchedule::class.java).assert().isEqualTo(Schedules.CANCEL)
+        Schedules.nameOf(SetSchedule::class.java).assert().isEqualTo(Schedules.SET_SCHEDULE)
+        Schedules.nameOf(CancelSchedule::class.java).assert().isEqualTo(Schedules.CANCEL_SCHEDULE)
         Schedules.nameOf(ScheduleSet::class.java).assert().isEqualTo(Schedules.SCHEDULE_SET)
         Schedules.nameOf(ScheduleCancelled::class.java).assert().isEqualTo(Schedules.SCHEDULE_CANCELLED)
         Schedules.nameOf(String::class.java).assert().isNull()
-        Schedules.COMMANDS.keys.assert().containsExactly("wow.schedule.Set", "wow.schedule.Cancel")
-        Schedules.EVENTS.keys.assert().containsExactly("wow.ScheduleSet", "wow.ScheduleCancelled")
+        Schedules.COMMANDS.keys.assert().containsExactly("wow.schedule.SetSchedule", "wow.schedule.CancelSchedule")
+        Schedules.EVENTS.keys.assert().containsExactly("wow.schedule.ScheduleSet", "wow.schedule.ScheduleCancelled")
     }
 
     @Test

@@ -77,7 +77,7 @@ override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryInde
 }
 ```
 
-提供者声明它的存储读取的每个选项（`StoreProvider.options`，每个都是用 `ProviderOption.string`、`duration`、`int`、`boolean`、`enumeration` 或 `map` 构建的 `ProviderOption`），并通过它读取（`StoreConfig.option(option)`），因此宿主只绑定和检查这些选项。`enumeration` 取一个枚举的常量，写作小写短横线形式（`wait-for`），配置元数据把它们作为提示提供。存储自己的设置与宿主的设置并列（`wow.stores.<name>.<key>`），所以任何选项都不能命名为 `type`、`ddl` 或 `query`：声明了这些选项的提供者在注册时即失败。声明了默认值的选项（`ProviderOption.Defaulted`）读出的值总是存在；没有默认值的选项可能缺失，因此读出的是可空值。类型范围的选项在 `wow.<type>.<key>` 下为该类型的每个存储设置，每个存储可在 `wow.stores.<name>.<key>` 下覆盖它；标记为 `perStore()` 的选项（比如资源 bean 的名字）只能在单个存储上设置。提供者未声明的存储设置会使启动失败，并列出已声明的选项；`wow.<type>.*` 下的未知键也一样：宿主在启动时从提供者那里得知声明的键。`StoreTck` 检查存储不会读取提供者未声明的选项。Wow 自己的后端在宿主的配置元数据中列出它们的键；第三方可以自带 `META-INF/spring-configuration-metadata.json`，让 IDE 能补全这些键。
+提供者声明它的存储读取的每个选项（`StoreProvider.options`，每个都是用 `ProviderOption.string`、`duration`、`int`、`boolean`、`enumeration` 或 `map` 构建的 `ProviderOption`），并通过它读取（`StoreConfig.settings.option(option)`，每个提供者的配置都持有的 `ProviderSettings`），因此宿主只绑定和检查这些选项。`enumeration` 取一个枚举的常量，写作小写短横线形式（`wait-for`），配置元数据把它们作为提示提供。存储自己的设置与宿主的设置并列（`wow.stores.<name>.<key>`），所以任何选项都不能命名为 `type`、`ddl` 或 `query`：声明了这些选项的提供者在注册时即失败。声明了默认值的选项（`ProviderOption.Defaulted`）读出的值总是存在；没有默认值的选项可能缺失，因此读出的是可空值。类型范围的选项在 `wow.<type>.<key>` 下为该类型的每个存储设置，每个存储可在 `wow.stores.<name>.<key>` 下覆盖它；标记为 `perInstance()`（`ProviderOption.Scope.INSTANCE`）的选项（比如资源 bean 的名字）只能在单个存储上设置，不能在 `wow.<type>` 下设置。提供者未声明的存储设置会使启动失败，并列出已声明的选项；`wow.<type>.*` 下的未知键也一样：宿主在启动时从提供者那里得知声明的键。`StoreTck` 检查存储不会读取提供者未声明的选项。Wow 自己的后端在宿主的配置元数据中列出它们的键；第三方可以自带 `META-INF/spring-configuration-metadata.json`，让 IDE 能补全这些键。
 
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 
@@ -87,7 +87,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 
 类型为 `<type>` 的提供者声明它读取的选项（`options`，与存储提供者相同），宿主把 `wow.<type>` 下它声明的键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`）；没有任何提供者声明的键会使启动失败。由它的 `available` 说明这些键是否配置了它。主题传输只声明自己的选项：每个主题传输都有的设置（`TopicTransportOptions`：`topics.prefix`、`command-intake.enabled`、`ddl`、`topics.partition-refresh`）会与之合并。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。`TopicTransportSpec` 和 `SinkSpec` 检查提供者只读取它声明的选项。
 
-节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`、`namespace` 与映射 `namespaces`。
+节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.settings.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`、`namespace` 与映射 `namespaces`。
 
 ## 契约测试 {#the-contract-tests}
 

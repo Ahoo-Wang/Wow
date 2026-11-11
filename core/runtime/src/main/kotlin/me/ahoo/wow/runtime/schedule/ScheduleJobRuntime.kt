@@ -144,9 +144,9 @@ internal object ScheduleJobRuntime {
 
     /**
      * The commands that bring the [JobScope.SYSTEM] and [JobScope.SHARDED] [jobs] of [context] in line with the host's
-     * configuration at startup: `wow.schedule.Enable` of each instance (one per partition of [partitions] for a
+     * configuration at startup: `wow.schedule.EnableJob` of each instance (one per partition of [partitions] for a
      * SHARDED job) when the job is enabled, which its instance decides as a no-op when nothing changed and reschedules
-     * when its default did; `wow.schedule.Disable` otherwise.
+     * when its default did; `wow.schedule.DisableJob` otherwise.
      */
     @JvmStatic
     fun startup(

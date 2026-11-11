@@ -34,7 +34,7 @@ import kotlin.reflect.KClass
  * reads the state the aggregate is in after a command that committed nothing.
  *
  * The event checks ([expectEvents], [expectEventTypes], [expectEvent]) read the events the decision committed beside
- * its schedules: the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` are checked by
+ * its schedules: the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled` are checked by
  * [expectScheduled] and [expectScheduleCancelled].
  *
  * A rejection is a value, not an exception, so a scenario that does not look at it would pass whatever the command
@@ -263,7 +263,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * The command scheduled [command] under [key], for [target] (the aggregate itself by default), due
-     * as [rule] says when it is given: it committed `wow.ScheduleSet`.
+     * as [rule] says when it is given: it committed `wow.schedule.ScheduleSet`.
      */
     @Suppress("ThrowsCount")
     fun expectScheduled(key: String, command: Any, rule: ScheduleRule? = null, target: AggregateRef? = null) {
@@ -284,7 +284,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** The command cancelled the schedule [key]: it committed `wow.ScheduleCancelled`. */
+    /** The command cancelled the schedule [key]: it committed `wow.schedule.ScheduleCancelled`. */
     fun expectScheduleCancelled(key: String) {
         val schedules = scheduleEvents()
         if (ScheduleCancelled(key) !in schedules) {

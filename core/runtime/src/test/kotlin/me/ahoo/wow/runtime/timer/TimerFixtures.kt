@@ -152,7 +152,7 @@ fun shopManifest(): Manifest = Manifest(
 
 /**
  * A saga of the shop context that reminds each placed order to pay: it schedules a [CancelOrder] of the order at the
- * commit's time plus [afterMillis], under the key `remind` (decision D198: the system command `wow.schedule.Set` to
+ * commit's time plus [afterMillis], under the key `remind` (decision D198: the system command `wow.schedule.SetSchedule` to
  * the order), and derives nothing else.
  */
 fun reminderSaga(afterMillis: Long = 100): ProcessorBinding<OrderState> = ProcessorBinding.saga(

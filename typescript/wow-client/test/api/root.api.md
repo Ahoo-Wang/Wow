@@ -2090,7 +2090,7 @@ export interface SubscriptionManifest {
 }
 
 // @public
-export type SystemEvent = CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | CommittedEvent<'wow.ScheduleSet', ScheduleSet> | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
+export type SystemEvent = CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | CommittedEvent<'wow.schedule.ScheduleSet', ScheduleSet> | CommittedEvent<'wow.schedule.ScheduleCancelled', ScheduleCancelled>;
 
 // @public
 type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never;

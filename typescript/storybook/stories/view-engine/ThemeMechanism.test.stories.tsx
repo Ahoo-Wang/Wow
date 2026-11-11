@@ -530,3 +530,67 @@ export const DarkControlsWearNoWashInNeutral: Story =
   darkControlsWearNoWash('neutral');
 export const DarkControlsWearNoWashInPorcelain: Story =
   darkControlsWearNoWash('porcelain');
+
+/**
+ * 主按钮是主色的填色与它的字（`primary-fill`，D94）。亮色就是主色；暗色是主色
+ * 自己的色相深一档、白字，所以宿主只改暗色的主色，按钮也跟着走；contrast
+ * 说了自己的填色，暗色仍是它的主色配黑字。
+ */
+const ORANGE = 'oklch(0.8 0.12 30deg)';
+
+const primaryButton = (
+  preset: 'neutral' | 'contrast',
+  theme: 'light' | 'dark',
+  hostPrimary?: string,
+): Story => ({
+  ...DisplayWithData,
+  render: () => (
+    <div
+      className="fve-root"
+      data-fve-preset={preset}
+      data-theme={theme}
+      style={
+        hostPrimary
+          ? ({ '--fve-dark-primary': hostPrimary } as React.CSSProperties)
+          : undefined
+      }
+    >
+      <Button>应用</Button>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.fve-root')!;
+    const button = within(canvasElement).getByRole('button', { name: '应用' });
+    const fill = rgbOf(getComputedStyle(button).backgroundColor);
+    const ink = rgbOf(getComputedStyle(button).color);
+    await expect(fill).toBe(colorOf(root, '--_fve-primary-fill'));
+    await expect(ink).toBe(colorOf(root, '--_fve-primary-fill-foreground'));
+    const primary = colorOf(root, '--primary');
+    if (theme === 'light' || preset === 'contrast')
+      return void (await expect(fill).toBe(primary));
+    // A step deeper than the primary, in its hue, under white words.
+    const [deep, light] = [fill, primary].map(color => toOklch(parse(color)!)!);
+    await expect(deep.l).toBeLessThan(0.56);
+    await expect(deep.l).toBeLessThan(light.l);
+    await expect(Math.abs(deep.h! - light.h!)).toBeLessThan(6);
+    await expect(ink).toBe('rgb(255, 255, 255)');
+  },
+});
+
+export const PrimaryButtonIsThePrimaryInLight: Story = primaryButton(
+  'neutral',
+  'light',
+);
+export const PrimaryButtonIsADeeperFillInDark: Story = primaryButton(
+  'neutral',
+  'dark',
+);
+export const PrimaryButtonFollowsAHostsDarkPrimary: Story = primaryButton(
+  'neutral',
+  'dark',
+  ORANGE,
+);
+export const PrimaryButtonKeepsContrastsPrimaryInDark: Story = primaryButton(
+  'contrast',
+  'dark',
+);

@@ -31,9 +31,9 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
@@ -250,7 +250,7 @@ class ScheduleSpecDslTest {
         handler.nullableState.assert().isFalse()
         // Its subscription reads its job's instances alone (ScheduleJobModel.instanceIds): each tick is its job's.
         val ref = ScheduleJobModel.refOf("billing", "invoice", "acme")
-        val own = stateEvent(ref, JobState().apply { job = "invoice" }, Ticked("t", 1, 0, 0))
+        val own = stateEvent(ref, JobState().apply { job = "invoice" }, JobTicked("t", 1, 0, 0))
         handler.invoke(own, contextOf(FunctionKind.SAGA, own.ref.type.context, handler.name, own)).assert().hasSize(1)
     }
 

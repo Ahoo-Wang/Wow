@@ -38,10 +38,10 @@ const OPTION_WORDS: Record<string, Record<string, ParkedField>> = {
   },
   /** The ledger's system command an owning service refused (decision D226). */
   refusedAction: {
-    "wow.ledger.Retry": "requestedRetry",
-    "wow.ledger.Skip": "requestedSkip",
-    "wow.ledger.MarkRecoverable": "requestedMark",
-    "wow.ledger.ApplyRetrySpec": "requestedSpec",
+    "wow.ledger.RetryParked": "requestedRetry",
+    "wow.ledger.SkipParked": "requestedSkip",
+    "wow.ledger.MarkParkedRecoverable": "requestedMark",
+    "wow.ledger.ApplyParkedRetrySpec": "requestedSpec",
   },
   outcome: {
     retried: "outcomeRetried",

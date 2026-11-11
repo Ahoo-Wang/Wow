@@ -21,7 +21,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The timers of one bounded context's schedules: a view derived from the log, rebuilt by
  * replaying it, never the source of truth. Each aggregate type's timers are kept apart, with its log,
  * and each timer is in its owner's partition ([Timer.partition]). The built-in `timers` subscription writes them from the system events
- * `wow.ScheduleSet` and `wow.ScheduleCancelled` the aggregates commit. The node's firing loop reads the timers [due]
+ * `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled` the aggregates commit. The node's firing loop reads the timers [due]
  * in the partitions it owns, a bounded number of each partition in one query for all of them, sends their commands
  * and records each outcome with [settle], which says which of its changes were written.
  *

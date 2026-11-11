@@ -143,7 +143,7 @@ abstract class OpsContract {
         state(id)!!["requested"].asString().assert().isEqualTo(ParkedState.RETRY)
         eventually("the retry sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
         val retry = ops.ledgerCommands(context).single()
-        retry.type.assert().isEqualTo(Ledger.RETRY)
+        retry.type.assert().isEqualTo(Ledger.RETRY_PARKED)
         retry.ref.assert().isEqualTo(Ledger.targetOf(context, id))
         retry.operator!!.id.assert().isEqualTo("alice")
         WowJson.mapper.treeToValue(retry.body, RetryParked::class.java).assert()
@@ -190,7 +190,7 @@ abstract class OpsContract {
         retry.replyTo!!.context.assert().isEqualTo(Ledger.OPS_CONTEXT)
 
         ops.refuse(retry, "wow.auth.forbidden", "Taken from the ops context's saga alone.")
-        eventually("$id refused") { state(id)!!["refusedAction"]?.asString() == Ledger.RETRY }
+        eventually("$id refused") { state(id)!!["refusedAction"]?.asString() == Ledger.RETRY_PARKED }
         val refused = state(id)!!
         refused["refusalCode"].asString().assert().isEqualTo("wow.auth.forbidden")
         refused["refusalReason"].asString().assert().isEqualTo("Taken from the ops context's saga alone.")
@@ -216,11 +216,14 @@ abstract class OpsContract {
         ops.post("/ops/parked/$id/skip", """{"reason":"Refunded by hand."}""", Who.OPERATOR).assertOk()
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
-        WowJson.mapper.treeToValue(sent.getValue(Ledger.MARK_RECOVERABLE).body, MarkParkedRecoverable::class.java)
+        WowJson.mapper.treeToValue(
+            sent.getValue(Ledger.MARK_PARKED_RECOVERABLE).body,
+            MarkParkedRecoverable::class.java,
+        )
             .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), Recoverable.UNRECOVERABLE))
-        WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
+        WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_PARKED_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
             .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
-        WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)
+        WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP_PARKED).body, SkipParked::class.java)
             .assert().isEqualTo(SkipParked.of(SAGA, aggregate.toRef(), FAILED_AT))
 
         // An invalid argument is the entry's rejection, and sends nothing.

@@ -411,6 +411,12 @@ export const GROUNDS: readonly Ground[] = [
     layers: one('chart-tooltip'),
     pairs: texts('chart-tooltip-foreground', 'muted-foreground'),
   },
+  // The primary button: its words on the primary's fill.
+  {
+    name: 'primary fill',
+    layers: one('primary-fill'),
+    pairs: texts('primary-fill-foreground'),
+  },
   // Filled things and their own ink.
   ...['primary', 'secondary', 'accent', 'destructive'].map(fill => ({
     name: fill,

@@ -242,7 +242,7 @@ class ScheduledCommandsTest {
         eventually { node.timer(order("o-1"), "remind")?.status == TimerStatus.FIRED }
         val streams = node.streams("o-1")
         val set = streams[1]
-        set.commandType.assert().isEqualTo(Schedules.SET)
+        set.commandType.assert().isEqualTo(Schedules.SET_SCHEDULE)
         set.requestId.assert()
             .isEqualTo(
                 ExecutionSagaContext.scheduleId(
@@ -290,7 +290,7 @@ class ScheduledCommandsTest {
         node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
         eventually { rejected.isNotEmpty() }
         rejected.single().ref.assert().isEqualTo(order("ghost"))
-        rejected.single().commandType.assert().isEqualTo(Schedules.SET)
+        rejected.single().commandType.assert().isEqualTo(Schedules.SET_SCHEDULE)
         rejected.single().error.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 

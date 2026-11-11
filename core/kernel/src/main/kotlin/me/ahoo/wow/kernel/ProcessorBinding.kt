@@ -17,8 +17,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -299,7 +299,7 @@ class ProcessorBinding<S> private constructor(
 
         /**
          * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job]: a saga handler of
-         * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
+         * the context's job aggregate ([JobState]) that hands each `wow.schedule.JobTicked` of an instance of [job] to [handle] as
          * a [ScheduleTick], and returns the commands it derives. Its subscription reads [job]'s instances alone, by
          * their ids ([me.ahoo.wow.kernel.schedule.ScheduleJobModel.instanceIds]). [context] is the bounded context its
          * job runs in, as the compiler knew it. It sends what [derives], [schedules] and [calls] list, as a saga's
@@ -336,7 +336,7 @@ class ProcessorBinding<S> private constructor(
                 sends = SagaSends(derives, schedules, calls),
                 context = context,
             ) { event, subscription ->
-                event.events.filterIsInstance<Ticked>().flatMap { ticked ->
+                event.events.filterIsInstance<JobTicked>().flatMap { ticked ->
                     val tick = ScheduleTick(
                         tenantId = event.ref.tenantId,
                         job = job.name,

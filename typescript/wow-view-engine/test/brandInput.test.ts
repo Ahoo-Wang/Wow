@@ -97,10 +97,13 @@ function moved(
 }
 
 /**
- * A preset and a mode that bound the primary fill, so it follows the brand
- * (D76): porcelain's dark, where the fill is a step deeper than the primary.
+ * A preset and a mode that bound the primary fill, so the brand derives it
+ * (D76): the two that give the fill a band in the dark. neutral and azure
+ * bound nothing: their dark fill is derived from the primary, which the
+ * brand has already moved (D94), so the fill's own value reads the same
+ * either way.
  */
-const FILL = new Set(['porcelain dark']);
+const FILL = new Set(['porcelain dark', 'contrast dark']);
 
 /** `data-fve-brand-chart` on the surface or an ancestor. */
 const CHARTED: Placement = { brandChart: true };

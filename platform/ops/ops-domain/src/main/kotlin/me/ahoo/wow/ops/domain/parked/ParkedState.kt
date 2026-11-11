@@ -103,7 +103,7 @@ class ParkedState {
     var requested: String? = null
         private set
 
-    /** The ledger's system command the owning service refused (`wow.ledger.Retry`, ...), or null. */
+    /** The ledger's system command the owning service refused (`wow.ledger.RetryParked`, ...), or null. */
     var refusedAction: String? = null
         private set
 

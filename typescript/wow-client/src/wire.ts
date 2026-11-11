@@ -316,7 +316,7 @@ export interface SpaceTransferred {
 }
 
 /**
- * The body of `wow.ScheduleSet`: the aggregate set its
+ * The body of `wow.schedule.ScheduleSet`: the aggregate set its
  * schedule `key`, to send `target` the command of type `commandType`
  * (`command` its JSON text) as `rule` says.
  */
@@ -328,7 +328,7 @@ export interface ScheduleSet {
   readonly command: string;
 }
 
-/** The body of `wow.ScheduleCancelled`. */
+/** The body of `wow.schedule.ScheduleCancelled`. */
 export interface ScheduleCancelled {
   readonly key: string;
 }
@@ -350,8 +350,8 @@ export type SystemEvent =
     >
   | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred>
   | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred>
-  | CommittedEvent<'wow.ScheduleSet', ScheduleSet>
-  | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
+  | CommittedEvent<'wow.schedule.ScheduleSet', ScheduleSet>
+  | CommittedEvent<'wow.schedule.ScheduleCancelled', ScheduleCancelled>;
 
 /**
  * One commit of a state trace: the events of a version and the

@@ -63,7 +63,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A service's failure ledger and the ops context end to end on one node (decision D141), over [InMemoryTopics]: the
- * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.Retry`
+ * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.RetryParked`
  * on the stock context's command topic, as the ops context sends it, retries the item there and is published resolved.
  */
 class LedgerNodeTest {
@@ -145,7 +145,7 @@ class LedgerNodeTest {
             // A ledger command another context's saga sends: the owning service refuses it, with a receipt to the
             // sender, whoever its operator (decision D226).
             ledgerCommand(
-                Ledger.SKIP,
+                Ledger.SKIP_PARKED,
                 SkipParked.of(CommandIntake.NAME, broken.ref, REFUSED_FAILED_AT),
                 broken.ref,
                 "mallory",
@@ -157,7 +157,7 @@ class LedgerNodeTest {
             stock.broken = false
             // The ops context's saga: taken by its source, though the node's authorizer allows no operator.
             ledgerCommand(
-                Ledger.RETRY,
+                Ledger.RETRY_PARKED,
                 RetryParked.of(CommandIntake.NAME, broken.ref),
                 broken.ref,
                 "alice",
@@ -202,7 +202,7 @@ class LedgerNodeTest {
                     asks++
                     val parked = ITEM.ref(TENANT, "i-$asks")
                     val wire = CommandWire(
-                        type = Ledger.SKIP,
+                        type = Ledger.SKIP_PARKED,
                         id = "l-$asks",
                         requestId = "l-$asks",
                         ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, parked)),

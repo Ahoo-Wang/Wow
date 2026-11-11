@@ -53,13 +53,13 @@ class KafkaTransportProvider : TransportProvider {
         TOPIC_CONFIGS,
     )
 
-    override fun available(config: TransportConfig): Boolean = config.option(BOOTSTRAP_SERVERS) != null
+    override fun available(config: TransportConfig): Boolean = config.settings.option(BOOTSTRAP_SERVERS) != null
 
     override fun open(config: TransportConfig): TopicTransport {
         val options = options(config)
         return KafkaTopicTransport(
             KafkaTopicProducer.create(options),
-            KafkaPartitionedSource.create(options, config.option(OFFSET_GAP), config.observer),
+            KafkaPartitionedSource.create(options, config.settings.option(OFFSET_GAP), config.observer),
             KafkaTopicAdmin.create(options, replicationFactor(config), creationConfigs(config)),
             durability(config),
         )
@@ -223,18 +223,18 @@ class KafkaTransportProvider : TransportProvider {
 
         /** The clients' options of [config]. */
         fun options(config: TransportConfig): KafkaOptions = KafkaOptions(
-            bootstrapServers = requireNotNull(config.option(BOOTSTRAP_SERVERS)) {
+            bootstrapServers = requireNotNull(config.settings.option(BOOTSTRAP_SERVERS)) {
                 "${config.key}.${BOOTSTRAP_SERVERS.key} is not set: set it to the Kafka brokers, host:port, " +
                     "separated by commas."
             },
-            properties = config.options(PROPERTIES),
-            pollTimeout = config.option(POLL_TIMEOUT),
-            metadataMaxAge = config.option(TopicTransportOptions.PARTITION_REFRESH),
+            properties = config.settings.options(PROPERTIES),
+            pollTimeout = config.settings.option(POLL_TIMEOUT),
+            metadataMaxAge = config.settings.option(TopicTransportOptions.PARTITION_REFRESH),
         )
 
         /** The replication factor the topics are created with; the broker's when not set. */
         internal fun replicationFactor(config: TransportConfig): Short? =
-            config.option(REPLICATION_FACTOR)?.let { factor ->
+            config.settings.option(REPLICATION_FACTOR)?.let { factor ->
                 require(factor in 1..Short.MAX_VALUE) {
                     "${config.key}.${REPLICATION_FACTOR.key} is $factor: set it to a replica count, 1 or more."
                 }
@@ -243,8 +243,8 @@ class KafkaTransportProvider : TransportProvider {
 
         /** The topic settings the topics are created with: `topics.configs.*`, and `topics.min-insync-replicas`. */
         internal fun creationConfigs(config: TransportConfig): Map<String, String> = buildMap {
-            putAll(config.options(TOPIC_CONFIGS))
-            config.option(MIN_INSYNC_REPLICAS)?.let { put(MIN_INSYNC, it.toString()) }
+            putAll(config.settings.options(TOPIC_CONFIGS))
+            config.settings.option(MIN_INSYNC_REPLICAS)?.let { put(MIN_INSYNC, it.toString()) }
         }
 
         /** The durability check of [config]'s topics. */

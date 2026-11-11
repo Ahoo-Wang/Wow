@@ -247,18 +247,18 @@ class ParkedSpec {
     fun `a refusal of the owning service is recorded on the entry until the next request (D226)`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY), RetryRequested("fixed"))
-            whenCommand(RecordActionRefused(Ledger.RETRY, "wow.auth.forbidden", "Not from the ops saga.")) {
-                expectEvents(ActionRefused(Ledger.RETRY, "wow.auth.forbidden", "Not from the ops saga."))
+            whenCommand(RecordActionRefused(Ledger.RETRY_PARKED, "wow.auth.forbidden", "Not from the ops saga.")) {
+                expectEvents(ActionRefused(Ledger.RETRY_PARKED, "wow.auth.forbidden", "Not from the ops saga."))
                 expectState {
                     requested.assert().isNull()
-                    refusedAction.assert().isEqualTo(Ledger.RETRY)
+                    refusedAction.assert().isEqualTo(Ledger.RETRY_PARKED)
                     refusalCode.assert().isEqualTo("wow.auth.forbidden")
                     refusalReason.assert().isEqualTo("Not from the ops saga.")
                 }
             }
             // The service's next record leaves the refusal shown.
             whenCommand(RecordParked(entry("retries" to 1, "recordedAt" to 700))) {
-                expectState { refusedAction.assert().isEqualTo(Ledger.RETRY) }
+                expectState { refusedAction.assert().isEqualTo(Ledger.RETRY_PARKED) }
             }
             // A new request clears it.
             whenCommand(Skip()) {
@@ -276,11 +276,11 @@ class ParkedSpec {
     fun `a refusal of a resolved entry changes nothing`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY), ParkedResolved(ParkedResolution.RETRIED, 100, 400))
-            whenCommand(RecordActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No.")) { expectUnchanged() }
+            whenCommand(RecordActionRefused(Ledger.SKIP_PARKED, "wow.auth.forbidden", "No.")) { expectUnchanged() }
         }
         // A resolution clears a refusal.
         parkedSpec {
-            given(ParkedRecorded(ENTRY), ActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No."))
+            given(ParkedRecorded(ENTRY), ActionRefused(Ledger.SKIP_PARKED, "wow.auth.forbidden", "No."))
             whenCommand(RecordResolved(RESOLUTION)) {
                 expectState { refusedAction.assert().isNull() }
             }

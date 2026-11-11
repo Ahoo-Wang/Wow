@@ -158,13 +158,13 @@ describe("the operator's actions", () => {
         type: "urn:wow:error:wow.auth.forbidden",
         title: "Forbidden",
         status: 403,
-        detail: "victor may not wow.ledger.Retry: it needs ops.operator.",
+        detail: "victor may not wow.ledger.RetryParked: it needs ops.operator.",
         code: "wow.auth.forbidden",
       }),
     );
     const harness = actionHarness(parkedActions(sent), ROWS);
     await expect(harness.run("retry", "exhausted")).rejects.toThrow(
-      "victor may not wow.ledger.Retry: it needs ops.operator. (wow.auth.forbidden)",
+      "victor may not wow.ledger.RetryParked: it needs ops.operator. (wow.auth.forbidden)",
     );
   });
 });

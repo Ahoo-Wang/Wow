@@ -36,7 +36,6 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
-import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
@@ -59,7 +58,7 @@ internal class MongoStoreProvider : StoreProvider {
 
     override val requirement: String = "wow-mongo on the classpath and a MongoClient bean"
 
-    override fun available(resources: StoreResources): Boolean = resources.has(MongoClient::class.java)
+    override fun available(config: StoreConfig): Boolean = config.resources.has(MongoClient::class.java)
 
     override val options: List<ProviderOption<*>> = listOf(
         CLIENT,
@@ -73,13 +72,17 @@ internal class MongoStoreProvider : StoreProvider {
 
     override fun open(config: StoreConfig): Store = MongoStore(
         config,
-        config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.${CLIENT.key}"),
-        config.option(DATABASE),
-        config.option(APPEND_TIMEOUT),
-        config.option(SHARDING),
-        config.option(OPERATION_TIMEOUT),
+        config.resources.resource(
+            MongoClient::class.java,
+            config.settings.option(CLIENT),
+            "${config.key}.${CLIENT.key}",
+        ),
+        config.settings.option(DATABASE),
+        config.settings.option(APPEND_TIMEOUT),
+        config.settings.option(SHARDING),
+        config.settings.option(OPERATION_TIMEOUT),
         gaugeOf(config),
-        config.option(QUERY_READ_PREFERENCE),
+        config.settings.option(QUERY_READ_PREFERENCE),
     )
 
     /**
@@ -90,7 +93,7 @@ internal class MongoStoreProvider : StoreProvider {
         val gauge = if (config.resources.has(MongoPoolGauge::class.java)) {
             config.resources.resource(
                 MongoPoolGauge::class.java,
-                config.option(POOL_GAUGE),
+                config.settings.option(POOL_GAUGE),
                 "${config.key}.${POOL_GAUGE.key}"
             )
         } else {
@@ -116,7 +119,7 @@ internal class MongoStoreProvider : StoreProvider {
         val CLIENT = ProviderOption.string(
             "client",
             "the name of the MongoClient bean the store opens over; the only one when not set.",
-        ).perStore()
+        ).perInstance()
 
         /** The option naming the store's database. */
         val DATABASE = ProviderOption.string(
@@ -154,7 +157,7 @@ internal class MongoStoreProvider : StoreProvider {
         val POOL_GAUGE = ProviderOption.string(
             "pool-gauge",
             "the name of the MongoPoolGauge bean the store's client was built with, when the application has several.",
-        ).perStore()
+        ).perInstance()
 
         /** The option of the read preference of the store's snapshot and `events` queries. */
         val QUERY_READ_PREFERENCE = ProviderOption.string(

@@ -24,16 +24,16 @@ class LedgerTest {
 
     @Test
     fun `the system commands have system names`() {
-        Ledger.nameOf(RetryParked::class.java).assert().isEqualTo("wow.ledger.Retry")
-        Ledger.nameOf(SkipParked::class.java).assert().isEqualTo("wow.ledger.Skip")
-        Ledger.nameOf(MarkParkedRecoverable::class.java).assert().isEqualTo("wow.ledger.MarkRecoverable")
-        Ledger.nameOf(ApplyParkedRetrySpec::class.java).assert().isEqualTo("wow.ledger.ApplyRetrySpec")
+        Ledger.nameOf(RetryParked::class.java).assert().isEqualTo("wow.ledger.RetryParked")
+        Ledger.nameOf(SkipParked::class.java).assert().isEqualTo("wow.ledger.SkipParked")
+        Ledger.nameOf(MarkParkedRecoverable::class.java).assert().isEqualTo("wow.ledger.MarkParkedRecoverable")
+        Ledger.nameOf(ApplyParkedRetrySpec::class.java).assert().isEqualTo("wow.ledger.ApplyParkedRetrySpec")
         Ledger.nameOf(String::class.java).assert().isNull()
         Ledger.COMMANDS.keys.assert().containsExactly(
-            Ledger.RETRY,
-            Ledger.SKIP,
-            Ledger.MARK_RECOVERABLE,
-            Ledger.APPLY_RETRY_SPEC,
+            Ledger.RETRY_PARKED,
+            Ledger.SKIP_PARKED,
+            Ledger.MARK_PARKED_RECOVERABLE,
+            Ledger.APPLY_PARKED_RETRY_SPEC,
         )
     }
 

@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.consumer
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.tck.StoreTck
+import org.junit.jupiter.api.Test
 
 /**
  * The third-party store against the whole store contract, opened through its provider from the class path as the host
@@ -26,4 +28,9 @@ class AcmeSnapshotsStoreTck : StoreTck() {
     override fun config(): StoreConfig = StoreConfig.of(name = "tck", type = AcmeSnapshotsProvider.TYPE)
 
     override val facets: List<Class<*>> = listOf(StoreQueries::class.java)
+
+    @Test
+    fun `the provider should never be the one wow-backend auto takes`() {
+        AcmeSnapshotsProvider().available(config()).assert().isFalse()
+    }
 }

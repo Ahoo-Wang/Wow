@@ -93,10 +93,10 @@ class CoSecCommandAuthorizerTest {
         }
         asked(Lifecycle.DELETE_AGGREGATE, AggregateType(CONTEXT, "cart"), "c-1")
             .assert().isEqualTo("shop:wow.lifecycle.DeleteAggregate cart/c-1")
-        asked(SnapshotRebuilds.REBUILD, AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE), "cart")
-            .assert().isEqualTo("shop:wow.snapshot.Rebuild snapshot/cart")
-        asked(ScheduleJobs.ENABLE, AggregateType(CONTEXT, ScheduleJobs.AGGREGATE), "report")
-            .assert().isEqualTo("shop:wow.schedule.Enable schedule/report")
+        asked(SnapshotRebuilds.REBUILD_SNAPSHOT, AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE), "cart")
+            .assert().isEqualTo("shop:wow.snapshot.RebuildSnapshot snapshot/cart")
+        asked(ScheduleJobs.ENABLE_JOB, AggregateType(CONTEXT, ScheduleJobs.AGGREGATE), "report")
+            .assert().isEqualTo("shop:wow.schedule.EnableJob schedule/report")
     }
 
     @Test

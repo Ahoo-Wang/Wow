@@ -100,8 +100,9 @@ class DnsPeerDiscovery(
     override val options: List<ProviderOption<*>> = listOf(NAME_TEMPLATE, NAMESPACE, NAMESPACES)
 
     override fun open(config: PeerDiscoveryConfig): PeerTargets {
-        val template = config.option(NAME_TEMPLATE)
-        val namespaces = config.options(NAMESPACES).mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
+        val template = config.settings.option(NAME_TEMPLATE)
+        val namespaces = config.settings.options(NAMESPACES).mapValues { it.value.trim() }
+            .filterValues { it.isNotEmpty() }
         configCheck(
             namespaces.isEmpty() || NAMESPACE_PLACEHOLDER in template,
             "${config.key}.${NAMESPACES.key}",
@@ -112,7 +113,8 @@ class DnsPeerDiscovery(
             "${config.key}.${NAMESPACES.key} places peers ${namespaces.keys} in other namespaces, but " +
                 "${config.key}.${NAME_TEMPLATE.key}, $template, names no namespace."
         }
-        return DnsPeerTargets(template, lookup, namespaces, config.option(NAMESPACE) ?: namespaceOf(namespaceFile))
+        val namespace = config.settings.option(NAMESPACE) ?: namespaceOf(namespaceFile)
+        return DnsPeerTargets(template, lookup, namespaces, namespace)
     }
 
     @InternalWowApi

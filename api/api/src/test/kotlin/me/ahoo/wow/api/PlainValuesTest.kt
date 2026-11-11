@@ -43,6 +43,7 @@ import me.ahoo.wow.api.schedule.JobDisabled
 import me.ahoo.wow.api.schedule.JobEnabled
 import me.ahoo.wow.api.schedule.JobRescheduled
 import me.ahoo.wow.api.schedule.JobRule
+import me.ahoo.wow.api.schedule.JobTicked
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.RescheduleJob
 import me.ahoo.wow.api.schedule.ScheduleCancelled
@@ -52,7 +53,6 @@ import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.schedule.TickJob
-import me.ahoo.wow.api.schedule.Ticked
 import org.junit.jupiter.api.Test
 
 /**
@@ -104,7 +104,7 @@ class PlainValuesTest {
         valueSemantics({ RescheduleJob.of() }, RescheduleJob.of(JobRule.of(misfire = Misfire.CATCH_UP)))
         valueSemantics({ JobEnabled.of("nightly", cron) }, JobEnabled.of("nightly", cron, JobRule.of(), 0))
         valueSemantics({ JobRescheduled.of(cron) }, JobRescheduled.of(cron, JobRule.of()))
-        valueSemantics({ Ticked.of("t", 2, 1, 3) }, Ticked.of("t", 3, 1, 3))
+        valueSemantics({ JobTicked.of("t", 2, 1, 3) }, JobTicked.of("t", 3, 1, 3))
         valueSemantics({ ScheduleTick.of("tenant", "nightly", 1) }, ScheduleTick.of("tenant", "nightly", 2, 1, 3, 0))
     }
 

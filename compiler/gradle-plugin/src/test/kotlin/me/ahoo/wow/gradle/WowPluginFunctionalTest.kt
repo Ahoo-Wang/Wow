@@ -365,7 +365,7 @@ class WowPluginFunctionalTest {
         manifest.contexts.single { it.name == "billing" }.aggregates.single().commands.filter { it.system }
             .flatMap { it.routes }.assert().containsExactly(
                 RouteManifest("DELETE", "/billing/account/{id}"),
-                RouteManifest("POST", "/billing/account/wow.snapshot.rebuild"),
+                RouteManifest("POST", "/billing/account/wow.snapshot.rebuild-snapshot"),
             )
         manifest.errors.assert().isEqualTo(FrameworkErrors.ALL)
         manifest.contexts.associate { it.name to it.errors }.assert().isEqualTo(

@@ -88,9 +88,9 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `RoutingManifest` | interface | What a `CommandClient` reads of a Manifest to send a command: each context's aggregates and their commands with their routes, and the context's own system commands; and what a `ServiceRoutes` reads to call a service route: the context's routes. | — |
 | `RoutingServiceRoute` | type | A service route as a `RoutingManifest` lists it: its name and its route. | — |
 | `SNAPSHOT_SUBSCRIPTION` | const | The name of the built-in subscription that writes snapshots. | — |
-| `ScheduleCancelled` | interface | The body of `wow.ScheduleCancelled`. | — |
+| `ScheduleCancelled` | interface | The body of `wow.schedule.ScheduleCancelled`. | — |
 | `ScheduleRule` | interface | A schedule rule of a snapshot's `schedules`. | — |
-| `ScheduleSet` | interface | The body of `wow.ScheduleSet`: the aggregate set its schedule `key`, to send `target` the command of type `commandType` (`command` its JSON text) as `rule` says. | — |
+| `ScheduleSet` | interface | The body of `wow.schedule.ScheduleSet`: the aggregate set its schedule `key`, to send `target` the command of type `commandType` (`command` its JSON text) as `rule` says. | — |
 | `Scope` | interface | The owner and the space an aggregate belongs to, beside its tenant. | — |
 | `ServiceManifest` | interface | The service a merged Manifest describes; a fragment has none. | — |
 | `ServiceRouteManifest` | interface | A service route: a route whose handler is the service's own code, its parameters and schemas. | — |

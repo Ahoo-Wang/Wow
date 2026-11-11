@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.ProviderSettings
 import me.ahoo.wow.spi.store.StoreResources
 
 /**
@@ -31,9 +32,9 @@ interface QueryDatasetProvider {
     val type: String
 
     /**
-     * Every setting it reads from its [QueryDatasetConfig.options], each read through its option, for the host to bind
-     * and check (`wow.<type>.<key>`); a dataset backend has no instances of its own, so it reads a
-     * [ProviderOption.Scope.PER_STORE] option as one of its type.
+     * Every setting it reads from its [QueryDatasetConfig.settings], each read through its option, for the host to bind
+     * and check (`wow.<type>.<key>`): each of [ProviderOption.Scope.TYPE], since a dataset backend has no instances
+     * with settings of their own ([ProviderOption.Scope.INSTANCE]).
      */
     val options: List<ProviderOption<*>> get() = emptyList()
 
@@ -49,36 +50,23 @@ interface QueryDatasetProvider {
 }
 
 /**
- * What a [QueryDatasetProvider] opens from: its [type], its settings ([options], `wow.<type>.*` relative to it) and
+ * What a [QueryDatasetProvider] opens from: its [type], its settings ([settings], `wow.<type>.*` relative to it) and
  * the application's [resources]. Fields may be added: the host builds it, so the constructor is internal to Wow; a
  * provider's test builds one with [of].
  */
 @WowSpi
 class QueryDatasetConfig @InternalWowApi constructor(
     val type: String,
-    val options: Map<String, String> = emptyMap(),
+    options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
 ) {
     /** The configuration key of its settings, `wow.<type>`, for a provider's failures to name. */
     val key: String get() = "wow.$type"
 
-    /** The value of [option]: its setting, parsed, else its default. */
-    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
+    /** Its settings, under [key]: what its provider reads its options from ([ProviderSettings]). */
+    val settings: ProviderSettings = ProviderSettings(key, options)
 
-    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
-    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
-
-    private fun <T : Any> setting(option: ProviderOption<T>): T? =
-        options[option.key]?.takeIf { it.isNotBlank() }?.let { option.parse(it, "$key.${option.key}") }
-
-    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
-    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> = options(option.key)
-
-    /** The settings under [prefix], relative to it (`query.settings.max_threads` under `query.settings`). */
-    fun options(prefix: String): Map<String, String> =
-        options.filterKeys { it.startsWith("$prefix.") }.mapKeys { it.key.removePrefix("$prefix.") }
-
-    override fun toString(): String = "QueryDatasetConfig(type=$type, options=${options.keys})"
+    override fun toString(): String = "QueryDatasetConfig(type=$type, options=${settings.values.keys})"
 
     companion object {
         /** A configuration of the given fields; parameters added later come last, with a default. */

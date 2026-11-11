@@ -156,12 +156,17 @@ export const STATE_DOCS = {
 export const MARK_DOCS = {
   'primary-fill': {
     role: {
-      en: 'The primary as a filled area under words — a highlighted item linked to it; a preset gives a deeper step where the primary is too light to carry white words (dark)',
-      zh: '主色作为承载文字的填色——链到它的高亮项；主色浅到托不住白字时（暗色）由预设给更深一档',
+      en: 'The primary as a filled area under words — the primary button, and a highlighted item linked to it; a step deeper where the primary is too light to carry white words (dark)',
+      zh: '主色作为承载文字的填色——主按钮，以及链到它的高亮项；主色浅到托不住白字时（暗色）深一档',
+    },
+    dark: {
+      en: "`primary`'s hue and chroma at a lightness of 0.52",
+      zh: '`primary` 的色相与彩度，亮度 0.52',
     },
   },
   'primary-fill-foreground': {
     role: { en: 'The words on that fill', zh: '那块填色上的文字' },
+    dark: { en: 'white', zh: '白' },
   },
   'row-selected-mark': {
     role: {

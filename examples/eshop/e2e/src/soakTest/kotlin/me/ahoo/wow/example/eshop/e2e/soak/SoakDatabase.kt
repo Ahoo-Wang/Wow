@@ -192,7 +192,7 @@ class SoakDatabase(private val connection: Connection, val context: String) {
     /** A commit of an aggregate: its version, its request id and its events. */
     data class Commit(val aggregateId: String, val version: Int, val requestId: String, val events: List<Event>)
 
-    /** An event: its simple name, its payload, and whether it is a system event (`wow.ScheduleSet`, ...). */
+    /** An event: its simple name, its payload, and whether it is a system event (`wow.schedule.ScheduleSet`, ...). */
     data class Event(val name: String, val payload: JsonNode, val system: Boolean = false)
 
     private companion object {

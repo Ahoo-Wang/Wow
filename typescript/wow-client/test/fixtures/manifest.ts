@@ -117,16 +117,16 @@ export const TEST_MANIFEST: Manifest = manifestOf([
           method: 'POST',
           path: `${PRODUCT}/{id}/wow.lifecycle.restore-aggregate`,
         }),
-        system('wow.snapshot.Rebuild', {
+        system('wow.snapshot.RebuildSnapshot', {
           method: 'POST',
-          path: `${PRODUCT}/wow.snapshot.rebuild`,
+          path: `${PRODUCT}/wow.snapshot.rebuild-snapshot`,
         }),
       ]),
     ],
     [
-      system('wow.schedule.Enable', {
+      system('wow.schedule.EnableJob', {
         method: 'POST',
-        path: '/eshop-catalog/wow.schedule/{id}/enable',
+        path: '/eshop-catalog/wow.schedule/{id}/enable-job',
       }),
     ],
   ),
