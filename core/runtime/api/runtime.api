@@ -168,6 +168,24 @@ public final class me/ahoo/wow/runtime/admission/CommandBody$Value$Companion {
 	public final fun of (Ljava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandBody$Value;
 }
 
+public final class me/ahoo/wow/runtime/admission/CommandCandidate {
+	public static final field Companion Lme/ahoo/wow/runtime/admission/CommandCandidate$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBody ()Ljava/lang/Object;
+	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getType ()Lme/ahoo/wow/kernel/CommandType;
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/CommandCandidate;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/admission/CommandCandidate$Companion {
+	public final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/CommandCandidate;
+}
+
 public final class me/ahoo/wow/runtime/admission/CommandGateway {
 	public final fun execute (Lme/ahoo/wow/runtime/admission/ServerCommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun send (Lme/ahoo/wow/runtime/admission/ServerCommandRequest;)Lkotlinx/coroutines/flow/Flow;
@@ -228,7 +246,7 @@ public final class me/ahoo/wow/runtime/admission/CommandTransformer$Companion {
 }
 
 public abstract interface class me/ahoo/wow/runtime/admission/CommandValidator {
-	public abstract fun validate (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;)Ljava/util/List;
+	public abstract fun validate (Lme/ahoo/wow/runtime/admission/CommandCandidate;)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/runtime/admission/RouteAction {

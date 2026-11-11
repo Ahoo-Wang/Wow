@@ -200,7 +200,8 @@ class CommandValueAdmissionTest {
             seen += action
             Authorization.Allowed
         }
-        val positive = CommandValidator { _, body ->
+        val positive = CommandValidator { command ->
+            val body = command.body
             if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "min", "At least 1."))
         }
         val invalid = gateway(authorizer, listOf(positive)).execute(request(AddItem("apple", 0)))

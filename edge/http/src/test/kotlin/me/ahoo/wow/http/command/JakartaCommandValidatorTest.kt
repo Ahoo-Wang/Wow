@@ -22,8 +22,11 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.metadata.ConstraintDescriptor
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.runtime.admission.CommandCandidate
 import org.junit.jupiter.api.Test
 
 /** [JakartaCommandValidator] (decision D106). */
@@ -31,6 +34,9 @@ class JakartaCommandValidatorTest {
     private class Constrained(@field:NotBlank val sku: String, @field:Min(1) val quantity: Int)
 
     private val type = CommandType("shop.cart.AddItem", Constrained::class.java)
+
+    private fun candidate(body: Constrained) =
+        CommandCandidate.of(type, body, AggregateType("shop", "cart").ref("tenant", "c-1"), Scope.NONE, null, null)
 
     private inline fun <reified A : Annotation> violation(path: String, field: String, message: String) =
         mockk<ConstraintViolation<Any>> {
@@ -44,7 +50,7 @@ class JakartaCommandValidatorTest {
     @Test
     fun `a body without violations is valid`() {
         val validator = mockk<Validator> { every { validate(any<Any>()) } returns emptySet() }
-        JakartaCommandValidator(validator).validate(type, Constrained("apple", 1)).assert().isEmpty()
+        JakartaCommandValidator(validator).validate(candidate(Constrained("apple", 1))).assert().isEmpty()
     }
 
     @Test
@@ -56,7 +62,7 @@ class JakartaCommandValidatorTest {
             violation<Min>("sku", "quantity", "too short"),
         )
         val validator = mockk<Validator> { every { validate(any<Any>()) } returns violations }
-        JakartaCommandValidator(validator).validate(type, Constrained(" ", 0)).assert().containsExactly(
+        JakartaCommandValidator(validator).validate(candidate(Constrained(" ", 0))).assert().containsExactly(
             Violation("", "not-blank", "the body is invalid"),
             Violation("quantity", "min", "must be greater than or equal to 1"),
             Violation("sku", "min", "too short"),

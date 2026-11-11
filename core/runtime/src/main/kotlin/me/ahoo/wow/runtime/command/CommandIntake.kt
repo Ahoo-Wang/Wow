@@ -38,6 +38,7 @@ import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.candidateOf
 import me.ahoo.wow.runtime.admission.violationsOf
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -195,7 +196,7 @@ class CommandIntake internal constructor(
      */
     private fun invalid(model: AggregateModel<*>, command: Command<*>): ErrorInfo? {
         val type = model.commandType(command.body.javaClass)
-        val violations = validators.violationsOf(type, command.body)
+        val violations = validators.violationsOf { candidateOf(type, command) }
         return if (violations.isEmpty()) {
             null
         } else {

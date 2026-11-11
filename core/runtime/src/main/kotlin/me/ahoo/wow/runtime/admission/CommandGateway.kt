@@ -123,7 +123,7 @@ import kotlin.time.Duration
  *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]). A
  *    transformer that throws a [RejectedException] refuses the command with its rejection, as the kernel answers a
  *    decide function's: its code qualified with the input's aggregate type, with its message and extensions.
- * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.COMMAND_INVALID].
+ * 6. Validate the [CommandCandidate] with [validators]: their violations, together, are [FrameworkCodes.COMMAND_INVALID].
  * 7. Build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
  *    [default timeout][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout] ([defaultWaitTimeout]) when it names none;
  *    its timeout capped by the coordinator's [maximum][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout].
@@ -547,13 +547,13 @@ class CommandGateway @InternalWowApi constructor(
             }
         }
         // 6. Validation.
-        val violations = validators.violationsOf(command.type, command.body)
+        val operator = if (call != null) call.operator else origin.operator
+        // A call's command is derived: the access policies trust it, and it carries no caller.
+        val caller = if (call == null) actingCaller(request.caller, facts.ref, scope) else null
+        val violations = validators.violationsOf { candidateOf(command, facts.ref, scope, operator, caller) }
         if (violations.isNotEmpty()) {
-            return facts.refuse(
-                FrameworkCodes.COMMAND_INVALID,
-                "${command.type.name} is invalid.",
-                violations = violations
-            )
+            val invalid = "${command.type.name} is invalid."
+            return facts.refuse(FrameworkCodes.COMMAND_INVALID, invalid, violations = violations)
         }
         // 7. The command.
         val coordinator = coordinators.getValue(facts.ref.type.context)
@@ -571,10 +571,9 @@ class CommandGateway @InternalWowApi constructor(
             scope = scope,
             headers = command.headers,
             causation = call?.causation,
-            operator = if (call != null) call.operator else origin.operator,
+            operator = operator,
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
-            // A call's command is derived: the access policies trust it, and it carries no caller.
-            caller = if (call == null) actingCaller(request.caller, facts.ref, scope) else null,
+            caller = caller,
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
     }

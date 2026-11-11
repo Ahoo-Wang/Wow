@@ -115,7 +115,8 @@ class PeerCommandsTest {
                 if (caller.subject == "mallory") Authorization.Denied("No.") else Authorization.Allowed
             },
             validators = listOf(
-                CommandValidator { _, body ->
+                CommandValidator { command ->
+                    val body = command.body
                     if ((body as? Reserve)?.quantity == 0) {
                         listOf(
                             Violation("quantity", "min", "At least 1.")

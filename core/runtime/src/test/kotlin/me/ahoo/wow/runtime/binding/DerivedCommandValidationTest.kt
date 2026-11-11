@@ -48,7 +48,8 @@ class DerivedCommandValidationTest {
     )
 
     /** As Bean Validation's constraints would be: no item named [POISON]. */
-    private val noPoison = CommandValidator { _, body ->
+    private val noPoison = CommandValidator { command ->
+        val body = command.body
         if (body is RemoveItems && POISON in body.items) listOf(VIOLATION) else emptyList()
     }
     private val derived = DerivedCommands(listOf(cart), coordinator, validators = listOf(noPoison))
