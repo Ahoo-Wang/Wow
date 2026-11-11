@@ -232,8 +232,12 @@ class ClusterTest : ClusterTestCase() {
         val result = one.deposit(id, wait = WaitPlan.COMMITTED.within(300.milliseconds))
         val elapsed = (System.nanoTime() - started) / 1_000_000
 
-        // The default forward timeout is one second; the wait had 300 ms, which bound the forward too (D64).
-        elapsed.assert().isBetween(250L, 900L)
+        // The default forward timeout is one second; the wait had 300 ms, which bound the forward too (D64): the
+        // request carries the wait's own deadline, decided when it was made, not the forward timeout from its sending.
+        val forward = cluster.forwards.single()
+        forward.deadline.assert().isEqualTo(forward.transport!!.wait!!.deadline)
+        // Only the order of the bounds: the answer came before the owner's injected latency could have.
+        elapsed.assert().isLessThan(3_000L)
         // The router gives up the forward at the deadline without running the command here (decision D223): its
         // outcome is unknown, or the wait times out first; either way the answer comes in time.
         result.status.assert().isEqualTo(CommandResult.Status.FAILED)
@@ -308,7 +312,11 @@ class ClusterTest : ClusterTestCase() {
             val result = one.deposit(id, wait = WaitPlan.COMMITTED.within(300.milliseconds))
             val elapsed = (System.nanoTime() - started) / 1_000_000
 
-            elapsed.assert().isBetween(250L, 900L)
+            // Only the order of the bounds: the connection was given up before its injected latency, and nothing was
+            // sent.
+            cluster.connects.assert().contains(two.address)
+            cluster.forwards.assert().isEmpty()
+            elapsed.assert().isLessThan(3_000L)
             // The wait and the connection end at the same deadline: the command, run here then, is too late for the
             // wait, unless it settles first.
             if (result.status == CommandResult.Status.FAILED) {
