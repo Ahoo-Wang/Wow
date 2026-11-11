@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

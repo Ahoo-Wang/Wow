@@ -28,6 +28,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.security.SignedInCallerResolver
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

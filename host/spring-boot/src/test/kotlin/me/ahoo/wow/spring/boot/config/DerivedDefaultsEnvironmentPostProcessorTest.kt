@@ -14,8 +14,8 @@
 package me.ahoo.wow.spring.boot.config
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.spring.boot.CoSecModeEnvironmentPostProcessor
 import me.ahoo.wow.spring.boot.EarlyRefusalTest
+import me.ahoo.wow.spring.boot.security.CoSecModeEnvironmentPostProcessor
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
 import org.springframework.core.env.MapPropertySource

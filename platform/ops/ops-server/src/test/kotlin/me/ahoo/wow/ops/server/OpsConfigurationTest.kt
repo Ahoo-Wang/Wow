@@ -45,7 +45,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
+import me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource

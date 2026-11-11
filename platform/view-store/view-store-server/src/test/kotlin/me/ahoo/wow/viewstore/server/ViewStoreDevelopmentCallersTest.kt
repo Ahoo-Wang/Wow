@@ -23,7 +23,7 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest

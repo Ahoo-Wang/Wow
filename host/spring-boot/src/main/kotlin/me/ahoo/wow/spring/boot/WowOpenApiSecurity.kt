@@ -16,6 +16,8 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
+import me.ahoo.wow.spring.boot.security.DecoratingCallerResolver
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 
 /**
  * How a caller of the public routes presents its identity, as the springdoc document declares it:

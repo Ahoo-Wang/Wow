@@ -23,7 +23,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesStateAccess
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences

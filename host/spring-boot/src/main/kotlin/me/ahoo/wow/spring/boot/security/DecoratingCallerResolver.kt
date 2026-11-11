@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.spring.boot.security
 
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.spring.boot.WowOpenApiSecurity
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
