@@ -405,4 +405,3 @@ V10 订阅的名字是 `<processor>.<function>`。
 
 切换点保存在 V10 目标里、日志旁边：每个分区一行检查点，组为 `wow.migrate/<context>`，名为 `cutover`，每一轮只会把它往前移，从不后退。服务的订阅把它及之前的条目视为导入的，它的传输 Sink 也把它们标为导入的发布出去（[从 9.x 导入的历史](../guide/published-streams#history-imported-from-9x)）。演练运行（dry run）不记录切换点。
 
-在工具开始记录来源之前导入的预留键和停放条目，无法与 V10 自己的区分开：导入到全新的 V10 目标，或者在 `import --restart` 之前删除它们。

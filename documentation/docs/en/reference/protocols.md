@@ -67,7 +67,7 @@ The event stream is the fact: the events one command produced, committed by one 
 | `events` | Each event's `name`, `revision` and `payload`, in order. Schedules set or cancelled are among them, as the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`. |
 | `scope` | The aggregate's owner and space after this commit. |
 | `access` | The aggregate's access attributes, `owner` and `space` among them: those after this commit, then kept current as they change; null for a stream not stamped. |
-| `accessVersion` | The version `access` is of: this commit's own when it was committed with them, a later commit's once that one changed them. Every copy of the attributes, in the log, an index of the streams or a sink's table, keeps the one of the later version; null with `access`, and in an envelope of a version before it. |
+| `accessVersion` | The version `access` is of: this commit's own when it was committed with them, a later commit's once that one changed them. Every copy of the attributes, in the log, an index of the streams or a sink's table, keeps the one of the later version; null with `access`. |
 | `causation` | The chain the command belongs to, if a saga sent it. |
 | `headers` | The request facts admission recorded, such as `app_id`. |
 | `operator` | Whose name the commit is recorded under; null for an anonymous caller. |
