@@ -236,8 +236,10 @@ class Reservation @InternalWowApi constructor(
 }
 
 /**
- * How a [ReservationStore.confirm] ended. Cases may be added, so a `when` over them keeps an `else` branch, which reads
- * one as not [Taken], as Wow's callers do: the key is not known to be lost.
+ * How a [ReservationStore.confirm] ended.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. The `else` reads a case as not
+ * [Taken], as Wow's callers do: the key is not known to be lost.
  */
 @WowSpi
 sealed interface ConfirmOutcome {

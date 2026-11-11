@@ -370,10 +370,18 @@ class ServiceNode @InternalWowApi constructor(
     /** Leaves the cluster and closes the node, in the order [NodeLifecycle] describes. Stopping twice does nothing. */
     suspend fun stop(): Unit = lifecycle.stop()
 
-    /** Where a node is in its lifecycle. */
+    /**
+     * Where a node is in its lifecycle.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class State { NEW, STARTING, RUNNING, STOPPING, STOPPED }
 
-    /** The steps of [stop], in their order. */
+    /**
+     * The steps of [stop], in their order.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Step {
         /** Every context's partitions are handed off, its subscriptions stopped with their checkpoints saved. */
         HANDED_OFF,

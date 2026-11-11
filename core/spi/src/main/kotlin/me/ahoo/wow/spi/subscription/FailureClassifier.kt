@@ -17,6 +17,8 @@ import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * How a subscription answers a failure of its handler (9.x `RecoverableType`).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 @WowSpi
 enum class FailureClass {

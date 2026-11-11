@@ -96,6 +96,8 @@ class WaitOptions @InternalWowApi constructor(
 
 /**
  * What the node a wait starts on does with a hop of a context it knows no Manifest of, its own or a peer's.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class UnknownContexts {
     /**
