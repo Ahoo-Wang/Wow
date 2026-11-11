@@ -65,7 +65,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 
 分析目录在定义起草或修订（`ReviseDataset`）时对照目录检查它，并拒绝指明未知源或列、跨租户关联，或调用了函数集之外的函数的定义。
 
-**有访问策略的聚合的 Wow 表，不能作为分析目录数据集的源。** 这类聚合的行由它的策略决定，只有拥有它的服务能求值，所以无论这样的表是主体还是被关联的源，读取它的定义在起草、修订或发布时都会被分析目录拒绝；已发布的数据集若变成读取这样的表，就转为需要修订。这样的数据集改由拥有该聚合的服务提供：在一个绑定到该聚合的数据集文件中声明（[从服务发布数据集](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)）。分析目录从每张表的 `wow_catalog` 行得知这一点，这一行由拥有该聚合的服务的 Sink 写入（[ClickHouse](../operate/clickhouse#wow-catalog)）；较早版本的 Sink 写下的行没有说明，在该服务升级后重新写出这一行之前，按有策略处理。
+**有访问策略的聚合的 Wow 表，不能作为分析目录数据集的源。** 这类聚合的行由它的策略决定，只有拥有它的服务能求值，所以无论这样的表是主体还是被关联的源，读取它的定义在起草、修订或发布时都会被分析目录拒绝；已发布的数据集若变成读取这样的表，就转为需要修订。这样的数据集改由拥有该聚合的服务提供：在一个绑定到该聚合的数据集文件中声明（[从服务发布数据集](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)）。分析目录从每张表的 `wow_catalog` 行得知这一点，这一行由拥有该聚合的服务的 Sink 写入（[ClickHouse](../operate/clickhouse#wow-catalog)）；Sink 所在节点没有查询引擎（`wow.query.enabled: false`）时，这一行两者都不写，按有策略处理。
 
 ## 发布与版本 {#publish-and-version}
 
@@ -88,7 +88,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 
 ## 查询数据集 {#query-a-dataset}
 
-数据集像快照模型一样查询，使用同样的[查询语言](../reference/query-language)和同样的能力描述符，可以通过 HTTP、Kotlin 中的 `QueryApi.datasets` 或 TypeScript 的 `DatasetClient`。每个调用方只读到自己租户、所有者和空间的行，以主体的列为准。引用聚合的列，即 Wow 表的 `aggregate_id` 或源声明的引用，把每一行链接到拥有该聚合的服务，所以视图可以对它执行操作。
+数据集像快照模型一样查询，使用同样的[查询语言](../reference/query-language)和同样的能力描述符，可以通过 HTTP、Kotlin 中的 `QueryApi.of(caller).datasets(…)` 或 TypeScript 的 `DatasetClient`。每个调用方只读到自己租户、所有者和空间的行，以主体的列为准。引用聚合的列，即 Wow 表的 `aggregate_id` 或源声明的引用，把每一行链接到拥有该聚合的服务，所以视图可以对它执行操作。
 
 数据集查询在自己的舱壁下运行，每个节点 `wow.query.dataset.max-concurrent`（8），所以分析永远不会从正在写入数仓的 Sink 那里抢走数仓。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。未知的数据集以 404 `wow.query.dataset-not-found` 回答。
 
@@ -96,7 +96,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 
 | 角色 | 可以 |
 | --- | --- |
-| `analytics.catalog.admin` | 做任何事，包括管理连接和受信任的写入者 |
+| `analytics.catalog.admin` | 编辑者能做的一切、把源标记为已审核、管理连接和受信任的写入者；不能审批 |
 | `analytics.catalog.approver` | 审核源、接受保护级别的改变、决定发布 |
 | `analytics.catalog.editor` | 起草和修订源与数据集，发布、回滚和下线 |
 | `analytics.catalog.viewer` | 读取分析目录 |

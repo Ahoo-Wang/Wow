@@ -65,7 +65,7 @@ posted as `DraftDataset` to `POST /analytics-catalog/dataset/draft-dataset`; the
 
 The catalog checks a definition against the catalog when it is drafted or revised (`ReviseDataset`), and refuses one that names an unknown source or column, joins across tenants, or calls a function outside the set.
 
-**A Wow table of an aggregate with an access policy is no source of the catalog's datasets.** That aggregate's rows are decided by its policy, which only the service that owns it can evaluate, so the catalog refuses a definition that reads such a table, as its subject or joined, when it is drafted, revised or published, and a published dataset that comes to read one needs revision. Serve such a dataset from the owning service instead, in a dataset file bound to the aggregate ([Publish Datasets from a Service](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)). The catalog knows from each table's `wow_catalog` row, which the owning service's sink writes ([ClickHouse](../operate/clickhouse#wow-catalog)); a row an earlier sink wrote does not say, and reads as a policy's until that service, upgraded, writes it again.
+**A Wow table of an aggregate with an access policy is no source of the catalog's datasets.** That aggregate's rows are decided by its policy, which only the service that owns it can evaluate, so the catalog refuses a definition that reads such a table, as its subject or joined, when it is drafted, revised or published, and a published dataset that comes to read one needs revision. Serve such a dataset from the owning service instead, in a dataset file bound to the aggregate ([Publish Datasets from a Service](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)). The catalog knows from each table's `wow_catalog` row, which the owning service's sink writes ([ClickHouse](../operate/clickhouse#wow-catalog)); a row whose sink's node runs no query engine (`wow.query.enabled: false`) says neither, and is read as a policy's.
 
 ## Publish and version
 
@@ -88,7 +88,7 @@ A dataset that needs revision goes on serving its published version as long as t
 
 ## Query a dataset
 
-A dataset is queried as a snapshot model is, with the same [query language](../reference/query-language) and the same capability descriptor, from HTTP, `QueryApi.datasets` in Kotlin, or the TypeScript `DatasetClient`. Each caller reads only the rows of its own tenant, owner and space, as the subject's columns say. A column that refers to an aggregate, a Wow table's `aggregate_id` or a source's declared reference, links each row to the service that owns that aggregate, so a view can act on it.
+A dataset is queried as a snapshot model is, with the same [query language](../reference/query-language) and the same capability descriptor, from HTTP, `QueryApi.of(caller).datasets(…)` in Kotlin, or the TypeScript `DatasetClient`. Each caller reads only the rows of its own tenant, owner and space, as the subject's columns say. A column that refers to an aggregate, a Wow table's `aggregate_id` or a source's declared reference, links each row to the service that owns that aggregate, so a view can act on it.
 
 Dataset queries run under their own bulkhead, `wow.query.dataset.max-concurrent` (8) per node, so analyses never take the warehouse from the sink writing to it. A query beyond it waits briefly, then is answered 429 `wow.query.busy`. An unknown dataset is answered 404 `wow.query.dataset-not-found`.
 
@@ -96,7 +96,7 @@ Dataset queries run under their own bulkhead, `wow.query.dataset.max-concurrent`
 
 | Role | May |
 | --- | --- |
-| `analytics.catalog.admin` | Everything, including the connections and the trusted writers |
+| `analytics.catalog.admin` | Everything an editor does, marking sources reviewed, the connections and the trusted writers; no approval |
 | `analytics.catalog.approver` | Review sources, accept protection changes, decide publications |
 | `analytics.catalog.editor` | Draft and revise sources and datasets, publish, roll back and retire |
 | `analytics.catalog.viewer` | Read the catalog |
