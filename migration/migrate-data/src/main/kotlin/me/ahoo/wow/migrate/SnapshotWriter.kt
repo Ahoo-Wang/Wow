@@ -331,7 +331,8 @@ internal class SnapshotWriter(
         }
         val schema = AccessSchema.of(models.of(type))
         val walk = AccessWalk(schema, emptyMap(), walked = walked, completed = true)
-        if (walks.claim(type, walk, expected = null)) {
+        // In place of the walk the import claimed ([IMPORTING]), or of none.
+        if (walks.claim(type, walk, expected = IMPORTING) || walks.claim(type, walk, expected = null)) {
             report(
                 "$type: its access walk is recorded as completed for the schema [$schema]: $walked instances stamped."
             )

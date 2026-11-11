@@ -14,9 +14,13 @@
 package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.flow.first
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Appends the streams of one 9.x instance to the V10 log, as the full import and the tail ([EventStreamImporter])
@@ -40,6 +44,9 @@ internal class InstanceAppends(
     private val converter: StreamConverter,
     private val options: ImportOptions,
 ) {
+    /** The types whose walk this import claimed, or found claimed, once their first streams were in. */
+    private val importing = ConcurrentHashMap.newKeySet<AggregateType>()
+
     /**
      * [instances] in groups of whole instances, about [ImportOptions.concurrency] of them, each of at most
      * [MAX_GROUP_STREAMS] streams but for an instance that holds more alone.
@@ -87,6 +94,7 @@ internal class InstanceAppends(
         val outcomes = stats.timed(stats.append) {
             logOf(plan.target.context).appendAll(records.flatten().map { it to null })
         }
+        claimImport(plan.target)
         var at = 0
         instances.forEachIndexed { index, instance ->
             val converted = records[index]
@@ -254,7 +262,25 @@ internal class InstanceAppends(
         }
         return unknowns + 1
     }
+
+    /**
+     * Claims [type]'s access walk as this import's ([IMPORTING]) once its first streams are in, when none is recorded:
+     * a node that saw the store created never takes its streams, which carry no attributes, as its own schema's, and
+     * takes the walk over as any unfinished one, unless the snapshot step stamps them and completes it.
+     */
+    private suspend fun claimImport(type: AggregateType) {
+        if (!importing.add(type)) {
+            return
+        }
+        val walks = logOf(type.context) as? AccessWalks ?: return
+        if (walks.holds(type)) {
+            walks.claim(type, AccessWalk(IMPORTING, emptyMap()), expected = null)
+        }
+    }
 }
 
 /** The streams of one group commit at most: as many as one PostgreSQL statement of the log takes. */
+/** The schema of an access walk an import claimed: no node serves it, so the nodes take it over unfinished. */
+internal const val IMPORTING = "wow.import"
+
 private const val MAX_GROUP_STREAMS = 1000
