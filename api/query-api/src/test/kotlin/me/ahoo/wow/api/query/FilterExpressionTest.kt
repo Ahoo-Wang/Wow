@@ -85,6 +85,15 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `a relative time filter and a time group that name no zone are read in UTC alike`() {
+        val field = QueryField("state.createTime")
+        TodayFilter(field).resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("UTC"))
+        TodayFilter(field, "Asia/Shanghai").resolvedTimeZone().assert().isEqualTo(java.time.ZoneId.of("Asia/Shanghai"))
+        val day = AggregationGroup.DateHistogram(field, "day", AggregationDateUnit.DAY)
+        java.time.ZoneId.of(day.effectiveTimeZone()).assert().isEqualTo(TodayFilter(field).resolvedTimeZone())
+    }
+
+    @Test
     fun `before today should require a local time`() {
         BeforeTodayFilter(QueryField("state.createTime"), "18:00:30").time.assert().isEqualTo("18:00:30")
         assertThrows<IllegalArgumentException> { BeforeTodayFilter(QueryField("state.createTime"), "6pm") }

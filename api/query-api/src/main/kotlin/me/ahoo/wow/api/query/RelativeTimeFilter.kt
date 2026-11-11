@@ -22,6 +22,9 @@ private fun String?.requireTimeZone() {
     }
 }
 
+/** The zone a relative-time filter or a time group that names none is read in. */
+internal const val UTC = "UTC"
+
 /** Parses a time zone id, rejecting unknown ids with the framework's own message rather than the JDK's. */
 internal fun zoneIdOf(id: String): ZoneId = try {
     ZoneId.of(id)
@@ -41,8 +44,12 @@ sealed interface RelativeTimeFilter : FieldPredicate {
      */
     val timeZone: String?
 
-    /** The zone [timeZone] names; `null` when the filter names none. */
-    fun resolvedTimeZone(): ZoneId? = timeZone?.let(::zoneIdOf)
+    /**
+     * The zone the filter's days are read in, parsed: the one [timeZone] names, or UTC when it names none. A time
+     * group's [AggregationGroup.DateHistogram.effectiveTimeZone] is the same default applied to the text a backend
+     * writes.
+     */
+    fun resolvedTimeZone(): ZoneId = zoneIdOf(timeZone ?: UTC)
 }
 
 internal fun RelativeTimeFilter.validateConfiguration() {

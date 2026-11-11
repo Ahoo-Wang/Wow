@@ -51,18 +51,18 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
 /**
- * Lowers relative time and derived operators. A relative-time filter that names no `timeZone` reads its days in
- * [defaultZoneId], UTC: never the JVM's zone, so nodes in different zones answer a filter alike. Its window's bounds
- * are written as the field stores time, its [Temporal]: the filter carries no encoding of its own.
+ * Lowers relative time and derived operators. A relative-time filter reads its days in its
+ * [resolved zone][RelativeTimeFilter.resolvedTimeZone], UTC when it names none: never the JVM's zone, so nodes in
+ * different zones answer a filter alike. Its window's bounds are written as the field stores time, its [Temporal]: the
+ * filter carries no encoding of its own.
  */
 @InternalWowApi
-class FilterNormalizer(private val defaultZoneId: ZoneId = ZoneOffset.UTC) {
+class FilterNormalizer {
     /**
      * Lowers one predicate to the operators backends implement, as its operator's
      * [lowering][me.ahoo.wow.query.spec.FilterOperatorSpec.lowering] states: a rewrite (`EQ`/`NE` of `null` to
@@ -89,7 +89,7 @@ class FilterNormalizer(private val defaultZoneId: ZoneId = ZoneOffset.UTC) {
         private val now: Instant,
         private val temporal: Temporal,
     ) {
-        private val zone: ZoneId = filter.resolvedTimeZone() ?: defaultZoneId
+        private val zone: ZoneId = filter.resolvedTimeZone()
         private val today: LocalDate = now.atZone(zone).toLocalDate()
         private val field: QueryField<*> = filter.field
 

@@ -154,7 +154,10 @@ sealed interface AggregationGroup {
             timeZone?.let(::zoneIdOf)
         }
 
-        /** The zone this group reads its instants in, as written: [timeZone], or `UTC` when it names none. */
+        /**
+         * The zone this group reads its instants in, as written, the text a backend writes: [timeZone], or `UTC` when
+         * it names none. A relative-time filter's [RelativeTimeFilter.resolvedTimeZone] is the same default, parsed.
+         */
         fun effectiveTimeZone(): String = timeZone ?: UTC
 
         /** This DateHistogram with the given values replaced; for Wow's own query rewriting. */
@@ -214,7 +217,10 @@ sealed interface AggregationGroup {
             timeZone?.let(::zoneIdOf)
         }
 
-        /** The zone this group reads its instants in, as written: [timeZone], or `UTC` when it names none. */
+        /**
+         * The zone this group reads its instants in, as written, the text a backend writes: [timeZone], or `UTC` when
+         * it names none. A relative-time filter's [RelativeTimeFilter.resolvedTimeZone] is the same default, parsed.
+         */
         fun effectiveTimeZone(): String = timeZone ?: UTC
 
         /** This DatePart with the given values replaced; for Wow's own query rewriting. */
@@ -306,9 +312,6 @@ enum class AggregationGroupScope {
 }
 
 /** An expression's fields are relative to the innermost element, so a ROOT group names a field instead. */
-/** The zone a group or a relative-time filter that names none is read in. */
-private const val UTC = "UTC"
-
 private fun requireGroupScope(scope: AggregationGroupScope?, expression: AggregationExpression?, type: String) {
     require(scope != AggregationGroupScope.ROOT || expression == null) {
         "$type with a ROOT scope requires a field input."

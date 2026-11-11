@@ -28,11 +28,10 @@ import me.ahoo.wow.query.schema.boundSchemaFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
-    private val normalizer = FilterNormalizer(ZoneOffset.UTC)
+    private val normalizer = FilterNormalizer()
     private val noon = Instant.parse("2026-08-22T12:00:00Z")
     private val millis = Temporal.Epoch(TimeUnit.MILLISECONDS)
 
