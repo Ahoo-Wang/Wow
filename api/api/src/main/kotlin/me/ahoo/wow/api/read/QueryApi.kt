@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
@@ -39,7 +40,11 @@ import tools.jackson.databind.node.ObjectNode
  * Every query takes the query protocol's types (`me.ahoo.wow.api.query`, built with its DSL) and fails with the query
  * errors of the read side: a query the read side refuses is `wow.query.invalid`, one that runs out of time
  * `wow.query.timeout`, one its store has no room for `wow.query.busy`.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface QueryApi {
     /**
      * The queries [caller] may run: restricted to its tenant (or the fixed tenant of an aggregate type that has one),
@@ -53,7 +58,11 @@ interface QueryApi {
  * The node's read API, its own read side in process: a caller's queries ([of]) and trusted code's ([trusted]), which
  * runs on the node and nowhere else (a job, a projection's rebuild, a route of the service's own); a peer reads for a
  * caller, so a client's [QueryApi] has no trusted queries.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface NodeQueryApi : QueryApi {
     /**
      * The queries of trusted code: no caller, so no tenant, owner or space restricts them, and no query policy that
@@ -84,7 +93,11 @@ interface TenantQueryApi : NodeQueryApi {
  * The query models one caller ([Queries]) or trusted code ([TrustedQueries]) reads. A row of a type the reader names no
  * class of, a state read by its type or an event no class of the model has, is an [ObjectNode], in process and over
  * HTTP alike.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface QueryModels {
     /**
      * The snapshots of the aggregate whose state is of [stateType] (its root's class when the root is its own state),
@@ -124,7 +137,11 @@ interface QueryModels {
 /**
  * The queries of one caller ([QueryApi.of]), or of a commit's tenant ([SubscriptionQueries]): they read in a tenant,
  * so a state is read by its aggregate id too ([TenantSnapshotQueries]).
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface Queries : QueryModels {
     override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S>
 
@@ -136,7 +153,11 @@ interface Queries : QueryModels {
  * whole tenant of the commit it handles, as trusted code pinned to that tenant (no owner, space or caller attribute
  * restricts them, and no policy that reads the caller hides a row), under the in-process budget. Another tenant's
  * rows only through an explicit [trusted].
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface SubscriptionQueries : Queries {
     /** The tenant these queries read: the commit's. */
     val tenantId: String
@@ -148,7 +169,11 @@ interface SubscriptionQueries : Queries {
 /**
  * The queries of trusted code ([NodeQueryApi.trusted]): no tenant restricts them, so a state is read by its ref alone
  * ([SnapshotQueries]). [unbounded] lifts the in-process budget for a job that must read everything.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface TrustedQueries : QueryModels {
     /**
      * These queries without a budget: no list, page or count bound, exact counts; only the in-process timeout
@@ -160,7 +185,11 @@ interface TrustedQueries : QueryModels {
 /**
  * The query operations of one model, each row decoded as [R]. A row a policy hides is never returned; a field the
  * schema masks is masked as on the public port.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface RowQueries<R : Any> {
     /** The first row [query] matches, or `null` when none does. */
     suspend fun single(query: SingleQuery): R?
@@ -199,7 +228,13 @@ interface RowQueries<R : Any> {
     fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G>
 }
 
-/** The queries of an aggregate's model, its rows typed, with the same queries returning the rows as stored. */
+/**
+ * The queries of an aggregate's model, its rows typed, with the same queries returning the rows as stored.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
+ */
+@SubclassOptInRequired(InternalWowApi::class)
 interface ModelQueries<R : Any> : RowQueries<R> {
     /** The aggregate type these queries read. */
     val type: AggregateType
@@ -215,7 +250,11 @@ interface ModelQueries<R : Any> : RowQueries<R> {
  * The snapshot queries of an aggregate type: one row per aggregate, a [Snapshot] of its state [S], and the latest
  * state of an aggregate by its ref. A typed row reads the whole record: a query with a projection is refused, run it
  * through [dynamic].
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
     /**
      * The latest committed state of the aggregate [ref] (its snapshot, else its log before the first one), as the
@@ -240,7 +279,11 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
 /**
  * The snapshot queries of a tenant's reader ([Queries]): a state is read by its aggregate id too, in the tenant the
  * queries read (the caller's, or the commit's).
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface TenantSnapshotQueries<S : Any> : SnapshotQueries<S> {
     /** The latest committed state of the aggregate [id] in the queries' tenant, as [state] of a ref reads it. */
     suspend fun state(id: String): Snapshot<S>?
@@ -249,7 +292,13 @@ interface TenantSnapshotQueries<S : Any> : SnapshotQueries<S> {
     suspend fun state(id: String, minVersion: Int): Snapshot<S>?
 }
 
-/** The events queries of an aggregate type: one row per commit, an [EventStream]. */
+/**
+ * The events queries of an aggregate type: one row per commit, an [EventStream].
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
+ */
+@SubclassOptInRequired(InternalWowApi::class)
 interface EventQueries : ModelQueries<EventStream>
 
 /** The snapshots of the aggregate whose state is [S], in the queries' tenant; see [Queries.snapshots]. */

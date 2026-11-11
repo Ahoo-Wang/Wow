@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.client
 
 import kotlinx.coroutines.flow.Flow
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
@@ -58,7 +59,13 @@ import me.ahoo.wow.api.result.CommandResult
  *
  * [stream] emits every result, whatever its status. A request whose aggregate type the client cannot derive from its
  * command's class fails before anything is sent.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
+ * A test builds one with `answeringCommandClient { ... }` of `wow-test`; a test that writes its own fake opts in with
+ * `@OptIn(InternalWowApi::class)` on its class, and breaks when Wow adds a member.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface CommandClient {
     /** This client sending as [caller]. */
     fun of(caller: Caller): CommandClient

@@ -47,7 +47,11 @@ import me.ahoo.wow.api.decide.Causation
  *
  * Members may be added: the runtime builds it, and a test builds one with the test DSL's `stateEvent`;
  * building one is internal to Wow.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface StateEvent<out S> {
     val ref: AggregateRef
     val version: Int
@@ -171,7 +175,11 @@ interface StateEvent<out S> {
  * event of the stream that is an `E`, in their order, all with the stream's [state] after the whole commit; a handler
  * that takes an `E` itself is its shorthand. It is a view of the stream, not a copy: two are equal when their streams
  * are and they are of the same event.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface StateTypedEvent<out S, out E : Any> : StateEvent<S> {
     /** The event, decoded: `events[eventIndex]`. */
     val event: E

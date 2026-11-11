@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.route
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.Queries
@@ -23,7 +24,13 @@ import me.ahoo.wow.api.read.Queries
  * which tenant and scope, under which request id, and the commands the handler may send and the queries it may run
  * as that caller. A handler sees no HTTP request, as a decide function sees none: it is tested by calling it with a
  * call of its own.
+ *
+ * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
+ * application does not give, so members may be added in a minor release.
+ * A test builds one with `routeCall(...)` of `wow-test`; a test that writes its own fake opts in with
+ * `@OptIn(InternalWowApi::class)` on its class, and breaks when Wow adds a member.
  */
+@SubclassOptInRequired(InternalWowApi::class)
 interface RouteCall {
     /** The authenticated caller. */
     val caller: Caller

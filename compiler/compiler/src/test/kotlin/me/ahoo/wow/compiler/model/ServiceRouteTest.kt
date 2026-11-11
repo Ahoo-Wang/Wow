@@ -96,6 +96,8 @@ class ServiceRouteTest {
             override fun <T> body(type: KType): T = Note(values.getValue("body")) as T
         }
 
+        // A call of the test's own: implementing RouteCall is Wow's, so the fake opts in.
+        @OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
         object Call : RouteCall {
             @OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
             override val caller: Caller = Caller(tenantId = "t1")
@@ -212,6 +214,7 @@ class ServiceRouteTest {
         import kotlin.reflect.KClass
         import kotlin.reflect.KType
 
+        @OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
         object ItemCall : me.ahoo.wow.api.route.RouteCall {
             @OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
             override val caller = me.ahoo.wow.api.caller.Caller(tenantId = "t1")
