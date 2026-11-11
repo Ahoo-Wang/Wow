@@ -36,7 +36,7 @@ class PostgresStoreDdlTest {
     @Test
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = PostgresFixture.newContext("ddl")
-        val validating = PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE)
+        val validating = PostgresEventLog(dataSource, context, 2, options = PostgresEventLogOptions(ddl = Ddl.VALIDATE))
         assertThrows<IllegalStateException> { validating.createSchema() }.message.assert()
             .contains("does not exist, and the store only validates its schema")
 
@@ -59,7 +59,8 @@ class PostgresStoreDdlTest {
         }
         PostgresFixture.bumpFormat(PostgresEventLogTables(context).aggregate("order").base)
         assertThrows<IllegalStateException> {
-            PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
+            PostgresEventLog(dataSource, context, 2, options = PostgresEventLogOptions(ddl = Ddl.VALIDATE))
+                .createTable("order")
         }.message.assert().contains("reads format 1", "start from an empty store")
     }
 
@@ -69,7 +70,8 @@ class PostgresStoreDdlTest {
         PostgresEventLog(dataSource, context, 2).createSchema()
         PostgresFixture.createUnrecorded(PostgresEventLogTables(context).aggregate("order").base)
         assertThrows<IllegalStateException> {
-            PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE).createTable("order")
+            PostgresEventLog(dataSource, context, 2, options = PostgresEventLogOptions(ddl = Ddl.VALIDATE))
+                .createTable("order")
         }.message.assert().contains("exists without a format record", "Drop it, or restore its record with it.")
     }
 
@@ -77,7 +79,7 @@ class PostgresStoreDdlTest {
     fun `none creates and checks nothing`() {
         val context = PostgresFixture.newContext("ddl")
         PostgresTimerStore(dataSource, context, ddl = Ddl.NONE).createSchema()
-        PostgresEventLog(dataSource, context, 2, ddl = Ddl.NONE).createTable("order")
+        PostgresEventLog(dataSource, context, 2, options = PostgresEventLogOptions(ddl = Ddl.NONE)).createTable("order")
         tableExists(PostgresTimerTables(context).aggregate("order").base).assert().isFalse()
     }
 }

@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
-import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
@@ -39,9 +38,6 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.requireChains
 import javax.sql.DataSource
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §2).
@@ -74,13 +70,13 @@ import kotlin.time.Duration.Companion.seconds
  * two aggregate types commits twice (the reuse is the caller's error). The kernel's pre-check, the
  * [findByRequestId] taking the aggregate type, reads that type's table alone.
  *
- * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
- * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
- * second each rather than twenty. A commit this log makes wakes the partition's tails at once, and a poll it woke
- * that finds the partition caught up keeps the backoff, so a commit costs one read of the tail; an entry another node
- * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` would wake the tails of every node; it is
- * not implemented: the bounded backoff and the wake on this log's commits keep an idle cluster cheap without a
- * listening connection per node.
+ * **Polling**. A tail polls every [PostgresEventLogOptions.pollInterval] (50 ms by default) while it finds entries;
+ * each poll that finds none doubles the wait, up to [PostgresEventLogOptions.maxPollInterval] (1 s), so an idle
+ * cluster's partitions cost a statement a second each rather than twenty. A commit this log makes wakes the
+ * partition's tails at once, and a poll it woke that finds the partition caught up keeps the backoff, so a commit
+ * costs one read of the tail; an entry another node appends is read within the longest interval. `LISTEN/NOTIFY`
+ * would wake the tails of every node; it is not implemented: the bounded backoff and the wake on this log's commits
+ * keep an idle cluster cheap without a listening connection per node.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
@@ -90,13 +86,12 @@ class PostgresEventLog(
     private val context: String,
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    pollInterval: Duration = DEFAULT_POLL_INTERVAL,
-    tailBatch: Int = DEFAULT_TAIL_BATCH,
-    maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
-    /** How the log's tables are managed: created when missing by default. */
-    private val ddl: Ddl = Ddl.AUTO,
+    /** Its settings: how its tails poll, and how it manages its tables. */
+    options: PostgresEventLogOptions = PostgresEventLogOptions(),
 ) : EventLog,
     AccessWalks {
+    private val ddl = options.ddl
+
     private val tables = PostgresEventLogTables(context)
 
     /** A stream's columns, bound and read back. */
@@ -106,7 +101,8 @@ class PostgresEventLog(
     private val lookups = PostgresLogLookups(logRows)
 
     /** Validates the partition count first: a log of another count is refused when it is built. */
-    private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
+    private val pacer =
+        TailPacer(Partitioner.requirePartitions(partitions), options.pollInterval, options.maxPollInterval)
 
     /** The aggregate tables of the context: created, registered and found. */
     private val catalog = PostgresLogCatalog(dataSource, context, partitions, ddl, tables)
@@ -119,7 +115,7 @@ class PostgresEventLog(
 
     /** The reads of a partition: its entries in sequence order, its head and its lineage. */
     private val tailReads =
-        PostgresTailReads(dataSource, dispatcher, context, partitions, tailBatch, catalog, tables, logRows)
+        PostgresTailReads(dataSource, dispatcher, context, partitions, options.tailBatch, catalog, tables, logRows)
 
     /** The access attributes: the stamps of the streams, the pages of aggregates, and the access walks. */
     private val logAccess = PostgresLogAccess(dataSource, dispatcher, context, catalog, tables)
@@ -243,10 +239,4 @@ class PostgresEventLog(
     override suspend fun lineage(partition: Int): PartitionLineage = tailReads.lineage(partition)
 
     override suspend fun head(partition: Int): Long? = tailReads.head(partition)
-
-    private companion object {
-        val DEFAULT_POLL_INTERVAL = 50.milliseconds
-        val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
-        const val DEFAULT_TAIL_BATCH = 500
-    }
 }

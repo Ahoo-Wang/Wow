@@ -117,6 +117,13 @@ internal class PostgresStore(
 ) : Store(config) {
     private val ddl = config.ddl
 
+    /** The settings of every log this store opens, bound once from its configuration. */
+    private val logOptions = PostgresEventLogOptions(
+        pollInterval = config.polling.interval,
+        maxPollInterval = config.polling.maxInterval,
+        ddl = ddl,
+    )
+
     /** [dataSource] for the stores: each connection bounded by the operation timeout ([PostgresTimeouts]). */
     private val timed = PostgresTimeouts.timed(dataSource, operationTimeout)
 
@@ -170,14 +177,8 @@ internal class PostgresStore(
     }
 
     override fun openLog(context: String, partitions: Int): Opened<EventLog> =
-        PostgresEventLog(
-            timed,
-            context,
-            partitions,
-            pollInterval = config.polling.interval,
-            maxPollInterval = config.polling.maxInterval,
-            ddl = ddl,
-        ).also { logs[context] = it }.let { Opened.of(it, it::createSchema) }
+        PostgresEventLog(timed, context, partitions, options = logOptions)
+            .also { logs[context] = it }.let { Opened.of(it, it::createSchema) }
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =
         PostgresSnapshotStore(timed, context, ddl = ddl).also {
