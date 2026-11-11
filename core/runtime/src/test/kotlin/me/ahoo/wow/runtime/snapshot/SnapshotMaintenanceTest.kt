@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -386,7 +387,8 @@ class SnapshotMaintenanceTest {
             eventually { tables.get() >= 2 }
             maintenance.stop()
             val stopped = tables.get()
-            Thread.sleep(50)
+            // The stop cancels the loop without joining it: joined through the scope it runs in, no run can follow.
+            scope.coroutineContext.job.children.forEach { it.join() }
             tables.get().assert().isBetween(stopped, stopped + 1)
         } finally {
             scope.cancel()

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.source
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -74,8 +73,8 @@ class TopicSubscriptionsTest : TopicSubscriptionsFixtures() {
         two.stop()
         eventually { one.ownership!!.owned == (0 until PARTITIONS).toSet() }
         topics.publish(*ids.map { orderRecord(it, 2) }.toTypedArray())
-        eventually { handled.size == ids.size * 2 }
-        delay(50.milliseconds)
+        // A version 1 read again after the hand-off comes before its version 2, in its partition.
+        eventually { ids.all { 2 in handled.versionsOf(it) } }
         handled.entries.map { it.first to it.second }.toSet().size.assert().isEqualTo(handled.size)
         ids.forEach { handled.versionsOf(it).assert().containsExactly(1, 2) }
     }

@@ -195,8 +195,8 @@ class SubscriptionRetryTest {
             val first = appender.append("x")
             listOf(other, "x", other).forEach { appender.append(it) }
             runtime.start(setOf(0, 1))
+            // Recorded as fatal once its handling returned: the lane makes no attempt after it.
             eventually { handled.versionsOf(other).size == 2 && fatals.isFatal }
-            delay(50)
             runtime.stop()
 
             attempts.get().assert().isEqualTo(1)

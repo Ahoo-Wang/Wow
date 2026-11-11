@@ -165,7 +165,8 @@ class SubscriptionParkingTest {
         writer.join()
         retried.await().assert().isTrue()
         eventually { handled.versionsOf("x").lastOrNull() == 64 }
-        delay(20)
+        // Every entry taken is done with, a copy of what the retry handled among them: none can be handled after.
+        eventually { runtime.positions().all { it.watermark == (appender.ends[it.partition] ?: 0L) } }
         runtime.stop()
         handled.versionsOf("x").assert().isEqualTo((1..64).toList())
     }
