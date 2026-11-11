@@ -37,39 +37,43 @@ enum class JobScope {
 
 /**
  * An instance's own rule of a job: each part that is null follows the job's default (the host's
- * `wow.schedules.<job>.*`, else the annotation), so a tenant may keep the default [cron] in its own time [zone].
+ * `wow.schedules.<job>.*`, else the annotation), so a tenant may keep the default [cron] in its own [timeZone].
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class JobRule @InternalWowApi constructor(
     val cron: String? = null,
-    val zone: String? = null,
+    /**
+     * The time zone, an IANA region such as `Asia/Shanghai` or an offset such as `+08:00`; `null` keeps the default
+     * rule's ([over]). This null is not UTC: it is whichever zone the default reads its cron in.
+     */
+    val timeZone: String? = null,
     val misfire: Misfire? = null,
 ) {
     init {
         require(cron == null || cron.isNotBlank()) { "A job rule's cron is not blank." }
-        require(zone == null || zone.isNotBlank()) { "A job rule's time zone is not blank." }
+        require(timeZone == null || timeZone.isNotBlank()) { "A job rule's time zone is not blank." }
     }
 
     /** The rule this one makes of [default]: each part it does not set is the default's. */
     fun over(default: ScheduleRule.Cron): ScheduleRule.Cron =
-        ScheduleRule.Cron(cron ?: default.expression, zone ?: default.zone, misfire ?: default.misfire)
+        ScheduleRule.Cron(cron ?: default.expression, timeZone ?: default.timeZone, misfire ?: default.misfire)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is JobRule && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "JobRule(cron=$cron, zone=$zone, misfire=$misfire)"
+    override fun toString(): String = "JobRule(cron=$cron, timeZone=$timeZone, misfire=$misfire)"
 
-    private fun valueFields(): List<Any?> = listOf(cron, zone, misfire)
+    private fun valueFields(): List<Any?> = listOf(cron, timeZone, misfire)
 
     companion object {
         /** A JobRule of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(cron: String? = null, zone: String? = null, misfire: Misfire? = null): JobRule =
-            JobRule(cron, zone, misfire)
+        fun of(cron: String? = null, timeZone: String? = null, misfire: Misfire? = null): JobRule =
+            JobRule(cron, timeZone, misfire)
     }
 }
 

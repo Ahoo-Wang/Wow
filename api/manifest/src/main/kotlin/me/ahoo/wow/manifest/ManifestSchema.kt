@@ -236,10 +236,10 @@ object ManifestSchema {
             ),
             JOB to objectOf(
                 "The scheduled job a subscription runs.",
-                listOf("name", "cron", "zone", "scope", "misfire"),
+                listOf("name", "cron", "timeZone", "scope", "misfire"),
                 "name" to string(),
                 "cron" to string(),
-                "zone" to string(),
+                "timeZone" to string(),
                 "scope" to enumOf(JobScope.entries, "Who the job runs for."),
                 "misfire" to enumOf(Misfire.entries, "What the job does with the slots it missed."),
             ),

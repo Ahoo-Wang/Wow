@@ -92,7 +92,7 @@ class SubscriptionManifest @InternalWowApi constructor(
 }
 
 /**
- * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
+ * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [timeZone], missed slots
  * handled as [misfire] says) and its [scope].
  * The host configures the job under `wow.schedules.<name>.*`: its rule, and the retries of its subscriptions.
  *
@@ -101,7 +101,7 @@ class SubscriptionManifest @InternalWowApi constructor(
 class JobManifest @InternalWowApi constructor(
     val name: String,
     val cron: String,
-    val zone: String = "UTC",
+    val timeZone: String = "UTC",
     val scope: JobScope = JobScope.SYSTEM,
     val misfire: Misfire = Misfire.COALESCE,
 ) {
@@ -110,9 +110,10 @@ class JobManifest @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, misfire=$misfire)"
+    override fun toString(): String =
+        "JobManifest(name=$name, cron=$cron, timeZone=$timeZone, scope=$scope, misfire=$misfire)"
 
-    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, misfire)
+    private fun valueFields(): List<Any?> = listOf(name, cron, timeZone, scope, misfire)
 }
 
 /**

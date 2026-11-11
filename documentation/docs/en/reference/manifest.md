@@ -145,7 +145,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `job`: object; left out when absent or at its default
   - `name`
   - `cron`
-  - `zone`
+  - `timeZone`
   - `scope`
   - `misfire`
 

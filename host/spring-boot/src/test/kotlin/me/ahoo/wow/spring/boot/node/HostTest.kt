@@ -136,7 +136,7 @@ class HostTest {
         ScheduleProperties().options(base).assert().isEqualTo(JobOptions())
         val schedule = ScheduleProperties().apply {
             cron = "0 0 4 * * *"
-            zone = "Asia/Shanghai"
+            timeZone = "Asia/Shanghai"
             misfire = Misfire.CATCH_UP
             enabled = false
             retry.maxAttempts = 1

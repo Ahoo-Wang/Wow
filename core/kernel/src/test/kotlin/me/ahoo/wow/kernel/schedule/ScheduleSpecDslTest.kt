@@ -89,7 +89,7 @@ class ScheduleSpecDslTest {
     @Test
     fun `each tenant's instance runs in its own time zone`() {
         scheduleSpec(handlers) {
-            enable("invoice", tenantId = "acme", rule = JobRule(zone = "Asia/Shanghai"))
+            enable("invoice", tenantId = "acme", rule = JobRule(timeZone = "Asia/Shanghai"))
             enable("invoice", tenantId = "globex")
             // February 1st in Shanghai begins at 16:00 UTC on January 31st, eight hours before it does in UTC.
             advanceTime(30.days + 16.hours) {

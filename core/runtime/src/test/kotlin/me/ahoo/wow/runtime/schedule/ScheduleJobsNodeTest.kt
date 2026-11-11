@@ -159,7 +159,7 @@ class ScheduleJobsNodeTest {
         val node = node("node-1", TimedBackends(), listOf(EVERY_SECOND_TENANT)).also { it.start() }
         val acme = ScheduleJobModel.refOf(SHOP, "report", "acme")
         val globex = ScheduleJobModel.refOf(SHOP, "report", "globex")
-        node.send(acme, EnableJob("report", JobRule(zone = "Asia/Shanghai"))).status.assert()
+        node.send(acme, EnableJob("report", JobRule(timeZone = "Asia/Shanghai"))).status.assert()
             .isEqualTo(CommandResult.Status.SUCCEEDED)
         node.send(globex, EnableJob("report")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { ticks.map { it.tenantId }.toSet() == setOf("acme", "globex") }
@@ -232,7 +232,7 @@ class ScheduleJobsNodeTest {
             val ref = ScheduleJobModel.refOf(SHOP, "nightly")
             eventually { first.tickTimer(ref)?.rule == NIGHTLY.rule }
             first.stop()
-            val override = mapOf("nightly" to JobOptions(cron = "0 0 4 * * *", zone = "Asia/Tokyo"))
+            val override = mapOf("nightly" to JobOptions(cron = "0 0 4 * * *", timeZone = "Asia/Tokyo"))
             val second = node("node-2", backends, listOf(NIGHTLY), override).also { it.start() }
             eventually { second.tickTimer(ref)?.rule == ScheduleRule.Cron("0 0 4 * * *", "Asia/Tokyo") }
             second.stop()

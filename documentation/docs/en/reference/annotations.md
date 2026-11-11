@@ -140,7 +140,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
 - Targets: `FUNCTION`
-- Parameters: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `misfire: Misfire = Misfire.COALESCE`
+- Parameters: `name: String`, `cron: String`, `timeZone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `misfire: Misfire = Misfire.COALESCE`
 
 ## `@OnSourcing`
 
