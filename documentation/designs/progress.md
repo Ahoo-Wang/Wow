@@ -19,13 +19,13 @@
 
 | 会话 | 区域 | 在做 | 其后 |
 | --- | --- | --- | --- |
-| rt-subs-p1 | `core/runtime` | D413 的运行时一侧：`Subscription.batching` 与工作器的成批处理 | 余下 7 个测试文件的拆分（X-88），把靠真实时间等待的测试改为等条件，所有权的测试以 `abort()` 收尾；本模块的构造函数（D415） |
-| kernel-writes-p1 | 内核、PostgreSQL、MongoDB、Kafka、宿主、测试 DSL | D414：两个存储里高于 1 的格式号改回 1，并删去为旧形态写的拒绝与转换 | 这些模块的构造函数（D415）；detekt 门禁（X-109，七个 PR） |
-| query-bugs | 查询、Elasticsearch、OpenAPI、客户端 | D411 的最后一步：Elasticsearch 的映射只给标了 `@QueryText` 的字段建全文索引 | 索引体积的基准（`IndexFigures`）；这些模块的构造函数（D415） |
-| p1-sweep-edges | ClickHouse、基准工具 | 基准脚本的拆分（X-106）与 ClickHouse 写入的测量 | D412：`_state` 自有的列与带类型的物化列；D413 的 sink 一侧（成批写入）；本模块的构造函数（D415） |
+| rt-subs-p1 | `core/runtime` | D413 的运行时一侧（#5898，已审）；余下 7 个测试文件的拆分（X-88） | 本模块的构造函数（D415）；把靠真实时间等待的测试改为等条件，所有权的测试以 `abort()` 收尾；工作器再改之前先把运维操作移到 `LaneActions` |
+| kernel-writes-p1 | 内核、PostgreSQL、MongoDB、Kafka、宿主、测试 DSL | D414：两个存储的格式号改回 1（#5902、#5904，已审）；这些模块的构造函数（D415） | detekt 门禁（X-109）余下的六个 PR |
+| query-bugs | 查询、Elasticsearch、OpenAPI、客户端 | D411 的最后一步（#5903，已审）；升级文档里预发布一节的缩减（#5905） | 索引体积的基准（`IndexFigures`）；这些模块的构造函数（D415） |
+| p1-sweep-edges | ClickHouse、基准工具 | ClickHouse 写入与 sink 的测量（#5906，已审）；Elasticsearch 一侧的基准服务器 | D412：`_state` 自有的列与带类型的物化列，并删去 `wow_catalog` 的旧列迁移；D413 的 sink 一侧（成批写入）；本模块的构造函数（D415） |
 | view-engine-bugs | 视图引擎 | #5890 的修复 | 余下七个文件的切分（X-88） |
 
-未派：四个超过 600 行的测试文件（`HostStoresTest.kt`、`HttpCommandClientTest.kt`、`ViewStoreHostSpec.kt`、`AccessWalkBench.kt`）、X-113 的测试存量；Renovate 的 #5571 与 #4902 等它重新生成后变绿即合并；6 条 Dependabot 告警待查看。
+未派：四个超过 600 行的测试文件（`HostStoresTest.kt`、`HttpCommandClientTest.kt`、`ViewStoreHostSpec.kt`、`AccessWalkBench.kt`）、X-113 的测试存量；Renovate 的 #5571 与 #4902 等它变基后变绿即合并（#5571 唯一的失败已由 #5754 在 `main` 上修好）；6 条 Dependabot 告警都是 `pnpm-lock.yaml` 里开发工具的传递依赖，不进入发布的包，随 #4902 的锁文件更新解决。
 
 ## 3. 距离 GA 还剩
 
