@@ -37,7 +37,8 @@ export const INSERT = {
 
 /**
  * sink's settings: E1's rate a second and its seconds, and the scenarios: the commits spread over many aggregates,
- * over a few hot ones, and over many with half of them to one.
+ * over a few hot ones, and over many with half of them to one; and a backlog, the spread commits written first
+ * without the sink and drained by it after (bench.sh --backlog, a rebuild of the warehouse or a catch-up).
  */
 export const SINK = {
   rate: 200,
@@ -52,6 +53,7 @@ export const SINK = {
       hotFraction: 0.5,
       hotKeys: 1,
     },
+    { name: 'backlog', accounts: 1000, distribution: 'uniform', backlog: true },
   ],
 };
 
@@ -83,7 +85,7 @@ export function sinkSuites(arm) {
       sink: 'clickhouse',
       arms: [arm],
       answers:
-        "The ClickHouse sink's parts and inserts (D413's before): one node, E1 deposits at a fixed rate over many accounts, a few hot ones, and many with one hot; then the parts each of the sink's tables got (system.part_log) and the inserts the sink sent (system.query_log).",
+        "The ClickHouse sink's parts and inserts (D413's before): one node, E1 deposits at a fixed rate over many accounts, a few hot ones, and many with one hot; then the parts each of the sink's tables got (system.part_log) and the inserts the sink sent (system.query_log). And a backlog: the spread deposits written with the sink off, then drained by a node with it (a rebuild of the warehouse, a catch-up), with the time it took.",
     },
     'sink-es': {
       group: 'sink',
@@ -92,7 +94,7 @@ export function sinkSuites(arm) {
       sink: 'elasticsearch',
       arms: [arm],
       answers:
-        "The Elasticsearch sink's requests (D413's before): one node of the search server, its account's events on Elasticsearch, E1 deposits at a fixed rate in sink-ch's three scenarios; then the `_bulk`, `_refresh` and `_update_by_query` requests the sink sent (counted on the store's client) for the deposits' commits, with the node's indexing, bulk and refresh totals as a cross-check.",
+        "The Elasticsearch sink's requests (D413's before): one node of the search server, its account's events on Elasticsearch, E1 deposits at a fixed rate in sink-ch's scenarios, its backlog among them; then the `_bulk`, `_refresh` and `_update_by_query` requests the sink sent (counted on the store's client) for the deposits' commits, every commit of a backlog, with the node's indexing, bulk and refresh totals as a cross-check.",
     },
   };
 }
@@ -125,6 +127,7 @@ function runsOf(definition) {
             `--hot-keys=${scenario.hotKeys}`,
           ]
         : []),
+      ...(scenario.backlog ? ['--backlog=true'] : []),
     ],
   }));
 }
@@ -229,12 +232,19 @@ export function readSink(dir) {
     inserts,
     commitsPerInsert: inserts > 0 ? commits / inserts : null,
     parts,
+    drainMs: drainOf(sink),
   };
 }
 
+/** A backlog's time to drain, ms; null for a run that took its commits as they came. */
+const drainOf = sink => (sink.backlog === true ? Number(sink.drainMs) : null);
+
+/** [value] ms as seconds, or a dash. */
+const drain = value => (value === null ? '-' : `${num(value / 1000, 1)} s`);
+
 /**
  * The Elasticsearch sink's sink.json [sink]: its counts are from after the seeding, so the commits they are read
- * against are the deposits' (the commits less the accounts the seeding opened).
+ * against are the deposits' (the commits less the accounts the seeding opened); a backlog's are of every commit.
  */
 function readElasticsearchSink(sink) {
   const requests = Object.fromEntries(
@@ -243,7 +253,10 @@ function readElasticsearchSink(sink) {
       Number(count),
     ]),
   );
-  const commits = Number(sink.expected) - Number(sink.accounts);
+  const commits =
+    sink.backlog === true
+      ? Number(sink.expected)
+      : Number(sink.expected) - Number(sink.accounts);
   const bulks = requests._bulk ?? 0;
   return {
     sink: 'elasticsearch',
@@ -254,6 +267,7 @@ function readElasticsearchSink(sink) {
     requests,
     commitsPerBulk: bulks > 0 ? commits / bulks : null,
     node: sink.node ?? {},
+    drainMs: drainOf(sink),
   };
 }
 
@@ -320,44 +334,44 @@ function skipLines(skip) {
 export function sinkTables(suite, sink = 'clickhouse') {
   if (sink === 'elasticsearch') return elasticsearchSinkTable(suite);
   const lines = [
-    '| Scenario | Accounts | Commits | Written | Inserts | Commits an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
+    '| Scenario | Accounts | Commits | Written | Inserts | Commits an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) | Drain |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |',
   ];
   for (const run of suite.runs) {
     if (run.status !== 'ok') {
-      lines.push(`| ${run.name} | ${run.status} | | | | | | |`);
+      lines.push(`| ${run.name} | ${run.status} | | | | | | | |`);
       continue;
     }
     const measured = run.measure;
     const parts = SINK_TABLES.map(table => measured.parts[table]);
     lines.push(
-      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(measured.inserts, 0)} | ${measured.commitsPerInsert === null ? '-' : num(measured.commitsPerInsert, 1)} | ${parts.map(it => num(it?.parts ?? 0, 0)).join(', ')} | ${parts.map(it => (it?.parts ? num(it.rows / it.parts, 1) : '-')).join(', ')} |`,
+      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(measured.inserts, 0)} | ${measured.commitsPerInsert === null ? '-' : num(measured.commitsPerInsert, 1)} | ${parts.map(it => num(it?.parts ?? 0, 0)).join(', ')} | ${parts.map(it => (it?.parts ? num(it.rows / it.parts, 1) : '-')).join(', ')} | ${drain(measured.drainMs ?? null)} |`,
     );
   }
   return lines;
 }
 
 /**
- * The Elasticsearch sink's table: per scenario, the commits, the deposits' commits and the requests the sink sent for
- * them, `_bulk` with the commits each carried, `_update_by_query` and `_refresh` a 1,000 commits, and the node's
+ * The Elasticsearch sink's table: per scenario, the commits, those counted (the deposits', every one of a backlog)
+ * and the requests the sink sent for them, `_bulk` with the commits each carried, `_update_by_query` and `_refresh` a 1,000 commits, and the node's
  * documents indexed and refreshes.
  */
 function elasticsearchSinkTable(suite) {
   const lines = [
-    "| Scenario | Accounts | Commits | Written | Deposits' commits | _bulk | Commits a _bulk | _update_by_query (a 1,000 commits) | _refresh (a 1,000 commits) | Other requests | Documents indexed (node) | Refreshes (node) |",
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Scenario | Accounts | Commits | Written | Commits counted | _bulk | Commits a _bulk | _update_by_query (a 1,000 commits) | _refresh (a 1,000 commits) | Other requests | Documents indexed (node) | Refreshes (node) | Drain |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
   const perThousand = (count, commits) =>
     `${num(count ?? 0, 0)} (${commits > 0 ? num(((count ?? 0) * 1000) / commits, 1) : '-'})`;
   for (const run of suite.runs) {
     if (run.status !== 'ok') {
-      lines.push(`| ${run.name} | ${run.status} | | | | | | | | | | |`);
+      lines.push(`| ${run.name} | ${run.status} | | | | | | | | | | | |`);
       continue;
     }
     const measured = run.measure;
     const { requests, node, commits } = measured;
     lines.push(
-      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(commits, 0)} | ${num(requests._bulk ?? 0, 0)} | ${measured.commitsPerBulk === null ? '-' : num(measured.commitsPerBulk, 1)} | ${perThousand(requests._update_by_query, commits)} | ${perThousand(requests._refresh, commits)} | ${num(requests.other ?? 0, 0)} | ${num(node.indexTotal ?? 0, 0)} | ${num(node.refreshTotal ?? 0, 0)} |`,
+      `| ${run.name} | ${num(measured.accounts, 0)} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(commits, 0)} | ${num(requests._bulk ?? 0, 0)} | ${measured.commitsPerBulk === null ? '-' : num(measured.commitsPerBulk, 1)} | ${perThousand(requests._update_by_query, commits)} | ${perThousand(requests._refresh, commits)} | ${num(requests.other ?? 0, 0)} | ${num(node.indexTotal ?? 0, 0)} | ${num(node.refreshTotal ?? 0, 0)} | ${drain(measured.drainMs ?? null)} |`,
     );
   }
   return lines;
