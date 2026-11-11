@@ -272,6 +272,7 @@ How work is planned, reviewed and merged when several agent sessions work on the
 - An action answers its caller only once its own state is settled. A skip that answered first and cleared its state in `finally` lost the entry taken in between (#5743).
 - Before 10.0.0 GA every format number stays 1, and what a pre-release stored or sent is not considered at all: a format that must change is changed in place, with no new number, no refusal written for the older shape, no conversion and no compatibility code (the user's decision, 2026-11-10). The check that refuses a store of another format stays, since GA needs it from its first day; it has one number to know. The upgrade notes say one thing of a pre-release's stores: they are not carried over.
 - One primary constructor with default values. A constructor overload that only supplies defaults, or keeps an older signature alive, is removed; an overload stays only where it takes a different thing (a blocking function beside a suspending one, a log entry beside its parts), and then its KDoc says what differs (the user's decision, 2026-11-10).
+- A constructor takes its collaborators, and its tuning parameters (durations, sizes, switches) as one `XxxOptions` value once there are more than three: immutable, with defaults, validated in its `init`, bound from configuration in one place. A record or value type keeps its fields as parameters. No builder is added for a class that named arguments with defaults already serve; a DSL stays where it declares a nested structure (D416).
 
 ### Splitting a large file
 
