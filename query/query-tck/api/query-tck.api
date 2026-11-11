@@ -34,6 +34,7 @@ public final class me/ahoo/wow/query/tck/AccessFilterSpec$Level : java/lang/Enum
 }
 
 public abstract class me/ahoo/wow/query/tck/DatasetAccessSpec {
+	public static final field Companion Lme/ahoo/wow/query/tck/DatasetAccessSpec$Companion;
 	public fun <init> ()V
 	public final fun a platform-level dataset reads the records of the platform tenant ()V
 	public final fun a row is read by its aggregate's record of the row's own tenant ()V
@@ -44,7 +45,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetAccessSpec {
 	public final fun every operation reads the rows the restriction reads ()V
 	protected final fun getAggregate ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public fun setup ()V
-	protected abstract fun storeAccess (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected abstract fun storeAccess (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/query/tck/DatasetAccessSpec$AccessRecord {
@@ -53,6 +54,10 @@ public final class me/ahoo/wow/query/tck/DatasetAccessSpec$AccessRecord {
 	public final fun getTenantId ()Ljava/lang/String;
 	public final fun getVersion ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/tck/DatasetAccessSpec$Companion {
+	public final fun getATTRIBUTES ()Ljava/util/List;
 }
 
 public abstract class me/ahoo/wow/query/tck/DatasetAggregationCases : me/ahoo/wow/query/tck/DatasetRecordCases {

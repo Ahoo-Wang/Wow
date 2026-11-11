@@ -14,9 +14,11 @@
 package me.ahoo.wow.clickhouse.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.clickhouse.sink.AccessColumns
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseRows
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkSchema
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.tck.DatasetAccessSpec
@@ -28,8 +30,8 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The dataset access TCK on ClickHouse: the access records are the rows the Sink writes for each commit into the
- * aggregate's `_state` ([ClickHouseRows]), created by the Sink's own DDL without the history, as a Sink without it
- * inserts them; one insert each, so the rows are merged only by `FINAL`.
+ * aggregate's `_state` ([ClickHouseRows]), created by the Sink's own DDL without the history, with a column of each
+ * declared access attribute ([AccessColumns]), as a Sink without it inserts them; one insert each, so the rows are merged only by `FINAL`.
  */
 class ClickHouseDatasetAccessTest : DatasetAccessSpec() {
     override fun createDatasetBindings(): QueryBindings<QueryDataset> =
@@ -40,12 +42,17 @@ class ClickHouseDatasetAccessTest : DatasetAccessSpec() {
         return WowJson.mapper.createObjectNode().put("table", "${ClickHouseContainers.DATABASE}.${table.name}")
     }
 
-    override suspend fun storeAccess(aggregate: AggregateType, records: List<AccessRecord>) {
+    override suspend fun storeAccess(
+        aggregate: AggregateType,
+        attributes: List<AccessAttributeManifest>,
+        records: List<AccessRecord>,
+    ) {
         val schema = ClickHouseSinkSchema(
             aggregate,
             ClickHouseContainers.DATABASE,
             AggregateSinkOptions(history = false),
             emptyList(),
+            accessColumns = AccessColumns.of(attributes),
         )
         ClickHouseContainers.execute("DROP TABLE IF EXISTS ${schema.qualified(schema.state)}")
         schema.ddl.forEach(ClickHouseContainers::execute)
