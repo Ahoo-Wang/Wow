@@ -73,7 +73,6 @@ object DatasetCompiler {
      * [version] of the dataset [name] of [context] from [definition], checked against the catalog's [sources] as they
      * are now ([DatasetBinder]), its view in [database]; with [approvedOnly], only of sources an approver approved.
      */
-    @Suppress("LongParameterList") // The definition, what it reads, and where its view goes.
     fun compile(
         definition: DatasetDefinition,
         sources: Map<String, SourceState?>,
@@ -89,7 +88,6 @@ object DatasetCompiler {
             DatasetCompilation.Compiled(compile(bound.dataset, context, name, version, database, title))
     }
 
-    @Suppress("LongParameterList")
     internal fun compile(
         dataset: BoundDataset,
         context: String,

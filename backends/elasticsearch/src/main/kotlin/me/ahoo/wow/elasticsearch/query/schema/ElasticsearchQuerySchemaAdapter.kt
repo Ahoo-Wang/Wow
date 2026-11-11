@@ -183,7 +183,6 @@ internal class ElasticsearchQuerySchemaAdapter(
         private fun ElasticsearchIndexMapping.storageSupport(): StorageSupport =
             storageSupport(maxResultWindow, if (singleShard) EXACT_TERMS_TOP_N else emptySet())
 
-        @Suppress("LongParameterList")
         private fun ElasticsearchIndexMapping.valueBindings(
             model: QueryModel,
             path: QueryPathTemplate,

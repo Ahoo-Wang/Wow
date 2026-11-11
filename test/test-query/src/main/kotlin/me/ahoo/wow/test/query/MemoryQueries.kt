@@ -106,7 +106,6 @@ class MemoryQueries @InternalWowApi constructor(
      * and a state read by id of it return. [owner] is its scope, the owner and space the scope policies check, and
      * [access] its declared access attributes by name (a single one's value, a multiple one's values).
      */
-    @Suppress("LongParameterList") // One parameter per field of the snapshot a spec may set.
     fun snapshot(
         type: AggregateType,
         id: String,
@@ -153,7 +152,6 @@ class MemoryQueries @InternalWowApi constructor(
      * A state given as a map is written to JSON without the state class: a misspelled field is dropped, and the state
      * reads back with that field's default. Built from the events, the snapshot holds what the aggregate would.
      */
-    @Suppress("LongParameterList") // One parameter per field of the snapshot a spec may set.
     fun <S : Any> snapshot(
         model: AggregateModel<S>,
         id: String,

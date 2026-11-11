@@ -117,7 +117,6 @@ internal class StateHistory(
             .takeIf { it.version > 0 }
     }
 
-    @Suppress("LongParameterList")
     suspend fun <S : Any> trace(
         model: AggregateModel<S>,
         ref: AggregateRef,

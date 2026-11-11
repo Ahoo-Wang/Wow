@@ -71,7 +71,6 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
         /** A Snapshot of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        @Suppress("LongParameterList") // One parameter per field of the record.
         fun <S : Any> of(
             ref: AggregateRef,
             version: Int,
@@ -134,7 +133,6 @@ class EventStream @InternalWowApi constructor(
     companion object {
         /** An EventStream of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        @Suppress("LongParameterList") // One parameter per field of the record.
         fun of(
             ref: AggregateRef,
             version: Int,

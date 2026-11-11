@@ -70,7 +70,6 @@ import java.time.Clock
  * it, and refuses a node that is misconfigured ([NodeChecks]) before the parts it would break. Each bounded context is
  * wired by [ContextAssembly], the topics by [TopicAssembly]; what every part shares is the [NodeWiring].
  */
-@Suppress("LongParameterList")
 internal class NodeAssembly(
     val service: String,
     val node: String,

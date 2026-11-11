@@ -204,7 +204,6 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
         )
     }
 
-    @Suppress("LongParameterList")
     private fun send(
         order: SoakOrder,
         requestId: String,

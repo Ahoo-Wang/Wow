@@ -76,7 +76,6 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * context's, where this subscription is the reader [name] of the snapshotted types; by default its own, bounded by
  * [capacity]. [capacity] also bounds the versions, first event times and first operators kept per aggregate.
  */
-@Suppress("LongParameterList")
 @InternalWowApi
 class SnapshotSubscription(
     context: String,
@@ -165,7 +164,6 @@ class SnapshotSubscription(
      * The snapshot of [stream]: [state] with the kernel's [deleted] mark and [schedules] after it, its scope and operator,
      * its access attributes ([EventCodec.accessAfter]), and what [first] says of the aggregate's first stream.
      */
-    @Suppress("LongParameterList")
     private fun snapshotOf(
         model: AggregateModel<*>,
         stream: EventStreamRecord,

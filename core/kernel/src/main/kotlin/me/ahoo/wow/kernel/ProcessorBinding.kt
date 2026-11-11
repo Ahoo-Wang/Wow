@@ -193,7 +193,6 @@ class ProcessorBinding<S> private constructor(
          * ([eachEvent] calls the function per event).
          */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun <S> project(
             processor: String,
             function: String,
@@ -226,7 +225,6 @@ class ProcessorBinding<S> private constructor(
 
         /** A `@Reactor`'s handler [function] of [processor]; of each event of the [eventType] when it gives one. */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun <S> react(
             processor: String,
             function: String,
@@ -264,7 +262,6 @@ class ProcessorBinding<S> private constructor(
          * lists, schedules only those [schedules] lists and calls only those [calls] lists (`@Sends`).
          */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun <S> saga(
             processor: String,
             function: String,
@@ -309,7 +306,6 @@ class ProcessorBinding<S> private constructor(
          * handler does.
          */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun schedule(
             processor: String,
             function: String,

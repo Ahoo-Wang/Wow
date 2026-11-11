@@ -86,7 +86,6 @@ fun queryManifest(): Manifest {
  * The events query gateway of the cart over [log] (decision D235), as the host builds one over a log in memory:
  * the Manifest's events schema, the scope policy and [masks].
  */
-@Suppress("LongParameterList")
 fun cartEvents(
     log: EventLog,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,

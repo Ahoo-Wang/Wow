@@ -38,7 +38,6 @@ class MapDrafterTest {
         transformsTo = transformsTo,
     )
 
-    @Suppress("LongParameterList") // An aggregate's parts.
     private fun aggregate(
         name: String,
         events: List<EventManifest> = emptyList(),

@@ -114,7 +114,6 @@ internal class Batching(
      * aggregate or the batch holds, one refused before deciding, or one that fails, appends nothing or is refused
      * deciding (each decided again alone, at no cost: it is pure).
      */
-    @Suppress("LongParameterList")
     private suspend fun <S : Any> decided(
         model: AggregateModel<S>,
         decider: DecideFunction<S>,

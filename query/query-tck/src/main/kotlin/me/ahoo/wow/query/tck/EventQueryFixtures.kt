@@ -169,7 +169,6 @@ abstract class EventQueryFixtures internal constructor() {
     }
 
     /** One stream of this test's [type]. */
-    @Suppress("LongParameterList")
     protected fun stream(
         id: String,
         version: Int,

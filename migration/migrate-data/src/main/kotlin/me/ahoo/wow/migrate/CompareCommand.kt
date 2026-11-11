@@ -29,7 +29,6 @@ internal class CompareCommand(
     private val out: PrintStream,
     private val models: (MigrationConfig) -> MigrationModels,
 ) {
-    @Suppress("LongParameterList") // A command's inputs.
     suspend fun compare(
         plan: MigrationPlan,
         config: MigrationConfig,

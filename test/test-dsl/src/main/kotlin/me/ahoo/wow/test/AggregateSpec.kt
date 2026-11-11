@@ -290,7 +290,6 @@ class AggregateSpec<S : Any> private constructor(
      * A command whose body names its aggregate ([me.ahoo.wow.api.annotation.AggregateId]) names the specification's,
      * or none: one that names another fails the specification, as admission refuses it.
      */
-    @Suppress("LongParameterList")
     fun whenCommand(
         command: Any,
         requestId: String = "request-${++sequence}",
@@ -311,7 +310,6 @@ class AggregateSpec<S : Any> private constructor(
      * operator and request facts are the caller's admission ([CallerAdmission]), [scope], [headers] and [operator]
      * overriding them.
      */
-    @Suppress("LongParameterList")
     private fun commandOf(
         commandId: String,
         requestId: String,

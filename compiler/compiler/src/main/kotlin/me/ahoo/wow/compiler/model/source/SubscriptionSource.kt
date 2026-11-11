@@ -122,7 +122,6 @@ internal object SubscriptionSource {
         )
     }
 
-    @Suppress("LongParameterList")
     private fun StringBuilder.renderHandler(
         binding: SubscriptionBinding,
         handler: HandlerBinding,
@@ -215,7 +214,6 @@ internal object SubscriptionSource {
      * A saga's `@OnSchedule` handler: `ProcessorBinding.schedule` of its [job] in the bounded [context] when known, whose
      * handle calls the function with the tick and, if it takes it, the saga's context.
      */
-    @Suppress("LongParameterList")
     private fun StringBuilder.renderJob(
         binding: SubscriptionBinding,
         handler: HandlerBinding,

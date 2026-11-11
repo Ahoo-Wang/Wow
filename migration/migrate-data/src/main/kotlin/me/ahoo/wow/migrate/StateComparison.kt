@@ -132,7 +132,6 @@ internal data class ComparisonReport(
  *
  * The full import of the aggregate must be complete. Nothing is written but the checkpoint.
  */
-@Suppress("LongParameterList")
 internal class StateComparison(
     private val snapshots: NineXSnapshotSource,
     private val events: NineXEventSource,

@@ -169,7 +169,6 @@ class ViewStoreAutoConfiguration {
     ): StoredSystemViews = StoredSystemViews(systemViewProvider, storedSystemViewSource)
 
     @Bean("viewStoreHandlers")
-    @Suppress("LongParameterList")
     internal fun viewStoreHandlers(
         viewStoreStoredSystemViews: StoredSystemViews,
         stateAggregateRepository: StateAggregateRepository,
@@ -205,7 +204,6 @@ class ViewStoreAutoConfiguration {
     )
 
     @Bean("viewStoreAudienceHandlers")
-    @Suppress("LongParameterList")
     internal fun viewStoreAudienceHandlers(
         viewStorePaths: ViewStorePaths,
         viewStoreRouteGuard: ViewStoreRouteGuard,

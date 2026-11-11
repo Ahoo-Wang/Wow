@@ -178,7 +178,6 @@ abstract class DatasetQueryBackendSpec : DatasetDateBucketCases() {
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
-        @Suppress("LongParameterList")
         private fun order(
             id: String,
             tenant: String,

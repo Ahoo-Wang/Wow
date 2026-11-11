@@ -132,7 +132,7 @@ private fun secondP99s(latenciesNanos: LongArray, perSecond: Int): List<Double> 
 }
 
 /** The counter ratios between [begin] and [end], per command executed. */
-@Suppress("LongParameterList", "CyclomaticComplexMethod") // One flat mapping of counters to fields.
+@Suppress("CyclomaticComplexMethod") // One flat mapping of counters to fields.
 private fun measurement(
     workload: Workload,
     routing: Routing,
@@ -199,7 +199,7 @@ private fun measurement(
  * a stalled system cannot hide its queue (no coordinated omission). Only commands scheduled in the measured window
  * count; the throughput is the commits completed within it.
  */
-@Suppress("LongParameterList", "LongMethod", "InjectDispatcher")
+@Suppress("LongMethod", "InjectDispatcher")
 fun openLoop(
     driver: Driver,
     counters: Counters,
@@ -274,7 +274,7 @@ fun openLoop(
  * The saturation throughput: [workers] clients each sending its next command as soon as the previous one answers
  * (closed loop), counting the commits completed in the [measureSeconds] after [warmupSeconds].
  */
-@Suppress("LongParameterList", "InjectDispatcher")
+@Suppress("InjectDispatcher")
 fun closedLoop(
     driver: Driver,
     counters: Counters,

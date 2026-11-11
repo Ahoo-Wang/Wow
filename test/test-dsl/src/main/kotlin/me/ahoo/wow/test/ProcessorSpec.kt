@@ -77,7 +77,6 @@ fun rejectedReceipt(
  * target had already committed the request), as the runtime hands it to the `@OnCommitted` handler of the saga whose
  * execution [executionId] derived the command: for [ProcessorSpec.whenCommitted].
  */
-@Suppress("LongParameterList")
 fun committedReceipt(
     command: Command<*>,
     executionId: ExecutionId,
@@ -234,7 +233,6 @@ class ProcessorSpec internal constructor(
      * command type as the model does (`eshop-ordering.order.SubmitOrder`), [headers] its request facts and [operator]
      * its operator, as an aggregate's [AggregateSpec.whenCommand] names them.
      */
-    @Suppress("LongParameterList")
     fun whenEvent(
         vararg events: Any,
         on: GivenAggregate<*>? = null,
@@ -441,7 +439,6 @@ class ProcessorSpec internal constructor(
      * type name ([commandTypeOf] by default). [expect] checks the commands the handler derives; it fails when the saga
      * has no handler of that receipt.
      */
-    @Suppress("LongParameterList")
     fun whenCommitted(
         command: Command<*>,
         version: Int = 1,

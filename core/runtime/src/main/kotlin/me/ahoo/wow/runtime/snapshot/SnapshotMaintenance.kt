@@ -83,7 +83,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  * store without one is left out of them, with a warning when the node prepares and a count of the fallback (the
  * observer's `storeFellBack`), and so is its share of a rebuild request.
  */
-@Suppress("LongParameterList", "TooManyFunctions")
+@Suppress("TooManyFunctions")
 @InternalWowApi
 class SnapshotMaintenance(
     val context: String,

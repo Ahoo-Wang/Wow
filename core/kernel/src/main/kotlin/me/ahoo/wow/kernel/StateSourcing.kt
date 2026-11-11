@@ -109,7 +109,6 @@ internal class StateSourcing(
      * own version on, or null when the tail does not start with the snapshot's own stream (see the other
      * [fromSnapshot]).
      */
-    @Suppress("LongParameterList")
     internal suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,

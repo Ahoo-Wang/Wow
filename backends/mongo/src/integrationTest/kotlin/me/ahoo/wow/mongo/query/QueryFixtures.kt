@@ -95,7 +95,6 @@ object QueryFixtures {
         ).schema()
     }
 
-    @Suppress("LongParameterList")
     fun snapshot(
         type: AggregateType,
         id: String,

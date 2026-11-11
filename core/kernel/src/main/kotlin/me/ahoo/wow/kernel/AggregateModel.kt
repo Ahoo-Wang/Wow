@@ -474,7 +474,6 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * The commit [events] make, as an evolve function reads it ([readsCommits]): [ref] at [version], at
      * [commitTime], of the command [commandId] ([requestId], [commandType]) in the name of [operator], in [scope].
      */
-    @Suppress("LongParameterList") // One parameter per fact of the commit.
     internal fun commitOf(
         ref: AggregateRef,
         version: Int,

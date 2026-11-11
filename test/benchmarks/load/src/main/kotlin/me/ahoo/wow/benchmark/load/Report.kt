@@ -28,7 +28,6 @@ object Report {
         put("mean", histogram.mean / MICROS_PER_MILLI)
     }
 
-    @Suppress("LongParameterList")
     fun result(
         label: String,
         mix: Mix,

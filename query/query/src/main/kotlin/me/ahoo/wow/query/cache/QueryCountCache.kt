@@ -110,7 +110,6 @@ class QueryCountCache(
      * The count of [filter] bounded by [bound] for [caller] on [type]: the cached one while it is valid, otherwise
      * [count]'s, then cached. [cached] is told whether the count came from the cache.
      */
-    @Suppress("LongParameterList")
     internal suspend fun count(
         type: AggregateType,
         filter: FilterExpression,

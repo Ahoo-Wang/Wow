@@ -38,7 +38,6 @@ import java.util.UUID
 import kotlin.time.Duration
 
 /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
-@Suppress("LongParameterList")
 internal class AttemptScope(
     override val command: Command<*>,
     override val ids: Ids,

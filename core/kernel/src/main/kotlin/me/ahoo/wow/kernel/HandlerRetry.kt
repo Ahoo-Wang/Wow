@@ -131,7 +131,6 @@ class HandlerRetry @InternalWowApi constructor(
          * `@Retry(recoverable, unrecoverable, systemic)`: an empty list is not given.
          */
         @JvmStatic
-        @Suppress("LongParameterList")
         fun of(
             maxAttempts: Int,
             initialBackoff: String,

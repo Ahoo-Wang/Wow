@@ -89,7 +89,6 @@ fun runWowLocal(
 }
 
 /** [runWowLocal] on the given streams, exiting through [exit]. */
-@Suppress("LongParameterList")
 internal fun runWowLocal(
     ports: LocalPorts,
     partitions: Int,

@@ -259,7 +259,6 @@ class ImportCutoverChainTest {
         )
     }
 
-    @Suppress("LongParameterList") // A node's parts.
     private fun node(
         service: String,
         models: List<AggregateModel<*>>,

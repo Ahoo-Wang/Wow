@@ -406,7 +406,6 @@ internal class MigrateData(
     }
 
     /** Exports to 9.x what V10 wrote after the cut-over: scan, then write, then count. */
-    @Suppress("LongParameterList") // A command's inputs.
     private suspend fun export(
         plan: MigrationPlan,
         config: MigrationConfig,

@@ -50,7 +50,6 @@ internal object ReceiptHandlerResolver {
      * The [receipt] handlers [functions] of the processor [name], each a function of one receipt kind only (one of
      * both is reported once, as an `@OnRejected` handler), no two of the same command class.
      */
-    @Suppress("LongParameterList")
     fun receiptHandlers(
         className: String,
         name: String,

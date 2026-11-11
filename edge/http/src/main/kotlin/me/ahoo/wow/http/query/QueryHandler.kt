@@ -249,7 +249,6 @@ internal class QueryHandler(
      * [body]'s query on [gateway], the one path of every model: snapshots, events and datasets alike. A streamed list
      * resumes after [after], the position its `Last-Event-ID` names.
      */
-    @Suppress("LongParameterList")
     private suspend fun run(
         gateway: QueryGateway,
         body: QueryBody,

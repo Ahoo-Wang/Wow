@@ -27,7 +27,6 @@ import me.ahoo.wow.spi.json.WowJson
  * that context's api, or [publishedEvent]s for those it has no class of at their revision. The command's ids default to `command-<version>` and `request-<version>`, and the commit time
  * to [DEFAULT_START].
  */
-@Suppress("LongParameterList")
 fun <S> stateEvent(
     ref: AggregateRef,
     state: S,

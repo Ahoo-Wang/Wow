@@ -47,7 +47,6 @@ internal object RetiredEvents {
      * The problems of the [retired] names of the aggregate [aggregate], which must name none of its [commands],
      * [sourcing] events and [mounted] commands, in [context] when known.
      */
-    @Suppress("LongParameterList")
     fun problems(
         retired: List<String>,
         aggregate: String,

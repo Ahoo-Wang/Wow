@@ -108,7 +108,6 @@ internal class NodePeers {
      */
     @Bean
     @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per input of the clients, each a bean of the node.
     fun wowPeerClients(
         properties: WowProperties,
         endpoints: EndpointResolver,
