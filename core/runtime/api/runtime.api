@@ -428,32 +428,6 @@ public final class me/ahoo/wow/runtime/cluster/ReplyTo$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/ReplyTo$Companion;Ljava/lang/String;Lme/ahoo/wow/api/subscribe/ExecutionId;ZILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/ReplyTo;
 }
 
-public final class me/ahoo/wow/runtime/command/CommandMessages {
-	public static final field INSTANCE Lme/ahoo/wow/runtime/command/CommandMessages;
-	public final fun command (Lme/ahoo/wow/runtime/cluster/CommandWire;ILme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public static synthetic fun command$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/runtime/cluster/CommandWire;ILme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun commandOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun committedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
-	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun receiptOf (Lme/ahoo/wow/spi/transport/Envelope;)Ljava/lang/Object;
-	public final fun rejectedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
-}
-
-public final class me/ahoo/wow/runtime/command/CommandSender {
-	public fun <init> (Lme/ahoo/wow/runtime/contract/ContractDirectory;Lme/ahoo/wow/runtime/node/SourceTopics;)V
-	public final fun send (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun send (Lme/ahoo/wow/runtime/cluster/CommandWire;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun send$default (Lme/ahoo/wow/runtime/command/CommandSender;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static synthetic fun send$default (Lme/ahoo/wow/runtime/command/CommandSender;Lme/ahoo/wow/runtime/cluster/CommandWire;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun sendAll (Ljava/util/List;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun sendAll$default (Lme/ahoo/wow/runtime/command/CommandSender;Ljava/util/List;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun topicOf (Ljava/lang/String;)Ljava/lang/String;
-	public final fun typeOf (Lme/ahoo/wow/api/decide/Command;)Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/runtime/wait/SubscriptionDirectory {
 	public static final field Companion Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;
 	public static final field LOCAL_SOURCE Ljava/lang/String;
@@ -488,20 +462,6 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 public final class me/ahoo/wow/runtime/contract/ContractDirectory$Companion {
 	public final fun load (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
-}
-
-public final class me/ahoo/wow/runtime/ledger/LedgerPublisher {
-	public static final field Companion Lme/ahoo/wow/runtime/ledger/LedgerPublisher$Companion;
-	public static final field OPERATOR Lme/ahoo/wow/api/caller/Operator;
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/node/ParkedOps;Lkotlin/jvm/functions/Function2;Ljava/time/Clock;Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getNotifier ()Lme/ahoo/wow/runtime/subscription/ParkedNotifier;
-	public final fun getOpen ()Z
-	public final fun scan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun start ()V
-	public final fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/runtime/ledger/LedgerPublisher$Companion {
 }
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublishing {
@@ -574,7 +534,6 @@ public final class me/ahoo/wow/runtime/node/ContextBackends {
 	public final fun getPrimarySnapshots ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getSnapshotTails ()Lme/ahoo/wow/runtime/node/SnapshotTailReaders;
-	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getStores ()Lme/ahoo/wow/runtime/node/PlacedStores;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
@@ -634,13 +593,11 @@ public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public final fun getGateway ()Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun getHasAddress ()Z
 	public final fun getHostedContexts ()Ljava/util/Set;
-	public final fun getLedgerPublisher ()Lme/ahoo/wow/runtime/ledger/LedgerPublisher;
 	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
 	public final fun getNode ()Ljava/lang/String;
 	public final fun getOptions ()Lme/ahoo/wow/runtime/node/ServiceNodeOptions;
 	public final fun getService ()Ljava/lang/String;
 	public final fun getState ()Lme/ahoo/wow/runtime/node/ServiceNode$State;
-	public final fun getTopicRequirements ()Ljava/util/List;
 	public final fun isReady ()Z
 	public final fun start (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun start (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -804,28 +761,6 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotPlacement$Companion {
 	public final fun of (Ljava/util/List;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
 	public final fun of (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
 	public static synthetic fun of$default (Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement$Companion;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-}
-
-public final class me/ahoo/wow/runtime/snapshot/SnapshotTargets {
-	public static final field Companion Lme/ahoo/wow/runtime/snapshot/SnapshotTargets$Companion;
-	public static final field DEFAULT_STORE Ljava/lang/String;
-	public fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getDefault ()Ljava/lang/String;
-	public final fun getFallback ()Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public final fun getPrimary ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	public final fun getStores ()Ljava/util/Map;
-	public final fun placementOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public final fun primaryOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	public final fun primarySubscriptionOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
-	public static final fun single (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Ljava/lang/String;)Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
-	public final fun storesOf (Ljava/util/Collection;)Ljava/util/Map;
-	public final fun subscriptionOf (Ljava/lang/String;)Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/runtime/snapshot/SnapshotTargets$Companion {
-	public final fun single (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Ljava/lang/String;)Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
-	public static synthetic fun single$default (Lme/ahoo/wow/runtime/snapshot/SnapshotTargets$Companion;Lme/ahoo/wow/spi/snapshot/SnapshotStore;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 }
 
 public final class me/ahoo/wow/runtime/state/SharedStateOptions {

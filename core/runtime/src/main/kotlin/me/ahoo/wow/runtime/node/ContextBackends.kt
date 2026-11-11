@@ -49,8 +49,10 @@ class ContextBackends @InternalWowApi constructor(
     val ledger: FailureLedger,
     /**
      * The context's snapshot stores: every store its aggregate types' snapshots are written to, with
-     * each type's primary one; [SnapshotTargets.single] for one store. None, its snapshots are not kept.
+     * each type's primary one; [SnapshotTargets.single] for one store. None, its snapshots are not kept. The host's
+     * wiring, internal to Wow: an application reads [primarySnapshots].
      */
+    @InternalWowApi
     val snapshots: SnapshotTargets? = null,
     val reservations: ReservationStore? = null,
     val timers: TimerStore? = null,

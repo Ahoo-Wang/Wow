@@ -112,6 +112,7 @@ class SnapshotTargets(
         return byStore
     }
 
+    @InternalWowApi
     companion object {
         /** The one snapshot [store] of a context, named [name]: every type's only target. */
         @JvmStatic

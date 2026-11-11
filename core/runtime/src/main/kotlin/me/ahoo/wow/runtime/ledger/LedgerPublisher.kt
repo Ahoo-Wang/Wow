@@ -409,6 +409,7 @@ class LedgerPublisher internal constructor(
         return "${Ledger.NAMESPACE}:" + bytes.joinToString("") { "%02x".format(it) }
     }
 
+    @InternalWowApi
     companion object {
         /** The operator of the records: the ledger, a framework component. */
         @JvmField
