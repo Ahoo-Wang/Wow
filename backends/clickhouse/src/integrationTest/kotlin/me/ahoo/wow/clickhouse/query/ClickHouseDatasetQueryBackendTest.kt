@@ -56,7 +56,8 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
     @Test
     fun `a date position of another form than the instant's text is the invalid cursor`(): Unit = runBlocking {
         val micros = target(MICROS)
-        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("created_at"), Sort.Direction.ASC)), size = 1)
+        val query =
+            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("created_at"), Sort.Direction.ASC)), size = 1)
         val admitted = QueryAdmission.Trusted.cursor(query, micros.schema)
         // A millisecond epoch, the form this backend wrote before its positions kept their precision.
         val failure = runCatching {

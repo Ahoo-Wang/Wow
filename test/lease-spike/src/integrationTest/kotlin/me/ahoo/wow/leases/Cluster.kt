@@ -22,10 +22,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
@@ -182,7 +182,8 @@ class SpikeNode(val name: String, private val cluster: SpikeCluster, private val
         registry,
         subscriptions,
         signals,
-        Origin(name, address, SERVICE), WaitOptions(),
+        Origin(name, address, SERVICE),
+        WaitOptions(),
         router = router,
     )
     private val endpoint = ForwardEndpoint(coordinator, listOf(model), listOf(ownership))

@@ -96,10 +96,12 @@ class DatasetViewIntegrationTest {
         val artifact = (compiled as DatasetCompilation.Compiled).artifact
         execute(artifact.ddl)
         // A view per version: a second one leaves the first in place, and a replaced one is the new definition.
-        execute((DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 2) as DatasetCompilation.Compiled).artifact.ddl)
+        val second = DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 2) as DatasetCompilation.Compiled
+        execute(second.artifact.ddl)
         execute(artifact.ddl)
         client.queryAll("SELECT name FROM system.tables WHERE database = '${artifact.database}' ORDER BY name")
-            .map { it.getString("name") }.assert().containsExactly("ds_shop_orders_7458f44cdb_v1", "ds_shop_orders_7458f44cdb_v2")
+            .map { it.getString("name") }
+            .assert().containsExactly("ds_shop_orders_7458f44cdb_v1", "ds_shop_orders_7458f44cdb_v2")
 
         val rows = client.queryAll("SELECT * FROM ${artifact.database}.${artifact.view} ORDER BY order_id")
         rows.map { it.getString("order_id") }.assert().containsExactly("o1", "o2")
@@ -167,7 +169,11 @@ class DatasetViewIntegrationTest {
         val SOURCES = mapOf(MEMBERS_ID to MEMBERS, ORDERS_ID to ORDERS, REGIONS_ID to REGIONS)
 
         val DEFINITION = DatasetDefinition(
-            sources = listOf(DatasetSource("o", ORDERS_ID), DatasetSource("m", MEMBERS_ID), DatasetSource("r", REGIONS_ID)),
+            sources = listOf(
+                DatasetSource("o", ORDERS_ID),
+                DatasetSource("m", MEMBERS_ID),
+                DatasetSource("r", REGIONS_ID)
+            ),
             subject = "o",
             joins = listOf(
                 DatasetJoin(

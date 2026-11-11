@@ -59,7 +59,8 @@ interface Backend : AutoCloseable {
 }
 
 class PostgresBackend : Backend {
-    private val container = WowContainers.newPostgres().withCommand("postgres", "-c", "max_connections=$MAX_CONNECTIONS")
+    private val container = WowContainers.newPostgres()
+        .withCommand("postgres", "-c", "max_connections=$MAX_CONNECTIONS")
         .also { it.start() }
     private val admin = pool(ADMIN_POOL)
     override val observer: LeaseStore = PostgresLeaseStore(admin)
@@ -68,7 +69,8 @@ class PostgresBackend : Backend {
         connection.createStatement().use { statement ->
             statement.executeQuery("SHOW server_version").use { rows ->
                 rows.next()
-                "${WowContainers.POSTGRES_IMAGE} (server ${rows.getString(1)}; defaults except max_connections=$MAX_CONNECTIONS)"
+                val server = rows.getString(1)
+                "${WowContainers.POSTGRES_IMAGE} (server $server; defaults except max_connections=$MAX_CONNECTIONS)"
             }
         }
     }

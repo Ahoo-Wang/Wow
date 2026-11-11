@@ -73,9 +73,12 @@ class ClickHouseSinkIntegrationTest {
     @Test
     fun `the flat view should hold the state's top-level scalars as typed columns`(): Unit = runTest {
         val sink = sinks().sinkOf("shop", "order")
-        sink.write(listOf(recordOf(version = 1), recordOf(version = 2, state = SinkFixtures.stateOf(2, total = "0.10"))))
+        sink.write(
+            listOf(recordOf(version = 1), recordOf(version = 2, state = SinkFixtures.stateOf(2, total = "0.10")))
+        )
 
-        val columns = ClientStatements(client).columns(database, "shop_order_state_flat").associate { it.name to it.type }
+        val columns = ClientStatements(client).columns(database, "shop_order_state_flat")
+            .associate { it.name to it.type }
         columns.assert().containsEntry("total", "Decimal(38, 2)")
             .containsEntry("price", "Decimal(38, 0)")
             .containsEntry("discount", "Nullable(Decimal(38, 18))")

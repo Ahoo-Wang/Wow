@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.cursor
@@ -35,7 +36,6 @@ import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetBuilder
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QuerySchemaException
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
@@ -65,7 +65,9 @@ class ClickHouseDatasetStorageTest {
     @Test
     fun `FINAL should need an engine that merges rows`(): Unit = runBlocking {
         ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.plain")
-        ClickHouseContainers.execute("CREATE TABLE $database.plain (id String, tenant_id String) ENGINE = MergeTree ORDER BY id")
+        ClickHouseContainers.execute(
+            "CREATE TABLE $database.plain (id String, tenant_id String) ENGINE = MergeTree ORDER BY id"
+        )
         val error = assertThrows<QuerySchemaException> { schema(dataset("plain", "FINAL") { }) }
         error.message.assert().contains("FINAL")
     }
@@ -78,6 +80,7 @@ class ClickHouseDatasetStorageTest {
     }
 
     @Test
+    @Suppress("LongMethod") // One table, then each fact of the declaration it confirms: a list, not steps.
     fun `the table should confirm the declaration`(): Unit = runBlocking {
         ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.declared")
         ClickHouseContainers.execute(
@@ -250,7 +253,9 @@ class ClickHouseDatasetStorageTest {
     @Test
     fun `a refresh should read the table again`(): Unit = runBlocking {
         ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.growing")
-        ClickHouseContainers.execute("CREATE TABLE $database.growing (id String, tenant_id String) ENGINE = MergeTree ORDER BY id")
+        ClickHouseContainers.execute(
+            "CREATE TABLE $database.growing (id String, tenant_id String) ENGINE = MergeTree ORDER BY id"
+        )
         val declared = dataset("growing", "NONE") { field("extra") { types(QueryValueType.STRING) } }
         val target = DatasetTarget(declared, factory)
         assertThrows<QuerySchemaException> { target.schema() }

@@ -94,7 +94,8 @@ class DatasetPublicationIntegrationTest {
             "SELECT toString(uuid) AS uuid FROM system.tables WHERE database = '$DATABASE' AND name = 'shop_order_state'",
         ).single().getString("uuid")
         val columns = runBlocking {
-            ClickHouseWarehouseCatalog(client, "warehouse", listOf(DATABASE)).table(DATABASE, "shop_order_state")!!.columns
+            ClickHouseWarehouseCatalog(client, "warehouse", listOf(DATABASE))
+                .table(DATABASE, "shop_order_state")!!.columns
         }
         execute(
             "INSERT INTO $DATABASE.wow_catalog (format, `database`, `table`, table_uuid, role, service, context, " +
@@ -108,6 +109,7 @@ class DatasetPublicationIntegrationTest {
     }
 
     @Test
+    @Suppress("LongMethod") // A dataset's life from publication to retirement, in the order it is lived.
     fun `a wide table over a Wow table and an analyst's table should be published, queried masked, and retired`() {
         appendRow()
         startCatalog(
@@ -219,16 +221,21 @@ class DatasetPublicationIntegrationTest {
             fields = listOf(DatasetField("m")),
             sources = emptyList(),
         )
-        assertThrows<DatasetWarehouseException> { warehouse.create(artifact) }.message.assert().contains("m Map(String, UInt8)")
+        assertThrows<DatasetWarehouseException> { warehouse.create(artifact) }.message
+            .assert().contains("m Map(String, UInt8)")
         client.queryAll("SELECT name FROM system.tables WHERE database = '$VIEWS' AND name = 'ds_shop_maps_v1'")
             .assert().isEmpty()
         assertThrows<DatasetWarehouseException> { warehouse.create(artifact.copy(ddl = "CREATE VIEW nonsense")) }
         val created = warehouse.create(
-            artifact.copy(ddl = "CREATE OR REPLACE VIEW `$VIEWS`.`ds_shop_maps_v1` AS SELECT 't' AS tenant_id, ['a'] AS m"),
+            artifact.copy(
+                ddl = "CREATE OR REPLACE VIEW `$VIEWS`.`ds_shop_maps_v1` AS SELECT 't' AS tenant_id, ['a'] AS m"
+            ),
         )
         created.map { it.type }.assert().containsExactly("String", "Array(String)")
-        warehouse.describe("SELECT * FROM `$VIEWS`.`ds_shop_maps_v1`")!!.map { it.name }.assert().containsExactly("tenant_id", "m")
-        warehouse.describe("SELECT 1 AS one, toString(now()) AS at")!!.map { it.type }.assert().containsExactly("UInt8", "String")
+        warehouse.describe("SELECT * FROM `$VIEWS`.`ds_shop_maps_v1`")!!.map { it.name }
+            .assert().containsExactly("tenant_id", "m")
+        warehouse.describe("SELECT 1 AS one, toString(now()) AS at")!!.map { it.type }
+            .assert().containsExactly("UInt8", "String")
         warehouse.describe("SELECT nothing FROM `$VIEWS`.`ds_shop_maps_v1`").assert().isNull()
         warehouse.drop(VIEWS, listOf("ds_shop_maps_v1", "ds_shop_none_v1"))
     }

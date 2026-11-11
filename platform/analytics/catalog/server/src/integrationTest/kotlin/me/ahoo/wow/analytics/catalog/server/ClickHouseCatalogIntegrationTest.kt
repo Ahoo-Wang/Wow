@@ -16,13 +16,13 @@ package me.ahoo.wow.analytics.catalog.server
 import com.clickhouse.client.api.Client
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceReference
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -51,9 +51,13 @@ class ClickHouseCatalogIntegrationTest {
             "CREATE TABLE $DATABASE.shop_order_state (id String, tenant_id String, owner_id String, state String) " +
                 "ENGINE = ReplacingMergeTree ORDER BY (tenant_id, id)",
         )
-        execute("CREATE TABLE $DATABASE.orders (tenant String, phone Nullable(String)) ENGINE = MergeTree ORDER BY tenant")
+        execute(
+            "CREATE TABLE $DATABASE.orders (tenant String, phone Nullable(String)) ENGINE = MergeTree ORDER BY tenant"
+        )
         execute("CREATE VIEW $DATABASE.orders_view AS SELECT tenant FROM $DATABASE.orders")
-        execute("CREATE MATERIALIZED VIEW $DATABASE.orders_mv TO $DATABASE.orders AS SELECT tenant, phone FROM $DATABASE.orders")
+        execute(
+            "CREATE MATERIALIZED VIEW $DATABASE.orders_mv TO $DATABASE.orders AS SELECT tenant, phone FROM $DATABASE.orders"
+        )
         // The table of design 08 §8, as the Sink creates it (ClickHouseCatalog.ddl).
         execute(
             "CREATE TABLE $DATABASE.wow_catalog (`format` UInt32, `database` String, `table` String, " +
@@ -98,7 +102,10 @@ class ClickHouseCatalogIntegrationTest {
         catalog.tables(DATABASE).first().uuid.assert().hasSize(UUID_LENGTH)
         val orders = catalog.table(DATABASE, "orders")!!
         orders.tableEngine.assert().isEqualTo("MergeTree")
-        orders.columns.assert().containsExactly(SourceColumn("tenant", "String"), SourceColumn("phone", "Nullable(String)"))
+        orders.columns.assert().containsExactly(
+            SourceColumn("tenant", "String"),
+            SourceColumn("phone", "Nullable(String)")
+        )
         catalog.table(DATABASE, "orders_mv").assert().isNull()
         catalog.table(DATABASE, "nothing").assert().isNull()
 
@@ -121,7 +128,9 @@ class ClickHouseCatalogIntegrationTest {
         execute(
             "ALTER TABLE $DATABASE.wow_catalog ADD COLUMN IF NOT EXISTS `access` LowCardinality(String) AFTER columns_hash",
         )
-        execute("ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'POLICY' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1")
+        execute(
+            "ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'POLICY' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1"
+        )
         catalog.catalogRows(DATABASE, STATE).single { it.fingerprint == "f-1" }.access.assert().isEqualTo("POLICY")
         catalog.catalogChanges(DATABASE).keys.assert().containsExactly(STATE)
         val table = catalog.table(DATABASE, STATE)!!
