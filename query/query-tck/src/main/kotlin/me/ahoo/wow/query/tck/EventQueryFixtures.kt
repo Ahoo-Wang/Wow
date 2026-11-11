@@ -278,7 +278,12 @@ abstract class EventQueryFixtures internal constructor() {
                 T0 + 2,
                 listOf(event("OrderCreated", "{}")),
                 scope = Scope.NONE,
-                access = linkedMapOf("owner" to null, "space" to null, "region" to null, "teams" to emptyList<String>()),
+                access = linkedMapOf(
+                    "owner" to null,
+                    "space" to null,
+                    "region" to null,
+                    "teams" to emptyList<String>(),
+                ),
             ),
         )
     }
