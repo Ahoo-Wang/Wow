@@ -40,7 +40,10 @@ class IdFilter @InternalWowApi constructor(val value: String) : FilterExpression
     }
 }
 
-class IdsFilter @InternalWowApi constructor(val values: List<String>) : FilterExpression {
+class IdsFilter @InternalWowApi constructor(values: List<String>) : FilterExpression {
+    /** Its values, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val values: List<String> = values.copied()
+
     override val operator = FilterOperator.IDS
 
     init {
@@ -94,7 +97,10 @@ class AggregateIdFilter @InternalWowApi constructor(val value: String) : FilterE
     }
 }
 
-class AggregateIdsFilter @InternalWowApi constructor(val values: List<String>) : FilterExpression {
+class AggregateIdsFilter @InternalWowApi constructor(values: List<String>) : FilterExpression {
+    /** Its values, copied: a collection its caller changes later changes neither this filter nor its hash. */
+    val values: List<String> = values.copied()
+
     override val operator = FilterOperator.AGGREGATE_IDS
 
     init {
