@@ -9,7 +9,7 @@
 ./gradlew :check
 ./gradlew :integrationTest
 ./gradlew detekt
-./gradlew detekt --auto-correct
+./gradlew detekt -Pwow.detekt.autoCorrect
 ./gradlew build
 ./gradlew checkKotlinAbi
 ./gradlew updateKotlinAbi
@@ -251,8 +251,9 @@ How work is planned, reviewed and merged when several agent sessions work on the
 
 "The local checks pass" must cover what depends on the change, not only the modules it touched. Before a push:
 
+- Never run `./gradlew --stop`, and never kill a Gradle daemon that is not your own build's: the daemons are shared by every session on the machine, and a stop cuts whatever build another session is running (one session's stop ended another's pre-push run in mid-build). To end your own build, stop its client process.
 - `./gradlew :architecture:test`: it scans every module's sources as text.
-- `./gradlew :<module>:check` for every module the change touches: it runs detekt and the ABI check, which no test task does (#5783 passed every test and stopped on a wrapping rule). Detekt corrects sources in place (the root build sets `autoCorrect = true`): read what it rewrote before committing it, and compile again before comparing compiled classes.
+- `./gradlew :<module>:check` for every module the change touches: it runs detekt and the ABI check, which no test task does (#5783 passed every test and stopped on a wrapping rule). Detekt reads every Kotlin source set of a module (main, test, integration tests and test fixtures), reports and changes nothing, in CI and before a push alike. `-Pwow.detekt.autoCorrect` lets a local run correct the formatting rules' findings in place: it still fails on what it found, a second run passes, and what it rewrote is read before it is committed (and compiled again before compiled classes are compared).
 - The unit tests of every module that depends on what changed; the whole build's `test` when a shared module changed.
 - The integration tests of the modules that start a host, a kernel or a query backend on what changed (#5690 passed every unit test and stopped another module's host from starting).
 - The docs checks and, for any change that moves a declaration to another file, the docs generators: a generated page that lists declarations in file order changes with a move-only pull request (#5724). A generated report that changes in any other way stops the push: show what changed and why (for an order-only change, that the sorted contents are identical) and regenerate it once the coordinator agrees (#5800). Prettier over exactly the files the change touches, the `.mjs` scripts and their tests included, as CI's job runs it (#5891 was approved and then stopped on one import line).
