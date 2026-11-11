@@ -66,9 +66,10 @@ import java.util.UUID
  * and [space] (`ownerId` and `spaceId`; an event stream's `access.owner` and `access.space`), each declared attribute
  * under [fieldOf] it, `access.<name>` by default, its value as stored ([accessTree]: a string, an enum by its name, an
  * integer as a long, a boolean, a multiple attribute a sorted array of distinct values), an absent one left out: a
- * record written before the attribute was declared. A record not yet stamped has a null `access`. Every filter is
- * guarded by `IS_NOT_NULL` of [access], as the query assembly guards it, so a record not stamped is never read, not
- * even by a check of absence.
+ * record written before the attribute was declared. A record not yet stamped has a null `access`. On a store that keeps
+ * such records ([keepsUnstamped]) every filter is guarded by `IS_NOT_NULL` of [access], as the query assembly guards an
+ * events query, so a record not stamped is never read, not even by a check of absence; on a snapshot store, whose
+ * records are always stamped, there is no guard, as the assembly sends none for snapshots.
  *
  * The matrix covers each operator of one value and of several, negated or not, on present values, on values a record
  * lacks and on a record not stamped, with claims the caller holds and those it does not: a negation over a missing
@@ -146,7 +147,8 @@ abstract class AccessFilterSpec {
                 val expected = records.filter { record ->
                     record.stamped && predicate.allows { valueOf(record, it) }
                 }.map { it.id }
-                val filter = AndFilter(listOf(IsNotNullFilter(access), AccessFilters.compile(predicate, ::fieldOf)))
+                val compiled = AccessFilters.compile(predicate, ::fieldOf)
+                val filter = if (keepsUnstamped) AndFilter(listOf(IsNotNullFilter(access), compiled)) else compiled
                 val actual = runBlocking {
                     backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = records.size + 1), schema))
                         .toList().map { it.path("aggregateId").stringValue() }
@@ -179,8 +181,11 @@ abstract class AccessFilterSpec {
         ).schema()
     }
 
-    /** The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them. */
-    private fun declaration(): QuerySchemaDeclaration = querySchema {
+    /**
+     * The declared attributes' fields ([DatasetAccessSpec.ATTRIBUTES]), as the Manifest types them: what a backend that
+     * maps its fields before it stores a record declares first.
+     */
+    protected fun declaration(): QuerySchemaDeclaration = querySchema {
         DatasetAccessSpec.ATTRIBUTES.forEach { attribute ->
             val type = when (attribute.type) {
                 AccessAttributeManifest.Type.STRING -> QueryValueType.STRING

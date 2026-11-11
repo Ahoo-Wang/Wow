@@ -248,7 +248,8 @@ abstract class EventQueryFixtures internal constructor() {
      */
     /**
      * Streams of the aggregates' current attributes, as the stamping keeps every stream of an aggregate: an aggregate's
-     * streams share them, other aggregates hold others.
+     * streams share them, other aggregates hold others. `o6` is stamped with nothing: no owner, no space, its declared
+     * attributes none or empty, so its `access` holds no value a store indexes, and it is stamped all the same.
      */
     internal fun stampedStreams(): List<EventStreamRecord> {
         val east = access("region" to "east", "teams" to listOf("a", "b"))
@@ -270,6 +271,14 @@ abstract class EventQueryFixtures internal constructor() {
                 T0 + 2,
                 listOf(event("OrderCreated", "{}")),
                 access = access("region" to null, "teams" to emptyList<String>())
+            ),
+            stream(
+                "o6",
+                1,
+                T0 + 2,
+                listOf(event("OrderCreated", "{}")),
+                scope = Scope.NONE,
+                access = linkedMapOf("owner" to null, "space" to null, "region" to null, "teams" to emptyList<String>()),
             ),
         )
     }
