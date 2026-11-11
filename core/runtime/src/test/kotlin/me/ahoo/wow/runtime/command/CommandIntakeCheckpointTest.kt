@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
@@ -30,7 +29,6 @@ import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The intake's checkpoint against a command's outcome: a copy decided once, the checkpoint passing a command only once
