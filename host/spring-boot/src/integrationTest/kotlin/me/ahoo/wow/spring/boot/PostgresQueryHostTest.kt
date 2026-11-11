@@ -37,7 +37,7 @@ class PostgresQueryHostTest {
         "spring.datasource.url" to postgres.jdbcUrl,
         "spring.datasource.username" to postgres.username,
         "spring.datasource.password" to postgres.password,
-            "spring.datasource.hikari.maximum-pool-size" to 8,
+        "spring.datasource.hikari.maximum-pool-size" to 8,
         sources = listOf(HostTestApp::class.java, QueryOutcomes::class.java),
     )
     private val account = AggregateType(BANK, "account")
@@ -58,7 +58,9 @@ class PostgresQueryHostTest {
         val report = host.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
         report.created.assert().containsExactly("wow_snapshot__bank__account_ix_account_owner")
         host.context.getBean(DataSource::class.java).connection.use { connection ->
-            connection.prepareStatement("SELECT indexname FROM pg_indexes WHERE tablename = 'wow_snapshot__bank__account'")
+            connection.prepareStatement(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'wow_snapshot__bank__account'"
+            )
                 .executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }.assert().contains("wow_snapshot__bank__account_ix_account_owner")
         validatingHost().use { validating ->

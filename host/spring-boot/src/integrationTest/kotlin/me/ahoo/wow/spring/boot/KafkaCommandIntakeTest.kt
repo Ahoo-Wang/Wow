@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -22,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -51,6 +51,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
@@ -85,7 +86,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
-import me.ahoo.wow.manifest.SystemCommands
 
 /**
  * Cross-context commands and rejection receipts on a real broker (decisions D33, D47, D135–D137): two nodes of two
@@ -99,7 +99,9 @@ import me.ahoo.wow.manifest.SystemCommands
 class KafkaCommandIntakeTest {
     private val kafka = WowContainers.newKafka().also { it.start() }
     private val options = KafkaOptions(kafka.bootstrapServers)
-    private val admin = Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers))
+    private val admin = Admin.create(
+        mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+    )
     private val producer = KafkaTopicProducer.create(options)
     private val sources = CopyOnWriteArrayList<KafkaPartitionedSource>()
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
@@ -112,7 +114,11 @@ class KafkaCommandIntakeTest {
     private val commits = CopyOnWriteArrayList<CommandReceipt.Committed<*>>()
 
     init {
-        admin.createVisible(options, NewTopic(PREFIX + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(PREFIX + "wow.sales.receipts", 2, 1.toShort()))
+        admin.createVisible(
+            options,
+            NewTopic(PREFIX + "wow.stock.commands", PARTITIONS, 1.toShort()),
+            NewTopic(PREFIX + "wow.sales.receipts", 2, 1.toShort())
+        )
     }
 
     @AfterEach
@@ -164,7 +170,9 @@ class KafkaCommandIntakeTest {
         backends,
         channel,
         // Each node signals the other's waits, as /wow/internal/signals would.
-        remoteSignals = SignalSender { origin, signal, _ -> nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal) },
+        remoteSignals = SignalSender { origin, signal, _ ->
+            nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal)
+        },
         options = NODE_OPTIONS,
         subscriptions = bindings,
         contracts = contracts,
@@ -182,7 +190,10 @@ class KafkaCommandIntakeTest {
         orderModel(),
         salesManifest(),
         topics,
-        ContractDirectory(salesManifest(), listOf(ManifestFragment("stock-api.jar!/${PeerContracts.RESOURCE}", stockManifest()))),
+        ContractDirectory(
+            salesManifest(),
+            listOf(ManifestFragment("stock-api.jar!/${PeerContracts.RESOURCE}", stockManifest()))
+        ),
         SubscriptionBindings(mapOf(SALES to listOf(orderSaga(committed)))),
     )
 
@@ -224,11 +235,16 @@ class KafkaCommandIntakeTest {
     fun `a success receipt should come back once, though a stock node that crashed before its checkpoint sends it again`(): Unit =
         runBlocking {
             val prefix = "committed."
-            admin.createVisible(options, NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(prefix + "wow.sales.receipts", 2, 1.toShort()))
+            admin.createVisible(
+                options,
+                NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()),
+                NewTopic(prefix + "wow.sales.receipts", 2, 1.toShort())
+            )
             // The first stock node never saves a checkpoint: it crashes after each receipt, before the save.
             val stockBackends = InMemoryContexts()
             val crashing = BackendFactory { stockBackends.backends(it).copyWith(checkpoints = DroppedCheckpoints) }
-            val first = node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = crashing)
+            val first =
+                node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = crashing)
             first.start()
             val sales = salesNode(topics(prefix), committed = true).also { it.start() }
             sales.topicSubscriptions.getValue(prefix + "wow.sales.receipts").awaitStarted()
@@ -243,7 +259,8 @@ class KafkaCommandIntakeTest {
             nodes.remove(first)
             channel.unbind(first.address)
             // Its successor reads the command again from the last checkpoint: decided once, its receipt sent again.
-            node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = stockBackends).start()
+            node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = stockBackends)
+                .start()
             KafkaPartitionedSource.create(options).use { source ->
                 eventually { (0 until 2).sumOf { source.offsets(prefix + "wow.sales.receipts", it).end } == 2L }
             }
@@ -290,12 +307,14 @@ class KafkaCommandIntakeTest {
     @Test
     fun `the node should create its command topic with the log's partitions, or refuse to start without it`(): Unit =
         runBlocking {
-            assertThrows<IllegalStateException> { runBlocking { stockNode(topics("validate.", true, Ddl.VALIDATE)).start() } }
-                .message.assert().contains("validate.wow.stock.commands does not exist")
+            assertThrows<IllegalStateException> {
+                runBlocking { stockNode(topics("validate.", true, Ddl.VALIDATE)).start() }
+            }.message.assert().contains("validate.wow.stock.commands does not exist")
             nodes.removeLast().also { channel.unbind(it.address) }
             val stock = stockNode(topics("auto.", intake = true, ddl = Ddl.AUTO)).also { it.start() }
             stock.isReady.assert().isTrue()
-            topicAdmin.partitions(setOf("auto.wow.stock.commands")).assert().isEqualTo(mapOf("auto.wow.stock.commands" to PARTITIONS))
+            topicAdmin.partitions(setOf("auto.wow.stock.commands"))
+                .assert().isEqualTo(mapOf("auto.wow.stock.commands" to PARTITIONS))
             eventually { checkNotNull(stock.context(STOCK).intake).partitions == (0 until PARTITIONS).toSet() }
         }
 
@@ -404,7 +423,12 @@ class KafkaCommandIntakeTest {
         private val opened = ConcurrentHashMap<String, ContextBackends>()
 
         override fun backends(context: String): ContextBackends = opened.computeIfAbsent(context) {
-            ContextBackends(InMemoryEventLog(PARTITIONS), InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger())
+            ContextBackends(
+                InMemoryEventLog(PARTITIONS),
+                InMemoryCheckpointStore(),
+                InMemoryLeaseStore(),
+                InMemoryFailureLedger()
+            )
         }
     }
 
@@ -434,7 +458,11 @@ class KafkaCommandIntakeTest {
             subscription = SubscriptionOptions(
                 retry = RetryPolicy(maxAttempts = 3, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
                 checkpointInterval = 20.milliseconds,
-                readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 10.milliseconds, maxBackoff = 100.milliseconds),
+                readRetry = RetryPolicy(
+                    maxAttempts = 1,
+                    initialBackoff = 10.milliseconds,
+                    maxBackoff = 100.milliseconds
+                ),
             ),
         )
 
@@ -479,7 +507,12 @@ class KafkaCommandIntakeTest {
                 ContextManifest(
                     STOCK,
                     aggregates = listOf(
-                        aggregateManifest(STOCK, "item", listOf(Reserve::class.java to ManifestCreation.ALLOWED), listOf(Reserved::class.java)),
+                        aggregateManifest(
+                            STOCK,
+                            "item",
+                            listOf(Reserve::class.java to ManifestCreation.ALLOWED),
+                            listOf(Reserved::class.java)
+                        ),
                     ),
                 ),
             ),

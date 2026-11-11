@@ -41,7 +41,8 @@ class OutageMongoClient {
             .applyConnectionString(ConnectionString(environment.getRequiredProperty("test.mongo.url")))
             .applyToClusterSettings { it.serverSelectionTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS) }
             .applyToSocketSettings {
-                it.connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS).readTimeout(SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                it.connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    .readTimeout(SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             }
             .build(),
     )
@@ -107,7 +108,8 @@ class MongoOutageTest {
         again.body!!["duplicate"].asBoolean().assert().isTrue()
         again.body!!["version"].asInt().assert().isEqualTo(2)
         // One stream for the request: the account's next deposit is version 3.
-        host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).body!!["version"].asInt().assert().isEqualTo(3)
+        host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).body!!["version"].asInt()
+            .assert().isEqualTo(3)
     }
 
     /** [send]'s answer, sent again while it is the retryable storage error and the deadline has not passed. */

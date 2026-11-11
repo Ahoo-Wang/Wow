@@ -67,7 +67,7 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
 
     override fun close() = pool.close()
 
-    private fun gated(connection: Connection): Connection = proxy(connection) { method, args ->
+    private fun gated(connection: Connection): Connection = proxy<Connection> { method, args ->
         val result = method.invoke(connection, *args)
         when {
             method.name == "createStatement" -> gated(result as Statement)
@@ -78,12 +78,12 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
         }
     }
 
-    private fun gated(statement: Statement): Statement = proxy(statement) { method, args ->
+    private fun gated(statement: Statement): Statement = proxy<Statement> { method, args ->
         if (method.name == "execute" && (args.firstOrNull() as? String)?.startsWith(QUERY_START) == true) hold()
         method.invoke(statement, *args)
     }
 
-    private fun gatedQuery(statement: PreparedStatement): PreparedStatement = proxy(statement) { method, args ->
+    private fun gatedQuery(statement: PreparedStatement): PreparedStatement = proxy<PreparedStatement> { method, args ->
         if (method.name.startsWith("execute") && args.isEmpty()) hold()
         method.invoke(statement, *args)
     }
@@ -101,7 +101,8 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
         }
     }
 
-    private inline fun <reified T : Any> proxy(target: T, crossinline call: (java.lang.reflect.Method, Array<Any?>) -> Any?): T =
+    /** A [T] whose every call goes to [call], with its arguments. */
+    private inline fun <reified T : Any> proxy(crossinline call: (java.lang.reflect.Method, Array<Any?>) -> Any?): T =
         Proxy.newProxyInstance(javaClass.classLoader, arrayOf(T::class.java)) { _, method, args ->
             try {
                 call(method, args ?: emptyArray())

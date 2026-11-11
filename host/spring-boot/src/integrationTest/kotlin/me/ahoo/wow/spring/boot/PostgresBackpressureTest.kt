@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.api.problem.Retry
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -55,7 +55,8 @@ class OverloadedSaga {
                         throw WowProblemException(
                             FrameworkErrors.WAIT_TIMEOUT,
                             GATEWAY_TIMEOUT,
-                            Retry.SAME_REQUEST, null,
+                            Retry.SAME_REQUEST,
+                            null,
                             "The derived command on ${entry.ref} failed: ${FrameworkErrors.WAIT_TIMEOUT}",
                         )
                     }

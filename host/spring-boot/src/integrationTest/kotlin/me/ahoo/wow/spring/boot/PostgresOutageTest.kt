@@ -112,7 +112,8 @@ class PostgresOutageTest {
         again.body!!["duplicate"].asBoolean().assert().isTrue()
         again.body!!["version"].asInt().assert().isEqualTo(2)
         // One stream for the request: the account's next deposit is version 3.
-        host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).body!!["version"].asInt().assert().isEqualTo(3)
+        host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).body!!["version"].asInt()
+            .assert().isEqualTo(3)
     }
 
     /** [send]'s answer, sent again while it is the retryable storage error and the deadline has not passed. */

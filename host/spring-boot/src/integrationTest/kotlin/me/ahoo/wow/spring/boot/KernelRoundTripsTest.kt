@@ -21,17 +21,16 @@ import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import java.util.ServiceLoader
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
-import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.kernel.Kernel
@@ -53,6 +52,7 @@ import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.sql.Connection
+import java.util.ServiceLoader
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
@@ -165,7 +165,8 @@ abstract class KernelRoundTripsSpec {
         runBlocking {
             val kernel = kernel(2)
             val ref = ref("beyond")
-            val created = kernel.execute(model, command(ref, Open("ahoo"), requestId = "open")) as CommandOutcome.Committed
+            val created =
+                kernel.execute(model, command(ref, Open("ahoo"), requestId = "open")) as CommandOutcome.Committed
             repeat(3) { kernel.execute(model, command(ref, Add(1))) }
             val (outcome, trips) = kernel.trips(command(ref, Open("ahoo"), requestId = "open"))
             outcome.assert().isEqualTo(CommandOutcome.AlreadyCommitted(created.stream))
@@ -223,7 +224,9 @@ class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
     /** A store over the counted data source, opened as the host opens one. */
     private val store: Store by lazy {
         ServiceLoader.load(StoreProvider::class.java).first { it.type == "postgres" }
-            .open(StoreConfig.of("main", "postgres", resources = StoreResources.of(mapOf("data" to Counted.dataSource))))
+            .open(
+                StoreConfig.of("main", "postgres", resources = StoreResources.of(mapOf("data" to Counted.dataSource)))
+            )
     }
 
     override fun log(context: String): EventLog = store.log(context, 4).also { store.createSchemas() }
