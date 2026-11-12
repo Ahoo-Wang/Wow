@@ -26,6 +26,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -129,7 +130,7 @@ class BatchedParkedWaitTest {
             result.error!!.code.assert().isEqualTo(ResultCodes.SUBSCRIPTION_PARKED)
             result.error!!.message.assert()
                 .isEqualTo("$ref@2 is parked by wow.snapshot; the failure ledger has the cause.")
-            result.hop.assert().isEqualTo(Hop.handled(Hop.SNAPSHOT_SUBSCRIPTION, "shop"))
-            ledger.parked(SubscriptionId("shop", Hop.SNAPSHOT_SUBSCRIPTION), ref)!!.fromVersion.assert().isEqualTo(1)
+            result.hop.assert().isEqualTo(Hop.handled(SystemSubscriptions.SNAPSHOT, "shop"))
+            ledger.parked(SubscriptionId("shop", SystemSubscriptions.SNAPSHOT), ref)!!.fromVersion.assert().isEqualTo(1)
         }
 }

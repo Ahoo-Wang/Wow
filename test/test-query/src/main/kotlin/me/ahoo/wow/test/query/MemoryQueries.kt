@@ -22,7 +22,6 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
@@ -42,6 +41,7 @@ import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.read.TenantQueryApi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.test.GivenAggregate
 import me.ahoo.wow.test.ProcessorSpec

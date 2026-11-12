@@ -361,7 +361,7 @@ class HttpQueryApi internal constructor(
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
                     answer.problem.isNotFound(FrameworkCodes.AGGREGATE_NOT_FOUND) -> return null
-                    minVersion != null && answer.problem.code == MinVersionNotReachedException.CODE ->
+                    minVersion != null && answer.problem.code == FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED ->
                         throw MinVersionNotReachedException(ref, minVersion, answer.problem.version ?: 0)
                     else -> throw answer.problem.exception("The state of $ref")
                 }

@@ -211,7 +211,7 @@ class ExecutionReceiptContext(
     override fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>) =
         derivation.schedule(key, rule, request)
 
-    override fun cancel(key: String, target: AggregateRef) = derivation.cancel(key, target)
+    override fun cancelSchedule(key: String, target: AggregateRef) = derivation.cancel(key, target)
 
     override suspend fun call(request: CommandRequest<*>): CommandResult = derivation.call(request)
 

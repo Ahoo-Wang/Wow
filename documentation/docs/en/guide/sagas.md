@@ -93,7 +93,7 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
 
   @OnEvent
   fun onOrderStockConfirmed(event: StateTypedEvent<OrderState, OrderStockConfirmed>, context: SagaContext) {
-      context.cancel(STOCK_DEADLINE, event.ref)
+      context.cancelSchedule(STOCK_DEADLINE, event.ref)
   }
   ```
 
@@ -181,7 +181,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## Schedule a command
 
-`context.schedule(key, rule, request)` asks the request's target to schedule its command for itself under `key`; `context.cancel(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. Any handler of the saga may schedule, an `@OnSchedule` job's too. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`, which the Manifest lists by full type name. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
+`context.schedule(key, rule, request)` asks the request's target to schedule its command for itself under `key`; `context.cancelSchedule(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. Any handler of the saga may schedule, an `@OnSchedule` job's too. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`, which the Manifest lists by full type name. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
 
 ## Where it starts
 

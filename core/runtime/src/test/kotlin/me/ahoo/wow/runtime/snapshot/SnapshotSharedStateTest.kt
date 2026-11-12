@@ -24,6 +24,7 @@ import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.runtime.Executor
@@ -52,7 +53,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, fifth) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, fifth) }
         // Evolved from the stored snapshot, never replayed from the first stream.
         log.reads.assert().isNotEmpty()
         log.reads.none { it == 1 }.assert().isTrue()
@@ -78,7 +79,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
 
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 1) })
         resumed.start(setOf(0))
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, committed.stream) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, committed.stream) }
         store.loads.get().assert().isEqualTo(loads)
         log.reads.assert().isEmpty()
         // Its only reader passed it: the earlier view is evicted, the latest kept as the next commit's base.
@@ -100,7 +101,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
 
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 1) })
         resumed.start(setOf(0))
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, deleted.stream) }
         // Written from the view: neither the store nor the log was read.
         store.loads.get().assert().isEqualTo(loads)
         log.reads.assert().isEmpty()
@@ -116,7 +117,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         log.reads.assert().containsExactly(2)
 
         val restored = executor.execute(counter, command("a", RestoreAggregate())) as CommandOutcome.Committed
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, restored.stream) }
         store.load(ref("a"))!!.deleted.assert().isFalse()
         val added = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
         added.stream.version.assert().isEqualTo(4)
@@ -138,7 +139,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
 
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, deleted.stream) }
         // The view carries what the kernel loaded of the first stream (work package B.O-4): neither the stored
         // snapshot nor the log is read.
         store.loads.get().assert().isEqualTo(loads)
@@ -202,7 +203,7 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 3) }, other)
         resumed.start(setOf(0))
-        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
+        eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, restored.stream) }
         log.reads.assert().isNotEmpty()
         log.reads.none { it == 1 }.assert().isTrue()
         val snapshot = store.load(ref("a"))!!

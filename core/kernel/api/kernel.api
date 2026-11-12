@@ -212,7 +212,7 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public fun cancelSchedule (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;

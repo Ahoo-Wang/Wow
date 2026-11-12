@@ -63,7 +63,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 
-Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancel(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.SetSchedule` 和 `wow.schedule.CancelSchedule`。目标必须存在；否则它拒绝 `wow.schedule.SetSchedule`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。
+Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancelSchedule(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.SetSchedule` 和 `wow.schedule.CancelSchedule`。目标必须存在；否则它拒绝 `wow.schedule.SetSchedule`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。
 
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 

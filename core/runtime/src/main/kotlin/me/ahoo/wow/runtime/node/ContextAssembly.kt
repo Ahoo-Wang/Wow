@@ -14,7 +14,7 @@
 package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.EventCodec
@@ -504,7 +504,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 log,
                 kernel,
                 executor,
-                snapshots.firstOrNull { it.name == Hop.SNAPSHOT_SUBSCRIPTION } ?: snapshots.firstOrNull(),
+                snapshots.firstOrNull { it.name == SystemSubscriptions.SNAPSHOT } ?: snapshots.firstOrNull(),
                 reservations,
                 subscriptions,
                 ownership,
