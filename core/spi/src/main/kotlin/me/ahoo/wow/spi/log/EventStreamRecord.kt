@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.WaitContext
@@ -64,7 +65,8 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] comes from the command too: whose name the commit is recorded in, the primary record of
  *   an audit; null for an anonymous caller.
- * - [access] are the aggregate's access attributes, the built-in owner and space among them, in their stored form
+ * - [access] are the aggregate's access attributes, the built-in owner and space always among them (null without a
+ *   value; a record refuses attributes without them), in their stored form
  *   ([me.ahoo.wow.spi.access.AccessValues]): those **after** this commit when it is appended, and then always the
  *   aggregate's current ones, which a stamp writes over its earlier streams when they change, so the events model
  *   authorizes a timeline by what the aggregate is now. Null when not stamped: a stream appended before the log
@@ -99,6 +101,9 @@ class EventStreamRecord @InternalWowApi constructor(
         require(version >= 1) { "An event stream's version starts at 1." }
         require(commandType.isNotBlank()) { "An event stream names the type of its command." }
         require(events.isNotEmpty()) { "An event stream holds at least one event." }
+        require(access == null || AccessValues.OWNER in access && AccessValues.SPACE in access) {
+            "A stamped stream's access attributes hold the built-in owner and space, null when it has none."
+        }
     }
 
     /** This EventStreamRecord with the given fields replaced: Wow's own copy, left out of the ABI. */

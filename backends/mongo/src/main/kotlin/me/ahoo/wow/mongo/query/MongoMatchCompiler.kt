@@ -135,7 +135,12 @@ internal object MongoMatchCompiler {
      * array, they continue the object's path, [scope] itself.
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>, scope: String?): Bson = when (filter) {
+    private fun compile(
+        filter: FilterExpression,
+        admitted: AdmittedQuery<*>,
+        scope: String?,
+        keyed: Boolean = true,
+    ): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> MATCH_NONE_FILTER
         is IdFilter -> Filters.eq(system(admitted, filter), filter.value)
@@ -145,10 +150,11 @@ internal object MongoMatchCompiler {
         is TenantIdFilter -> Filters.eq(system(admitted, filter), filter.value)
         is OwnerIdFilter -> Filters.eq(system(admitted, filter), filter.value)
         is SpaceIdFilter -> Filters.eq(system(admitted, filter), filter.value)
-        is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, scope) })
-        is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, scope) })
-        is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, scope) })
-        is EqualFilter -> tenantKeyed(filter.field, listOf(filter.value), admitted, scope)
+        is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, scope, keyed) })
+        is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, scope, keyed) })
+        // Beneath a negation a stream without its tenant-scoped key would match: the attribute itself decides.
+        is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, scope, keyed = false) })
+        is EqualFilter -> tenantKeyed(filter.field, listOf(filter.value), admitted, scope, keyed)
             ?: Filters.eq(filter.field.resolve(admitted, scope), filter.value.operand())
         is NotEqualFilter -> Filters.ne(filter.field.resolve(admitted, scope), filter.value.operand())
         is GreaterThanFilter -> Filters.gt(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
@@ -174,7 +180,7 @@ internal object MongoMatchCompiler {
             "${filter.value.escapeRegex()}\\z",
             filter.stringComparison.ignoreCase,
         )
-        is InFilter -> tenantKeyed(filter.field, filter.values, admitted, scope)
+        is InFilter -> tenantKeyed(filter.field, filter.values, admitted, scope, keyed)
             ?: Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
         is NotInFilter -> Filters.nin(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
         is BetweenFilter -> Filters.and(
@@ -249,14 +255,19 @@ internal object MongoMatchCompiler {
      * index the log keeps instead of the attribute's: one key for each tenant the query requires and each value. Null,
      * the attribute's own path, for a query that requires no tenant (`tenant=*`), which then reads the attribute by no
      * index, a scan; and for any other field, model, operand or element scope.
+     *
+     * The key is read only where its absence can lose a row, never add one: a stream an earlier version wrote has
+     * none, so an equality misses it, closed, while beneath a negation (`NOR`, [keyed] false) the missing key would
+     * match and let it through. A negation reads the attribute itself, which it reads by no index anyway.
      */
     private fun tenantKeyed(
         field: QueryField<*>,
         values: List<Any?>,
         admitted: AdmittedQuery<*>,
         scope: String?,
+        keyed: Boolean,
     ): Bson? {
-        if (scope != ROOT || admitted.model != QueryModel.EVENTS) return null
+        if (!keyed || scope != ROOT || admitted.model != QueryModel.EVENTS) return null
         val attribute = field.resolve(admitted, scope).removePrefix(MongoEventLog.ACCESS + ".")
             .takeIf { it == AccessValues.OWNER || it == AccessValues.SPACE } ?: return null
         val tenants = (admitted.query as? FilterCapable<*>)?.filter?.let(::requiredTenants) ?: return null

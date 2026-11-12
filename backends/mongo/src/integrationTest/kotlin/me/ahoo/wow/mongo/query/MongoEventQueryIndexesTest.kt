@@ -250,8 +250,12 @@ class MongoEventQueryIndexesTest {
         // One an earlier version wrote with an owner has no key: an equality on its owner does not find it, until
         // a stamp writes its attributes again, and its key with them.
         collection().updateOne(Filters.eq("aggregate_id", "o-8"), Updates.unset(MongoEventLog.ACCESS_KEY))
-        val byOwner = compiled(schema(), EqualFilter(QueryField("access.owner"), "u-8"))
+        val ownedBy = EqualFilter(QueryField("access.owner"), "u-8")
+        val byOwner = compiled(schema(), ownedBy)
         collection().countDocuments(byOwner).assert().isEqualTo(0L)
+        // A negation never lets it through: `not(owner eq u-8)`, as a policy writes it, reads the owner itself.
+        val notOwnedBy = AndFilter(listOf(IsNotNullFilter(QueryField("access.owner")), NorFilter(listOf(ownedBy))))
+        collection().countDocuments(compiled(schema(), notOwnedBy)).assert().isEqualTo(0L)
         log.stamp(owned.ref, checkNotNull(owned.access), 1, 1, 2).assert().isEqualTo(1)
         collection().countDocuments(byOwner).assert().isEqualTo(1L)
     }
