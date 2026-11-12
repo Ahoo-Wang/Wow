@@ -18,6 +18,8 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import kotlin.time.Duration.Companion.minutes
 
@@ -48,8 +50,15 @@ class SchedulesTest {
         assertThrownBy<IllegalArgumentException> { ScheduleRule.After(-1) }
         assertThrownBy<IllegalArgumentException> { ScheduleRule.Cron(" ") }
         assertThrownBy<IllegalArgumentException> { ScheduleRule.Cron("0 0 9 * * *", " ") }
-        assertThrownBy<IllegalArgumentException> { SetSchedule(" ", ScheduleRule.At(1), "shop.order.Cancel", "{}") }
-        assertThrownBy<IllegalArgumentException> { SetSchedule("k", ScheduleRule.At(1), " ", "{}") }
+        assertThrownBy<IllegalArgumentException> {
+            SetSchedule(
+                " ",
+                ScheduleRule.At(1),
+                "shop.order.Cancel",
+                commandOf()
+            )
+        }
+        assertThrownBy<IllegalArgumentException> { SetSchedule("k", ScheduleRule.At(1), " ", commandOf()) }
         assertThrownBy<IllegalArgumentException> { CancelSchedule(" ") }
         assertThrownBy<IllegalArgumentException> {
             ScheduleSet(
@@ -57,10 +66,10 @@ class SchedulesTest {
                 ScheduleRule.At(1),
                 ref,
                 "shop.order.Cancel",
-                "{}"
+                commandOf()
             )
         }
-        assertThrownBy<IllegalArgumentException> { ScheduleSet("k", ScheduleRule.At(1), ref, " ", "{}") }
+        assertThrownBy<IllegalArgumentException> { ScheduleSet("k", ScheduleRule.At(1), ref, " ", commandOf()) }
         assertThrownBy<IllegalArgumentException> { ScheduleCancelled(" ") }
         assertThrownBy<IllegalArgumentException> { ScheduleContext(" ", "k", 1, 0) }
         assertThrownBy<IllegalArgumentException> { ScheduleContext("t", " ", 1, 0) }
@@ -101,3 +110,6 @@ class SchedulesTest {
         ScheduleContext.HEADERS.assert().containsExactlyInAnyOrder(*skipped.headers().keys.toTypedArray())
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }

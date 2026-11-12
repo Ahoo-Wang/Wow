@@ -64,7 +64,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | `commandId`、`requestId` | 产生它的命令，以及该命令的幂等键。 |
 | `commandType` | 那条命令的类型名。请求 ID 用于另一种命令类型时被拒绝；用于同一类型时视为重试。 |
 | `commitTime` | 提交的时间。 |
-| `events` | 每个事件的 `name`、`revision` 和 `payload`，按顺序。设置或取消的定时也在其中，即系统事件 `wow.schedule.ScheduleSet` 和 `wow.schedule.ScheduleCancelled`。 |
+| `events` | 每个事件的 `name`、`revision` 和 `payload`，按顺序。设置或取消的定时也在其中，即系统事件 `wow.schedule.ScheduleSet` 和 `wow.schedule.ScheduleCancelled`；`ScheduleSet` 的 `command` 是所定时命令的命令体，一个 JSON 对象。 |
 | `scope` | 这次提交之后聚合的所有者和空间。 |
 | `access` | 聚合的访问属性（`owner` 与 `space` 也在其中）：先是这次提交之后的值，之后随属性变化保持为当前值；未盖章的流为 null。 |
 | `accessVersion` | `access` 所属的版本：随提交写入时是这次提交自己的版本，之后某次提交改变了属性时是那次提交的版本。属性的每一份副本（日志、流的索引、Sink 的表）都保留版本更晚的那一份；与 `access` 一同为 null。 |

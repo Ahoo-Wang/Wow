@@ -1729,18 +1729,18 @@ public final class me/ahoo/wow/api/schedule/ScheduleRule$Cron$Companion {
 public final class me/ahoo/wow/api/schedule/ScheduleSet {
 	public static final field Companion Lme/ahoo/wow/api/schedule/ScheduleSet$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCommand ()Ljava/lang/String;
+	public final fun getCommand ()Ltools/jackson/databind/node/ObjectNode;
 	public final fun getCommandType ()Ljava/lang/String;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule;
 	public final fun getTarget ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/schedule/ScheduleSet;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/api/schedule/ScheduleSet;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/schedule/ScheduleSet$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/schedule/ScheduleSet;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/api/schedule/ScheduleSet;
 }
 
 public final class me/ahoo/wow/api/schedule/ScheduleTick {
@@ -1782,17 +1782,17 @@ public final class me/ahoo/wow/api/schedule/Schedules {
 public final class me/ahoo/wow/api/schedule/SetSchedule {
 	public static final field Companion Lme/ahoo/wow/api/schedule/SetSchedule$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCommand ()Ljava/lang/String;
+	public final fun getCommand ()Ltools/jackson/databind/node/ObjectNode;
 	public final fun getCommandType ()Ljava/lang/String;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/schedule/SetSchedule;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/api/schedule/SetSchedule;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/schedule/SetSchedule$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/schedule/SetSchedule;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/api/schedule/SetSchedule;
 }
 
 public final class me/ahoo/wow/api/schedule/TickJob {

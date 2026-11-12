@@ -317,14 +317,14 @@ export interface SpaceTransferred {
 /**
  * The body of `wow.schedule.ScheduleSet`: the aggregate set its
  * schedule `key`, to send `target` the command of type `commandType`
- * (`command` its JSON text) as `rule` says.
+ * (`command` its body, a JSON object) as `rule` says.
  */
 export interface ScheduleSet {
   readonly key: string;
   readonly rule: ScheduleRule;
   readonly target: CommandRef;
   readonly commandType: string;
-  readonly command: string;
+  readonly command: Readonly<Record<string, unknown>>;
 }
 
 /** The body of `wow.schedule.ScheduleCancelled`. */

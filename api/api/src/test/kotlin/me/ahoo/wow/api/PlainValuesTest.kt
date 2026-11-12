@@ -54,6 +54,8 @@ import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.schedule.TickJob
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * The frozen types users construct are plain classes (decision D227): built through their factories, they keep a
@@ -89,13 +91,13 @@ class PlainValuesTest {
         valueSemantics({ ScheduleRule.Cron.of("0 0 3 * * *") }, ScheduleRule.Cron.of("0 0 3 * * *", "Asia/Shanghai"))
         cron.copyWith(misfire = Misfire.CATCH_UP).misfire.assert().isEqualTo(Misfire.CATCH_UP)
         valueSemantics(
-            { SetSchedule.of("pay", cron, "sales.order.Pay", "{}") },
-            SetSchedule.of("pay", cron, "a.b.C", "{}")
+            { SetSchedule.of("pay", cron, "sales.order.Pay", commandOf()) },
+            SetSchedule.of("pay", cron, "a.b.C", commandOf())
         )
         valueSemantics({ CancelSchedule.of("pay") }, CancelSchedule.of("ship"))
         valueSemantics(
-            { ScheduleSet.of("pay", cron, ref, "sales.order.Pay", "{}") },
-            ScheduleSet.of("ship", cron, ref, "sales.order.Pay", "{}"),
+            { ScheduleSet.of("pay", cron, ref, "sales.order.Pay", commandOf()) },
+            ScheduleSet.of("ship", cron, ref, "sales.order.Pay", commandOf()),
         )
         valueSemantics({ ScheduleCancelled.of("pay") }, ScheduleCancelled.of("ship"))
         valueSemantics({ ScheduleContext.of("t", "pay", 1, 2) }, ScheduleContext.of("t", "pay", 2, 2, 1))
@@ -166,3 +168,6 @@ class PlainValuesTest {
         kinds.map { it() }.toSet().assert().hasSize(kinds.size)
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }
