@@ -1,0 +1,9 @@
+# The drill's catalog, after the values its build generates and deploy/eshop-catalog/values.yaml: its search profile,
+# the products' snapshots and events copied to Elasticsearch (platform/elasticsearch/), as the GA end-to-end run's mongo
+# arm deploys it. The search profile keeps the log and the stores on MongoDB (its store main). The user is the
+# catalog's own (platform/elasticsearch/elasticsearch-users.yaml); its password is in the service's secret beside the
+# MongoDB URI (SPRING_ELASTICSEARCH_PASSWORD, README.md, "Secrets").
+config:
+  SPRING_PROFILES_ACTIVE: search,cosec
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+  SPRING_ELASTICSEARCH_USERNAME: eshop-catalog
