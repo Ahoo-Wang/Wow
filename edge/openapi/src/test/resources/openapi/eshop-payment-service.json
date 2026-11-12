@@ -2377,6 +2377,10 @@
             "type" : "string",
             "description" : "The property of the command's body that holds its aggregate's id."
           },
+          "occurredAtProperty" : {
+            "type" : "string",
+            "description" : "The property of the creation command's body that declares when what it records happened, epoch milliseconds: the creating commit's time (@OccurredAt)."
+          },
           "description" : {
             "type" : "string"
           }

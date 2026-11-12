@@ -297,7 +297,8 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            val attempt = attemptOn(command, loaded, waitBeyondCommitted, encode)
+            val attempt =
+                attemptOn(command, loaded, waitBeyondCommitted, encode, declaredTimeOf(model, command, loaded))
             val prepared = try {
                 preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -322,6 +323,10 @@ class Kernel(
         }
         return CommandOutcome.Contended(maxAttempts)
     }
+
+    /** The time [command] declares it occurred (`@OccurredAt`) when it creates its aggregate, [loaded]; else null. */
+    private fun declaredTimeOf(model: AggregateModel<*>, command: Command<*>, loaded: CachedState): Long? =
+        if (loaded.version == 0) model.occurredAtOf(command.body) else null
 
     /**
      * The answer to [prepared], a decision on [loaded] that appends nothing, as [requests] gives it
@@ -359,7 +364,9 @@ class Kernel(
         loaded: CachedState,
         wait: WaitContext?,
         noinline encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
-    ): AttemptScope = scopes.openDue(command, loaded, wait, encode) ?: openLate(command, loaded, wait, encode)
+        occurredAt: Long?,
+    ): AttemptScope = scopes.openDue(command, loaded, wait, encode, occurredAt)
+        ?: openLate(command, loaded, wait, encode, occurredAt)
 
     /**
      * An attempt of [command] on [loaded], sent for a slot that the clock read for the attempt found not yet due (it
@@ -370,9 +377,10 @@ class Kernel(
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
+        occurredAt: Long?,
     ): AttemptScope {
         val due = checkNotNull(command.schedule) { "Only a scheduled command is opened late." }.due
-        return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()))
+        return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()), occurredAt)
     }
 
     /**

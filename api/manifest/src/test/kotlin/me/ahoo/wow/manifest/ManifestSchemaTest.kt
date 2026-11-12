@@ -71,7 +71,7 @@ class ManifestSchemaTest {
                     if (index == 0) {
                         command.copyWith(mounted = true, transformsTo = listOf("shop.cart.PutItem"), description = "d")
                     } else if (index == 1) {
-                        command.copyWith(idProperty = "cartId", internal = true)
+                        command.copyWith(idProperty = "cartId", internal = true, occurredAtProperty = "openedAt")
                     } else {
                         command
                     }

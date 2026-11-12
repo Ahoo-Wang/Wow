@@ -128,7 +128,9 @@ internal class Batching(
     ): BatchMember? {
         val repeated = current.recentVersionOf(command.requestId) != null ||
             members.streams.any { it.stream.requestId == command.requestId }
-        if (repeated || admissible(decider, command, current, reach) != null) return null
+        // A creation that declares its time (`@OccurredAt`) is decided alone, where that time is checked.
+        val declares = current.version == 0 && model.occurredAtOf(command.body) != null
+        if (repeated || declares || admissible(decider, command, current, reach) != null) return null
         val encode = scopes.encoder(model)
         val wait = entry.wait.beyondCommitted()
         val attempt = scopes.open(command, current, wait, encode)

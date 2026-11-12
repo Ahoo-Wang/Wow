@@ -52,6 +52,13 @@ internal class AttemptScope(
     private val observer: Observer,
     /** The type name and JSON object of a command scheduled for a target. */
     private val encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
+    /**
+     * The node's clock: [now] unless the command declares when it occurred (`@OccurredAt`), whose time [now] is; when
+     * the stream is actually written, recorded in its headers then ([me.ahoo.wow.spi.log.EventStreamRecord.WRITTEN_AT]).
+     */
+    val writtenAt: Long = now,
+    /** Whether [now] is the time the command declares, not the clock's ([writtenAt]). */
+    val declaresTime: Boolean = false,
 ) : DecideScope, KernelLifecycle.MetadataScope {
     private var compensations: MutableList<suspend () -> Unit>? = null
     private var afterAppendActions: MutableList<suspend () -> Unit>? = null
@@ -252,15 +259,30 @@ internal class AttemptScopes(
     fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, ObjectNode> =
         { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
 
-    /** An attempt of [command] on [loaded], at [now] (this kernel's time unless given), with [wait] and [encode]. */
+    /**
+     * An attempt of [command] on [loaded], at [now] (this kernel's time unless given), with [wait] and [encode]; at
+     * [occurredAt] instead when the command declares it, written at [now] all the same ([AttemptScope.writtenAt]).
+     */
     fun open(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
         now: Long = clock(),
-    ): AttemptScope =
-        AttemptScope(command, ids, now, loaded, reservations, options.reservationTtl, wait, observer, encode)
+        occurredAt: Long? = null,
+    ): AttemptScope = AttemptScope(
+        command,
+        ids,
+        occurredAt ?: now,
+        loaded,
+        reservations,
+        options.reservationTtl,
+        wait,
+        observer,
+        encode,
+        writtenAt = now,
+        declaresTime = occurredAt != null,
+    )
 
     /**
      * An attempt as [open] opens it, at this kernel's time read once; none when [command] was sent for a slot that
@@ -272,10 +294,22 @@ internal class AttemptScopes(
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
+        occurredAt: Long?,
     ): AttemptScope? {
         val now = clock()
         val schedule = command.schedule
-        return if (schedule != null && now < schedule.due) null else open(command, loaded, wait, encode, now)
+        return if (schedule != null && now < schedule.due) {
+            null
+        } else {
+            open(
+                command,
+                loaded,
+                wait,
+                encode,
+                now,
+                occurredAt
+            )
+        }
     }
 
     /**

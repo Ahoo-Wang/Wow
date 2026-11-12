@@ -275,6 +275,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      */
     commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = emptyMap(),
     access: Map<AccessAttribute<*, *>, (S) -> Any?> = emptyMap(),
+    /**
+     * Reads, by command class, when a command declares that what it records happened (`@OccurredAt`), from its body:
+     * a command that creates its aggregate, whose creating commit is at that time ([occurredAtOf]).
+     */
+    private val occurredAts: Map<Class<*>, (Any) -> Long?> = emptyMap(),
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
@@ -390,6 +395,14 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         require(undecided.isEmpty()) {
             "$type reads the aggregate id of ${undecided.map { it.name }} from their bodies, which it decides none of."
         }
+        occurredAts.keys.forEach { commandClass ->
+            val creation = this.deciders[commandClass]?.creation
+            require(creation == Creation.REQUIRED) {
+                "$type reads when ${commandClass.name} occurred from its body, but " +
+                    (if (creation == null) "decides no such command" else "the command is $creation") +
+                    ": only a command that creates its aggregate (REQUIRED) declares when it occurred."
+            }
+        }
         require(aggregateIds.isEmpty() || idSource != AggregateIdSource.OWNER) {
             "$type's id is its owner's: no command of it reads its aggregate id from its body " +
                 "(${aggregateIds.keys.map { it.name }})."
@@ -428,6 +441,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      */
     @InternalWowApi
     fun aggregateIdOf(command: Any): String? = aggregateIds[command.javaClass]?.invoke(command)
+
+    /**
+     * When [command] declares that what it records happened (`@OccurredAt`), epoch milliseconds: null when its class
+     * declares no such property, or when it leaves it null.
+     */
+    @InternalWowApi
+    fun occurredAtOf(command: Any): Long? = occurredAts[command.javaClass]?.invoke(command)
 
     /** The after hooks that run for [commandType], in declaration order. */
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()

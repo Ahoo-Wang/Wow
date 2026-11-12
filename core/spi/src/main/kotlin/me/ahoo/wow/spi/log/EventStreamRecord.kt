@@ -165,6 +165,13 @@ class EventStreamRecord @InternalWowApi constructor(
         accessVersion,
     )
 
+    /**
+     * When this stream was actually written (epoch milliseconds): [commitTime], unless its creation command declared
+     * the commit's time ([WRITTEN_AT]), which the time it was written then follows.
+     */
+    val writtenAt: Long
+        get() = headers[WRITTEN_AT]?.toLongOrNull() ?: commitTime
+
     /** The rejection whose events this stream holds; null for a commit ([REJECTION_PREFIX]). */
     val rejection: Rejection?
         get() = headers[REJECTION_CODE]?.let { code ->
@@ -190,6 +197,13 @@ class EventStreamRecord @InternalWowApi constructor(
 
         /** The rejection's extensions, as a JSON object; absent when it has none. */
         const val REJECTION_EXTENSIONS: String = REJECTION_PREFIX + "extensions"
+
+        /**
+         * The time a commit was actually written (epoch milliseconds, in decimal), on a commit whose time its creation
+         * command declared (`@OccurredAt`): the commit's own time is then the declared one. Absent on every other
+         * commit, whose time is when it was written; a command derived from the stream does not inherit it.
+         */
+        const val WRITTEN_AT: String = "wow.commit.written-at"
 
         /** The headers that record [rejection] on the stream of its events. */
         @InternalWowApi
