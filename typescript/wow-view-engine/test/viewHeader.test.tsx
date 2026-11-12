@@ -133,6 +133,7 @@ const NOTHING: SaveCommands = {
     hasErrors: false,
     audience: 'personal',
     isNew: false,
+    applies: false,
     lastSavedAt: null,
   },
 };
