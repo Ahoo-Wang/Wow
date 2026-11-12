@@ -131,13 +131,17 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         "events" to ARRAY_TYPES,
     )
 
-    /** The log's own fields of a stream: its position, causation, headers and transport bytes. */
+    /**
+     * The log's own fields of a stream: its position, causation, headers, the version and the tenant-scoped keys of its
+     * access attributes, and its transport bytes.
+     */
     override val unread: List<String> = listOf(
         MongoEventLog.PARTITION,
         MongoEventLog.SEQUENCE,
         MongoEventLog.CAUSATION,
         MongoEventLog.HEADERS,
         MongoEventLog.ACCESS_VERSION,
+        MongoEventLog.ACCESS_KEY,
         MongoEventLog.TRANSPORT,
     )
 

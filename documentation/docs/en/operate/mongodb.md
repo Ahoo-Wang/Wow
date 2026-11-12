@@ -135,6 +135,8 @@ The stores create their collections and indexes on first use, named as on Postgr
 | `wow_failure_ledger` | The parked aggregates |
 | `wow_format` | The format version of each structure |
 
+A log collection keeps an index for each access attribute an `events` query under an access policy reads, `access_<name>`: a declared attribute's leads with the tenant and holds every stream. The built-in `owner` and `space` are indexed differently. A stream that has one also stores it scoped by its tenant in its own field, `access_key` (the tenant's length, a colon, the tenant, then the value), and `access_owner` and `access_space` are sparse indexes of those keys. So a stream of an aggregate with neither, such as one a job creates, adds no index entry, and an equality or an `$in` on the owner or the space reads the tenant's entries alone, inside an `anyOf` as well. A negation and `isNull` read the attribute itself, by no index of its own, as on PostgreSQL. A query of every tenant (`Wow-Scope: tenant=*`) has no tenant to scope a key with, so its equality on the owner or the space scans the collection. `access_key` is the store's own: no record and no SPI reads it.
+
 A new aggregate type's collection is created the first time the log touches it; it needs no restart. Decimals are stored as `Decimal128`, exactly; an append whose payload holds a number MongoDB cannot store exactly is refused.
 
 `wow.ddl` decides whether the stores create their collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`), as on PostgreSQL ([PostgreSQL](./postgresql#manage-the-schema)).

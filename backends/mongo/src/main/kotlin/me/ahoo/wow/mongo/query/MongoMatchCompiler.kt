@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.ExpressionFilter
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -54,13 +55,17 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoAccess
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.query.pipeline.toMongoExpression
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.operandValue
 import me.ahoo.wow.query.resolve.requiredOperandValue
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.access.AccessValues
 import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -143,7 +148,8 @@ internal object MongoMatchCompiler {
         is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, scope) })
         is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, scope) })
         is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, scope) })
-        is EqualFilter -> Filters.eq(filter.field.resolve(admitted, scope), filter.value.operand())
+        is EqualFilter -> tenantKeyed(filter.field, listOf(filter.value), admitted, scope)
+            ?: Filters.eq(filter.field.resolve(admitted, scope), filter.value.operand())
         is NotEqualFilter -> Filters.ne(filter.field.resolve(admitted, scope), filter.value.operand())
         is GreaterThanFilter -> Filters.gt(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
         is GreaterThanOrEqualFilter ->
@@ -168,7 +174,8 @@ internal object MongoMatchCompiler {
             "${filter.value.escapeRegex()}\\z",
             filter.stringComparison.ignoreCase,
         )
-        is InFilter -> Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
+        is InFilter -> tenantKeyed(filter.field, filter.values, admitted, scope)
+            ?: Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
         is NotInFilter -> Filters.nin(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
         is BetweenFilter -> Filters.and(
             Filters.gte(filter.field.resolve(admitted, scope), filter.lowerBound.requiredOperand()),
@@ -234,6 +241,41 @@ internal object MongoMatchCompiler {
                 compile(filter.predicate, admitted, container),
             ),
         )
+    }
+
+    /**
+     * An equality or an `$in` of a stream's built-in access attribute ([AccessValues.OWNER], [AccessValues.SPACE]) on
+     * the `events` model, as the match of its tenant-scoped key (`access_key.<attribute>`, decision D420), whose sparse
+     * index the log keeps instead of the attribute's: one key for each tenant the query requires and each value. Null,
+     * the attribute's own path, for a query that requires no tenant (`tenant=*`), which then reads the attribute by no
+     * index, a scan; and for any other field, model, operand or element scope.
+     */
+    private fun tenantKeyed(
+        field: QueryField<*>,
+        values: List<Any?>,
+        admitted: AdmittedQuery<*>,
+        scope: String?,
+    ): Bson? {
+        if (scope != ROOT || admitted.model != QueryModel.EVENTS) return null
+        val attribute = field.resolve(admitted, scope).removePrefix(MongoEventLog.ACCESS + ".")
+            .takeIf { it == AccessValues.OWNER || it == AccessValues.SPACE } ?: return null
+        val tenants = (admitted.query as? FilterCapable<*>)?.filter?.let(::requiredTenants) ?: return null
+        val strings = values.map { it.operandValue() as? String ?: return null }
+        val keys = tenants.flatMap { tenant -> strings.map { MongoAccess.key(tenant, it) } }.distinct()
+        val path = MongoEventLog.ACCESS_KEY + "." + attribute
+        return keys.singleOrNull()?.let { Filters.eq(path, it) } ?: Filters.`in`(path, keys)
+    }
+
+    /**
+     * The tenants every record [filter] matches belongs to, as admission requires them: a tenant's equality, an `OR`
+     * of tenants (a cross-tenant query of several), or those an `AND` requires of all its operands; null when it
+     * requires none.
+     */
+    private fun requiredTenants(filter: FilterExpression): Set<String>? = when (filter) {
+        is TenantIdFilter -> setOf(filter.value)
+        is OrFilter -> filter.operands.map { (it as? TenantIdFilter)?.value ?: return null }.toSet()
+        is AndFilter -> filter.operands.mapNotNull(::requiredTenants).reduceOrNull { left, right -> left intersect right }
+        else -> null
     }
 
     private fun QueryField<*>.resolve(admitted: AdmittedQuery<*>, scope: String?): String {

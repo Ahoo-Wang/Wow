@@ -135,6 +135,8 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 | `wow_failure_ledger` | 停放的聚合 |
 | `wow_format` | 每个结构的格式版本 |
 
+日志集合为访问策略下的 `events` 查询所读的每个访问属性保有一个索引 `access_<name>`：声明属性的索引以租户开头，包含每一个流。内置的 `owner` 和 `space` 的索引方式不同。有其中之一的流还会在自己的字段 `access_key` 中保存按租户限定的值（租户的长度、一个冒号、租户，再接值），`access_owner` 和 `access_space` 是这些键的稀疏索引。因此，两者都没有的聚合（例如由任务创建的聚合）的流不会添加索引项；对 owner 或 space 的相等与 `$in` 只读取该租户的索引项，在 `anyOf` 中也是如此。取反与 `isNull` 读取属性本身，不走它自己的索引，与 PostgreSQL 相同。读取所有租户的查询（`Wow-Scope: tenant=*`）没有用来限定键的租户，所以它对 owner 或 space 的相等会扫描集合。`access_key` 是存储自己的字段：记录和 SPI 都不会读取它。
+
 新聚合类型的集合在日志第一次用到它时创建；不需要重启。小数以 `Decimal128` 精确存储；载荷中有 MongoDB 无法精确存储的数字时，追加会被拒绝。
 
 与 PostgreSQL 一样，`wow.ddl` 决定存储是创建它们的集合和索引（`auto`，默认）、只检查它们（`validate`），还是两者都不做（`none`）（[PostgreSQL](./postgresql#manage-the-schema)）。

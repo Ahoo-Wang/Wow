@@ -59,4 +59,4 @@ A new major version may change formats and protocols. Its nodes do not run besid
 
 ## From a 10.0.0 pre-release
 
-A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores or for its API. Its stores are not carried over: start this version on empty stores. A service coming from 9.x follows [Migrating from 9.x](../migrate/).
+A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores or for its API. Its stores are not carried over: start this version on empty stores. A MongoDB log a pre-release wrote has no tenant-scoped access keys, so an equality on the owner or the space finds none of its streams until a stamp writes their attributes again. A service coming from 9.x follows [Migrating from 9.x](../migrate/).

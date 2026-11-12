@@ -27,10 +27,12 @@ import org.bson.Document
  * How a log stream and a snapshot keep their access attributes ([AccessValues]): a sub-document of each attribute's
  * value by its name, a string, an `int64`, a boolean or null, a multiple one's an array of them.
  *
- * A log stream leaves out a built-in attribute ([AccessValues.OWNER], [AccessValues.SPACE]) that has no value
- * (decision D420): its index is partial on the attribute's existence, so a stream of an aggregate without an owner or
- * a space adds no entry to it. Every stamped stream holds both built-ins ([AccessValues.ofStream]), so the readers put
- * a missing one back as null ([restored]): above this store, a null and an absent attribute stay two facts.
+ * A log stream leaves out a built-in attribute ([AccessValues.OWNER], [AccessValues.SPACE]) that has no value, and
+ * keeps each one that has a value a second time, scoped by its tenant, in its own field `access_key` ([keys], decision
+ * D420): the store's sparse index of each built-in reads that key, so a stream of an aggregate without an owner or a
+ * space adds no entry, and an equality reads the tenant's entries alone. Every stamped stream holds both built-ins
+ * ([AccessValues.ofStream]), so the readers put a missing one back as null ([restored]) and never read `access_key`:
+ * above this store, a null and an absent attribute stay two facts.
  */
 internal object MongoAccess {
     private val BUILT_IN = listOf(AccessValues.OWNER, AccessValues.SPACE)
@@ -39,6 +41,21 @@ internal object MongoAccess {
     fun log(access: Map<String, Any?>): Document = Document().also { document ->
         access.forEach { (name, value) -> if (value != null || name !in BUILT_IN) document[name] = value }
     }
+
+    /**
+     * The tenant-scoped keys of [access], a stream's attributes in [tenantId]: each built-in attribute with a value by
+     * its name, as [key] writes it; empty when it has neither.
+     */
+    fun keys(tenantId: String, access: Map<String, Any?>): Document = Document().also { keys ->
+        BUILT_IN.forEach { name -> (access[name] as? String)?.let { keys[name] = key(tenantId, it) } }
+    }
+
+    /**
+     * The key of [value] of a built-in attribute in [tenantId]: the tenant's length, a colon, the tenant, then the
+     * value. A tenant id and a value are any non-blank text, so no separator character could tell where the tenant
+     * ends; its length does, so two pairs never make one key.
+     */
+    fun key(tenantId: String, value: String): String = "${tenantId.length}:$tenantId$value"
 
     /**
      * [document], a log stream's access sub-document, with each built-in attribute it leaves out put back as null,
