@@ -41,16 +41,17 @@ data class RetryRequested(val reason: String? = null, val failedAt: Long? = null
 @Summary("A skip was requested")
 data class SkipRequested(val reason: String? = null, val failedAt: Long? = null)
 
-/** An operator asked the owning service to mark the entry [recoverable]. */
+/** An operator asked the owning service to mark the entry's parking at [failedAt] [recoverable]. */
 @Summary("A recoverable mark was requested")
-data class MarkRecoverableRequested(val recoverable: String)
+data class MarkRecoverableRequested(val recoverable: String, val failedAt: Long? = null)
 
-/** An operator asked the owning service to apply a retry spec to the entry; see [ApplyRetrySpec]. */
+/** An operator asked the owning service to apply a retry spec to the entry's parking at [failedAt]; see [ApplyRetrySpec]. */
 @Summary("A retry spec was requested")
 data class ApplyRetrySpecRequested(
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
     val claimTtl: String? = null,
+    val failedAt: Long? = null,
 )
 
 /** Where an entry is, as the ops view shows it: its ledger's status while parked, then [RESOLVED]. */

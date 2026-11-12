@@ -18,6 +18,7 @@ export interface ActionRefused {
  */
 export interface ApplyRetrySpec {
   claimTtl?: string | null;
+  failedAt?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
 }
@@ -29,6 +30,7 @@ export interface ApplyRetrySpec {
  */
 export interface ApplyRetrySpecRequested {
   claimTtl?: string | null;
+  failedAt?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
 }
@@ -57,6 +59,7 @@ export interface EntryRetrySpec {
  * - key: `me.ahoo.wow.ops.api.parked.MarkRecoverable`
  */
 export interface MarkRecoverable {
+  failedAt?: string | null;
   recoverable: string;
 }
 
@@ -66,6 +69,7 @@ export interface MarkRecoverable {
  * - key: `me.ahoo.wow.ops.api.parked.MarkRecoverableRequested`
  */
 export interface MarkRecoverableRequested {
+  failedAt?: string | null;
   recoverable: string;
 }
 

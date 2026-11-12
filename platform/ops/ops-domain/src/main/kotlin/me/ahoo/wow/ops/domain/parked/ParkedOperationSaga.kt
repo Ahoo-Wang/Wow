@@ -68,7 +68,9 @@ class ParkedOperationSaga {
                 id,
                 requested.failedAt ?: state.failedAt
             )
-            // Its value was checked when the operator asked ([Parked]): one of the mark's wire names.
+            // Its value was checked when the operator asked ([Parked]): one of the mark's wire names. The parking it
+            // names, as a retry's: the owning service refuses it when it holds another (null in an event recorded
+            // before the field, which acts on whichever parking is there).
             is MarkRecoverableRequested -> MarkParkedRecoverable.of(
                 subscription,
                 owner,
@@ -78,6 +80,7 @@ class ParkedOperationSaga {
                 checkNotNull(WireNames.entryOf<Recoverable>(requested.recoverable)) {
                     "Not a recoverable: '${requested.recoverable}'."
                 },
+                requested.failedAt,
             )
             is ApplyRetrySpecRequested -> ApplyParkedRetrySpec.of(
                 subscription,
@@ -88,6 +91,7 @@ class ParkedOperationSaga {
                 requested.maxRetries,
                 requested.initialBackoff,
                 requested.claimTtl,
+                requested.failedAt,
             )
 
             else -> return null

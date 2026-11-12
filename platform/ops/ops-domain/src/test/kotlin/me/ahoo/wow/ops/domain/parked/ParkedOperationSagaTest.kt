@@ -92,6 +92,24 @@ class ParkedOperationSagaTest {
     }
 
     @Test
+    fun `a mark and a retry spec carry the parking the operator acted on`() = sagaSpec(handlers) {
+        recorded()
+        val ref = ParkedSpec.AGGREGATE.toRef()
+        whenEvent(MarkRecoverableRequested("unrecoverable", failedAt = 100), by = MarkRecoverable::class) {
+            expectCommand(
+                MarkParkedRecoverable.of(ParkedSpec.SUBSCRIPTION, ref, Recoverable.UNRECOVERABLE, failedAt = 100),
+                to = target,
+            )
+        }
+        whenEvent(ApplyRetrySpecRequested(maxRetries = 2, failedAt = 100), by = ApplyRetrySpec::class) {
+            expectCommand(
+                ApplyParkedRetrySpec.of(ParkedSpec.SUBSCRIPTION, ref, maxRetries = 2, failedAt = 100),
+                to = target,
+            )
+        }
+    }
+
+    @Test
     fun `a command the owning service refuses is recorded on the entry (D226)`() = sagaSpec(handlers) {
         val parked = recorded()
         whenEvent(RetryRequested(), by = Retry::class) {

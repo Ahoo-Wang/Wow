@@ -215,7 +215,7 @@ class ParkedSpec {
                 expectState { requested.assert().isEqualTo(ParkedState.SKIP) }
             }
             whenCommand(MarkRecoverable("unrecoverable")) {
-                expectEvents(MarkRecoverableRequested("unrecoverable"))
+                expectEvents(MarkRecoverableRequested("unrecoverable", 100))
                 expectState { requested.assert().isEqualTo(ParkedState.MARK_RECOVERABLE) }
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
@@ -230,11 +230,16 @@ class ParkedSpec {
                 }
             }
             whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
-            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", claimTtl = "30s")) {
-                expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
+            whenCommand(MarkRecoverable("recoverable", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
+            whenCommand(ApplyRetrySpec(maxRetries = 3, failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
+            whenCommand(MarkRecoverable("recoverable", failedAt = 100)) {
+                expectEvents(MarkRecoverableRequested("recoverable", 100))
+            }
+            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", claimTtl = "30s", failedAt = 100)) {
+                expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s", 100))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
-            whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
+            whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested(failedAt = 100)) }
             // Its count and durations are input, refused at admission (ApplyRetrySpecInputTest), not by the entry.
             // The service's next record answers the request.
             whenCommand(RecordParked(entry("request" to "retry", "recordedAt" to 700))) {

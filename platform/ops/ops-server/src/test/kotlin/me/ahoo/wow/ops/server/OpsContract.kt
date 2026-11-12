@@ -216,13 +216,24 @@ abstract class OpsContract {
         ops.post("/ops/parked/$id/skip", """{"reason":"Refunded by hand."}""", Who.OPERATOR).assertOk()
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
+        // Each names the parking the entry records, which the owning service refuses once it holds another.
         WowJson.mapper.treeToValue(
             sent.getValue(Ledger.MARK_PARKED_RECOVERABLE).body,
             MarkParkedRecoverable::class.java,
         )
-            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), Recoverable.UNRECOVERABLE))
+            .assert()
+            .isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), Recoverable.UNRECOVERABLE, FAILED_AT))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_PARKED_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
-            .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
+            .assert()
+            .isEqualTo(
+                ApplyParkedRetrySpec.of(
+                    SAGA,
+                    aggregate.toRef(),
+                    maxRetries = 5,
+                    initialBackoff = "1m",
+                    failedAt = FAILED_AT,
+                ),
+            )
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP_PARKED).body, SkipParked::class.java)
             .assert().isEqualTo(SkipParked.of(SAGA, aggregate.toRef(), FAILED_AT))
 
