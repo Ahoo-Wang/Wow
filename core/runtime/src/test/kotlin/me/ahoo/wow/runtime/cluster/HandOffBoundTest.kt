@@ -89,9 +89,9 @@ class HandOffBoundTest {
                 runtime.partitions.assert().containsExactlyInAnyOrder(0, 1, 2, 3)
                 // Every partition has a checkpoint to save on its stop: past its first, which the start saved.
                 (0 until 4).forEach { partition ->
-                    appender.append(
-                        generateSequence(0) { it + 1 }.map { "a$it" }.first { Partitioner.partitionOf(cart(it), 4) == partition }
-                    )
+                    val id = generateSequence(0) { it + 1 }.map { "a$it" }
+                        .first { Partitioner.partitionOf(cart(it), 4) == partition }
+                    appender.append(id)
                 }
                 eventually { handled.get() == 4 }
                 down = true
@@ -99,8 +99,10 @@ class HandOffBoundTest {
                 runs.handOff(listOf(0, 1, 2, 3))
                 gates.assert().isEmpty()
                 leases.owners(GROUP.name).assert().isEmpty()
-                logged.list.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert()
-                    .contains("$NODE failed to stop the subscriptions of partition 1 in $GROUP; the partition's other parts are stopped all the same.")
+                logged.list.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert().contains(
+                    "$NODE failed to stop the subscriptions of partition 1 in $GROUP; " +
+                        "the partition's other parts are stopped all the same.",
+                )
             } finally {
                 logger.detachAppender(logged)
                 runtime.stop()

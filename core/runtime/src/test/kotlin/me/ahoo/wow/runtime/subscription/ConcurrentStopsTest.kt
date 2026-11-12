@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -32,6 +33,7 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -150,6 +152,46 @@ class ConcurrentStopsTest {
         }
 
     @Test
+    fun `a second stop of a partition being stopped waits for the first`(): Unit = stopsTest { runtime ->
+        runtime.startDraining(listOf(0))
+        val first = launch { runtime.stopPartition(0) }
+        runCurrent()
+        val second = launch { runtime.stopPartition(0) }
+        advanceTimeBy(STOP_TIMEOUT / 2)
+        second.isCompleted.assert().isFalse()
+
+        first.join()
+        second.join()
+        checkpoints.savedOf("s", 0).assert().isEqualTo(appender.ends[0]!! - 1)
+    }
+
+    @Test
+    fun `two starts of a partition at once open it once, the second waiting for the first`(): Unit =
+        stopsTest { runtime ->
+            runtime.start()
+            checkpoints.slowLoads = true
+            val first = launch { runtime.startPartition(0) }
+            runCurrent()
+            val second = launch { runtime.startPartition(0) }
+            runCurrent()
+            second.isCompleted.assert().isFalse()
+
+            first.join()
+            second.join()
+            runtime.partitions.assert().containsExactly(0)
+            source.most(0).assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a stop of the runtime tries every partition's save, and throws the first failure`(): Unit = stopsTest { runtime ->
+        runtime.startDraining(listOf(0, 1))
+        checkpoints.failing = setOf(0, 1)
+        assertThrows<IllegalStateException> { runtime.stop() }
+        checkpoints.attempts.map { it.partition }.toSet().assert().containsExactlyInAnyOrder(0, 1)
+        checkpoints.failing = emptySet()
+    }
+
+    @Test
     fun `a subscription added while a partition stops is attached to the partitions still read, not to it`(): Unit =
         stopsTest { runtime ->
             runtime.startDraining(listOf(0, 1))
@@ -187,6 +229,24 @@ class ConcurrentStopsTest {
         CheckpointStore by inner {
         val saves = CopyOnWriteArrayList<Checkpoint>()
 
+        /** The checkpoints asked to be saved in a partition that [failing] names. */
+        val attempts = CopyOnWriteArrayList<Checkpoint>()
+
+        /** The partitions whose saves fail. */
+        @Volatile
+        var failing: Set<Int> = emptySet()
+
+        /** Whether a load takes a second of virtual time. */
+        @Volatile
+        var slowLoads = false
+
+        override suspend fun load(group: String, subscription: String, partition: Int): Long? {
+            if (slowLoads) {
+                delay(1.seconds)
+            }
+            return inner.load(group, subscription, partition)
+        }
+
         suspend fun savedOf(subscription: String, partition: Int): Long? = inner.load("group", subscription, partition)
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
@@ -195,6 +255,9 @@ class ConcurrentStopsTest {
         }
 
         override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+            val failed = checkpoints.filter { it.partition in failing }
+            attempts += failed
+            check(failed.isEmpty()) { "The checkpoint store is down." }
             saves += checkpoints
             inner.saveAll(group, checkpoints)
         }
