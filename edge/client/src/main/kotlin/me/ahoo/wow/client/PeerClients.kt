@@ -39,6 +39,8 @@ import tools.jackson.databind.node.ObjectNode
  * How a peer context is reached over HTTP: [SERVICE], on its internal port as this service,
  * asserting the caller as the root of the call ([ClientMode.Service]); [USER], on its public routes, forwarding the end
  * user's credential ([ClientMode.User]).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class PeerMode {
     SERVICE,

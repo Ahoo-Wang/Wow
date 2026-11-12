@@ -25,6 +25,8 @@ package me.ahoo.wow.client
  * - [User]: on the peer's public routes ([Port.PUBLIC]), forwarding the end user's credential ([UserCredential]): the
  *   peer authenticates the user as its own edge would, and the caller a client was given ([me.ahoo.wow.api.client.
  *   CommandClient.of]) only chooses which credential to forward. Waits and streams are the public port's.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface ClientMode {
     /** The port of the peer this mode calls. */
