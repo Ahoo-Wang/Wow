@@ -34,7 +34,32 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 <!-- performance:begin -->
 <!-- 由 .github/scripts/docs-performance.mjs 依据各报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
 
-尚无报告在此引用其数字：全部测量见[报告](https://github.com/Ahoo-Wang/Wow/tree/main/test/benchmarks/results/reports)。
+**GitHub Actions，每个套件一台 4 核 runner**：[actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md)，构建 `d8284109df`。
+
+| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、构建 |
+| --- | ---: | --- | --- | --- | --- | --- |
+| MongoDB | 一个 | E1 | 均匀 | 2,166.1/s，闭环 | 1,353.8/s，开环，p99 171 ms | EPYC 7763，`d8284109df` |
+| MongoDB | 一个 | E2 | 均匀 | 1,353.4/s，闭环 | 676.7/s，开环，p99 196.6 ms | EPYC 7763，`d8284109df` |
+| MongoDB | 一个 | E3 | 均匀 | 776.8/s，闭环 | 485.5/s，开环，p99 161.8 ms | EPYC 7763，`d8284109df` |
+| PostgreSQL | 一个 | E1 | 均匀 | 4,912.5/s，闭环 | 2,609.8/s，开环，p99 160.8 ms | EPYC 9V45，`d8284109df` |
+| PostgreSQL | 一个 | E3 | 均匀 | 2,374/s，闭环 | 741.9/s，开环，p99 188.4 ms | EPYC 9V45，`d8284109df` |
+
+**Apple M5 Max，18 核，64 GB，一台主机**：[m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md)，构建 `d9b0781205`。
+
+| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、构建 |
+| --- | ---: | --- | --- | --- | --- | --- |
+| MongoDB | 一个 | E1 | 单个热点账户 | 6,911.2/s，1,024 个客户端 | 5,417.2/s，64 个客户端，p99 150.5 ms | Apple M5 Max，`d9b0781205` |
+| MongoDB | 一个 | E1 | 均匀 | ≥ 21,775.2/s，4,096 个客户端 | 19,759.6/s，1,024 个客户端，p99 102.4 ms | Apple M5 Max，`d9b0781205` |
+| MongoDB | 一个 | E1 | Zipf | 13,372.5/s，1,024 个客户端 | 3,353.8/s，64 个客户端，p99 197.6 ms | Apple M5 Max，`d9b0781205` |
+| MongoDB | 一个 | E3 | 均匀 | 7,341.7/s，1,024 个客户端 | 4,809.4/s，256 个客户端，p99 173.1 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 一个 | E1 | 单个热点账户 | 11,521.2/s，1,024 个客户端 | 8,520.7/s，256 个客户端，p99 155.6 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 一个 | E1 | 均匀 | ≥ 37,713.6/s，4,096 个客户端 | 23,030.1/s，1,024 个客户端，p99 74.8 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 一个 | E1 | Zipf | 17,090.6/s，1,024 个客户端 | 15,386.1/s，256 个客户端，p99 52.2 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 一个 | E3 | 均匀 | 7,956.2/s，1,024 个客户端 | 3,687.4/s，64 个客户端，p99 41.7 ms | Apple M5 Max，`d9b0781205` |
+| MongoDB | 3 | E1 | 均匀 | 16,657.2/s，1,024 个客户端 | 16,657.2/s，1,024 个客户端，p99 178.2 ms | Apple M5 Max，`d9b0781205` |
+| MongoDB | 3 | E3 | 均匀 | 5,380.1/s，1,024 个客户端 | 4,894.1/s，256 个客户端，p99 105 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 3 | E1 | 均匀 | 21,114.1/s，1,024 个客户端 | 21,114.1/s，1,024 个客户端，p99 122.9 ms | Apple M5 Max，`d9b0781205` |
+| PostgreSQL | 3 | E3 | 均匀 | 6,950.1/s，1,024 个客户端 | 6,119.1/s，256 个客户端，p99 75.8 ms | Apple M5 Max，`d9b0781205` |
 <!-- performance:end -->
 
 ## 怎样读 {#how-to-read}

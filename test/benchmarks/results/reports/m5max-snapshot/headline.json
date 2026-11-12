@@ -1,0 +1,1277 @@
+{
+  "schema": "wow-headline/1",
+  "report": "m5max-snapshot",
+  "environment": "m5max",
+  "figures": [
+    {
+      "id": "sweep.mongo.1.e1-hot-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "value": 6911.2,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 5417.2,
+        "clients": 64,
+        "p50Ms": 9,
+        "p99Ms": 150.5
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 344.2,
+          "p50Ms": 2.85,
+          "p99Ms": 5.7,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 829.3,
+          "p50Ms": 3.73,
+          "p99Ms": 12.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2203.6,
+          "p50Ms": 5.6,
+          "p99Ms": 20.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 5417.2,
+          "p50Ms": 8.96,
+          "p99Ms": 150.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 6687.8,
+          "p50Ms": 37.63,
+          "p99Ms": 248.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 6911.2,
+          "p50Ms": 187.39,
+          "p99Ms": 471,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 18645.7,
+          "p50Ms": 155.65,
+          "p99Ms": 4653.1,
+          "failedShare": 0.4949,
+          "refused": 548113
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-hot-sweep"
+    },
+    {
+      "id": "sweep.mongo.1.e1-hot-top",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 17971.2,
+          "p50Ms": 158.72,
+          "p99Ms": 4751.4,
+          "failedShare": 0.4946,
+          "refused": 527698
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-hot-top"
+    },
+    {
+      "id": "sweep.mongo.1.e1-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 21775.2,
+      "clients": 4096,
+      "lowerBound": true,
+      "single": false,
+      "sustainable": {
+        "value": 19759.6,
+        "clients": 1024,
+        "p50Ms": 52,
+        "p99Ms": 102.4
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 292.7,
+          "p50Ms": 2.98,
+          "p99Ms": 7.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 1020.6,
+          "p50Ms": 2.67,
+          "p99Ms": 11.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 1885.9,
+          "p50Ms": 6.53,
+          "p99Ms": 29.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 5093.1,
+          "p50Ms": 9.41,
+          "p99Ms": 153.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 11021.2,
+          "p50Ms": 18.69,
+          "p99Ms": 189.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 19759.6,
+          "p50Ms": 51.97,
+          "p99Ms": 102.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 21775.2,
+          "p50Ms": 171.01,
+          "p99Ms": 679.9,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-sweep"
+    },
+    {
+      "id": "sweep.mongo.1.e1-top",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 21822.6,
+      "clients": 4096,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 21822.6,
+          "p50Ms": 177.15,
+          "p99Ms": 503.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 8192,
+          "value": 17754.7,
+          "p50Ms": 423.94,
+          "p99Ms": 913.4,
+          "failedShare": 0.1643,
+          "refused": 104730
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-top"
+    },
+    {
+      "id": "sweep.mongo.1.e1-zipf-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "value": 13372.5,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 3353.8,
+        "clients": 64,
+        "p50Ms": 11.1,
+        "p99Ms": 197.6
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 292,
+          "p50Ms": 2.93,
+          "p99Ms": 7.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 998.9,
+          "p50Ms": 2.7,
+          "p99Ms": 14,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 1640.8,
+          "p50Ms": 5.66,
+          "p99Ms": 96.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 3353.8,
+          "p50Ms": 11.07,
+          "p99Ms": 197.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 8015.4,
+          "p50Ms": 18.94,
+          "p99Ms": 239.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 13372.5,
+          "p50Ms": 21.25,
+          "p99Ms": 585.7,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 15452.7,
+          "p50Ms": 66.05,
+          "p99Ms": 2490.4,
+          "failedShare": 0.1372,
+          "refused": 73748
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-zipf-sweep"
+    },
+    {
+      "id": "sweep.mongo.1.e1-zipf-top",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 17511.2,
+          "p50Ms": 66.05,
+          "p99Ms": 1859.6,
+          "failedShare": 0.1305,
+          "refused": 78858
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e1-zipf-top"
+    },
+    {
+      "id": "sweep.mongo.1.e3-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 7341.7,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 4809.4,
+        "clients": 256,
+        "p50Ms": 50.4,
+        "p99Ms": 173.1
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 174.3,
+          "p50Ms": 4.51,
+          "p99Ms": 14.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 407.3,
+          "p50Ms": 7.93,
+          "p99Ms": 29.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 1330.6,
+          "p50Ms": 9.98,
+          "p99Ms": 32.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 2576.8,
+          "p50Ms": 19.97,
+          "p99Ms": 191.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 4809.4,
+          "p50Ms": 50.43,
+          "p99Ms": 173.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 7341.7,
+          "p50Ms": 134.14,
+          "p99Ms": 401.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 4282.4,
+          "p50Ms": 485.38,
+          "p99Ms": 5931,
+          "failedShare": 0.7567,
+          "refused": 397534
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-mongo/e3-sweep"
+    },
+    {
+      "id": "sweep.postgres.1.e1-hot-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "value": 11521.2,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 8520.7,
+        "clients": 256,
+        "p50Ms": 30.8,
+        "p99Ms": 155.6
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 639.1,
+          "p50Ms": 1.2,
+          "p99Ms": 4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 729.5,
+          "p50Ms": 4.77,
+          "p99Ms": 15.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2955.3,
+          "p50Ms": 4.22,
+          "p99Ms": 16.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 7664.9,
+          "p50Ms": 7.01,
+          "p99Ms": 22.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 8520.7,
+          "p50Ms": 30.85,
+          "p99Ms": 155.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 11521.2,
+          "p50Ms": 134.14,
+          "p99Ms": 303.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 21779.9,
+          "p50Ms": 88.06,
+          "p99Ms": 1548.3,
+          "failedShare": 0.481,
+          "refused": 605525
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-hot-sweep"
+    },
+    {
+      "id": "sweep.postgres.1.e1-hot-top",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 21789.3,
+          "p50Ms": 89.09,
+          "p99Ms": 1490.9,
+          "failedShare": 0.4812,
+          "refused": 606290
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-hot-top"
+    },
+    {
+      "id": "sweep.postgres.1.e1-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 37713.6,
+      "clients": 4096,
+      "lowerBound": true,
+      "single": false,
+      "sustainable": {
+        "value": 23030.1,
+        "clients": 1024,
+        "p50Ms": 48.9,
+        "p99Ms": 74.8
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 776.3,
+          "p50Ms": 0.88,
+          "p99Ms": 3.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 684.4,
+          "p50Ms": 4.93,
+          "p99Ms": 16.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2643.5,
+          "p50Ms": 4.89,
+          "p99Ms": 15.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 9676.4,
+          "p50Ms": 5.38,
+          "p99Ms": 15.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 16241.7,
+          "p50Ms": 16.13,
+          "p99Ms": 28.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 23030.1,
+          "p50Ms": 48.9,
+          "p99Ms": 74.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 37713.6,
+          "p50Ms": 105.98,
+          "p99Ms": 212,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-sweep"
+    },
+    {
+      "id": "sweep.postgres.1.e1-top",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 36719.5,
+      "clients": 4096,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 36719.5,
+          "p50Ms": 108.54,
+          "p99Ms": 227.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 8192,
+          "value": 21273,
+          "p50Ms": 376.83,
+          "p99Ms": 557.1,
+          "failedShare": 0.04,
+          "refused": 26600
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-top"
+    },
+    {
+      "id": "sweep.postgres.1.e1-zipf-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "value": 17090.6,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 15386.1,
+        "clients": 256,
+        "p50Ms": 14.5,
+        "p99Ms": 52.2
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 524.3,
+          "p50Ms": 1.37,
+          "p99Ms": 4.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 684.1,
+          "p50Ms": 4.93,
+          "p99Ms": 16,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2466.7,
+          "p50Ms": 4.96,
+          "p99Ms": 18,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 7402.5,
+          "p50Ms": 6.56,
+          "p99Ms": 24.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 15386.1,
+          "p50Ms": 14.53,
+          "p99Ms": 52.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 17090.6,
+          "p50Ms": 19.33,
+          "p99Ms": 389.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 20308.3,
+          "p50Ms": 63.49,
+          "p99Ms": 1835,
+          "failedShare": 0.1202,
+          "refused": 83231
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-zipf-sweep"
+    },
+    {
+      "id": "sweep.postgres.1.e1-zipf-top",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lowerBound": false,
+      "single": false,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 4096,
+          "value": 20620.8,
+          "p50Ms": 63.74,
+          "p99Ms": 1703.9,
+          "failedShare": 0.1069,
+          "refused": 74031
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e1-zipf-top"
+    },
+    {
+      "id": "sweep.postgres.1.e3-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 7956.2,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 3687.4,
+        "clients": 64,
+        "p50Ms": 15.6,
+        "p99Ms": 41.7
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 396.3,
+          "p50Ms": 2.03,
+          "p99Ms": 10.7,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 422,
+          "p50Ms": 4.77,
+          "p99Ms": 30.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2195.1,
+          "p50Ms": 6.4,
+          "p99Ms": 19.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 3687.4,
+          "p50Ms": 15.55,
+          "p99Ms": 41.7,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 3650.8,
+          "p50Ms": 57.85,
+          "p99Ms": 704.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 7956.2,
+          "p50Ms": 100.86,
+          "p99Ms": 745.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 5222.8,
+          "p50Ms": 339.97,
+          "p99Ms": 6684.7,
+          "failedShare": 0.6969,
+          "refused": 359173
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/1-S-postgres/e3-sweep"
+    },
+    {
+      "id": "sweep.mongo.3.e1-c1024",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 3,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 15805.8,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": true,
+      "sustainable": {
+        "value": 15805.8,
+        "clients": 1024,
+        "p50Ms": 48.9,
+        "p99Ms": 192.5
+      },
+      "steps": [
+        {
+          "clients": 1024,
+          "value": 15805.8,
+          "p50Ms": 48.9,
+          "p99Ms": 192.5,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-mongo/e1-c1024"
+    },
+    {
+      "id": "sweep.mongo.3.e1-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 3,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 16657.2,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 16657.2,
+        "clients": 1024,
+        "p50Ms": 46.8,
+        "p99Ms": 178.2
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 289.4,
+          "p50Ms": 3.12,
+          "p99Ms": 7.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 941,
+          "p50Ms": 3.29,
+          "p99Ms": 10.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2455.2,
+          "p50Ms": 5.12,
+          "p99Ms": 17.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 6691.8,
+          "p50Ms": 7.58,
+          "p99Ms": 30.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 13448.1,
+          "p50Ms": 17.92,
+          "p99Ms": 42.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 16657.2,
+          "p50Ms": 46.85,
+          "p99Ms": 178.2,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 7741.7,
+          "p50Ms": 157.69,
+          "p99Ms": 3375.1,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-mongo/e1-sweep"
+    },
+    {
+      "id": "sweep.mongo.3.e3-c1024",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 3,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 5273.4,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": true,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 1024,
+          "value": 5273.4,
+          "p50Ms": 153.6,
+          "p99Ms": 581.6,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-mongo/e3-c1024"
+    },
+    {
+      "id": "sweep.mongo.3.e3-sweep",
+      "kind": "sweep",
+      "store": "mongo",
+      "nodes": 3,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 5380.1,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 4894.1,
+        "clients": 256,
+        "p50Ms": 49.4,
+        "p99Ms": 105
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 155,
+          "p50Ms": 5.92,
+          "p99Ms": 13.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 530.2,
+          "p50Ms": 6.4,
+          "p99Ms": 17.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 1150.2,
+          "p50Ms": 11.58,
+          "p99Ms": 56.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 2885.8,
+          "p50Ms": 20.99,
+          "p99Ms": 45.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 4894.1,
+          "p50Ms": 49.41,
+          "p99Ms": 105,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 5380.1,
+          "p50Ms": 149.5,
+          "p99Ms": 514,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 2495.1,
+          "p50Ms": 1277.95,
+          "p99Ms": 5636.1,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-mongo/e3-sweep"
+    },
+    {
+      "id": "sweep.postgres.3.e1-c1024",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 3,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 19000.2,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": true,
+      "sustainable": {
+        "value": 19000.2,
+        "clients": 1024,
+        "p50Ms": 36.9,
+        "p99Ms": 180.2
+      },
+      "steps": [
+        {
+          "clients": 1024,
+          "value": 19000.2,
+          "p50Ms": 36.86,
+          "p99Ms": 180.2,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-postgres/e1-c1024"
+    },
+    {
+      "id": "sweep.postgres.3.e1-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 3,
+      "scenario": "E1",
+      "keys": "uniform",
+      "value": 21114.1,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 21114.1,
+        "clients": 1024,
+        "p50Ms": 35.6,
+        "p99Ms": 122.9
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 722.8,
+          "p50Ms": 1.16,
+          "p99Ms": 3.4,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 1525.9,
+          "p50Ms": 1.9,
+          "p99Ms": 6.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 2618.5,
+          "p50Ms": 4.86,
+          "p99Ms": 15.5,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 7644.9,
+          "p50Ms": 6.78,
+          "p99Ms": 16.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 15953.2,
+          "p50Ms": 15.68,
+          "p99Ms": 28.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 21114.1,
+          "p50Ms": 35.58,
+          "p99Ms": 122.9,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 10824.4,
+          "p50Ms": 49.15,
+          "p99Ms": 3227.6,
+          "failedShare": 0.0238,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-postgres/e1-sweep"
+    },
+    {
+      "id": "sweep.postgres.3.e3-c1024",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 3,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 5807.8,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": true,
+      "sustainable": null,
+      "steps": [
+        {
+          "clients": 1024,
+          "value": 5807.8,
+          "p50Ms": 130.56,
+          "p99Ms": 806.9,
+          "failedShare": 0,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-postgres/e3-c1024"
+    },
+    {
+      "id": "sweep.postgres.3.e3-sweep",
+      "kind": "sweep",
+      "store": "postgres",
+      "nodes": 3,
+      "scenario": "E3",
+      "keys": "uniform",
+      "value": 6950.1,
+      "clients": 1024,
+      "lowerBound": false,
+      "single": false,
+      "sustainable": {
+        "value": 6119.1,
+        "clients": 256,
+        "p50Ms": 40.7,
+        "p99Ms": 75.8
+      },
+      "steps": [
+        {
+          "clients": 1,
+          "value": 308.2,
+          "p50Ms": 2.56,
+          "p99Ms": 7.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4,
+          "value": 408,
+          "p50Ms": 8.13,
+          "p99Ms": 26.1,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 16,
+          "value": 1129.4,
+          "p50Ms": 11.33,
+          "p99Ms": 182.3,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 64,
+          "value": 3214.2,
+          "p50Ms": 18.43,
+          "p99Ms": 45.6,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 256,
+          "value": 6119.1,
+          "p50Ms": 40.7,
+          "p99Ms": 75.8,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 1024,
+          "value": 6950.1,
+          "p50Ms": 119.81,
+          "p99Ms": 415.7,
+          "failedShare": 0,
+          "refused": 0
+        },
+        {
+          "clients": 4096,
+          "value": 3217.4,
+          "p50Ms": 700.41,
+          "p99Ms": 6979.6,
+          "failedShare": 0.0007,
+          "refused": 0
+        }
+      ],
+      "disturbed": [],
+      "void": [],
+      "commit": "d9b0781205",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "source": "m5max-snapshot/3-N-postgres/e3-sweep"
+    }
+  ]
+}

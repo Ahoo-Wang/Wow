@@ -1,0 +1,391 @@
+{
+  "schema": "wow-headline/1",
+  "report": "actions-axon",
+  "environment": "actions",
+  "figures": [
+    {
+      "id": "axon.axon-pg-contention.100k.e1-zipf.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lo": 0.99,
+      "hi": 1.06,
+      "bound": "~",
+      "band": 0.035,
+      "verdict": "undetermined (both lower bounds)",
+      "comparable": true,
+      "wow": [
+        5174.5,
+        5008.2
+      ],
+      "axon": [
+        5063.9,
+        4892.8
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg-contention.100k.e1-zipf.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lo": 1.08,
+      "hi": 1.16,
+      "bound": "",
+      "band": 0.058,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        4860.5,
+        4945.5
+      ],
+      "axon": [
+        4492.1,
+        4246.7
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg-contention.100k.e3-zipf.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "zipf",
+      "lo": 1.02,
+      "hi": 1.06,
+      "bound": "",
+      "band": 0.032,
+      "verdict": "level (within the A/A spread)",
+      "comparable": true,
+      "wow": [
+        1206.8,
+        1216.1
+      ],
+      "axon": [
+        1188.3,
+        1151.3
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg-contention.100k.e3-zipf.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "zipf",
+      "lo": 0.95,
+      "hi": 1.04,
+      "bound": "",
+      "band": 0.052,
+      "verdict": "level (within the A/A spread)",
+      "comparable": true,
+      "wow": [
+        1178.1,
+        1132.7
+      ],
+      "axon": [
+        1188.3,
+        1130.1
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg-contention.100k.e1-hot.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lo": 1.48,
+      "hi": 1.72,
+      "bound": "",
+      "band": 0.107,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        5196.4,
+        4692.8
+      ],
+      "axon": [
+        3019.1,
+        3161.5
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg-contention.100k.e1-hot.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "axon-pg-contention.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lo": 1.49,
+      "hi": 1.79,
+      "bound": "",
+      "band": 0.114,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        5196.4,
+        4664
+      ],
+      "axon": [
+        2895.5,
+        3123
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "footprint.axon-pg-contention.100k.wow",
+      "kind": "footprint",
+      "suite": "axon-pg-contention.100k",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        625,
+        626
+      ],
+      "bytesPerSnapshot": [
+        402,
+        416
+      ],
+      "readyMs": [
+        5572,
+        8355
+      ],
+      "rssMbAtReady": [
+        399,
+        402
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "footprint.axon-pg-contention.100k.axon",
+      "kind": "footprint",
+      "suite": "axon-pg-contention.100k",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        486,
+        486
+      ],
+      "bytesPerSnapshot": [
+        707,
+        718
+      ],
+      "readyMs": [
+        3544,
+        4333
+      ],
+      "rssMbAtReady": [
+        291,
+        297
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg-contention.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg.100k.e1.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "axon-pg.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 1.02,
+      "hi": 1.13,
+      "bound": "",
+      "band": 0.064,
+      "verdict": "level (within the A/A spread)",
+      "comparable": true,
+      "wow": [
+        3970.9,
+        3824.3
+      ],
+      "axon": [
+        3520.9,
+        3746.2
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg.100k.e1.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "axon-pg.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 0.92,
+      "hi": 1.07,
+      "bound": "",
+      "band": 0.115,
+      "verdict": "level (within the A/A spread)",
+      "comparable": true,
+      "wow": [
+        3014.4,
+        3360.2
+      ],
+      "axon": [
+        3139.6,
+        3293.4
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg.100k.e3.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "axon-pg.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 1.89,
+      "hi": 2.33,
+      "bound": "",
+      "band": 0.122,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        1549.5,
+        1413.3
+      ],
+      "axon": [
+        664.5,
+        745.9
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    },
+    {
+      "id": "axon.axon-pg.100k.e3.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "axon-pg.100k",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 0.94,
+      "hi": 1.8,
+      "bound": "",
+      "band": 0.619,
+      "verdict": "level (within the A/A spread)",
+      "comparable": true,
+      "wow": [
+        737.1,
+        627
+      ],
+      "axon": [
+        664.5,
+        410.4
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    },
+    {
+      "id": "footprint.axon-pg.100k.wow",
+      "kind": "footprint",
+      "suite": "axon-pg.100k",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        626,
+        627
+      ],
+      "bytesPerSnapshot": [
+        439,
+        441
+      ],
+      "readyMs": [
+        7096,
+        10841
+      ],
+      "rssMbAtReady": [
+        401,
+        408
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    },
+    {
+      "id": "footprint.axon-pg.100k.axon",
+      "kind": "footprint",
+      "suite": "axon-pg.100k",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        477,
+        482
+      ],
+      "readyMs": [
+        3839,
+        3955
+      ],
+      "rssMbAtReady": [
+        286,
+        289
+      ],
+      "commit": "3fd5349050",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "run": "41681347500",
+      "source": "actions-axon/axon-pg.100k/suite.json"
+    }
+  ]
+}
