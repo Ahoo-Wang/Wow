@@ -1,0 +1,819 @@
+{
+  "schema": "wow-headline/1",
+  "report": "m5max-axon",
+  "environment": "m5max",
+  "figures": [
+    {
+      "id": "axon.m5max-axon-contention-e1-hot.e1-hot.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-contention-e1-hot",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lo": 8.9,
+      "hi": 9.09,
+      "bound": "≥",
+      "band": 0.013,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        23942.7,
+        23634.2
+      ],
+      "axon": [
+        2654.4,
+        2633.3
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-hot/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-contention-e1-hot.e1-hot.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-contention-e1-hot",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "hot",
+      "lo": 5.13,
+      "hi": 5.42,
+      "bound": "",
+      "band": 0.048,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        14274.4,
+        13617.9
+      ],
+      "axon": [
+        2654.4,
+        2633.3
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-hot/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e1-hot.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e1-hot",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        620,
+        620
+      ],
+      "bytesPerSnapshot": [
+        440,
+        440
+      ],
+      "readyMs": [
+        1793,
+        1834
+      ],
+      "rssMbAtReady": [
+        465,
+        470
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-hot/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e1-hot.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e1-hot",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        473,
+        473
+      ],
+      "bytesPerSnapshot": [
+        278528,
+        278528
+      ],
+      "readyMs": [
+        1148,
+        1154
+      ],
+      "rssMbAtReady": [
+        371,
+        398
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-hot/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-contention-e1-zipf.e1-zipf.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-contention-e1-zipf",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lo": 3.75,
+      "hi": 3.88,
+      "bound": "≥",
+      "band": 0.02,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        23812.1,
+        23351.7
+      ],
+      "axon": [
+        6142,
+        6219.7
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-zipf/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-contention-e1-zipf.e1-zipf.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-contention-e1-zipf",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "zipf",
+      "lo": 3.02,
+      "hi": 3.23,
+      "bound": "",
+      "band": 0.056,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        19837,
+        18780.8
+      ],
+      "axon": [
+        6142,
+        6219.7
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-zipf/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e1-zipf.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e1-zipf",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        628,
+        628
+      ],
+      "bytesPerSnapshot": [
+        438,
+        439
+      ],
+      "readyMs": [
+        1790,
+        1827
+      ],
+      "rssMbAtReady": [
+        465,
+        471
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-zipf/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e1-zipf.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e1-zipf",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        470,
+        471
+      ],
+      "bytesPerSnapshot": [
+        958,
+        1129
+      ],
+      "readyMs": [
+        1148,
+        1150
+      ],
+      "rssMbAtReady": [
+        379,
+        379
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e1-zipf/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-contention-e3-zipf.e3-zipf.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-contention-e3-zipf",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "zipf",
+      "lo": 1.37,
+      "hi": 1.45,
+      "bound": "",
+      "band": 0.047,
+      "verdict": "wow higher",
+      "comparable": false,
+      "wow": [
+        2447.5,
+        2562.2
+      ],
+      "axon": [
+        1784.9,
+        1768.7
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e3-zipf/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-contention-e3-zipf.e3-zipf.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-contention-e3-zipf",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "zipf",
+      "lo": 1.37,
+      "hi": 1.45,
+      "bound": "",
+      "band": 0.047,
+      "verdict": "wow higher",
+      "comparable": false,
+      "wow": [
+        2447.5,
+        2562.2
+      ],
+      "axon": [
+        1784.9,
+        1768.7
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e3-zipf/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e3-zipf.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e3-zipf",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        614,
+        616
+      ],
+      "bytesPerSnapshot": [
+        438,
+        439
+      ],
+      "readyMs": [
+        1809,
+        1816
+      ],
+      "rssMbAtReady": [
+        463,
+        476
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e3-zipf/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-contention-e3-zipf.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-contention-e3-zipf",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        513,
+        513
+      ],
+      "bytesPerSnapshot": [
+        785,
+        869
+      ],
+      "readyMs": [
+        1139,
+        1143
+      ],
+      "rssMbAtReady": [
+        382,
+        403
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-contention-e3-zipf/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-peak-e1.e1.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-peak-e1",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 4.83,
+      "hi": 4.84,
+      "bound": "",
+      "band": 0.001,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        37311.3,
+        37343.8
+      ],
+      "axon": [
+        7725,
+        7716.2
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e1/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-peak-e1.e1.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-peak-e1",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 4.83,
+      "hi": 4.84,
+      "bound": "",
+      "band": 0.001,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        37311.3,
+        37343.8
+      ],
+      "axon": [
+        7725,
+        7716.2
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e1/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-peak-e1.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-peak-e1",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        615,
+        615
+      ],
+      "bytesPerSnapshot": [
+        502,
+        503
+      ],
+      "readyMs": [
+        1790,
+        1823
+      ],
+      "rssMbAtReady": [
+        461,
+        487
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e1/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-peak-e1.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-peak-e1",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        462,
+        462
+      ],
+      "readyMs": [
+        1137,
+        1151
+      ],
+      "rssMbAtReady": [
+        371,
+        385
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e1/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-peak-e3.e3.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-peak-e3",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 5.18,
+      "hi": 5.36,
+      "bound": "",
+      "band": 0.03,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        12404.3,
+        12041.8
+      ],
+      "axon": [
+        2314.5,
+        2326.5
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e3/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-peak-e3.e3.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-peak-e3",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 5.02,
+      "hi": 5.04,
+      "bound": "",
+      "band": 0.002,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        11654.6,
+        11668.1
+      ],
+      "axon": [
+        2314.5,
+        2319.7
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e3/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-peak-e3.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-peak-e3",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        600,
+        600
+      ],
+      "bytesPerSnapshot": [
+        540,
+        553
+      ],
+      "readyMs": [
+        1810,
+        1824
+      ],
+      "rssMbAtReady": [
+        485,
+        486
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e3/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-peak-e3.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-peak-e3",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        500,
+        500
+      ],
+      "bytesPerSnapshot": [
+        2249,
+        2671
+      ],
+      "readyMs": [
+        1133,
+        1141
+      ],
+      "rssMbAtReady": [
+        367,
+        397
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-peak-e3/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-pool-32-e1.e1.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-pool-32-e1",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 2.51,
+      "hi": 2.58,
+      "bound": "",
+      "band": 0.016,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        37065.2,
+        37553.6
+      ],
+      "axon": [
+        14538.1,
+        14771
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e1/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-pool-32-e1.e1.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-pool-32-e1",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "lo": 2.51,
+      "hi": 2.58,
+      "bound": "",
+      "band": 0.016,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        37065.2,
+        37553.6
+      ],
+      "axon": [
+        14538.1,
+        14771
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e1/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-pool-32-e1.wow-pool-32",
+      "kind": "footprint",
+      "suite": "m5max-axon-pool-32-e1",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        613,
+        613
+      ],
+      "bytesPerSnapshot": [
+        492,
+        494
+      ],
+      "readyMs": [
+        1824,
+        1830
+      ],
+      "rssMbAtReady": [
+        470,
+        470
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e1/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-pool-32-e1.axon-pool-32",
+      "kind": "footprint",
+      "suite": "m5max-axon-pool-32-e1",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        454,
+        457
+      ],
+      "readyMs": [
+        1135,
+        1143
+      ],
+      "rssMbAtReady": [
+        376,
+        400
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e1/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-pool-32-e3.e3.peak",
+      "kind": "ratio",
+      "measure": "peak",
+      "suite": "m5max-axon-pool-32-e3",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 3.31,
+      "hi": 3.36,
+      "bound": "",
+      "band": 0.01,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        12386.1,
+        12510
+      ],
+      "axon": [
+        3741.8,
+        3718.3
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e3/suite.json"
+    },
+    {
+      "id": "axon.m5max-axon-pool-32-e3.e3.sustainable",
+      "kind": "ratio",
+      "measure": "sustainable",
+      "suite": "m5max-axon-pool-32-e3",
+      "store": "postgres",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "lo": 3.13,
+      "hi": 3.18,
+      "bound": "",
+      "band": 0.012,
+      "verdict": "wow higher",
+      "comparable": true,
+      "wow": [
+        11571.7,
+        11713.3
+      ],
+      "axon": [
+        3683.8,
+        3697.5
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e3/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-pool-32-e3.wow-pool-32",
+      "kind": "footprint",
+      "suite": "m5max-axon-pool-32-e3",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        599,
+        599
+      ],
+      "bytesPerSnapshot": [
+        460,
+        519
+      ],
+      "readyMs": [
+        1801,
+        1818
+      ],
+      "rssMbAtReady": [
+        500,
+        513
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e3/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-pool-32-e3.axon-pool-32",
+      "kind": "footprint",
+      "suite": "m5max-axon-pool-32-e3",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        503,
+        505
+      ],
+      "bytesPerSnapshot": [
+        540,
+        889
+      ],
+      "readyMs": [
+        1135,
+        1151
+      ],
+      "rssMbAtReady": [
+        361,
+        367
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-pool-32-e3/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-same-rate.wow",
+      "kind": "footprint",
+      "suite": "m5max-axon-same-rate",
+      "arm": "wow",
+      "store": "postgres",
+      "bytesPerEvent": [
+        631,
+        632
+      ],
+      "bytesPerSnapshot": [
+        439,
+        442
+      ],
+      "readyMs": [
+        1807,
+        1817
+      ],
+      "rssMbAtReady": [
+        464,
+        466
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-same-rate/suite.json"
+    },
+    {
+      "id": "footprint.m5max-axon-same-rate.axon",
+      "kind": "footprint",
+      "suite": "m5max-axon-same-rate",
+      "arm": "axon",
+      "store": "postgres",
+      "bytesPerEvent": [
+        477,
+        477
+      ],
+      "readyMs": [
+        1127,
+        1143
+      ],
+      "rssMbAtReady": [
+        374,
+        388
+      ],
+      "commit": "cc11b16aa8",
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-axon/m5max-axon-same-rate/suite.json"
+    }
+  ]
+}

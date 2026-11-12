@@ -14,9 +14,10 @@
 # drill.sh's verdict: the end-to-end suite through the ingress, the load it judges an operation under (steps 3 to 9),
 # and the alerts' history (step 10), sourced by drill.sh: its settings and helpers are in scope.
 
-# The cluster test through the ingress, with the run's JWT secret and the deployment's partitions (deploy/: 64), in
-# the drill's namespace, its data under the run's prefix. <scenarios> selects what it runs (the cluster test's
-# ga.scenarios); its report goes to evidence/e2e/<label>.
+# The cluster test through the ingress (RcDrillTest), with the run's JWT secret and the deployment's partitions
+# (deploy/: 64), its kubectl in the drill's namespace (the kind context's, which cluster sets), the stores read as
+# drill-reader. The drill's record is kept across its runs in evidence/e2e/state, so each run judges the whole drill.
+# <scenarios> selects what it runs (ga.scenarios); its report goes to evidence/e2e/<label>.
 e2e() {
   local scenarios=$1 label=${2:-$1} extra=("${@:3}")
   mkdir -p "$evidence/e2e/$label"
@@ -24,7 +25,7 @@ e2e() {
   PATH="$(dirname "$kubectl"):$PATH" "$root/gradlew" -p "$root" :eshop-e2e:clusterTest --console=plain \
     "-Pga.gateway=$gateway" "-Pga.secret=$(cat "$evidence/secrets/JWT")" -Pga.backend=mongo -Pga.partitions=64 \
     "-Pwow.test.java=$RUN_JDK" \
-    "-Pga.namespace=$namespace" "-Pga.run=$(basename "$evidence")" "-Pga.scenarios=$scenarios" \
+    "-Pga.state=$evidence/e2e/state" -Pga.mongo-user=drill-reader "-Pga.scenarios=$scenarios" \
     "-Pga.report=$evidence/e2e/$label" ${extra[@]+"${extra[@]}"}
 }
 

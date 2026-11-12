@@ -436,6 +436,12 @@ class Kernel(
     fun <S : Any> snapshotState(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? =
         source.stateOf(model, snapshot)
 
+    /**
+     * [store] as a cache-miss load reads it: a snapshot that fails to load is none, so the state is replayed from the
+     * log; each failure is counted (`wow.store.fallbacks`), the first logged as a warning.
+     */
+    fun tolerant(store: SnapshotStore): SnapshotStore = TolerantSnapshots(store, observer)
+
     /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
     fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)
 

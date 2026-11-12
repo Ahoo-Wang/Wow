@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.kernel
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
@@ -30,10 +34,14 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Reason.FAILED
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
 
@@ -242,6 +250,68 @@ class KernelSnapshotTest {
         val outcome = failing.execute(cartModel, Command("c-down", "r-down", ref, AddItem("apple", 10)))
         outcome.cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
         log.streamsRead.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `each snapshot load that fails is counted as a fallback to the log`() = runTest {
+        history()
+        val fallbacks = ArrayList<ObservedEvent.StoreFellBack>()
+        val observer = object : Observer {
+            override fun observed(event: ObservedEvent) {
+                if (event is ObservedEvent.StoreFellBack) fallbacks += event
+            }
+        }
+        val down = FailingStore(IllegalStateException("store down"))
+        val failing = Kernel(log, codec, snapshots = down, observer = observer)
+        failing.execute(cartModel, Command("c-down", "r-down", ref, AddItem("apple", 10))).cart()
+        // A state consumer reads the store as the kernel's cache-miss load does.
+        val tolerant = failing.tolerant(down)
+        tolerant.load(ref).assert().isNull()
+        tolerant.load(ref).assert().isNull()
+        fallbacks.map { Triple(it.context, it.capability, it.reason) }.assert().containsExactly(
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+        )
+    }
+
+    @Test
+    fun `the first failed snapshot load of each outage is a warning, the rest of it at debug level`() = runTest {
+        history()
+        val store = object : SnapshotStore by InMemorySnapshotStore() {
+            var down = true
+
+            override suspend fun load(ref: AggregateRef): SnapshotRecord? =
+                if (down) throw IllegalStateException("store down") else null
+        }
+        val tolerant = Kernel(log, codec).tolerant(store)
+        val logged = loggedLoads {
+            // One outage: three failures, one warning.
+            repeat(3) { tolerant.load(ref).assert().isNull() }
+            // A load that succeeds ends it.
+            store.down = false
+            tolerant.load(ref).assert().isNull()
+            // The next failure is the next outage's first.
+            store.down = true
+            tolerant.load(ref).assert().isNull()
+        }
+        logged.assert().containsExactly(Level.WARN, Level.DEBUG, Level.DEBUG, Level.WARN)
+    }
+
+    /** The levels the kernel logged a failed snapshot load at while [block] ran. */
+    private suspend fun loggedLoads(block: suspend () -> Unit): List<Level> {
+        val logger = LoggerFactory.getLogger("me.ahoo.wow.kernel") as Logger
+        val level = logger.level
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.level = Level.DEBUG
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+            logger.level = level
+        }
+        return appender.list.filter { it.formattedMessage.startsWith("Loading the snapshot of") }.map { it.level }
     }
 
     @Test

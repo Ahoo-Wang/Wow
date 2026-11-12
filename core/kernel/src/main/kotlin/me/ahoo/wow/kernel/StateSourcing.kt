@@ -44,7 +44,7 @@ internal class StateSourcing(
     snapshotTailReaders: (AggregateType) -> SnapshotTailReader?,
 ) {
     /** The snapshots a cache miss reads with the log's tail, a failing load read as none. */
-    private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
+    private val loading: SnapshotStore? = snapshots?.let { TolerantSnapshots(it, observer) }
 
     /** How a cache miss reads the snapshot with the tail: in one round trip where the log can. */
     private val snapshotTails = SnapshotTailReads(log, snapshotTailReaders, observer)

@@ -1,7 +1,7 @@
 # Each measurement of a run with the host's load beside it: a sweep's summary.md (its steps, the other processes' CPU
 # and the load average during each, and whether another process disturbed it), and the run's SUMMARY.md on stdout
 # (every measurement's peak or rate, and the host's load before and after it).
-#   python3 -I summarize.py <raw output root> [--disturbed-cores=2]
+#   python3 -I summarize.py <raw output root> [--disturbed-cores=2] [--json=<file>]
 #   python3 -I summarize.py --peak [--next] --ports=<n> <sweep directory>...
 #   python3 -I summarize.py --check <measurement directory>
 #
@@ -26,6 +26,10 @@
 # is a lower bound, written ≥; a failure never makes one. A sweep's
 # sustainable throughput is that of its highest step with a p99 of SUSTAINABLE_P99_MS or less and no error; it is not
 # the peak. A fixed-rate run reached its rate when it answered REACHED_SHARE of it or more with no failure.
+#
+# --json also writes what SUMMARY.md says as data, for the documentation's figures (the headline writer,
+# .github/scripts/bench-headline.mjs): each measurement's peak, sustainable step, every step, and its disturbed and
+# void steps, from the same values.
 import datetime
 import glob
 import json
@@ -465,6 +469,23 @@ def sweep(directory, label):
     last = steps[-1] if steps else None
     fit = sustainable(steps)
     return {
+        "data": {
+            "kind": "sweep",
+            "scenario": result.get("scenario"),
+            "keys": result.get("keys", {}).get("distribution"),
+            "nodes": meta.get("nodes"),
+            "backend": meta.get("backend"),
+            "peak": {"throughput": best["throughput"], "clients": best["concurrency"], "lowerBound": lower_bound,
+                     "single": single} if best else None,
+            "sustainable": {"throughput": fit["throughput"], "clients": fit["concurrency"], "p50Ms": fit["p50Ms"],
+                            "p99Ms": fit["p99Ms"]} if fit else None,
+            "steps": [{"clients": step["concurrency"], "throughput": step["throughput"], "p50Ms": step["p50Ms"],
+                       "p99Ms": step["p99Ms"], "failedShare": failed_share(step), "errors": step["errors"]}
+                      for step in steps],
+            "disturbed": disturbed,
+            "void": void,
+            "generatorBound": bounded,
+        },
         "peak": peak,
         "sustainable": f"{fit['throughput']:,.1f}/s at {fit['concurrency']:,}" if fit else "none",
         "last": f"{last['throughput']:,.1f}/s at {last['concurrency']:,}, errors {errors_text(last['errors'])}" if last else "–",
@@ -491,6 +512,21 @@ def fixed(directory):
     rate = result["load"]["rate"]
     reached = r["throughput"] >= REACHED_SHARE * rate and r["failed"] == 0
     return {
+        "data": {
+            "kind": "fixed",
+            "scenario": result.get("scenario"),
+            "nodes": result.get("meta", {}).get("nodes"),
+            "backend": result.get("meta", {}).get("backend"),
+            "rate": rate,
+            "throughput": r["throughput"],
+            "p50Ms": r["latencyMs"]["p50"],
+            "p99Ms": r["latencyMs"]["p99"],
+            "failed": r["failed"],
+            "reached": reached,
+            "commit": environment.get("commit"),
+            "disturbed": bool(w and w["disturbed"]),
+            "void": bool(w and w["void"]),
+        },
         "peak": f"{r['throughput']:,.1f}/s at {rate:,.0f}/s ({'reached' if reached else '**not reached**'}), "
                 f"p50 {r['latencyMs']['p50']:.2f} ms, p99 {r['latencyMs']['p99']:.1f} ms, failed {r['failed']}",
         "last": f"commit {environment.get('commit', '?')[:10]}, dirty {environment.get('dirty')}, started {started}",
@@ -525,7 +561,7 @@ def check(directory):
     return found
 
 
-def main(root):
+def main(root, json_path=None):
     print(f"# {os.path.basename(os.path.abspath(root))}: measurements\n")
     try:
         with open(os.path.join(root, "environment.txt"), encoding="utf-8") as file:
@@ -536,7 +572,7 @@ def main(root):
           f"{FAILED_SHARE:.0%} | Last step or provenance | Disturbed steps | Void steps | Generator-bound steps "
           "| Load before | Load after |")
     print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-    allowed, jvms, measurements = [], set(), 0
+    allowed, jvms, measurements, data = [], set(), 0, {}
     for path, directories, files in os.walk(root):
         # The sessions a rerun replaced are not the run's.
         directories[:] = sorted(name for name in directories if not (path == root and name == "replaced"))
@@ -547,6 +583,7 @@ def main(root):
         elif "result.json" in files:
             row = fixed(path)
         if row:
+            data[label] = dict(row["data"], setAside=".void-" in label)
             if ".void-" in label:
                 row["void"] += " (an attempt set aside: void by the rule in force when it was measured, the script's log)"
             print(f"| {label} | {row['peak']} | {row['sustainable']} | {row['failed']} | {row['last']} "
@@ -562,6 +599,11 @@ def main(root):
               f"samples in a row at {VOID_JVM_CORES:.0%} or more, or a build request in a daemon's log "
               "(allowed-jvms.txt).")
     print(f"\nOther JVMs seen during the measurements: {', '.join(sorted(jvms)) or 'none'}.")
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as file:
+            json.dump({"schema": "wow-m5max-snapshot/summary/1", "sustainableP99Ms": SUSTAINABLE_P99_MS,
+                       "failedShare": FAILED_SHARE, "measurements": data}, file, indent=2, sort_keys=True)
+            file.write("\n")
 
 
 if __name__ == "__main__":
@@ -585,4 +627,5 @@ if __name__ == "__main__":
     elif len(arguments) != 1:
         sys.exit("usage: summarize.py <raw output root> [--disturbed-cores=2]")
     else:
-        main(arguments[0])
+        json_paths = [flag.split("=", 1)[1] for flag in flags if flag.startswith("--json=")]
+        main(arguments[0], json_paths[0] if json_paths else None)

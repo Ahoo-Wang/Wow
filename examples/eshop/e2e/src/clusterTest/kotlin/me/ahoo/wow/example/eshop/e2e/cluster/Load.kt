@@ -17,8 +17,11 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
-/** Full-chain checkouts on a thread of their own while a fault runs, so it happens mid-checkout. */
-class Load(private val flows: ShopFlows) {
+/**
+ * Full-chain checkouts on a thread of their own while a fault runs, so it happens mid-checkout, each by a buyer of its
+ * own named [prefix]-<n>: a run that keeps its record across test runs gives each its own prefix.
+ */
+class Load(private val flows: ShopFlows, private val prefix: String = "load") {
     @Volatile
     private var running = false
     private var worker: Thread? = null
@@ -29,7 +32,7 @@ class Load(private val flows: ShopFlows) {
         running = true
         worker = thread(name = "load", isDaemon = true) {
             while (running) {
-                val buyer = "load-${LOADS.incrementAndGet()}"
+                val buyer = "$prefix-${LOADS.incrementAndGet()}"
                 runCatching {
                     if (flows.addItem(buyer, "sock", "5.00", 1).status == ShopFlows.OK) {
                         flows.checkout(buyer, mapOf(ShopFlows.WAIT to ShopFlows.FULL_CHAIN, ShopFlows.WAIT_TIMEOUT to "20s"))

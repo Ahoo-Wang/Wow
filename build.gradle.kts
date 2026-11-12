@@ -145,8 +145,8 @@ val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBe
 // What the BOM constrains: exactly the libraries a 10.x release publishes.
 val bomConstrainedProjects = publishedLibraries
 val isInCI = !System.getenv("CI").isNullOrEmpty()
-// The JDK the tests run on, when not the toolchain's: off pull requests CI runs them on Temurin 25 too
-// (`-Pwow.test.java=25`; D29 tests on 21 and 25, D368 recommends 25), while the toolchain still compiles for 21.
+// The JDK the tests run on, when not the toolchain's: CI runs them on Temurin 25 (`-Pwow.test.java=25`; D368 runs
+// Wow on 25), and off pull requests on the toolchain's 21 too (D29), while the toolchain still compiles for 21.
 val testJava = providers.gradleProperty("wow.test.java").orNull
 ext.set("libraryProjects", libraryProjects)
 ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)

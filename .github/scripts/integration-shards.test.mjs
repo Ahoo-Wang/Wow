@@ -23,7 +23,7 @@ const workflow = `jobs:
     strategy:
       matrix:
         shard: [host, rest]
-        java: \${{ fromJSON('["21", "25"]') }}
+        java: \${{ fromJSON('["25", "21"]') }}
         include:
           - shard: rest
             publications: true
@@ -32,7 +32,7 @@ const workflow = `jobs:
     strategy:
       matrix:
         shard: [stores, apps]
-        java: \${{ fromJSON('["21", "25"]') }}
+        java: \${{ fromJSON('["25", "21"]') }}
         include:
           - shard: stores
             projects: :mongo :postgres

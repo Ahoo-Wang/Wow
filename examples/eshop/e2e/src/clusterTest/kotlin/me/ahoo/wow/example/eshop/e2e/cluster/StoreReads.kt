@@ -47,9 +47,16 @@ interface StoreReads {
     fun lastHeaders(context: String, aggregate: String, id: String): JsonNode
 
     companion object {
-        /** The reads of the arm [backend]: PostgreSQL through its node port, MongoDB through mongosh in its pod. */
-        fun of(backend: String, kube: Kube, postgres: String): StoreReads =
-            if (backend == "mongo") MongoReads(kube) else PostgresReads(postgres)
+        /**
+         * The reads of the arm [backend]: PostgreSQL through its node port, MongoDB through mongosh in its pod, as
+         * [mongoUser] when the replica set has authentication (the rc drill's: `ga.mongo-user`).
+         */
+        fun of(
+            backend: String,
+            kube: Kube,
+            postgres: String,
+            mongoUser: String? = System.getProperty("ga.mongo-user")?.takeIf { it.isNotBlank() },
+        ): StoreReads = if (backend == "mongo") MongoReads(kube, mongoUser) else PostgresReads(postgres)
     }
 }
 
@@ -108,9 +115,21 @@ class PostgresReads(private val url: String) : StoreReads {
  * records the ones no stream took as placeholders (decision D271), so a sequence missing between two that are taken is
  * a block still open, not a loss: unlike PostgreSQL's dense counter, it is not counted as a violation.
  */
-class MongoReads(private val kube: Kube) : StoreReads {
+class MongoReads(private val kube: Kube, private val user: String? = null) : StoreReads {
+    /**
+     * The replica set's URI as a JavaScript expression in [SHELL]: [URI] itself, or, as [user], with the password the
+     * shell's environment holds (the rc drill's `mongo-shell`: `DRILL_READER_PASSWORD`), so it never leaves the pod.
+     */
+    private val uri: String = if (user == null) {
+        "'$URI'"
+    } else {
+        "'mongodb://$user:' + process.env.$PASSWORD + '@$HOSTS/?replicaSet=rs0&authSource=admin'"
+    }
+
     private fun eval(context: String, script: String): JsonNode {
-        val full = MongoLogChecks.program(URI, "eshop_$context", script)
+        // MongoLogChecks.program's, with the URI as an expression.
+        val full = "const db = connect($uri).getSiblingDB('eshop_$context'); " +
+            "print(EJSON.stringify((() => { $script })(), { relaxed: true }))"
         val result = kube.exec(SHELL, "mongosh", "--quiet", "--nodb", "--eval", full)
         check(result.ok) { "mongosh on eshop_$context failed: ${result.err.take(ERROR)}${result.out.take(ERROR)}" }
         return json.readTree(result.out.trim().lineSequence().last())
@@ -191,8 +210,14 @@ class MongoReads(private val kube: Kube) : StoreReads {
         /** The pod the harness runs mongosh in (`.github/ga-e2e/backends/mongodb/shell.yaml`). */
         const val SHELL = "mongo-shell"
 
+        /** The replica set's members, as mongosh reaches them from [SHELL]. */
+        const val HOSTS = "mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017"
+
         /** The replica set, as mongosh connects to it from [SHELL]. */
-        const val URI = "mongodb://mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017/?replicaSet=rs0"
+        const val URI = "mongodb://$HOSTS/?replicaSet=rs0"
+
+        /** The variable of [SHELL]'s environment that holds the reading user's password, when the set has users. */
+        const val PASSWORD = "DRILL_READER_PASSWORD"
         private const val ERROR = 500
     }
 }

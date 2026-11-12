@@ -958,6 +958,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack : me/
 }
 
 public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability : java/lang/Enum {
+	public static final field SNAPSHOT_LOAD Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static final field SNAPSHOT_REBUILD Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static final field SNAPSHOT_TAIL_READ Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
