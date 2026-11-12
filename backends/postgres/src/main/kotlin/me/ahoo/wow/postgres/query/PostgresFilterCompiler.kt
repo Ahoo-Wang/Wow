@@ -160,10 +160,9 @@ internal class PostgresFilterCompiler(
     private fun elementMatch(filter: ElementMatchFilter): String {
         val container = query.field(filter.field)
         val alias = nextAlias()
-        val elements = objectElements(node(container))
+        val elements = objectElements(node(container), alias)
         val predicate = within(container.physicalField, "$alias.v") { filter(filter.predicate) }
-        return "EXISTS (SELECT 1 FROM jsonb_array_elements($elements) AS $alias(v) " +
-            "WHERE jsonb_typeof($alias.v) = 'object' AND $predicate)"
+        return "EXISTS (SELECT 1 FROM $elements WHERE jsonb_typeof($alias.v) = 'object' AND $predicate)"
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -253,8 +252,7 @@ internal class PostgresFilterCompiler(
         if (!field.multiValued) return "(${predicate(typed(field).first, type)})"
         val alias = nextAlias()
         val element = expressions.value("$alias.v", emptyList(), type)
-        return "EXISTS (SELECT 1 FROM jsonb_array_elements(${asArray(node(field))}) AS $alias(v) " +
-            "WHERE ${predicate(element, type)})"
+        return "EXISTS (SELECT 1 FROM ${arrayElements(node(field), alias)} WHERE ${predicate(element, type)})"
     }
 
     /** The typed value of [field] and its type, read where [field] lies: the record, or its element. */
@@ -408,14 +406,35 @@ internal class PostgresFilterCompiler(
             else -> null
         }
 
-        /** `jsonb` as an array: itself when it is one, else an array of it (a scalar, `null`, or SQL `NULL`). */
-        fun asArray(node: String): String =
-            "(CASE WHEN jsonb_typeof($node) = 'array' THEN $node ELSE jsonb_build_array($node) END)"
+        /**
+         * The elements of the `jsonb` [node] as a FROM item whose rows are `[alias].v`: an array's elements, else [node]
+         * itself as the one element (a scalar, `null`, or SQL `NULL`).
+         */
+        fun arrayElements(node: String, alias: String): String = elements(node, alias) {
+            "(CASE WHEN jsonb_typeof($it) = 'array' THEN $it ELSE jsonb_build_array($it) END)"
+        }
 
-        /** The objects `jsonb` holds: an array's elements, an object itself, or none. */
-        fun objectElements(node: String): String =
-            "(CASE WHEN jsonb_typeof($node) = 'array' THEN $node " +
-                "WHEN jsonb_typeof($node) = 'object' THEN jsonb_build_array($node) ELSE '[]'::jsonb END)"
+        /**
+         * The objects the `jsonb` [node] holds as a FROM item whose rows are `[alias].v`: an array's elements, an object
+         * itself, or none. An array's elements need not be objects: the reader keeps the objects.
+         */
+        fun objectElements(node: String, alias: String): String = elements(node, alias) {
+            "(CASE WHEN jsonb_typeof($it) = 'array' THEN $it " +
+                "WHEN jsonb_typeof($it) = 'object' THEN jsonb_build_array($it) ELSE '[]'::jsonb END)"
+        }
+
+        /**
+         * [node] read once, as the column `n` of a subquery named `[alias]n`, then expanded by [expand] over that value.
+         * [expand] names the value up to three times; were [node] written in each place, each would read its column
+         * again, and a column stored out of line (TOAST) is fetched once a mention. `OFFSET 0` keeps the planner from
+         * flattening the subquery, which would write [node] back into each mention: `PostgresElementsDifferentialTest`
+         * holds that, by the buffers a query reads from out-of-line states. The subquery's name is no other element's
+         * alias: one compiler gives each element of a statement its own `e<k>` ([nextAlias]), so nested and side-by-side
+         * elements read their nodes as `e1n`, `e2n`, ….
+         */
+        private fun elements(node: String, alias: String, expand: (String) -> String): String =
+            "(SELECT $node AS n OFFSET 0) AS ${alias}n " +
+                "CROSS JOIN LATERAL jsonb_array_elements(${expand("${alias}n.n")}) AS $alias(v)"
 
         /** [this] with the LIKE wildcards and the escape character escaped, so it matches literally. */
         fun String.escapeLike(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

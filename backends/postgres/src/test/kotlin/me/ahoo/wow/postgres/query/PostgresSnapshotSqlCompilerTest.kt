@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -27,6 +28,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
@@ -140,10 +142,44 @@ class PostgresSnapshotSqlCompilerTest {
         list(ContainsAllFilter(KEYWORDS, listOf("a", "b"))).sql.assert()
             .contains("((state #> '{keywords}') @> ?::jsonb AND (state #> '{keywords}') @> ?::jsonb)")
         list(NotInFilter(KEYWORDS, listOf("a"))).sql.assert().contains(") IS NOT TRUE")
+        // A range or a literal match expands the node read once, in a subquery the planner keeps (OFFSET 0).
         list(StartsWithFilter(KEYWORDS, "a")).sql.assert()
             .contains(
-                "EXISTS (SELECT 1 FROM jsonb_array_elements((CASE WHEN jsonb_typeof((state #> '{keywords}')) = 'array'"
+                "EXISTS (SELECT 1 FROM (SELECT (state #> '{keywords}') AS n OFFSET 0) AS e1n CROSS JOIN LATERAL " +
+                    "jsonb_array_elements((CASE WHEN jsonb_typeof(e1n.n) = 'array' THEN e1n.n " +
+                    "ELSE jsonb_build_array(e1n.n) END)) AS e1(v) WHERE "
             )
+    }
+
+    @Test
+    fun `element matches side by side each read their node under aliases of their own`() {
+        val sku = QueryField("sku")
+        val first = ElementMatchFilter(LINES, EqualFilter(sku, "a"))
+        val second = ElementMatchFilter(LINES, EqualFilter(sku, "b"))
+        val sql = list(AndFilter(listOf(first, second))).sql
+        listOf("e1", "e2").forEach { alias ->
+            sql.assert().contains(
+                "EXISTS (SELECT 1 FROM (SELECT (state #> '{lines}') AS n OFFSET 0) AS ${alias}n CROSS JOIN LATERAL " +
+                    "jsonb_array_elements((CASE WHEN jsonb_typeof(${alias}n.n) = 'array' THEN ${alias}n.n " +
+                    "WHEN jsonb_typeof(${alias}n.n) = 'object' THEN jsonb_build_array(${alias}n.n) ELSE '[]'::jsonb END)) " +
+                    "AS $alias(v) WHERE jsonb_typeof($alias.v) = 'object' AND "
+            )
+        }
+    }
+
+    @Test
+    fun `an aggregation expands an element's node read once`() {
+        val query = AggregationQuery(
+            elements = listOf(AggregationElement(LINES)),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("sku"), "sku")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val statement = aggregations.compile(QueryAdmission.Trusted.aggregate(query, schema), GroupWindow.First(7))
+        statement.sql.assert().contains(
+            "FROM \"wow_snapshot__shop__order\" AS t CROSS JOIN LATERAL (SELECT (state #> '{lines}') AS n OFFSET 0) AS e1n " +
+                "CROSS JOIN LATERAL jsonb_array_elements((CASE WHEN jsonb_typeof(e1n.n) = 'array' THEN e1n.n " +
+                "WHEN jsonb_typeof(e1n.n) = 'object' THEN jsonb_build_array(e1n.n) ELSE '[]'::jsonb END)) AS e1(v) WHERE "
+        )
     }
 
     @Test
@@ -441,6 +477,7 @@ class PostgresSnapshotSqlCompilerTest {
         val FLAG = QueryField("state.flag")
         val CREATED = QueryField("state.createdAt")
         val KEYWORDS = QueryField("state.keywords")
+        val LINES = QueryField("state.lines")
     }
 }
 
