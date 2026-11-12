@@ -86,6 +86,21 @@
      */
     --_fve-derived-primary-fill: oklch(from var(--primary) 0.52 c h);
     --_fve-derived-primary-fill-foreground: oklch(1 0 0deg);
+    /*
+     * A rise and a fall as fills, for a mark that says a direction (a
+     * waterfall's step, a candle): the direction's ink, its hue and chroma
+     * kept, at the lightness a series is drawn at in that mode. The ink is
+     * tuned to be read as words, 4.5:1, and as a fill it outweighed every
+     * series beside it. 0.55 and 0.62 stand about where the palette's
+     * first slot does, 4.6:1 and 4.9:1 on a card, so they clear a mark's
+     * 3:1 and `contrast`'s 4.5:1 alike. Derived from the ink, so a fill
+     * follows the convention and a host's own rise and fall. Where
+     * relative colours are not supported a mark is filled with the ink.
+     */
+    --_fve-derived-rise-fill: oklch(from var(--_fve-rise) 0.55 c h);
+    --_fve-derived-fall-fill: oklch(from var(--_fve-fall) 0.55 c h);
+    --_fve-derived-dark-rise-fill: oklch(from var(--_fve-rise) 0.62 c h);
+    --_fve-derived-dark-fall-fill: oklch(from var(--_fve-fall) 0.62 c h);
     --_fve-brand-primary: oklch(
       from var(--fve-brand)
         clamp(var(--_fve-brand-l-min), l, var(--_fve-brand-l-max))

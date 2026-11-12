@@ -163,6 +163,21 @@
    */
   --_fve-rise: var(--fve-rise, var(--_fve-convention-rise));
   --_fve-fall: var(--fve-fall, var(--_fve-convention-fall));
+
+  /*
+   * The same two as fills (`rise-fill`, `fall-fill`): what a mark that says
+   * a direction is filled with — a waterfall's step, a candle — where
+   * the two above are what its words are written in. Derived from them
+   * (`styles/brand.css`), a host's own behind `--fve-rise-fill`.
+   */
+  --_fve-rise-fill: var(
+    --fve-rise-fill,
+    var(--_fve-derived-rise-fill, var(--_fve-rise))
+  );
+  --_fve-fall-fill: var(
+    --fve-fall-fill,
+    var(--_fve-derived-fall-fill, var(--_fve-fall))
+  );
   --border: var(--fve-border, var(--fvp-border, oklch(0.925 0.006 262deg)));
 
   /*

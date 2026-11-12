@@ -136,6 +136,14 @@
     );
     --_fve-rise: var(--fve-dark-rise, var(--_fve-convention-rise));
     --_fve-fall: var(--fve-dark-fall, var(--_fve-convention-fall));
+    --_fve-rise-fill: var(
+      --fve-dark-rise-fill,
+      var(--_fve-derived-dark-rise-fill, var(--_fve-rise))
+    );
+    --_fve-fall-fill: var(
+      --fve-dark-fall-fill,
+      var(--_fve-derived-dark-fall-fill, var(--_fve-fall))
+    );
     --_fve-row-hover: var(
       --fve-dark-row-hover,
       var(

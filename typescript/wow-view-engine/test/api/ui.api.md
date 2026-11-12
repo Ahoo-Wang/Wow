@@ -7399,7 +7399,6 @@ const TOKENS: readonly [{
     readonly group: "density";
 }, {
     readonly preset: false;
-    readonly chart: true;
     readonly own: true;
     readonly bridge: false;
     readonly tier: "semantic";
@@ -7409,7 +7408,6 @@ const TOKENS: readonly [{
     readonly name: "rise";
 }, {
     readonly preset: false;
-    readonly chart: true;
     readonly own: true;
     readonly bridge: false;
     readonly tier: "semantic";
@@ -7417,6 +7415,26 @@ const TOKENS: readonly [{
     readonly modes: 2;
     readonly block: true;
     readonly name: "fall";
+}, {
+    readonly preset: false;
+    readonly chart: true;
+    readonly own: true;
+    readonly bridge: false;
+    readonly tier: "semantic";
+    readonly kind: "color";
+    readonly modes: 2;
+    readonly block: true;
+    readonly name: "rise-fill";
+}, {
+    readonly preset: false;
+    readonly chart: true;
+    readonly own: true;
+    readonly bridge: false;
+    readonly tier: "semantic";
+    readonly kind: "color";
+    readonly modes: 2;
+    readonly block: true;
+    readonly name: "fall-fill";
 }, {
     readonly tier: "group";
     readonly kind: "shadow";
