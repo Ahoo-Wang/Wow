@@ -291,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型的主快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住或遇到致命错误时失败（[致命错误](./observability#fatal-errors)），从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。它不再是结束一次卡住的启动的唯一手段：调和在 `wow.health.liveness.stall-timeout` 内没有完成任何一步的启动中节点，存活检查也会失败（[部署模型](./topology#a-node-stuck-in-its-reconcile)）。
+就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型自己的快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住或遇到致命错误时失败（[致命错误](./observability#fatal-errors)），从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。它不再是结束一次卡住的启动的唯一手段：调和在 `wow.health.liveness.stall-timeout` 内没有完成任何一步的启动中节点，存活检查也会失败（[部署模型](./topology#a-node-stuck-in-its-reconcile)）。
 
 ## 优雅关闭 {#graceful-shutdown}
 

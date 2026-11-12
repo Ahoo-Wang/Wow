@@ -32,28 +32,26 @@ A service keeps its log, snapshots, timers, checkpoints, leases, failure ledger 
        store: main
      aggregates:
        "[shop.product]":
-         snapshot:
-           stores: [main, search]
          query:
            snapshot:
              store: search
    ```
 
-   Its snapshot queries, lists included, read Elasticsearch. Its commands load their state from MongoDB, and its state reads (`GET …/state`, `minVersion` among them) read MongoDB, so a strong read never waits for Elasticsearch.
+   Its snapshot queries, lists included, read Elasticsearch, which keeps a copy of its snapshots for them. Its commands load their state from MongoDB, and its state reads (`GET …/state`, `minVersion` among them) read MongoDB, so a strong read never waits for Elasticsearch. A page that submits a command and then reloads such a list waits `queryable` ([Elasticsearch](./elasticsearch#reading-your-own-write)).
 
 3. **A type whose event history alone is searched** keeps its snapshots where they are, and names the Elasticsearch store for its `events` queries: `query.events.store: search`. The host starts the event search sink by itself, and no second snapshot store is needed.
 
 ## Not a dual write {#not-a-dual-write}
 
-A copy on Elasticsearch is not written beside the primary in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `wow.snapshot` for the default snapshot store (the first of `wow.snapshot.stores`, else the log's store), `wow.snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the primary; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
+A copy on Elasticsearch is not written beside the aggregate's own snapshot store in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `wow.snapshot` for the default snapshot store (`wow.snapshot.store`, else the log's store), `wow.snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the aggregate's own store; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
 
-## Elasticsearch is never the log, nor the primary {#elasticsearch-is-never-the-log}
+## Elasticsearch is never the log, nor a type's own snapshot store {#elasticsearch-is-never-the-log}
 
 - **Near real time.** A write becomes searchable after a refresh: by default within the index's refresh interval (`refresh: none`), or when its write returns with `refresh: wait-for`. A log's tails and a command's load must see a commit at once.
 - **No transactions.** A document is replaced whole, guarded by optimistic concurrency; a log needs unique keys on a version and a request, which a search index does not keep.
 - **Mappings grow.** Every field of the states and the events is mapped, so the mapping grows with the model, and an index whose mapping must change is rebuilt rather than migrated.
 
-So the host refuses an Elasticsearch store as a log store, and as an aggregate type's primary or only snapshot store: its commands load their state from the primary, and a state read is a strong read of it. Read the copy for what it is good at, search, and the primary for everything that must be current.
+So the host refuses an Elasticsearch store as a log store, and as an aggregate type's snapshot store: its commands load their state from that store, and a state read is a strong read of it. Read the copy for what it is good at, search, and the type's own store for everything that must be current.
 
 ## The costs {#costs}
 

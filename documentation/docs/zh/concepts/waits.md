@@ -15,15 +15,17 @@ description: 发出命令后调用方可以等待什么、为什么默认等待�
 | `committed` | 命令的事件已追加到日志，或者命令没有追加就有了结论：拒绝、无变化或重复。 |
 | `handled(subscription)` | 某个指定的订阅已处理了这次提交。这个订阅可以在另一个上下文里。 |
 
-`snapshot` 是 `handled(wow.snapshot)` 的简写：内置的快照订阅 `wow.snapshot` 已经写入了这次提交；`handled(snapshot)` 指的是名为 `snapshot` 的应用订阅。订阅的种类（投影、Saga 或反应器）来自 Manifest，所以不需要各自的阶段。
+`snapshot` 是 `handled(wow.snapshot)` 的简写：内置的快照订阅 `wow.snapshot` 已经把这次提交写入聚合自己的快照存储。`queryable` 是 `handled(wow.queryable)` 的简写：聚合的快照查询所读的存储已经包含这次提交；查询读另一个存储时是它的副本（[Elasticsearch](../operate/elasticsearch#reading-your-own-write)），否则是它自己的存储，与 `snapshot` 同时到达。`handled(snapshot)` 指的是名为 `snapshot` 的应用订阅。订阅的种类（投影、Saga 或反应器）来自 Manifest，所以不需要各自的阶段。
 
-阶段在线上一律写成小写，和 Wow 放到线上的所有取值一样：`Wow-Wait` 请求头里、结果的 `hop.stage` 里、TypeScript 客户端的 `WaitPlan` 里都是如此。Kotlin 里它们是 `Stage.ACCEPTED`、`Stage.COMMITTED` 和 `Stage.HANDLED`，用 `Hop.accepted()`、`Hop.committed()`、`Hop.handled(subscription)` 和 `Hop.snapshot()` 构建跳。请求头里的关键字不区分大小写；JSON 里的阶段只按小写读取，新版本写入方加的阶段读作未知，而不是拒绝。
+阶段在线上一律写成小写，和 Wow 放到线上的所有取值一样：`Wow-Wait` 请求头里、结果的 `hop.stage` 里、TypeScript 客户端的 `WaitPlan` 里都是如此。Kotlin 里它们是 `Stage.ACCEPTED`、`Stage.COMMITTED` 和 `Stage.HANDLED`，用 `Hop.accepted()`、`Hop.committed()`、`Hop.handled(subscription)`、`Hop.snapshot()` 和 `Hop.queryable()` 构建跳。请求头里的关键字不区分大小写；JSON 里的阶段只按小写读取，新版本写入方加的阶段读作未知，而不是拒绝。
 
 ## 默认等待快照 {#the-default-is-the-snapshot}
 
 没有指定等待的命令，等待 `snapshot`。命令返回时，快照里已经是这次提交的版本，所以调用方接下来发的查询能看到自己写的东西。这正是多数调用方想要的：表单保存后展示刚保存的记录，测试发出命令后读取状态。提交在报告时已经持久。在 PostgreSQL 上，上下文的日志和全部快照都在同一个存储时，它的快照立即可见，但要等下一次等待刷盘的提交才持久，最多几百毫秒：PostgreSQL 恰在那时崩溃，会丢掉最后一个持久的检查点之后的快照，快照订阅随后把它们重新写入。分在多个存储上的上下文，每个快照都持久地写入。
 
 默认值有一点代价：回答在快照订阅处理完这次提交之后才到，而不是紧接着追加。快照订阅落后时，默认的等待会超时；这时结果会说明命令已达到 `committed`，调用方因此知道事实已经提交。快照订阅停放了这个聚合时，等待立即以 `wow.subscription.parked` 失败。关闭了快照的聚合没有快照阶段，它的默认等待是 `committed`。只有默认值会这样退回：对这样的聚合显式要求 `snapshot`，会在准入时被拒绝。
+
+快照查询读另一个存储上的副本的聚合，`snapshot` 到不了副本：调用方紧接着重新加载的列表可能还不包含这次提交。这样的调用方等待 `queryable`，它在副本包含这次提交后结束，比 `snapshot` 晚。
 
 需要得少的调用方可以等待 `committed` 或 `accepted`；需要得多的可以指定更后面的阶段，或者一条等待链。
 

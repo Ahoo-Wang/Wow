@@ -107,6 +107,7 @@ The hops a plan is made of:
 | `wait.accepted()` | The command passed admission; the route answers 202 |
 | `wait.committed()` | Its events are in the log |
 | `wait.snapshot()` | The snapshot holds the commit, so a read sees it |
+| `wait.queryable()` | The store the aggregate's snapshot queries read holds the commit, so a list reloaded next sees it; later than `snapshot` where those queries read a copy |
 | `wait.handled('Processor.function')` | That subscription handled the commit |
 
 A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `contract.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:

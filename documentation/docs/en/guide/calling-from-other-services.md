@@ -59,7 +59,7 @@ A command is a `POST` of its JSON body to its route, `/<context>/<aggregate>/{id
 | Header | Send | Why |
 | --- | --- | --- |
 | `Wow-Request-Id` | On every command, a new UUID for each command; the same one when you send it again | A retry with the same id is answered as done (`duplicate`), never decided twice |
-| `Wow-Wait` | When the default wait, `snapshot`, does not fit | How far the command goes before the answer: `accepted`, `committed`, `snapshot`, or a subscription it waits for (`handled(<processor>.<function>)`) |
+| `Wow-Wait` | When the default wait, `snapshot`, does not fit | How far the command goes before the answer: `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read has the commit), or a subscription it waits for (`handled(<processor>.<function>)`) |
 | `Wow-Wait-Timeout` | When the default 10 seconds does not fit | How long to wait, at most `wow.wait.max-timeout` |
 | `If-Match` | When the command must apply to the version you read | A command on another version is refused with 412 |
 | `Authorization` | What the gateway authenticates | The gateway turns it into the identity the service reads |

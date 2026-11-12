@@ -23,7 +23,7 @@ outline: deep
 | 组件 | 何时 `DOWN`（未就绪） | 何时 `DEGRADED` |
 | --- | --- | --- |
 | `node` | 节点没有在运行：启动中、排空中或已停止；或者它遇到了[致命错误](#fatal-errors)，此后一直如此 | |
-| `stores` | 某个日志，或写入需要的某个存储（存放日志的存储、某个聚合类型的主快照存储），持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 其中某个在 `wow.health.stores.window`（1 分钟）内失败过 |
+| `stores` | 某个日志，或写入需要的某个存储（存放日志的存储、某个聚合类型自己的快照存储），持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 其中某个在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `secondaryStores` | 从不：写入路径之外的每个存储实例（额外的快照存储、查询或搜索存储）按与 `stores` 相同的规则变为 `DOWN`，但它的故障只降级它所服务的读取，不影响节点，所以就绪检查不包含它 | 它在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `ownership` | 它的租约存储不可用，或者在 `wow.health.ownership.handover-grace`（1 分钟）之后，节点仍没有拥有某个租约组中应得的任何分区 | 它在这么长时间内拥有的分区集合不是它应得的那份，或者租约存储最近失败过 |
 | `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | 在 `wow.health.topics.required: false` 时仍在加入中 |

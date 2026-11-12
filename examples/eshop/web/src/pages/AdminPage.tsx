@@ -13,11 +13,12 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import { asc, filter } from "@ahoo-wang/wow-client/dsl";
-import type { Snapshot } from "@ahoo-wang/wow-client";
-import type {
-  BrandState,
-  CategoryState,
-  ProductState,
+import { type Snapshot, WaitPlan } from "@ahoo-wang/wow-client";
+import {
+  type BrandState,
+  type CategoryState,
+  eshopCatalogWait,
+  type ProductState,
 } from "@/generated/catalog/eshop-catalog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,14 @@ function fields(event: FormEvent<HTMLFormElement>): Record<string, string> {
 
 const SELECT =
   "h-8 rounded-lg border border-input bg-background px-2 text-sm";
+
+/**
+ * The wait of a product command: until the store the product queries read
+ * holds it. With the `search` profile those queries read the catalog's
+ * Elasticsearch copy, which `snapshot` does not reach, and the page reloads
+ * its product list right after; without it, the same as `snapshot`.
+ */
+const LISTED = { wait: WaitPlan.of(eshopCatalogWait.queryable()) };
 
 /** What an action came to, shown where it was taken: a form or a product's row. */
 interface Feedback {
@@ -205,7 +214,7 @@ export function AdminPage() {
                         brandId: brandId || null,
                         categoryId: categoryId || null,
                       },
-                      { id: id || undefined },
+                      { id: id || undefined, ...LISTED },
                     ),
                   `Created the draft ${name}.`,
                   form,
@@ -507,7 +516,7 @@ function ProductRow({
               const { price } = fields(event);
               return act(
                 place,
-                () => clients.catalog.product.commands.changeProductPrice(id, { price }),
+                () => clients.catalog.product.commands.changeProductPrice(id, { price }, LISTED),
                 `Changed the price of ${state.name} to ${price ? money(price) : "nothing"}.`,
                 form,
               );
@@ -579,7 +588,7 @@ function ProductRow({
                 onClick={() =>
                   act(
                     place,
-                    () => clients.catalog.product.commands.delistProduct(id),
+                    () => clients.catalog.product.commands.delistProduct(id, {}, LISTED),
                     `Delisted ${state.name}.`,
                   )
                 }
@@ -593,7 +602,7 @@ function ProductRow({
                 onClick={() =>
                   act(
                     place,
-                    () => clients.catalog.product.commands.publishProduct(id),
+                    () => clients.catalog.product.commands.publishProduct(id, {}, LISTED),
                     `Published ${state.name}.`,
                   )
                 }
@@ -633,7 +642,7 @@ function ProductRow({
                           description,
                           brandId: brandId || null,
                           categoryId: categoryId || null,
-                        }),
+                        }, LISTED),
                       `Saved ${name}.`,
                     );
                   }}
@@ -676,7 +685,7 @@ function ProductRow({
                       () =>
                         clients.catalog.product.commands.discontinueProduct(id, {
                           reason,
-                        }),
+                        }, LISTED),
                       `Discontinued ${state.name}: it left the catalog.`,
                     );
                   }}
