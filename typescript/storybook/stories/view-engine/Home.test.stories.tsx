@@ -309,10 +309,10 @@ export const ExpandSharesARow: Story = {
       '[data-slot="dashboard-filter-row"]',
     )!;
     await expect(row).not.toBeNull();
-    // Nothing above it on the surface: no empty row.
+    // Nothing above it on the surface but the board's own inset: no row.
     await expect(
       row.getBoundingClientRect().top - surface.getBoundingClientRect().top,
-    ).toBeLessThanOrEqual(1);
+    ).toBeLessThanOrEqual(1 + parseFloat(getComputedStyle(surface).paddingTop));
     // On the first line of the bar, centred with what stands there.
     const bar = within(row).getByRole('region', {
       name: zhCN['label.filters.bar'],
