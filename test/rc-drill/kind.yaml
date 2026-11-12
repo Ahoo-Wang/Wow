@@ -9,8 +9,11 @@ name: wow-rc-drill
 networking:
   disableDefaultCNI: true
   podSubnet: 192.168.0.0/16
+# Every node runs the image kind v0.33.0 (versions.env) was released with, pinned by digest: Kubernetes 1.37.0, the
+# version the chart's CI renders and installs on (.github/helm/chart.sh).
 nodes:
   - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     extraPortMappings:
       # The ingress controller's node ports (platform/ingress/traefik-values.yaml): the clients' only way in, on the
       # machine's localhost. Any node's port reaches Traefik; the control plane's is the one mapped.
@@ -23,11 +26,14 @@ nodes:
         listenAddress: 127.0.0.1
         protocol: TCP
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       topology.kubernetes.io/zone: zone-a
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       topology.kubernetes.io/zone: zone-b
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       topology.kubernetes.io/zone: zone-c

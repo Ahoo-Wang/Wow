@@ -30,7 +30,19 @@ What the pods ask, in the order the platform comes up:
 
 ## Tools
 
-On the machine: `docker` (OrbStack), `kind` and the Calico manifest at the versions of `versions.env`, `kubectl`, `helm` (3.x or 4.x), `openssl`, `jq` and `curl`. A JDK 25 is needed to build the eShop's servers against the published Wow. `curl` and `helm pull` reach the public registries for the release's artifacts.
+The drill was written and checked against these versions. Install matching ones:
+
+| Tool | Version | Note |
+|---|---|---|
+| `helm` | **4.3.1** | The version CI installs the chart with (ci.yml's `helm-kind`, ga-e2e.yml). CI's `helm` job also renders, lints and unit-tests the chart under 3.22.1. The drill's values and the third-party charts were rendered under 4.3.1 only. |
+| `kind` | **v0.33.0** | As CI's kind clusters. |
+| Node image | `kindest/node:v1.37.0` | kind v0.33.0's own, pinned by digest in `kind.yaml`: Kubernetes 1.37.0. |
+| `kubectl` | **1.36 to 1.38** | kubectl supports one minor version of skew from the server, 1.37. The machine's v1.33.9 is too old for it. |
+| Calico | v3.32.2 | `versions.env`, checked by SHA-256. |
+| Docker | OrbStack | Sized as above. |
+| JDK | 25 | Builds the eShop's servers against the published Wow. |
+
+Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registries for the release's artifacts.
 
 ## What is here
 
