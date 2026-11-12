@@ -56,9 +56,8 @@ class OutageElasticsearchClient {
 }
 
 /**
- * Elasticsearch, the account's only snapshot store, stopping mid-run, the account's log on MongoDB: the same outage as
- * a MongoDB or PostgreSQL snapshot store's, its policy theirs. The store is on the write path, so the node is not ready
- * once it has kept failing. A command that still reaches the node commits, its load replaying the log (each failed
+ * Elasticsearch, the account's only snapshot store, stopping mid-run, the account's log on MongoDB. A type's own
+ * snapshot store is on the write path whatever its type, so the node is not ready once it has kept failing. A command that still reaches the node commits, its load replaying the log (each failed
  * load counted, not logged), but its default wait times out; a state read fails, retryable; and once the store is
  * back the node is ready again and the snapshot subscription catches up by itself.
  */
