@@ -29,6 +29,7 @@ import {
 import type { Issue } from '../../model/index.js';
 import type { DashboardPanelView } from '../../react/index.js';
 import { useAnalysisEditor } from '../../react/index.js';
+import { useStale } from '../../react/useStale.js';
 import { isRecordRuntime } from '../../runtime/index.js';
 import { isAnalysisRuntime } from '../../runtime/viewRuntimeTypes.js';
 import {
@@ -64,6 +65,7 @@ import {
 } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
 import { FOCUS_PANEL, PanelCard } from '../kit/frames.js';
+import { STALE, staleProps } from '../kit/stale.js';
 import { CardContent } from '../components/card.js';
 import { PanelHeader } from './PanelHeader.js';
 
@@ -296,6 +298,7 @@ export function DashboardPanelCard({
   const editor = useAnalysisEditor(
     isAnalysisRuntime(panel.runtime) ? panel.runtime : null,
   );
+  const stale = useStale(panel.runtime);
   const nameIssue = panel.runtime
     ? analysisIssueNamer(editor, messages)
     : outPanelNamer(panel.fields, messages);
@@ -359,12 +362,16 @@ export function DashboardPanelCard({
           aria-label={name}
           ref={setBody}
           data-panel-body
+          // A panel whose board filter moved keeps what it drew, faded,
+          // until the answer lands (`ui/kit/stale.ts`).
+          {...staleProps(stale)}
           data-scroll-more={scroll.more}
           data-scroll-below={scroll.below || undefined}
           style={scroll.style}
           className={cn(
             // The mark is the card's (`FOCUS_PANEL`).
             'fve:relative fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding) fve:outline-none',
+            STALE,
           )}
         >
           {/* One boundary per panel: a markdown body or a row that throws

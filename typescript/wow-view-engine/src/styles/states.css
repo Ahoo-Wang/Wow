@@ -14,7 +14,8 @@
 /*
  * The fills the controls wear: the primary button's, a button or a toggle
  * under the pointer, a toolbar's outline button, and a segmented control's
- * track, thumb and corners; and a title's weight.
+ * track, thumb and corners; a title's weight; and the line that moves under
+ * a result whose answer is on its way.
  * A part of `styles.css`, which imports it in its place; the rules are in
  * the order they were written in one file.
  */
@@ -254,5 +255,44 @@
   :where(.fve-root, .fve-tokens) [data-slot='alert-dialog-title'],
   :where(.fve-root, .fve-tokens) [data-slot='sheet-title'] {
     font-weight: var(--_fve-title-weight);
+  }
+}
+
+/*
+ * A result whose rows answer an older question, or another page, than the
+ * one on its way (`data-stale`, `ui/kit/stale.ts`): the rows are kept and
+ * faded by their element's own class, and a line moves along its bottom
+ * edge for as long as the answer takes — the fade says the rows are old,
+ * the line that something is being done about it (D94). The element's own
+ * `::after`, so every surface that marks its rows gets it and none has to
+ * place one; it is drawn at the fade's strength with the rows. In a result
+ * that scrolls sideways the line is as wide as what is in view at rest.
+ * Under reduced motion it keeps moving, as the spinner and the skeleton
+ * do (`base.css`): stopped, "working" reads as "hung".
+ */
+:where(.fve-root, .fve-tokens) [data-stale] {
+  position: relative;
+}
+
+:where(.fve-root, .fve-tokens) [data-stale]::after {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(90deg, transparent, var(--primary), transparent)
+    no-repeat;
+  background-size: 40% 100%;
+  animation: fve-stale-line 1.4s linear infinite;
+}
+
+@keyframes fve-stale-line {
+  from {
+    background-position: -70% 0;
+  }
+
+  to {
+    background-position: 170% 0;
   }
 }

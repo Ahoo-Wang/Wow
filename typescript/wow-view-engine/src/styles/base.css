@@ -117,3 +117,14 @@
     transition-delay: 0s !important;
   }
 }
+
+/*
+ * The line under a result whose answer is on its way (`states.css`) is a
+ * loading indicator too. It is a pseudo-element, which the rule above
+ * cannot except by a slot, so its duration is given back here.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :where(.fve-root, .fve-tokens) [data-stale]::after {
+    animation-duration: 1.4s !important;
+  }
+}

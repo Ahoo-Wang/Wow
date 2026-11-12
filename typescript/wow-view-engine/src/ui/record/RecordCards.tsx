@@ -25,10 +25,13 @@ import { SkeletonCards } from './SkeletonCards.js';
 import { useSummaries } from './useSummaries.js';
 import type { RecordCell } from './RecordTable.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { STALE, staleProps } from '../kit/stale.js';
 import { cn } from 'cn';
 
 export interface RecordCardsProps {
   table: RecordTableController;
+  /** As the table's: the cards answer an older question, and are faded. */
+  stale?: boolean;
   /**
    * Renders one value of a card; the default reads it as the field says.
    * The same contract as the table's, handed the same `column` for the same
@@ -88,6 +91,7 @@ const GRID: Record<1 | 2 | 3 | 4, string> = {
  */
 export function RecordCards({
   table,
+  stale,
   renderCell,
   selectable = true,
   rowActions,
@@ -123,9 +127,11 @@ export function RecordCards({
       <div
         ref={grid}
         data-slot="record-cards"
+        {...staleProps(stale)}
         className={cn(
           'fve:bg-canvas fve:grid fve:gap-3 fve:p-3',
           GRID[card.perRow ?? 3],
+          STALE,
         )}
       >
         {table.rows.map(row => (

@@ -358,20 +358,20 @@ function ariaSort(
 }
 
 /**
- * The arrow, or the neutral pair a sortable column wears until it is used:
- * an affordance that only appears once discovered is not an affordance.
+ * The arrow of a sorted column, or the neutral pair of a sortable one that
+ * is not sorted.
  *
- * **One mark, and it is always drawn.** One, because a header says one
- * thing — which way this column orders the table — and a second glyph
- * saying "sortable" beside an arrow already saying which way is the same
- * sentence twice; that was `↕ 金额 ↓` on the bar's own sort button, and it
- * is not repeated here. Always, because the alternative considered was to
- * fade the neutral `↕` in on hover or focus: that hides the affordance from
- * a touch screen entirely, makes the header row shift by 18px under the
- * pointer, and contradicts the line above, which is a decision this package
- * already made rather than a preference. The mark is `muted-foreground/60`
- * instead — quiet enough not to compete with the column's name, present
- * enough to be found without moving the pointer.
+ * **One mark.** A header says one thing — which way this column orders
+ * the table — and a second glyph saying "sortable" beside an arrow already
+ * saying which way is the same sentence twice.
+ *
+ * **At rest only a sorted column shows its mark** (D94): a `↕` in every
+ * header of a twenty-column table said nothing about this table and was
+ * louder than the one arrow that did. The neutral pair is still in the
+ * header and keeps its room, so nothing shifts: the stylesheet shows it as
+ * much as the theme says at rest (`table-sort-idle`, 0 by default) and
+ * whole under the pointer or the keyboard's focus, and always on a touch
+ * screen, which has no hover to find it with (`styles/roles.css`).
  */
 function SortMark({ direction }: { direction: SortDirectionName | null }) {
   if (direction === null)
