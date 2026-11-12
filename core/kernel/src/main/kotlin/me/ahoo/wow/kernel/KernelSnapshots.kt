@@ -34,25 +34,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 private val logger = KotlinLogging.logger {}
 
 /**
- * The snapshot of [ref], or null when there is none or the store fails: a snapshot is only a cache, so a failing
- * store costs a full replay, never the command. Cancellation still propagates.
- */
-internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecord? {
-    val store = this ?: return null
-    return try {
-        store.load(ref)
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (
-        @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
-        failure: Exception,
-    ) {
-        logger.warn(failure) { "Loading the snapshot of $ref failed; replaying its log." }
-        null
-    }
-}
-
-/**
  * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the reader
  * [readers] gives its type, the one of a store holding both ([me.ahoo.wow.spi.store.Store.snapshotTails]), else apart
  * ([readSnapshotTailApart]). When the reader fails, the read is done apart: the first time logged as a warning,
@@ -98,11 +79,46 @@ internal class SnapshotTailReads(
 }
 
 /**
- * [store] as a cache-miss load reads it with the log ([SnapshotTailReads]):
- * a snapshot that fails to load is none ([loadOrNull]), so only the log's failure fails the command.
+ * [store] as a cache-miss load reads it with the log ([SnapshotTailReads]): a snapshot that fails to load is none, a
+ * snapshot being only a cache, so a failing store costs a full replay and only the log's failure fails the command.
+ * Cancellation still propagates. Each failure is counted with [ObservedEvent.StoreFellBack], and the first of each
+ * outage is logged as a warning, the later ones at debug level: a store that is down fails every load. A load that
+ * succeeds ends the outage, so the next failure, a later outage's first, is a warning again.
  */
-internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotStore by store {
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = store.loadOrNull(ref)
+internal class TolerantSnapshots(private val store: SnapshotStore, private val observer: Observer) :
+    SnapshotStore by store {
+    /** Whether this outage's first failure was logged; cleared by a load that succeeds. */
+    private val failedLogged = AtomicBoolean()
+
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = try {
+        store.load(ref).also {
+            if (failedLogged.get()) {
+                failedLogged.set(false)
+            }
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (
+        @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
+        failure: Exception,
+    ) {
+        observer.observed(
+            ObservedEvent.StoreFellBack(
+                ref.type.context,
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD,
+                ObservedEvent.StoreFellBack.Reason.FAILED,
+            ),
+        )
+        if (failedLogged.compareAndSet(false, true)) {
+            logger.warn(failure) {
+                "Loading the snapshot of $ref failed; replaying its log. Later failures are counted " +
+                    "(wow.store.fallbacks), and logged at debug level until a load succeeds."
+            }
+        } else {
+            logger.debug(failure) { "Loading the snapshot of $ref failed; replaying its log." }
+        }
+        null
+    }
 }
 
 /**

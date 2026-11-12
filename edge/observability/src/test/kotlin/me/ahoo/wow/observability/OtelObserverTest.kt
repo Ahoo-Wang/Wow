@@ -373,7 +373,7 @@ class OtelObserverTest {
         telemetry.meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).counter().count().assert().isEqualTo(1.0)
         tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
-            .containsExactly("snapshot-rebuild", "snapshot-tail-read")
+            .containsExactly("snapshot-load", "snapshot-rebuild", "snapshot-tail-read")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
         tags(WowMetrics.FATAL_ERRORS.name, WowMetrics.KIND).assert().containsExactly(
             "append-queue",

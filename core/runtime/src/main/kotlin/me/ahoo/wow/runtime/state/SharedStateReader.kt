@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -65,6 +64,9 @@ class SharedStateReader(
     private val snapshots: SnapshotStore? = null,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
+
+    /** [snapshots] as a cache-miss load reads them: a load that fails is none, counted ([Kernel.tolerant]). */
+    private val loading: SnapshotStore? = snapshots?.let(kernel::tolerant)
 
     /** The model of [type], whose events and state this reader decodes. */
     fun modelOf(type: AggregateType): AggregateModel<*> =
@@ -182,20 +184,7 @@ class SharedStateReader(
     }
 
     /** The snapshot of [ref]; a store that fails costs a replay, not the entry: a snapshot is only a cache. */
-    private suspend fun loadSnapshot(ref: AggregateRef): SnapshotRecord? {
-        val store = snapshots ?: return null
-        return try {
-            store.load(ref)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
-            failure: Exception,
-        ) {
-            logger.warn(failure) { "Loading the snapshot of $ref failed; replaying its log." }
-            null
-        }
-    }
+    private suspend fun loadSnapshot(ref: AggregateRef): SnapshotRecord? = loading?.load(ref)
 
     private companion object {
         val logger = KotlinLogging.logger {}
