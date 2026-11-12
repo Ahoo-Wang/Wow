@@ -42,19 +42,20 @@ import me.ahoo.wow.spi.timer.TimerStore
 
 /**
  * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log, so a store of this
- * type keeps the copy an aggregate type's snapshot queries read (`wow.aggregates.[<context>.<aggregate>]
- * .query.snapshot.store`), beside the type's own snapshot store in a database; never a type's own snapshot store,
- * and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
- * `client` option names (else the only one), with the settings:
+ * type is an aggregate type's own snapshot store (`wow.snapshot.store`, `wow.aggregates.[<context>.<aggregate>]
+ * .snapshot.store`), which its commands load their state from by id, or the copy its snapshot queries read
+ * (`wow.aggregates.[<context>.<aggregate>].query.snapshot.store`) beside its own store; never `wow.log.store`. Each
+ * store opens over the application's low-level `Rest5Client` that its `client` option names (else the only one), with
+ * the settings:
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
  *   several services or environments share; none by default;
  * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
- *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
- *   command's `snapshot` wait is answered by the subscription of its own snapshot store, never this one's; its
- *   `queryable` wait, by this store's subscription for a type whose snapshot queries read this store, so with
- *   `wait_for` a caller that waits `queryable` then sees its commit in a list or a count. Waiting for a refresh caps
- *   that subscription's writes at a batch per write lane a refresh interval;
+ *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A load by
+ *   id reads a write once it returns, whatever `refresh` is. A command's `snapshot` wait is answered by the
+ *   subscription of its type's own snapshot store, and its `queryable` wait by that of the store its snapshot queries
+ *   read, so with `wait_for` on that store a caller that waits `queryable` then sees its commit in a list or a count.
+ *   Waiting for a refresh caps that subscription's writes at a batch per write lane a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
@@ -125,10 +126,10 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         /** The option of when a write becomes visible to searches. */
         val REFRESH = ProviderOption.enumeration(
             "refresh",
-            "when a write becomes visible to searches: none (the default: within the index's refresh interval; a " +
-                "command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write " +
-                "returns, which only an in-process caller that waits on the store's own snapshot subscription in " +
-                "code can rely on) or immediate (an immediate refresh, for tests).",
+            "when a write becomes visible to searches: none (the default: within the index's refresh interval, " +
+                "while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its " +
+                "write returns, so a command that waits queryable sees its commit there; each write takes up to a " +
+                "refresh interval longer) or immediate (an immediate refresh, for tests).",
             ElasticsearchRefresh::class.java,
             ElasticsearchRefresh.NONE,
         )
@@ -202,13 +203,6 @@ internal class ElasticsearchStore(
     }
 
     override val holdsLogs: Boolean get() = false
-
-    /**
-     * Never a primary snapshot store: the commands load their state from the primary, and a search index refreshed in
-     * near real time, without transactions, holds a copy of the snapshots beside a store that holds the log or
-     * snapshots in a database's guarantees.
-     */
-    override val primarySnapshots: Boolean get() = false
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =
         ElasticsearchSnapshotStore(client, names, context, ddl = config.ddl, refresh = refresh)

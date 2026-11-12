@@ -307,20 +307,20 @@ export class DataViewRuntime<
     this.syncAutoApply();
   }
 
-  apply(): void {
-    if (this.disposed || hasError(this.state.issues)) return;
+  apply(only?: { filter: FilterTree }): void {
+    if (this.disposed) return;
+    const next = only ? { ...this.state.applied, ...only } : this.state.draft;
+    if (hasError(only ? this.admit(next) : this.state.issues)) return;
     this.appliedAdmitted = true;
     this.autoTimer.stop();
-    // A draft that asks the source what the rows on screen already answer
-    // lands without the page being fetched again (`restyle`).
-    const restyle = this.restyle(this.state.draft);
-    if (restyle) {
-      this.store.setState({ applied: this.state.draft });
-      restyle();
-      return;
-    }
-    this.store.setState({ applied: this.state.draft, ...this.startOver() });
-    this.execute({ keepSelection: false });
+    // A config the rows on screen already answer lands with no fetch
+    // (`restyle`); what still waits keeps its own timer (`syncAutoApply`).
+    const restyle = this.restyle(next);
+    const over = restyle ? {} : this.startOver();
+    this.store.setState({ applied: next, ...over });
+    if (restyle) restyle();
+    else this.execute({ keepSelection: false });
+    if (only) this.syncAutoApply();
   }
 
   /**

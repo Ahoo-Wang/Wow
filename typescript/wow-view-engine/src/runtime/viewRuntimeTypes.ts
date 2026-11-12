@@ -128,8 +128,18 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * until the draft is applied.
    */
   removeUnavailable(): void;
-  /** Promotes a valid draft to `applied` and executes it. */
-  apply(): void;
+  /**
+   * Promotes a valid draft to `applied` and executes it.
+   *
+   * Given `only`, it is those conditions alone which are put in force, the
+   * rest of what is in force kept: a control that edits one condition and
+   * runs it (Enter in the search box, the ✕ on a condition in force)
+   * applies its own change and leaves whatever else waits in the draft
+   * waiting. The caller has written the same change to the draft, so the
+   * two agree on it. Refused like any apply when what it would put in
+   * force has an error.
+   */
+  apply(only?: { filter: FilterTree }): void;
   /**
    * Takes the draft back to the saved baseline and puts it in force again. A
    * view that was never saved has no baseline to return to, so it is a no-op

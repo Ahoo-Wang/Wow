@@ -135,9 +135,8 @@ class StoreLayout(
         /**
          * The layout [placements] configure over [stores], the node's store instances by name, for the aggregate
          * types the node [serves]. Refused: a default or per-type store that names no store, or one that holds no log
-         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a type's own snapshot store that may hold only a
-         * copy ([Store.primarySnapshots]); a `wow.aggregates` key of a type the node does not serve; more than one store
-         * and no `wow.log.store`; two log stores on one database.
+         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a `wow.aggregates` key of a type the node does
+         * not serve; more than one store and no `wow.log.store`; two log stores on one database.
          */
         fun of(
             placements: StorePlacements,
@@ -148,7 +147,7 @@ class StoreLayout(
             val log = defaultLogStore(placements, stores)
             val snapshot = placements.snapshot?.takeIf { it.isNotBlank() } ?: log
             stores.checked("wow.log.store", log, Store::holdsLogs, "log")
-            stores.own("wow.snapshot.store", snapshot)
+            stores.checked("wow.snapshot.store", snapshot, Store::holdsSnapshots, "snapshots")
             val served = serves.associateBy { "${it.context}.${it.name}" }
             val logs = LinkedHashMap<AggregateType, String>()
             val snapshots = LinkedHashMap<AggregateType, String>()
@@ -168,7 +167,10 @@ class StoreLayout(
                     "The store placement of $key names no aggregate type this node serves; it serves ${served.keys}."
                 }
                 logStore?.let { logs[type] = stores.checked("wow.aggregates.[$key].log.store", it, Store::holdsLogs, "log") }
-                snapshotStore?.let { snapshots[type] = stores.own("wow.aggregates.[$key].snapshot.store", it) }
+                snapshotStore?.let {
+                    val snapshotKey = "wow.aggregates.[$key].snapshot.store"
+                    snapshots[type] = stores.checked(snapshotKey, it, Store::holdsSnapshots, "snapshots")
+                }
                 val own = snapshotStore ?: snapshot
                 queryStore?.takeIf { it != own }?.let {
                     val queryKey = "wow.aggregates.[$key].query.snapshot.store"
@@ -207,26 +209,6 @@ class StoreLayout(
             }
             configCheck(holds(store), key, name, "Name a store that holds $what.") {
                 "The store placement names the store $name, of type ${store.type}, which holds no $what."
-            }
-            return name
-        }
-
-        /**
-         * [name], the store of a type's own snapshots that [key] configures, once found to hold snapshots and to be
-         * one the commands may load their state from ([Store.primarySnapshots]).
-         */
-        private fun Map<String, Store>.own(key: String, name: String): String {
-            checked(key, name, Store::holdsSnapshots, "snapshots")
-            val store = getValue(name)
-            configCheck(
-                store.primarySnapshots,
-                key,
-                name,
-                "Keep the snapshots on a mongo or postgres store, and query $name through the aggregate type's query " +
-                    "snapshot store (wow.aggregates.[<context>.<aggregate>].query.snapshot.store).",
-            ) {
-                "The store placement makes $name, of type ${store.type}, the store of the snapshots, which the " +
-                    "commands load their state from and which holds only a copy."
             }
             return name
         }
