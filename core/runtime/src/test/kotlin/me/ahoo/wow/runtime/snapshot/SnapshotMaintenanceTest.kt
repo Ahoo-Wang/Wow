@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
@@ -39,6 +41,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
@@ -80,15 +83,17 @@ class SnapshotMaintenanceTest {
         options: SnapshotOptions = SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
         progressLog: EventLog = log,
         observer: Observer = Observer.NONE,
+        targets: SnapshotTargets = SnapshotTargets.single(store),
+        rebuildLog: EventLog = log,
     ) = SnapshotMaintenance(
         CONTEXT,
         GROUP,
         node,
         listOf(model(revision)),
-        SnapshotTargets.single(store),
+        targets,
         kernel,
         codec,
-        log,
+        rebuildLog,
         leases,
         listOf(LogProgress(GROUP, progressLog, checkpoints)),
         options,
@@ -113,6 +118,29 @@ class SnapshotMaintenanceTest {
         maintenance.rebuild(type.ref("tenant", "nothing"))
         store.load(type.ref("tenant", "nothing")).assert().isNull()
     }
+
+    @Test
+    fun `a rebuild request should read and replay the history once, however many targets it rewrites`(): Unit =
+        runBlocking {
+            val stores = listOf("a", "b", "c").associateWith { InMemorySnapshotStore() }
+            val reads = AtomicInteger()
+            val counted = object : EventLog by log {
+                override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
+                    log.read(ref, fromVersion, toVersion).onStart { reads.incrementAndGet() }
+            }
+            val maintenance = maintenance(
+                1,
+                stores.getValue("a"),
+                targets = SnapshotTargets("a", stores, fallback = SnapshotPlacement(stores.keys.toList())),
+                rebuildLog = counted,
+            )
+            val ref = commit("a", 3)
+
+            maintenance.rebuild(ref)
+
+            reads.get().assert().isEqualTo(1)
+            stores.values.forEach { it.load(ref)!!.state.assert().contains("\"total\":3") }
+        }
 
     @Test
     fun `a rebuild replays past a stored TagsApplied of the tags Wow no longer has`(): Unit = runBlocking {
@@ -170,6 +198,10 @@ class SnapshotMaintenanceTest {
         store.load(ref)!!.stateRevision.assert().isEqualTo(1)
         store.table(type).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
         maintenance.tables().keys.assert().containsExactly(SnapshotTargets.DEFAULT_STORE to type)
+        // An aggregate the log holds nothing of has no snapshot to write.
+        val nothing = type.ref("tenant", "nothing")
+        maintenance.rebuild(nothing)
+        store.load(nothing).assert().isNull()
     }
 
     @Test
