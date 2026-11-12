@@ -26,10 +26,13 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.LogPosition
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 /**
- * How the snapshot subscription writes: one aggregate's waiting entries once at the latest version, a partition's built
- * while a write runs together, a lane's partitions sharing the writes, other lanes at once, and an entry made by hand.
+ * How the snapshot subscription writes: one aggregate's waiting entries once at the latest version, the snapshots built
+ * while a write runs together, every partition's sharing one queue and at most two writes at once, and an entry made by
+ * hand.
  */
 class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
     @Test
@@ -72,14 +75,17 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
                 it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 it.hop.assert().isEqualTo(Hop.snapshot("shop"))
             }
-            store.batches.assert().containsExactly(1, ids.size)
+            // The second committer's write took those ready when it gathered, and the next write the rest: three in all.
+            store.batches.size.assert().isEqualTo(3)
+            store.batches.first().assert().isEqualTo(1)
+            store.batches.sum().assert().isEqualTo(1 + ids.size)
             ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
         }
 
     @Test
-    fun `the snapshots of the partitions of one lane share the writes`(): Unit = runBlocking {
-        // B.O-5: partitions 0, 4 and 8 share a writer (p % 4), so a write holds more than one partition's snapshot.
-        listOf("p0", "p1", "p2").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
+    fun `every partition's snapshots share one queue, at most two writes at once`(): Unit = runBlocking {
+        val ids = listOf("p0", "p1", "p2", "p3")
+        ids.forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
         fun entry(id: String, partition: Int) = async {
             val stream = log.read(ref(id)).toList().single()
             snapshots.subscription.handle(
@@ -87,40 +93,52 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
             )
         }
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        // Partition 0's write runs, held; partition 1's starts the second, whatever partitions they are of.
         val first = entry("p0", 0)
         eventually { store.batches.size == 1 }
-        // Partitions 4 and 8 wait for the write partition 0 leads, and are written together after it.
-        val others = listOf(entry("p1", 4), entry("p2", 8))
-        // A time, not an event: a write that wrongly leads its own batch shows only after its yield, and the queue it
-        // would skip is the subscription's own. A check at once, and the end's batches, pass without the shared lane.
+        val second = listOf(entry("p1", 1), entry("p2", 2))
+        eventually { store.batches.size == 2 }
+        // Two writes run: partition 3's snapshot waits for one of them to end.
+        val last = entry("p3", 3)
+        // A time, not an event: a third write started wrongly shows only after its gathering's yield.
         delay(50)
-        store.batches.size.assert().isEqualTo(1)
+        store.batches.size.assert().isEqualTo(2)
         store.gate = null
         gate.complete(Unit)
-        (listOf(first) + others).awaitAll()
-        store.batches.assert().containsExactly(1, 2)
-        listOf("p0", "p1", "p2").forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
+        (listOf(first) + second + last).awaitAll()
+        store.batches.first().assert().isEqualTo(1)
+        store.batches.sum().assert().isEqualTo(ids.size)
+        store.batches.size.assert().isEqualTo(3)
+        ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
     }
 
-    @Test
-    fun `the partitions of other lanes write at once`(): Unit = runBlocking {
-        listOf("q0", "q1").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
-        val gate = CompletableDeferred<Unit>().also { store.gate = it }
-        val handled = listOf("q0" to 0, "q1" to 1).map { (id, partition) ->
-            async {
+    @ParameterizedTest
+    @ValueSource(ints = [2, 4])
+    fun `the writes in flight reach the store's count under a queue and never exceed it`(inFlight: Int): Unit =
+        runBlocking {
+            val counted = RecordingStore(inFlight = inFlight)
+            val subscription = SnapshotSubscription("shop", listOf(counter), counted, kernel, log, codec).subscription
+            val ids = (0..inFlight).map { "w$it" }
+            ids.forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
+            fun entry(id: String) = async {
                 val stream = log.read(ref(id)).toList().single()
-                snapshots.subscription.handle(
-                    snapshots.subscription.decoder.decode(stream, LogPosition(partition, 1), null)
-                )
+                subscription.handle(subscription.decoder.decode(stream, LogPosition(0, ids.indexOf(id) + 1L), null))
             }
+            val gate = CompletableDeferred<Unit>().also { counted.gate = it }
+            // Each entry, arriving once the writes before took their batches, starts one more write: the store's count.
+            val held = ids.take(inFlight).mapIndexed { started, id ->
+                entry(id).also { eventually { counted.batches.size == started + 1 } }
+            }
+            // One more waits for a write to end.
+            val waiting = entry(ids.last())
+            // A time, not an event: a write started wrongly shows only after its gathering's yield.
+            delay(50)
+            counted.batches.size.assert().isEqualTo(inFlight)
+            counted.gate = null
+            gate.complete(Unit)
+            (held + waiting).awaitAll()
+            counted.batches.assert().containsExactly(*Array(inFlight + 1) { 1 })
         }
-        // Partition 1's lane does not wait for partition 0's write.
-        eventually { store.batches.size == 2 }
-        store.gate = null
-        gate.complete(Unit)
-        handled.awaitAll()
-        store.batches.assert().containsExactly(1, 1)
-    }
 
     @Test
     fun `an entry made by hand, without a position, is written with partition 0's snapshots`(): Unit = runBlocking {

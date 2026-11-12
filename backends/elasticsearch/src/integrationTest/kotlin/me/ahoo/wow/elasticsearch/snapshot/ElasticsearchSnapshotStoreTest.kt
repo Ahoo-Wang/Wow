@@ -179,6 +179,19 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
             ElasticsearchFixture.client.count { it.index(index) }.get().count().assert().isZero()
         }
 
+    @Test
+    fun `a store that waits for the refresh keeps four writes in flight, the others the default two`() {
+        fun inFlight(refresh: String?): Int {
+            val options = refresh?.let { mapOf(ElasticsearchStoreProvider.REFRESH.key to it) } ?: emptyMap()
+            val opened = ElasticsearchStoreProvider().open(ElasticsearchFixture.config(options = options))
+            return (opened as ElasticsearchStore).snapshots(ElasticsearchFixture.newContext()).writesInFlight
+        }
+        inFlight("wait-for").assert().isEqualTo(4)
+        inFlight("none").assert().isEqualTo(SnapshotStore.DEFAULT_WRITES_IN_FLIGHT)
+        inFlight("immediate").assert().isEqualTo(SnapshotStore.DEFAULT_WRITES_IN_FLIGHT)
+        inFlight(null).assert().isEqualTo(SnapshotStore.DEFAULT_WRITES_IN_FLIGHT)
+    }
+
     private companion object {
         const val ALLOCATION_DELAY = 1_500L
         const val ROUNDS = 10

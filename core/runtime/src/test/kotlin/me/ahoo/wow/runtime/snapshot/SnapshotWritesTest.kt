@@ -93,7 +93,7 @@ class SnapshotWritesTest {
     @Test
     fun `the saves arriving while a write runs are written together next, at most a batch at a time`(): Unit =
         runBlocking {
-            val writes = SnapshotWrites(store, 2)
+            val writes = SnapshotWrites(store, 2, committers = 1)
             val gate = CompletableDeferred<Unit>().also { store.gate = it }
             val first = async { writes.save(snapshot("a")) }
             eventually { store.batches.size == 1 }
@@ -103,6 +103,27 @@ class SnapshotWritesTest {
             gate.complete(Unit)
             (listOf(first) + waiting).awaitAll().assert().containsExactly(true, true, true, true)
             store.batches.assert().containsExactly(listOf("a@1"), listOf("b@1", "c@1"), listOf("d@1"))
+        }
+
+    @Test
+    fun `with two committers a second write carries what arrived while the first runs, and the rest wait`(): Unit =
+        runBlocking {
+            val writes = SnapshotWrites(store, 8, committers = 2)
+            val gate = CompletableDeferred<Unit>().also { store.gate = it }
+            val first = async { writes.save(snapshot("a")) }
+            eventually { store.batches.size == 1 }
+            // b leads the second write; c, ready while b gathers, joins it.
+            val second = listOf("b", "c").map { id -> async { writes.save(snapshot(id)) } }
+            eventually { store.batches.size == 2 }
+            // Both writes run: d waits for one of them to end.
+            val last = async { writes.save(snapshot("d")) }
+            eventually { writes.waiting == 1 }
+            store.batches.size.assert().isEqualTo(2)
+            store.gate = null
+            gate.complete(Unit)
+            (listOf(first) + second + last).awaitAll().assert().containsExactly(true, true, true, true)
+            store.batches.assert().containsExactly(listOf("a@1"), listOf("b@1", "c@1"), listOf("d@1"))
+            writes.waiting.assert().isEqualTo(0)
         }
 
     @Test
@@ -249,7 +270,7 @@ class SnapshotWritesTest {
 
     @Test
     fun `a waiting save cancelled leaves the queue, handed the lead or not`(): Unit = runBlocking {
-        val writes = SnapshotWrites(store, 8)
+        val writes = SnapshotWrites(store, 8, committers = 1)
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
         val leader = async { writes.save(snapshot("a")) }
         eventually { store.batches.size == 1 }

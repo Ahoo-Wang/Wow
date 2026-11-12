@@ -79,4 +79,19 @@ interface SnapshotStore {
      * fallback.
      */
     val rebuilds: SnapshotRebuildStore? get() = null
+
+    /**
+     * How many of this store's [saveAll] calls one snapshot subscription may have in flight at once:
+     * [DEFAULT_WRITES_IN_FLIGHT] by default, one call running while the next gathers what the partitions handed
+     * meanwhile. That suits a store whose write returns once the server has done its work, where fewer and larger calls
+     * share their fixed cost. A store whose write waits on a clock before it returns, as a search index that returns
+     * only once its next refresh makes the write visible, raises it: its subscription's throughput is then these calls
+     * times their batch per wait, whatever the load.
+     */
+    val writesInFlight: Int get() = DEFAULT_WRITES_IN_FLIGHT
+
+    companion object {
+        /** The calls in flight a store's snapshot subscription runs unless the store says otherwise ([writesInFlight]). */
+        const val DEFAULT_WRITES_IN_FLIGHT: Int = 2
+    }
 }

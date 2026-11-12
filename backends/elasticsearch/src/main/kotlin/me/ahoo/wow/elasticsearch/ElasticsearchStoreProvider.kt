@@ -55,7 +55,7 @@ import kotlin.time.Duration
  *   id reads a write once it returns, whatever `refresh` is. A command's `snapshot` wait is answered by the
  *   subscription of its type's own snapshot store, and its `queryable` wait by that of the store its snapshot queries
  *   read, so with `wait_for` on that store a caller that waits `queryable` then sees its commit in a list or a count.
- *   Waiting for a refresh caps that subscription's writes at a batch per write lane a refresh interval;
+ *   Waiting for a refresh caps that subscription's writes at four batches in flight a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
