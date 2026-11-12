@@ -116,7 +116,16 @@ export function cellValue(
   }
 
   const badges = badgeEntries(value, field, display.say);
-  if (badges) return <Badges entries={badges} surface={surface} />;
+  if (badges)
+    return saysStatus(field) ? (
+      <Badges entries={badges} surface={surface} />
+    ) : (
+      // A choice that is not a status is a value like any other: its
+      // label, as the file writes it (`cellText`), and no pill around it.
+      <span data-slot="cell-choice">
+        {cellText(value, field, messages, display)}
+      </span>
+    );
 
   const reference = referenceValue(value, field, display);
   if (reference) return reference;
@@ -269,6 +278,24 @@ function referenceValue(
     >
       {labels.text(field.remote, value)}
     </span>
+  );
+}
+
+/**
+ * Whether a field's choices are statuses, and so wear badges (D94): a
+ * `status` or `tags` cell, which the definition asked for by name, or an
+ * enum at least one of whose options names a tone — good news, a warning,
+ * a danger, or `neutral` said outright. Decided by the field, not by the
+ * value, so a column is all badges or all text. An enum nobody gave a tone
+ * is a value like any other — a channel, a region, a payment method — and a
+ * pill around every one of them made a table of twenty columns a table of
+ * pills, with the statuses that matter no louder than the rest.
+ */
+function saysStatus(field: DisplayField): boolean {
+  const cell = field.cell ?? field.kind;
+  return (
+    cell !== 'enum' ||
+    (field.options ?? []).some(option => option.tone !== undefined)
   );
 }
 

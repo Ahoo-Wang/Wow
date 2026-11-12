@@ -59,6 +59,7 @@ import { SortableHeader } from './SortableHeader.js';
 import { SummaryRows } from './SummaryRows.js';
 import { summarisesColumns, useSummaries } from './useSummaries.js';
 import { TableDataRow } from '../kit/variants.js';
+import { STALE, staleProps } from '../kit/stale.js';
 import {
   Table,
   TableBody,
@@ -96,6 +97,11 @@ const SELECT_CELL = 'fve:[&:has([role=checkbox])]:pr-2';
 
 export interface RecordTableProps {
   table: RecordTableController;
+  /**
+   * The rows answer an older question than the one on its way (`useStale`):
+   * kept and faded until the answer lands.
+   */
+  stale?: boolean;
   /**
    * Renders one cell; the default reads it as the column's `cell` says.
    * It is handed the raw value and the column as the runtime holds them —
@@ -208,6 +214,7 @@ export interface RecordCell {
  */
 export function RecordTable({
   table,
+  stale,
   renderCell,
   selectable = true,
   rowActions,
@@ -359,7 +366,11 @@ export function RecordTable({
       {!readOnly && region}
       <Table
         ref={element}
-        className={TABLE_CELLS}
+        // The rows answer an older question than the one on its way: kept
+        // and faded (`ui/kit/stale.ts`). On the table, not the port around
+        // it, which may hold the region that says a width changed.
+        className={cn(TABLE_CELLS, STALE)}
+        {...staleProps(stale)}
         {...(name ? { 'aria-label': messages.say(name) } : {})}
       >
         {/* A band rather than a row: it stays while the rows move under it,

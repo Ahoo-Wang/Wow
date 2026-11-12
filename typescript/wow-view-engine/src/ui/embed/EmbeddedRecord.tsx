@@ -23,6 +23,7 @@ import {
   useViewRuntime,
   type RecordDetailSection,
 } from '../../react/index.js';
+import { useStale } from '../../react/useStale.js';
 import { AppliedBar } from '../filter/AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
 import { ExportButton } from '../kit/ExportDialog.js';
@@ -78,6 +79,7 @@ export function EmbeddedRecord({
 }) {
   const state = useViewRuntime(runtime);
   const table = useRecordTable(runtime);
+  const stale = useStale(runtime);
   const kanban = useRecordKanban(runtime);
   const filter = useFilterEditor(runtime);
   const messages = useViewMessages();
@@ -160,6 +162,7 @@ export function EmbeddedRecord({
         {table.layout === 'kanban' ? (
           <RecordKanban
             table={table}
+            stale={stale}
             kanban={kanban}
             rowActions={rowActions}
             onOpen={onOpen}
@@ -168,6 +171,7 @@ export function EmbeddedRecord({
         ) : table.layout === 'card' ? (
           <RecordCards
             table={table}
+            stale={stale}
             rowActions={rowActions}
             selectable={selectable}
             onOpen={onOpen}
@@ -176,6 +180,7 @@ export function EmbeddedRecord({
         ) : (
           <RecordTable
             table={table}
+            stale={stale}
             rowActions={rowActions}
             selectable={selectable}
             readOnly={!interactive}
