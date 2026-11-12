@@ -68,6 +68,23 @@ abstract class CheckpointStoreSpec {
         }
 
     @Test
+    fun `the checkpoints of a subscription list each of its partitions, and no other subscription's nor group's`():
+        Unit = runBlocking {
+        val store = createStore()
+        store.list(group, "saga").assert().isEmpty()
+        store.save(group, "saga", 0, 3)
+        store.save(group, "saga", 1, 5)
+        store.save(group, "saga", 1, 4)
+        store.save(group, "saga_2", 0, 11)
+        store.save(group, "reactor", 0, 7)
+        store.save(group + "_other", "saga", 0, 9)
+        store.list(group, "saga").assert()
+            .containsExactlyInAnyOrder(Checkpoint.of("saga", 0, 3), Checkpoint.of("saga", 1, 5))
+        store.list(group, "reactor").assert().containsExactly(Checkpoint.of("reactor", 0, 7))
+        store.list(group, "none").assert().isEmpty()
+    }
+
+    @Test
     fun `a checkpoint only moves forward`(): Unit = runBlocking {
         val store = createStore()
         store.save(group, "projection", 0, 10)

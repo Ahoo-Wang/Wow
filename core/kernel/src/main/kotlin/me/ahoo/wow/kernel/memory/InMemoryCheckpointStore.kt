@@ -18,21 +18,31 @@ import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
 
-/** A [CheckpointStore] in memory, for tests and samples. */
+/**
+ * A [CheckpointStore] in memory, for tests and samples: the positions of each (group, subscription) by partition, so
+ * a subscription's checkpoints are read by the prefix of the key, as the backends read theirs.
+ */
 @InternalWowApi
 class InMemoryCheckpointStore : CheckpointStore {
-    private val checkpoints = ConcurrentHashMap<Key, Long>()
+    private val checkpoints = ConcurrentHashMap<Key, ConcurrentHashMap<Int, Long>>()
 
     override suspend fun load(group: String, subscription: String, partition: Int): Long? =
-        checkpoints[Key(group, subscription, partition)]
+        checkpoints[Key(group, subscription)]?.get(partition)
 
     override suspend fun list(group: String): List<Checkpoint> = checkpoints.entries
         .filter { it.key.group == group }
-        .map { Checkpoint.of(it.key.subscription, it.key.partition, it.value) }
+        .flatMap { (key, positions) -> checkpointsOf(key.subscription, positions) }
+
+    override suspend fun list(group: String, subscription: String): List<Checkpoint> =
+        checkpoints[Key(group, subscription)]?.let { checkpointsOf(subscription, it) }.orEmpty()
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
-        checkpoints.merge(Key(group, subscription, partition), position, ::maxOf)
+        val positions = checkpoints.computeIfAbsent(Key(group, subscription)) { ConcurrentHashMap() }
+        positions.merge(partition, position, ::maxOf)
     }
 
-    private data class Key(val group: String, val subscription: String, val partition: Int)
+    private fun checkpointsOf(subscription: String, positions: Map<Int, Long>): List<Checkpoint> =
+        positions.map { (partition, position) -> Checkpoint.of(subscription, partition, position) }
+
+    private data class Key(val group: String, val subscription: String)
 }

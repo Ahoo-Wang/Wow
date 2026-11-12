@@ -66,6 +66,11 @@ class SubscriptionRoutesTest {
             if (down) throw StorageUnavailableException("The checkpoints are unavailable.")
             return checkpoints.list(group)
         }
+
+        override suspend fun list(group: String, subscription: String): List<Checkpoint> {
+            if (down) throw StorageUnavailableException("The checkpoints are unavailable.")
+            return checkpoints.list(group, subscription)
+        }
     }
 
     /** A node of the cart, not started: it runs no partition, so each subscription stands at its checkpoints. */

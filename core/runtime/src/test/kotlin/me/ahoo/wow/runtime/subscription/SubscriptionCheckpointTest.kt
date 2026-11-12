@@ -120,7 +120,8 @@ class SubscriptionCheckpointTest {
                 counted.reset()
                 runtime.progress("progress", 64).assert().isEqualTo(12L)
                 counted.loads.get().assert().isZero()
-                counted.lists.get().assert().isEqualTo(1)
+                counted.lists.get().assert().isZero()
+                counted.subscriptionLists.get().assert().isEqualTo(1)
             } finally {
                 runtime.stop()
             }
@@ -164,7 +165,7 @@ class SubscriptionCheckpointTest {
         try {
             counted.reset()
             runtime.progress("progress", 1).assert().isEqualTo(0L)
-            (counted.loads.get() + counted.lists.get()).assert().isZero()
+            (counted.loads.get() + counted.lists.get() + counted.subscriptionLists.get()).assert().isZero()
         } finally {
             runtime.stop()
         }
@@ -174,10 +175,12 @@ class SubscriptionCheckpointTest {
     private class ReadCounting(private val delegate: CheckpointStore) : CheckpointStore by delegate {
         val loads = AtomicInteger()
         val lists = AtomicInteger()
+        val subscriptionLists = AtomicInteger()
 
         fun reset() {
             loads.set(0)
             lists.set(0)
+            subscriptionLists.set(0)
         }
 
         override suspend fun load(group: String, subscription: String, partition: Int): Long? =
@@ -185,6 +188,9 @@ class SubscriptionCheckpointTest {
 
         override suspend fun list(group: String): List<Checkpoint> =
             delegate.list(group).also { lists.incrementAndGet() }
+
+        override suspend fun list(group: String, subscription: String): List<Checkpoint> =
+            delegate.list(group, subscription).also { subscriptionLists.incrementAndGet() }
     }
 
     @Test

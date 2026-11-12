@@ -79,6 +79,9 @@ class BacklogActivationTest {
 
         override suspend fun list(group: String): List<Checkpoint> = pooled { checkpointStore.list(group) }
 
+        override suspend fun list(group: String, subscription: String): List<Checkpoint> =
+            pooled { checkpointStore.list(group, subscription) }
+
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) =
             pooled { checkpointStore.save(group, subscription, partition, position) }
 
