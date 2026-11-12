@@ -115,9 +115,9 @@ const AXON_SEPARATE = {
   id: 'axon-separate',
   props: { 'benchmark.axon.reactions': 'separate' },
 };
-// The runtime calibration (D393): the head's server on JDK 21 against JDK 25 on one runner, the load generator on 25
-// in both, so a ratio is the runtime's alone. `java`: the server's JDK, by its major version (javaHome, bench.sh
-// --server-java).
+// The runtime calibration (D393), the one place a server runs on a JDK other than 25 on purpose: the head's server on
+// JDK 21 against 25 on one runner, the load generator on 25 in both, so a ratio is the runtime's alone and the evidence
+// for running on 25. `java`: the server's JDK, by its major version (javaHome, bench.sh --server-java).
 const onJava = (arm, java) => ({ ...arm, id: `jdk${java}`, java });
 const JDK21_PG = onJava(HEAD_PG, 21);
 const JDK25_PG = onJava(HEAD_PG, 25);
