@@ -33,12 +33,15 @@ import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.MessageEntries
+import me.ahoo.wow.runtime.ledger.MaintenanceSkips
+import me.ahoo.wow.runtime.ledger.SkipLedger
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.reservation.ReservationRouter
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.LogProgress
+import me.ahoo.wow.runtime.snapshot.SnapshotAssembly
 import me.ahoo.wow.runtime.snapshot.SnapshotHops
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
@@ -58,12 +61,15 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.observation.ObservedEvent.MaintenanceSkipped.Work
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spi.observation.ObservedEvent.MaintenanceSkipped.Work.ACCESS_WALK as WALK
+import me.ahoo.wow.spi.observation.ObservedEvent.MaintenanceSkipped.Work.SNAPSHOT_REWRITE as REWRITE
 
 /**
  * Wires one bounded context of a [ServiceNode] from its [ContextBackends]: a [PartitionAppendQueue] over the context's
@@ -180,8 +186,9 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val firing = LateFirer()
         val group = LeaseGroup(service, context)
         val progress = progressOf(group, groups)
-        val maintenance = snaps.maintenance(group.name, node, backends.leases, progress, options.snapshots) { address }
-        val stamping = stampingOf(context, models, kernel, parts, group.name, backends, maintenance)
+        val skips = skipsOf(context, parts)
+        val maintenance = maintenanceOf(snaps, group, backends, progress, skips(REWRITE))
+        val stamping = stampingOf(context, models, kernel, parts, group.name, backends, maintenance, skips(WALK))
         val builtIns = snapshots.map { it.subscription } + stamping.subscription +
             listOfNotNull(maintenance?.rebuildSubscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
@@ -226,11 +233,32 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         fatals = fatals,
     )
 
+    /** The context's snapshot maintenance in its lease [group], when it keeps snapshots, parking with [skips]. */
+    private fun maintenanceOf(
+        snaps: SnapshotAssembly,
+        group: LeaseGroup,
+        backends: ContextBackends,
+        progress: List<LogProgress>,
+        skips: MaintenanceSkips,
+    ): SnapshotMaintenance? =
+        snaps.maintenance(group.name, node, backends.leases, progress, options.snapshots, { address }, skips)
+
+    /**
+     * Where [context]'s access walks and snapshot rewrites park the aggregates they cannot read, by their work: the
+     * ledger of each type's log group among [parts].
+     */
+    private fun skipsOf(context: String, parts: List<GroupParts>): (Work) -> MaintenanceSkips {
+        val ledgers = parts.flatMap { part -> part.types.map { it to SkipLedger(part.ledger, part.log.partitions) } }
+            .toMap()
+        return { work -> MaintenanceSkips(context, work, ledgers::get, classification, observer, clock) }
+    }
+
     /**
      * The built-in subscription `wow.access` of [context] and the context's access walks, in the lease [group]: each
      * type's history is stamped and walked on its log group's own log ([parts], before the hand-over wraps it), when
      * that log keeps stamps and walks; the walks rewrite the snapshots through the context's [maintenance], read the
-     * histories under the node's replay gate and give way to its log stores' write pressure.
+     * histories under the node's replay gate and give way to its log stores' write pressure, and park the aggregates
+     * they cannot read with [skips].
      */
     private fun stampingOf(
         context: String,
@@ -240,12 +268,13 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         group: String,
         backends: ContextBackends,
         maintenance: SnapshotMaintenance?,
+        skips: MaintenanceSkips,
     ): AccessStamping {
         val logs = parts.flatMap { part -> part.types.map { it to part.log } }.toMap()
         val snapshots = maintenance?.let { AccessSnapshots(it::rebuild) } ?: AccessSnapshots.NONE
         val walking = AccessWalking(
             context, group, node, models, kernel, logs::get, backends.leases, options.access, snapshots, { address },
-            observer, wiring.replayGate,
+            observer, wiring.replayGate, skips = skips,
         )
         // Before any lifecycle starts, so before a store is created: a store created from now on records its walk.
         walking.serve()

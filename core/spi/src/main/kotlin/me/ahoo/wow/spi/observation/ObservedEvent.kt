@@ -228,6 +228,28 @@ sealed class ObservedEvent {
     }
 
     /**
+     * The background [work] on [type]'s histories skipped one of its aggregates and went on with the others: the
+     * aggregate's history did not replay, or a read or write of it failed in a way no retry changes. The aggregate is
+     * parked in the failure ledger for an operator to retry or skip; this is told once per parking.
+     */
+    class MaintenanceSkipped @InternalWowApi constructor(val type: AggregateType, val work: Work) : ObservedEvent() {
+        override fun fields() = listOf("type" to type, "work" to work)
+
+        /**
+         * The background work that skipped an aggregate.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
+        enum class Work(val value: String) {
+            /** The type's access walk, which stamps each aggregate's history with its current attributes. */
+            ACCESS_WALK("access-walk"),
+
+            /** The rebuild of a snapshot table, which rewrites each pending snapshot from the log. */
+            SNAPSHOT_REWRITE("snapshot-rewrite"),
+        }
+    }
+
+    /**
      * A store of [context] fell back from an optional [capability] for [reason]; the work went on the way every store
      * can. Counted, never failing.
      */

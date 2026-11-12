@@ -29,6 +29,8 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.ledger.MaintenanceSkips
+import me.ahoo.wow.runtime.ledger.replaying
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
@@ -65,7 +67,12 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  * - **In-place rebuild**: a node whose revision a table is claimed at, and which holds the table's rebuild lease (the
  *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its pending snapshots ([SnapshotRebuildStore.pending])
  *   from the log, page by page, at their latest version, each run going on from where the last one stopped, and marks
- *   the table rebuilt once a scan from its first snapshot finds none left. A node of
+ *   the table rebuilt once a scan from its first snapshot finds none left, or parks every one it finds. A snapshot it
+ *   cannot rewrite, whose history does not replay, whose read or rewrite fails in a way no retry changes, or whose log
+ *   holds no stream of it, is parked under `wow.snapshot.rewrite` ([skips]) and left as it is stored, still pending, for
+ *   an operator to retry ([retry]) or skip; any other failure stops the run, which resumes where it stopped. A
+ *   snapshot marked stale behind a scan that parked every one is the next rebuild's: the node that marks it marks the
+ *   table rebuilding again. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
  *   of the log, by its store's subscription when that one has no checkpoint yet or is `snapshot` (the default store's,
@@ -100,6 +107,8 @@ class SnapshotMaintenance(
     private val observer: Observer = Observer.NONE,
     /** How a backfill's rebuilds replay the log, as the subscriptions' do ([SharedStates.rebuild]). */
     private val gate: ReplayGate = ReplayGate.OPEN,
+    /** Where the rebuilds park the snapshots they cannot rewrite; none: a failure of one stops the run. */
+    val skips: MaintenanceSkips? = null,
 ) : SnapshotStatus {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
@@ -216,6 +225,7 @@ class SnapshotMaintenance(
     /** One run: claims, rebuilds, backfill checks; see the class. */
     suspend fun maintain() {
         heartbeat()
+        skips?.refresh()
         // The heads serve the backfill checks alone: read while a target has not caught up, or before its table is known
         // (B.D diagnostics: once every target caught up, a run reads no partition counter).
         val catchingUp = placed.any { (store, types) -> types.any { tables[store to it]?.backfilled != true } }
@@ -259,7 +269,25 @@ class SnapshotMaintenance(
         rebuild(model, ref) { recordOf(model, ref, streams, state) }
     }
 
-    private suspend fun rebuild(model: AggregateModel<*>, ref: AggregateRef, recordOf: suspend () -> SnapshotRecord?) {
+    /**
+     * An operator's retry of [ref], whose rewrite a rebuild skipped: rebuilt as [rebuild] does; true when every target
+     * was rewritten here, and its entry resolved. A target whose table is claimed at another revision is marked stale
+     * for the node of that revision, whose rebuild resolves the entry once it rewrites it; a failure that skips it
+     * leaves the entry as it is.
+     */
+    suspend fun retry(ref: AggregateRef): Boolean {
+        val model = models[ref.type] ?: return false
+        val skips = skips ?: return false
+        return skips.retry(ref) { rebuild(model, ref) { recordOf(model, ref) } }
+    }
+
+    /** Whether every target of [ref] was rewritten in place, none left for the node of another revision. */
+    private suspend fun rebuild(
+        model: AggregateModel<*>,
+        ref: AggregateRef,
+        recordOf: suspend () -> SnapshotRecord?,
+    ): Boolean {
+        var here = true
         targets.placementOf(ref.type).targets.forEach { name ->
             val store = storeOf(name)
             val rebuilds = store.rebuilds
@@ -272,12 +300,14 @@ class SnapshotMaintenance(
             if (table == null || table.revision == model.stateRevision) {
                 recordOf()?.let { rebuilds.rewrite(it) }
             } else {
+                here = false
                 if (!rebuilds.markStale(ref)) {
                     recordOf()?.let { store.save(it) }
                 }
                 rebuilds.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
             }
         }
+        return here
     }
 
     private suspend fun rebuildRequested(entry: SubscribedEntry) {
@@ -325,7 +355,8 @@ class SnapshotMaintenance(
      * reads on instead of scanning them again. The lease's epoch alone makes going on safe: [revision] is the node's own
      * for its life, and a lease taken again may follow another node's rewrites, so the scan then starts from the first.
      * At the end of the table the scan starts over, for the snapshots marked stale behind it meanwhile; the table is
-     * rebuilt once a scan from the first finds none, unless it was claimed at another revision meanwhile.
+     * rebuilt once a scan from the first finds none, or parks every one it finds (those left are the ones that cannot
+     * be rewritten: see the class), unless it was claimed at another revision meanwhile.
      */
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
         val key = store to type
@@ -337,11 +368,14 @@ class SnapshotMaintenance(
         }
         val snapshots = rebuildsOf(store)
         val model = models.getValue(type)
-        var after = cursors[key]?.takeIf { it.epoch == held.epoch }?.after
+        val cursor = cursors[key]?.takeIf { it.epoch == held.epoch }
+        var after = cursor?.after
+        // Whether the scan under way, from the first, parked every snapshot it found: then only those are left.
+        var parkedOnly = cursor?.parkedOnly ?: true
         repeat(options.pages) {
             val pending = snapshots.pending(type, revision, after, options.batch)
             if (pending.isEmpty()) {
-                if (after == null) {
+                if (after == null || parkedOnly) {
                     cursors.remove(key)
                     val marked = snapshots.mark(type, revision, rebuilding = false)
                     leases.release(lease, 0, node)
@@ -355,20 +389,52 @@ class SnapshotMaintenance(
                     return
                 }
                 after = null
+                parkedOnly = true
                 return@repeat
             }
             pending.forEach { ref ->
-                val record = recordOf(model, ref)
-                if (record == null) {
-                    logger.warn { "The log holds no stream of $ref: its snapshot in $store is left as it is." }
-                } else {
-                    snapshots.rewrite(record)
+                if (!parkedInstead(snapshots, store, model, ref)) {
+                    parkedOnly = false
                 }
             }
             after = pending.last()
             leases.renew(lease, listOf(0), node, options.leaseTtl)
         }
-        cursors[key] = RebuildCursor(held.epoch, after)
+        cursors[key] = RebuildCursor(held.epoch, after, parkedOnly)
+    }
+
+    /**
+     * Rewrites the snapshot of [ref] in [store] from the log, skipped as [skips] says; whether it is parked instead: its
+     * history does not replay, its read or rewrite failed in a way no retry changes, or its log holds no stream of it.
+     * False when it was rewritten, or left pending unparked: no stream of it, and no ledger takes it.
+     */
+    private suspend fun parkedInstead(
+        snapshots: SnapshotRebuildStore,
+        store: String,
+        model: AggregateModel<*>,
+        ref: AggregateRef,
+    ): Boolean {
+        var absent = false
+        val work: suspend () -> Unit = {
+            val record = recordOf(model, ref)
+            if (record == null) {
+                absent = true
+            } else {
+                snapshots.rewrite(record)
+            }
+        }
+        val done = skips?.attempt(ref, work) ?: run {
+            work()
+            true
+        }
+        if (!done) {
+            return true
+        }
+        if (absent && skips?.absent(ref) != true) {
+            logger.warn { "The log holds no stream of $ref: its snapshot in $store is left as it is." }
+            return false
+        }
+        return absent
     }
 
     /**
@@ -424,20 +490,20 @@ class SnapshotMaintenance(
     /** The snapshot of [ref] rebuilt from its whole log, at [model]'s state revision; null when the log holds none. */
     private suspend fun recordOf(model: AggregateModel<*>, ref: AggregateRef): SnapshotRecord? {
         val streams = log.read(ref).toList()
-        val state = kernel.replayed(model, ref, streams) ?: return null
+        val state = replaying(ref) { kernel.replayed(model, ref, streams) } ?: return null
         return recordOf(model, ref, streams, state)
     }
 
-    /** The snapshot of [ref] from [streams], its whole log, replayed as [state]. */
+    /** The snapshot of [ref] from [streams], its whole log, replayed as [state]; with no store, so a [replaying]. */
     private fun recordOf(
         model: AggregateModel<*>,
         ref: AggregateRef,
         streams: List<EventStreamRecord>,
         state: CachedState,
-    ): SnapshotRecord {
+    ): SnapshotRecord = replaying(ref) {
         val first = streams.first()
         val last = streams.last()
-        return codec.snapshotOf(
+        codec.snapshotOf(
             model,
             ref,
             codec.stateText(state.state),
@@ -475,9 +541,10 @@ class SnapshotMaintenance(
 
     /**
      * Where a rebuild of a table stopped: under the rebuild lease of [epoch], after the snapshot [after] (null to start
-     * from the first). The epoch alone keys it: a node rebuilds at its own revision for its life.
+     * from the first), and whether the scan under way parked every snapshot it found ([parkedOnly]). The epoch alone
+     * keys it: a node rebuilds at its own revision for its life.
      */
-    private class RebuildCursor(val epoch: Long, val after: AggregateRef?)
+    private class RebuildCursor(val epoch: Long, val after: AggregateRef?, val parkedOnly: Boolean)
 
     @InternalWowApi
     companion object {

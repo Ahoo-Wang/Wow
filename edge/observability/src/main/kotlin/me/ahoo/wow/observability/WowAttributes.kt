@@ -298,6 +298,14 @@ object WowMetrics {
         tags = listOf(CONTEXT, AGGREGATE),
     )
 
+    val MAINTENANCE_SKIPPED: MetricSpec = MetricSpec.counter(
+        "wow.maintenance.skipped",
+        "The aggregates of a type the background work on its histories could not read and parked for an operator, " +
+            "by the work: the access walk or a snapshot rewrite.",
+        tags = listOf(CONTEXT, AGGREGATE, KIND),
+        values = mapOf(KIND to ObservedEvent.MaintenanceSkipped.Work.entries.map { it.value }),
+    )
+
     val ACCESS_WALK_PENDING: MetricSpec = MetricSpec.gauge(
         "wow.access.walk.pending",
         "1 while the access walk of a type has not completed, as its log records it, else 0. Until it completes, " +
@@ -458,7 +466,8 @@ object WowMetrics {
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
         STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS,
         RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
-        ACCESS_WALKED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
+        ACCESS_WALKED, MAINTENANCE_SKIPPED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED,
+        SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, FATAL_ERRORS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
         QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,

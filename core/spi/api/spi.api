@@ -805,6 +805,20 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed$Outco
 	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed$Outcome;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun getWork ()Lme/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work : java/lang/Enum {
+	public static final field ACCESS_WALK Lme/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work;
+	public static final field SNAPSHOT_REWRITE Lme/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$MaintenanceSkipped$Work;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$OffsetGap : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getPartition ()I
 	public final fun getTopic ()Ljava/lang/String;

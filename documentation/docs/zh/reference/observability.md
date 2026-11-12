@@ -60,6 +60,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.access.stamped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.reason` | 盖上聚合当前访问属性的流：`change`（一次提交改变了它们，它之前的流随之盖章）、`walk`（该类型的访问遍历）、`catch-up`（`wow.access` 在遍历的日志头之后读到不带它们的流） |
 | `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | 为一个聚合的历史盖章所用的时间：`change`、`walk`、`catch-up` |
 | `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | 该类型的访问遍历在本节点盖过章的聚合 |
+| `wow.maintenance.skipped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.kind` | 类型历史上的后台工作读不了、为运维停放的聚合，每次停放计一次，按工作区分：`access-walk` 或 `snapshot-rewrite`（[重建与重放](../operate/replay#access-attributes)）。重试或跳过不会让它减少；仍在停放的由停放计量计数 |
 | `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 按日志的记录，该类型的访问遍历完成之前为 1，之后为 0：在此之前，访问策略下的事件查询不包含遍历尚未到达的流 |
 | `wow.access.walk.walked` | Gauge | `wow.context`, `wow.aggregate.name` | 按日志的记录，该类型的访问遍历已盖过章的聚合数：每个节点报的值相同，重启也不丢 |
 

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.spi.log.EventLog
@@ -68,7 +69,10 @@ internal class SnapshotAssembly(
             )
         }
 
-    /** The context's maintenance, in the lease [group] of the context, when it keeps snapshots. */
+    /**
+     * The context's maintenance, in the lease [group] of the context, when it keeps snapshots; its rebuilds park the
+     * snapshots they cannot rewrite with [skips].
+     */
     fun maintenance(
         group: String,
         node: String,
@@ -76,10 +80,11 @@ internal class SnapshotAssembly(
         progress: List<LogProgress>,
         options: SnapshotOptions,
         address: () -> String,
+        skips: MaintenanceSkips? = null,
     ): SnapshotMaintenance? = targets?.takeIf { snapshotted.isNotEmpty() }?.let {
         SnapshotMaintenance(
             context, group, node, snapshotted, it, kernel, codec, log, leases, progress, options, address, observer,
-            gate,
+            gate, skips,
         )
     }
 }
