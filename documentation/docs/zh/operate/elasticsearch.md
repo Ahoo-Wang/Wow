@@ -118,6 +118,7 @@ wow:
 - **命令按 ID 从它加载。** 命令用实时 get 从索引加载状态，再从日志的存储读日志的尾部。状态读取（`GET …/state`）也这样读这个索引。无论 `refresh` 取什么，写入一返回，按 ID 就能立刻读回。
 - **它的默认等待止于 Elasticsearch。** 索引包含该提交时 `snapshot` 就结束。这个类型的查询读的是同一个索引，所以 `queryable` 是同一个等待。在默认的 `refresh: none` 下，检索要在这之后的一个索引刷新间隔内才看到该提交。提交命令后重载列表的页面可能读不到它，按 ID 读取则不会。
 - **`refresh: wait-for` 为这个存储上各类型的每条命令补上这个空隙。** 每次写入都等到检索看得到才返回，所以每条按默认等待的命令都可能晚至多一个刷新间隔才得到应答。这个存储的订阅也像副本那样，每个刷新间隔每条写入通道至多写一批（[上文](#reading-your-own-write)）。超过这个上限它就会落后，未命中状态缓存的命令要重放更长的一段日志尾部。
+- **宕机按数据库宕机处理。** 这个存储与日志一样在命令的路径上。它持续失败达 `wow.health.stores.down-after` 后，节点即未就绪。仍到达节点的命令照样提交，加载时重放日志，但默认等待会超时（`504 wow.wait.timeout`，结果为已提交）。状态读取应答 `503 wow.storage.unavailable`。每次失败的加载都计入 `wow.store.fallbacks`（`snapshot-load`），只有第一次记为 warning 日志。这个存储的订阅暂停，Elasticsearch 恢复后再追上。命令不能依赖 Elasticsearch 的类型，把快照留在日志的数据库上，另在 Elasticsearch 上加一份副本，它宕机时只是检索停下（[选择存储](./choosing-storage#elasticsearch-is-never-the-log)）。
 
 ## 存储组合 {#store-combinations}
 

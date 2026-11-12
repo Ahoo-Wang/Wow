@@ -30,6 +30,9 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Reason.FAILED
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
@@ -242,6 +245,29 @@ class KernelSnapshotTest {
         val outcome = failing.execute(cartModel, Command("c-down", "r-down", ref, AddItem("apple", 10)))
         outcome.cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
         log.streamsRead.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `each snapshot load that fails is counted as a fallback to the log`() = runTest {
+        history()
+        val fallbacks = ArrayList<ObservedEvent.StoreFellBack>()
+        val observer = object : Observer {
+            override fun observed(event: ObservedEvent) {
+                if (event is ObservedEvent.StoreFellBack) fallbacks += event
+            }
+        }
+        val down = FailingStore(IllegalStateException("store down"))
+        val failing = Kernel(log, codec, snapshots = down, observer = observer)
+        failing.execute(cartModel, Command("c-down", "r-down", ref, AddItem("apple", 10))).cart()
+        // A state consumer reads the store as the kernel's cache-miss load does.
+        val tolerant = failing.tolerant(down)
+        tolerant.load(ref).assert().isNull()
+        tolerant.load(ref).assert().isNull()
+        fallbacks.map { Triple(it.context, it.capability, it.reason) }.assert().containsExactly(
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+            Triple(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, FAILED),
+        )
     }
 
     @Test
