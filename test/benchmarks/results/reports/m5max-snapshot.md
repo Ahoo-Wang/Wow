@@ -67,7 +67,7 @@ Each cell gives this snapshot's figure, then the last snapshot's at `a7c372ad3e`
   - MongoDB's hot account: 248.8 ms (147.5 ms);
   - PostgreSQL's E3: 704.5 ms (93.7 ms).
 
-  They belong to the low-concurrency anomaly below.
+  They moved with the stores' two flush modes below, and are not a change between the snapshots.
 - **The hot account moved in opposite directions,** PostgreSQL +22.2% and MongoDB −23.1%. The last snapshot's five fresh sessions of one hot account ranged 8.9–11.9 k/s on PostgreSQL. Single runs; not read as either store's change.
 
 ### E1 to its limit
@@ -128,23 +128,40 @@ From each session's `log-digest.md` (the node logs are not committed):
 
 ## Anomalies
 
-### Low concurrency: the median at 4 to 16 clients is about twice what it was
+### Two modes at 4 to 16 clients, in every build measured: the store's flush
 
-At 1 client and at 64 or more, a single node's median latency is what both earlier snapshots measured. At 4 to 16 clients it is 1.8 to 2.9 times as high on both backends, and the closed loop's throughput falls by as much:
+A single node's median at 4 and 16 clients was 1.8 to 2.9 times as high in this snapshot as in the last two, on both backends, while 1 client and 64 or more were unchanged:
 
-| Single node, E1 uniform | `b435768e49`: p50, throughput | `a7c372ad3e` | This snapshot |
+| Single node, E1 uniform, p50 | `b435768e49` | `a7c372ad3e` | This snapshot |
 | --- | ---: | ---: | ---: |
-| PostgreSQL, 1 client | 0.93 ms, 1,058.5/s | 0.80 ms, 973.9/s | 0.88 ms, 776.3/s |
-| PostgreSQL, 4 clients | 1.59 ms, 2,399.4/s | 1.80 ms, 1,521.2/s | **4.93 ms, 684.4/s** |
-| PostgreSQL, 16 clients | 2.72 ms, 5,543.3/s | 2.65 ms, 5,227.5/s | **4.89 ms, 2,643.5/s** |
-| PostgreSQL, 64 clients | 5.38 ms, 9,855.7/s | 5.12 ms, 10,821.4/s | 5.38 ms, 9,676.4/s |
-| MongoDB, 16 clients | 3.47 ms, 3,861.0/s | 3.81 ms, 3,643.8/s | **6.53 ms, 1,885.9/s** |
-| MongoDB, 64 clients | 7.17 ms, 7,488.0/s | 8.45 ms, 5,863.7/s | 9.41 ms, 5,093.1/s |
+| PostgreSQL, 4 clients | 1.59 ms | 1.80 ms | 4.93 ms |
+| PostgreSQL, 16 clients | 2.72 ms | 2.65 ms | 4.89 ms |
+| MongoDB, 16 clients | 3.47 ms | 3.81 ms | 6.53 ms |
 
-- The tails at 64 to 256 clients grew with it, which is what moved the three sustainable figures above. Those steps were not disturbed (the other processes used 0.2–0.9 cores in them).
-- The low steps of a sweep are its noisiest (the last snapshot's e1-hot check: up to 40% below 64 clients). But the median moved on both backends, in every single-node E1 sweep, in the same direction, past both earlier snapshots.
-- Not explained. Read for it, #6147 adds no wait to the appends: it runs the append queue's lanes and mergers through `launchWorker`, one `round()` a batch while the scope is active, with their batching unchanged (`receive`, then `tryReceive` up to `maxBatch` and `mergeMax`). #6153 does the same for a worker's lanes, one round an entry. There are 176 commits in the range, and this snapshot cannot attribute the move to any of them.
-- To find out: E1 uniform on PostgreSQL at 4 and 16 clients, a few fresh sessions each, bisecting `a7c372ad3e..d9b0781205`. The step is short and needs no sweep.
+**It is not a change between the snapshots.** Four builds across the range were measured one after another, one fresh single-node PostgreSQL session each, E1 uniform at 4, 16, 4 and 16 clients (15 s measured after 5 s a step) (`low-concurrency/split/`). p50 a step, in order:
+
+| Build | 4 clients | 16 clients | 4 clients | 16 clients |
+| --- | ---: | ---: | ---: | ---: |
+| `a7c372ad3e`, the last snapshot | 1.79 ms | 2.90 ms | **5.09 ms** | **4.86 ms** |
+| `13835bf24a`, D420's parent | 1.99 ms | **5.05 ms** | 1.78 ms | **4.13 ms** |
+| `62314e9075`, D420 | 1.77 ms | 2.64 ms | 1.81 ms | 2.64 ms |
+| `d9b0781205`, this snapshot | 1.80 ms | **4.99 ms** | 1.78 ms | 2.75 ms |
+
+Every build has fast steps (about 1.8 ms at 4 clients, 2.6–2.9 ms at 16), and three of the four have slow ones at about 5 ms, `a7c372ad3e` among them in the session where its first two steps were fast. A build flips from one mode to the other between two 20 s steps. One 30 s step of a sweep catches either: the last snapshot's 4 and 16 clients fell in the fast mode, this one's in the slow. No session was void or disturbed, and the other processes used as much in the slow steps as in the fast (0.5–1.1 cores).
+
+**What waits is the stores' flush.** One session at `d9b0781205` ran E1 uniform at 4 clients for 12 steps (10 s after 3 s) on each backend, sampling the store every second (`low-concurrency/naming-postgres/wal.tsv`, `naming-mongo/journal.tsv`). PostgreSQL ran with `track_wal_io_timing` on, beside `pg_stat_wal`, `pg_stat_database` and `pg_stat_statements`; MongoDB with WiredTiger's journal sync count and time:
+
+| Backend, mode | Steps | p50 | Throughput | Mean flush | Flushes a second | Also |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| PostgreSQL, fast | 1–4, 11–12 | 1.79–2.00 ms | 1,512–2,153/s | WAL sync 0.59–0.96 ms | 955–1,569 | 2.29–2.36 commits a sync; statements 0.030–0.038 ms a call |
+| PostgreSQL, slow | 5–10 | 4.64–5.05 ms | 726–796/s | WAL sync **1.74–1.80 ms** | 514–578 | 2.33–2.41 commits a sync; statements 0.037–0.043 ms a call |
+| MongoDB, fast | 1, 3, 5, 6, 10 | 2.35–2.65 ms | 1,319–1,432/s | journal sync 0.55–0.62 ms | 863–973 | |
+| MongoDB, slow | 7–9 | 4.16–4.25 ms | 819–836/s | journal sync **1.41–1.43 ms** | 543–611 | the other steps between, 0.81–1.27 ms with p50 2.83–3.79 ms |
+
+- The flush time itself is bimodal, on both stores, and the median follows it. Everything Wow sends executes alike in both modes: the statements' time a call, and the commits a sync (the group commit), are the same.
+- At 4 clients each command waits on its commits in turn, so the PostgreSQL median's +3 ms is about three of them at the extra 1.1 ms each. Inferred from the counts.
+- The two stores run in OrbStack's Linux VM on the engine's disk. A flush slower on both at once is that storage path's state, the VM's or the disk's, not either store's code and not Wow's.
+- The three sustainable figures that fell above moved with this mode. They are not a change between the snapshots.
 
 ### PostgreSQL's E1 uniform past its peak: a refusal now
 
@@ -210,6 +227,7 @@ The second pass's rounds are `r1` and `r2` of `mongo-store-cost-r3-r4/`; they ar
 
 - One machine, one run each, apart from the store cost's 12 sessions; no A/A pair in the snapshot itself. The noise band rests on one repeat of 4,096 clients a sweep, and the steps below 64 clients vary by up to 40% from run to run (the last snapshot's e1-hot check).
 - 176 commits separate the two snapshots. No difference between them is laid to one commit.
+- **A sweep's low steps cannot carry a comparison.** Each is one 30 s step in one session, and on this machine the stores' flush runs in one of two modes that change between two 20 s steps (the anomaly above). A comparison at 1–256 clients would need each low step repeated, or the arms' steps interleaved in one window, with the stores' flush time recorded beside it (PostgreSQL's `pg_stat_wal` with `track_wal_io_timing`, MongoDB's journal sync time). The snapshot's scripts do neither yet.
 - The desktop's own CPU varies over a window by more than a store-cost arm differs. A step is disturbed only at 2 cores, so a fixed-rate comparison has to be read with each session's other processes beside it.
 - Three nodes share the host with the stores and the load generator, so the cluster's numbers are this host's, not a deployment's.
 - Nothing checks the accounts' balances or the logs' continuity after a run.
@@ -241,5 +259,6 @@ The scripts write the raw output under `test/benchmarks/results/e2e/` (ignored b
 | `1-S-<backend>/` | The single-node session: `up.log`, `host.txt`, `log-digest.md`, the three `*-peak.md`, and a directory per sweep (`saturation.json`, `summary.md`, `saturate.log`, `settle.*`, `host.txt`, `host-load.tsv`, `allowed-jvms.txt`), the steps past 4,096 clients in `<sweep>-top/` |
 | `3-N-<backend>/` | The three-node session, likewise, with the fixed 1,024-client runs `e1-c1024/` and `e3-c1024/` |
 | `0*-*.log` | Each script's output |
+| `low-concurrency/` | The two modes: `split/<n>-<build>/` (the four builds' sessions, steps 4, 16, 4, 16), `naming-postgres/` (12 steps at 4 clients, with `wal.tsv`, PostgreSQL's WAL and statements every second, and `pg-top.txt`), `naming-mongo/` (likewise, with `journal.tsv`). Each session ran `03-e1-hot-arms.sh`'s session with `SWEEP=(--sweep --concurrencies=… --step=… --warm-up=…)` and, in the naming sessions, a sampler of the store beside the sweep; their wrappers are not committed |
 | `mongo-store-cost/`, `mongo-store-cost-r3-r4/` | The store cost's two passes: each with [`STORE-COST.md`](m5max-snapshot/mongo-store-cost-r3-r4/STORE-COST.md) (every session's figures, index sizes and keys, and the ratios), `SUMMARY.md` (each run's verdict and load), `verdicts.txt`, `env-*/environment.txt`, the pass's log `04-mongo-store-cost.log`, and per session `r<round>-<arm>/` with `up.log`, `indexes.log`, `index-check.json`, `idle.json`, `store-before.json`, `store-after.json`, `host.txt` and the run's `result.json`, `host-load.tsv` and `allowed-jvms.txt` |
 | [`scripts/`](m5max-snapshot/scripts/) | `run-all.sh`, `01-single-node.sh`, `02-three-nodes.sh`, `03-e1-hot-arms.sh`, `04-mongo-store-cost.sh`, `lib.sh`, `summarize.py`, `store-cost.py`, `digest-logs.py` |
