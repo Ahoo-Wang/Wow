@@ -30,15 +30,12 @@ import me.ahoo.wow.api.query.TotalMode
  * and [sort].
  */
 @QueryDslMarker
-abstract class QueryableDsl<Q> {
-    @JvmField
-    protected var projection: Projection = Projection.ALL
+abstract class QueryableDsl<Q> internal constructor() {
+    internal var projection: Projection = Projection.ALL
 
-    @JvmField
-    protected var filter: FilterExpression = MatchAllFilter
+    internal var filter: FilterExpression = MatchAllFilter
 
-    @JvmField
-    protected var sort: List<Sort> = emptyList()
+    internal var sort: List<Sort> = emptyList()
 
     fun projection(projection: Projection) {
         this.projection = projection
@@ -58,12 +55,12 @@ abstract class QueryableDsl<Q> {
 
     fun sort(block: SortDsl.() -> Unit) = sort(SortDsl().apply(block).build())
 
-    abstract fun build(): Q
+    internal abstract fun build(): Q
 }
 
 /** Builds a `list` query: up to [limit] records, the entry's default list size when not set. */
 @QueryDslMarker
-class ListQueryDsl : QueryableDsl<ListQuery>() {
+class ListQueryDsl internal constructor() : QueryableDsl<ListQuery>() {
     private var limit: Int? = null
 
     fun limit(limit: Int) {
@@ -75,7 +72,7 @@ class ListQueryDsl : QueryableDsl<ListQuery>() {
 
 /** Builds a `paged` query: the page of [pagination], with its total counted as [total] says. */
 @QueryDslMarker
-class PagedQueryDsl : QueryableDsl<PagedQuery>() {
+class PagedQueryDsl internal constructor() : QueryableDsl<PagedQuery>() {
     private var pagination: Pagination = Pagination.DEFAULT
     private var total: TotalMode = TotalMode.BOUNDED
 
@@ -95,7 +92,7 @@ class PagedQueryDsl : QueryableDsl<PagedQuery>() {
 
 /** Builds a `single` query: the first record by [sort], if any matches. */
 @QueryDslMarker
-class SingleQueryDsl : QueryableDsl<SingleQuery>() {
+class SingleQueryDsl internal constructor() : QueryableDsl<SingleQuery>() {
     override fun build(): SingleQuery = SingleQuery(filter, projection, sort)
 }
 
@@ -104,7 +101,7 @@ class SingleQueryDsl : QueryableDsl<SingleQuery>() {
  * `nextCursor` of the previous page (none at first).
  */
 @QueryDslMarker
-class CursorQueryDsl : QueryableDsl<CursorQuery>() {
+class CursorQueryDsl internal constructor() : QueryableDsl<CursorQuery>() {
     private var size: Int? = null
     private var cursor: String? = null
 
@@ -121,7 +118,7 @@ class CursorQueryDsl : QueryableDsl<CursorQuery>() {
 
 /** Builds a `count` query: the matches of [filter], counted up to [limit] (the budget's limit by default). */
 @QueryDslMarker
-class CountQueryDsl {
+class CountQueryDsl internal constructor() {
     private var filter: FilterExpression = MatchAllFilter
     private var limit: Int? = null
 
@@ -135,5 +132,5 @@ class CountQueryDsl {
         this.limit = limit
     }
 
-    fun build(): CountQuery = CountQuery(filter, limit)
+    internal fun build(): CountQuery = CountQuery(filter, limit)
 }

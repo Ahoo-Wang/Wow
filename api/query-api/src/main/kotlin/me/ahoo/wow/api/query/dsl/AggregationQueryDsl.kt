@@ -43,7 +43,7 @@ import java.time.ZoneId
  */
 @QueryDslMarker
 @ExperimentalWowApi
-class AggregationQueryDsl {
+class AggregationQueryDsl internal constructor() {
     private var filter: FilterExpression = MatchAllFilter
     private val elements = mutableListOf<AggregationElement>()
     private val groups = mutableListOf<AggregationGroup>()
@@ -350,7 +350,8 @@ class AggregationQueryDsl {
         having = HavingDsl().init()
     }
 
-    fun build(): AggregationQuery = AggregationQuery(filter, elements, groups, metrics, sort, limit, having = having)
+    internal fun build(): AggregationQuery =
+        AggregationQuery(filter, elements, groups, metrics, sort, limit, having = having)
 
     private fun filterOf(block: FilterDsl.() -> Unit): FilterExpression = me.ahoo.wow.api.query.dsl.filter(block)
 
@@ -366,7 +367,7 @@ class AggregationQueryDsl {
  */
 @QueryDslMarker
 @ExperimentalWowApi
-class DerivedExpressionDsl {
+class DerivedExpressionDsl internal constructor() {
     fun ref(metric: String): DerivedExpression = DerivedExpression.MetricRef(metric)
 
     fun constant(value: Double): DerivedExpression = DerivedExpression.Constant(value)
@@ -424,7 +425,7 @@ class DerivedExpressionDsl {
  */
 @QueryDslMarker
 @ExperimentalWowApi
-class HavingDsl {
+class HavingDsl internal constructor() {
     infix fun String.eq(value: Double): HavingExpression = condition(ComparisonOperator.EQ, value)
 
     infix fun String.ne(value: Double): HavingExpression = condition(ComparisonOperator.NE, value)

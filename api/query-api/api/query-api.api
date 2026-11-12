@@ -2251,7 +2251,6 @@ public final class me/ahoo/wow/api/query/annotation/SensitivityLevel : java/lang
 }
 
 public final class me/ahoo/wow/api/query/dsl/AggregationQueryDsl {
-	public fun <init> ()V
 	public final fun any (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun any (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun any (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)V
@@ -2260,7 +2259,6 @@ public final class me/ahoo/wow/api/query/dsl/AggregationQueryDsl {
 	public final fun avg (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun avg (Lme/ahoo/wow/api/query/AggregationExpression;Ljava/lang/String;)V
 	public final fun avg (Lme/ahoo/wow/api/query/AggregationExpression;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public final fun build ()Lme/ahoo/wow/api/query/AggregationQuery;
 	public final fun constant (D)Lme/ahoo/wow/api/query/AggregationExpression;
 	public final fun count (Ljava/lang/String;)V
 	public final fun count (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
@@ -2355,23 +2353,18 @@ public final class me/ahoo/wow/api/query/dsl/AggregationQueryDsl {
 }
 
 public final class me/ahoo/wow/api/query/dsl/CountQueryDsl {
-	public fun <init> ()V
-	public final fun build ()Lme/ahoo/wow/api/query/CountQuery;
 	public final fun filter (Lkotlin/jvm/functions/Function1;)V
 	public final fun filter (Lme/ahoo/wow/api/query/FilterExpression;)V
 	public final fun limit (Ljava/lang/Integer;)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/CursorQueryDsl : me/ahoo/wow/api/query/dsl/QueryableDsl {
-	public fun <init> ()V
-	public synthetic fun build ()Ljava/lang/Object;
-	public fun build ()Lme/ahoo/wow/api/query/CursorQuery;
+	public synthetic fun build$me_ahoo_wow_wow_query_api ()Ljava/lang/Object;
 	public final fun cursor (Ljava/lang/String;)V
 	public final fun size (I)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/DerivedExpressionDsl {
-	public fun <init> ()V
 	public final fun constant (D)Lme/ahoo/wow/api/query/DerivedExpression;
 	public final fun div (Lme/ahoo/wow/api/query/DerivedExpression;Lme/ahoo/wow/api/query/DerivedExpression;)Lme/ahoo/wow/api/query/DerivedExpression;
 	public final fun minus (Lme/ahoo/wow/api/query/DerivedExpression;Lme/ahoo/wow/api/query/DerivedExpression;)Lme/ahoo/wow/api/query/DerivedExpression;
@@ -2538,7 +2531,6 @@ public final class me/ahoo/wow/api/query/dsl/FilterDslKt {
 }
 
 public final class me/ahoo/wow/api/query/dsl/HavingDsl {
-	public fun <init> ()V
 	public final fun and (Lme/ahoo/wow/api/query/HavingExpression;Lme/ahoo/wow/api/query/HavingExpression;)Lme/ahoo/wow/api/query/HavingExpression;
 	public final fun between (Ljava/lang/String;DD)Lme/ahoo/wow/api/query/HavingExpression;
 	public final fun eq (Ljava/lang/String;D)Lme/ahoo/wow/api/query/HavingExpression;
@@ -2554,38 +2546,28 @@ public final class me/ahoo/wow/api/query/dsl/HavingDsl {
 }
 
 public final class me/ahoo/wow/api/query/dsl/ListQueryDsl : me/ahoo/wow/api/query/dsl/QueryableDsl {
-	public fun <init> ()V
-	public synthetic fun build ()Ljava/lang/Object;
-	public fun build ()Lme/ahoo/wow/api/query/ListQuery;
+	public synthetic fun build$me_ahoo_wow_wow_query_api ()Ljava/lang/Object;
 	public final fun limit (I)V
 }
 
 public abstract class me/ahoo/wow/api/query/dsl/NestedFieldDsl {
-	public fun <init> ()V
 	public final fun nested (Ljava/lang/String;)V
 	public final fun nested (Lme/ahoo/wow/api/query/QueryField;)V
-	public final fun withNestedField (Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/query/dsl/PagedQueryDsl : me/ahoo/wow/api/query/dsl/QueryableDsl {
-	public fun <init> ()V
-	public synthetic fun build ()Ljava/lang/Object;
-	public fun build ()Lme/ahoo/wow/api/query/PagedQuery;
+	public synthetic fun build$me_ahoo_wow_wow_query_api ()Ljava/lang/Object;
 	public final fun pagination (Lkotlin/jvm/functions/Function1;)V
 	public final fun pagination (Lme/ahoo/wow/api/query/Pagination;)V
 	public final fun total (Lme/ahoo/wow/api/query/TotalMode;)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/PaginationDsl {
-	public fun <init> ()V
-	public final fun build ()Lme/ahoo/wow/api/query/Pagination;
 	public final fun index (I)V
 	public final fun size (I)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/ProjectionDsl : me/ahoo/wow/api/query/dsl/NestedFieldDsl {
-	public fun <init> ()V
-	public final fun build ()Lme/ahoo/wow/api/query/Projection;
 	public final fun exclude ([Ljava/lang/String;)V
 	public final fun exclude ([Lme/ahoo/wow/api/query/QueryField;)V
 	public final fun include ([Ljava/lang/String;)V
@@ -2608,11 +2590,6 @@ public abstract interface annotation class me/ahoo/wow/api/query/dsl/QueryDslMar
 }
 
 public abstract class me/ahoo/wow/api/query/dsl/QueryableDsl {
-	protected field filter Lme/ahoo/wow/api/query/FilterExpression;
-	protected field projection Lme/ahoo/wow/api/query/Projection;
-	protected field sort Ljava/util/List;
-	public fun <init> ()V
-	public abstract fun build ()Ljava/lang/Object;
 	public final fun filter (Lkotlin/jvm/functions/Function1;)V
 	public final fun filter (Lme/ahoo/wow/api/query/FilterExpression;)V
 	public final fun projection (Lkotlin/jvm/functions/Function1;)V
@@ -2622,16 +2599,12 @@ public abstract class me/ahoo/wow/api/query/dsl/QueryableDsl {
 }
 
 public final class me/ahoo/wow/api/query/dsl/SingleQueryDsl : me/ahoo/wow/api/query/dsl/QueryableDsl {
-	public fun <init> ()V
-	public synthetic fun build ()Ljava/lang/Object;
-	public fun build ()Lme/ahoo/wow/api/query/SingleQuery;
+	public synthetic fun build$me_ahoo_wow_wow_query_api ()Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/api/query/dsl/SortDsl : me/ahoo/wow/api/query/dsl/NestedFieldDsl {
-	public fun <init> ()V
 	public final fun asc (Ljava/lang/String;)V
 	public final fun asc (Lme/ahoo/wow/api/query/QueryField;)V
-	public final fun build ()Ljava/util/List;
 	public final fun desc (Ljava/lang/String;)V
 	public final fun desc (Lme/ahoo/wow/api/query/QueryField;)V
 	public final fun sort (Lme/ahoo/wow/api/query/Sort;)V
