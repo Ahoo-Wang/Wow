@@ -18,6 +18,8 @@ import java.net.URI
 /**
  * The port of a peer's service a client calls: its [PUBLIC] routes, which forward the end
  * user's credential, or its [INTERNAL] port, which takes a service's synchronous calls and peer reads (`Wow-Call`).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class Port {
     PUBLIC,

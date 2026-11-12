@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong
  * end (the topic was deleted and created again, or truncated). Either way messages were lost, and the read never steps
  * over them silently: whatever the policy, it logs an error, counts the gap ([KafkaPartitionedSource.offsetGaps]) and
  * tells the node's observer of it ([ObservedEvent.OffsetGap]).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class OffsetGapPolicy {
     /**

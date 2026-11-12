@@ -55,11 +55,6 @@ object CaseSetRules {
         "api/query-api" to "the query protocol's types",
         "query/query" to "the query engine's types",
         "query/query-tck" to "the query TCK's types",
-        "backends/kafka" to "not assigned yet: `OffsetGapPolicy`",
-        "edge/client" to "not assigned yet: `ClientMode`, `Port`, `PeerMode`",
-        "edge/http" to "not assigned yet: `WebhookNotifier.Format`",
-        "test/test-spring-boot" to "not assigned yet: `LocalPorts`",
-        "platform/view-store/view-store-api" to "not assigned yet: `SystemViewSource`, `ViewAudience`, `ViewKind`",
     )
 
     private val DECLARATION = Regex("""^(\s*)((?:[a-z]+ )*)(class|interface|object)(?: (\w+))?""")

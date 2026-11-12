@@ -43,7 +43,11 @@ data class SystemView(
     }
 }
 
-/** Where a [SystemView] comes from. */
+/**
+ * Where a [SystemView] comes from.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class SystemViewSource(@get:JsonValue val value: String) {
     /** `wow.view-store.system-views`: read-only. */
     CONFIGURED("configured"),

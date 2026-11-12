@@ -20,6 +20,12 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext.SYSTEM_OWNER_ID
 /**
  * Who a saved view is for. It follows the view's owner: [SHARED_OWNER_ID] is shared, [SYSTEM_OWNER_ID] a stored
  * system view, any other owner personal. A system view never moves audience.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ *
+ * The view store's events carry its audience, so a new case is read by every node of the view store, and by the view
+ * engine, before one writes it. An older node fails on an event of an audience it does not know; no command names one,
+ * since the audience follows the owner ([ofOwner]). An older view engine shows any audience but `personal` as shared.
  */
 enum class ViewAudience(@get:JsonValue val value: String) {
     PERSONAL("personal"),
