@@ -28,6 +28,7 @@ import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.subscription.AggregateLanes.Lane
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -165,7 +166,7 @@ internal class SubscriptionWorker(
     private val runs = if (subscription.runsTogether) LaneRuns(subscription, source, handling, hops, Ops()) else null
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
-    private val active = HashMap<AggregateRef, Lane>()
+    private val queued = AggregateLanes<Item>(this, lanes, ::handle, ::stopped)
 
     /** What the worker writes to the ledger: a park, and a retry's repark or resolution. */
     private val writes = ParkWrites(
@@ -271,13 +272,7 @@ internal class SubscriptionWorker(
     private fun parkedAt(entry: SourcedEntry): Boolean = parking.holds(entry.stream.ref, source.ordinalOf(entry))
 
     /** Called under the monitor. */
-    private fun enqueue(ref: AggregateRef, item: Item, first: Boolean) {
-        val lane = active[ref] ?: Lane().also {
-            active[ref] = it
-            lanes.launch { drain(ref, it) }
-        }
-        if (first) lane.items.addFirst(item) else lane.items.addLast(item)
-    }
+    private fun enqueue(ref: AggregateRef, item: Item, first: Boolean) = queued.enqueue(ref, item, first)
 
     /** Called under the monitor. */
     private fun complete(slot: Slot) {
@@ -291,28 +286,18 @@ internal class SubscriptionWorker(
         outstanding.set(pending.size)
     }
 
-    private suspend fun drain(ref: AggregateRef, lane: Lane) {
-        while (true) {
-            val item = synchronized(this) {
-                lane.items.removeFirstOrNull() ?: run {
-                    active.remove(ref)
-                    null
-                }
-            } ?: return
-            try {
-                when (item) {
-                    is Item.Live -> runs?.live(item, lane) ?: runLive(item)
-                    is Item.Retry -> runRetry(ref, item)
-                    is Item.Skip -> runSkip(ref, item)
-                }
-            } catch (error: VirtualMachineError) {
-                // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
-                (item as? Item.Action)?.result?.completeExceptionally(error)
-                // The lane stops here, still active, so the aggregate's later entries queue behind it unhandled.
-                fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", error, partition)
-                throw error
-            }
-        }
+    /** Runs [item], the next of [ref]'s [lane] ([queued]). */
+    private suspend fun handle(ref: AggregateRef, lane: Lane<Item>, item: Item) = when (item) {
+        is Item.Live -> runs?.live(item, lane) ?: runLive(item)
+        is Item.Retry -> runRetry(ref, item)
+        is Item.Skip -> runSkip(ref, item)
+    }
+
+    /** [item] met [error]: its lane stops, still active, so the aggregate's later entries queue behind it unhandled. */
+    private fun stopped(item: Item, error: VirtualMachineError) {
+        // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
+        (item as? Item.Action)?.result?.completeExceptionally(error)
+        fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", error, partition)
     }
 
     private suspend fun runLive(item: Item.Live) {
@@ -334,8 +319,8 @@ internal class SubscriptionWorker(
     }
 
     /** The worker's side of [runs]: its monitor sections, its path of an entry alone, and its parking. */
-    private inner class Ops : LaneOps<Item.Live, Lane> {
-        override fun take(first: Item.Live, lane: Lane, max: Int): List<Taken<Item.Live>> {
+    private inner class Ops : LaneOps<Item.Live, Lane<Item>> {
+        override fun take(first: Item.Live, lane: Lane<Item>, max: Int): List<Taken<Item.Live>> {
             synchronized(this@SubscriptionWorker) {
                 val items = arrayListOf(first)
                 while (items.size < max && lane.items.firstOrNull() is Item.Live) {
@@ -346,7 +331,12 @@ internal class SubscriptionWorker(
             }
         }
 
-        override fun settle(done: List<Taken<Item.Live>>, handled: Boolean, lane: Lane, rest: List<Taken<Item.Live>>) {
+        override fun settle(
+            done: List<Taken<Item.Live>>,
+            handled: Boolean,
+            lane: Lane<Item>,
+            rest: List<Taken<Item.Live>>,
+        ) {
             synchronized(this@SubscriptionWorker) {
                 if (handled) {
                     done.filterNot { it.skipped }.forEach { remember(it.entry) }
@@ -555,18 +545,13 @@ internal class SubscriptionWorker(
     /** Fails the retries and skips still queued: their lanes were cancelled by a stop. */
     fun abandon() = synchronized(this) {
         abandoned = true
-        active.values.flatMap { it.items }.filterIsInstance<Item.Action>().forEach {
+        queued.clear().filterIsInstance<Item.Action>().forEach {
             it.result.cancel(CancellationException("The subscription runtime stopped."))
         }
-        active.clear()
     }
 
     private class Slot(val sequence: Long) {
         var done = false
-    }
-
-    private class Lane {
-        val items = ArrayDeque<Item>()
     }
 
     private sealed interface Item {
