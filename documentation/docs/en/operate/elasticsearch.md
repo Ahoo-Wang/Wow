@@ -38,7 +38,7 @@ wow:
 | `wow.stores.<name>.client` | The `Rest5Client` bean the store writes through | The only `Rest5Client` |
 | `wow.stores.<name>.query-client` | A second `Rest5Client`, a connection pool of the queries' own | The store's `client` |
 | `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
-| `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait-for`, `immediate` or `none` | `wait-for` |
+| `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
@@ -50,7 +50,7 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ## Snapshot queries
 
-An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait-for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
+An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. A command's `snapshot` wait never covers this store: it ends once the primary snapshot store's subscription has written the commit, so a search here may not find that version yet, and by default a write becomes searchable within the index's refresh interval (`refresh: none`). A command that must find its snapshot here waits for the store's own subscription, `Wow-Wait: handled(wow.snapshot:<store>)`, on a store set to `refresh: wait-for`, so the write it waits for is searchable when the wait ends. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
 
