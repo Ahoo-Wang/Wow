@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -32,6 +33,11 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.runtime.binding.SHOP
+import me.ahoo.wow.runtime.binding.SHOP_SERVICE
+import me.ahoo.wow.runtime.binding.cartModel
+import me.ahoo.wow.runtime.binding.orderModel
+import me.ahoo.wow.runtime.binding.shopManifest
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
@@ -45,6 +51,7 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
@@ -52,7 +59,8 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * A node's stop: in order (hand off, let the waits end, close the gateway, the executors and the logs), once the
- * commands still executing have settled, and past a decide still running at the drain timeout.
+ * commands still executing have settled, past a decide still running at the drain timeout, and with each context's
+ * hand-off run to its end, every part of it, whatever another's does.
  */
 class ServiceNodeStopTest : ServiceNodeFixtures() {
     @Test
@@ -163,6 +171,94 @@ class ServiceNodeStopTest : ServiceNodeFixtures() {
         decided.assert().hasSize(1)
     }
 
+    @Test
+    fun `a context whose stop fails should not cancel the other context's, and its failure should be thrown`(): Unit =
+        runBlocking {
+            val inMemory = InMemoryBackends()
+            val failed = CompletableDeferred<Unit>()
+            val backends = BackendFactory { context ->
+                inMemory.backends(context).let { opened ->
+                    val leases = opened.leases
+                    opened.copyWith(
+                        leases = if (context == BANK) {
+                            snapshotsFailToLeave(leases, failed)
+                        } else {
+                            // The ledger's partitions are released only once the bank's stop has failed.
+                            object : LeaseStore by leases {
+                                override suspend fun release(group: String, partition: Int, owner: String): Boolean {
+                                    failed.await()
+                                    delay(RELEASE_AFTER)
+                                    return leases.release(group, partition, owner)
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+            val node = node("node-1", BANK, LEDGER, backends = backends)
+            node.start()
+            val ledger = inMemory.opened.getValue(LEDGER).leases
+            val group = "$NODE_SERVICE/$LEDGER"
+            eventually { ledger.owners(group).count { it.owner == "node-1" } == 8 }
+            ledger.members(NODE_SERVICE).map { it.node }.assert().contains("node-1")
+
+            val thrown = runCatching { node.stop() }.exceptionOrNull()
+
+            thrown.assert().isInstanceOf(StopFailed::class.java)
+            // The ledger's stop ran to its end all the same: it left its members and released every partition.
+            ledger.members(NODE_SERVICE).map { it.node }.assert().doesNotContain("node-1")
+            ledger.owners(group).filter { it.owner == "node-1" }.assert().isEmpty()
+            node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
+        }
+
+    @Test
+    fun `a context's stop should run past a part that failed, its access walks left after its snapshots failed`(): Unit =
+        runBlocking {
+            val inMemory = InMemoryBackends(partitions = 4)
+            val backends = BackendFactory { context ->
+                inMemory.backends(context).let { it.copyWith(leases = snapshotsFailToLeave(it.leases)) }
+            }
+            val node = ServiceNode(
+                SHOP_SERVICE,
+                "node-1",
+                "node-1.internal:9090",
+                listOf(orderModel(), cartModel()),
+                shopManifest(),
+                backends,
+                channel,
+                options = fastNodeOptions(),
+            ).also { nodes["node-1"] = it }
+            node.start()
+            val leases = inMemory.opened.getValue(SHOP).leases
+            val walkers = "$SHOP_SERVICE/$SHOP#access"
+            eventually { leases.members(walkers).any { it.node == "node-1" } }
+
+            val thrown = runCatching { node.stop() }.exceptionOrNull()
+
+            thrown.assert().isInstanceOf(StopFailed::class.java)
+            // The access walks, stopped after the snapshots, were stopped all the same: they left their members.
+            leases.members(walkers).map { it.node }.assert().doesNotContain("node-1")
+        }
+
+    /**
+     * [leases] on which a context's snapshot maintenance fails to leave its state revisions, the part of its stop after
+     * its partitions' hand-off; [failed] is completed first.
+     */
+    private fun snapshotsFailToLeave(
+        leases: LeaseStore,
+        failed: CompletableDeferred<Unit> = CompletableDeferred(),
+    ): LeaseStore = object : LeaseStore by leases {
+        override suspend fun leave(service: String, node: String) {
+            if ("#snapshot/" in service) {
+                failed.complete(Unit)
+                throw StopFailed("$service could not be left")
+            }
+            leases.leave(service, node)
+        }
+    }
+
+    class StopFailed(message: String) : RuntimeException(message)
+
     /** A node whose deposits never finish deciding, by [decide]: its stop still returns, past the drain timeout. */
     private fun stopsPastStuckDecide(decide: suspend () -> Unit): Unit = runBlocking {
         val deciding = CompletableDeferred<Unit>()
@@ -213,5 +309,9 @@ class ServiceNodeStopTest : ServiceNodeFixtures() {
         } finally {
             release.complete(Unit)
         }
+    }
+
+    private companion object {
+        val RELEASE_AFTER = 100.milliseconds
     }
 }
