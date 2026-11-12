@@ -152,6 +152,7 @@ public final class me/ahoo/wow/query/admission/QueryBudget$Companion {
 }
 
 public final class me/ahoo/wow/query/admission/QueryBudgetKt {
+	public static final fun withDefaultLimit (Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun withDefaultSize (Lme/ahoo/wow/api/query/CursorQuery;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CursorQuery;
 }
 

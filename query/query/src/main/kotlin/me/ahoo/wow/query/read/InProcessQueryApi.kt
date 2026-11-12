@@ -56,6 +56,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.admission.withDefaultLimit
 import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.cursor
@@ -173,7 +174,8 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         override fun list(query: ListQuery): Flow<R> = flow {
             check(query)
-            emitAll(gateway.list(query.withListDefault(), caller).mapped().map(row))
+            val default = gateway.entryPolicy.budget(caller.entry)?.listDefault(defaultListSize)
+            emitAll(gateway.list(query.withDefaultLimit(default), caller).mapped().map(row))
         }
 
         override fun stream(query: ListQuery, after: String?): Flow<Positioned<R>> = flow {
@@ -220,16 +222,6 @@ class InProcessQueryApi @InternalWowApi constructor(
                 budget.cursorDefault(defaultListSize)
             }
             return withDefaultSize(default)
-        }
-
-        /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
-        private fun ListQuery.withListDefault(): ListQuery {
-            val default = gateway.entryPolicy.budget(caller.entry)?.listDefault(defaultListSize)
-            return if (limit != null || default == null) {
-                this
-            } else {
-                ListQuery(filter = filter, projection = projection, sort = sort, limit = default)
-            }
         }
     }
 
