@@ -336,7 +336,7 @@ src/
     execute.ts                — The two execution kinds a runtime drives; admission (`validateDataConfig`) with the compiled query weighed against the source's budgets
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
-    commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
+    commandChecks.ts          — `requireTitle`, `savableState`: what a command refuses of its own input before anything is sent, and the draft run first where part of it waits for apply (D94) (internal, not exported)
     generations.ts            — `Generations`: the one rule for an asynchronous answer — applied only against the state it was issued for (`admit` for server knowledge, `latest` for local intent, `confirm` on a confirmed write), by issue order since the stores' revisions are opaque; bounded to the tickets in flight (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     kanban.ts                 — A kanban's execution (D83): every lane's first page and the lane aggregation in one slot (`executeKanban`), and one lane's next page put after it (`executeLanePage`, `loadLane`)

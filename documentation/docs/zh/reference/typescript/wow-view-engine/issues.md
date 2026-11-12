@@ -623,6 +623,7 @@ export type IssuePath = (string | number)[];
 | `view.save-as.failed` | 这个视图存不成副本。 |
 | `view.save.failed` | 视图保存失败。 |
 | `view.save.forbidden` | 你不能保存对这个视图的改动，另存一份自己的吧。 |
+| `view.save.not-applied` | 这些改动没能查出结果，所以没有保存。 |
 | `view.system.read-only` | 系统视图不能改（{action}）。 |
 | `view.title.empty` | 视图需要一个标题。 |
 | `view.title.too-long` | 视图标题最多 {max} 个字。 |
