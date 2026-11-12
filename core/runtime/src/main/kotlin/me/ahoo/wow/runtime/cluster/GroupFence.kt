@@ -64,6 +64,9 @@ internal class GroupFence(
     /** Whether the group is fenced: a lease taken now is never renewed. */
     val fenced: Boolean get() = fencedAt != null
 
+    /** How long the reconcile running now has finished no step; null between reconciles. */
+    val stalledFor: Duration? get() = stepped?.elapsedNow()
+
     /** A reconcile starts: its first step is due within the reconcile timeout. */
     fun reconcileStarted() {
         stepped = timeSource.markNow()

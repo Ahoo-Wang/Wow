@@ -97,8 +97,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A storage outage never fails it: a store call that fails or times out returns, and a reconcile waiting on a slow
  * store ends once it answers, while a restart would not bring the stores back, and a restart storm would only add
- * load to them. So the bound is minutes, well above what a slow store under load takes. A node that is not running
- * (starting, stopping) is live: the startup probe covers the start, and a draining node is not restarted.
+ * load to them. So the bound is minutes, well above what a slow store under load takes. A starting node is `DOWN` only
+ * as `reconcile`, a reconcile of `group` having finished no step for `stalledMillis` past it; a stopping node is live.
  *
  * A probe reads what was recorded and sampled: it never calls a store. [sampler], the node's one sampler, which its
  * owner starts and closes, samples the node; each of its samples probes the stores the node has not called and checks
@@ -265,7 +265,7 @@ class NodeHealth(
             "lastProgressMillis" to progressAge.inWholeMilliseconds,
         )
         if (node.state != ServiceNode.State.RUNNING || !isRunning) {
-            return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+            return notRunningLiveness(node.state, ownerships(), options.stallTimeout, details)
         }
         val stall = options.stallTimeout
         val stalls = mutableListOf<String>()
@@ -399,6 +399,7 @@ class NodeHealth(
         if (standby) {
             details[STANDBY] = true
         }
+        ownership.fenced.takeIf { it }?.let { details["fenced"] = true }
         return ComponentHealth(name, status, details)
     }
 

@@ -291,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck or has met a fatal error ([Fatal errors](./observability#fatal-errors)), never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`).
+Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck or has met a fatal error ([Fatal errors](./observability#fatal-errors)), never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`). It is no longer the only thing that ends a hung start: a starting node whose reconcile finishes no step for `wow.health.liveness.stall-timeout` fails its liveness too ([Deployment Model](./topology#a-node-stuck-in-its-reconcile)).
 
 ## Graceful shutdown
 

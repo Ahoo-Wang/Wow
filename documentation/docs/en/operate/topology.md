@@ -53,6 +53,8 @@ The fenced node still reads its command topics, and forwards the commands it rea
 
 A fence is logged at `WARN`, with the context and how long no step finished, and counted by `wow.cluster.fence.notices` (`wow.kind=fenced`), as is its recovery (`recovered`), so an operator sees it before the liveness check does. A reconcile that is long but keeps finishing steps, one taking many partitions from a slow store say, is not stuck. `wow.cluster.reconcile-timeout` must be longer than `wow.cluster.lease-ttl` and `wow.cluster.drain-timeout`, or the node does not start.
 
+A node is watched from its first reconcile on, while it starts. A start whose first reconcile finishes no step is fenced the same way, so the other nodes take the share it claimed. The start itself waits: the call it is stuck on cannot be cancelled. Readiness stays `DOWN`, as for any node that is not running, and its `ownership` details mark the group `fenced`. Once the reconcile has finished no step for `wow.health.liveness.stall-timeout` (3 minutes), the node's liveness is `DOWN` too, with `stalled: reconcile` and the group, so the orchestrator restarts it. A store call that fails is not a hang: the start fails with the store's error.
+
 ## Two ports
 
 Each node listens on two ports:
