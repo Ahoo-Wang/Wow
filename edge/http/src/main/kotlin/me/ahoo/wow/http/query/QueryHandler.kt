@@ -55,6 +55,7 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.admission.QueryTargets
+import me.ahoo.wow.query.admission.withDefaultLimit
 import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.error.QueryBusyException
@@ -260,7 +261,7 @@ internal class QueryHandler(
         QueryKind.LIST -> if (eventStream) {
             stream(gateway, body.query as ListQuery, caller, after, rebuilding)
         } else {
-            val query = (body.query as ListQuery).withListDefault(gateway.entryPolicy.http)
+            val query = (body.query as ListQuery).withDefaultLimit(gateway.entryPolicy.http.listDefault())
             json(gateway.list(query, caller).toList(), rebuilding)
         }
         QueryKind.PAGED -> json(gateway.paged(body.query as PagedQuery, caller), rebuilding)
@@ -277,11 +278,6 @@ internal class QueryHandler(
 
     /** The list default of [queries] under [budget]: what a list naming no limit runs with (null, every match). */
     private fun QueryBudget.listDefault(): Int? = listDefault(queries.defaultListSize)
-
-    private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
-        val default = budget.listDefault()
-        return if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)
-    }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =
         ServerResponse.ok().rebuilding(rebuilding).contentType(

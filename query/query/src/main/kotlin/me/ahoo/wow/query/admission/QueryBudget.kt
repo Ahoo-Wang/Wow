@@ -330,3 +330,11 @@ class QueryBudget(
  */
 fun CursorQuery.withDefaultSize(default: Int?): CursorQuery =
     if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)
+
+/**
+ * This list with its limit filled in when it names none: [default], the limit its entry gives one
+ * ([QueryBudget.listDefault]). Itself when it names a limit or [default] is `null`, so it reads every match. Every entry
+ * fills a list's limit through this one copy, so a field [ListQuery] gains is kept.
+ */
+fun ListQuery.withDefaultLimit(default: Int?): ListQuery =
+    if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)

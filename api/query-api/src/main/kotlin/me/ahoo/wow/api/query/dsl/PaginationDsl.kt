@@ -17,7 +17,7 @@ import me.ahoo.wow.api.query.Pagination
 
 /** Builds a [Pagination]: the page [index], from 1, and its [size]; page 1 of 10 by default. */
 @QueryDslMarker
-class PaginationDsl {
+class PaginationDsl internal constructor() {
     private var index = Pagination.DEFAULT.index
     private var size = Pagination.DEFAULT.size
 
@@ -29,5 +29,5 @@ class PaginationDsl {
         this.size = size
     }
 
-    fun build(): Pagination = Pagination(index, size)
+    internal fun build(): Pagination = Pagination(index, size)
 }

@@ -21,16 +21,18 @@ import me.ahoo.wow.api.query.QueryField
  * ([QueryField.absoluteTo]).
  */
 @QueryDslMarker
-abstract class NestedFieldDsl {
-    private var nestedField: String = ""
+abstract class NestedFieldDsl internal constructor() {
+    /** The field this block's names are under; `null` until [nested] names one (a blank name names none). */
+    private var nestedField: QueryField<*>? = null
 
     fun nested(nestedField: String) {
+        this.nestedField = nestedField.takeIf { it.isNotBlank() }?.let { QueryField(it) }
+    }
+
+    fun nested(nestedField: QueryField<*>) {
         this.nestedField = nestedField
     }
 
-    fun nested(nestedField: QueryField<*>) = nested(nestedField.path)
-
     /** This path in the block's terms: under its nested field, as [QueryField.absoluteTo] places it. */
-    fun String.withNestedField(): String =
-        if (nestedField.isBlank()) this else QueryField(this).absoluteTo(QueryField(nestedField)).path
+    internal fun String.withNestedField(): String = QueryField(this).absoluteTo(nestedField).path
 }

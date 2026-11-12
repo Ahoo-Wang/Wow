@@ -117,6 +117,22 @@ class QueryDslTest {
     }
 
     @Test
+    fun `no prefix, or a blank one, leaves a path as written, by the same rule in every block`() {
+        val plain = QueryField("state")
+        plain.absoluteTo(null).assert().isSameAs(plain)
+        filter { "state" eq "paid" }.assert().isEqualTo(EqualFilter(plain, "paid"))
+        projection {
+            nested(" ")
+            include("state")
+        }.include.assert().containsExactly(plain)
+        sort {
+            nested("state")
+            nested("")
+            "state".asc()
+        }.assert().containsExactly(Sort(plain, Sort.Direction.ASC))
+    }
+
+    @Test
     fun `sort, projection and pagination stand alone`() {
         sort {
             nested("state")

@@ -49,6 +49,7 @@ import me.ahoo.wow.query.QueryBudgetFixtures.budget
 import me.ahoo.wow.query.QueryBudgetFixtures.expectAllowed
 import me.ahoo.wow.query.QueryBudgetFixtures.expectRejected
 import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.admission.withDefaultLimit
 import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryErrors
@@ -249,6 +250,19 @@ class QueryBudgetTest {
         query.withDefaultSize(null).assert().isSameAs(query)
         val sized = CursorQuery(size = 3)
         sized.withDefaultSize(7).assert().isSameAs(sized)
+    }
+
+    @Test
+    fun `a list's limit is filled in only when it names none`() {
+        val query = ListQuery(
+            IdFilter("id"),
+            Projection(include = listOf(QueryField("state.name"))),
+            listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
+        )
+        query.withDefaultLimit(7).assert().isEqualTo(ListQuery(query.filter, query.projection, query.sort, 7))
+        query.withDefaultLimit(null).assert().isSameAs(query)
+        val limited = ListQuery(limit = 3)
+        limited.withDefaultLimit(7).assert().isSameAs(limited)
     }
 
     @Test
