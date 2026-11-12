@@ -98,6 +98,52 @@ None is committed. The drill generates each for the run (random values, hex), cr
 | `cosec-jwt` | `COSEC_JWT_SECRET` | The gateway; the drill signs its callers' tokens with it |
 | `drill-ingress-tls` | `tls.crt`, `tls.key`: a certificate for `localhost` signed by the drill's CA | Traefik |
 
+## Running it
+
+`drill.sh` runs the steps, one command per step, or all of them in order:
+
+```bash
+DRILL_EVIDENCE=build/rc-drill/beta.2 test/rc-drill/drill.sh run 10.0.0-beta.2
+```
+
+```bash
+DRILL_EVIDENCE=build/rc-drill/beta.3 DRILL_UPGRADE=rolling test/rc-drill/drill.sh run 10.0.0-beta.3 10.0.0-beta.2
+```
+
+With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
+- `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:
+  - `rolling` when nothing there stops a running deployment from crossing;
+  - `restart` otherwise: a fresh install of the new version, then a rolling restart at that version under load.
+- The run refuses to guess.
+
+**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), beside:
+- the artifacts' check;
+- the comparison;
+- the end-to-end reports (`e2e/<label>/`);
+- the alerts' history (`alerts.json`);
+- the backup's dump;
+- the diagnostics;
+- the run's secrets (`secrets/`).
+
+The folder stays on the machine. `drill.sh teardown` deletes the cluster.
+
+**Two pieces `drill.sh` calls that come with the drill's next PRs:**
+
+- **`eshop-build.sh <source> <version>`.** It builds the eShop's five servers from a release's source (a worktree of its tag) against the Wow that version published on Maven Central, not the source's own modules:
+  - `installDist`, which the images' Dockerfiles take;
+  - `generateWowHelmValues`, which writes `build/wow/helm/values.yaml`.
+
+  It works on any release's source, the tag's files unchanged: the switch it needs cannot be in beta.2's source.
+- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
+  - `ga.namespace`: the namespace its `kubectl` acts in;
+  - `ga.run`: a prefix for its data, so a second run on the same stores works;
+  - `ga.scenarios`: what it runs:
+    - `functional`: step 3;
+    - `owner-deletion`: step 5's first half;
+    - `ops`: step 9;
+    - `verdict`: the invariants alone;
+    - `load`: the soak's mix through the gateway, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (each fault window's bound) and `load.started` in its report folder once its first order is answered, so `drill.sh` starts an operation only under load.
+
 ## Not covered here
 
 - **The eShop's web.** A Vite development server that sends development headers, with no CoSec sign-in; it is not deployable behind the gateway. The drill reaches the ops and analytics consoles, which the platform's images serve.
