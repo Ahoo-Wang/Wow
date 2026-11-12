@@ -2,7 +2,12 @@
 
 Before the release candidate, the eShop and Wow's platform services are deployed as a user deploys them: from a release's published artifacts, on a cluster of several nodes in three zones, with the stores replicated and authenticated, behind an ingress and the CoSec gateway, with a metrics pipeline and the documented alerts. Then the drill drives the end-to-end suite through the ingress, while it upgrades, kills, stops, scales and drains. This folder holds that deployment's shape. The script that runs the steps comes with it.
 
-The drill runs once, on one machine, after 10.0.0-beta.3 is released: it installs 10.0.0-beta.2 from its published chart and images, then upgrades to beta.3 under load (step 4). There is no dress rehearsal before it (the owner's decision), so what can be proven without a cluster is proven before (`tools`, `artifacts`, `compare`, the eShop's build against the published Wow, the renders), and the first run is the first on a cluster. It runs in a window when nothing else uses the machine's Docker or Gradle.
+The drill runs twice, on one machine, both after 10.0.0-beta.3 is released, each about five hours in a window when nothing else uses the machine's Docker or Gradle. Each installs 10.0.0-beta.2 from its published chart and images, then upgrades to beta.3 under load (step 4).
+
+1. **The rehearsal.** The platform and the drill's cluster test (`RcDrillTest`) run on a cluster for the first time, and may stop on things that are not Wow's: the drill's own files and scripts, the platform's pieces. What it finds is fixed by commits before the second run.
+2. **The run that counts.** Its report is the drill's result. The report lists what the rehearsal found and what was changed for it, so the result is read with its history.
+
+There is no run on beta.2. What can be proven without a cluster is proven before the rehearsal: `tools`, `artifacts`, `compare`, the eShop's build against the published Wow, and the renders.
 
 ## What the machine needs
 
@@ -60,6 +65,7 @@ Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registr
 | `platform/ingress/` | Traefik (`traefik-values.yaml`), and the Ingress that sends every path to the gateway over HTTP and HTTPS. |
 | `platform/observability/` | The OpenTelemetry Operator's values and the Instrumentation that injects the Java agent, as `deploy/`'s values expect. The collector. Prometheus with `alerts.yaml`, one rule per row of Operate › Observability's "What to alert on". kube-state-metrics for the pods' readiness. |
 | `platform/probes.yaml` | The boundary's vantage points, `outsider` and `insider`, on the catalog's image. |
+| `eshop-build.sh`, `published-wow.init.gradle.kts` | The eShop's servers built from a release's source against the Wow it published on Maven Central ("Running it"). |
 | `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). The platform's three services take `deploy/`'s values unchanged. |
 
 ### Where the drill differs from `deploy/`, and why
@@ -119,7 +125,7 @@ None is committed. The drill generates each for the run (random values, hex), cr
 DRILL_KUBECTL=/opt/homebrew/bin/kubectl DRILL_EVIDENCE=build/rc-drill/beta.3 DRILL_UPGRADE=rolling test/rc-drill/drill.sh run 10.0.0-beta.3 10.0.0-beta.2
 ```
 
-The first run goes one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.3`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
+Both runs go one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.3`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
 
 With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:
@@ -138,14 +144,14 @@ With a previous version, the run installs that version first, then upgrades to t
 
 The folder stays on the machine. `drill.sh teardown` deletes the cluster.
 
-**Two pieces `drill.sh` calls that come with the drill's next PRs:**
+**The two pieces `drill.sh` calls:**
 
 - **`eshop-build.sh <source> <version>`.** It builds the eShop's five servers from a release's source (a worktree of its tag) against the Wow that version published on Maven Central, not the source's own modules:
   - `installDist`, which the images' Dockerfiles take;
   - `generateWowHelmValues`, which writes `build/wow/helm/values.yaml`.
 
-  It works on any release's source, the tag's files unchanged: the switch it needs cannot be in beta.2's source.
-- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
+  This is what "built from the tag against the published Wow" means: the release's own source and build, with only the Wow it depends on taken from Maven Central. The tag's files cannot hold a switch added after it, so the substitution comes from outside the tag. It runs the release's own build with `published-wow.init.gradle.kts`, so the tag's files stay as they were tagged. The eShop declares Wow by its coordinates, and the root build substitutes each with its project; the init script adds a later rule, for the eShop's projects alone, that sends every `me.ahoo.wow` module back to the published version: their classpaths, the BOM, the compiler the Gradle plugin adds, and the platform of third-party versions the root build adds to every classpath (`:wow-dependencies`). Only the eShop's own projects are resolved as projects. Then it proves where Wow came from: every `wow-*-<version>.jar` in each distribution must have the SHA-1 that Maven Central publishes for it, and no other version of a Wow jar may be there.
+- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`, the drill's next PR). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
   - `ga.namespace`: the namespace its `kubectl` acts in;
   - `ga.run`: a prefix for its data, so a second run on the same stores works;
   - `ga.scenarios`: what it runs:
