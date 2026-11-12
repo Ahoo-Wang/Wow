@@ -44,31 +44,31 @@ catalog:
   '@chromatic-com/storybook': ^5.6.0
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
-  cn: ^0.5.1
+  cn: ^0.5.2
   commander: ^14.0.3
   culori: ^4.0.2
-  d3-random: ^3.0.1
+  d3-random: ^3.0.2
   dayjs: ^1.11.23
   dequal: ^2.0.3
   '@dnd-kit/dom': 0.5.3
   '@dnd-kit/react': 0.5.3
   echarts: ^6.1.0
   eslint: ^10.14.0
-  eslint-plugin-import-x: ^4.17.1
+  eslint-plugin-import-x: ^4.18.1
   eslint-plugin-react-hooks: ^7.1.1
   eslint-plugin-react-refresh: ^0.5.7
-  eslint-plugin-storybook: ^10.6.5
+  eslint-plugin-storybook: ^10.6.7
   '@eslint/js': ^10.0.1
   '@faker-js/faker': ^10.6.0
-  globals: ^17.13.0
+  globals: ^17.14.0
   jsdom: ^30.1.3
   lucide-react: ^1.72.0
   medium-zoom: ^1.1.2
   '@microsoft/api-extractor': ^7.60.1
   mermaid: ^11.17.2
   mingo: ^7.2.7
-  playwright: ^1.64.1
-  '@playwright/test': ^1.64.1
+  playwright: ^1.65.0
+  '@playwright/test': ^1.65.0
   postcss: ^8.5.32
   postcss-prefix-selector: ^2.2.1
   prettier: 3.9.10
@@ -80,24 +80,24 @@ catalog:
   react-grid-layout: 2.3.0
   react-markdown: 10.1.0
   react-router: ^8.5.1
-  '@rolldown/plugin-babel': ^0.3.0
+  '@rolldown/plugin-babel': ^0.3.1
   shadcn: ^4.23.0
-  storybook: ^10.6.5
-  '@storybook/addon-a11y': ^10.6.5
-  '@storybook/addon-docs': ^10.6.5
-  '@storybook/addon-themes': ^10.6.5
-  '@storybook/addon-vitest': ^10.6.5
-  '@storybook/react': ^10.6.5
-  '@storybook/react-vite': ^10.6.5
+  storybook: ^10.6.7
+  '@storybook/addon-a11y': ^10.6.7
+  '@storybook/addon-docs': ^10.6.7
+  '@storybook/addon-themes': ^10.6.7
+  '@storybook/addon-vitest': ^10.6.7
+  '@storybook/react': ^10.6.7
+  '@storybook/react-vite': ^10.6.7
   svg-pan-zoom: ^3.6.2
   tailwind-merge: ^3.7.0
-  tailwindcss: ^4.3.3
-  '@tailwindcss/node': ^4.3.3
-  '@tailwindcss/vite': ^4.3.3
-  '@tanstack/react-virtual': ^3.14.24
+  tailwindcss: ^4.3.5
+  '@tailwindcss/node': ^4.3.5
+  '@tailwindcss/vite': ^4.3.5
+  '@tanstack/react-virtual': ^3.14.26
   '@testing-library/jest-dom': 6.9.1
   '@testing-library/react': ^16.3.3
-  '@testing-library/user-event': ^14.6.8
+  '@testing-library/user-event': ^14.6.9
   topojson-client: ^3.1.0
   ts-morph: ^28.0.0
   tw-animate-css: ^1.4.0
@@ -109,13 +109,13 @@ catalog:
   '@types/react-dom': ^19.3.0
   '@types/topojson-client': ^3.1.5
   typescript: ~6.0.3
-  typescript-eslint: ^8.72.1
+  typescript-eslint: ^8.72.2
   unplugin-dts: 1.1.2
-  vite: 8.3.5
+  vite: 8.3.8
   vite-bundle-analyzer: ^1.3.9
-  '@vitejs/plugin-react': 6.1.2
+  '@vitejs/plugin-react': 6.3.0
   vitepress: ^1.6.4
-  vitepress-plugin-llms: ^1.14.0
+  vitepress-plugin-llms: ^1.15.0
   vitepress-plugin-mermaid: ^2.0.17
   vitest: ^4.1.12
   '@vitest/browser': ^4.1.12
@@ -131,8 +131,8 @@ overrides:
   # vitepress 1.6.4 (latest stable) pins vite ^5.4.14; vite 5 has no patch for
   # GHSA-4w7w-66w2-5vf9, GHSA-fx2h-pf6j-xcff, GHSA-v6wh-96g9-6wx3, and its
   # esbuild ^0.21 range keeps GHSA-67mh-4wv8-2f99. Docs dev server only.
-  'vitepress>vite': ^6.4.5
-  '@vitejs/plugin-vue>vite': ^6.4.5
+  'vitepress>vite': ^6.4.6
+  '@vitejs/plugin-vue>vite': ^6.4.6
   # mermaid (11.x and 12.x) pins katex ^0.16.47; GHSA-238p-pmpm-9mq7 is fixed in 0.18.2.
   'mermaid>katex': ^0.19.1
   # Transitive dependencies the lockfile kept below their fixes, all in development tooling and the docs site
@@ -140,7 +140,7 @@ overrides:
   'dompurify@<3.4.17': ^3.4.17
   'body-parser@>=2.0.0 <2.4.0': ^2.4.0
   'markdown-it@<14.3.3': ^14.3.3
-  'undici@>=7.0.0 <7.30.1': ^7.30.1
+  'undici@>=7.0.0 <7.30.1': ^7.30.2
   'zod@>=4.0.0 <4.6.6': ^4.6.7
   'fast-uri@>=3.0.0 <3.1.9': ^3.1.9
-  'ip-address@<10.7.4': ^10.7.5
+  'ip-address@<10.7.4': ^10.7.6
