@@ -84,19 +84,18 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
         }
         return FilterSemantics.CASES.map { case ->
             DynamicTest.dynamicTest(case.id) {
-                Assumptions.assumeFalse(case.id in semanticDivergences) {
-                    "Known divergence from the canonical semantics: ${case.id}."
+                standard(case.id, semanticDivergences, CANONICAL_SEMANTICS) {
+                    val shapeProbes = checkNotNull(SemanticProbe.ALL[case.shape])
+                    val filter = AndFilter(
+                        listOf(
+                            AggregateIdsFilter(shapeProbes.map(::probeId)),
+                            case.filter(QueryField(PROBE_FIELDS.getValue(case.shape))),
+                        ),
+                    )
+                    val byId = shapeProbes.associateBy(::probeId)
+                    fixture.ids(filter).map { checkNotNull(byId[it]) { "Unexpected record [$it]." }.name }
+                        .toSet().assert().describedAs(case.id).isEqualTo(case.matches)
                 }
-                val shapeProbes = checkNotNull(SemanticProbe.ALL[case.shape])
-                val filter = AndFilter(
-                    listOf(
-                        AggregateIdsFilter(shapeProbes.map(::probeId)),
-                        case.filter(QueryField(PROBE_FIELDS.getValue(case.shape))),
-                    ),
-                )
-                val byId = shapeProbes.associateBy(::probeId)
-                blocking { fixture.ids(filter) }.map { checkNotNull(byId[it]) { "Unexpected record [$it]." }.name }
-                    .toSet().assert().describedAs(case.id).isEqualTo(case.matches)
             }
         }
     }
