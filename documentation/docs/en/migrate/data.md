@@ -36,7 +36,7 @@ Each imported stream keeps its version, command id, request id and commit time, 
 - **The rewritten source.** The V10 service compiles and its domain tests pass. Its build has produced the merged Manifest of each service whose aggregates you migrate.
 - **The map.** The `wow-migrate` Skill wrote `migration-map.json` while rewriting the source. It names, for each 9.x aggregate, its V10 type and every command and event mapping. See [The map](../reference/migrate-data#the-map). For a large service, `draft-map` drafts the renames from the 9.x store and the Manifest, and lists what it cannot match for you to resolve ([Draft the map](../reference/migrate-data#draft-the-map)).
 - **Reads on the 9.x store.** The tool only reads the 9.x MongoDB store, unless you let it create the index the tail needs, and except for the rollback's `export`, which writes back to it.
-- **An empty V10 target**, or one this tool alone has written to.
+- **An empty V10 target**, or one this tool alone has written to. A target a 10.0.0 pre-release wrote is not carried over to the next one: a migration tried on one pre-release imports 9.x again, into empty stores, on the next ([From a 10.0.0 pre-release](../operate/upgrades#from-a-10-0-0-pre-release)).
 - **The V10 domain modules on a class path.** `compare` and `snapshot` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.
 - **The partition count of each V10 context**, the one the service will run with. A log refuses another.
 
@@ -135,6 +135,8 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 ## 4. Import
 
 `import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in its checkpoints, a file or the V10 target ([Checkpoints](../reference/migrate-data#checkpoints)), so a run that stops resumes where it stopped, repeating at most the few pages it had in flight. It reads the next page while it appends one, and walks `readParallelism` ranges of ids at once, each its own scan of the 9.x store. Appends are idempotent: a stream already in the log is not written twice. It reads each aggregate in 9.x's own `(aggregateId, version)` index, a page of instances and their streams in one scan, so a page costs the same wherever it is in the store.
+
+**When an imported stream was written.** An imported stream keeps 9.x's `createTime` as its commit time, so the snapshots' event times and the history keep their 9.x dates, and records when the import wrote it in its `wow.commit.written-at` header. A subscription's lag, a subscription started at an instant, and a timer an imported stream sets count from that time: after an import, lag measures how far a subscription is behind the import, not behind 9.x's history ([Import from Another System](../guide/importing#what-the-declared-time-changes)).
 
 **A map change needs a fresh target.** `import`, `--restart` included, passes over a stream the log already holds, as it was converted then: a mapping change, a lifecycle added or an event no longer retired, does not reach the streams imported before it. Import the aggregates the change touches into a fresh target, or remove them from the target first, then compare again.
 
