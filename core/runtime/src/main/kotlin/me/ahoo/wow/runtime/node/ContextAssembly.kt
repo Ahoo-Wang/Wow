@@ -423,7 +423,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             observer = observer,
             options = KernelOptions(
                 recentRequests = options.stateCache.recentRequests,
-                maxEarlyWait = options.timers.maxEarlyWait
+                maxEarlyWait = options.timers.maxEarlyWait,
+                snapshotLoadTimeout = options.snapshots.loadTimeout,
             ),
             snapshotTailReaders = backends.snapshotTails::of,
             policies = admission.policies,

@@ -14,12 +14,15 @@
 package me.ahoo.wow.spring.boot.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_PARTITIONS
@@ -154,11 +157,34 @@ class SnapshotProperties {
     /** How many snapshots of a partition the snapshot subscriptions write together at most. */
     var writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
 
-    /** The node's snapshot maintenance and write options. */
-    fun options(): SnapshotOptions {
+    /**
+     * How long a command's cache miss waits for its snapshot before it takes the load as failed and replays the
+     * log, counted in `wow.store.fallbacks` as `timed-out`: a snapshot is only a cache, so a store that stops answering
+     * costs a replay, not the command's wait. Below `wow.wait.default-timeout`, so such a command still answers at its
+     * commit.
+     */
+    var loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT.toJavaDuration()
+
+    /** The node's snapshot maintenance, write and load options; a load waits less than [defaultWaitTimeout]. */
+    fun options(defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT.toJavaDuration()): SnapshotOptions {
+        configCheck(
+            loadTimeout > Duration.ZERO && loadTimeout < defaultWaitTimeout,
+            "wow.snapshot.load-timeout",
+            loadTimeout,
+            "Set it above zero and below wow.wait.default-timeout ($defaultWaitTimeout), so a command whose snapshot " +
+                "store does not answer replays its log within its wait.",
+        ) { "A snapshot load waiting $loadTimeout would outlast a command's default wait of $defaultWaitTimeout." }
         val every = maintenanceInterval.toKotlinDuration()
         val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
-        return SnapshotOptions(every, rebuild.pageSize, rebuild.maxPages, ttl, ttl, writeBatch)
+        return SnapshotOptions(
+            every,
+            rebuild.pageSize,
+            rebuild.maxPages,
+            ttl,
+            ttl,
+            writeBatch,
+            loadTimeout.toKotlinDuration()
+        )
     }
 
     private companion object {

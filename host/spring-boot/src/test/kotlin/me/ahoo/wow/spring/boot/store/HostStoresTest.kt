@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -233,6 +234,26 @@ class HostStoresTest {
         options.pages.assert().isEqualTo(3)
         options.leaseTtl.inWholeMinutes.assert().isEqualTo(3)
         SnapshotProperties().options().leaseTtl.assert().isEqualTo(SnapshotOptions.DEFAULT_TTL)
+    }
+
+    @Test
+    fun `a snapshot load waits less than a command's default wait`() {
+        SnapshotProperties().options().loadTimeout.assert().isEqualTo(KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT)
+        SnapshotProperties().apply { loadTimeout = java.time.Duration.ofSeconds(4) }
+            .options(java.time.Duration.ofSeconds(5)).loadTimeout.inWholeSeconds.assert().isEqualTo(4)
+        val refused = assertThrows<WowConfigurationException> {
+            SnapshotProperties().apply { loadTimeout = java.time.Duration.ofSeconds(10) }
+                .options(java.time.Duration.ofSeconds(10))
+        }
+        refused.key.assert().isEqualTo("wow.snapshot.load-timeout")
+        refused.message.assert().isEqualTo(
+            "A snapshot load waiting PT10S would outlast a command's default wait of PT10S. Set it above zero and " +
+                "below wow.wait.default-timeout (PT10S), so a command whose snapshot store does not answer replays " +
+                "its log within its wait.",
+        )
+        assertThrows<WowConfigurationException> {
+            SnapshotProperties().apply { loadTimeout = java.time.Duration.ZERO }.options()
+        }.key.assert().isEqualTo("wow.snapshot.load-timeout")
     }
 
     @Test
