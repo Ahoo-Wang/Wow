@@ -107,6 +107,7 @@ const accepted = await orders.cancelOrder(
 | `wait.accepted()` | 命令通过了准入；路由以 202 回答 |
 | `wait.committed()` | 它的事件已在日志中 |
 | `wait.snapshot()` | 快照包含这次提交，所以读取能看到它 |
+| `wait.queryable()` | 聚合的快照查询所读的存储包含这次提交，所以紧接着重新加载的列表能看到它；查询读副本时比 `snapshot` 晚 |
 | `wait.handled('Processor.function')` | 那个订阅处理了这次提交 |
 
 计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `contract.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：

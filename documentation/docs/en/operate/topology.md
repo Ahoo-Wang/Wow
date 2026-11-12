@@ -193,7 +193,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-- **Readiness** fails until the node runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past a hand-over grace period, or while a topic it reads is still joining.
+- **Readiness** fails until the node runs, while its log, a store its writes need (a type's own snapshot store) or its lease store is down, while it owns none of its share of partitions past a hand-over grace period, or while a topic it reads is still joining.
 - **Liveness** fails only when the node is stuck: its dispatcher or its commands make no progress while its stores answer. It never fails for a storage outage, and not while the node drains, so an outage does not restart every node at once.
 
 ## Standby for a migration's cut-over {#standby-for-a-migrations-cut-over}

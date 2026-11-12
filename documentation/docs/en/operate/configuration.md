@@ -69,7 +69,7 @@ A node derives these values from its environment, so most services set none of t
 | A topic's partitions, replication and `min.insync.replicas` | The log's partitions; the broker's defaults | `wow.log.partitions`, `wow.kafka.topics.*` |
 | The backend | The application's `DataSource` or `MongoClient` | `wow.backend` |
 | The topic transport | Kafka once `wow.kafka.bootstrap-servers` is set; in-JVM topics in development | `wow.transport` |
-| Where snapshots are kept, and the primary one | The log's store; the first of the snapshot stores | `wow.snapshot.stores`, `wow.snapshot.primary` |
+| Where snapshots are kept, and the store a type's queries read | The log's store; the type's own store | `wow.snapshot.store`, `wow.aggregates.[<context>.<aggregate>].snapshot.store` and `.query.snapshot.store` |
 | A peer's nodes | DNS SRV records named after the service its contract names ([Configure a peer](../guide/calling-services#configure-a-peer-over-http)), or a Spring Cloud service registry ([Spring Cloud Discovery](./spring-cloud)) | `wow.peer.discovery`, `wow.peers.<context>.url` |
 | The client's address behind the gateway | The forwarded headers the gateway writes (`server.forward-headers-strategy: framework`) | `server.forward-headers-strategy` |
 

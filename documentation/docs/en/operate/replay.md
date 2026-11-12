@@ -42,7 +42,7 @@ The route sends the system command `wow.snapshot.RebuildSnapshot` to the context
 
 ## A new snapshot store
 
-Adding a snapshot target to an aggregate type (`wow.snapshot.stores`, or `wow.aggregates.[<context>.<aggregate>].snapshot.*`), an Elasticsearch index beside PostgreSQL, say, fills it from the beginning of the log: a new store's own snapshot subscription starts there, and for a type added to a store whose subscription is already past the beginning, a subscription of its own does, and stops once the target has caught up. Switching the primary target, the one queries read, moves no checkpoint.
+A store a type's snapshots are first written to is filled from the beginning of the log. That is a type's own store changed to another (`wow.snapshot.store`, or `wow.aggregates.[<context>.<aggregate>].snapshot.store`), or a copy its queries read (`.query.snapshot.store`), an Elasticsearch index beside PostgreSQL, say. A new store's own snapshot subscription starts at the beginning. For a store whose subscription is already past it, the default store's included, a subscription of its own does, and stops once the store has caught up. Meanwhile the type's snapshot queries answer `rebuilding`. A changed store is so a backfill from the log: the commands that load an aggregate before its snapshot is written there replay its history, and the old store is left as it was.
 
 ## Access attributes
 

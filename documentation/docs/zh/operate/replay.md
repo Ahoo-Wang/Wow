@@ -42,7 +42,7 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
 
 ## 新的快照存储 {#a-new-snapshot-store}
 
-给某个聚合类型增加一个快照目标（`wow.snapshot.stores`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.*`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引，会从日志开头填充它：新存储自己的快照订阅从开头开始；如果是给一个订阅早已越过开头的存储新增聚合类型，则由一个它自己的订阅填充，目标追平后这个订阅就停止。切换主目标（即查询读取的那个）不会移动任何检查点。
+类型的快照首次写入的存储，会从日志开头填充。这包括类型自己的存储换成另一个（`wow.snapshot.store`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.store`），也包括它的查询读取的一份副本（`.query.snapshot.store`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引。新存储自己的快照订阅从开头开始；订阅早已越过开头的存储（包括默认存储），则由一个它自己的订阅填充，存储追平后这个订阅就停止。在此期间，这个类型的快照查询回答 `rebuilding`。所以换存储就是从日志回填：在某个聚合的快照写到新存储之前加载它的命令，会重放它的历史，旧存储保持原样。
 
 ## 访问属性 {#access-attributes}
 

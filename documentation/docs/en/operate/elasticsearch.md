@@ -1,6 +1,6 @@
 ---
 title: Elasticsearch
-description: Keep a copy of a service's snapshots on Elasticsearch for their queries, and search its events through a sink, while its log and its primary snapshots stay on PostgreSQL or MongoDB.
+description: Keep a copy of a service's snapshots on Elasticsearch for their queries, and search its events through a sink, while its log and its snapshots stay on PostgreSQL or MongoDB.
 ---
 
 # Elasticsearch
@@ -9,7 +9,7 @@ Elasticsearch never holds a Wow log: every aggregate's log stays on PostgreSQL o
 
 ## A store of type `elasticsearch`
 
-A store of type `elasticsearch` opens over the application's low-level `Rest5Client`, which Spring Boot's Elasticsearch support configures. Name it beside the log's store, add it to an aggregate's snapshot stores after the store its commands load from, and point the aggregate's queries at it:
+A store of type `elasticsearch` opens over the application's low-level `Rest5Client`, which Spring Boot's Elasticsearch support configures. Name it beside the log's store and point an aggregate's queries at it. The store then keeps a copy of the aggregate's snapshots for its snapshot queries:
 
 <!-- sample: fragment -->
 
@@ -24,8 +24,6 @@ wow:
     store: main
   aggregates:
     "[shop.order]":
-      snapshot:
-        stores: [main, search]
       query:
         snapshot:
           store: search
@@ -41,16 +39,23 @@ wow:
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | The first of its own `snapshot.stores` when it lists them; otherwise `wow.snapshot.primary`, else the first of `wow.snapshot.stores` |
-| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots, which its commands load from and its state reads read; never Elasticsearch | `wow.snapshot.store`, else the log's store |
+| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read; another store than its own then keeps a copy of its snapshots for them | Its own snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
 Each index records its layout in its `_meta` and refuses a store that expects another.
 
 ## Snapshot queries
 
-An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. A command's `snapshot` wait never covers this store: it ends once the primary snapshot store's subscription has written the commit, and a search here sees the commit within the index's refresh interval once this store's own subscription has written it (`refresh: none`, the default). A caller that must read its own write polls the search, or reads the state, which the primary serves. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
+An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
+
+### Reading your own write {#reading-your-own-write}
+
+A command's `snapshot` wait never covers the copy: it ends once the aggregate's own snapshot store has the commit. Its `queryable` wait ends once the copy's subscription, `wow.snapshot:<store>`, has written it ([Waiting](../concepts/waits)). With the default `refresh: none`, a search sees the commit within the index's refresh interval after that write, so a page that submits a command and then reloads a list can still miss it.
+
+A page that reloads a list after it submits waits `queryable` on a store with `refresh: wait-for`. Each write to the copy then returns once a search sees it, so the list the page reloads holds the commit. That costs every command the page waits for: the wait ends up to a refresh interval later. It also caps the copy's subscription at one batch per write lane a refresh interval: four lanes of at most `wow.snapshot.write-batch` snapshots, 256 by default, so about a thousand aggregates a second at Elasticsearch's default interval of a second. Beyond that, the copy falls behind.
+
+The alternative is to leave the type's queries on its own store, with no copy. Its lists then read the database the commands write, `queryable` and `snapshot` are one wait, and nothing waits for a refresh. Choose the copy for the queries a search engine serves better than the database: full-text search, aggregations over a large population.
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
 
@@ -93,9 +98,9 @@ Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so 
 
 ## Store combinations
 
-Each aggregate type picks its stores: its log and its primary snapshots on PostgreSQL or MongoDB (`wow.log.store`, `wow.aggregates.[<context>.<aggregate>].log.store`), a copy of its snapshots and its events search on Elasticsearch, as the sample above sets them. Two consequences:
+Each aggregate type picks its stores: its log and its snapshots on PostgreSQL or MongoDB (`wow.log.store`, `wow.snapshot.store`, and the aggregate's `log.store` and `snapshot.store`), a copy of its snapshots and its events search on Elasticsearch, as the sample above sets them. Two consequences:
 
-- **Commands and state reads stay on the primary.** A command loads its state from the primary snapshot store and the log after it, and the state reads (`GET …/state`) read the primary, so neither waits for Elasticsearch's refresh. Each snapshot store is written by a subscription of its own from the log, `wow.snapshot` for the default snapshot store (the first of `wow.snapshot.stores`, else the log's store) and `wow.snapshot:<store>` for each other, and keeps the highest version it was given, so the copy only lags and can be rebuilt. The host refuses Elasticsearch as an aggregate's primary snapshot store, or its only one, naming the key.
+- **Commands and state reads stay on the aggregate's own store.** A command loads its state from the aggregate's snapshot store and the log after it, and the state reads (`GET …/state`) read that store, so neither waits for Elasticsearch's refresh. Each snapshot store is written by a subscription of its own from the log, whether it keeps a type's own snapshots or a copy: `wow.snapshot` for the default snapshot store (`wow.snapshot.store`, else the log's store) and `wow.snapshot:<store>` for each other. It keeps the highest version it was given, so the copy only lags and can be rebuilt. The host refuses Elasticsearch as an aggregate's snapshot store, naming the key: make it the aggregate's query snapshot store instead.
 - **Events queries follow the sink.** An aggregate's `events` queries read Elasticsearch once its `query.events.store` names the store, so they see what the sink has written: a commit is searchable shortly after it commits, not at once. Its snapshots may stay on the log's store; the two settings are independent.
 
 ## Rebuild
