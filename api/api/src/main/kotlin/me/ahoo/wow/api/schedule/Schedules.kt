@@ -27,6 +27,8 @@ import kotlin.time.Duration
  *
  * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
  * [firstDue] answers for any kind.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface ScheduleRule {
     /**
@@ -168,7 +170,11 @@ sealed interface ScheduleRule {
     }
 }
 
-/** What a recurring schedule does with the times it missed. */
+/**
+ * What a recurring schedule does with the times it missed.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class Misfire {
     /** Fires the latest missed time only, and counts the others as skipped: the default. */
     COALESCE,

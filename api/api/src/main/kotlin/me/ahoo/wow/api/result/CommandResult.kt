@@ -16,7 +16,11 @@ package me.ahoo.wow.api.result
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** The kind of function that produced a result. */
+/**
+ * The kind of function that produced a result.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class FunctionKind {
     /** A command's decide function, on the aggregate. */
     COMMAND,
@@ -199,7 +203,11 @@ class CommandResult @InternalWowApi constructor(
         require(chainEnded == pending.isNotEmpty()) { "A chain that ended early names its pending hops, and only it." }
     }
 
-    /** How a command ended at a hop. */
+    /**
+     * How a command ended at a hop.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Status {
         /** The hop is reached. */
         SUCCEEDED,

@@ -71,7 +71,11 @@ class RouteParameterManifest @InternalWowApi constructor(
         require(required || location != Location.PATH) { "The path variable $name is always required." }
     }
 
-    /** Where a parameter is read from. */
+    /**
+     * Where a parameter is read from.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Location { PATH, QUERY }
 
     override fun equals(other: Any?): Boolean =

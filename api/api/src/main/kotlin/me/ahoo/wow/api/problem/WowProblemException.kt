@@ -39,6 +39,8 @@ class WowProblemException @JvmOverloads constructor(
  * What a retry of a request answered with an error may do, as the error catalog declares it for the error's code and
  * every problem carries it (`retry`, with `Retry-After` when a retry may get past it). On the wire, lower-kebab:
  * `none`, `same-request`, `new-request`.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class Retry {
     /** A retry fails alike: the request, or the state it meets, must change first. */

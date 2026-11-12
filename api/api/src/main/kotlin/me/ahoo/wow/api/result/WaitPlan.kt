@@ -24,6 +24,8 @@ import java.time.Duration as JavaDuration
 /**
  * How far a command has come. There are three stages; which kind of subscription handled a commit
  * (a projection, a reactor, a saga, the snapshot) is the subscription's own business, not a stage of its own.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class Stage {
     /** The command passed admission. Durable only when it was routed through Kafka. */
