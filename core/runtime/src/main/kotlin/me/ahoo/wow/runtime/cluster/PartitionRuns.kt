@@ -130,7 +130,10 @@ internal class PartitionRuns(
         gates.remove(partition, gate)
     }
 
-    /** Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. */
+    /**
+     * Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. The releases run
+     * within the group's bound on lease calls ([leaseCalls]), which the acquisitions share.
+     */
     suspend fun handOff(handed: List<Int>) = coroutineScope {
         handed.map { partition ->
             async {
@@ -143,7 +146,9 @@ internal class PartitionRuns(
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
                 stopSubscriptions(partition)
-                quietly("release partition $partition", LEASE_EXPIRES) { leases.release(group.name, partition, node) }
+                quietly("release partition $partition", LEASE_EXPIRES) {
+                    leaseCalls.bounded { leases.release(group.name, partition, node) }
+                }
                 quietly(
                     "drop the cached states of partition $partition",
                     STATES_DROPPED_AGAIN
