@@ -54,6 +54,22 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         assertThrownBy<IllegalStateException> { runBlocking { PostgresFixture.snapshotStore(context).save(saved) } }
     }
 
+    @Test
+    fun `a snapshot table puts the columns every save changes last`() {
+        val context = PostgresFixture.newContext()
+        PostgresFixture.snapshotStore(context).createTable("aggregate")
+        val columns = PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+            ).use { query ->
+                query.setString(1, table(context, "aggregate"))
+                query.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+            }
+        }
+        columns.takeLast(CHANGED_BY_EVERY_SAVE).assert()
+            .containsExactly("version", "last_event_time", "operator", "state")
+    }
+
     private fun execute(sql: String) {
         PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
     }
@@ -205,5 +221,6 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     private companion object {
         const val BATCH = 20
         const val FIRST_LOADS = 32
+        const val CHANGED_BY_EVERY_SAVE = 4
     }
 }
