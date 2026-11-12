@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -81,12 +82,12 @@ class LogGroupRouterTest {
             stream(orders.ref("t", "o-1")),
             stream(invoices.ref("t", "i-2")),
         )
-        val outcomes = router.appendAll(streams.map { it to null })
+        val outcomes = router.appendAll(streams.map { Append.of(it) })
         outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (outcomes[2] as AppendOutcome.AlreadyCommitted).existing.ref.assert().isEqualTo(invoices.ref("t", "i-2"))
         default.read(orders.ref("t", "o-1")).toList().assert().hasSize(1)
-        router.appendAll(listOf(stream(orders.ref("t", "o-2")) to null)).single().assert()
+        router.appendAll(listOf(Append.of(stream(orders.ref("t", "o-2"))))).single().assert()
             .isInstanceOf(AppendOutcome.Committed::class.java)
         grouped.read(invoices.ref("t", "i-2")).toList().assert().hasSize(1)
     }
@@ -104,7 +105,7 @@ class LogGroupRouterTest {
                 stream(invoices.ref("t", "i-1")),
                 stream(receipts.ref("t", "r-1")),
             )
-            val outcomes = router.appendAll(streams.map { it to null })
+            val outcomes = router.appendAll(streams.map { Append.of(it) })
             outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
             (outcomes[1] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
             (outcomes[2] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
@@ -113,11 +114,12 @@ class LogGroupRouterTest {
             val timedOut = IllegalStateException("timed out")
             val unknown = object : EventLog by third {
                 override suspend fun appendAll(
-                    streams: List<Pair<EventStreamRecord, ByteArray?>>,
+                    streams: List<Append>,
                 ): List<AppendOutcome> = streams.map { AppendOutcome.Unknown(timedOut) }
             }
             val afterUnknown = LogGroupRouter(default, mapOf(invoices to failing(lost), receipts to unknown))
-            val shares = listOf(stream(receipts.ref("t", "r-2")) to null, stream(invoices.ref("t", "i-2")) to null)
+            val shares =
+                listOf(Append.of(stream(receipts.ref("t", "r-2"))), Append.of(stream(invoices.ref("t", "i-2"))))
             afterUnknown.appendAll(shares).map { (it as AppendOutcome.Unknown).cause }.assert()
                 .containsExactly(timedOut, lost)
         }
@@ -127,23 +129,23 @@ class LogGroupRouterTest {
         runBlocking {
             val lost = IllegalStateException("The pool timed out.")
             val router = LogGroupRouter(default, mapOf(invoices to failing(lost)))
-            val first = listOf(stream(invoices.ref("t", "i-1")) to null, stream(orders.ref("t", "o-1")) to null)
+            val first = listOf(Append.of(stream(invoices.ref("t", "i-1"))), Append.of(stream(orders.ref("t", "o-1"))))
             assertThrows<IllegalStateException> { runBlocking { router.appendAll(first) } }.assert().isSameAs(lost)
             // A share that only conflicted wrote nothing.
             default.append(stream(orders.ref("t", "o-2")))
             val conflicted = listOf(
-                stream(orders.ref("t", "o-2"), requestId = "o-2-again") to null,
-                stream(invoices.ref("t", "i-2")) to null,
+                Append.of(stream(orders.ref("t", "o-2"), requestId = "o-2-again")),
+                Append.of(stream(invoices.ref("t", "i-2"))),
             )
             assertThrows<IllegalStateException> { runBlocking { router.appendAll(conflicted) } }.assert().isSameAs(lost)
             val cancelling = LogGroupRouter(default, mapOf(invoices to failing(CancellationException("cancelled"))))
-            val streams = listOf(stream(orders.ref("t", "o-3")) to null, stream(invoices.ref("t", "i-3")) to null)
+            val streams = listOf(Append.of(stream(orders.ref("t", "o-3"))), Append.of(stream(invoices.ref("t", "i-3"))))
             assertThrows<CancellationException> { runBlocking { cancelling.appendAll(streams) } }
         }
 
     /** A group's log whose every group commit throws [failure]. */
     private fun failing(failure: Exception): EventLog = object : EventLog by grouped {
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
             throw failure
     }
 

@@ -97,8 +97,8 @@ class MongoSequencerBlocksTest : MongoLogFixtures() {
         val context = MongoLogFixture.newContext()
         val stopped = MongoLogFixture.log(1, context)
         val owner = MongoLogFixture.log(1, context)
-        stopped.append(group(context, "a").single().first)
-        owner.append(group(context, "b").single().first)
+        stopped.append(group(context, "a").single().stream)
+        owner.append(group(context, "b").single().stream)
         tailed(owner, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
         stopped.appendAll(group(context, "c", "d")).forEach { outcome ->
             (outcome as AppendOutcome.Committed).position.sequence.assert().isGreaterThan(MongoEventLog.BLOCK * 2)

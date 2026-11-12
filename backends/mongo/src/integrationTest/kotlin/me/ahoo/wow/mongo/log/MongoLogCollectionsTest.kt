@@ -27,6 +27,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import org.bson.Document
 import org.junit.jupiter.api.Test
@@ -48,7 +49,7 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
                 .hasMessage(refused)
             assertThrownBy<IllegalArgumentException> { runBlocking { log.append(first, null) } }
                 .hasMessage("${first.ref} is not in context $context.")
-            val group = listOf(first to null, stream(elsewhere.ref("tenant", "b")) to null)
+            val group = listOf(Append.of(first), Append.of(stream(elsewhere.ref("tenant", "b"))))
             assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group) } }
                 .hasMessage("A group commit appends streams of $context.")
             // The checks of a type's collection, which create none.

@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -215,7 +216,7 @@ private open class TrackedEventLog(
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
         timed {
             activity.call(
                 ::unavailable

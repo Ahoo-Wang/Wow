@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -278,10 +279,10 @@ class KernelBatchTest {
         var failure: Exception? = null
         var refusal: Exception? = null
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
             failure?.let { throw it }
             refusal?.let { cause -> return streams.map { AppendOutcome.Rejected(cause) } }
-            groups += streams.map { it.first }
+            groups += streams.map { it.stream }
             return delegate.appendAll(streams)
         }
     }

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner
@@ -120,7 +121,9 @@ abstract class EventLogSpec : EventLogBatchCases() {
         val (retried, fresh) = idsInPartitionZero(2, 4)
         val first = stream(retried, 1, requestId = "request")
         log.append(first)
-        val outcomes = log.appendAll(listOf(first.copyWith(commandId = "group") to null, stream(fresh, 1) to null))
+        val outcomes = log.appendAll(
+            listOf(Append.of(first.copyWith(commandId = "group")), Append.of(stream(fresh, 1)))
+        )
         (outcomes[0] as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
         outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }

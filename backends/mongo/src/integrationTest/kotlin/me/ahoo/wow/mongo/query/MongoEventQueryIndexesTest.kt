@@ -52,6 +52,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
@@ -112,7 +113,7 @@ class MongoEventQueryIndexesTest {
     private suspend fun planned(create: Boolean = true): Pair<MongoEventLog, List<MongoQueryIndex>> {
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
         for (chunk in (0 until ROWS).chunked(BATCH)) {
-            log.appendAll(chunk.map { stream(it) to null })
+            log.appendAll(chunk.map { Append.of(stream(it)) })
         }
         val declarations = QueryIndexDeclaration.accessOf(manifest, type.context, type.name) +
             QueryIndexDeclaration.BUILT_IN_ACCESS

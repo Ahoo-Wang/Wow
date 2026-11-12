@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -159,7 +160,7 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
         execute(drop)
         log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         execute(drop)
-        log.appendAll(listOf(stream("a", 1, aggregate = type) to null, stream("b", 1, aggregate = type) to null))
+        log.appendAll(listOf(Append.of(stream("a", 1, aggregate = type)), Append.of(stream("b", 1, aggregate = type))))
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         log.positionOf(type.ref("tenant", "b"), 1).assert().isNotNull()
     }
@@ -184,8 +185,8 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
                             (if (it % 2 == writer % 2) order else cart).ref("tenant", "w$writer-$it")
                         }
                         refs.groupBy { Partitioner.partitionOf(it, PARTITIONS) }.values.forEach { inPartition ->
-                            val appends = inPartition.map { stream(it.id, version, aggregate = it.type) to null }
-                            outcomes += if (writer == 0) appends.map { (stream) -> log.append(stream) } else log.appendAll(appends)
+                            val appends = inPartition.map { Append.of(stream(it.id, version, aggregate = it.type)) }
+                            outcomes += if (writer == 0) appends.map { log.append(it.stream) } else log.appendAll(appends)
                         }
                     }
                 }

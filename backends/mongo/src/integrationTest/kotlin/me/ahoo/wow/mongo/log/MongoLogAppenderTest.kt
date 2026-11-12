@@ -30,6 +30,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.CountedMongo
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -59,7 +60,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
             val order = stream(AggregateType(context, "order").ref("tenant", "a"))
             val item = stream(AggregateType(context, "item").ref("tenant", "b"))
-            val outcomes = log.appendAll(listOf(order to null, item to null))
+            val outcomes = log.appendAll(listOf(Append.of(order), Append.of(item)))
             outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
             (outcomes[1] as AppendOutcome.Unknown).cause.assert().isSameAs(refused)
             MongoLogFixture.log(1, context).read(order.ref).toList().size.assert().isEqualTo(1)
@@ -81,10 +82,10 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             val big = oversized(stream(type.ref("tenant", "big")))
             val outcomes = log.appendAll(
                 listOf(
-                    stream(type.ref("tenant", "before")) to null,
-                    big to null,
-                    stream(type.ref("tenant", "after")) to null,
-                    stream(type.ref("tenant", "last")) to null,
+                    Append.of(stream(type.ref("tenant", "before"))),
+                    Append.of(big),
+                    Append.of(stream(type.ref("tenant", "after"))),
+                    Append.of(stream(type.ref("tenant", "last"))),
                 ),
             )
             outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -108,7 +109,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             val type = AggregateType(context, "order")
             // The oversized stream is refused before anything is written, and the stream after it fails alone.
             val big = oversized(stream(type.ref("tenant", "big")))
-            val streams = listOf(big to null, stream(type.ref("tenant", "after")) to null)
+            val streams = listOf(Append.of(big), Append.of(stream(type.ref("tenant", "after"))))
             assertThrownBy<MongoException> { runBlocking { log.appendAll(streams) } }.isSameAs(refused)
         }
 
@@ -184,9 +185,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         log.head(0).assert().isNull()
         val outcomes = log.appendAll(
             listOf(
-                stream("before", 1, aggregate = type) to null,
-                big to null,
-                stream("after", 1, aggregate = type) to null
+                Append.of(stream("before", 1, aggregate = type)),
+                Append.of(big),
+                Append.of(stream("after", 1, aggregate = type))
             ),
         )
         outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -264,7 +265,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
             log.appendAll(group(context, "a", "b"))
                 .forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
-            log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(group(context, "c").single().stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
             tailed(log, 3).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c")
         }
 
@@ -281,7 +282,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         })
         val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
         assertThrownBy<MongoException> { runBlocking { log.appendAll(group(context, "a", "b")) } }
-        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.append(group(context, "c").single().stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
     }
 
@@ -296,9 +297,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             insert()
         }
         val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-        assertThrownBy<MongoException> { runBlocking { log.append(group(context, "a").single().first) } }
-        assertThrownBy<IllegalStateException> { runBlocking { log.append(group(context, "b").single().first) } }
-        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        assertThrownBy<MongoException> { runBlocking { log.append(group(context, "a").single().stream) } }
+        assertThrownBy<IllegalStateException> { runBlocking { log.append(group(context, "b").single().stream) } }
+        log.append(group(context, "c").single().stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
     }
 
@@ -334,13 +335,13 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         val owner = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1)
             .also { it.createSchema() }
         val ids = listOf("a", "b", "c", "d")
-        owner.appendAll(ids.map { stream(it, 1, aggregate = type) to null })
+        owner.appendAll(ids.map { Append.of(stream(it, 1, aggregate = type)) })
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         MongoLogFixture.log(1, context).append(stream("b", 2, aggregate = type))
             .assert().isInstanceOf(AppendOutcome.Committed::class.java)
 
         val (outcomes, sent) = CountedMongo.commandsOf {
-            runBlocking { owner.appendAll(ids.map { stream(it, 2, aggregate = type) to null }) }
+            runBlocking { owner.appendAll(ids.map { Append.of(stream(it, 2, aggregate = type)) }) }
         }
 
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(2))
@@ -359,7 +360,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         val type = AggregateType(context, "order")
         val owner = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1)
             .also { it.createSchema() }
-        owner.appendAll(listOf(stream("hot", 1, aggregate = type) to null, stream("cold", 1, aggregate = type) to null))
+        owner.appendAll(
+            listOf(Append.of(stream("hot", 1, aggregate = type)), Append.of(stream("cold", 1, aggregate = type)))
+        )
         MongoLogFixture.log(1, context).append(stream("hot", 2, requestId = "elsewhere", aggregate = type))
             .assert().isInstanceOf(AppendOutcome.Committed::class.java)
 
@@ -367,9 +370,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             runBlocking {
                 owner.appendAll(
                     listOf(
-                        stream("hot", 2, aggregate = type) to null,
-                        stream("hot", 3, aggregate = type) to null,
-                        stream("cold", 2, aggregate = type) to null,
+                        Append.of(stream("hot", 2, aggregate = type)),
+                        Append.of(stream("hot", 3, aggregate = type)),
+                        Append.of(stream("cold", 2, aggregate = type)),
                     ),
                 )
             }
@@ -392,10 +395,10 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         val context = MongoLogFixture.newContext()
         val type = AggregateType(context, "order")
         val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-        log.appendAll(listOf("a", "b", "c").map { stream(it, 1, aggregate = type) to null })
+        log.appendAll(listOf("a", "b", "c").map { Append.of(stream(it, 1, aggregate = type)) })
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         val chains = listOf("a" to 2..5, "b" to 2..2, "c" to 2..4)
-            .flatMap { (id, versions) -> versions.map { stream(id, it, aggregate = type) to null } }
+            .flatMap { (id, versions) -> versions.map { Append.of(stream(id, it, aggregate = type)) } }
 
         val (outcomes, sent) = CountedMongo.commandsOf { runBlocking { log.appendAll(chains) } }
 
@@ -404,7 +407,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             .containsExactly(CountedMongo.Sent("insert", collection(context, "order")))
         tailed(log, 11).map { it.stream.ref.id to it.stream.version }.assert()
             .containsExactlyElementsOf(
-                listOf("a" to 1, "b" to 1, "c" to 1) + chains.map { (stream, _) -> stream.ref.id to stream.version },
+                listOf("a" to 1, "b" to 1, "c" to 1) + chains.map { it.stream.ref.id to it.stream.version },
             )
     }
 
@@ -422,16 +425,16 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             })
             val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
             val ids = listOf("a", "b", "c", "d")
-            owner.appendAll(ids.map { stream(it, 1, aggregate = type) to null })
+            owner.appendAll(ids.map { Append.of(stream(it, 1, aggregate = type)) })
                 .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
             MongoLogFixture.log(1, context).append(stream("b", 2, requestId = "elsewhere", aggregate = type))
                 .assert().isInstanceOf(AppendOutcome.Committed::class.java)
             inserts.clear()
-            val chains = ids.flatMap { id -> (2..4).map { stream(id, it, aggregate = type) to null } }
+            val chains = ids.flatMap { id -> (2..4).map { Append.of(stream(id, it, aggregate = type)) } }
 
             val outcomes = owner.appendAll(chains)
 
-            chains.map { it.first }.zip(outcomes).forEach { (stream, outcome) ->
+            chains.map { it.stream }.zip(outcomes).forEach { (stream, outcome) ->
                 if (stream.ref.id == "b") {
                     outcome.assert().isEqualTo(AppendOutcome.Conflict(2))
                 } else {
@@ -440,7 +443,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             }
             // No stream was inserted alone, nor any twice: three inserts of streams, one of the placeholders.
             inserts.assert().containsExactly(
-                chains.map { (stream, _) -> "${stream.ref.id}@${stream.version}" },
+                chains.map { "${it.stream.ref.id}@${it.stream.version}" },
                 listOf("c@2", "d@2"),
                 listOf("c@3", "c@4", "d@3", "d@4"),
                 listOf("gap", "gap", "gap"),
@@ -456,8 +459,8 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             tailed(owner, ids.size * 4 - 2).map { it.stream.ref.id to it.stream.version }.assert()
                 .containsExactlyInAnyOrderElementsOf(
                     ids.map { it to 1 } + ("b" to 2) +
-                        chains.filter { (stream, _) -> stream.ref.id != "b" }
-                            .map { (stream, _) -> stream.ref.id to stream.version },
+                        chains.filter { it.stream.ref.id != "b" }
+                            .map { it.stream.ref.id to it.stream.version },
                 )
         }
 
@@ -491,7 +494,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             })
             val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
             owner.appendAll(
-                listOf(stream("hot", 1, aggregate = type) to null, stream("cold", 1, aggregate = type) to null)
+                listOf(Append.of(stream("hot", 1, aggregate = type)), Append.of(stream("cold", 1, aggregate = type)))
             )
             MongoLogFixture.log(1, context).append(stream("hot", 2, aggregate = type))
                 .assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -500,9 +503,9 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             // The conflict leaves its own sequence and its successor's without a stream: two placeholders, one write.
             val outcomes = owner.appendAll(
                 listOf(
-                    stream("hot", 2, aggregate = type) to null,
-                    stream("hot", 3, aggregate = type) to null,
-                    stream("cold", 2, aggregate = type) to null,
+                    Append.of(stream("hot", 2, aggregate = type)),
+                    Append.of(stream("hot", 3, aggregate = type)),
+                    Append.of(stream("cold", 2, aggregate = type)),
                 ),
             )
 
@@ -548,7 +551,7 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             // A group holds this log's context alone.
             val elsewhere = stream("x", 1, aggregate = AggregateType(MongoLogFixture.newContext(), "order"))
             assertThrownBy<IllegalArgumentException> {
-                runBlocking { log.appendAll(group(context, zero) + (elsewhere to null)) }
+                runBlocking { log.appendAll(group(context, zero) + (Append.of(elsewhere))) }
             }
         }
 

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -221,7 +222,7 @@ abstract class HandoffLogFixtures {
             return delegate.append(stream, transport)
         }
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
             gate()
             return delegate.appendAll(streams)
         }

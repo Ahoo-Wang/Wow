@@ -36,6 +36,7 @@ import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
@@ -79,7 +80,7 @@ class MongoEventQueryPartitionTest {
         assumeFalse(MongoLogFixture.sharded, "The profiler is not on a mongos.")
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
         for (version in 1..VERSIONS) {
-            log.appendAll((0 until AGGREGATES).map { stream(it, version) to null })
+            log.appendAll((0 until AGGREGATES).map { Append.of(stream(it, version)) })
         }
         val storage = MongoEventQueryStorage(
             MongoLogFixture.client,

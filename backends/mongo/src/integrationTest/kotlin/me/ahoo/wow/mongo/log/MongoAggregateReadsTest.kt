@@ -25,6 +25,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.CountedMongo
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.VersionPages
@@ -101,7 +102,7 @@ class MongoAggregateReadsTest : MongoLogFixtures() {
         val type = AggregateType(context, "order")
         val count = 2 * VersionPages.SIZE + 3
         for (versions in (1..count).chunked(GROUP_OF_STREAMS)) {
-            log.appendAll(versions.map { stream("long", it, aggregate = type) to null })
+            log.appendAll(versions.map { Append.of(stream("long", it, aggregate = type)) })
         }
         for (version in 1..SHORT) {
             log.append(stream("short", version, aggregate = type))

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AggregateTail
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -60,8 +61,8 @@ internal class LogGroupRouter(
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         logOf(stream.ref.type).append(stream, transport)
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-        val byLog = streams.indices.groupBy { logOf(streams[it].first.ref.type) }
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+        val byLog = streams.indices.groupBy { logOf(streams[it].stream.ref.type) }
         if (byLog.size == 1) {
             return byLog.keys.single().appendAll(streams)
         }

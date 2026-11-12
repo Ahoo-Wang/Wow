@@ -19,14 +19,16 @@ import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
-import me.ahoo.wow.spi.log.EventStreamRecord
 
 /** The events backend contract against PostgreSQL (decision D235): each test's fresh context is a fresh log. */
 class PostgresEventQueryBackendTest : EventQueryBackendSpec() {
-    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
+    override suspend fun store(streams: List<Append>) {
         val log = PostgresFixture.log(PARTITIONS, type.context, listOf(type.name))
-        streams.forEach { (stream, transport) ->
+        streams.forEach { entry ->
+            val stream = entry.stream
+            val transport = entry.transport
             (log.append(stream, transport) is AppendOutcome.Committed).assert().isTrue()
         }
     }

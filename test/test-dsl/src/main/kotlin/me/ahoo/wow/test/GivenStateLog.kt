@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -45,8 +46,8 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
         }
     }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
-        streams.map { (stream, transport) -> append(stream, transport) }
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
+        streams.map { append(it.stream, it.transport) }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         delegate.read(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }

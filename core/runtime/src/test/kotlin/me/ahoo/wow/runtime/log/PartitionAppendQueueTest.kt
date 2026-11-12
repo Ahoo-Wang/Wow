@@ -32,6 +32,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -243,7 +244,7 @@ class PartitionAppendQueueTest {
         appends.awaitAll().forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         val late = refsOfOnePartition(3).last()
         assertThrows<IllegalStateException> { queue.append(stream(late, 1)) }
-        assertThrows<IllegalStateException> { queue.appendAll(listOf(stream(late, 1) to null)) }
+        assertThrows<IllegalStateException> { queue.appendAll(listOf(Append.of(stream(late, 1)))) }
         queue.queued.assert().isZero()
     }
 
@@ -253,7 +254,7 @@ class PartitionAppendQueueTest {
         val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val streams = (0 until 8).map { stream(type.ref("tenant", "spread-$it"), 1) }
 
-        val outcomes = queue.appendAll(streams.map { it to null })
+        val outcomes = queue.appendAll(streams.map { Append.of(it) })
 
         outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         log.batches.forEach { batch ->
@@ -272,10 +273,10 @@ class PartitionAppendQueueTest {
             queue.append(stream(hot, 1), null)
             val outcomes = queue.appendAll(
                 listOf(
-                    stream(hot, 2) to null,
-                    stream(other, 1) to null,
-                    stream(hot, 3) to null,
-                    stream(hot, 4) to null
+                    Append.of(stream(hot, 2)),
+                    Append.of(stream(other, 1)),
+                    Append.of(stream(hot, 3)),
+                    Append.of(stream(hot, 4))
                 ),
             )
             outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
@@ -283,7 +284,7 @@ class PartitionAppendQueueTest {
             log.batches.single { batch -> batch.any { it.ref == hot && it.version == 2 } }
                 .filter { it.ref == hot }.map { it.version }.assert().containsExactly(2, 3, 4)
             // A conflict at the first stops the rest of the aggregate's.
-            val stopped = queue.appendAll(listOf(stream(hot, 4, "again") to null, stream(hot, 5) to null))
+            val stopped = queue.appendAll(listOf(Append.of(stream(hot, 4, "again")), Append.of(stream(hot, 5))))
             stopped.assert().containsExactly(AppendOutcome.Conflict(4), AppendOutcome.Conflict(4))
             queue.close()
         }
@@ -435,8 +436,8 @@ class PartitionAppendQueueTest {
         val log = object : RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true) {
             var refusing = true
 
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-                if (refusing && streams.any { partitionOf(it.first) == 1 }) error("The batch failed.")
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+                if (refusing && streams.any { partitionOf(it.stream) == 1 }) error("The batch failed.")
                 return super.appendAll(streams)
             }
         }
@@ -492,8 +493,8 @@ class PartitionAppendQueueTest {
     ) : EventLog by delegate {
         val batches = CopyOnWriteArrayList<List<EventStreamRecord>>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-            batches += streams.map { it.first }
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+            batches += streams.map { it.stream }
             return delegate.appendAll(streams)
         }
     }
@@ -509,8 +510,8 @@ class PartitionAppendQueueTest {
         val maxCalls = AtomicInteger()
         val maxPerPartition = AtomicInteger()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-            val partitions = streams.map { Partitioner.partitionOf(it.first.ref, partitions) }.toSet()
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+            val partitions = streams.map { Partitioner.partitionOf(it.stream.ref, partitions) }.toSet()
             maxCalls.accumulateAndGet(calls.incrementAndGet(), ::maxOf)
             partitions.forEach { maxPerPartition.accumulateAndGet(perPartition[it].incrementAndGet(), ::maxOf) }
             try {
@@ -532,11 +533,11 @@ class PartitionAppendQueueTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
             entered.complete(Unit)
             release.await()
             if (batches.size + 1 == failBatch) {
-                batches += streams.map { it.first }
+                batches += streams.map { it.stream }
                 error("The batch failed.")
             }
             return super.appendAll(streams)

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
@@ -63,7 +64,7 @@ class HandoffLogTest : HandoffLogFixtures() {
         val log = handoff()
         val (seen, job) = collect(log)
         awaitOpen(log)
-        log.appendAll(listOf(next(refs[0]) to transport(1), next(refs[1]) to null))
+        log.appendAll(listOf(Append.of(next(refs[0]), transport(1)), Append.of(next(refs[1]))))
         val handed = seen.take(2)
         job.cancelAndJoin()
 

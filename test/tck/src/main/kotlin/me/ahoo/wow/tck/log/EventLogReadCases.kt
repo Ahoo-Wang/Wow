@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.log.AggregateTail
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
@@ -48,7 +49,7 @@ abstract class EventLogReadCases internal constructor() : EventLogEntryCases() {
         val count = 2 * VersionPages.SIZE + 3
         val appended = (1..count).map { stream("long", it) }
         appended.chunked(APPEND_GROUP).forEachIndexed { index, group ->
-            log.appendAll(group.map { it to null }).assert().allMatch { it is AppendOutcome.Committed }
+            log.appendAll(group.map { Append.of(it) }).assert().allMatch { it is AppendOutcome.Committed }
             // Another aggregate's streams between, which no page of this one takes.
             log.append(stream("between", index + 1))
         }

@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.runtime.wait.correlationId
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -374,10 +375,10 @@ class RecordingLog(private val delegate: EventLog, private val events: MutableLi
             }
         }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
         delegate.appendAll(streams).also { outcomes ->
             streams.zip(outcomes).filter { it.second is AppendOutcome.Committed }
-                .forEach { events += "append ${it.first.first.ref.id}" }
+                .forEach { events += "append ${it.first.stream.ref.id}" }
         }
 }
 

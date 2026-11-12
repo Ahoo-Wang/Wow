@@ -29,6 +29,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -120,14 +121,16 @@ class PartitionAppendQueueReservationTest {
         val release = CompletableDeferred<Unit>()
         val calls = mutableListOf<Int>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
             calls += streams.size
             if (calls.size == 1) {
                 entered.complete(Unit)
                 release.await()
                 return delegate.appendAll(streams)
             }
-            val (head, transport) = streams.first()
+            val entry = streams.first()
+            val head = entry.stream
+            val transport = entry.transport
             return listOf(delegate.append(head, transport)) + streams.drop(1).map { AppendOutcome.Unknown(lost) }
         }
     }

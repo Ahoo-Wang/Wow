@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -90,8 +91,8 @@ abstract class MongoLogFixtures {
         Scope.NONE,
     )
 
-    protected fun group(context: String, vararg ids: String): List<Pair<EventStreamRecord, Nothing?>> =
-        ids.map { stream(it, 1, aggregate = AggregateType(context, "order")) to null }
+    protected fun group(context: String, vararg ids: String): List<Append> =
+        ids.map { Append.of(stream(it, 1, aggregate = AggregateType(context, "order"))) }
 
     protected companion object {
         /** As the TCK waits for a tail. */

@@ -27,16 +27,18 @@ class AppendChainTest {
     private val a = type.ref("tenant", "a")
     private val b = type.ref("tenant", "b")
 
-    private fun stream(ref: AggregateRef, version: Int): Pair<EventStreamRecord, ByteArray?> = EventStreamRecord.of(
-        ref,
-        version,
-        "command-$version",
-        "request-$version",
-        "ctx.agg.Act",
-        0L,
-        listOf(EventRecord.of("ctx.agg.Acted", 1, "{}")),
-        Scope.NONE,
-    ) to null
+    private fun stream(ref: AggregateRef, version: Int): Append = Append.of(
+        EventStreamRecord.of(
+            ref,
+            version,
+            "command-$version",
+            "request-$version",
+            "ctx.agg.Act",
+            0L,
+            listOf(EventRecord.of("ctx.agg.Acted", 1, "{}")),
+            Scope.NONE,
+        )
+    )
 
     @Test
     fun `an aggregate's streams come in consecutive versions, among other aggregates'`() {
@@ -52,7 +54,7 @@ class AppendChainTest {
 
     @Test
     fun `a stream after one that did not commit is a conflict at the version it left`() {
-        val failed = stream(a, 4).first
+        val failed = stream(a, 4).stream
         notAppendedAfter(failed, AppendOutcome.Conflict.of(7)).currentVersion.assert().isEqualTo(7)
         notAppendedAfter(failed, AppendOutcome.AlreadyCommitted.of(failed)).currentVersion.assert().isEqualTo(3)
         notAppendedAfter(failed, AppendOutcome.Unknown.of(IOException("lost"))).currentVersion.assert().isEqualTo(3)

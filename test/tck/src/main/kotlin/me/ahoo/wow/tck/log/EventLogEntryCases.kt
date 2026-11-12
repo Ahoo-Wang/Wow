@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -95,7 +96,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
             ).encodeToByteArray()
         val ref = stream("a", 1).ref
         log.append(stream("a", 1), future)
-        log.appendAll(listOf(stream("a", 2) to future))
+        log.appendAll(listOf(Append.of(stream("a", 2), future)))
         val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
         tailed.forEach { entry ->
             entry.transport.assert().isEqualTo(future)
@@ -142,7 +143,9 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val log = createLog(partitions = 4)
         val (first, second) = idsInPartitionZero(2, 4)
         val transport = Transport(reservations = listOf(ReservationKey("ns", "k")))
-        log.appendAll(listOf(stream(first, 1) to TransportCodec.encode(transport), stream(second, 1) to null))
+        log.appendAll(
+            listOf(Append.of(stream(first, 1), TransportCodec.encode(transport)), Append.of(stream(second, 1)))
+        )
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
         entries.associate { it.stream.ref.id to it.decodedTransport }
@@ -177,12 +180,12 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
             it.copyWith(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
         }
         val encoded = TransportCodec.encode(transport)
-        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to encoded)
+        val grouped = listOf(Append.of(stream(second, 1)), Append.of(stream(third, 1), encoded))
         val handed = buildList {
-            add(single to encoded to log.append(single, encoded))
+            add(Append.of(single, encoded) to log.append(single, encoded))
             grouped.zip(log.appendAll(grouped)).forEach { (appended, outcome) -> add(appended to outcome) }
         }.map { (appended, outcome) ->
-            Triple((outcome as AppendOutcome.Committed).position, appended.first, appended.second)
+            Triple((outcome as AppendOutcome.Committed).position, appended.stream, appended.transport)
         }
         val read = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
         read.map { it.position }.assert().isEqualTo(handed.map { it.first })

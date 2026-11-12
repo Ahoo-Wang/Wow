@@ -23,6 +23,7 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -146,15 +147,17 @@ class HandoffLog(
         }
     }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-        val tickets = streams.map { (stream) -> Partitioner.partitionOf(stream.ref, log.partitions) }.distinct()
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+        val tickets = streams.map { Partitioner.partitionOf(it.stream.ref, log.partitions) }.distinct()
             .map { it to inFlight[it].open() }
         var handed = false
         try {
             return log.appendAll(streams).also { outcomes ->
                 handed = outcomes.size == streams.size
                 outcomes.forEachIndexed { index, outcome ->
-                    streams.getOrNull(index)?.let { (stream, transport) ->
+                    streams.getOrNull(index)?.let { entry ->
+                        val stream = entry.stream
+                        val transport = entry.transport
                         handed = handOver(outcome, stream, transport) && handed
                     }
                 }

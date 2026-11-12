@@ -27,16 +27,18 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
-import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
 import org.junit.jupiter.api.Test
 
 /** The events backend contract against MongoDB (decision D235): each test's fresh context is a fresh log. */
 class MongoEventQueryBackendTest : EventQueryBackendSpec() {
-    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
+    override suspend fun store(streams: List<Append>) {
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
-        streams.forEach { (stream, transport) ->
+        streams.forEach { entry ->
+            val stream = entry.stream
+            val transport = entry.transport
             (log.append(stream, transport) is AppendOutcome.Committed).assert().isTrue()
         }
     }

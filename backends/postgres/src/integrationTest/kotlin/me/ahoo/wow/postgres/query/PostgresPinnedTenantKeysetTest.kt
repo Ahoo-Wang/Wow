@@ -41,6 +41,7 @@ import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
@@ -116,16 +117,18 @@ class PostgresPinnedTenantKeysetTest {
         for (chunk in (0 until STREAMS).chunked(BATCH)) {
             log.appendAll(
                 chunk.map { n ->
-                    EventStreamRecord(
-                        ref = type.ref(if (n % 2 == 0) "t3" else "t4", "o-%06d".format(n)),
-                        version = 1,
-                        commandId = "c-$n",
-                        requestId = "r-$n",
-                        commandType = "${type.context}.order.Create",
-                        commitTime = n.toLong(),
-                        events = listOf(EventRecord("${type.context}.order.Created", 1, "{}")),
-                        scope = Scope.NONE,
-                    ) to null
+                    Append.of(
+                        EventStreamRecord(
+                            ref = type.ref(if (n % 2 == 0) "t3" else "t4", "o-%06d".format(n)),
+                            version = 1,
+                            commandId = "c-$n",
+                            requestId = "r-$n",
+                            commandType = "${type.context}.order.Create",
+                            commitTime = n.toLong(),
+                            events = listOf(EventRecord("${type.context}.order.Created", 1, "{}")),
+                            scope = Scope.NONE,
+                        )
+                    )
                 },
             )
         }

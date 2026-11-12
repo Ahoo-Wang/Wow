@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -272,11 +273,11 @@ class MongoEventLog(
      * later ones ordered), so at most three inserts of streams, and each refusal in a later ordered insert two more;
      * the placeholders then take one write more.
      */
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
         if (streams.size <= 1) {
-            return streams.map { (stream, transport) -> append(stream, transport) }
+            return streams.map { append(it.stream, it.transport) }
         }
-        require(streams.all { (stream) -> stream.ref.type.context == context }) {
+        require(streams.all { it.stream.ref.type.context == context }) {
             "A group commit appends streams of $context."
         }
         requireChains(streams)

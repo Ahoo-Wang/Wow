@@ -21,9 +21,9 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -162,8 +162,8 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
         }
         // The first page's append waits for the second page's read: with a barrier between pages, it never comes.
         val waiting = object : EventLog by log {
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-                if (streams.first().first.ref.id == "order-1") nextRead.await()
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+                if (streams.first().stream.ref.id == "order-1") nextRead.await()
                 return log.appendAll(streams)
             }
         }
@@ -181,8 +181,8 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
         val secondAppended = CompletableDeferred<Unit>()
         // The second page is appended before the first.
         val reordering = object : EventLog by log {
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-                val id = streams.first().first.ref.id
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+                val id = streams.first().stream.ref.id
                 if (id == "order-1") secondAppended.await()
                 return log.appendAll(streams).also { if (id == "order-2") secondAppended.complete(Unit) }
             }
@@ -205,8 +205,8 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
         val first = NineXExample.stream("order-stream-v1.json")
         val source = InMemoryNineXEventSource((1..4).map { copyOf(first, "order-$it") })
         val failing = object : EventLog by log {
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-                check(streams.first().first.ref.id != "order-2") { "the store is gone" }
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+                check(streams.first().stream.ref.id != "order-2") { "the store is gone" }
                 return log.appendAll(streams)
             }
         }
@@ -289,8 +289,8 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
         val first = NineXExample.stream("order-stream-v1.json")
         val source = InMemoryNineXEventSource((10..15).map { copyOf(first, "order-$it") })
         val failing = object : EventLog by log {
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-                check(streams.none { it.first.ref.id == "order-14" }) { "the store is gone" }
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+                check(streams.none { it.stream.ref.id == "order-14" }) { "the store is gone" }
                 return log.appendAll(streams)
             }
         }
@@ -344,7 +344,7 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
     fun `the import times every phase it runs`() = runTest {
         val inMemory = InMemoryEventLog(4)
         val slowLog = object : EventLog by inMemory {
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
                 Thread.sleep(2L * streams.size)
                 return inMemory.appendAll(streams)
             }

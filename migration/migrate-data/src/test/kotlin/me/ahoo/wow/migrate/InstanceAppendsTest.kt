@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -199,7 +200,7 @@ internal class InstanceAppendsTest : EventStreamImporterFixtures() {
                 return log.append(stream, transport)
             }
 
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
                 synchronized(calls) { calls += streams.size }
                 return log.appendAll(streams)
             }
@@ -250,7 +251,7 @@ internal class InstanceAppendsTest : EventStreamImporterFixtures() {
     /** [log] answering a group commit as the log's own default does: one append after another. */
     private fun appendsOneByOne(log: EventLog) {
         coEvery { log.appendAll(any()) } coAnswers {
-            firstArg<List<Pair<EventStreamRecord, ByteArray?>>>().map { (stream, transport) -> log.append(stream, transport) }
+            firstArg<List<Append>>().map { log.append(it.stream, it.transport) }
         }
     }
 }
