@@ -1,13 +1,13 @@
-1794379252 [settle] 1s: node-1 0.03
-1794379253 [settle] 2s: node-1 0.01
-1794379254 [settle] 3s: node-1 0.02
-1794379254 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1794379295 [saturate] E1: concurrency=1 throughput=1153.6/s p50=0ms errors={}
-1794379335 [saturate] E1: concurrency=4 throughput=2081.1/s p50=1ms errors={}
-1794379375 [saturate] E1: concurrency=16 throughput=2858.9/s p50=4ms errors={}
-1794379415 [saturate] E1: concurrency=64 throughput=10393.1/s p50=5ms errors={}
-1794379455 [saturate] E1: concurrency=256 throughput=15417.2/s p50=15ms errors={}
-1794379495 [saturate] E1: concurrency=1024 throughput=16139.1/s p50=17ms errors={}
-1794379535 [saturate] E1: concurrency=4096 throughput=19902.2/s p50=67ms errors={http-429-wow.command.busy=87288}
-1794379535 [saturate] saturation: 19902.2/s at concurrency 4096
-1794379536 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-zipf-sweep
+1794469595 [settle] 1s: node-1 0.06
+1794469596 [settle] 2s: node-1 0.02
+1794469597 [settle] 3s: node-1 0.01
+1794469597 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794469638 [saturate] E1: concurrency=1 throughput=524.3/s p50=1ms errors={}
+1794469678 [saturate] E1: concurrency=4 throughput=684.1/s p50=4ms errors={}
+1794469718 [saturate] E1: concurrency=16 throughput=2466.7/s p50=4ms errors={}
+1794469758 [saturate] E1: concurrency=64 throughput=7402.5/s p50=6ms errors={}
+1794469798 [saturate] E1: concurrency=256 throughput=15386.1/s p50=14ms errors={}
+1794469838 [saturate] E1: concurrency=1024 throughput=17090.6/s p50=19ms errors={}
+1794469878 [saturate] E1: concurrency=4096 throughput=20308.3/s p50=63ms errors={http-429-wow.command.busy=83231}
+1794469878 [saturate] saturation: 20308.3/s at concurrency 4096
+1794469879 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-zipf-sweep

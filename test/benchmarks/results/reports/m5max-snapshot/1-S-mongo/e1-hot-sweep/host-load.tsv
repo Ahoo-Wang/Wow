@@ -1,31 +1,32 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794381274	14.64	12.67	11.62	93	WindowServer 46, Claude Helper 10, sysmond 8	chprobe 1.71%	293	0	0.0	
-1794381286	12.62	12.30	11.50	91	WindowServer 55, Claude Helper 12, Claude Helper (Renderer) 7	chprobe 2.35%	292	0	0.0	
-1794381298	11.07	11.98	11.40	97	WindowServer 52, Claude Helper (Renderer) 13, Claude Helper 12	chprobe 1.32%	191	0	0.0	
-1794381311	9.36	11.55	11.25	85	WindowServer 51, Claude Helper 17, Claude Helper (Renderer) 9	chprobe 1.62%	153	0	0.1	
-1794381323	8.23	11.24	11.15	107	WindowServer 51, Claude Helper 21, Claude Helper (Renderer) 14	chprobe 2.59%	201	0	0.0	
-1794381335	6.85	10.79	10.98	100	WindowServer 53, Claude Helper 20, Claude Helper (Renderer) 6	chprobe 9.19%	164	1	0.1	
-1794381347	6.33	10.54	10.90	95	WindowServer 52, Claude Helper 18, sysmond 6	chprobe 3.53%	165	0	0.1	
-1794381359	5.58	10.17	10.76	79	WindowServer 50, Claude Helper 17, Claude Helper (Renderer) 5	chprobe 5.52%	339	8	0.0	
-1794381372	5.28	9.96	10.67	79	WindowServer 51, Claude Helper 21, Claude Helper (Renderer) 5	chprobe 1.95%	246	2	0.0	
-1794381384	5.79	9.84	10.62	73	WindowServer 54, Claude Helper 11, Claude Helper (Renderer) 4	chprobe 1.32%	205	2	0.0	
-1794381396	5.21	9.58	10.52	85	WindowServer 52, Claude Helper 18, Claude Helper (Renderer) 6	chprobe 3.99%	187	2	0.0	
-1794381408	5.19	9.43	10.45	87	WindowServer 56, Claude Helper 17, Claude Helper (Renderer) 5	chprobe 2.00%	249	4	0.0	
-1794381420	4.76	9.12	10.32	79	WindowServer 53, Claude Helper 18, Claude Helper (Renderer) 5	chprobe 25.06%	376	6	0.0	
-1794381433	5.05	9.03	10.28	89	WindowServer 53, Claude Helper 18, Claude Helper (Renderer) 5	chprobe 4.32%	422	3	0.0	
-1794381445	5.90	9.04	10.26	76	WindowServer 48, claude 10, Claude Helper 10	chprobe 7.38%	325	5	0.0	
-1794381457	5.61	8.88	10.19	70	WindowServer 48, Claude Helper 10, Claude Helper (Renderer) 4	chprobe 37.21%	391	7	0.1	
-1794381469	7.32	9.08	10.23	92	WindowServer 53, Claude Helper (Renderer) 20, Claude Helper 14	chprobe 1.53%	391	7	0.0	
-1794381481	6.73	8.90	10.16	65	WindowServer 46, Claude Helper 11, Claude Helper (Renderer) 5	chprobe 2.43%	532	11	0.0	
-1794381494	6.61	8.80	10.11	62	WindowServer 46, Claude Helper 10, Claude Helper (Renderer) 4	chprobe 18.95%	511	7	0.0	
-1794381506	9.11	9.26	10.25	79	WindowServer 49, Claude Helper 11, Stats 5	chprobe 1.86%	572	10	0.0	
-1794381518	9.64	9.37	10.28	69	WindowServer 48, Claude Helper 12, Stats 3	chprobe 1.89%	599	12	0.0	
-1794381530	11.33	9.78	10.41	65	WindowServer 47, Claude Helper 11, Claude Helper (Renderer) 3	chprobe 1.82%	637	13	0.0	
-1794381543	10.42	9.64	10.35	66	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 2.11%	562	12	0.0	
-1794381555	11.00	9.82	10.40	66	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 37.60%	386	6	0.0	
-1794381567	10.67	9.79	10.38	83	WindowServer 54, Claude Helper 13, Stats 7	chprobe 2.25%	496	11	0.0	
-1794381579	9.64	9.61	10.31	78	WindowServer 52, Claude Helper 12, sysmond 3	chprobe 1.83%	627	14	0.0	
-1794381591	9.00	9.47	10.25	65	WindowServer 49, Claude Helper 11, Claude Helper (Renderer) 2	chprobe 4.84%	600	10	0.0	
-1794381604	8.30	9.31	10.18	70	WindowServer 53, Claude Helper 12, Claude Helper (Renderer) 4	chprobe 32.32%	1412	41	0.0	
-1794381616	9.41	9.53	10.25	67	WindowServer 51, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 1.63%	1357	45	0.0	
-1794381628	13.34	10.37	10.54	71	WindowServer 51, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 1.67%	1415	45	0.0	
+1794471524	12.18	11.67	11.16	62	find 42, sysmond 11, bash 2		237	0	0.3	
+1794471536	10.34	11.30	11.04	6	AppleCentauriAlpha 1, Stats 1, claude 1		124	0	0.0	
+1794471548	10.74	11.36	11.07	15	sysmond 6, Shadowrocket 2, WindowServer 2		134	0	0.0	
+1794471560	10.98	11.39	11.08	23	Stats 9, configd 5, WindowServer 3		100	1	0.0	
+1794471572	8.83	10.89	10.91	17	Stats 4, sysmond 3, configd 2		86	0	0.0	
+1794471585	7.62	10.57	10.79	6	Stats 2, AppleCentauriAlpha 1, configd 1		114	0	0.6	
+1794471597	6.09	10.08	10.61	10	claude 2, Stats 1, AppleCentauriAlpha 1		76	0	0.1	
+1794471609	5.46	9.81	10.51	31	java 13, Claude 5, claude 2		196	0	0.1	
+1794471621	4.47	9.38	10.34	20	Stats 8, configd 4, claude 2		181	10	0.2	
+1794471634	4.17	9.15	10.25	10	Stats 3, configd 2, AppleCentauriAlpha 1		116	2	0.0	
+1794471646	3.91	8.94	10.16	12	AppleCentauriAlpha 2, Stats 2, claude 2		116	2	0.2	
+1794471658	4.07	8.73	10.06	7	sysmond 4, wifip2pd 1, AppleCentauriAlpha 1		160	2	0.3	
+1794471670	3.76	8.50	9.97	2	AppleCentauriAlpha 1, wifip2pd 1, Stats 0		284	3	0.1	
+1794471682	3.63	8.23	9.85	33	WindowServer 7, launchd 6, Claude Helper (Renderer) 5		187	2	0.1	
+1794471694	3.61	8.08	9.77	69	WindowServer 26, SCIM_Extension 10, Stats 6		226	6	0.0	
+1794471707	3.27	7.78	9.64	71	WindowServer 42, Claude Helper 13, Claude Helper (Renderer) 4		373	6	0.0	
+1794471719	3.39	7.66	9.57	80	WindowServer 43, claude 12, Claude Helper 11		344	4	0.2	
+1794471731	3.97	7.57	9.51	81	WindowServer 51, Claude Helper 15, Claude Helper (Renderer) 5		347	5	0.7	
+1794471743	5.23	7.72	9.54	81	WindowServer 48, Claude Helper 10, Stats 5		739	8	0.1	
+1794471756	6.25	7.85	9.56	83	WindowServer 40, Claude Helper 11, Claude Helper (Renderer) 6		669	9	0.1	
+1794471768	5.37	7.58	9.43	67	WindowServer 48, Claude Helper 12, Claude Helper (Renderer) 3		679	9	0.2	
+1794471780	4.94	7.41	9.35	72	WindowServer 36, Claude Helper 12, Claude Helper (Renderer) 9		443	6	0.3	
+1794471792	6.28	7.58	9.38	79	WindowServer 44, Claude Helper 12, Stats 6		589	12	0.2	
+1794471805	7.18	7.74	9.41	110	WindowServer 46, Claude Helper (Renderer) 26, Claude Helper 12		565	8	0.1	
+1794471817	7.07	7.70	9.37	68	WindowServer 44, Claude Helper 11, Claude Helper (Renderer) 6		482	10	0.0	
+1794471829	6.74	7.61	9.32	76	WindowServer 44, Claude Helper 13, Claude Helper (Renderer) 5		524	9	0.1	
+1794471841	7.90	7.80	9.35	71	WindowServer 43, Claude Helper 12, Claude Helper (Renderer) 5		511	10	0.5	
+1794471854	7.36	7.69	9.30	74	WindowServer 46, Claude Helper 12, Claude Helper (Renderer) 5		654	11	0.2	
+1794471866	6.93	7.59	9.24	69	WindowServer 46, Claude Helper 13, Claude Helper (Renderer) 4		1334	46	0.6	
+1794471878	11.65	8.55	9.55	84	WindowServer 47, Claude Helper (Renderer) 15, Claude Helper 14		1368	42	0.1	
+1794471890	16.33	9.65	9.93	76	WindowServer 47, Claude Helper 12, Claude Helper (Renderer) 4		1421	46	0.2	

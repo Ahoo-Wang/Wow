@@ -1,5 +1,5 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794380093	13.00	10.17	9.07	392	fseventsd 100, git 85, git 83	chprobe 2.38%	164	0	0.0	
-1794380106	16.49	11.03	9.39	94	WindowServer 51, Claude Helper (Renderer) 21, Claude Helper 12	chprobe 1.91%	1318	42	0.0	
-1794380118	16.82	11.28	9.50	83	WindowServer 52, Claude Helper 10, node 6	chprobe 9.12%	1350	41	0.0	
-1794380131	19.16	12.03	9.79	80	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 11	chprobe 2.09%	1315	47	0.0	
+1794470413	12.74	8.40	8.78	51	find 36, sysmond 4, Stats 3		104	0	0.0	
+1794470425	14.45	8.88	8.94	32	find 26, sysmond 3, AppleCentauriAlpha 1		1386	51	2.8	
+1794470437	15.63	9.44	9.14	39	find 25, sysmond 3, Stats 3		1336	47	0.0	
+1794470450	20.11	10.74	9.61	26	find 23, AppleCentauriAlpha 1, wifip2pd 0		1429	49	0.0	

@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794382866	33.44	25.48	19.69	18	sysmond 5, Stats 5, configd 3	chprobe 2.20%	52	0	0.0	
-1794382878	31.02	25.20	19.66	3	Stats 1, configd 1, claude 0	chprobe 33.84%	1476	14	0.1	
-1794382890	32.98	25.91	20.01	5	sysmond 3, Stats 0, configd 0	chprobe 1.74%	1471	13	0.1	
-1794382903	30.75	25.68	20.00	5	sysmond 3, claude 1, bash 0	chprobe 2.15%	1204	10	0.1	
-1794382915	38.26	27.58	20.77	5	Stats 1, configd 1, dasd 1	chprobe 5.55%	807	9	0.0	
-1794382928	34.10	27.03	20.66	13	Stats 5, sysmond 4, configd 1	chprobe 1.77%	1319	14	0.1	
-1794382941	28.82	26.22	20.48	2	claude 0, airportd 0, AppleCentauriAlpha 0	chprobe 1.77%	1297	11	0.1	
+1794472974	35.72	28.38	20.21	23	sysmond 10, AppleCentauriAlpha 3, bash 2		23	0	0.0	
+1794472986	34.61	28.36	20.30	3	AppleCentauriAlpha 1, UniversalControl 0, Stats 0		1444	15	0.2	
+1794472998	32.89	28.29	20.42	25	Stats 6, claude 5, configd 2		1168	8	0.3	
+1794473011	36.83	29.30	20.87	22	Stats 4, sysmond 4, UniversalControl 3		1400	12	0.5	
+1794473024	37.00	29.65	21.14	18	UniversalControl 3, AppleCentauriAlpha 3, Stats 3		1432	17	0.2	
+1794473036	31.85	28.79	20.93	139	deleted 33, cloudd 27, triald_system 16		1134	10	0.3	
+1794473049	26.41	27.73	20.69	10	Stats 3, configd 2, claude 2		1471	14	0.2	

@@ -1,30 +1,30 @@
-## up, attempt 1 2026-11-11T15:31:01-0800
-uptime: 15:31  up 2 days, 15:05, 2 users, load averages: 3.81 9.54 12.85
+## up, attempt 1 2026-11-11T23:16:22-0800
+uptime: 23:16  up 2 days, 22:50, 2 users, load averages: 2.67 2.98 3.37
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: 
 busiest other processes (% of one core):
-  38.4 957 com.apple.AmbientDisplayAgent
-  36.4 408 WindowServer
-  12.7 412 loginwindow
-  6.3 663 MenuBarAgent
-  6.2 701 donotdisturbd
-  4.4 804 contactsd
-  4.4 712 WallpaperAerialsExtension
-  4.1 592 sysmond
-allowed JVMs (% of one core): 38528 48490 57345 57438 57683 0.0
+  51.9 408 WindowServer
+  10.6 49159 Claude Helper
+  4.4 49671 Claude Helper (Renderer)
+  3.6 1103 Stats
+  2.6 597 AppleCentauriAlpha
+  1.8 349 configd
+  1.7 893 UniversalControl
+  1.4 78385 claude
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.2
 other JVMs:
-## down 2026-11-11T15:34:43-0800
-uptime: 15:34  up 2 days, 15:09, 2 users, load averages: 7.36 8.50 11.63
+## down 2026-11-11T23:20:08-0800
+uptime: 23:20  up 2 days, 22:54, 2 users, load averages: 14.92 8.18 5.44
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  25.1 408 WindowServer
-  8.6 1103 Stats
-  4.6 349 configd
-  3.8 712 WallpaperAerialsExtension
-  1.8 592 sysmond
-  1.5 785 VTDecoderXPCService
+  52.7 408 WindowServer
+  10.5 49159 Claude Helper
+  2.7 49671 Claude Helper (Renderer)
+  1.5 68330 claude
   1.1 597 AppleCentauriAlpha
-  0.7 78385 claude
-allowed JVMs (% of one core): 38528 48490 57345 57438 57683 0.0
+  0.5 657 wifip2pd
+  0.2 893 UniversalControl
+  0.2 1103 Stats
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:

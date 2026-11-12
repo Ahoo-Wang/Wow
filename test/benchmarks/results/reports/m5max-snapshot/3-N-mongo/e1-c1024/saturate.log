@@ -1,9 +1,7 @@
-1794386695 [settle] 1s: node-1 0.01, node-2 0.01, node-3 0.10
-1794386696 [settle] 2s: node-1 0.21, node-2 0.17, node-3 0.75
-1794386697 [settle] 3s: node-1 0.02, node-2 0.01, node-3 0.02
-1794386698 [settle] 4s: node-1 0.02, node-2 0.02, node-3 0.03
-1794386699 [settle] 5s: node-1 0.01, node-2 0.01, node-3 0.01
-1794386699 [settle] quiet after 5s (below 0.25 cores for 3 s in a row)
-1794386775 [saturate] E1: concurrency=1024 throughput=15269.0/s p50=50ms errors={}
-1794386775 [saturate] saturation: 15269.0/s at concurrency 1024
-1794386775 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e1-c1024
+1794473710 [settle] 1s: node-1 0.03, node-2 0.02, node-3 0.03
+1794473711 [settle] 2s: node-1 0.02, node-2 0.01, node-3 0.02
+1794473712 [settle] 3s: node-1 0.03, node-2 0.01, node-3 0.02
+1794473712 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794473787 [saturate] E1: concurrency=1024 throughput=15805.8/s p50=48ms errors={}
+1794473787 [saturate] saturation: 15805.8/s at concurrency 1024
+1794473788 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e1-c1024

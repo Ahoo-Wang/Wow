@@ -1,5 +1,5 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794381641	19.45	11.88	11.07	80	WindowServer 54, Claude Helper 8, sysmond 7	chprobe 2.16%	141	4	0.0	
-1794381653	20.29	12.28	11.23	72	WindowServer 52, Claude Helper 12, sysmond 3	chprobe 23.94%	1316	42	0.0	
-1794381665	19.34	12.45	11.30	68	WindowServer 51, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 1.94%	1387	45	0.0	
-1794381677	22.02	13.23	11.59	132	WindowServer 51, Claude Helper 12, deleted 12	chprobe 1.83%	1392	41	0.0	
+1794471903	23.15	11.44	10.56	269	Claude Helper (Renderer) 182, WindowServer 35, Claude Helper 15		234	0	0.0	
+1794471915	22.05	11.58	10.62	76	WindowServer 36, Claude Helper 12, Claude Helper (Renderer) 12		1359	45	0.1	
+1794471927	25.56	12.84	11.08	102	WindowServer 40, Claude Helper (Renderer) 26, Claude Helper 16		1369	44	0.1	
+1794471940	27.63	13.69	11.40	140	WindowServer 39, deleted 38, Claude Helper (Renderer) 17		1465	48	0.3	
