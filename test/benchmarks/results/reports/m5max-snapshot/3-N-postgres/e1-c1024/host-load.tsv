@@ -1,9 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794382768	28.57	24.00	18.63	30	sysmond 8, Stats 6, java 2	chprobe 3.41%	853	1	0.0	
-1794382779	23.14	23.03	18.38	2	configd 1, Stats 1, ControlCenter 0	chprobe 32.71%	425	0	0.0	
-1794382791	20.41	22.46	18.22	5	sysmond 3, claude 0, claude 0	chprobe 1.69%	1534	23	0.1	
-1794382804	20.26	22.37	18.24	5	sysmond 3, claude 1, claude 0	chprobe 1.97%	1499	28	0.1	
-1794382816	22.57	22.79	18.47	17	Stats 6, sysmond 3, WindowServer 2	chprobe 44.75%	1538	27	0.1	
-1794382828	21.60	22.58	18.44	7	sysmond 4, Stats 2, configd 1	chprobe 19.15%	1500	26	0.1	
-1794382840	23.45	22.97	18.65	5	claude 2, claude 2, Stats 1	chprobe 2.49%	909	14	0.0	
-1794382853	31.33	24.67	19.31	4	Shadowrocket 1, AppleCentauriAlpha 0, Claude 0	chprobe 1.73%	1527	31	0.1	
+1794472894	44.39	27.88	19.30	19	sysmond 7, claude 3, symptomsd 2		156	0	0.1	
+1794472906	39.63	27.40	19.23	5	claude 1, AppleCentauriAlpha 1, sysmond 1		1536	25	0.2	
+1794472918	34.32	26.79	19.15	29	Stats 10, configd 3, WindowServer 3		1506	24	0.2	
+1794472931	33.83	26.93	19.29	11	Stats 2, AppleCentauriAlpha 2, UniversalControl 1		1513	27	0.3	
+1794472943	33.71	27.21	19.52	13	sysmond 4, claude 2, claude 2		1509	28	0.2	
+1794472956	32.44	27.18	19.60	7	Stats 2, configd 2, AppleCentauriAlpha 1		1522	26	0.2	
+1794472969	38.74	28.84	20.33	9	claude 2, claude 2, AppleCentauriAlpha 1		543	8	0.0	

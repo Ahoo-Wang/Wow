@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794386776	22.36	24.03	19.48	95	WindowServer 39, Claude Helper (Renderer) 13, Stats 8		148	0	0.0	
-1794386788	23.40	24.18	19.58	66	WindowServer 38, Claude Helper 12, Claude Helper (Renderer) 4		1436	9	0.1	
-1794386800	26.90	24.89	19.89	109	WindowServer 43, Claude Helper (Renderer) 18, Claude Helper 14		1449	8	0.1	
-1794386813	38.58	27.51	20.90	66	WindowServer 38, Claude Helper 13, Claude Helper (Renderer) 5		1398	9	0.1	
-1794386825	42.63	28.81	21.45	72	WindowServer 40, Claude Helper 13, Stats 6		1340	9	0.1	
-1794386837	44.50	29.83	21.94	82	WindowServer 40, Claude Helper 15, Claude Helper (Renderer) 5		1347	9	0.1	
-1794386849	40.00	29.34	21.85	121	Claude Helper (Renderer) 52, WindowServer 39, Claude Helper 18		1358	10	0.1	
+1794473788	38.95	29.15	23.99	12	sysmond 7, bash 2, AppleCentauriAlpha 1		176	0	0.0	
+1794473800	34.50	28.52	23.83	13	Stats 5, configd 3, claude 1		1383	9	0.2	
+1794473813	35.88	29.08	24.11	6	Stats 2, configd 1, launchd 1		1332	10	0.2	
+1794473825	43.23	30.84	24.79	9	sysmond 4, claude 4, AppleCentauriAlpha 0		1417	9	0.2	
+1794473837	35.82	29.82	24.53	6	sysmond 4, AppleCentauriAlpha 1, claude 1		1361	9	0.2	
+1794473849	39.54	30.85	24.96	15	sysmond 4, Stats 3, claude 2		1272	11	0.2	
+1794473862	42.61	31.81	25.37	18	dasd 8, sysmond 3, Stats 2		1415	10	0.2	

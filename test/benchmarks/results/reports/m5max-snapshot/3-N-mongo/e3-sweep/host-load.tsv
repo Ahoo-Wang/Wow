@@ -1,28 +1,26 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794386368	34.96	19.37	16.41	74	WindowServer 38, Claude Helper 12, sysmond 9		1548	0	0.1	
-1794386380	34.29	19.76	16.59	78	WindowServer 35, Claude Helper (Renderer) 15, Claude Helper 12		1089	0	0.1	
-1794386393	30.49	19.60	16.58	53	WindowServer 35, Claude Helper 11, Claude Helper (Renderer) 4		760	0	0.1	
-1794386406	24.18	18.74	16.33	75	WindowServer 42, Claude Helper 14, Stats 6		428	0	0.0	
-1794386418	21.75	18.40	16.24	64	WindowServer 32, Claude Helper 10, Claude Helper (Renderer) 6		245	7	0.0	
-1794386430	19.47	18.03	16.13	83	WindowServer 40, Claude Helper 13, Claude Helper (Renderer) 8		261	2	0.0	
-1794386442	16.41	17.42	15.94	75	WindowServer 39, Claude Helper 11, SCIM_Extension 9		250	8	0.0	
-1794386455	14.87	17.06	15.83	67	WindowServer 34, Claude Helper 12, Claude Helper (Renderer) 4		423	2	0.0	
-1794386467	11.86	16.29	15.58	60	WindowServer 33, Claude Helper 10, Stats 5		365	2	0.0	
-1794386479	10.27	15.80	15.41	70	WindowServer 22, SCIM_Extension 11, Stats 10		307	2	0.0	
-1794386491	12.78	16.11	15.53	44	WindowServer 18, SCIM_Extension 6, Claude 4		892	5	0.0	
-1794386503	11.49	15.73	15.40	7	sysmond 3, bash 0, wifip2pd 0		864	6	0.0	
-1794386516	12.07	15.67	15.39	33	WindowServer 10, SCIM_Extension 9, Claude Helper (Renderer) 4		819	4	0.4	
-1794386528	13.86	15.96	15.50	27	WindowServer 5, Stats 4, SCIM_Extension 4		1162	9	0.1	
-1794386540	15.48	16.21	15.59	29	WindowServer 4, mdworker_shared 2, claude 2		1077	8	0.0	
-1794386552	16.31	16.39	15.66	10	WindowServer 2, Claude Helper (Renderer) 2, Claude 1		1173	9	0.1	
-1794386565	17.03	16.54	15.73	5	claude 1, claude 1, WindowServer 1		1353	10	27.4	
-1794386577	21.08	17.44	16.06	13	Stats 5, configd 2, WindowServer 2		1323	10	0.1	
-1794386589	22.00	17.77	16.20	27	WindowServer 8, Claude 3, Shadowrocket 3		1304	10	0.1	
-1794386601	28.80	19.39	16.79	9	WindowServer 3, Claude Helper 2, Claude Helper (Renderer) 1		1303	9	0.1	
-1794386614	30.15	19.97	17.03	4	AppleCentauriAlpha 1, WindowServer 1, Shadowrocket 1		1414	11	0.1	
-1794386626	33.00	21.09	17.48	19	Stats 4, WindowServer 3, configd 2		1419	13	0.1	
-1794386638	38.93	22.71	18.09	26	WindowServer 7, Claude 4, Shadowrocket 2		1401	12	0.1	
-1794386650	38.10	23.06	18.27	3	AppleCentauriAlpha 1, Stats 1, wifip2pd 0		1063	4	0.0	
-1794386663	41.06	24.45	18.85	17	WindowServer 6, SCIM_Extension 2, Claude 2		1474	4	0.1	
-1794386675	43.28	25.51	19.29	76	WindowServer 14, Claude 11, Stats 11		1066	4	0.0	
-1794386687	42.45	26.16	19.63	34	WindowServer 7, Claude 6, Claude Helper (Renderer) 5		1123	2	0.1	
+1794473411	35.71	27.35	22.27	28	Stats 8, sysmond 5, configd 4		110	0	1.6	
+1794473424	28.25	26.11	21.92	11	Stats 4, configd 2, AppleCentauriAlpha 1		185	1	0.0	
+1794473436	25.34	25.55	21.77	5	AppleCentauriAlpha 1, Stats 1, wifip2pd 1		254	2	0.3	
+1794473448	20.30	24.43	21.43	4	AppleCentauriAlpha 1, claude 1, wifip2pd 0		152	1	0.3	
+1794473460	18.97	24.00	21.31	5	claude 2, AppleCentauriAlpha 1, wifip2pd 0		592	23	0.0	
+1794473472	15.97	23.09	21.03	19	WindowServer 6, sysmond 3, Stats 3		449	2	0.0	
+1794473485	14.36	22.51	20.85	9	claude 2, Stats 2, configd 1		447	2	0.0	
+1794473497	12.46	21.83	20.63	4	AppleCentauriAlpha 1, claude 1, Stats 1		271	1	0.0	
+1794473509	10.15	20.86	20.31	3	AppleCentauriAlpha 1, Stats 1, wifip2pd 0		714	5	0.1	
+1794473521	11.84	20.88	20.32	4	claude 2, AppleCentauriAlpha 1, wifip2pd 0		686	4	0.1	
+1794473534	9.60	19.94	19.99	11	claude 4, Stats 3, configd 2		711	5	0.0	
+1794473546	11.41	19.96	20.00	5	Stats 1, claude 1, AppleCentauriAlpha 1		1204	8	0.0	
+1794473558	11.79	19.63	19.88	5	rapportd 1, secd 1, AppleCentauriAlpha 1		1166	10	0.1	
+1794473570	17.46	20.54	20.20	7	Stats 2, claude 1, AppleCentauriAlpha 1		1103	9	0.2	
+1794473582	16.91	20.29	20.11	16	claude 4, sysmond 4, Stats 3		1302	10	0.1	
+1794473595	20.86	21.03	20.38	7	sysmond 3, Stats 1, AppleCentauriAlpha 1		1308	11	0.0	
+1794473607	32.33	23.56	21.29	6	sysmond 3, AppleCentauriAlpha 1, Stats 1		1286	10	0.2	
+1794473619	37.44	24.90	21.79	20	Stats 4, sysmond 3, MacPacketTunnel 2		1377	9	0.1	
+1794473631	37.48	25.35	21.99	38	WindowServer 11, Claude 5, Shadowrocket 4		1369	10	0.3	
+1794473644	36.58	25.68	22.16	4	AppleCentauriAlpha 1, Stats 1, configd 1		1478	10	0.1	
+1794473656	34.71	25.61	22.18	11	AppleCentauriAlpha 2, UniversalControl 2, claude 1		1422	12	0.2	
+1794473668	30.65	25.20	22.09	5	AppleCentauriAlpha 1, Shadowrocket 1, claude 1		1545	4	0.2	
+1794473681	30.49	25.31	22.17	6	Stats 2, configd 1, AppleCentauriAlpha 1		1599	6	14.5	
+1794473693	28.04	25.05	22.13	5	Stats 1, AppleCentauriAlpha 1, configd 1		1386	4	0.1	
+1794473705	28.23	25.22	22.22	4	AppleCentauriAlpha 1, wifip2pd 1, claude 0		44	0	0.0	

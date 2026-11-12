@@ -1,14 +1,20 @@
 # Saturation snapshot on Apple M5 Max
 
-The latest saturation snapshot of Wow 10 on the local Apple M5 Max (decision D391 keeps one): single-node closed-loop ceilings on disk, PostgreSQL and MongoDB, with uniform, Zipf and one-hot-account keys for E1 and uniform keys for E3; then three nodes on this one host; then a controlled check of PostgreSQL's E1 on one hot account; and an addendum of 2026-11-11 that measures MongoDB's cost per commit below the knee, with and without the log's access indexes (D420). Measured on 2026-11-10 and 11, from 22:33 to 01:38 (PST), at `a7c372ad3e` (`main`), the benchmark's JVMs on JDK 25. It replaces the snapshot at [`b435768e49`](https://github.com/Ahoo-Wang/Wow/blob/a7c372ad3ef808f479776a6183247c39f46189fc/test/benchmarks/results/reports/m5max-snapshot.md), whose figures stand beside each of this one's below. The raw results and the scripts are in [`m5max-snapshot/`](m5max-snapshot/).
+The latest saturation snapshot of Wow 10 on the local Apple M5 Max (decision D391 keeps one). It has:
+
+- single-node closed-loop ceilings on disk, PostgreSQL and MongoDB, with uniform, Zipf and one-hot-account keys for E1 and uniform keys for E3;
+- three nodes on this one host;
+- the re-measurement of MongoDB's cost per commit below the knee with D420's sparse access key, against `v10.0.0-beta.1` and against D420's parent.
+
+Measured on 2026-11-11 and 12, from 23:16 to 01:21 (PST), at `d9b0781205` (`main`), the benchmark's JVMs on JDK 25. It replaces the snapshot at [`a7c372ad3e`](https://github.com/Ahoo-Wang/Wow/blob/d9b0781205aa5749bf7e3941dfcbb622c2eaac36/test/benchmarks/results/reports/m5max-snapshot.md), whose figures stand beside each of this one's below, and that report's D420 addendum, whose method this one repeats. The raw results and the scripts are in [`m5max-snapshot/`](m5max-snapshot/).
 
 ## Setup
 
 | | |
 | --- | --- |
-| Commit measured | `a7c372ad3ef808f479776a6183247c39f46189fc` (`main`; the runs record it with no changed paths, `environment.txt`). The e1-hot arms ran from `1c090eb74d`, which is `a7c372ad3e` with the two script changes below; their server builds are named in that section |
-| Since the last snapshot | 466 commits (`git rev-list --count b435768e49..a7c372ad3e`). Among them, on the write and subscription paths: the defect audit's fixes, the access attributes stamped with each commit and over an aggregate's earlier streams (`wow.access`, #5387, #5381, D390 C), the PostgreSQL log's version key leading with the tenant and its keys compared by code point (#5617), D411 (Elasticsearch mappings), D412 (ClickHouse `_state`), D413 (runs handed to a sink), and D415 and D416 (no behaviour) |
-| The JDK | Temurin 25.0.5+8 for the servers and the load generator (D393), where the last snapshot ran Temurin 21.0.13+9. No difference below is laid to the code alone: the code and the JDK changed together, except in the e1-hot check, which separates them |
+| Commit measured | `d9b0781205aa5749bf7e3941dfcbb622c2eaac36` (`main`; the runs record it with no changed paths, `environment.txt`) |
+| Since the last snapshot | 176 commits (`git rev-list --count a7c372ad3e..d9b0781205`). Among them, on the write and subscription paths: <ul><li>a shared state's small rebuilds outside the replay gate (#6070, X-118's fix);</li><li>MongoDB's tenant-scoped sparse access key (#6105, D420);</li><li>the failure ledger's due scan by its key (#6141);</li><li>the RT-11 to RT-15 lifecycle and hand-off fixes;</li><li>every background loop, the append queue's lanes and mergers among them, run as rounds whose end is seen (#6147, #6153);</li><li>a subscription's checkpoints in one read of the key's prefix (#6149).</li></ul> |
+| The JDK | Temurin 25.0.5+8 for the servers and the load generator (D393), as in the last snapshot. The code is the one variable here |
 | Machine | Apple M5 Max (`Mac17,14`), 18 cores (6 Super + 12 Performance), 64 GB, macOS 27.2 (26B123) |
 | Container engine | OrbStack 2.2.5, Docker engine 29.8.2 with 16 CPUs and 32,110 MiB |
 | Stores | PostgreSQL 17-alpine (`max_wal_size=8GB`, `checkpoint_timeout=15min`, `wal_compression=lz4`, `shared_buffers=512MB`), MongoDB 7.0 (a one-member replica set, WiredTiger cache 2 GB), Kafka 7.4.0 (KRaft); on the engine's disk, not tmpfs ([`compose.yml`](../../harness/compose.yml)) |
@@ -16,237 +22,213 @@ The latest saturation snapshot of Wow 10 on the local Apple M5 Max (decision D39
 | Data | 100,000 accounts, seeded and primed once a session (`--prime --seed-concurrency=128`) |
 | Sweeps | Closed loop, 1, 4, 16, 64, 256, 1,024 and 4,096 clients (`--sweep --growth=4 --max-concurrency=4096`), 10 s of warm-up and 30 s measured a step; the load generator ends a sweep after a step that failed more than 1% of its commands. Three nodes also run E1 and E3 at a fixed 1,024 clients, 15 s of warm-up and 60 s measured |
 | Past 4,096 clients | A single node's three E1 sweeps go on: 4,096 clients again, then 8,192, then 12,288 if 8,192 still rose past the noise band and failed 1% or less ([`summarize.py --peak`](m5max-snapshot/scripts/summarize.py), `e1-peak.md`, `e1-zipf-peak.md`, `e1-hot-peak.md`). No sweep got to 12,288 |
-| Load generator | The most it used in any step was 3.28 cores, and 0.46 of a core for its busiest thread (PostgreSQL, one hot account, 4,096 clients): no step was generator-bound (80% of its processors, or 0.9 of a core for that thread) |
+| Load generator | The most it used in any step was 3.57 cores (PostgreSQL, one hot account, 4,096 clients): no step was generator-bound (80% of its processors, or 0.9 of a core for its busiest thread) |
 | Host record | As in the last snapshot: `host.txt` before and after each measurement, `host-load.tsv` every 10 s during it |
-
-### Script changes since the last snapshot
-
-- **`lib.sh`'s default JDK is 25**, not 21. `bench.sh` requires 25 since D393, so the old default stopped every session at its JDK check. The first start of this run measured nothing for that reason; it was started again with JDK 25.
-- **`03-e1-hot-arms.sh` is new:** the e1-hot check below. It runs fresh single-node PostgreSQL sessions with only the e1-hot sweep, each arm changing only the server's build (`--install`) or its JDK (`--server-java`). Each sweep also records PostgreSQL's statements (`pg-statements.txt`, with `pg_stat_statements` loaded), the hot account's version every 5 s (`hot-version.tsv`), the tables' statistics before and after (`tables.txt`) and, after the sweep is over, the plan of the appends' version read on the hot account (`explain.txt`).
-  - A server started from a build outside the measured checkout reads as another JVM (`lib.sh`'s `foreign_jvms` knows the benchmark's processes by the checkout's path), and every step of its sweep as void. The first old-commit arm was void for that reason alone. Its build is now copied under `results/e2e/` (ignored by git) and the arm was run again; `curate` also copies the three new files.
+| Scripts | Unchanged since the last snapshot's D420 addendum (#6095). The window's order: the store cost's first pass (rounds 1–2, 23:16–23:39), `run-all.sh` (23:39–00:58), the store cost's second pass (rounds 3–4, 00:58–01:21) |
 
 ### The window
 
-The machine is shared. The coordinating session cleared it: the other Wow sessions held their builds, and no other project's session ran. A step is **disturbed** when the other processes used 2 cores or more on average over it, or another container half a core, and **void** when another JVM ran, or an allowed JVM used 5% of a core or more in two samples in a row, or an allowed Gradle daemon's log records a build request (`summarize.py`).
+The machine is shared. The coordinating session cleared it: the other Wow sessions were held or idle with empty queues, and no other project's session ran. A step is **disturbed** when the other processes used 2 cores or more on average over it, or another container half a core. It is **void** when another JVM ran, or an allowed JVM used 5% of a core or more in two samples in a row, or an allowed Gradle daemon's log records a build request (`summarize.py`).
 
-- **Allowed JVMs**, idle and left running (`./gradlew --stop` would stop every session's daemons): a Kotlin build daemon (pid 38528) and Gradle daemons 77572 and 59696 (`ALLOW_JVM_PIDS`, `environment.txt`). Over the 510 samples of the 27 measurements kept they used 0.1% of a core on average, 27.4% at most in one sample. No other JVM ran in a kept measurement.
-- **The first three-node MongoDB session was disturbed** by a container of another session, `chprobe` (ClickHouse 25.8), at 0.51 to 0.72 of a core, in its E1 sweep after two reruns (`02-three-nodes.log`). Once `chprobe` was removed, the session ran again from 00:33 to 00:47, with no step disturbed or void. That rerun is this report's.
-- **The busiest kept step for the other processes** averaged 1.81 cores (PostgreSQL's E1 uniform at 8,192 clients). No kept step was disturbed or void (`SUMMARY.md`).
+- **Allowed JVMs**, idle and left running (`./gradlew --stop` would stop every session's daemons): two Gradle daemons (pids 10510, 94957) and two Kotlin build daemons (10555, 64878) (`ALLOW_JVM_PIDS`, `environment.txt`).
+  - Over the snapshot's 370 samples they used 0.5% of a core on average, 89.3% at most in one sample. That sample was in single-node PostgreSQL's E3 sweep, 1 s after its 1,024-client step ended, and the daemon's log has only routine lines around it (`allowed-jvms.txt`).
+  - The first start of the window listed none of them, so its quiet check refused at once and measured nothing. The window was started again a minute later with the four allowed.
+- **No measurement was disturbed or void**, in the snapshot or in the store cost, so no session was rerun for that. No other JVM ran. The busiest step for the other processes averaged 1.06 cores (MongoDB, one hot account, 4,096 clients, `SUMMARY.md`).
+- **The desktop is not constant over a window.** The store cost's first pass shows it: the other processes used about 0.8 of a core (WindowServer about 45%, the Claude app) through its first four sessions and 0.2–0.4 in its last two. That moved its figures by more than the arms differ (see the store cost below), so a second pass ran with the host quiet throughout.
 
 ## How to read the numbers
 
-- A **peak** is the throughput of the best step that failed 1% of its commands or less. A step that failed more is listed apart, with its answered throughput and its failures by kind, and is not a peak: 429 `wow.command.busy` is the node's admission refusing a command by its configured limits, 504 `wow.wait.timeout` a wait that ran out, 503 `wow.command.unknown` a forwarded command whose outcome did not come back, 409 `wow.command.contended` a write that lost its version slot.
-- A peak is a lower bound, written `≥`, only where the measurement could not go further. No peak here is one.
+- A **peak** is the throughput of the best step that failed 1% of its commands or less. A step that failed more is listed apart, with its answered throughput and its failures by kind, and is not a peak:
+  - 429 `wow.command.busy` is the node's admission refusing a command by its configured limits;
+  - 504 `wow.wait.timeout` is a wait that ran out;
+  - 503 `wow.command.unknown` is a forwarded command whose outcome did not come back;
+  - 409 `wow.command.contended` is a write that lost its version slot.
+- A peak is a lower bound, written `≥`, only where the measurement could not go further.
 - E1 on a single node is measured to its limit. Where the throughput was still rising at the last step that failed 1% or less, the text says so. The noise band is the difference between the two runs of 4,096 clients that failed 1% or less, 3% at least.
 - The **sustainable** throughput is that of the sweep's highest step with a p99 of 200 ms or less and no error.
-- Each number is one run, except the e1-hot check's arms. The differences from the last snapshot are given without a conclusion: there is no A/A or ABAB in a snapshot, and the JDK changed with the code.
+- A step's p50 and p99 are of the answered commands: the load generator times only the commands that succeeded (`ClosedLoop.kt`). Past the failures, compare the answered rate, not the failed share, since a command refused at once comes back at once.
+- Each number is one run, except the store cost's. The differences from the last snapshot are given without a conclusion: there is no A/A or ABAB in a snapshot. Within this one, two measures of the same step differ by up to 11% (a three-node sweep's 1,024 step against its fixed 1,024-client run), and the last snapshot's five sessions of one hot account ranged ±15%.
 - A cause is stated only where a controlled run showed it; elsewhere the text says "correlates with" or "inferred" and gives the evidence.
 
 ## Single node: ceilings
 
-Each cell gives this snapshot's figure, then the last snapshot's at `b435768e49` and the difference.
+Each cell gives this snapshot's figure, then the last snapshot's at `a7c372ad3e` and the difference.
 
 | Measurement | PostgreSQL peak | PostgreSQL sustainable | MongoDB peak | MongoDB sustainable |
 | --- | ---: | ---: | ---: | ---: |
-| E1, uniform | 33,938.5/s at 4,096 (32,303.0/s; +5.1%) | 21,373.1/s at 1,024, p99 113.2 ms (24,541.9/s; −12.9%) | 21,458.6/s at 4,096 (22,886.7/s; −6.2%) | 17,946.6/s at 1,024, p99 135.2 ms (19,580.4/s; −8.3%) |
-| E1, Zipf | 16,139.1/s at 1,024 (15,112.4/s; +6.8%) | 15,417.2/s at 256, p99 45.3 ms (15,063.1/s; +2.4%) | 14,536.9/s at 1,024 (3,898.2/s at 256; +273%) | 12,643.0/s at 256, p99 68.6 ms (2,819.9/s at 64; +348%) |
-| E1, one hot account | 9,431.6/s at 256 (12,351.4/s at 1,024; −23.6%) | 9,431.6/s at 256, p99 149.5 ms (8,000.2/s; +17.9%) | 8,984.5/s at 1,024 (1,634.7/s; +450%) | 8,079.4/s at 256, p99 147.5 ms (1,456.7/s at 64; +455%) |
-| E3, uniform | 8,298.6/s at 1,024 (7,176.3/s; +15.6%) | 4,333.5/s at 256, p99 93.7 ms (3,799.1/s at 64; +14.1%) | 7,446.5/s at 1,024 (7,629.5/s; −2.4%) | 4,436.5/s at 256, p99 135.2 ms (5,100.5/s; −13.0%) |
+| E1, uniform | ≥ 37,713.6/s at 4,096 (33,938.5/s; +11.1%) | 23,030.1/s at 1,024, p99 74.8 ms (21,373.1/s; +7.8%) | ≥ 21,775.2/s at 4,096 (21,458.6/s; +1.5%) | 19,759.6/s at 1,024, p99 102.4 ms (17,946.6/s; +10.1%) |
+| E1, Zipf | 17,090.6/s at 1,024 (16,139.1/s; +5.9%) | 15,386.1/s at 256, p99 52.2 ms (15,417.2/s; −0.2%) | 13,372.5/s at 1,024 (14,536.9/s; −8.0%) | 3,353.8/s at 64, p99 197.6 ms (12,643.0/s at 256; −73.5%) |
+| E1, one hot account | 11,521.2/s at 1,024 (9,431.6/s at 256; +22.2%) | 8,520.7/s at 256, p99 155.6 ms (9,431.6/s; −9.7%) | 6,911.2/s at 1,024 (8,984.5/s; −23.1%) | 5,417.2/s at 64, p99 150.5 ms (8,079.4/s at 256; −32.9%) |
+| E3, uniform | 7,956.2/s at 1,024 (8,298.6/s; −4.1%) | 3,687.4/s at 64, p99 41.7 ms (4,333.5/s at 256; −14.9%) | 7,341.7/s at 1,024 (7,446.5/s; −1.4%) | 4,809.4/s at 256, p99 173.1 ms (4,436.5/s; +8.4%) |
 
-None of these peaks is a lower bound, and none was generator-bound. PostgreSQL's one-hot-account sweep is the one figure that fell beyond a few percent; the check below measures it in five fresh sessions and finds the fall within its own spread.
+- The uniform peaks are lower bounds: each is on the sweep's last step, and the steps past it failed (next section). None was generator-bound.
+- **Three sustainable figures fell by a step or two.** Each missed the 200 ms p99 at the 256 step, with no error, by more than a hair:
+  - MongoDB's Zipf: 239.6 ms (68.6 ms at `a7c372ad3e`), and its 64 step passed by 2.4 ms;
+  - MongoDB's hot account: 248.8 ms (147.5 ms);
+  - PostgreSQL's E3: 704.5 ms (93.7 ms).
+
+  They moved with the stores' two flush modes below, and are not a change between the snapshots.
+- **The hot account moved in opposite directions,** PostgreSQL +22.2% and MongoDB −23.1%. The last snapshot's five fresh sessions of one hot account ranged 8.9–11.9 k/s on PostgreSQL. Single runs; not read as either store's change.
 
 ### E1 to its limit
 
 | Sweep | Peak | Why it stopped | The steps past the peak |
 | --- | ---: | --- | --- |
-| PostgreSQL, uniform | 33,938.5/s at 4,096 | 8,192 clients answered 44.9% less, failing 0.53% | 4,096 again: 32,879.1/s; 8,192: 18,695.6/s answered, 2,993 × 429 |
-| PostgreSQL, Zipf | 16,139.1/s at 1,024 | 4,096 clients failed 12.8% and 13.0% in the two runs; still rising when the failures began | 4,096: 19,902.2/s answered (87,288 × 429); again: 19,070.2/s (85,597 × 429) |
-| PostgreSQL, one hot account | 9,431.6/s at 256 | 4,096 clients failed 47.7% and 48.0% | 4,096: 19,455.5/s answered (532,704 × 429); again: 19,078.7/s (527,870 × 429) |
-| MongoDB, uniform | 21,458.6/s at 4,096 | 8,192 clients failed 4.3%; still rising when the failures began | 4,096 again: 20,694.2/s; 8,192: 17,632.7/s answered (23,949 × 429) |
-| MongoDB, Zipf | 14,536.9/s at 1,024 | 4,096 clients failed 13.5% and 13.1%; still rising when the failures began | 4,096: 16,731.3/s answered (78,298 × 429); again: 16,332.9/s (73,997 × 429) |
-| MongoDB, one hot account | 8,984.5/s at 1,024 | 4,096 clients failed 49.4% and 49.5%; still rising when the failures began | 4,096: 18,920.3/s answered (554,978 × 429); again: 18,025.7/s (530,249 × 429) |
+| PostgreSQL, uniform | ≥ 37,713.6/s at 4,096 | 8,192 clients failed 4.0% | 4,096 again: 36,719.5/s; 8,192: 21,273.0/s answered (26,600 × 429) |
+| PostgreSQL, Zipf | 17,090.6/s at 1,024 | 4,096 clients failed 12.0% and 10.7% | 4,096: 20,308.3/s answered (83,231 × 429); again: 20,620.8/s (74,031 × 429) |
+| PostgreSQL, one hot account | 11,521.2/s at 1,024 | 4,096 clients failed 48.1% and 48.1% | 4,096: 21,779.9/s answered (605,525 × 429); again: 21,789.3/s (606,290 × 429) |
+| MongoDB, uniform | ≥ 21,775.2/s at 4,096 | 8,192 clients failed 16.4% | 4,096 again: 21,822.6/s; 8,192: 17,754.7/s answered (104,730 × 429) |
+| MongoDB, Zipf | 13,372.5/s at 1,024 | 4,096 clients failed 13.7% and 13.1% | 4,096: 15,452.7/s answered (73,748 × 429); again: 17,511.2/s (78,858 × 429) |
+| MongoDB, one hot account | 6,911.2/s at 1,024 | 4,096 clients failed 49.5% and 49.5% | 4,096: 18,645.7/s answered (548,113 × 429); again: 17,971.2/s (527,698 × 429) |
 
 - Every failure of a single node's E1 is the admission's 429. The node refused what its limits did not admit.
-- The noise bands: 3.1% on PostgreSQL's uniform keys (33,938.5/s and 32,879.1/s at 4,096) and 3.6% on MongoDB's (21,458.6/s and 20,694.2/s); 3% on the others.
+- The noise bands are 3% on every sweep: 2.7% on PostgreSQL's uniform keys (37,713.6/s and 36,719.5/s at 4,096) and 0.2% on MongoDB's (21,775.2/s and 21,822.6/s).
 - As in the last snapshot, a step that the admission cuts back answers more than the clean steps below it with contended keys (both backends' hot account at 4,096 clients, about half refused). That throughput is not a peak.
 
 ## Single node: E3 past its knee
 
-| Session | E3 at 1,024 | p99 at 1,024 | E3 at 4,096, answered | Failed at 4,096 | The last snapshot at 4,096 |
-| --- | ---: | ---: | ---: | --- | --- |
-| PostgreSQL | 8,298.6/s | 630.8 ms | 1,117.9/s | 19.4%: 8,064 × 504 `wow.wait.timeout`, 11 × 429 | 4,325.8/s answered; 75.6% failed, 399,748 × 429 and 1,719 × 504 |
-| MongoDB | 7,446.5/s | 325.6 ms | 3,541.6/s | 4.5%: 5,058 × 504, 4 × 429 | 3,547.0/s answered; 74.6% failed, 311,424 × 429 and 1,493 × 504 |
+| Session | E3 at 1,024 | p99 at 1,024 | E3 at 4,096, answered, p99 | Failed at 4,096 | `a7c372ad3e` at 4,096 | `b435768e49` at 4,096 |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| PostgreSQL | 7,956.2/s | 745.5 ms | **5,222.8/s**, 6,684.7 ms | 69.7%: 359,173 × 429, 1,066 × 504 | 1,117.9/s, 9,502.7 ms; 8,064 × 504, 11 × 429 | 4,325.8/s, 5,210.1 ms; 399,748 × 429, 1,719 × 504 |
+| MongoDB | 7,341.7/s | 401.4 ms | **4,282.4/s**, 5,931.0 ms | 75.7%: 397,534 × 429, 1,989 × 504 | 3,541.6/s, 8,454.1 ms; 5,058 × 504, 4 × 429 | 3,547.0/s, 6,651.9 ms; 311,424 × 429, 1,493 × 504 |
 
 - Neither session failed a command at 1,024 clients or below.
-- **At 4,096 clients the failures changed kind.** In the last snapshot the admission refused three quarters of the commands at once (429); here it refused almost none, and the commands that failed are transfers whose wait ran out after 10 s (504). A closed-loop client blocked for 10 s sends nothing in that time, which correlates with PostgreSQL's answered throughput falling to 1,117.9/s (p50 22.9 ms, p99 9,502.7 ms). Single runs; no commit in the range is tied to it, and it is unexplained.
-- The node logs (`log-digest.md`) count, in the 4,096-client step, 15,140 throttle warnings from the saga's and the transport sink's subscriptions (`PartitionThrottle`, the downstream pushed back) on PostgreSQL and 9,728 on MongoDB.
+- **At 4,096 clients the admission refuses again, and the answered rate is back.** The last snapshot's E3 at 4,096 hardly refused. It failed by waits that ran out after 10 s, and PostgreSQL answered a quarter of `b435768e49`'s rate. That was X-118: the replay gate over the adaptive query bulkhead (#5533) held the shared states' small rebuilds, fixed by #6070. Here both backends refuse three quarters at once (429), as at `b435768e49`, and answer 21% above it. Their p99 is under the last snapshot's 8.5–9.5 s: 6.7 s on PostgreSQL (5.2 s at `b435768e49`), 5.9 s on MongoDB (6.7 s).
+- The node logs (`log-digest.md`) count, in the 4,096-client step, about 14,000 throttle warnings from the saga's and the transport sink's subscriptions (`PartitionThrottle`, the downstream pushed back) on PostgreSQL, and 12,000 on MongoDB.
 
 ## Three nodes on one host
 
-| Backend | Measurement | Peak or result, p99 | The last snapshot | At 4,096 clients, answered | Failed at 4,096 |
+| Backend | Measurement | Peak or result, p99 | `a7c372ad3e` | At 4,096 clients, answered, p99 | Failed at 4,096 |
 | --- | --- | ---: | ---: | ---: | --- |
-| PostgreSQL | E1 sweep | 21,166.6/s at 1,024, 124.9 ms | 19,274.8/s, 143.4 ms (+9.8%) | 10,759.0/s (p99 2,261.0 ms) | 0 (last: 10.2%) |
-| PostgreSQL | E3 sweep | 6,863.2/s at 1,024, 446.5 ms | 6,470.6/s, 440.3 ms (+6.1%) | 916.4/s | 28.6%: 11,005 × 504 (last: 1.4%, 2,665.9/s answered) |
-| PostgreSQL | E1, 1,024 clients, 60 s | 20,698.7/s, 127.0 ms | 18,319.9/s, 151.6 ms (+13.0%) | | |
-| PostgreSQL | E3, 1,024 clients, 60 s | 6,122.7/s, 712.7 ms | 5,893.5/s, 663.6 ms (+3.9%) | | |
-| MongoDB | E1 sweep | 14,778.8/s at 1,024, 204.8 ms | 15,341.3/s, 194.6 ms (−3.7%) | 6,998.7/s (p99 4,489.2 ms) | 0 (last: 0) |
-| MongoDB | E3 sweep | 5,332.2/s at 1,024, 536.6 ms | 5,154.1/s, 528.4 ms (+3.5%) | 2,358.7/s | 4.6%: 3,447 × 504 (last: 0.26%) |
-| MongoDB | E1, 1,024 clients, 60 s | 15,269.0/s, 203.8 ms | 14,395.6/s, 216.1 ms (+6.1%) | | |
-| MongoDB | E3, 1,024 clients, 60 s | 4,769.1/s, 626.7 ms | 4,892.3/s, 581.6 ms (−2.5%) | | |
+| PostgreSQL | E1 sweep | 21,114.1/s at 1,024, 122.9 ms | 21,166.6/s, 124.9 ms (−0.2%) | 10,824.4/s, 3,227.6 ms | 2.4%: 7,681 × 504, 232 × 503, 2 × 409 (last: 0) |
+| PostgreSQL | E3 sweep | 6,950.1/s at 1,024, 415.7 ms | 6,863.2/s, 446.5 ms (+1.3%) | 3,217.4/s, 6,979.6 ms | 0.1%: 66 × 504, 2 × 409 (last: 28.6%, 916.4/s answered) |
+| PostgreSQL | E1, 1,024 clients, 60 s | 19,000.2/s, 180.2 ms | 20,698.7/s, 127.0 ms (−8.2%) | | |
+| PostgreSQL | E3, 1,024 clients, 60 s | 5,807.8/s, 806.9 ms | 6,122.7/s, 712.7 ms (−5.1%) | | |
+| MongoDB | E1 sweep | 16,657.2/s at 1,024, 178.2 ms | 14,778.8/s, 204.8 ms (+12.7%) | 7,741.7/s, 3,375.1 ms | 0 (last: 0) |
+| MongoDB | E3 sweep | 5,380.1/s at 1,024, 514.0 ms | 5,332.2/s, 536.6 ms (+0.9%) | 2,495.1/s, 5,636.1 ms | 0 (last: 4.6%, 3,447 × 504) |
+| MongoDB | E1, 1,024 clients, 60 s | 15,805.8/s, 192.5 ms | 15,269.0/s, 203.8 ms (+3.5%) | | |
+| MongoDB | E3, 1,024 clients, 60 s | 5,273.4/s, 581.6 ms | 4,769.1/s, 626.7 ms (+10.6%) | | |
 
 - No command failed at 1,024 clients or below in either cluster. Each sweep's peak is at 1,024 clients, and at 4,096 its throughput fell.
-- E3 at 4,096 failed more than in the last snapshot on both backends, all by waits that ran out (504), as on a single node.
+- E3 at 4,096 answered more on both backends than in the last snapshot (PostgreSQL 3,217.4 against 916.4/s), as on a single node.
+- The sweep's 1,024 step and the fixed run at 1,024 differ by 5% (MongoDB E1) to 11% (PostgreSQL E1) within one session. The differences from the last snapshot are within that.
 - The three nodes share the host with the stores and the load generator; the cluster's numbers are this host's, not a deployment's.
 
 ### The nodes' warnings
 
 From each session's `log-digest.md` (the node logs are not committed):
 
-- **The internal channel (X-55).** No node logged "too many concurrent streams". The internal signal sender dropped a wait's signal only when the wait was over before it was sent: once on PostgreSQL's cluster and twice on MongoDB's, all in E3's 4,096-client step.
-- **Throttle warnings.** The saga's, the snapshot's and the transport sink's subscriptions throttled partitions whose downstream pushed back, mostly in the 4,096-client steps. A step's window runs from the end of the step before it, so the 142,350 warnings in the 1-client step of PostgreSQL's three-node E3 sweep fall in the time after the E1 sweep's 4,096-client step (inferred: its backlog draining).
-- **Single node, both backends.** Connection resets (`FluxReceive`, "observed post termination") as the load generator closes its connections at a step's end. MongoDB's node logged one request that failed with a connection reset (`WowRoutes`, 23:05:47, in E1's 1,024-client step).
-- **Startup.** Each node logs the anonymous caller warning once. The JDK 21 virtual-thread pinning warning of the last snapshot is gone on JDK 25.
+- **The internal channel.**
+  - In PostgreSQL's E1 4,096-client step, node-3 logged six times that an exception reached the tail of the HTTP pipeline: Netty's `Http2Exception: Maximum number of RST frames reached`. That is Netty's guard against rapid stream resets, which closes the connection. Waits that time out reset their streams.
+  - Inferred: the forwards in flight on a connection it closed lost their replies, and a forward sent and not answered is reported unknown, never run elsewhere (`ClusterOptions.forwardTimeout`). That is the step's 232 × 503 `wow.command.unknown`. `b435768e49`'s same step had 135.
+  - No node logged "too many concurrent streams". The internal signal sender dropped a wait's signal only when the wait was over before it was sent: twice on PostgreSQL's cluster, in E3's 4,096-client step.
+- **Throttle warnings.** The saga's and the transport sink's subscriptions throttled partitions whose downstream pushed back, in the 4,096-client steps of E3.
+- **Single node, both backends.** Connection resets (`FluxReceive`, "observed post termination") as the load generator closes its connections at a step's end.
+- **Startup.** Each node logs the anonymous caller warning once.
 
 ## Anomalies
 
-### PostgreSQL's E1 uniform falls past its peak: there again
+### Two modes at 4 to 16 clients, in every build measured: the store's flush
+
+A single node's median at 4 and 16 clients was 1.8 to 2.9 times as high in this snapshot as in the last two, on both backends, while 1 client and 64 or more were unchanged:
+
+| Single node, E1 uniform, p50 | `b435768e49` | `a7c372ad3e` | This snapshot |
+| --- | ---: | ---: | ---: |
+| PostgreSQL, 4 clients | 1.59 ms | 1.80 ms | 4.93 ms |
+| PostgreSQL, 16 clients | 2.72 ms | 2.65 ms | 4.89 ms |
+| MongoDB, 16 clients | 3.47 ms | 3.81 ms | 6.53 ms |
+
+**It is not a change between the snapshots.** Four builds across the range were measured one after another, one fresh single-node PostgreSQL session each, E1 uniform at 4, 16, 4 and 16 clients (15 s measured after 5 s a step) (`low-concurrency/split/`). p50 a step, in order:
+
+| Build | 4 clients | 16 clients | 4 clients | 16 clients |
+| --- | ---: | ---: | ---: | ---: |
+| `a7c372ad3e`, the last snapshot | 1.79 ms | 2.90 ms | **5.09 ms** | **4.86 ms** |
+| `13835bf24a`, D420's parent | 1.99 ms | **5.05 ms** | 1.78 ms | **4.13 ms** |
+| `62314e9075`, D420 | 1.77 ms | 2.64 ms | 1.81 ms | 2.64 ms |
+| `d9b0781205`, this snapshot | 1.80 ms | **4.99 ms** | 1.78 ms | 2.75 ms |
+
+Every build has fast steps (about 1.8 ms at 4 clients, 2.6–2.9 ms at 16), and three of the four have slow ones at about 5 ms, `a7c372ad3e` among them in the session where its first two steps were fast. A build flips from one mode to the other between two 20 s steps. One 30 s step of a sweep catches either: the last snapshot's 4 and 16 clients fell in the fast mode, this one's in the slow. No session was void or disturbed, and the other processes used as much in the slow steps as in the fast (0.5–1.1 cores).
+
+**What waits is the stores' flush.** One session at `d9b0781205` ran E1 uniform at 4 clients for 12 steps (10 s after 3 s) on each backend, sampling the store every second (`low-concurrency/naming-postgres/wal.tsv`, `naming-mongo/journal.tsv`). PostgreSQL ran with `track_wal_io_timing` on, beside `pg_stat_wal`, `pg_stat_database` and `pg_stat_statements`; MongoDB with WiredTiger's journal sync count and time:
+
+| Backend, mode | Steps | p50 | Throughput | Mean flush | Flushes a second | Also |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| PostgreSQL, fast | 1–4, 11–12 | 1.79–2.00 ms | 1,512–2,153/s | WAL sync 0.59–0.96 ms | 955–1,569 | 2.29–2.36 commits a sync; statements 0.030–0.038 ms a call |
+| PostgreSQL, slow | 5–10 | 4.64–5.05 ms | 726–796/s | WAL sync **1.74–1.80 ms** | 514–578 | 2.33–2.41 commits a sync; statements 0.037–0.043 ms a call |
+| MongoDB, fast | 1, 3, 5, 6, 10 | 2.35–2.65 ms | 1,319–1,432/s | journal sync 0.55–0.62 ms | 863–973 | |
+| MongoDB, slow | 7–9 | 4.16–4.25 ms | 819–836/s | journal sync **1.41–1.43 ms** | 543–611 | the other steps between, 0.81–1.27 ms with p50 2.83–3.79 ms |
+
+- The flush time itself is bimodal, on both stores, and the median follows it. Everything Wow sends executes alike in both modes: the statements' time a call, and the commits a sync (the group commit), are the same.
+- At 4 clients each command waits on its commits in turn, so the PostgreSQL median's +3 ms is about three of them at the extra 1.1 ms each. Inferred from the counts.
+- The two stores run in OrbStack's Linux VM on the engine's disk. A flush slower on both at once is that storage path's state, the VM's or the disk's, not either store's code and not Wow's.
+- The three sustainable figures that fell above moved with this mode. They are not a change between the snapshots.
+
+### PostgreSQL's E1 uniform past its peak: a refusal now
 
 | | 4,096 clients | 8,192 clients |
 | --- | ---: | ---: |
-| Answered | 32,879.1/s (the second run) | 18,695.6/s |
-| Failed | 0 | 0.53%: 2,993 × 429 |
-| p50, p99 | 121.9 ms, 236.5 ms | 436.2 ms, 569.3 ms |
-| Host CPU, every process | 14.4 cores | 10.0 cores |
-| Load generator; its busiest thread | 2.62 cores; 0.37 | 2.06 cores; 0.16 |
+| Answered | 36,719.5/s (the second run) | 21,273.0/s |
+| Failed | 0 | 4.0%: 26,600 × 429 |
+| p50, p99 | 108.5 ms, 227.3 ms | 376.8 ms, 557.1 ms |
 
-- The fall is 44.9%, against 35.5% at `b435768e49`. This time the 8,192-client step failed less than 1%, so it is a clean step that answered less, not a step past the failures.
-- As before, the host's CPU fell with the throughput (about 4 cores here) and the p50 matches the clients over the throughput (8,192 / 18,695.6/s = 438 ms). Inferred: something waited rather than computed. The node logged nothing in that step but connection resets.
-- MongoDB fell less: from 20,694.2/s to 17,632.7/s, with 4.3% refused.
-- Not measured, as before: the node's CPU and GC alone, and PostgreSQL's transactions. To find out: a `bench.sh run` of E1 uniform at 4,096 and 8,192 clients with the harness's resources, and a profile of the node at 8,192.
+- The last two snapshots measured a clean step that answered less past the peak (−44.9% at `a7c372ad3e`, failing 0.53%). Here 8,192 clients answered 42.1% less and the admission refused 4.0%. So it is a step past the failures, not a clean fall. The fall's cause is not measured, as before.
 
-### MongoDB with contended keys: not there again
+## MongoDB's cost per commit below the knee (D420)
 
-The last snapshot's single MongoDB node answered a fraction of the earlier rounds' throughput with Zipf keys and one hot account. This one is back at the earlier rounds' level:
-
-| Backend, keys | Clients | Snapshot 2 (`30d0c0348e`) | `b435768e49` | This snapshot |
-| --- | ---: | ---: | ---: | ---: |
-| MongoDB, Zipf | 256 | 14,350.9/s | 3,898.2/s | 12,643.0/s |
-| MongoDB, Zipf | 1,024 | 15,171.4/s | 2,672.6/s | 14,536.9/s |
-| MongoDB, one hot account | 256 | 9,642.0/s | 1,558.3/s | 8,079.4/s |
-| MongoDB, one hot account | 1,024 | 9,682.2/s | 1,634.7/s | 8,984.5/s |
-
-- Single runs. The code and the JDK changed together since `b435768e49`, and no run here tells which one this follows; the anomaly is not explained, only not reproduced.
-
-### PostgreSQL with one hot account: the check
-
-In this snapshot PostgreSQL's one-hot-account sweep answered less than at `b435768e49` at most clean steps:
-
-| Clients | `b435768e49`, JDK 21: throughput, p50, p99 | This snapshot, JDK 25 |
-| ---: | ---: | ---: |
-| 1 | 947.5/s, 0.97 ms, 2.72 ms | 728.1/s, 1.00 ms, 4.01 ms |
-| 16 | 4,614.9/s, 3.17 ms, 7.68 ms | 2,197.3/s, 5.63 ms, 23.55 ms |
-| 64 | 8,851.6/s, 6.43 ms, 18.82 ms | 6,514.0/s, 8.03 ms, 49.41 ms |
-| 256 | 8,000.2/s, 30.46 ms, 155.65 ms | 9,431.6/s, 30.72 ms, 149.50 ms |
-| 1,024 | 12,351.4/s, 133.12 ms, 331.77 ms | 8,446.8/s, 146.43 ms, 405.50 ms |
-
-Both the code and the JDK changed, so five fresh single-node PostgreSQL sessions measured the same e1-hot sweep, alternating, from 00:52 to 01:38 (`03-e1-hot-arms.sh`, `e1-hot-arms/`). Each arm ran this checkout's harness and load generator, with the same seed and steps:
-
-- **head, twice:** the server of `a7c372ad3e` on JDK 25 (`1-head-25`, `4-head-25b`);
-- **the JDK:** the same server on JDK 21 (`--server-java`, `3-head-21`);
-- **the code:** the server of `b435768e49`, built there (`./gradlew :benchmark-server:installDist`), on JDK 25, twice (`2-old-25`, `5-old-25b`). That commit's server ran on 25 without a change.
-
-| Arm | 1 client | 16 clients: throughput, p50, p99 | 64 clients | 1,024 clients |
-| --- | ---: | ---: | ---: | ---: |
-| head, JDK 25 (1) | 955.7/s | 4,270.9/s, 3.23 ms, 10.43 ms | 10,643.1/s, 5.76 ms, 13.76 ms | 9,654.8/s |
-| `b435768e49`, JDK 25 (1) | 569.4/s | 2,332.3/s, 5.66 ms, 19.07 ms | 6,460.9/s, 8.16 ms, 30.34 ms | 9,179.5/s |
-| head, server on JDK 21 | 583.6/s | 2,297.3/s, 5.15 ms, 22.14 ms | 7,781.9/s, 6.72 ms, 21.25 ms | 8,290.9/s |
-| head, JDK 25 (2) | 545.9/s | 2,670.8/s, 4.54 ms, 16.51 ms | 8,219.0/s, 6.43 ms, 20.48 ms | 10,353.7/s |
-| `b435768e49`, JDK 25 (2) | 334.4/s | 2,579.3/s, 4.77 ms, 17.28 ms | 5,906.4/s, 8.26 ms, 166.91 ms | 9,907.9/s |
-
-- **The two head runs differ from each other by as much as the snapshots do:** 4,270.9/s and 2,670.8/s at 16 clients (−37%), against the snapshots' −52%; 955.7/s and 545.9/s at one client. The old commit's two runs fall within the same spread, and at 16 and 64 clients neither is above either head run. The JDK 21 arm is within it too. At these steps a difference between the code or the JDKs does not show beyond the sweep's own spread; the snapshot's fall is read as that spread.
-- **The hot account's version** ran alike in every arm: at 16 clients from about 40,000–60,000 to 80,000–125,000, at 1,024 from about 470,000 to 720,000 (`hot-version.tsv`). No arm's cost per step grows with it. The snapshot's sweep ran on a longer history (after the uniform and Zipf sweeps in its session, whose most frequent Zipf key is the same account), so its absolute figures are not those of a fresh session.
-- **What the store did per command** (`pg-statements.txt`, `tables.txt`, `explain.txt`):
-  - The appends' version read (`SELECT max(version) … WHERE aggregate_id = ? AND tenant_id = ?`) is a `Limit` over an `Index Only Scan Backward` of the version key on both commits, 5 shared buffers and under 0.1 ms at the hot account's last version (648,407 to 693,045 in the sessions explained: every arm after the first, and the void old-commit attempt), with the head's key leading with the tenant and the old one's with the aggregate id.
-  - The single append's mean was 0.057–0.071 ms in every arm, the snapshot upsert's about 0.045 ms.
-  - No arm updated the log table (no stamp of earlier streams), and no request-id lookup is among any arm's 25 most frequent statements.
-  - The snapshot table had taken about 1.5 million updates by the sweep's end (the seed's and the prime's among them), 97% of them HOT, with 18,000–25,000 dead tuples, alike on both commits.
-
-## Addendum: MongoDB's cost per commit below the knee (D420)
-
-On GitHub Actions, E1 on MongoDB at 100k accounts has a higher p99 at an equal rate than `v10.0.0-beta.1` in every
-run on an EPYC 7763 ([actions-snapshot](actions-snapshot.md), "E1 on MongoDB at 100k accounts"). Those comparisons
-could not resolve a cost of about a tenth:
-
-- They compare latency at the lower arm's calibrated rate, where the store sits at 92–100% of its one core.
-- There a few percent more service time per commit becomes tens of percent of latency, and pairs scatter from 0.92 to
-  2.16.
-
-This check measures the cost on the store's side itself, at a fixed rate well under the knee, on 2026-11-11 from
-15:31 to 16:18 (PST), with the other sessions holding their builds.
-
-### Method
+The last snapshot's addendum measured MongoDB's two access indexes on the log at a fixed 8,000/s: they cost 9–15% of its insert time per commit, and 7–10% of mongod's CPU on the tag's documents. D420 made them a tenant-scoped sparse key that leaves out the nulls (#6105). This measures the change with the same instrument, from this checkout's harness and load generator:
 
 | | |
 | --- | --- |
-| Arms | **tag:** the server of `v10.0.0-beta.1` (`22f8ac19cb`), whose log documents carry no access attributes, with 3 log indexes. **tag-idx:** the same, with `access_owner` and `access_space` created by hand after `up` (main's keys and partial filter). **main:** the server of `4665c3f0f6`, 5 log indexes. **main-noidx:** the same, with the two dropped by hand after `up`. The host creates them only at its start, so the change lasts the session (`indexes.log`, and the indexes listed in `store-after.json`). Every arm ran `4665c3f0f6`'s harness and load generator |
-| Sessions | One fresh single-node MongoDB session each, Kafka on, 1 GB heap, 100,000 accounts seeded and primed. Then one E1 run with uniform keys at a fixed 8,000/s open loop: 30 s of warm-up, 120 s measured. That is 37% of this snapshot's single-node MongoDB E1 ceiling (21,458.6/s) |
-| Order | First pass ABCD DCBA (r1 tag, main, main-noidx, tag-idx; r2 the reverse). Main's two rounds of CPU were 11.5% apart, more than main and main-noidx differed, so four more sessions ran: r3 main, r3 main-noidx, r4 main-noidx, r4 main. 12 sessions |
-| What is read | Around the run, from the store: mongod's CPU from its container's cgroup (`cpu.stat` `usage_usec`; no CPU limit), `serverStatus()` `opcounters`, and the log's and the snapshot's `$collStats` `latencyStats` and `storageStats`. Before them, 20 s with no load give mongod's floor, 0.12–0.15 cores. Each delta is over the run's whole window, about 150 s at the one rate, and is divided by the log documents the window added, 1,198,869–1,200,000 commits. The log is written in batched inserts (0.064–0.082 insert operations a commit), so its insert time is given per commit. p50 and p99 are the measured phase's, a by-line |
-| The window | As in this snapshot (`environment.txt`). Five idle Gradle and Kotlin daemons were allowed; over the 156 samples they used 0.4% of a core on average, 37.2% at most in one sample. No other JVM ran, and no measurement was disturbed or void, so none was rerun (`SUMMARY.md`) |
+| Arms | **tag:** the server of `v10.0.0-beta.1` (`22f8ac19cb`), 3 log indexes, its documents carrying no access attributes. **before:** the server of `13835bf24a`, D420's parent, 5 log indexes, which hold a null owner and space for every document. **d420:** the server of `62314e9075`, D420's merge commit, the same 5 indexes, sparse. Each built in its own worktree and copied under `results/e2e/installs/` |
+| Sessions | One fresh single-node MongoDB session each, Kafka on, 1 GB heap, 100,000 accounts seeded and primed; then E1 with uniform keys at a fixed 8,000/s open loop, 30 s of warm-up and 120 s measured (37% of this snapshot's single-node MongoDB E1 ceiling) |
+| Order | Two passes of ABC CBA (tag, before, d420; then reversed), 12 sessions. The first pass ran before the snapshot, the second after it |
+| What is read | As in the addendum: mongod's CPU from its container's cgroup net of its 20 s idle floor, the log's `latencyStats` insert time, the snapshot's update latency, per commit over the run's whole window, about 1.2 M commits a session; and each index's keys after the run (`index-check.json`) |
 
 ### Results
 
-| Session | mongod CPU µs/commit, net | Log insert µs/commit | Snapshot update µs/op | Log avgObjSize | Log indexes, MB | p50 / p99 ms |
-| --- | ---: | ---: | ---: | ---: | --- | --- |
-| r1 tag | 193.3 | 26.35 | 79.8 | 523 | 3, 294.3 | 8.77 / 190.5 |
-| r2 tag | 193.6 | 25.35 | 78.8 | 523 | 3, 295.4 | 8.45 / 193.5 |
-| r1 tag-idx | 212.4 | 30.21 | 83.9 | 523 | 5, 348.8 | 7.65 / 184.3 |
-| r2 tag-idx | 207.4 | 29.12 | 80.1 | 523 | 5, 350.0 | 7.74 / 120.8 |
-| r1 main | 199.4 | 29.43 | 75.1 | 559 | 5, 356.9 | 7.74 / 206.8 |
-| r2 main | 222.4 | 31.81 | 81.5 | 559 | 5, 357.9 | 6.82 / 90.6 |
-| r3 main | 202.1 | 29.04 | 73.5 | 559 | 5, 357.8 | 6.59 / 108.0 |
-| r4 main | 191.5 | 27.35 | 72.2 | 559 | 5, 357.0 | 8.45 / 124.4 |
-| r1 main-noidx | 200.2 | 27.35 | 76.6 | 559 | 3, 294.2 | 7.36 / 113.7 |
-| r2 main-noidx | 208.3 | 28.75 | 81.6 | 559 | 3, 291.8 | 7.78 / 178.2 |
-| r3 main-noidx | 193.4 | 26.38 | 74.3 | 559 | 3, 293.2 | 8.00 / 123.9 |
-| r4 main-noidx | 193.3 | 26.64 | 73.7 | 559 | 3, 295.0 | 6.94 / 113.2 |
+| Pass, round | Session | Other processes, % of a core | mongod CPU µs/commit, net | Log insert µs/commit | Snapshot update µs/op | Log indexes, MB |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| 1, r1 | tag | 76.7 | 225.5 | 30.80 | 89.9 | 3, 296.2 |
+| 1, r1 | before | 77.6 | 219.7 | 32.22 | 83.3 | 5, 354.9 |
+| 1, r1 | d420 | 96.2 | 216.8 | 29.98 | 86.8 | 5, 291.6 |
+| 1, r2 | d420 | 81.3 | 219.1 | 30.68 | 84.2 | 5, 295.3 |
+| 1, r2 | before | 38.7 | 204.1 | 29.79 | 77.3 | 5, 357.4 |
+| 1, r2 | tag | 20.2 | 183.1 | 23.85 | 75.6 | 3, 296.9 |
+| 2, r3 | tag | 15.2 | **194.6** | **25.08** | 76.1 | 3, 295.6 |
+| 2, r3 | before | 15.8 | **185.1** | **26.59** | 71.1 | 5, 356.6 |
+| 2, r3 | d420 | 17.8 | **185.0** | **25.30** | 71.4 | 5, 291.1 |
+| 2, r4 | d420 | 16.6 | **182.5** | **25.13** | 71.2 | 5, 296.9 |
+| 2, r4 | before | 16.2 | **200.7** | **28.71** | 74.3 | 5, 357.4 |
+| 2, r4 | tag | 19.2 | **188.9** | **24.37** | 75.7 | 3, 292.3 |
 
-- **Index sizes at about 1.3M log documents:**
-  - The two access indexes are 27.0–27.7 MB each on the tag's documents and 30.0–31.7 MB each on main's.
-  - `_id_` (40–42), `version_key` (145–146) and `request_key` (106–110 MB) are alike on every arm (`STORE-COST.md`).
-- **Store operations per commit:** inserts 1.000 on every arm. Updates are 1.063–1.065 on the tag and 1.072–1.075 on
-  main.
-- **Snapshot documents:** 419 B on the tag and 421 B on main.
-- **The load generator dropped commands in four runs:** r1 main 857, r2 tag 666, r3 main 22 and r4 main 5. Each was
-  "generator-overload": its in-flight cap of 2,000 reached in one stalled second (worst-second p99 260–365 ms).
-  That is under 0.1% of each run, and there was no server error in any session. They are kept.
+The second pass's rounds are `r1` and `r2` of `mongo-store-cost-r3-r4/`; they are r3 and r4 here.
 
-| Comparison | What differs | mongod CPU per commit, by round | Log insert time per commit, by round |
-| --- | --- | --- | --- |
-| tag-idx / tag | the two index writes, on the tag's documents | 1.099, 1.071 | 1.146, 1.149 |
-| main / main-noidx | the two index writes, on main's documents | 0.996, 1.068, 1.045, 0.991 (median 1.021) | 1.076, 1.106, 1.101, 1.026 (median 1.088) |
-| main-noidx / tag | the documents (559 against 523 B) and the code, 3 indexes each | 1.036, 1.076 | 1.038, 1.134 |
+- **The first pass ran on a changing host.** The other processes used about 0.8 of a core in its first four sessions (WindowServer, the Claude app, and a renderer spike to 2.8 cores in r1 d420), and 0.2–0.4 in its last two.
+  - Its tag read 225.5 and 183.1 µs CPU, 15% apart. The addendum's tag read 193.3 and 193.6.
+  - Its d420 sessions ran only in the busy part. No session was void or disturbed (the line is 2 cores on average), but the pass can't compare its arms.
+  - So the second pass ran, ABC CBA again, with the host quiet throughout (15–19% of a core). **The reading rests on it.** The first pass stays as recorded.
+- **Keys after the run:** d420's `access_owner` and `access_space` hold 0 keys of about 1.4 M log documents in every session. On `before` each holds every document, 30–32 MB each. d420's log indexes, 291–297 MB, are the tag's size, 292–297 MB; `before`'s are 355–357 MB.
+- **The load generator dropped commands in six runs:** 200 to 1,872 each, "generator-overload", its in-flight cap reached in a stalled second. Two runs had client-side socket errors: 531 in the first pass's r1 before, 20 in the second pass's r3 before. That is under 0.2% of each run, and there was no server error in any session. They are kept.
+
+| Second pass | Round 3 | Round 4 | Median |
+| --- | ---: | ---: | ---: |
+| d420 / tag, mongod CPU | 0.951 | 0.966 | 0.958 |
+| d420 / tag, log insert | 1.009 | 1.031 | 1.020 |
+| before / tag, log insert | 1.060 | 1.178 | 1.119 |
+| d420 / before, log insert | 0.951 | 0.875 | 0.913 |
 
 ### Reading
 
-- **The two indexes cost the log's insert time in every comparison:** about 15% per commit on the tag's documents,
-  and 3–11% (median 9%) on main's. Each adds about 30 MB per 1.3M commit documents.
-- **mongod's CPU per commit:** the indexes cost 7–10% (14–19 µs) on the tag's documents, steady in both rounds. On
-  main's documents the median is +2% over four rounds, inside main's own spread of 191.5–222.4 µs.
-- **The documents and the code without the indexes** cost 4–8% more CPU and 4–13% more log insert time than the tag.
-- **The snapshot's updates** don't move with the indexes.
-- **What it says about Actions:** these are costs of the size that, on a store at one core, would show as about a
-  tenth of throughput at saturation (L3's calibrated 0.90 on Actions). That is consistent with the Actions difference,
-  not a measurement of it.
-- **The decision (D420):** MongoDB's access indexes leave out the nulls, as PostgreSQL's do. A null access attribute
-  is not written to the log document, and the two indexes are partial on the attribute's existence, so a commit of an
-  aggregate with no owner or space adds no entry to either. The re-measurement of the change follows, with the same
-  instrument: the tag, `main` and the change.
+- **D420 closes the difference against the tag.** d420's log insert time per commit is 1% and 3% over the tag's, inside the tag's own round-to-round spread of 3%. Its mongod CPU is 3–5% under the tag's, inside the spread too (the tag's rounds differ by 3%, `before`'s by 8%).
+- **What D420 removed:** `before`, whose two indexes hold every document's nulls, costs 6% and 18% more insert time than the tag in the same rounds. That is the addendum's 9–15% again. d420 writes no entry to either index for an aggregate with no owner or space.
+- **The snapshot's updates** don't move between the arms.
 
 ## Limits
 
-- One machine, one run each, apart from the e1-hot check's five sessions; no A/A pair in the snapshot itself. The noise band rests on one repeat of 4,096 clients a sweep, and the e1-hot check shows a spread of up to 40% at the steps below 64 clients.
-- The code and the JDK changed together since the last snapshot. Only the e1-hot check separates them.
+- One machine, one run each, apart from the store cost's 12 sessions; no A/A pair in the snapshot itself. The noise band rests on one repeat of 4,096 clients a sweep, and the steps below 64 clients vary by up to 40% from run to run (the last snapshot's e1-hot check).
+- 176 commits separate the two snapshots. No difference between them is laid to one commit.
+- **A sweep's low steps cannot carry a comparison.** Each is one 30 s step in one session, and on this machine the stores' flush runs in one of two modes that change between two 20 s steps (the anomaly above). A comparison at 1–256 clients would need each low step repeated, or the arms' steps interleaved in one window, with the stores' flush time recorded beside it (PostgreSQL's `pg_stat_wal` with `track_wal_io_timing`, MongoDB's journal sync time). The snapshot's scripts do neither yet.
+- The desktop's own CPU varies over a window by more than a store-cost arm differs. A step is disturbed only at 2 cores, so a fixed-rate comparison has to be read with each session's other processes beside it.
 - Three nodes share the host with the stores and the load generator, so the cluster's numbers are this host's, not a deployment's.
 - Nothing checks the accounts' balances or the logs' continuity after a run.
 - A sweep records no resources but the host's: the node's CPU, its GC and the stores' CPU are known only as the host's total (`host-load.tsv`).
@@ -254,7 +236,7 @@ This check measures the cost on the store's side itself, at a fixed rate well un
 
 ## Reproduce
 
-From a clean checkout at `a7c372ad3e` on this machine, with this report's `scripts/` (the commit that adds this report; at `a7c372ad3e` itself `lib.sh` defaults to JDK 21 and `03-e1-hot-arms.sh` is missing), the builds of `bench.sh build` (`./gradlew :benchmark-server:installDist :benchmark-load:installDist`), JDK 25 (`JAVA_HOME=$(/usr/libexec/java_home -v 25)`) and no other JVM running:
+From a clean checkout at `d9b0781205` on this machine, with the builds of `bench.sh build` (`./gradlew :benchmark-server:installDist :benchmark-load:installDist`), JDK 25 (`JAVA_HOME=$(/usr/libexec/java_home -v 25)`), and no other JVM running:
 
 ```bash
 test/benchmarks/results/reports/m5max-snapshot/scripts/run-all.sh
@@ -262,33 +244,21 @@ test/benchmarks/results/reports/m5max-snapshot/scripts/run-all.sh
 
 An idle JVM that cannot be stopped is allowed by its pid, `ALLOW_JVM_PIDS="<pid> …"`. `01-single-node.sh <backend>` or `02-three-nodes.sh <backend>` reruns one session. A measurement with a void or disturbed step runs again in its session once the host is quiet, at most twice, and the attempt stays as `<measurement>.void-<n>/`.
 
-The e1-hot check, with another commit's server built in its own worktree and copied under this checkout's `results/e2e/installs/<commit>/benchmark-server`:
+The store cost, with each arm's server built in its own worktree and copied under this checkout's `results/e2e/installs/<commit>/benchmark-server`. The arms are given in the order of round 1, and round 2 runs them reversed. `store-cost.py` writes the tables:
 
 ```bash
-test/benchmarks/results/reports/m5max-snapshot/scripts/03-e1-hot-arms.sh head-25=<this build> old-25=<the other build> head-21=<this build>,<JDK 21 home> head-25b=<this build> old-25b=<the other build>
+BENCH_OUT=test/benchmarks/results/e2e/mongo-store-cost test/benchmarks/results/reports/m5max-snapshot/scripts/04-mongo-store-cost.sh tag=<installs/22f8ac19cb> before=<installs/13835bf24a> d420=<installs/62314e9075>
+python3 -I test/benchmarks/results/reports/m5max-snapshot/scripts/store-cost.py test/benchmarks/results/e2e/mongo-store-cost tag/before d420/tag d420/before
 ```
 
-The store-cost addendum, with the tag's server built in its own worktree and copied likewise. The arms are given in
-the order of round 1, and round 2 runs them reversed. `--sequence` gives another order, as the second pass did with
-`--sequence="3:main 3:main-noidx 4:main-noidx 4:main"`. `store-cost.py` writes the tables:
-
-```bash
-test/benchmarks/results/reports/m5max-snapshot/scripts/04-mongo-store-cost.sh tag=<the tag's build> main=<this build> main-noidx=<this build>,drop tag-idx=<the tag's build>,create
-python3 -I test/benchmarks/results/reports/m5max-snapshot/scripts/store-cost.py test/benchmarks/results/e2e/mongo-store-cost main/main-noidx tag-idx/tag main-noidx/tag
-```
-
-The addendum's sessions ran from an earlier form of `04-mongo-store-cost.sh` that fixed its arms in the script, with
-the same commands. Its first start inherited JDK 21 from the shell and stopped at `bench.sh`'s check before any
-session began (`04-mongo-store-cost.log` begins after it). `JAVA_HOME` must be a JDK 25.
-
-The scripts write the raw output under `test/benchmarks/results/e2e/m5max-snapshot/` (ignored by git); `curate` in [`lib.sh`](m5max-snapshot/scripts/lib.sh) copies into [`m5max-snapshot/`](m5max-snapshot/) what this report rests on. The node logs are not committed; each session's `log-digest.md` counts their warnings and errors by message and by step.
+The scripts write the raw output under `test/benchmarks/results/e2e/` (ignored by git); `curate` in [`lib.sh`](m5max-snapshot/scripts/lib.sh) copies into [`m5max-snapshot/`](m5max-snapshot/) what this report rests on. The node logs are not committed; each session's `log-digest.md` counts their warnings and errors by message and by step.
 
 | Path | What |
 | --- | --- |
 | [`SUMMARY.md`](m5max-snapshot/SUMMARY.md) | Every measurement's peak, sustainable throughput, the steps that failed more than 1%, the steps marked disturbed or void, the load before and after; the allowed JVMs' CPU over the window |
 | `1-S-<backend>/` | The single-node session: `up.log`, `host.txt`, `log-digest.md`, the three `*-peak.md`, and a directory per sweep (`saturation.json`, `summary.md`, `saturate.log`, `settle.*`, `host.txt`, `host-load.tsv`, `allowed-jvms.txt`), the steps past 4,096 clients in `<sweep>-top/` |
 | `3-N-<backend>/` | The three-node session, likewise, with the fixed 1,024-client runs `e1-c1024/` and `e3-c1024/` |
-| `e1-hot-arms/<n>-<arm>/` | The e1-hot check's sessions, each with `hot-version.tsv`, `tables.txt`, `explain.txt` and its sweep's `pg-statements.txt` |
-| `0*-*.log` | Each script's output, the disturbed first three-node MongoDB session and the void first old-commit arm included |
-| `mongo-store-cost/` | The addendum: [`STORE-COST.md`](m5max-snapshot/mongo-store-cost/STORE-COST.md) (every session's figures and index sizes, and the ratios), [`SUMMARY.md`](m5max-snapshot/mongo-store-cost/SUMMARY.md) (each run's verdict and load), `environment.txt`, `verdicts.txt`, the two passes' logs, and per session `r<round>-<arm>/` with `up.log`, `indexes.log`, `idle.json`, `store-before.json`, `store-after.json`, `host.txt` and the run's `result.json`, `host-load.tsv` and `allowed-jvms.txt` |
+| `0*-*.log` | Each script's output |
+| `low-concurrency/` | The two modes: `split/<n>-<build>/` (the four builds' sessions, steps 4, 16, 4, 16), `naming-postgres/` (12 steps at 4 clients, with `wal.tsv`, PostgreSQL's WAL and statements every second, and `pg-top.txt`), `naming-mongo/` (likewise, with `journal.tsv`). Each session ran `03-e1-hot-arms.sh`'s session with `SWEEP=(--sweep --concurrencies=… --step=… --warm-up=…)` and, in the naming sessions, a sampler of the store beside the sweep; their wrappers are not committed |
+| `mongo-store-cost/`, `mongo-store-cost-r3-r4/` | The store cost's two passes: each with [`STORE-COST.md`](m5max-snapshot/mongo-store-cost-r3-r4/STORE-COST.md) (every session's figures, index sizes and keys, and the ratios), `SUMMARY.md` (each run's verdict and load), `verdicts.txt`, `env-*/environment.txt`, the pass's log `04-mongo-store-cost.log`, and per session `r<round>-<arm>/` with `up.log`, `indexes.log`, `index-check.json`, `idle.json`, `store-before.json`, `store-after.json`, `host.txt` and the run's `result.json`, `host-load.tsv` and `allowed-jvms.txt` |
 | [`scripts/`](m5max-snapshot/scripts/) | `run-all.sh`, `01-single-node.sh`, `02-three-nodes.sh`, `03-e1-hot-arms.sh`, `04-mongo-store-cost.sh`, `lib.sh`, `summarize.py`, `store-cost.py`, `digest-logs.py` |

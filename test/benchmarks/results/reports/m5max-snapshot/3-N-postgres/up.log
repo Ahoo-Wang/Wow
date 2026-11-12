@@ -3,16 +3,16 @@
  Network wow-e2e-bench_default Creating 
  Network wow-e2e-bench_default Created 
  Network wow-e2e-bench_default Created 
- Container wow-e2e-bench-kafka Creating 
  Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
  Container wow-e2e-bench-kafka Created 
  Container wow-e2e-bench-postgres Created 
- Container wow-e2e-bench-postgres Starting 
  Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
  Container wow-e2e-bench-kafka Started 
  Container wow-e2e-bench-postgres Started 
- Container wow-e2e-bench-kafka Waiting 
  Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
  Container wow-e2e-bench-postgres Healthy 
  Container wow-e2e-bench-kafka Healthy 
 [bench] starting node 1 on postgres
@@ -20,18 +20,18 @@
 [bench] starting node 3 on postgres
 [bench] nodes up; settling 15s
 [bench] seeding 100000 accounts
-[seed] 100000 accounts in 17.0s, 0 retried, 0 failed
+[seed] 100000 accounts in 17.4s, 0 retried, 0 failed
 [bench] checking every scenario once
-[check] E1: ok (37.9 ms)
-[check] E2: ok (19.9 ms)
-[check] E3: ok (19.2 ms)
-[check] E1-large: ok (5.9 ms)
-[check] E4-state: ok (1.9 ms)
-[check] E4-list: ok (46.6 ms)
+[check] E1: ok (35.1 ms)
+[check] E2: ok (20.6 ms)
+[check] E3: ok (18.2 ms)
+[check] E1-large: ok (8.4 ms)
+[check] E4-state: ok (1.7 ms)
+[check] E4-list: ok (51.5 ms)
 [bench] priming 100000 accounts
 [prime] 100000 accounts in 9.4s, 0 failed
-[settle] 1s: node-1 0.01, node-2 0.02, node-3 0.01
-[settle] 2s: node-1 0.03, node-2 0.01, node-3 0.01
-[settle] 3s: node-1 0.01, node-2 0.01, node-3 0.02
+[settle] 1s: node-1 0.02, node-2 0.02, node-3 0.02
+[settle] 2s: node-1 0.04, node-2 0.01, node-3 0.02
+[settle] 3s: node-1 0.02, node-2 0.02, node-3 0.01
 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
 [bench] session up: backend=postgres;nodes=3;accounts=100000;heap=1g;install=;args=;java=;bus=false; measure with --reuse, stop with bench.sh down

@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794380788	24.67	14.93	11.52	105	WindowServer 55, sysmond 11, Claude Helper 8	chprobe 1.85%	192	0	0.0	
-1794380800	20.71	14.52	11.44	79	WindowServer 51, Claude Helper 12, Claude Helper (Renderer) 5	chprobe 6.15%	1376	22	0.0	
-1794380812	23.46	15.30	11.75	74	WindowServer 50, Claude Helper 11, Claude Helper (Renderer) 5	chprobe 38.68%	1253	20	0.0	
-1794380825	21.27	15.22	11.78	73	WindowServer 50, Claude Helper 13, Claude Helper (Renderer) 8	chprobe 2.12%	1301	23	0.0	
-1794380837	22.83	15.78	12.02	92	WindowServer 51, Claude Helper 12, gh 11	chprobe 2.70%	1149	20	0.0	
-1794380849	24.81	16.52	12.35	123	WindowServer 52, java 33, Claude Helper 14	chprobe 1.75%	1217	16	0.0	
-1794380861	22.99	16.40	12.35	97	WindowServer 50, Claude Helper (Renderer) 17, Claude Helper 12	chprobe 40.29%	1216	16	0.0	
+1794471091	20.10	13.78	11.13	51	find 39, sysmond 4, bash 2		97	0	0.0	
+1794471103	21.03	14.17	11.29	39	find 30, sysmond 4, claude 2		1030	17	0.0	
+1794471115	20.28	14.24	11.35	34	find 24, sysmond 4, configd 3		442	8	0.0	
+1794471127	22.62	15.00	11.67	30	find 23, Stats 2, configd 2		1127	22	0.1	
+1794471140	23.96	15.51	11.89	26	find 20, AppleCentauriAlpha 1, Stats 1		1171	20	0.0	
+1794471152	21.54	15.41	11.92	29	find 22, UniversalControl 2, AppleCentauriAlpha 2		1041	16	0.0	
+1794471164	22.26	15.75	12.08	42	find 41, AppleCentauriAlpha 1, wifip2pd 0		1209	16	0.0	

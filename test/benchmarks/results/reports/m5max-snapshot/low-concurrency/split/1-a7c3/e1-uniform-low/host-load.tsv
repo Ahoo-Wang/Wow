@@ -1,0 +1,8 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794476449	31.52	13.19	9.98	117	WindowServer 46, Stats 12, Claude Helper 10		173	0	0.4	
+1794476462	25.36	12.72	9.87	73	WindowServer 35, Claude Helper 9, Claude Helper (Renderer) 4		247	4	0.6	
+1794476474	23.19	12.68	9.89	60	WindowServer 34, Claude Helper 10, Claude Helper (Renderer) 4		645	12	0.1	
+1794476486	19.80	12.43	9.85	53	WindowServer 32, Claude Helper 9, sysmond 3		386	6	1.6	
+1794476498	17.22	12.12	9.77	63	WindowServer 35, Claude Helper 8, git 6		163	2	0.0	
+1794476510	14.31	11.73	9.67	103	WindowServer 44, Stats 14, Claude Helper 14		239	4	0.2	
+1794476523	13.10	11.55	9.63	65	WindowServer 33, Claude Helper 11, Claude Helper (Renderer) 5		396	6	0.0	

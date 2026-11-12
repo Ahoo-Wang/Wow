@@ -1,0 +1,10 @@
+1794476878 [settle] 1s: node-1 0.03
+1794476879 [settle] 2s: node-1 0.03
+1794476880 [settle] 3s: node-1 0.03
+1794476880 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794476900 [saturate] E1: concurrency=4 throughput=1931.8/s p50=1ms errors={}
+1794476920 [saturate] E1: concurrency=16 throughput=2716.7/s p50=4ms errors={}
+1794476940 [saturate] E1: concurrency=4 throughput=2130.9/s p50=1ms errors={}
+1794476960 [saturate] E1: concurrency=16 throughput=5186.6/s p50=2ms errors={}
+1794476960 [saturate] saturation: 5186.6/s at concurrency 16
+1794476961 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/lowconc-split1/4-d9b07/e1-uniform-low

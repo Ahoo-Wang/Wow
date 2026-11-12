@@ -1,0 +1,35 @@
+1794474178 [settle] 1s: node-1 0.02
+1794474179 [settle] 2s: node-1 0.03
+1794474180 [settle] 3s: node-1 0.02
+1794474180 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794474180 [bench] running E1 at 8000/s
+1794474180 [run] E1 @ 8000.0/s: warm-up
+1794474210 [run] E1 @ 8000.0/s: measure
+1794474330 [run] E1 @ 8000.0/s: drain
+1794474334 # run: E1
+1794474334 
+1794474334 deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), loadJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), stores kafka mongo, storeWriteIops , primed true, primeSeconds 9, settleSeconds 3, accounts 100000, session /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/20261112-010154-run-mongo-n1-saturation.
+1794474334 
+1794474334 Open loop at 8000.0/s, uniform over 100000 accounts, 30 s warm-up, 120 s measured.
+1794474334 
+1794474334 | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+1794474334 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+1794474334 | 7999.8/s | 959980 | 20 | 10.0 ms | 121.9 ms | 190.5 ms | 234.5 ms | 295.4 ms | 268.3 ms |
+1794474334 
+1794474334 Errors: {exception-IOException=1, exception-SocketException=19}
+1794474334 
+1794474334 Load generator: 1.53 cores of 18 available to it.
+1794474334 
+1794474334 | Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+1794474334 | --- | --- | --- | --- | --- | --- |
+1794474334 | node-1 | 2.07 | 1556 MB | 962 MB | 163 | 0.845 s |
+1794474334 
+1794474334 | Container | CPU avg | CPU max | Memory |
+1794474334 | --- | --- | --- | --- |
+1794474334 | wow-e2e-bench-kafka | 36.1% | 125.5% | 1.113GiB / 31.36GiB |
+1794474334 | wow-e2e-bench-mongo | 170.6% | 277.6% | 2.206GiB / 31.36GiB |
+1794474334 
+1794474334 Store operations, mongo (seconds -0.809 to 120.679): {epoch=121.48800015449524, insert=966385, query=495, update=1032555, delete=0, getmore=0, command=5621}
+1794474334 Store operations, kafkaEndOffsets (seconds -29.882 to 122.443): {wow.transfer.account.state=1193549, wow.transfer.commands=0}
+1794474334 
+1794474334 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/mongo-store-cost-d420-r34/r1-before/run

@@ -1,30 +1,30 @@
-## begin 2026-11-10T23:01:43-0800
-uptime: 23:01  up 1 day, 22:36, 2 users, load averages: 9.74 10.40 9.75
+## begin 2026-11-12T00:06:45-0800
+uptime:  0:06  up 2 days, 23:41, 2 users, load averages: 13.64 11.00 9.86
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: wow-e2e-bench-kafka wow-e2e-bench-mongo chprobe 
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  71.8 365 mds
-  55.4 408 WindowServer
-  17.9 500 mds_stores
-  13.6 49150 Claude
-  12.5 49671 Claude Helper (Renderer)
-  11.6 854 MacPacketTunnel
-  10.8 731 corespotlightd
-  9.6 49784 Claude Helper
-allowed JVMs (% of one core): 38528 77572 0.0
+  61.6 26726 find
+  3.2 592 sysmond
+  1.1 20167 bash
+  1.0 1103 Stats
+  0.8 597 AppleCentauriAlpha
+  0.7 657 wifip2pd
+  0.6 349 configd
+  0.4 408 WindowServer
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:
-## end 2026-11-10T23:06:27-0800
-uptime: 23:06  up 1 day, 22:40, 2 users, load averages: 24.67 14.93 11.52
+## end 2026-11-12T00:11:30-0800
+uptime:  0:11  up 2 days, 23:45, 2 users, load averages: 21.59 13.96 11.18
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: wow-e2e-bench-kafka wow-e2e-bench-mongo chprobe 
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  50.9 408 WindowServer
-  11.4 49671 Claude Helper (Renderer)
-  9.5 49159 Claude Helper
-  2.3 49150 Claude
-  1.5 34017 mdworker_shared
-  1.1 365 mds
-  1.0 477 symptomsd
-  0.9 500 mds_stores
-allowed JVMs (% of one core): 38528 77572 0.0
+  42.6 29240 find
+  6.7 1103 Stats
+  4.4 477 symptomsd
+  3.9 349 configd
+  3.2 592 sysmond
+  2.0 408 WindowServer
+  0.6 401 bluetoothd
+  0.5 597 AppleCentauriAlpha
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:

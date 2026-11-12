@@ -1,12 +1,6 @@
 r1-tag ok
-r1-main ok
-r1-main-noidx ok
-r1-tag-idx ok
-r2-tag-idx ok
-r2-main-noidx ok
-r2-main ok
+r1-before ok
+r1-d420 ok
+r2-d420 ok
+r2-before ok
 r2-tag ok
-r3-main ok
-r3-main-noidx ok
-r4-main-noidx ok
-r4-main ok

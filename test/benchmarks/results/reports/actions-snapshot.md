@@ -131,7 +131,7 @@ of saturation or less.
 - **At 1k, the PostgreSQL E1 search was 11–19% lower on the head at every step from 1 to 64 clients,** one 8 s step
   each.
   - The head was faster at 100k in the component suites (2,479 → 2,848/s).
-  - The local check of one hot account found two runs of the same code differing by as much (`m5max-snapshot`).
+  - The local check of one hot account found two runs of the same code differing by as much ([`m5max-snapshot` at `a7c372ad3e`](https://github.com/Ahoo-Wang/Wow/blob/d9b0781205aa5749bf7e3941dfcbb622c2eaac36/test/benchmarks/results/reports/m5max-snapshot.md)).
   - So this is one search, not a result.
 - **Not checked by any suite:** D411 (Elasticsearch mappings), D412 (ClickHouse `_state`) and D413 (one write in
   flight per sink) are outside L3 and L4, which run no sink. D415 and D416 change no behaviour.
@@ -261,12 +261,14 @@ At an equal rate, head over base:
   it is within the suite's noise, but its p50 is above in all four pairs. The run without the parent's walk doesn't
   confirm #5394 as its cause. That run was on EPYC 9V45 runners at about twice the rate, so the question is open on
   the 7763. Whether the difference matters at GA is not settled by these runs.
-- **Measured locally since, below the knee** ([m5max-snapshot](m5max-snapshot.md), "Addendum: MongoDB's cost per
-  commit below the knee"):
+- **Measured locally since, below the knee** ([`m5max-snapshot` at `a7c372ad3e`](https://github.com/Ahoo-Wang/Wow/blob/d9b0781205aa5749bf7e3941dfcbb622c2eaac36/test/benchmarks/results/reports/m5max-snapshot.md),
+  "Addendum: MongoDB's cost per commit below the knee"):
   - The two indexes cost the log's insert time on every comparison, 9–15% per commit. On the tag's documents they
     also cost 7–10% of mongod's CPU per commit.
   - Main's documents and code without them cost another 4–8%.
-  - The decision is D420: the indexes leave out the nulls, as PostgreSQL's do. Its re-measurement follows.
+  - The decision is D420: the indexes leave out the nulls, as PostgreSQL's do. Re-measured with the same instrument
+    ([m5max-snapshot](m5max-snapshot.md), "MongoDB's cost per commit below the knee (D420)"), D420's log insert time
+    per commit is 1–3% over the tag's and its mongod CPU 3–5% under, within the tag's own spread.
 
 ### Snapshot writes on PostgreSQL
 

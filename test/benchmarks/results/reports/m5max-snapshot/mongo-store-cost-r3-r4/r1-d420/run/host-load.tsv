@@ -1,0 +1,14 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794474407	8.13	12.43	17.33	15	configd 4, sysmond 3, WindowServer 2		169	0	0.0	
+1794474419	10.17	12.63	17.32	13	jstat 4, Stats 3, configd 2		669	69	0.0	
+1794474431	10.71	12.67	17.28	5	claude 3, claude 1, AppleCentauriAlpha 1		759	62	0.0	
+1794474443	11.60	12.76	17.23	4	Shadowrocket 1, claude 1, AppleCentauriAlpha 1		704	70	0.0	
+1794474455	11.18	12.63	17.13	20	jstat 15, sysmond 3, AppleCentauriAlpha 0		723	69	0.0	
+1794474467	11.77	12.72	17.11	29	jstat 13, Stats 5, sysmond 3		759	69	0.0	
+1794474479	12.04	12.74	17.04	6	claude 2, claude 2, Shadowrocket 1		654	69	0.0	
+1794474491	14.35	13.19	17.15	31	jstat 14, Stats 5, sysmond 3		656	69	0.0	
+1794474503	12.75	12.90	16.97	26	jstat 14, Stats 5, configd 3		550	69	0.0	
+1794474515	11.96	12.72	16.86	18	Stats 4, jstat 3, configd 3		611	70	0.0	
+1794474527	11.04	12.50	16.74	16	Stats 5, configd 3, claude 2		608	69	0.0	
+1794474539	10.44	12.30	16.59	30	jstat 14, claude 4, Stats 3		541	68	0.0	
+1794474551	9.68	12.07	16.46	19	jstat 12, Stats 3, configd 2		533	70	0.1	

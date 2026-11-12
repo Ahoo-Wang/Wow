@@ -1,14 +1,14 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794441508	9.98	9.55	10.01	18	sysmond 4, WeatherWidget 2, runningboardd 2		61	0	0.6	
-1794441520	8.85	9.32	9.92	19	jstat 3, sysmond 3, UniversalControl 3		618	74	0.1	
-1794441532	11.92	10.00	10.15	31	jstat 12, mdworker_shared 6, cfprefsd 2		578	73	0.3	
-1794441544	11.00	9.86	10.10	13	jstat 10, Stats 1, AppleCentauriAlpha 1		582	74	0.1	
-1794441556	10.54	9.80	10.08	9	claude 3, jstat 2, Stats 1		737	73	0.1	
-1794441568	9.38	9.58	10.00	16	jstat 12, AppleCentauriAlpha 1, Stats 0		688	72	0.1	
-1794441580	9.46	9.59	10.00	15	jstat 13, AppleCentauriAlpha 1, Stats 0		719	72	0.1	
-1794441592	11.95	10.11	10.17	21	jstat 13, claude 2, AppleCentauriAlpha 1		718	72	0.0	
-1794441604	12.07	10.19	10.20	18	jstat 8, sysmond 3, UniversalControl 1		745	69	0.0	
-1794441616	14.94	10.85	10.43	14	jstat 7, WindowServer 2, Dock 1		631	73	0.1	
-1794441628	13.15	10.66	10.37	69	WindowServer 18, Claude Helper (Renderer) 13, Claude 11		764	73	0.0	
-1794441640	12.42	10.58	10.35	54	Claude Helper (Renderer) 16, WindowServer 12, jstat 12		645	73	0.0	
-1794441652	12.26	10.64	10.37	87	Claude Helper (Renderer) 24, launchd 14, WindowServer 10		744	73	0.1	
+1794469005	4.82	9.55	8.93	24	sysmond 3, UniversalControl 3, Stats 3		57	0	0.0	
+1794469017	5.88	9.63	8.97	9	jstat 4, claude 3, AppleCentauriAlpha 1		630	74	0.0	
+1794469028	6.93	9.72	9.01	22	jstat 15, Stats 3, configd 2		629	73	0.0	
+1794469040	8.97	10.04	9.14	17	jstat 9, Stats 3, configd 2		553	74	0.0	
+1794469053	9.96	10.21	9.21	12	jstat 4, sysmond 3, Stats 2		592	73	0.0	
+1794469065	9.80	10.16	9.21	23	jstat 15, claude 4, Stats 2		477	74	0.0	
+1794469077	10.40	10.27	9.26	47	jstat 15, WindowServer 8, Claude Helper (Renderer) 8		561	74	0.0	
+1794469089	10.09	10.21	9.25	24	jstat 15, Stats 3, configd 2		567	73	0.0	
+1794469101	10.98	10.39	9.32	19	jstat 14, Stats 1, AppleCentauriAlpha 1		541	74	0.0	
+1794469113	9.92	10.18	9.26	24	jstat 9, claude 4, sysmond 3		556	74	0.0	
+1794469125	12.69	10.77	9.49	11	jstat 7, WindowServer 1, AppleCentauriAlpha 1		581	73	0.0	
+1794469137	12.46	10.78	9.51	14	jstat 9, claude 2, AppleCentauriAlpha 1		551	74	0.0	
+1794469149	11.21	10.59	9.46	17	jstat 9, sysmond 3, claude 2		520	74	0.0	

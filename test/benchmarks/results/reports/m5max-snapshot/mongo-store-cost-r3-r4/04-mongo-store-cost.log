@@ -1,0 +1,11 @@
+rerun start 00:58:03
+[2026-11-12 00:58:04] rate 8000/s, warm-up 30 s, measured 120 s; sessions: 1:tag 1:before 1:d420 2:d420 2:before 2:tag 
+[2026-11-12 00:58:04] up r1-tag (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/22f8ac19cb/benchmark-server
+[2026-11-12 01:01:54] up r1-before (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/13835bf24a/benchmark-server
+[2026-11-12 01:05:44] up r1-d420 (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/62314e9075/benchmark-server
+[2026-11-12 01:09:34] up r2-d420 (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/62314e9075/benchmark-server
+[2026-11-12 01:13:24] up r2-before (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/13835bf24a/benchmark-server
+[2026-11-12 01:17:14] up r2-tag (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/installs/22f8ac19cb/benchmark-server
+[2026-11-12 01:21:02] store cost done; verdicts in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/mongo-store-cost-d420-r34/verdicts.txt
+exit 0
+rerun end 01:21:02

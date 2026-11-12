@@ -1,33 +1,26 @@
-## 01-single-node.sh 2026-11-10T22:33:48-0800
-commit: a7c372ad3ef808f479776a6183247c39f46189fc
+## 01-single-node.sh 2026-11-11T23:39:31-0800
+commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36
 changed paths: 0
 machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
 macOS: 27.2 (26B123)
 engine: OrbStack 2.2.5 (2020500)
 docker: 29.8.2, 16 CPUs, 33670660096 bytes
 jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
-allowed JVMs (pid, %cpu, rss KB, started, command): 38528 77572
-  38528   0.0 4149504 Tue Nov 10 18:29:56 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  77572   0.0 3160784 Tue Nov 10 20:26:18 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
-## 02-three-nodes.sh 2026-11-10T23:26:34-0800
-commit: a7c372ad3ef808f479776a6183247c39f46189fc
+allowed JVMs (pid, %cpu, rss KB, started, command): 10510 10555 64878 94957
+  10510   0.0 1661824 Wed Nov 11 23:13:33 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+  10555   0.0 2685312 Wed Nov 11 23:13:42 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
+  64878   0.0 4611712 Wed Nov 11 20:01:25 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
+  94957   0.0 2190048 Wed Nov 11 21:36:27 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+## 02-three-nodes.sh 2026-11-12T00:30:49-0800
+commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36
 changed paths: 0
 machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
 macOS: 27.2 (26B123)
 engine: OrbStack 2.2.5 (2020500)
 docker: 29.8.2, 16 CPUs, 33670660096 bytes
 jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
-allowed JVMs (pid, %cpu, rss KB, started, command): 38528 77572
-  38528   0.0 2841056 Tue Nov 10 18:29:56 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  77572   0.0 858832 Tue Nov 10 20:26:18 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invo
-## 02-three-nodes.sh 2026-11-11T00:33:30-0800
-commit: a7c372ad3ef808f479776a6183247c39f46189fc
-changed paths: 0
-machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
-macOS: 27.2 (26B123)
-engine: OrbStack 2.2.5 (2020500)
-docker: 29.8.2, 16 CPUs, 33670660096 bytes
-jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
-allowed JVMs (pid, %cpu, rss KB, started, command): 38528 77572 59696
-  38528   0.0 3663808 Tue Nov 10 18:29:56 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  59696   0.1 2399504 Wed Nov 11 00:23:26 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+allowed JVMs (pid, %cpu, rss KB, started, command): 10510 10555 64878 94957
+  10510   0.0 666640 Wed Nov 11 23:13:33 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invo
+  10555   0.0 554960 Wed Nov 11 23:13:42 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotl
+  64878   0.0 3496496 Wed Nov 11 20:01:25 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
+  94957   0.0 1316400 Wed Nov 11 21:36:27 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv

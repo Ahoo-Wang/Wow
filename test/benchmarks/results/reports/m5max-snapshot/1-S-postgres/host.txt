@@ -1,30 +1,30 @@
-## up, attempt 1 2026-11-10T22:33:48-0800
-uptime: 22:33  up 1 day, 22:08, 2 users, load averages: 2.72 2.81 1.90
+## up, attempt 1 2026-11-11T23:39:32-0800
+uptime: 23:39  up 2 days, 23:13, 2 users, load averages: 8.66 10.05 9.29
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: chprobe 
+containers: 
 busiest other processes (% of one core):
-  50.3 408 WindowServer
-  8.5 49159 Claude Helper
-  8.2 55777 claude
-  4.2 49671 Claude Helper (Renderer)
-  3.8 731 corespotlightd
-  3.5 52644 claude
-  2.8 854 MacPacketTunnel
-  2.5 1103 Stats
-allowed JVMs (% of one core): 38528 77572 0.0
+  4.6 592 sysmond
+  2.7 20167 bash
+  1.7 1103 Stats
+  1.1 349 configd
+  0.8 481 syspolicyd
+  0.8 377 opendirectoryd
+  0.7 597 AppleCentauriAlpha
+  0.7 408 WindowServer
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:
-## down 2026-11-10T23:00:35-0800
-uptime: 23:00  up 1 day, 22:34, 2 users, load averages: 9.91 10.79 9.84
+## down 2026-11-12T00:05:47-0800
+uptime:  0:05  up 2 days, 23:40, 2 users, load averages: 15.11 10.90 9.77
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  48.2 408 WindowServer
-  16.2 49671 Claude Helper (Renderer)
-  11.5 49159 Claude Helper
-  3.4 592 sysmond
-  2.1 67390 claude
-  1.7 90683 bash
-  1.3 477 symptomsd
-  1.0 775 Shadowrocket
-allowed JVMs (% of one core): 38528 77572 0.0
+  36.9 26726 find
+  9.1 1103 Stats
+  4.9 349 configd
+  2.3 592 sysmond
+  1.9 408 WindowServer
+  1.7 477 symptomsd
+  1.0 481 syspolicyd
+  0.8 597 AppleCentauriAlpha
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:

@@ -1,35 +1,35 @@
-1794439926 [settle] 1s: node-1 0.03
-1794439927 [settle] 2s: node-1 0.02
-1794439928 [settle] 3s: node-1 0.02
-1794439928 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1794439929 [bench] running E1 at 8000/s
-1794439929 [run] E1 @ 8000.0/s: warm-up
-1794439929 [alloc] cannot attach to pid 61094: java.rmi.ConnectIOException: Exception creating connection to: 169.254.118.102; nested exception is: 
-1794439929 	java.net.BindException: Can't assign requested address
-1794439959 [run] E1 @ 8000.0/s: measure
-1794440079 [run] E1 @ 8000.0/s: drain
-1794440082 # run: E1
-1794440082 
-1794440082 deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), loadJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), stores kafka mongo, storeWriteIops , primed true, primeSeconds 10, settleSeconds 4, accounts 100000, session /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/20261111-153101-run-mongo-n1-saturation.
-1794440082 
-1794440082 Open loop at 8000.0/s, uniform over 100000 accounts, 30 s warm-up, 120 s measured.
-1794440082 
-1794440082 | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
-1794440082 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-1794440082 | 8000.0/s | 960000 | 0 | 8.8 ms | 112.1 ms | 190.5 ms | 228.4 ms | 282.0 ms | 233.5 ms |
-1794440082 
-1794440082 Load generator: 1.61 cores of 18 available to it.
-1794440082 
-1794440082 | Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
-1794440082 | --- | --- | --- | --- | --- | --- |
-1794440082 | node-1 | 2.11 | 1511 MB | 943 MB | 156 | 0.537 s |
-1794440082 
-1794440082 | Container | CPU avg | CPU max | Memory |
-1794440082 | --- | --- | --- | --- |
-1794440082 | wow-e2e-bench-kafka | 38.1% | 129.3% | 1003MiB / 31.36GiB |
-1794440082 | wow-e2e-bench-mongo | 180.5% | 262.7% | 2.162GiB / 31.36GiB |
-1794440082 
-1794440082 Store operations, mongo (seconds -0.784 to 120.668): {epoch=121.45199990272522, insert=966259, query=427, update=1027018, delete=0, getmore=0, command=5590}
-1794440082 Store operations, kafkaEndOffsets (seconds -29.885 to 122.415): {wow.transfer.account.state=1192916, wow.transfer.commands=0}
-1794440082 
-1794440083 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/mongo-store-cost/r1-tag/run
+1794467848 [settle] 1s: node-1 0.02
+1794467849 [settle] 2s: node-1 0.03
+1794467850 [settle] 3s: node-1 0.03
+1794467850 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794467851 [bench] running E1 at 8000/s
+1794467851 [run] E1 @ 8000.0/s: warm-up
+1794467851 [alloc] cannot attach to pid 11362: java.rmi.ConnectIOException: Exception creating connection to: 169.254.118.102; nested exception is: 
+1794467851 	java.net.BindException: Can't assign requested address
+1794467881 [run] E1 @ 8000.0/s: measure
+1794468001 [run] E1 @ 8000.0/s: drain
+1794468004 # run: E1
+1794468004 
+1794468004 deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), loadJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), stores kafka mongo, storeWriteIops , primed true, primeSeconds 10, settleSeconds 4, accounts 100000, session /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/20261111-231622-run-mongo-n1-saturation.
+1794468004 
+1794468004 Open loop at 8000.0/s, uniform over 100000 accounts, 30 s warm-up, 120 s measured.
+1794468004 
+1794468004 | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+1794468004 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+1794468004 | 8000.0/s | 960000 | 0 | 7.8 ms | 26.5 ms | 111.1 ms | 171.0 ms | 245.2 ms | 218.1 ms |
+1794468004 
+1794468005 Load generator: 1.68 cores of 18 available to it.
+1794468005 
+1794468005 | Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+1794468005 | --- | --- | --- | --- | --- | --- |
+1794468005 | node-1 | 2.34 | 1508 MB | 855 MB | 158 | 0.545 s |
+1794468005 
+1794468005 | Container | CPU avg | CPU max | Memory |
+1794468005 | --- | --- | --- | --- |
+1794468005 | wow-e2e-bench-kafka | 41.8% | 164.1% | 1.062GiB / 31.36GiB |
+1794468005 | wow-e2e-bench-mongo | 207.3% | 357.2% | 2.176GiB / 31.36GiB |
+1794468005 
+1794468005 Store operations, mongo (seconds -0.745 to 120.753): {epoch=121.49799990653992, insert=965973, query=437, update=1029792, delete=0, getmore=0, command=5576}
+1794468005 Store operations, kafkaEndOffsets (seconds -29.748 to 122.422): {wow.transfer.account.state=1192152, wow.transfer.commands=0}
+1794468005 
+1794468005 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/mongo-store-cost-d420/r1-tag/run

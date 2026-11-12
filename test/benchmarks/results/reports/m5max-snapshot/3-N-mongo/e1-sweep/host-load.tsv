@@ -1,25 +1,25 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794386082	15.10	10.69	14.07	100	WindowServer 48, Claude Helper 14, Stats 7		175	0	0.1	
-1794386094	13.55	10.50	13.96	205	Claude Helper (Renderer) 114, WindowServer 38, Claude Helper 14		203	6	0.0	
-1794386106	11.65	10.23	13.80	74	WindowServer 47, Claude Helper 11, Claude Helper (Renderer) 7		308	18	0.0	
-1794386118	10.31	9.99	13.68	99	WindowServer 54, Claude Helper 16, claude 7		223	2	0.1	
-1794386131	8.63	9.64	13.48	69	WindowServer 36, Claude Helper (Renderer) 14, Claude Helper 12		371	4	0.0	
-1794386143	8.29	9.53	13.40	73	WindowServer 32, Claude Helper 13, Claude Helper (Renderer) 9		490	5	0.0	
-1794386155	9.20	9.68	13.41	50	WindowServer 30, Claude Helper 11, Claude Helper (Renderer) 3		387	5	0.1	
-1794386167	7.97	9.38	13.24	98	Claude Helper (Renderer) 34, WindowServer 34, Claude Helper 14		692	8	0.0	
-1794386179	8.77	9.52	13.24	99	WindowServer 35, Claude Helper (Renderer) 33, Claude Helper 13		590	6	0.0	
-1794386192	8.14	9.34	13.11	81	WindowServer 36, Claude Helper (Renderer) 20, Claude Helper 14		709	5	0.0	
-1794386204	8.81	9.46	13.11	90	WindowServer 41, Claude Helper 12, Claude 5		969	11	0.1	
-1794386216	7.93	9.23	12.96	57	WindowServer 35, Claude Helper 13, Claude Helper (Renderer) 4		1053	13	0.3	
-1794386228	7.89	9.17	12.90	55	WindowServer 35, Claude Helper 12, Claude Helper (Renderer) 3		1128	13	0.1	
-1794386241	15.15	10.65	13.35	74	WindowServer 41, Claude Helper 13, Claude 5		1156	13	0.1	
-1794386253	13.58	10.46	13.26	63	WindowServer 37, Claude Helper 13, Stats 5		1364	18	0.1	
-1794386265	13.93	10.64	13.29	185	java 88, WindowServer 42, Claude Helper (Renderer) 14		1283	16	0.3	
-1794386277	17.25	11.52	13.56	77	WindowServer 38, Claude Helper 13, Claude Helper (Renderer) 6		1261	18	0.1	
-1794386290	25.26	13.45	14.21	110	WindowServer 54, Claude Helper 14, Dock 8		1422	23	0.1	
-1794386302	29.80	15.09	14.79	84	WindowServer 40, Claude Helper 15, Claude Helper (Renderer) 6		1440	21	0.1	
-1794386314	29.02	15.41	14.91	88	WindowServer 39, Claude Helper 13, Claude Helper (Renderer) 11		1434	19	0.1	
-1794386326	29.19	16.14	15.18	61	WindowServer 38, Claude Helper 13, sysmond 4		1454	6	0.1	
-1794386339	32.18	17.16	15.55	88	WindowServer 47, Claude Helper 14, Claude Helper (Renderer) 6		1573	8	0.1	
-1794386351	36.39	18.80	16.16	65	WindowServer 38, Claude Helper 12, Stats 4		1569	8	0.1	
-1794386363	36.53	19.41	16.41	70	WindowServer 40, Claude Helper 13, Claude Helper (Renderer) 8		1548	7	0.1	
+1794473126	35.34	28.70	21.55	11	sysmond 3, bash 2, AppleCentauriAlpha 1		54	0	0.0	
+1794473138	28.88	27.59	21.28	22	Stats 10, configd 5, AppleCentauriAlpha 1		131	3	0.1	
+1794473150	24.98	26.79	21.07	11	Stats 4, configd 2, AppleCentauriAlpha 1		244	2	0.0	
+1794473163	20.26	25.66	20.77	9	Stats 2, WindowServer 1, AppleCentauriAlpha 1		151	2	0.3	
+1794473175	17.54	24.90	20.55	6	sysmond 3, AppleCentauriAlpha 1, Stats 0		327	4	0.0	
+1794473187	15.26	24.04	20.32	8	UniversalControl 1, claude 1, AppleCentauriAlpha 1		261	4	0.0	
+1794473199	13.43	23.36	20.13	17	Stats 6, configd 3, WindowServer 2		246	4	0.0	
+1794473211	12.00	22.72	19.94	10	Stats 3, configd 2, claude 1		481	6	0.4	
+1794473224	9.95	21.74	19.63	11	claude 4, claude 2, Stats 1		543	8	0.0	
+1794473236	11.82	21.73	19.66	11	claude 4, sysmond 3, AppleCentauriAlpha 1		315	4	0.1	
+1794473248	10.31	20.93	19.40	15	claude 4, MacPacketTunnel 2, claude 2		917	10	0.1	
+1794473260	10.08	20.52	19.28	17	Stats 5, claude 3, configd 3		1082	13	0.0	
+1794473273	12.98	20.59	19.32	15	sysmond 3, UniversalControl 2, AppleCentauriAlpha 2		1087	11	0.0	
+1794473285	18.80	21.62	19.70	3	AppleCentauriAlpha 1, Stats 1, wifip2pd 0		1091	13	0.0	
+1794473297	24.21	22.70	20.12	8	UniversalControl 2, AppleCentauriAlpha 2, bluetoothd 1		1305	16	0.1	
+1794473309	29.44	23.85	20.56	13	Stats 5, configd 3, WindowServer 2		1365	16	0.0	
+1794473322	30.13	24.21	20.73	8	AppleCentauriAlpha 2, UniversalControl 1, Stats 1		1374	16	0.1	
+1794473334	30.39	24.61	20.93	14	mdworker_shared 5, AppleCentauriAlpha 1, mDNSResponder 1		1415	22	0.2	
+1794473346	33.42	25.46	21.28	5	Shadowrocket 2, WindowServer 1, AppleCentauriAlpha 1		1418	18	0.1	
+1794473358	30.58	25.21	21.26	11	Stats 4, configd 3, AppleCentauriAlpha 1		1458	19	0.2	
+1794473371	26.67	24.55	21.07	11	sysmond 4, Stats 2, claude 1		1466	10	0.0	
+1794473383	33.95	26.28	21.75	11	corespotlightd 4, suggestd 1, AppleCentauriAlpha 1		1541	9	0.1	
+1794473395	34.02	26.56	21.90	8	sysmond 3, configd 1, AppleCentauriAlpha 1		1372	7	0.2	
+1794473407	35.71	27.35	22.27	17	dasd 4, sysmond 4, Stats 2		1451	10	0.2	

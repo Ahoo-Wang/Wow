@@ -1,8 +1,8 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794386694	39.69	25.86	19.56	42	WindowServer 8, sysmond 8, Claude Helper (Renderer) 6		218	0	0.0	
-1794386706	33.02	25.05	19.38	76	WindowServer 20, SCIM_Extension 11, biomesyncd 7		1373	23	0.1	
-1794386719	33.57	25.43	19.58	17	WindowServer 4, Claude Helper (Renderer) 4, Claude Helper 3		1431	21	0.1	
-1794386731	30.10	25.05	19.55	33	WindowServer 8, Claude 7, Claude Helper (Renderer) 5		1422	20	0.1	
-1794386743	33.53	26.01	19.96	29	WindowServer 13, Stats 3, Claude 2		960	12	0.0	
-1794386755	29.40	25.36	19.80	16	WindowServer 4, Claude Helper (Renderer) 2, Claude 2		1415	23	0.2	
-1794386768	24.75	24.53	19.60	72	WindowServer 37, Claude Helper 11, claude 10		1412	18	0.1	
+1794473708	26.05	24.81	22.10	22	Stats 5, sysmond 5, configd 3		25	0	0.0	
+1794473721	25.23	24.66	22.07	9	rapportd 2, runningboardd 1, Stats 1		1191	17	0.1	
+1794473733	34.73	26.78	22.88	10	sysmond 3, AppleCentauriAlpha 1, airportd 1		1366	19	0.2	
+1794473745	37.60	27.62	23.22	3	AppleCentauriAlpha 1, wifip2pd 0, UniversalControl 0		1343	19	0.2	
+1794473757	31.53	26.76	22.99	11	claude 4, Stats 3, configd 2		1422	23	0.2	
+1794473770	38.58	28.42	23.62	5	Stats 1, AppleCentauriAlpha 1, configd 1		1373	22	0.3	
+1794473782	36.98	28.42	23.67	15	launchd 13, AppleCentauriAlpha 1, wifip2pd 0		1347	19	0.2	
