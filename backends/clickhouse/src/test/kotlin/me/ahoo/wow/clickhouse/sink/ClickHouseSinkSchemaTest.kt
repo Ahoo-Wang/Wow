@@ -31,28 +31,28 @@ class ClickHouseSinkSchemaTest {
             """
             CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state_events`
             (
-                `id` String,
-                `tenant_id` String,
+                `id` String CODEC(ZSTD(1)),
+                `tenant_id` String CODEC(ZSTD(1)),
                 `aggregate_id` String,
-                `version` UInt32,
-                `command_id` String,
-                `request_id` String,
+                `version` UInt32 CODEC(Delta, ZSTD(1)),
+                `command_id` String CODEC(ZSTD(1)),
+                `request_id` String CODEC(ZSTD(1)),
                 `command_type` LowCardinality(String),
-                `commit_time` DateTime64(3, 'UTC'),
-                `owner_id` String,
-                `space_id` String,
+                `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+                `owner_id` String CODEC(ZSTD(1)),
+                `space_id` String CODEC(ZSTD(1)),
                 `deleted` Bool,
-                `access` String,
-                `correlation_id` String,
-                `causation_id` String,
-                `headers` Map(String, String),
-                `operator_id` String,
-                `operator_tenant_id` String,
+                `access` String CODEC(ZSTD(1)),
+                `correlation_id` String CODEC(ZSTD(1)),
+                `causation_id` String CODEC(ZSTD(1)),
+                `headers` Map(String, String) CODEC(ZSTD(1)),
+                `operator_id` String CODEC(ZSTD(1)),
+                `operator_tenant_id` String CODEC(ZSTD(1)),
                 `operator_acted_elsewhere` Bool,
-                `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
-                `state` String,
-                `state_fingerprint` String,
-                `state_numbers` Map(String, String)
+                `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(3)),
+                `state` String CODEC(ZSTD(3)),
+                `state_fingerprint` String CODEC(ZSTD(1)),
+                `state_numbers` Map(String, String) CODEC(ZSTD(1))
             )
             ENGINE = ReplacingMergeTree
             PARTITION BY toYYYYMM(commit_time)
@@ -72,7 +72,7 @@ class ClickHouseSinkSchemaTest {
         val total = ComputedColumn("total", "Decimal(38, 2)", "toDecimal128OrZero(state_numbers['total'], 2)")
         ddl[1].assert().isEqualTo(
             "CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state`\n(\n" +
-                ClickHouseSinkSchema.STATE_COLUMNS.joinToString(",\n") { "    `${it.name}` ${it.type}" } +
+                ClickHouseSinkSchema.STATE_COLUMNS.joinToString(",\n") { "    ${ClickHouseSinkSchema.definitionOf(it)}" } +
                 ",\n    `total` Decimal(38, 2) MATERIALIZED toDecimal128OrZero(state_numbers['total'], 2) " +
                 "COMMENT 'wow:${total.fingerprint}'" +
                 "\n)\nENGINE = ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" +

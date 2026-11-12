@@ -36,6 +36,13 @@ export const INSERT = {
 };
 
 /**
+ * clickhouse-insert's codec arms (CH-6, D421): the Sink's `_state_events` without codecs (LZ4), with the Sink's, and
+ * with ZSTD(1) on `state` and `events`; and the bar: the Sink's codecs may cost the insert at most this share of its
+ * rows a second against LZ4, beyond which ZSTD(1) on the two is the answer to try.
+ */
+export const CODEC = { arms: ['lz4', 'wow', 'zstd1'], bar: 0.1 };
+
+/**
  * sink's settings: E1's rate a second and its seconds, and the scenarios: the commits spread over many aggregates,
  * over a few hot ones, and over many with half of them to one; and a backlog, the spread commits written first
  * without the sink and drained by it after (bench.sh --backlog, a rebuild of the warehouse or a catch-up).
@@ -76,7 +83,7 @@ export function sinkSuites(arm) {
       measure: 'clickhouse-insert',
       arms: [arm],
       answers:
-        "What computed columns cost a ClickHouse insert (D412): N = 5, 20 and 50 columns read from a state's JSON text, each by its own JSONExtract or all by one into a tuple, inserted into the table and through a materialized view into its TO table, as the sink fills `_state`; and whether a skip index is used under FINAL, and still reads the newest row. The per-column or tuple choice is read against D412's bound.",
+        "What computed columns cost a ClickHouse insert (D412): N = 5, 20 and 50 columns read from a state's JSON text, each by its own JSONExtract or all by one into a tuple, inserted into the table and through a materialized view into its TO table, as the sink fills `_state`; and whether a skip index is used under FINAL, and still reads the newest row. The per-column or tuple choice is read against D412's bound. And what the Sink's codecs cost (CH-6): its `_state_events` without codecs, with them and with ZSTD(1) on the state and the events, each filled with the same commits, then merged.",
     },
     'sink-ch': {
       group: 'sink',
@@ -203,7 +210,54 @@ export function readInsert(dir) {
     repeats: manifest.repeats,
     arms,
     skip: readJsonIfThere(join(dir, 'skip.json')),
+    codecs: readCodecs(dir),
   };
+}
+
+/**
+ * The codec arms of [dir] (CODEC.arms), from codec.jsonl and codec-merge.jsonl: per arm, the median CPU (user and all)
+ * µs a row and rows a second of its inserts, and its merge's CPU µs a row, duration and the parts' bytes after it;
+ * undefined when either file is missing.
+ */
+function readCodecs(dir) {
+  const inserts = join(dir, 'codec.jsonl');
+  const merges = join(dir, 'codec-merge.jsonl');
+  if (!existsSync(inserts) || !existsSync(merges)) return undefined;
+  const lines = file =>
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
+  const merged = new Map(lines(merges).map(merge => [merge.arm, merge]));
+  const groups = new Map();
+  for (const insert of lines(inserts)) {
+    groups.set(insert.arm, [...(groups.get(insert.arm) ?? []), insert]);
+  }
+  return CODEC.arms
+    .filter(arm => groups.has(arm))
+    .map(arm => {
+      const list = groups.get(arm);
+      const median = values => quantile(values, 0.5);
+      const perRow = field =>
+        median(list.map(it => Number(it[field]) / Number(it.rows)));
+      const merge = merged.get(arm);
+      return {
+        arm,
+        inserts: list.length,
+        userMicrosPerRow: perRow('userMicros'),
+        cpuMicrosPerRow: perRow('cpuMicros'),
+        rowsPerSecond: median(
+          list.map(it => Number(it.rows) / (Number(it.durationMs) / 1000)),
+        ),
+        merge: merge && {
+          partsBefore: Number(merge.partsBefore),
+          userMicrosPerRow: Number(merge.userMicros) / Number(merge.rows),
+          durationMs: Number(merge.durationMs),
+          compressedBytes: Number(merge.compressedBytes),
+          uncompressedBytes: Number(merge.uncompressedBytes),
+        },
+      };
+    });
 }
 
 /**
@@ -312,7 +366,42 @@ export function insertTables(suite) {
       }
     }
   }
-  return [...lines, '', ...verdicts, '', ...skipLines(measured.skip)];
+  return [
+    ...lines,
+    '',
+    ...verdicts,
+    '',
+    ...skipLines(measured.skip),
+    '',
+    ...codecLines(measured.codecs),
+  ];
+}
+
+/**
+ * The codec arms (CH-6): per arm, the insert's CPU (user) a row and rows a second, the merge's CPU a row and duration,
+ * the bytes after it; then the Sink's codecs against LZ4, read against CODEC.bar.
+ */
+function codecLines(codecs) {
+  if (!codecs?.length) return ['No codec result.'];
+  const lines = [
+    "The Sink's `_state_events` of the same commits: without codecs (LZ4), with the Sink's, and with ZSTD(1) on `state` and `events`; the inserts' median, then one OPTIMIZE FINAL of the arm's parts.",
+    '',
+    '| Arm | Insert CPU a row | Insert rows/s | Merge CPU a row | Merge | Compressed | Ratio |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...codecs.map(
+      it =>
+        `| ${it.arm} | ${micros(it.userMicrosPerRow)} | ${num(it.rowsPerSecond, 0)} | ${micros(it.merge?.userMicrosPerRow)} | ${it.merge ? `${num(it.merge.durationMs, 0)} ms` : '-'} | ${it.merge ? `${num(it.merge.compressedBytes, 0)} B` : '-'} | ${it.merge ? `×${num(it.merge.uncompressedBytes / it.merge.compressedBytes, 2)}` : '-'} |`,
+    ),
+  ];
+  const lz4 = codecs.find(it => it.arm === 'lz4');
+  const wow = codecs.find(it => it.arm === 'wow');
+  if (!lz4 || !wow) return lines;
+  const fall = 1 - wow.rowsPerSecond / lz4.rowsPerSecond;
+  return [
+    ...lines,
+    '',
+    `- The Sink's codecs: ${num(fall * 100, 1)}% fewer rows a second than LZ4, ${fall > CODEC.bar ? `**over** the ${num(CODEC.bar * 100, 0)}% bar: ZSTD(1) on \`state\` and \`events\` is the arm to weigh` : `within the ${num(CODEC.bar * 100, 0)}% bar`}; the bytes ${num((1 - wow.merge?.compressedBytes / lz4.merge?.compressedBytes) * 100, 1)}% fewer.`,
+  ];
 }
 
 /** The skip index under FINAL: per setting, the count against the right one, the rows read, and whether the plan uses it. */

@@ -24,4 +24,8 @@ tasks.test {
     val scaleCheck = rootProject.file("test/benchmarks/harness/measure/dataset-access.sql")
     inputs.file(scaleCheck).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("scaleCheckSql")
     systemProperty("wow-test.clickhouse.scale-check-sql", scaleCheck.absolutePath)
+    // And the codec check's `_state_events` (bench.sh measure --program=clickhouse-insert) to the Sink's.
+    val codecCheck = rootProject.file("test/benchmarks/harness/measure/clickhouse-codecs.sql")
+    inputs.file(codecCheck).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("codecCheckSql")
+    systemProperty("wow-test.clickhouse.codec-check-sql", codecCheck.absolutePath)
 }

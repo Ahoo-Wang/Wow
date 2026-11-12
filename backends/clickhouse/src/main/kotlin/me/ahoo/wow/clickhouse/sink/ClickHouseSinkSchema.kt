@@ -237,7 +237,7 @@ class ClickHouseSinkSchema(
         engine: String,
         computed: List<ComputedColumn> = emptyList(),
     ): String = "CREATE TABLE IF NOT EXISTS ${qualified(name)}\n(\n" +
-        (columns.map { "${identifier(it.name)} ${it.type}" } + computed.map { it.definition })
+        (columns.map(::definitionOf) + computed.map { it.definition })
             .joinToString(",\n") { "    $it" } +
         "\n)\nENGINE = $engine\n" + comment()
 
@@ -298,6 +298,26 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("state_fingerprint", "String"),
             ClickHouseColumn("state_numbers", "Map(String, String)"),
         )
+
+        /**
+         * The codec of each stored column the Sink creates, by name, in place of ClickHouse's LZ4: ZSTD for text, a
+         * level higher for the states and the events' payloads, and the delta first for the version and the commit
+         * time, which grow along the sorting key. A codec is not part of a column's type (`system.columns.type`), so
+         * the Sink neither validates it nor changes an existing table's: such a table keeps its codecs until its
+         * operator changes them.
+         */
+        private val CODECS: Map<String, String> = buildMap {
+            listOf(
+                "id", "tenant_id", "command_id", "request_id", "owner_id", "space_id", "access", "correlation_id",
+                "causation_id", "headers", "operator_id", "operator_tenant_id", "state_fingerprint", "state_numbers",
+            ).forEach { put(it, "ZSTD(1)") }
+            listOf("state", "events", "payload").forEach { put(it, "ZSTD(3)") }
+            listOf("version", "commit_time").forEach { put(it, "Delta, ZSTD(1)") }
+        }
+
+        /** The definition the Sink creates a stored [column] with: its name, its type and its codec, if it has one. */
+        internal fun definitionOf(column: ClickHouseColumn): String =
+            "${identifier(column.name)} ${column.type}" + CODECS[column.name]?.let { " CODEC($it)" }.orEmpty()
 
         /** The columns only the history keeps: `_state` has the others. */
         private val HISTORY_ONLY = setOf("headers", "events")
