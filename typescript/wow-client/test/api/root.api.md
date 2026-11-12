@@ -1792,7 +1792,7 @@ export interface ScheduleRule {
 // @public
 export interface ScheduleSet {
     // (undocumented)
-    readonly command: string;
+    readonly command: Readonly<Record<string, unknown>>;
     // (undocumented)
     readonly commandType: string;
     // (undocumented)

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -185,8 +186,8 @@ enum class Misfire {
 
 /**
  * The system command `wow.schedule.SetSchedule`: sets the schedule [key] of the aggregate it is sent to, to
- * send it the command of type [commandType] (`context.aggregate.Command`), [command] its JSON, as [rule] says. Every
- * aggregate decides it without user code, on an aggregate that exists; a saga derives it
+ * send it the command of type [commandType] (`context.aggregate.Command`), [command] its body as a JSON object, as
+ * [rule] says. Every aggregate decides it without user code, on an aggregate that exists; a saga derives it
  * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]).
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -195,7 +196,7 @@ class SetSchedule @InternalWowApi constructor(
     val key: String,
     val rule: ScheduleRule,
     val commandType: String,
-    val command: String,
+    val command: ObjectNode,
 ) {
     init {
         require(key.isNotBlank()) { "A schedule needs a key." }
@@ -214,7 +215,7 @@ class SetSchedule @InternalWowApi constructor(
     companion object {
         /** A SetSchedule of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(key: String, rule: ScheduleRule, commandType: String, command: String): SetSchedule =
+        fun of(key: String, rule: ScheduleRule, commandType: String, command: ObjectNode): SetSchedule =
             SetSchedule(key, rule, commandType, command)
     }
 }
@@ -247,8 +248,8 @@ class CancelSchedule @InternalWowApi constructor(val key: String) {
 
 /**
  * The system event `wow.schedule.ScheduleSet`: the aggregate set its schedule [key], to send [target] the command
- * of type [commandType], [command] its JSON, as [rule] says. Committed with the aggregate's other events; the built-in
- * `timers` subscription derives the timer store from it.
+ * of type [commandType], [command] its body as a JSON object, as [rule] says. Committed with the aggregate's other
+ * events; the built-in `timers` subscription derives the timer store from it.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -257,7 +258,7 @@ class ScheduleSet @InternalWowApi constructor(
     val rule: ScheduleRule,
     val target: AggregateRef,
     val commandType: String,
-    val command: String,
+    val command: ObjectNode,
 ) {
     init {
         require(key.isNotBlank()) { "A schedule needs a key." }
@@ -282,7 +283,7 @@ class ScheduleSet @InternalWowApi constructor(
             rule: ScheduleRule,
             target: AggregateRef,
             commandType: String,
-            command: String,
+            command: ObjectNode,
         ): ScheduleSet = ScheduleSet(key, rule, target, commandType, command)
     }
 }

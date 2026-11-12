@@ -17,12 +17,27 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.ExecutorOptions
+import me.ahoo.wow.runtime.cluster.fastOptions
+import me.ahoo.wow.runtime.node.BackendFactory
+import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.subscription.Lease
+import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.time.Duration
@@ -56,6 +71,73 @@ class NodeLivenessTest : NodeHealthFixtures() {
             stuck.await()
         }
         health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+    }
+
+    @Test
+    fun `a stuck start fails the liveness past the stall timeout, and is fenced past the reconcile timeout`(): Unit =
+        runBlocking {
+            // Every acquisition waits on a call that never returns: the start's first reconcile finishes no step.
+            val released = CompletableDeferred<Unit>()
+            val hung = object : LeaseStore by leases {
+                override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+                    released.await()
+                    return leases.acquire(group, partition, owner, ttl)
+                }
+            }
+            val options = ServiceNodeOptions(
+                cluster = fastOptions(drainTimeout = 1.seconds, reconcileTimeout = 2.seconds),
+                subscription = testOptions(),
+            )
+            val node = node(options = options, backends = backendsOn(hung))
+            val health = health(node, HealthOptions(stallTimeout = 500.milliseconds))
+            val starting = launch { node.start() }
+            try {
+                eventually { node.state == ServiceNode.State.STARTING && node.context(BANK).ownership.stalledFor != null }
+                // An ordinary start, the stall timeout not past yet, is live.
+                health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+                eventually { health.liveness().status == HealthStatus.DOWN }
+                val liveness = health.liveness()
+                liveness.details["stalled"].assert().isEqualTo(NodeHealth.STALLED_RECONCILE)
+                liveness.details["stalls"].assert().isEqualTo(listOf(NodeHealth.STALLED_RECONCILE))
+                liveness.details["group"].assert().isEqualTo(node.context(BANK).ownership.group.name)
+                ((liveness.details["stalledMillis"] as Long) >= 500).assert().isTrue()
+                // Past the reconcile timeout the fence falls on the start's group too, and the readiness says so.
+                fun group() = health.readiness().component(NodeHealth.OWNERSHIP)!!.components.single()
+                group().details.containsKey("fenced").assert().isFalse()
+                eventually(timeout = 10.seconds) { group().details["fenced"] == true }
+            } finally {
+                released.complete(Unit)
+                starting.join()
+            }
+            // The steps finish once the call returns: the start completes, and the node is live again.
+            node.state.assert().isEqualTo(ServiceNode.State.RUNNING)
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+        }
+
+    @Test
+    fun `a lease store that fails during the start is no stall, the start failing with its error and the liveness up`(): Unit =
+        runBlocking {
+            val failing = object : LeaseStore by leases {
+                override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
+                    throw StorageUnavailableException("The lease store is down.")
+            }
+            val node = node(backends = backendsOn(failing))
+            val health = health(node, HealthOptions(stallTimeout = 500.milliseconds))
+            // An acquisition that fails is a step: the first reconcile ends, failed, and so does the start.
+            assertThrows<StorageUnavailableException> { node.start() }
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+            node.context(BANK).ownership.stalledFor.assert().isNull()
+        }
+
+    /** The fixture's backends with their leases on [store]. */
+    private fun backendsOn(store: LeaseStore) = BackendFactory {
+        ContextBackends(
+            log = log,
+            checkpoints = InMemoryCheckpointStore(),
+            leases = store,
+            ledger = InMemoryFailureLedger(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
+        )
     }
 
     /**
