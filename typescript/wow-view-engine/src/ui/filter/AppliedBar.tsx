@@ -178,10 +178,9 @@ export function AppliedBar({
               onClick={() => {
                 going.current = { key: item.path.join('.'), at: index };
                 // A segment is two conditions said as one badge, so its ✕
-                // takes out the segment, not one edge of it.
-                for (const path of item.paths ?? [item.path])
-                  filter.clearValue(filterIndexes(path));
-                filter.submit();
+                // takes out the segment, not one edge of it — and nothing
+                // else: what waits in the draft goes on waiting (`unset`).
+                filter.unset((item.paths ?? [item.path]).map(filterIndexes));
               }}
             >
               {/* No size class: the button sizes what is inside it, and at

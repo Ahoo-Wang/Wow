@@ -58,7 +58,10 @@ fail() {
   return 1
 }
 
-k() { kubectl --context "kind-$cluster" -n "$namespace" "$@"; }
+# The kubectl the drill runs, resolved once: DRILL_KUBECTL, else the first on the path. A shell started before the path
+# changed may find another first (OrbStack's own, older), so a run can name it (README.md, "Tools").
+kubectl=${DRILL_KUBECTL:-$(command -v kubectl || true)}
+k() { "$kubectl" --context "kind-$cluster" -n "$namespace" "$@"; }
 
 # Runs a step or an operation (a function of this script) in a process of its own, so that errexit holds inside it: a
 # function called where its status is tested (cmd || ...) runs with errexit off, every command after a failing one
@@ -93,6 +96,33 @@ is_eshop() {
   return 1
 }
 
+# Step 0's first check, before any cluster exists: each tool's path and version into evidence/tools.txt, and a
+# refusal of any that is not the version README.md names (helm, kind, kubectl within one minor of the nodes', the JDK
+# the build runs on). Docker is recorded, not checked: it is OrbStack's.
+tools() {
+  local out="$evidence/tools.txt" version minor ok=0
+  : >"$out"
+  record() { printf '%-8s %-40s %s\n' "$1" "$2" "$3" | tee -a "$out" >&2; }
+  version=$(helm version --short 2>/dev/null | cut -d+ -f1)
+  record helm "$(command -v helm || echo missing)" "$version"
+  [ "$version" = "$HELM_VERSION" ] || { log "helm is ${version:-missing}, not $HELM_VERSION"; ok=1; }
+  version=$(kind version 2>/dev/null | awk '{print $2}')
+  record kind "$(command -v kind || echo missing)" "$version"
+  [ "$version" = "$KIND_VERSION" ] || { log "kind is ${version:-missing}, not $KIND_VERSION"; ok=1; }
+  version=$("$kubectl" version --client -o json 2>/dev/null | jq -r '.clientVersion.gitVersion // empty')
+  record kubectl "${kubectl:-missing}" "$version"
+  minor=$(cut -d. -f2 <<<"$version")
+  case " $KUBECTL_MINORS " in
+    *" $minor "*) ;;
+    *) log "kubectl is ${version:-missing}, not 1.${KUBECTL_MINORS// /, 1.}: set DRILL_KUBECTL"; ok=1 ;;
+  esac
+  version=$(java -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')
+  record java "$(command -v java || echo missing)" "$version"
+  [ "$version" = "$JDK_MAJOR" ] || { log "the JDK is ${version:-missing}, not $JDK_MAJOR"; ok=1; }
+  record docker "$(command -v docker || echo missing)" "$(docker version --format '{{.Server.Version}}' 2>/dev/null)"
+  return "$ok"
+}
+
 diagnostics() {
   local out="$evidence/diagnostics" pod container
   mkdir -p "$out/logs" "$out/threads"
@@ -100,7 +130,7 @@ diagnostics() {
   helm --kube-context "kind-$cluster" -n "$namespace" list -a >"$out/releases.txt" 2>&1 || true
   k get events --sort-by=.lastTimestamp >"$out/events.txt" 2>&1 || true
   k describe pods >"$out/pods.txt" 2>&1 || true
-  kubectl --context "kind-$cluster" get nodes -o wide -L topology.kubernetes.io/zone >"$out/nodes.txt" 2>&1 || true
+  "$kubectl" --context "kind-$cluster" get nodes -o wide -L topology.kubernetes.io/zone >"$out/nodes.txt" 2>&1 || true
   for pod in $(k get pods -o name 2>/dev/null); do
     pod=${pod#pod/}
     for container in $(k get pod "$pod" -o jsonpath='{.spec.containers[*].name}'); do

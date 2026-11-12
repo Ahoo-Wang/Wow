@@ -21,14 +21,14 @@ cluster() {
   fi
   curl -fsSLo "$evidence/calico.yaml" "https://raw.githubusercontent.com/projectcalico/calico/$CALICO_VERSION/manifests/calico.yaml"
   echo "$CALICO_SHA256  $evidence/calico.yaml" | shasum -a 256 -c -
-  kubectl --context "kind-$cluster" apply -f "$evidence/calico.yaml" >/dev/null
-  kubectl --context "kind-$cluster" -n kube-system rollout status daemonset/calico-node --timeout=600s
-  kubectl --context "kind-$cluster" wait --for=condition=Ready nodes --all --timeout=600s
-  kubectl --context "kind-$cluster" create namespace "$namespace" --dry-run=client -o yaml |
-    kubectl --context "kind-$cluster" apply -f -
+  "$kubectl" --context "kind-$cluster" apply -f "$evidence/calico.yaml" >/dev/null
+  "$kubectl" --context "kind-$cluster" -n kube-system rollout status daemonset/calico-node --timeout=600s
+  "$kubectl" --context "kind-$cluster" wait --for=condition=Ready nodes --all --timeout=600s
+  "$kubectl" --context "kind-$cluster" create namespace "$namespace" --dry-run=client -o yaml |
+    "$kubectl" --context "kind-$cluster" apply -f -
   # The cluster test runs kubectl in the context's namespace.
-  kubectl config set-context "kind-$cluster" --namespace "$namespace" >/dev/null
-  kubectl --context "kind-$cluster" get nodes -L topology.kubernetes.io/zone
+  "$kubectl" config set-context "kind-$cluster" --namespace "$namespace" >/dev/null
+  "$kubectl" --context "kind-$cluster" get nodes -L topology.kubernetes.io/zone
 }
 
 random() { openssl rand -hex "${1:-24}"; }

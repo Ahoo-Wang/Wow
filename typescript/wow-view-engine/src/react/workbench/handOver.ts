@@ -235,6 +235,13 @@ export function useHandedRemoval(
     if (!runtime || conditions.length === 0) return filter;
     return {
       ...filter,
+      // A view opened on handed conditions takes one out by rewriting its
+      // draft (below), which is not an edit `unset` can make on what is in
+      // force as well: here the ✕ applies the draft, as it always did.
+      unset(paths: readonly FilterPath[]) {
+        for (const path of paths) this.clearValue(path);
+        filter.submit();
+      },
       clearValue(path: FilterPath) {
         const { draft, saved } = runtime.getSnapshot();
         const own = saved?.config;
