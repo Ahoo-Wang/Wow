@@ -44,6 +44,15 @@ import java.util.concurrent.ConcurrentHashMap
  *   ([ParkedAmendment.Schedule]): its next retry, or [ParkedAggregate.NEVER], so the next scans pass it over until
  *   then, or until it is claimed or an operator changes it.
  *
+ * **Bounds.** A worker runs at most its in-flight bound (`maxInFlight`) of parked entries at once, a retry, a
+ * requested retry or a skip each holding one of its retry permits ([SubscriptionWorker.retryPermits]) from before
+ * anything is claimed or read until it ends. These are apart from the permits its live entries hold, so a backlog of
+ * live entries never keeps a retry from starting, nor a recovery after an outage a live entry from being admitted:
+ * a partition holds at most `maxInFlight` live entries and `maxInFlight` parked ones in hand. An entry due when no
+ * retry permit is free is left as read, neither claimed nor its request taken, so no retry is spent and no claim
+ * runs out while it waits; the next scan starts it once one is. The handler's attempts of both, live or retried, stay
+ * under the one [PartitionThrottle], the bound on what runs in the handler at once.
+ *
  * Claims, takes and schedules apply only at the entry's revision read ([ParkedAggregate.revision]), so when an owner
  * hands a partition off while it retries, the next owner neither claims the same retry again nor runs a request twice,
  * and a schedule never covers an operator's change or a repark made since the read: those clear the entry's schedule,
@@ -113,15 +122,24 @@ internal class ParkedRetries(
         }
     }
 
+    /**
+     * Runs [entry] on [worker] when one of the worker's retry permits is free; otherwise leaves it as read, claimed
+     * by nothing and its request not taken, due for the next scan.
+     */
     private fun dispatch(scope: CoroutineScope, worker: SubscriptionWorker, entry: ParkedAggregate) {
         val key = entry.subscription to entry.ref
         if (!running.add(key)) {
+            return
+        }
+        if (!worker.retryPermits.tryAcquire()) {
+            running.remove(key)
             return
         }
         scope.launch {
             try {
                 run(worker, entry)
             } finally {
+                worker.retryPermits.release()
                 running.remove(key)
             }
         }
