@@ -1,0 +1,22 @@
+# The clients' only way in: every path to the CoSec gateway, which routes by the context prefix (gateway/gateway.yaml).
+# HTTPS with the drill's own certificate for localhost (drill-ingress-tls: tls.crt, tls.key, signed by the drill's CA),
+# and plain HTTP beside it, on Traefik's two entry points.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eshop
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [localhost]
+      secretName: drill-ingress-tls
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cosec-gateway
+                port:
+                  name: http

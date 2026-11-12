@@ -1,0 +1,33 @@
+# The rc drill's cluster: a control plane and three workers, each worker a zone of its own, so the chart's topology
+# spread (zone, then hostname) and the replica set's three failure domains (Operate › MongoDB) have somewhere to go,
+# and losing a worker is losing a zone. kind keeps the control plane tainted when it has workers, so every workload runs
+# on the workers. No kindnet, which does not enforce NetworkPolicy: the drill installs Calico (versions.env), whose
+# default pool is 192.168.0.0/16.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: wow-rc-drill
+networking:
+  disableDefaultCNI: true
+  podSubnet: 192.168.0.0/16
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # The ingress controller's node ports (platform/ingress/traefik-values.yaml): the clients' only way in, on the
+      # machine's localhost. Any node's port reaches Traefik; the control plane's is the one mapped.
+      - containerPort: 30080
+        hostPort: 30080
+        listenAddress: 127.0.0.1
+        protocol: TCP
+      - containerPort: 30443
+        hostPort: 30443
+        listenAddress: 127.0.0.1
+        protocol: TCP
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: zone-a
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: zone-b
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: zone-c

@@ -1,0 +1,48 @@
+# The catalog's own Elasticsearch user, not the superuser: a role over the indices its store writes (the store's
+# index-prefix, eshop, then wow_snapshot__ and wow_events__), which it creates and maps itself (its ddl). Run once the
+# cluster answers; creating a role or a user again replaces it, so the job can run again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-users
+spec:
+  backoffLimit: 60
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elasticsearch-users
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: users
+          image: docker.elastic.co/elasticsearch/elasticsearch:9.2.6@sha256:e5673d86bb6a41ed543329ec094fc93d5ef749d32cc87a4150a15d520ad9c670
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              es() {
+                curl -fsS -u "elastic:${ELASTIC_PASSWORD}" -H 'Content-Type: application/json' \
+                  -X "$1" "http://elasticsearch:9200$2" ${3:+-d "$3"}
+                echo
+              }
+              es GET "/_cluster/health?wait_for_status=green&timeout=60s"
+              es PUT /_security/role/wow-store '{
+                "cluster": ["monitor", "manage_index_templates"],
+                "indices": [{"names": ["eshop*"], "privileges": ["all"]}]
+              }'
+              es PUT /_security/user/eshop-catalog "{\"password\": \"${CATALOG_PASSWORD}\", \"roles\": [\"wow-store\"]}"
+          env:
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: password
+            - name: CATALOG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: eshop-catalog
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
