@@ -19,8 +19,6 @@
  * `test/themeFiles.test.ts` holds to the stylesheet's.
  *
  * - `neutral` — the stylesheet's own look, and the default.
- * - `azure` — a Chinese enterprise admin look: a clear blue, 6px corners,
- *   white cards on a grey page, a type stack with the Chinese faces first.
  * - `porcelain` — a native desktop look: the system type, larger corners,
  *   soft shadows, near-neutral greys.
  * - `contrast` — high contrast: text at 7:1, edges at 4.5:1, chart
@@ -32,12 +30,7 @@
  * There are no display names: the engine draws no picker, and a host that
  * does names them in its own words.
  */
-export const BUILT_IN_PRESETS = [
-  'neutral',
-  'azure',
-  'porcelain',
-  'contrast',
-] as const;
+export const BUILT_IN_PRESETS = ['neutral', 'porcelain', 'contrast'] as const;
 
 /** The name of a preset the package ships. */
 export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];

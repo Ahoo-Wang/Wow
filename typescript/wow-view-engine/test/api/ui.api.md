@@ -585,7 +585,7 @@ interface BoxplotSpec {
 }
 
 // @public
-export const BUILT_IN_PRESETS: readonly ["neutral", "azure", "porcelain", "contrast"];
+export const BUILT_IN_PRESETS: readonly ["neutral", "porcelain", "contrast"];
 
 // @public (undocumented)
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;

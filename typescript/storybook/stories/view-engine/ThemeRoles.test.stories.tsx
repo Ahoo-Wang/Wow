@@ -365,7 +365,7 @@ async function openPopup(slot: string): Promise<HTMLElement> {
 
 /**
  * 菜单里键盘所在的那一项戴着焦点标记（第二轮审查；D76 修订）：高亮的填色在
- * neutral、azure 里只是一层浅灰，对弹层底 1.03～1.07:1，是菜单里唯一的位置
+ * neutral 里只是一层浅灰，对弹层底 1.03～1.07:1，是菜单里唯一的位置
  * 标记。现在每套预设的高亮项都在边内画 2px 的 `ring`，对弹层底 ≥3:1；填色
  * 照旧（porcelain 暗色仍是 #0058D0 配白字）。指针悬停不画（`:focus-visible`）。
  */
@@ -417,8 +417,6 @@ export const MenuFocusMarkNeutralLight: Story = menuFocusMark(
   'light',
 );
 export const MenuFocusMarkNeutralDark: Story = menuFocusMark('neutral', 'dark');
-export const MenuFocusMarkAzureLight: Story = menuFocusMark('azure', 'light');
-export const MenuFocusMarkAzureDark: Story = menuFocusMark('azure', 'dark');
 export const MenuFocusMarkPorcelainLight: Story = menuFocusMark(
   'porcelain',
   'light',

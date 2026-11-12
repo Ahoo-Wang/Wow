@@ -281,9 +281,6 @@ const galleryStory = (preset: BuiltInPreset): Story => ({
 /** The stylesheet's own look: no preset at all is this one. */
 export const Neutral: Story = galleryStory('neutral');
 
-/** Chinese enterprise admin: a clear blue, white cards on grey. */
-export const Azure: Story = galleryStory('azure');
-
 /** Native desktop: system type, 12px corners, soft shadows. */
 export const Porcelain: Story = galleryStory('porcelain');
 

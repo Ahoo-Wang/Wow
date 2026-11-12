@@ -70,6 +70,5 @@
  * files resolve to.
  */
 @import './themes/neutral.css';
-@import './themes/azure.css';
 @import './themes/porcelain.css';
 @import './themes/contrast.css';

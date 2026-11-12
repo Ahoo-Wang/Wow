@@ -116,8 +116,8 @@ describe("the host's layer", () => {
 
   it('beats the preset on the one token the host sets and leaves the rest to it', () => {
     const host = { '--fve-primary': HOST_COLOR };
-    const alone = declared('azure', 'light', 'semantic', {});
-    const withHost = declared('azure', 'light', 'semantic', host);
+    const alone = declared('porcelain', 'light', 'semantic', {});
+    const withHost = declared('porcelain', 'light', 'semantic', host);
     expect(withHost.get('--primary')).toBe(HOST_COLOR);
     expect(alone.get('--primary')).not.toBe(HOST_COLOR);
     for (const [token, value] of alone)

@@ -228,7 +228,7 @@
   /*
    * The item a menu, a select or a combobox has under the keyboard wears
    * the focus mark: 2px of `ring` inside its edge, over whatever fill the theme gives the highlight. The fill alone
-   * was the only mark, and in neutral and azure it is a tint 1.03–1.07:1
+   * was the only mark, and in neutral it is a tint 1.03–1.07:1
    * off the popup (second-round review; D76 as amended); the ring is held
    * to 3:1 off the popup by the contrast matrix ('highlighted item’s focus
    * mark on its popup'). Keyboard only — `:focus-visible` — as every other

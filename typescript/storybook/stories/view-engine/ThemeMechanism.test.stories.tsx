@@ -21,7 +21,7 @@
  *   a brand colour never reached a role written so. A preset links the role
  *   instead (`--fvp-<role>-link`), and the surface resolves the link. Worn
  *   with a violet brand, porcelain highlights its menu items violet and
- *   azure marks the view on screen and a select's chosen item violet.
+ *   a host's own links mark the view on screen and a chosen item violet.
  * - **The view on screen** without an edge or a lift, the **chosen item**
  *   in a tint and a weight, an **outline button** whose edge turns under the
  *   pointer; a **board filter chip** as tall as the theme says is measured
@@ -38,7 +38,6 @@ import { converter, parse } from 'culori';
 import { Button } from '@/ui/components/button';
 import { Checkbox } from '@/ui/components/checkbox';
 import { Input } from '@/ui/components/input';
-import { FOCUS_CARD, FOCUS_PANEL, FOCUS_ROW } from '@/ui/kit/frames';
 import { MixedCheckbox } from '@/ui/kit/MixedCheckbox';
 import displayMeta, {
   WithData as DisplayWithData,
@@ -320,27 +319,35 @@ export const PorcelainMenuFollowsTheBrandInLight: Story =
 export const PorcelainMenuFollowsTheBrandInDark: Story = porcelainMenu('dark');
 
 /**
- * azure 挂在 `<html>` 上、品牌色给在面上：侧栏当前项是选中行的淡紫、主色的字，
- * 没有边也没有浮起；分页大小里已选中的那一项是同一个淡紫、600；描边按钮悬停
- * 时边是主色（字不变：主色在悬停的底上只有 4.17:1）。
+ * 宿主自己的链接（内置预设里没有哪套用这几条，`azure` 用过，已移除，D94），品牌色
+ * 给在面上：侧栏当前项是选中行的淡紫、主色的字，没有边也没有浮起；分页大小里已
+ * 选中的那一项是同一个淡紫、600；描边按钮悬停时边是主色，字不变。
  */
-const azureMarks = (theme: 'light' | 'dark'): Story => ({
+const HOST_MARKS = {
+  '--fve-brand': VIOLET,
+  '--fve-nav-current-link': '100%',
+  '--fve-nav-current-foreground-link': '100%',
+  '--fve-nav-current-edge': 'transparent',
+  '--fve-dark-nav-current-edge': 'transparent',
+  '--fve-nav-current-shadow': '0 0 #0000',
+  '--fve-dark-nav-current-shadow': '0 0 #0000',
+  '--fve-item-selected-link': '100%',
+  '--fve-item-selected-weight': '600',
+  '--fve-outline-hover-edge-link': '100%',
+};
+
+const hostMarks = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  globals: { fvePreset: 'azure' },
   args: {
     ...DisplayWithData.args,
     colorMode: theme,
     preset: undefined,
     paged: true,
     listed: true,
-    tokens: { '--fve-brand': VIOLET },
+    tokens: HOST_MARKS,
   },
   play: async ({ canvasElement }) => {
     const { surface, current } = await workbench(canvasElement);
-    await expect(document.documentElement).toHaveAttribute(
-      'data-fve-preset',
-      'azure',
-    );
     const tint = colorOf(surface, '--_fve-row-selected');
     await expect(violet(tint), tint).toBe(true);
     // Its colours carry over from the last story's theme (`transition-all`).
@@ -372,113 +379,8 @@ const azureMarks = (theme: 'light' | 'dark'): Story => ({
   },
 });
 
-export const AzureMarksFollowTheBrandInLight: Story = azureMarks('light');
-export const AzureMarksFollowTheBrandInDark: Story = azureMarks('dark');
-
-/**
- * 引擎自己的三个焦点配方——表格行、卡片、看板面板（正文获焦时画在面板卡片上）
- * ——读主题的 `focus-width`／`focus-offset`（D76）：contrast 下是 2px，卡片与
- * 面板离边 2px；azure 也是 2px，卡片与面板压着自己的边（-1px）；不设时
- * （neutral）是内置的 2px、离边 2px。卡片与面板的光晕是面上的
- * `focus-halo`（contrast 与 neutral 透明，azure 淡蓝）。
- * 选中行左边的色条（`row-selected-mark`）每一套都画，是面上的主色。
- */
-const FOCUS_MARKS = {
-  // Width, a card's (and a panel's) offset.
-  contrast: { wide: '2px', card: '2px' },
-  azure: { wide: '2px', card: '-1px' },
-  neutral: { wide: '2px', card: '2px' },
-} as const;
-
-const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
-  ...DisplayWithData,
-  render: () => (
-    <div className="fve-root" data-fve-preset={preset} data-theme="light">
-      <table>
-        <tbody>
-          <tr data-testid="row" tabIndex={0} className={FOCUS_ROW}>
-            <td>一</td>
-            <td>二</td>
-          </tr>
-          <tr data-slot="table-row" data-state="selected" data-testid="chosen">
-            <td>三</td>
-            <td>四</td>
-          </tr>
-        </tbody>
-      </table>
-      <div data-testid="card" tabIndex={0} className={FOCUS_CARD}>
-        卡片
-      </div>
-      <div data-testid="panel" className={FOCUS_PANEL}>
-        <div data-testid="body" data-panel-body tabIndex={0}>
-          滚动体
-        </div>
-      </div>
-      <div
-        data-testid="halo"
-        style={{ boxShadow: '0 0 0 3px var(--_fve-focus-halo)' }}
-      />
-    </div>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const root = canvasElement.querySelector<HTMLElement>('.fve-root')!;
-    const expected = FOCUS_MARKS[preset];
-    const wide = expected.wide;
-    // The surface's halo, as the browser serialises a shadow's colour: the
-    // card's and the body's 3px ring are drawn in it, as a control's is.
-    const halo = getComputedStyle(canvas.getByTestId('halo')).boxShadow.replace(
-      / 0px 0px 0px 3px$/,
-      '',
-    );
-
-    // A key first, so focus moved from here on is the keyboard's
-    // (`:focus-visible`); the story shell's own controls come before these
-    // in the tab order, so each mark is focused directly.
-    await userEvent.tab();
-    const focus = async (element: HTMLElement) => {
-      element.focus();
-      await expect(element.matches(':focus-visible')).toBe(true);
-    };
-    const row = canvas.getByTestId('row');
-    await focus(row);
-    const cell = row.querySelector('td')!;
-    await settled(() => getComputedStyle(cell).boxShadow);
-    await expect(getComputedStyle(cell).boxShadow).toContain(
-      `0px ${wide} 0px 0px inset`,
-    );
-
-    const card = canvas.getByTestId('card');
-    await focus(card);
-    await expect(getComputedStyle(card).outlineWidth).toBe(wide);
-    await expect(getComputedStyle(card).outlineOffset).toBe(expected.card);
-    await expect(getComputedStyle(card).boxShadow).toContain(
-      `${halo} 0px 0px 0px 3px`,
-    );
-
-    // A panel's body takes the focus; the card round it wears the mark.
-    await focus(canvas.getByTestId('body'));
-    const panel = canvas.getByTestId('panel');
-    await expect(getComputedStyle(panel).outlineWidth).toBe(wide);
-    await expect(getComputedStyle(panel).outlineOffset).toBe(expected.card);
-    await expect(getComputedStyle(panel).boxShadow).toContain(
-      `${halo} 0px 0px 0px 3px`,
-    );
-
-    const first = canvas.getByTestId('chosen').querySelector('td')!;
-    // The bar down a selected row's edge, in the surface's primary.
-    await expect(getComputedStyle(first).backgroundImage).toContain(
-      'linear-gradient',
-    );
-    await expect(colorOf(root, '--_fve-row-selected-mark')).toBe(
-      colorOf(root, '--primary'),
-    );
-  },
-});
-
-export const FocusMarksReadTheThemeInContrast: Story = focusMarks('contrast');
-export const FocusMarksReadTheThemeInAzure: Story = focusMarks('azure');
-export const FocusMarksReadTheThemeInNeutral: Story = focusMarks('neutral');
+export const HostMarksFollowTheBrandInLight: Story = hostMarks('light');
+export const HostMarksFollowTheBrandInDark: Story = hostMarks('dark');
 
 /**
  * 暗色下控件没有自己的淡底（D94）。registry 在暗色里给输入框、勾选框与描边

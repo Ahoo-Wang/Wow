@@ -67,7 +67,7 @@ export const FOCUS_ROW = cn(
  * The mark on a card the keyboard is on — the one every control wears: a
  * `--ring` edge at full strength, `focus-width` wide, `focus-offset` from
  * the card's edge (a theme may pull it onto the edge with a negative
- * offset, as azure does), and the theme's halo outside it
+ * offset), and the theme's halo outside it
  * (`--_fve-focus-halo`, none unless a theme draws one), which takes the
  * place of the card's own faint ring while it is focused. A halo alone
  * measured 1.77:1 on the light page and 2.15:1 on the dark one (phase 5,

@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { ComponentType } from 'react';
+import type { ComponentType, CSSProperties } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
@@ -495,15 +495,23 @@ async function chipHeights(canvasElement: HTMLElement): Promise<number[]> {
  * A chip's height is the theme's (`filter-height`, theme-architecture.md
  * 9.3): unset, its controls and its padding — 34px round a select, 38px
  * round a text box in neutral and in porcelain, whose controls are the
- * stylesheet's own (D63); azure
- * sets 32px and the controls in it fill it.
+ * stylesheet's own (D63); a host that sets 32px, with its small control
+ * as tall, gets chips of 32px whose controls fill them.
  */
 const chipsIn = (
-  preset: 'neutral' | 'azure' | 'porcelain',
+  preset: 'neutral' | 'porcelain',
   heights: readonly number[],
+  host?: CSSProperties,
 ): Story => ({
   ...DisplayFilters,
-  decorators: [DESK],
+  decorators: [
+    DESK,
+    (Story: ComponentType) => (
+      <div style={host}>
+        <Story />
+      </div>
+    ),
+  ],
   globals: { fvePreset: preset },
   play: async ({ canvasElement }) => {
     // The preset reaches `<html>` in an effect: measured before it lands,
@@ -520,7 +528,10 @@ const chipsIn = (
 });
 
 export const ChipsUnsetInNeutral: Story = chipsIn('neutral', [34, 38]);
-export const ChipsAt32InAzure: Story = chipsIn('azure', [32]);
+export const ChipsAt32WhereAHostSaysSo: Story = chipsIn('neutral', [32], {
+  '--fve-filter-height': '2rem',
+  '--fve-control-height-sm': '2rem',
+} as CSSProperties);
 export const ChipsUnsetInPorcelain: Story = chipsIn('porcelain', [34, 38]);
 
 /**

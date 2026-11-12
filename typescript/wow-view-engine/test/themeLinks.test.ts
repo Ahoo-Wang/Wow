@@ -71,6 +71,14 @@ function expectSame(actual: Rgba, expected: Rgba) {
     expect(actual[channel], channel).toBeCloseTo(expected[channel], 9);
 }
 
+/** The links that draw the open view and a chosen item in the surface's tint. */
+const OPEN_VIEW_LINKS = {
+  '--fve-nav-current-link': '100%',
+  '--fve-nav-current-foreground-link': '100%',
+  '--fve-item-selected-link': '100%',
+  '--fve-outline-hover-edge-link': '100%',
+};
+
 describe.each(MODES)('a link, in %s', mode => {
   it('draws porcelain’s highlight in the brand’s primary fill and its ink', () => {
     const host = { '--fve-brand': VIOLET };
@@ -109,15 +117,17 @@ describe.each(MODES)('a link, in %s', mode => {
     expectSame(token('contrast', mode, 'row-selected-mark', host), primary);
   });
 
-  it('draws azure’s open view in the brand’s tint and primary', () => {
-    const host = { '--fve-brand': VIOLET };
-    const tint = token('azure', mode, 'row-selected', host);
-    expectSame(token('azure', mode, 'nav-current', host), tint);
-    expectSame(token('azure', mode, 'item-selected', host), tint);
+  it('draws a host’s open view in the brand’s tint and primary', () => {
+    // No built-in preset links these four (`azure` did, until it was
+    // removed, D94): a host's own theme does, on any preset.
+    const host = { '--fve-brand': VIOLET, ...OPEN_VIEW_LINKS };
+    const tint = token('neutral', mode, 'row-selected', host);
+    expectSame(token('neutral', mode, 'nav-current', host), tint);
+    expectSame(token('neutral', mode, 'item-selected', host), tint);
     expectHue(tint, VIOLET_HUE);
-    const primary = token('azure', mode, 'primary', host);
-    expectSame(token('azure', mode, 'nav-current-foreground', host), primary);
-    expectSame(token('azure', mode, 'outline-hover-edge', host), primary);
+    const primary = token('neutral', mode, 'primary', host);
+    expectSame(token('neutral', mode, 'nav-current-foreground', host), primary);
+    expectSame(token('neutral', mode, 'outline-hover-edge', host), primary);
   });
 
   it('is the preset’s own colour with no brand', () => {
@@ -132,8 +142,8 @@ describe.each(MODES)('a link, in %s', mode => {
       token('contrast', mode, 'primary'),
     );
     expectSame(
-      token('azure', mode, 'nav-current'),
-      token('azure', mode, 'row-selected'),
+      token('neutral', mode, 'nav-current', OPEN_VIEW_LINKS),
+      token('neutral', mode, 'row-selected'),
     );
   });
 
@@ -177,12 +187,12 @@ describe.each(MODES)('a link, in %s', mode => {
   });
 
   it('leaves a role no link names as the preset wrote it', () => {
-    // azure highlights in grey and marks what is chosen in blue: its
-    // highlight is not linked, so a brand leaves it grey.
+    // porcelain marks the open view with a grey bar and links nothing to
+    // it: a brand leaves it grey.
     const host = { '--fve-brand': VIOLET };
     expectSame(
-      token('azure', mode, 'highlight', host),
-      token('azure', mode, 'highlight'),
+      token('porcelain', mode, 'nav-current', host),
+      token('porcelain', mode, 'nav-current'),
     );
   });
 });

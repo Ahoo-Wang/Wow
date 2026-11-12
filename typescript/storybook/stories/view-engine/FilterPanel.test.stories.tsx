@@ -790,8 +790,9 @@ function paintOf(element: HTMLElement): { fill: string; ink: string } {
  * The calendar at rest after a preset or a mode is put on `<html>`: its
  * colours settled, and its days where they stay. A preset moves them — the
  * pill's `transition-all` eases its height and border widths for 150ms, and
- * the popup follows its trigger a frame behind (measured: azure carries the
- * days 36px down, the last of it after the colours have settled) — so a day
+ * the popup follows its trigger a frame behind (measured on a preset since
+ * removed: the days carried 36px down, the last of it after the colours had
+ * settled) — so a day
  * measured before the popup has come to rest is aimed at where it was, and
  * the mouse lands on its neighbour: `:hover` never comes (the flake on PR
  * #3855's CI). At rest means two reads a frame apart agree with no
@@ -850,9 +851,8 @@ const aSelectedDayKeepsItsColours = (
 ): Story => ({
   ...DisplayWithTime,
   play: async ({ canvasElement }) => {
-    // The four stories below are every built-in preset.
+    // The three stories below are every built-in preset.
     await expect([...BUILT_IN_PRESETS].sort()).toEqual([
-      'azure',
       'contrast',
       'neutral',
       'porcelain',
@@ -911,13 +911,11 @@ const aSelectedDayKeepsItsColours = (
   },
 });
 
-// One story per preset, both modes each: all four in one ran 9s in local
+// One story per preset, both modes each: all of them in one ran 9s in local
 // WebKit and past the 15s budget on the nightly's Linux runner
 // (2026-09-30), every hover a real mouse move and a settle.
 export const ASelectedDayKeepsItsColoursInNeutral: Story =
   aSelectedDayKeepsItsColours('neutral');
-export const ASelectedDayKeepsItsColoursInAzure: Story =
-  aSelectedDayKeepsItsColours('azure');
 export const ASelectedDayKeepsItsColoursInPorcelain: Story =
   aSelectedDayKeepsItsColours('porcelain');
 export const ASelectedDayKeepsItsColoursInContrast: Story =

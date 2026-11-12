@@ -94,9 +94,7 @@ const STEPS: readonly {
  * A step a preset is short of today, each cleared when the preset is tuned
  * to the state strengths; an entry goes once its step is long enough.
  */
-const PENDING: readonly { preset: string; mode: Mode; step: string }[] = [
-  { preset: 'azure', mode: 'light', step: 'hovered row off the row at rest' },
-];
+const PENDING: readonly { preset: string; mode: Mode; step: string }[] = [];
 
 function distance(one: Rgba, other: Rgba): number {
   const [a, b] = [one, other].map(({ r, g, b }) =>

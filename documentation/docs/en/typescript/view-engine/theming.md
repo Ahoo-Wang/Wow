@@ -11,9 +11,9 @@ The theme is the host's look, not a way of observing: nothing about it is saved 
 
 A host makes one choice, on `ViewHost` ([Host the engine](./host)):
 
-| Path                   | For                                                 | Write                                                                              |
-| ---------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| The engine follows you | A host with a shadcn theme (Tailwind v4)            | `tokenSource="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))  |
+| Path                   | For                                                 | Write                                                                                                                                                                                                   |
+| ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The engine follows you | A host with a shadcn theme (Tailwind v4)            | `tokenSource="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))                                                                                                                 |
 | You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="porcelain"` (import its file), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
 
 `ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Host the engine](./host); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy](./csp). A patch release never breaks the CSS contract in [What is public](#what-is-public).
@@ -64,21 +64,20 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 
 | Preset      | Character                                                                                                                          | Corners          | Chart colours |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |
-| `neutral`   | The default: neutral greys, a black primary                                                                                        | 10px             | default       |
-| `azure`     | Chinese enterprise admin: a clear blue, white rows on a grey page, a type stack with the Chinese faces first                       | 6px              | its own       |
+| `neutral`   | The default: cool greys, grounds told apart by lightness, an indigo primary                                                        | 6px              | default       |
 | `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own       |
 | `contrast`  | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on  | 4px              | its own       |
 
 Which one fits your brand:
 
-| Your situation                                                     | Use                                                                                                   |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Your app is a shadcn app with its own theme                        | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset                                                  |
-| No design system, and you want a ready look                        | The preset above closest to your product                                                              |
-| A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets              |
-| A macOS / Apple desktop-app feel                                   | `porcelain`                                                                                           |
-| Only a brand colour                                                | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour)) |
-| A full design specification                                        | The closest preset, then override the few `--fve-*` that differ on `:root`                            |
+| Your situation                              | Use                                                                                                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Your app is a shadcn app with its own theme | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset                                                                                                               |
+| No design system, and you want a ready look | The preset above closest to your product                                                                                                                           |
+| An interface mostly in Chinese              | Any preset, with one line of a Chinese-first `--fve-font-sans` (see [Type](#type)); add `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
+| A macOS / Apple desktop-app feel            | `porcelain`                                                                                                                                                        |
+| Only a brand colour                         | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour))                                                              |
+| A full design specification                 | The closest preset, then override the few `--fve-*` that differ on `:root`                                                                                         |
 
 Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
 
@@ -115,7 +114,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 
 ```css
 @import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/azure.css';
+@import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 :root {
   --fve-brand: #7c3aed;
@@ -124,7 +123,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 ```
 
 ```html
-<html data-fve-preset="azure"></html>
+<html data-fve-preset="porcelain"></html>
 ```
 
 The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); the focus ring is the primary's colour and follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
@@ -134,7 +133,7 @@ The primary takes your colour's hue, and so do faint tints of the selected item 
 - A `--fve-primary` (or `--fve-accent`, `--fve-sidebar-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand, which wins over the preset's own colour.
 - The bounds are preset variables (`--fvp-brand-l-min`, `--fvp-brand-l-max`, `--fvp-brand-c-max` and the rest of the `brand-*` rows of the token table). You may widen or narrow one as `--fve-brand-l-max` and so on; then its measurement is yours.
 - The first chart colour stays the preset's unless you put `data-fve-brand-chart` on `<html>` (or any ancestor of the view): then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-1`. It is an attribute, like the preset and the density: present is on, absent is off, and a view copies it onto its popups.
-- Roles [linked](#role-links) to the primary or the selected row follow the brand as well: `porcelain`'s menu highlight, `azure`'s current view and chosen item.
+- Roles [linked](#role-links) to the primary or the selected row follow the brand as well: `porcelain`'s menu highlight, and any role you link yourself (the current view and a chosen item, say).
 - Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the preset is exactly as it ships.
 
 ## Host overrides
@@ -203,7 +202,7 @@ How strong a hover, a press and a selection are is three numbers: `state-hover`,
 | Part of the surface | Roles                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Grounds and cards   | `canvas` (a board's grouped ground), `content` (the rows' ground), `card-edge`, `card-shadow`, `scrim`                                                                                                                                                                                                                                                                                                                                               |
-| Tables              | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-selected-mark` (a bar down a selected row's left edge, none unless set), `row-hover`, `row-stripe` (off unless set), `row-divider` (the line between body rows, `border` unless set), `table-sort-idle` (how much an idle sort mark shows where a pointer hovers, 1 unless set)                                                                                                                                                                                                                                                            |
+| Tables              | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-selected-mark` (a bar down a selected row's left edge, none unless set), `row-hover`, `row-stripe` (off unless set), `row-divider` (the line between body rows, `border` unless set), `table-sort-idle` (how much an idle sort mark shows where a pointer hovers, 1 unless set)                  |
 | States              | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard); `item-selected`, `item-selected-foreground`, `item-selected-weight` (the item it holds chosen); `nav-current`, `nav-current-foreground`, `nav-current-edge`, `nav-current-shadow` (the view on screen in the list); `control-hover`, `control-pressed`; `outline-hover-edge`, `outline-hover-foreground` (an outline button under the pointer) |
 | Focus               | `focus-width`, `focus-offset`, `focus-style`, `focus-halo`                                                                                                                                                                                                                                                                                                                                                                                           |
 | Controls            | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `filter-height` (a board's filter chip), `edge-width`, `badge-edge`, `badge-fill`                                                                                                                                                                                                                                                         |
@@ -236,34 +235,34 @@ A colour a preset writes is fixed where the preset is named — usually `<html>`
 }
 ```
 
-With those two, every menu, select and combobox highlights its item with the primary's fill and ink — your brand's, in either mode. `primary-fill` is the primary itself in light and the primary's hue a step deeper in dark; a preset may write that step as a fixed colour (`porcelain`'s dark, which bounds it so a brand colour still follows; with your own `--fve-dark-primary` on it, set `--fve-dark-primary-fill` too, as [Host overrides](#host-overrides) shows). A link is one number for both modes, since its target resolves in each. A role colour you set wins over a link, and a link, yours or a preset's, wins over the preset's own colour; unset, the role is what it was. `porcelain` and `contrast` link their menu highlight, `contrast` its selected row's bar, and `azure` its current view, its chosen item and an outline button's hovered edge — which is why they follow a brand colour.
+With those two, every menu, select and combobox highlights its item with the primary's fill and ink — your brand's, in either mode. `primary-fill` is the primary itself in light and the primary's hue a step deeper in dark; a preset may write that step as a fixed colour (`porcelain`'s dark, which bounds it so a brand colour still follows; with your own `--fve-dark-primary` on it, set `--fve-dark-primary-fill` too, as [Host overrides](#host-overrides) shows). A link is one number for both modes, since its target resolves in each. A role colour you set wins over a link, and a link, yours or a preset's, wins over the preset's own colour; unset, the role is what it was. `porcelain` and `contrast` link their menu highlight, and `contrast` its selected row's bar — which is why they follow a brand colour. No built-in preset links the current view, a chosen item or an outline button's hovered edge; those are a host's to link.
 
 ## The charts' roles
 
 The chart library draws its own SVG, which no stylesheet reaches, so a chart reads its whole look back off its element — a colour as a colour, a length in pixels, a number as a number, each worked out by the browser (`calc()`, `min()` and `oklch(from …)` included) — and is drawn in that:
 
-| Role                                                                | What                                                                | Unset                                        |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------- |
-| `chart-grid`, `chart-grid-width`                                    | Gridlines and the axes' rules                                       | `border`, 1px                                |
-| `chart-axis`                                                        | The chart's quiet text: ticks, axis names, a scale's ends           | `muted-foreground`                           |
-| `chart-text-size`, `chart-label-size`                               | The chart's text and a value label                                  | `text-ui` less 1px and 2px                   |
-| `chart-line-width`, `chart-area-opacity`                            | A line, and an area under it                                        | 2px, 0.2                                     |
-| `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width`    | A bar's corner and the bounds of its width                          | 0.6 of `radius` up to 2px; none; 80px        |
-| `chart-slice-border`                                                | The seam between two slices                                         | 1px                                          |
-| `chart-map-edge` | A map's boundaries, round every area: what tells an area with no number, an island or a disputed line from the ground; an edge, 3:1 on the ground and on the palest shade | `chart-axis` |
-| `chart-tooltip`, `chart-tooltip-foreground`, `chart-tooltip-shadow` | The chart's tooltip, which is HTML and reads them as any popup does | `popover`, `popover-foreground`, `shadow-md` |
+| Role                                                                | What                                                                                                                                                                      | Unset                                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `chart-grid`, `chart-grid-width`                                    | Gridlines and the axes' rules                                                                                                                                             | `border`, 1px                                |
+| `chart-axis`                                                        | The chart's quiet text: ticks, axis names, a scale's ends                                                                                                                 | `muted-foreground`                           |
+| `chart-text-size`, `chart-label-size`                               | The chart's text and a value label                                                                                                                                        | `text-ui` less 1px and 2px                   |
+| `chart-line-width`, `chart-area-opacity`                            | A line, and an area under it                                                                                                                                              | 2px, 0.2                                     |
+| `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width`    | A bar's corner and the bounds of its width                                                                                                                                | 0.6 of `radius` up to 2px; none; 80px        |
+| `chart-slice-border`                                                | The seam between two slices                                                                                                                                               | 1px                                          |
+| `chart-map-edge`                                                    | A map's boundaries, round every area: what tells an area with no number, an island or a disputed line from the ground; an edge, 3:1 on the ground and on the palest shade | `chart-axis`                                 |
+| `chart-tooltip`, `chart-tooltip-foreground`, `chart-tooltip-shadow` | The chart's tooltip, which is HTML and reads them as any popup does                                                                                                       | `popover`, `popover-foreground`, `shadow-md` |
 
 A bar's corner follows `radius`, so a square style's bars are square with no word about bars. A chart is told to read them again when its theme moves (see [Embeds and popups](#embeds-and-popups)).
 
 ## Light, dark and system
 
-| How                                                                         | Effect                                                                                                                                                             |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ViewHost`, as it comes (`colorMode="system"`)                              | Paints `<html>`'s `.dark` and `color-scheme` before the first paint, following the system live; `useColorMode()` lets your switch pin one, kept under `rememberColorMode` |
-| `colorMode="light"` or `"dark"` on `ViewHost`                               | Starts pinned; the reader may still pick another                                                                                                                   |
-| `colorMode="host"` on `ViewHost`, and a `.dark` class of yours, usually on `<html>` | Views follow your page's mode (next-themes, a switch of your own); the engine leaves `<html>` alone                                                         |
-| `colorMode="light"` or `colorMode="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view                                                                                                                                                 |
-| `colorMode="system"`                                                            | Follows the reader's `prefers-color-scheme`, live, for that one view                                                                                               |
+| How                                                                                 | Effect                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ViewHost`, as it comes (`colorMode="system"`)                                      | Paints `<html>`'s `.dark` and `color-scheme` before the first paint, following the system live; `useColorMode()` lets your switch pin one, kept under `rememberColorMode` |
+| `colorMode="light"` or `"dark"` on `ViewHost`                                       | Starts pinned; the reader may still pick another                                                                                                                          |
+| `colorMode="host"` on `ViewHost`, and a `.dark` class of yours, usually on `<html>` | Views follow your page's mode (next-themes, a switch of your own); the engine leaves `<html>` alone                                                                       |
+| `colorMode="light"` or `colorMode="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view                                                                                                                                                        |
+| `colorMode="system"`                                                                | Follows the reader's `prefers-color-scheme`, live, for that one view                                                                                                      |
 
 **Dark values are `--fve-dark-*`, never `--fve-*` under `.dark`.** The shadcn habit — rewriting the same variable under `.dark` — does not survive pinning: variables inherit down from `<html class="dark">`, so a view pinned light on a dark page would be handed your dark value with nothing to tell it apart. Two halves, each named for its mode, let every surface pick its own. A host on the [bridge](#the-shadcn-bridge) is not affected: the bridge reads your shadcn tokens, which you switch under `.dark` as ever.
 
@@ -279,7 +278,12 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} colorMode="dark" preset="azure" />
+<EmbeddedView
+  engine={engine}
+  instanceId={id}
+  colorMode="dark"
+  preset="porcelain"
+/>
 ```
 
 ## Embeds and popups
@@ -341,7 +345,7 @@ Every built-in preset holds these lines in both modes, on every pair the surface
 | Line                                                         | What                                                                                                                                                                                                                                                                              |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Text, ≥4.5:1 (7:1 for `contrast`)                            | Every foreground on its ground: the page, cards, popovers, the header and totals bands, a selected, striped or hovered row, a highlighted or chosen item, the current view, a tooltip, the chart's quiet text; the status colours as text, and as a badge's words on its own wash |
-| Controls, focus and state marks, ≥3:1 (4.5:1 for `contrast`) | `input` and `ring` on every ground a control sits on; `primary`, `rise-fill` and `fall-fill` where they fill a mark that carries a state                                                                                                     |
+| Controls, focus and state marks, ≥3:1 (4.5:1 for `contrast`) | `input` and `ring` on every ground a control sits on; `primary`, `rise-fill` and `fall-fill` where they fill a mark that carries a state                                                                                                                                          |
 | None                                                         | `border` and `sidebar-border` (dividers), `radius`, `text-ui`                                                                                                                                                                                                                     |
 
 When you set a colour — a token, a role, a link, a brand bound — you take over its line on every ground it lands on. `--fve-ring` and `--fve-input` (or their `--fve-dark-` halves) are the ones hosts most often lose: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. A brand colour within the preset's bounds, and a role you leave unset, owe you nothing.
@@ -354,7 +358,7 @@ The package ships one command, for a host's CI: it holds your theme to the gates
 
 ```bash
 pnpm exec wow-view-engine theme-check src/theme.css
-pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porcelain
+pnpm exec wow-view-engine theme-check src/theme.css --preset porcelain --preset contrast
 ```
 
 It reads your stylesheets (several are put together in the order given) and reports, with the line and column:
@@ -557,6 +561,20 @@ The five are `--fve-table-header-height`, `--fve-table-cell-padding-block` and `
 
 The type is the host's: the surface sets `font-family: var(--fve-font-sans, var(--fvp-font-sans))` — yours, then a preset's — which, unset, leaves `font-family` inherited from the page as before. Set `--fve-font-sans` to a system font stack to give the views one of their own; a chart reads the computed family and follows. It has no dark half.
 
+### Type
+
+For an interface mostly in Chinese, put the Chinese system faces first — `PingFang SC` by name, so a page with no `lang` does not fall to the traditional forms. One line does it, on any preset; nothing is bundled or downloaded, a system face is only referenced:
+
+```css
+:root {
+  --fve-font-sans:
+    system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+```
+
+This stack used to come with the built-in preset `azure`; `azure` is removed, and Chinese-first type is one host variable, not a preset.
+
 The five `sidebar*` tokens are shadcn's own names for the navigation column the workbench puts its view list in, so a host that already themes a shadcn sidebar themes this one with the same words. Only the five the column paints with are declared. The open view in that column is `background` on top of `sidebar`, and `sidebar-accent` is the hover, so the three have to stay apart from one another: a set where two of them resolve to the same grey is a list with no "you are here".
 
 `input` and `ring` owe a line the others do not: a control's edge and the focus mark are what WCAG 1.4.11 asks 3:1 of against what is behind them, and both defaults are tuned to clear it in either mode (measured in the browser by the Storybook contrast stories). They are values of their own on purpose. The usual shadcn brand theme re-points them — `--ring: var(--primary)`, `--input: var(--border)` — and that hands the 3:1 to a brand colour and a divider grey that owe nothing of the kind: an unticked checkbox becomes a hairline, a focused row a faint tint. Setting `--fve-primary` or `--fve-border` leaves them alone; a host that sets `--fve-ring` / `--fve-input` (or their `--fve-dark-` halves) owes its theme the same 3:1 and should measure it.
@@ -608,13 +626,13 @@ It is one of ten host variables that are lengths and levels of the layout rather
 
 Every rule of the stylesheet is scoped at build time, so the theme's tokens, and the utilities the engine draws with, paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
 
-|                                       | `.fve-root`                                                  | `.fve-tokens`                                                            |
-| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Rendered by                           | `ViewSurface`, and every workbench and embed                 | your own markup                                                          |
-| Tokens, utilities, preflight          | yes                                                          | yes                                                                      |
-| Paints a background and a text colour | yes                                                          | **no** — paint `var(--background)` and `var(--foreground)` yourself     |
-| Light or dark                         | a `.dark` ancestor, or `colorMode` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
-| Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
+|                                       | `.fve-root`                                                      | `.fve-tokens`                                                       |
+| ------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Rendered by                           | `ViewSurface`, and every workbench and embed                     | your own markup                                                     |
+| Tokens, utilities, preflight          | yes                                                              | yes                                                                 |
+| Paints a background and a text colour | yes                                                              | **no** — paint `var(--background)` and `var(--foreground)` yourself |
+| Light or dark                         | a `.dark` ancestor, or `colorMode` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                |
+| Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                               | no                                                                  |
 
 **What `fve-tokens` promises is the tokens, not the utilities and not components.** Inside the boundary the theme's tokens are declared under their shadcn names — `--background`, `--foreground`, `--card`, `--card-foreground`, `--primary`, `--muted`, `--border`, `--radius` and the rest — resolved for the preset, your overrides and the mode. Your own Tailwind theme maps them the way shadcn/ui's does (`--color-card: var(--card)`), so your own classes (`bg-card`) and your own copy of shadcn/ui wear this theme there; plain CSS reads them with `var(--card)`. The engine's `fve:` utilities are its own: the stylesheet holds one only while a component of the engine writes it, so one that works today can be gone in the next release. The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not public either — so build your chrome from your own components and classes, and let the boundary give them this theme's colours:
 

@@ -86,8 +86,8 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 - **内置值是方向「澄」**（D94 ④）：底分四层、靠明度分开——画布与侧栏（`canvas` 不设时就是 `sidebar`，亮 0.975／暗 0.165）、面（`background`／`card`，白／0.205）、带（`muted`：表头与合计，0.966／0.245）、井（`secondary`，0.955／0.26），浮起的一层是 `popover`（白／0.255）；灰都带一点主色的冷调（色相 262）。墨色三种：正文 `foreground`（0.24／0.95）、次要 `quiet-foreground`（正文的 70%，表头的字读它）、提示 `muted-foreground`（0.52／0.68）。主色靛蓝（`oklch(0.5 0.19 264)`／暗 0.77），焦点环同色。当前视图（`nav-current`）是选中行的淡色、主色的字，没有自己的边与浮起：它就是又一处选中。遮罩是墨色的 32%（暗色黑 55%），不模糊背后的页面。状态色是墨（亮色 0.44～0.47、暗色 0.78～0.83，暗色彩度 0.14）。三处实测改了落地说明里的数：暗色分隔线保留白 20%（11% 在暗色卡片上不到 `DarkHairlines` 的 1.5:1）；`input` 0.59（不是 0.62）、状态墨色各深一档，是为了宿主把主色调深之后选中行上控件的边仍有 3:1、徽标仍有 4.5:1（宿主主色亮度 0.1 以上都过，纯黑主色由 `theme-check` 报出）；选中强度亮 12%／暗 14%（说明是 9%，离表头带只有 0.016）。
 - **徽标的边默认保留**（D46）：`badge-edge`／`badge-fill` 是取徽标自己色调的多少（默认 30%／10%）；去掉边，淡色徽标在选中行上只剩约 1.2:1，低于「在行上仍是一个徽标」的 1.5:1，所以预设改用填色须在自己的 `row-selected` 上仍过 1.5:1，门守着。
 - **打字的框仍有 3:1 的边**：WCAG 1.4.11 不要求以文字或图标自明的控件有边界（选择框有字和箭头），要求输入框有；所以 `ControlFrame` 装着输入框的筛选芯片不管主题怎么说都保留 `input` 边。要让它无边，得先有一套预设的芯片填色对底 ≥3:1——量过（D76）每套最高 1.50:1，所以不给配方加角色。
-- **状态阶梯**（D94，修订 D46「neutral 的选中、悬停保持原样」）：悬停、按下、选中各有一个强度——`state-hover`／`state-pressed`／`state-selected`，亮色 4%／8%／12%，暗色 6%／12%／14%，是混色里的一份，预设与宿主都能设。悬停的行（`row-hover`）是墨色（`foreground`）按 `state-hover` 混进行的底，指针下的控件（`control-hover`）是墨色按 `state-hover`、按下的（`control-pressed`）按 `state-pressed`，都混进控件自己的填色（`control`）——带填色的控件悬停时留着填色、再深一步，而不是换成一块更浅的灰，选中的行（`row-selected`）是主色按 `state-selected` 混进行的底：这四个角色不再借 `muted`，所以选中行不再与表头带同色，主色换了（品牌色、宿主的 `--fve-primary`）选中行跟着换。预设或宿主直接给这四个角色颜色的，照旧以它为准。选中的强度上面压着一条线：选中行上打字的框的边（`input`）仍要 ≥3:1，亮色 12% 时这条边是 3.45:1，选中行离表头带 0.032；10% 只有 0.021。`test/stateSteps.test.ts` 量相邻两个状态在 OKLab 里的距离 ≥0.02（约是相邻两块面看得出差别的下限）：悬停的行对静止的行，选中的行对静止的、对悬停的、对表头带，指针下的控件对静止的，按下的对指针下的；控件的两步还要求是离开页底、不是退回去；每套、亮暗都量，还短的记在它的 `PENDING` 里（今天是 azure 亮色的悬停行，0.015，随那一套重调清掉）。
-- **焦点只有一种标记**（D94）：控件画一道 `outline`，`focus-width` 宽（内置 2px）、`focus-style`、离边 `focus-offset`（内置 2px），颜色是 `ring`——内置就是主色的那个颜色，跟品牌色走。registry 那圈 3px 的光晕读 `focus-halo`，内置透明：有了轮廓，光晕是同一件事的第二个标记；只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方读同一组角色（D76）：`FOCUS_ROW` 的内描边 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（azure 给 -1px，压在自己的边上）；`FOCUS_PANEL`（看板面板的正文获焦时画在面板卡片上）与 `FOCUS_CARD` 同一套；三个的光晕都读 `focus-halo`。焦点标记在键盘落下的那一刻就在：registry 控件的 `transition-all` 不作用于获焦的那一刻（只淡出、不淡入），否则一帧来得慢的浏览器在过渡走完之前画的、量的都还是获焦前的样子（夜间 WebKit 上已应用条的 ✕ 量到 1.00:1）。
+- **状态阶梯**（D94，修订 D46「neutral 的选中、悬停保持原样」）：悬停、按下、选中各有一个强度——`state-hover`／`state-pressed`／`state-selected`，亮色 4%／8%／12%，暗色 6%／12%／14%，是混色里的一份，预设与宿主都能设。悬停的行（`row-hover`）是墨色（`foreground`）按 `state-hover` 混进行的底，指针下的控件（`control-hover`）是墨色按 `state-hover`、按下的（`control-pressed`）按 `state-pressed`，都混进控件自己的填色（`control`）——带填色的控件悬停时留着填色、再深一步，而不是换成一块更浅的灰，选中的行（`row-selected`）是主色按 `state-selected` 混进行的底：这四个角色不再借 `muted`，所以选中行不再与表头带同色，主色换了（品牌色、宿主的 `--fve-primary`）选中行跟着换。预设或宿主直接给这四个角色颜色的，照旧以它为准。选中的强度上面压着一条线：选中行上打字的框的边（`input`）仍要 ≥3:1，亮色 12% 时这条边是 3.45:1，选中行离表头带 0.032；10% 只有 0.021。`test/stateSteps.test.ts` 量相邻两个状态在 OKLab 里的距离 ≥0.02（约是相邻两块面看得出差别的下限）：悬停的行对静止的行，选中的行对静止的、对悬停的、对表头带，指针下的控件对静止的，按下的对指针下的；控件的两步还要求是离开页底、不是退回去；每套、亮暗都量；还短的记在它的 `PENDING` 里，今天是空的。
+- **焦点只有一种标记**（D94）：控件画一道 `outline`，`focus-width` 宽（内置 2px）、`focus-style`、离边 `focus-offset`（内置 2px），颜色是 `ring`——内置就是主色的那个颜色，跟品牌色走。registry 那圈 3px 的光晕读 `focus-halo`，内置透明：有了轮廓，光晕是同一件事的第二个标记；只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方读同一组角色（D76）：`FOCUS_ROW` 的内描边 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（主题可以给负值，压在自己的边上）；`FOCUS_PANEL`（看板面板的正文获焦时画在面板卡片上）与 `FOCUS_CARD` 同一套；三个的光晕都读 `focus-halo`。焦点标记在键盘落下的那一刻就在：registry 控件的 `transition-all` 不作用于获焦的那一刻（只淡出、不淡入），否则一帧来得慢的浏览器在过渡走完之前画的、量的都还是获焦前的样子（夜间 WebKit 上已应用条的 ✕ 量到 1.00:1）。
 - **选中不只靠颜色**（WCAG 1.4.1，D76）：`row-selected-mark` 是选中的记录行、按下的分析分组第一格左边一道 3px 的色条（引擎只有从左到右的排版；背景图，不压字，获焦时行的内描边盖住它靠里的 `focus-width`），内置值是主色，每一套都画（D94）；对比度矩阵量它在选中行上 ≥3:1。contrast 把它链到主色。
 
 ### 链接：角色跟着面上解析出的 token
@@ -97,8 +97,8 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 - **所以链接写一个数**：`--fvp-<角色>-link: 100%`（宿主写 `--fve-<角色>-link`）。面上一条规则把它解析成 `color-mix(in oklab, var(<目标>) <数>, transparent)`，角色在宿主层与预设层之间读它：`var(--fve-x, var(--_fve-link-x, var(--fvp-x, …)))`。链到哪个 token 由登记表定（`link`），值只是「取多少」：`100%` 就是目标本身，少于它是把目标半透明地铺在底上（一个随品牌的淡色）。一个数管两种明暗，目标在每种明暗下各自解析。
 - 链接随品牌色、宿主自己的 `--fve-primary`、`tokens` 与明暗走；不设时无效，角色读预设的字面量。宿主写了角色本身的颜色仍然最先赢。
 - 今天的链接：`highlight` → `primary-fill`、`highlight-foreground` → `primary-fill-foreground`、`row-selected-mark` → `primary`、`nav-current` → `row-selected`、`nav-current-foreground` → `primary`、`item-selected` → `row-selected`、`outline-hover-edge` → `primary`、`outline-hover-foreground` → `primary`。以后再有角色要跟面上的 token，就在登记表加一个链接，不开新机制。
-- **`primary-fill`**（D76，D94）：主色作为承载文字的填色——主按钮（`states.css` 一条规则把 registry 的 `bg-primary`／`text-primary-foreground` 换成它与它的字，悬停是它的八成），以及链到它的菜单高亮项。亮色就是 `primary`／`primary-foreground`。暗色的主色浅到能在暗底上当字，也就托不住白字，内置值是从面上的主色派生的一档：`oklch(from var(--primary) 0.52 c h)` 配白字（`styles/brand.css` 的 `@supports` 块里的 `--_fve-derived-primary-fill`，0.52 是每种色相都还托得住白字 4.5:1 的最亮一档，品牌色扫描守着）。因为是从主色算，谁给的主色它都跟：预设、宿主的 `--fve-dark-primary`、品牌色；不支持相对颜色的浏览器回到 `primary`／`primary-foreground`。预设可以自己写这一档：porcelain 暗色是固定的 `#0058D0` 配白字；contrast 的暗色仍是主色配黑字（深填色配白字约 5:1，不到它的 7:1），azure 用内置的深一档；写成字面量的，给了品牌色时按预设的 `brand-primary-fill-l-min`／`-max` 取品牌色相，宿主在这样的预设上写自己的 `--fve-dark-primary` 时也写 `--fve-dark-primary-fill`。写死一个靛蓝试过：宿主只改暗色主色时主按钮会留在靛蓝上，所以没有那样做。
-- 没选的：关键字（`--fvp-highlight: primary`）要按值分支，靠 `@container style()` 或 `if()`，Firefox 都还没有；把这些角色也放进品牌派生只跟品牌色、不跟宿主的 `--fve-primary`，每个角色还要一组与主色重复的边界；让 JS 把外层的预设名抄到面上是第二个真相源。（见 test/themeLinks.test.ts，浏览器故事 `ThemeMechanism.test.stories.tsx`「PorcelainMenuFollowsTheBrandInDark」「AzureMarksFollowTheBrandInLight」）
+- **`primary-fill`**（D76，D94）：主色作为承载文字的填色——主按钮（`states.css` 一条规则把 registry 的 `bg-primary`／`text-primary-foreground` 换成它与它的字，悬停是它的八成），以及链到它的菜单高亮项。亮色就是 `primary`／`primary-foreground`。暗色的主色浅到能在暗底上当字，也就托不住白字，内置值是从面上的主色派生的一档：`oklch(from var(--primary) 0.52 c h)` 配白字（`styles/brand.css` 的 `@supports` 块里的 `--_fve-derived-primary-fill`，0.52 是每种色相都还托得住白字 4.5:1 的最亮一档，品牌色扫描守着）。因为是从主色算，谁给的主色它都跟：预设、宿主的 `--fve-dark-primary`、品牌色；不支持相对颜色的浏览器回到 `primary`／`primary-foreground`。预设可以自己写这一档：porcelain 暗色是固定的 `#0058D0` 配白字；contrast 的暗色仍是主色配黑字（深填色配白字约 5:1，不到它的 7:1）；写成字面量的，给了品牌色时按预设的 `brand-primary-fill-l-min`／`-max` 取品牌色相，宿主在这样的预设上写自己的 `--fve-dark-primary` 时也写 `--fve-dark-primary-fill`。写死一个靛蓝试过：宿主只改暗色主色时主按钮会留在靛蓝上，所以没有那样做。
+- 没选的：关键字（`--fvp-highlight: primary`）要按值分支，靠 `@container style()` 或 `if()`，Firefox 都还没有；把这些角色也放进品牌派生只跟品牌色、不跟宿主的 `--fve-primary`，每个角色还要一组与主色重复的边界；让 JS 把外层的预设名抄到面上是第二个真相源。（见 test/themeLinks.test.ts，浏览器故事 `ThemeMechanism.test.stories.tsx`「PorcelainMenuFollowsTheBrandInDark」「HostMarksFollowTheBrandInLight」）
 
 ## 品牌色是输入，不是预设
 
@@ -106,18 +106,17 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 - **派生只写一处**：`styles.css` 里一个 `@supports (color: oklch(from red l c h))` 块，声明在面的边界上（`:where(.fve-root, .fve-tokens)`），所以 `var(--fve-brand)` 在面上替换，品牌色挂在任何祖先上都对。登记表标 `brand` 的 token 在块里多读一层：`var(--fve-x, var(--_fve-brand-x, var(--fvp-x, 内置值)))`——**宿主明写的 > 品牌派生 > 预设的字面量 > 内置值**。
 - **派生什么**：主色（`oklch(from var(--fve-brand) clamp(下, l, 上) min(c, 彩度上限) h)`，暗色一半同形）、`accent`、`sidebar-accent` 与选中行（`row-selected`）取品牌色相的一档淡色；焦点 `ring` 在主色自己的边界之间跟品牌色走，预设可以另给它一组边界；图表第 1 色只在宿主挂 `data-fve-brand-chart` 属性时跟品牌色相、保留预设第 1 色的亮度与彩度（D46；品牌色相与相邻色位的色觉间距对任意品牌色证明不了，所以默认关、开了由宿主与 `theme-check` 量）。其余（灰、`input`、状态色、图表其余七色）是预设自己的。
-- **边界是预设的**（`--fvp-brand-*` 这组参数，宿主也能写 `--fve-brand-*` 自己负责）：线是在预设自己的底上量的，同一个品牌色放在 azure 的灰底与 porcelain 的白底上，过线的亮度区间不同；neutral 用 `styles.css` 的默认（亮 0.40～0.50、暗 0.68～0.80）。代价是极亮（黄、青）或极暗的品牌色会被压进夹子，看起来比品牌手册深或浅——可达性优先，文档写明。
+- **边界是预设的**（`--fvp-brand-*` 这组参数，宿主也能写 `--fve-brand-*` 自己负责）：线是在预设自己的底上量的，同一个品牌色放在 porcelain 的底与 contrast 的底上，过线的亮度区间不同；neutral 用 `styles.css` 的默认（亮 0.40～0.50、暗 0.68～0.80）。代价是极亮（黄、青）或极暗的品牌色会被压进夹子，看起来比品牌手册深或浅——可达性优先，文档写明。
 - **没给颜色、或浏览器不支持相对颜色**：派生值在计算期无效（或整块 `@supports` 不生效），每个 token 落回预设的字面量，像素不变；不会失效成透明。
 - （见 test/brandInput.test.ts：每套 × 两种明暗 × 两种回到色域的方式扫 1 314 个颜色，夹具里每一对都过该预设的线；浏览器故事 `ThemeBrand.stories.tsx`）
 
 ## 内置预设
 
-| 名字        | 性格                                                                                                     |
-| ----------- | -------------------------------------------------------------------------------------------------------- |
-| `neutral`   | 默认：中性灰、黑色主色，就是样式表自己的值；一个预设变量也不写                                           |
-| `azure`     | 中国企业后台：明快的蓝、灰底白卡、6px 圆角、中文优先的系统字体栈；面向国内经营数据时常与 `red-up` 一起用 |
-| `porcelain` | 桌面原生：系统字体、分部件的圆角、柔和的浮起、填色的控件、表格读作桌面列表（D59、D63、D69）              |
-| `contrast`  | 高对比：字 ≥7:1，控件边、焦点与标记 ≥4.5:1，2px 焦点与控件边，图表默认开花纹                             |
+| 名字        | 性格                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| `neutral`   | 默认：带冷调的灰、靠明度分开的几层底、靛蓝主色（D94），就是样式表自己的值；一个预设变量也不写 |
+| `porcelain` | 桌面原生：系统字体、分部件的圆角、柔和的浮起、填色的控件、表格读作桌面列表（D59、D63、D69）   |
+| `contrast`  | 高对比：字 ≥7:1，控件边、焦点与标记 ≥4.5:1，2px 焦点与控件边，图表默认开花纹                  |
 
 - **每个值的理由写在它的源文件里**：`src/themes/<名>.css` 一套一个文件，块加上每个取值的理由（与参考的差异、量出来最紧的几对）；`src/themes.css` 是索引，顺序就是一切名单的顺序。构建由 `scripts/themes.mjs` 去掉注释做出 `themes.css`（全部）与 `themes/<名>.css`（单套，`./themes/*.css`）；`verify-package` 断言单套文件拼起来等于 `themes.css`、与 `BUILT_IN_PRESETS` 同序，并称重（每套 gzip ≤1.5 KB、`themes.css` ≤8 KB）。
 - **类型**：`/ui` 导出 `BUILT_IN_PRESETS`（只读名字数组）、`BuiltInPreset` 与 `ViewPreset`（内置名 ∪ `(string & {})`：内置名有补全，宿主自己的预设名也能传）。不导出显示名：引擎里没有选择器。
@@ -145,7 +144,7 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 ## 字体、阴影与状态色
 
-- **字体**：`.fve-root` 上 `font-family` 读表面字体，再读 `--fve-font-sans`、`--fvp-font-sans`；都没设时这条声明在计算期无效，按继承取宿主的，不需要写 `inherit`。预设可以带一条**系统字体栈**（`azure` 中文优先、`porcelain` 苹果优先，中文显式写 `PingFang SC`，否则缺 `lang` 时可能取到繁体字形）。
+- **字体**：`.fve-root` 上 `font-family` 读表面字体，再读 `--fve-font-sans`、`--fvp-font-sans`；都没设时这条声明在计算期无效，按继承取宿主的，不需要写 `inherit`。预设可以带一条**系统字体栈**（`porcelain` 苹果优先，中文显式写 `PingFang SC`，否则缺 `lang` 时可能取到繁体字形）。中文优先的那一条不是预设：宿主写一行 `--fve-font-sans`，主题指南的「字体」一节给了现成的（D94 修订，`azure` 移除后）。
 - **弹层的字体就是面的字体**：弹层 portal 到 `<body>`，继承的是 `<body>` 的字体；宿主把字体写在应用外壳上而 `<body>` 不设时，弹层会退成浏览器的衬线体。所以面把自己**算出的** `font-family` 读回来（与读 token 同一处、同一组观察者），经 `useSurfaceFont()` 交给 `ui/kit/popups.tsx`，弹层写成自己身上的表面字体变量。它是面的计算值，所以预设的栈、宿主的 `--fve-font-sans`（挂在 `<html>` 或只挂在子树上）、继承来的宿主字体，哪一种来源弹层都与面一致；样式表在每个根上先把它设成 `initial`，面不会从宿主页面上拿到同名变量。（见 test/popups.test.tsx「every popup takes the type of its surface」）
 - **阴影三档**（`--fve-shadow-sm／md／lg`，亮暗各一份）只改阴影本身；卡片怎样浮起是 `card-shadow` 角色（D43）。**去掉阴影写透明阴影，不写 `none`**：工具类把阴影与 ring 拼成一个 `box-shadow` 列表，`none` 进了列表整条声明无效，弹层的发丝描边也跟着没了；测试禁止预设写 `none`。
 - **暗色状态色是安静的**（D30 Q44，结清 D18 第 12 条）：暗色 success／warning／destructive 保留色相、彩度降到约 0.15，软徽章在深底上不发艳，danger 徽章在选中行上直接用自己的 token 就过线，不再为暗色写 `color-mix` 补丁。亮色状态色取作字 ≥4.5 的那一档。（见 test/presetContrast.test.ts「the dark status colours are desaturated (Q44)」）

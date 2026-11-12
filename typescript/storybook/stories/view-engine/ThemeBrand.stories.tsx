@@ -31,7 +31,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 
 /**
  * A brand colour is an input beside any preset (ui/theme.md, brand input,
- * S4), measured in a browser: the same colour worn on `azure`, `porcelain`
+ * S4), measured in a browser: the same colour worn on `neutral`, `porcelain`
  * and `contrast`, each deriving its primary, its tints and — where the
  * preset bounds it — its focus ring from it, held to that preset's own
  * lines. The jsdom side is `test/brandInput.test.ts` in the package, which
@@ -43,10 +43,10 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 const BRAND = '#7c3aed';
 
 /** The presets shown wearing it. */
-const SHOWN = ['azure', 'porcelain', 'contrast'] as const;
+const SHOWN = ['neutral', 'porcelain', 'contrast'] as const;
 
 /** A preset whose focus ring is its primary, so the ring follows the brand. */
-const RING_FOLLOWS = new Set<string>(['azure', 'porcelain', 'contrast']);
+const RING_FOLLOWS = new Set<string>(['neutral', 'porcelain', 'contrast']);
 
 /** The host's variable, as a wrapper's inline style. */
 const branded = (more: Record<string, string> = {}) =>
@@ -186,7 +186,7 @@ const description = `**能力 · 主题与预设：品牌色**（docs/design/ui/
 
 品牌色不是一套预设，是任何一套都接受的输入：宿主写一个 \`--fve-brand\`，主色、\`accent\`、\`sidebar-accent\` 与选中行的淡色都取它的色相；三套的焦点环本来就是主色，也跟着变。派生式只写在 \`styles.css\` 一处，每套预设只给它在自己的底上量出来的边界（\`--fvp-brand-*\`），所以同一个颜色在 \`contrast\` 上被压得更深，守它的 7:1。
 
-这一页把同一个紫色（\`${BRAND}\`）写在一个包裹层上，挂 \`azure\`、\`porcelain\`、\`contrast\` 三套，亮暗各一条：上面是派生出来的几块颜色，下面是这三套在这个品牌色下的对比度矩阵——每一对都要过那一套自己的线。图表第 1 色要宿主另挂属性 \`data-fve-brand-chart\` 才跟品牌色，这里没挂，所以不变。包里的 \`test/brandInput.test.ts\` 把整个 sRGB 色域在每一套、每种明暗下扫一遍。`;
+这一页把同一个紫色（\`${BRAND}\`）写在一个包裹层上，挂 \`neutral\`、\`porcelain\`、\`contrast\` 三套，亮暗各一条：上面是派生出来的几块颜色，下面是这三套在这个品牌色下的对比度矩阵——每一对都要过那一套自己的线。图表第 1 色要宿主另挂属性 \`data-fve-brand-chart\` 才跟品牌色，这里没挂，所以不变。包里的 \`test/brandInput.test.ts\` 把整个 sRGB 色域在每一套、每种明暗下扫一遍。`;
 
 const meta = {
   title: 'View Engine/能力/主题与预设/品牌色',
@@ -340,7 +340,7 @@ function WrapperPage() {
       <div data-where="inside" style={branded({ '--fve-brand-chart': '1' })}>
         <WrapperSurface
           title="品牌色在包裹层上"
-          note={`包裹层写了 --fve-brand: ${BRAND}：主色、选中项与焦点环取它的色相。它还写了一个变量 --fve-brand-chart，那不是开关，图表第 1 色仍是 azure 自己的。`}
+          note={`包裹层写了 --fve-brand: ${BRAND}：主色、选中项与焦点环取它的色相。它还写了一个变量 --fve-brand-chart，那不是开关，图表第 1 色仍是 porcelain 自己的。`}
         />
       </div>
       <div
@@ -350,7 +350,7 @@ function WrapperPage() {
       >
         <WrapperSurface
           title="图表第 1 色也跟品牌色"
-          note="开关是包裹层上的属性 data-fve-brand-chart：挂上，图表第 1 色取品牌色相；拿掉，回到 azure 自己的。"
+          note="开关是包裹层上的属性 data-fve-brand-chart：挂上，图表第 1 色取品牌色相；拿掉，回到 porcelain 自己的。"
         />
         <label
           style={{
@@ -372,7 +372,7 @@ function WrapperPage() {
       <div data-where="outside">
         <WrapperSurface
           title="没有品牌色"
-          note="包裹层外的面：azure 自己的蓝。"
+          note="包裹层外的面：porcelain 自己的蓝。"
         />
       </div>
     </div>
@@ -398,14 +398,14 @@ function paintedOf(canvas: HTMLElement, where: string, chip: WrapperChip) {
  */
 export const OnAWrapper: Story = {
   name: '品牌色挂在包裹层上',
-  globals: { fvePreset: 'azure' },
+  globals: { fvePreset: 'porcelain' },
   render: () => <WrapperPage />,
   play: async ({ canvasElement }) => {
     // The preset is on `<html>` before the story renders (preview.tsx,
     // `useBeforeRender`), so this is a fact to check, not a moment to wait for.
     await expect(document.documentElement).toHaveAttribute(
       'data-fve-preset',
-      'azure',
+      'porcelain',
     );
     const painted = (where: string, chip: WrapperChip) =>
       paintedOf(canvasElement, where, chip);
@@ -418,19 +418,19 @@ export const OnAWrapper: Story = {
       await expect(brandHued(painted('inside', chip)), chip).toBe(true);
       await expect(brandHued(painted('charted', chip)), chip).toBe(true);
     }
-    // Outside the wrapper the surface wears azure's own blue.
+    // Outside the wrapper the surface wears porcelain's own blue.
     await expect(brandHued(painted('outside', 'primary'))).toBe(false);
-    await expect(painted('outside', 'primary').l).toBeCloseTo(0.541, 2);
+    await expect(painted('outside', 'primary').l).toBeCloseTo(0.522, 2);
     // Absent, the first slot is the preset's — a variable of that name
     // switches nothing on.
     await expect(painted('inside', 'chart-1')).toEqual(
       painted('outside', 'chart-1'),
     );
     // Present on the wrapper, it takes the brand's hue at the lightness
-    // azure tuned its first slot to.
+    // porcelain tuned its first slot to.
     const slot = painted('charted', 'chart-1');
     await expect(brandHued(slot)).toBe(true);
-    await expect(slot.l).toBeCloseTo(0.5538, 2);
+    await expect(slot.l).toBeCloseTo(0.5705, 2);
     // Switched off, the slot is the preset's once more.
     const canvas = within(canvasElement);
     await userEvent.click(

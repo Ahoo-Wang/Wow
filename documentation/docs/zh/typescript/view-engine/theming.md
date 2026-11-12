@@ -11,9 +11,9 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 
 宿主只做一个选择，写在 `ViewHost` 上（[承载引擎](./host)）：
 
-| 路         | 适合                                  | 写法                                                                                                                                                  |
-| ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `tokenSource="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                                     |
+| 路         | 适合                                  | 写法                                                                                                                                                   |
+| ---------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `tokenSource="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                               |
 | 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="porcelain"`（引入它的文件），可加 `brand="#1d4ed8"`（[预设](#预设)、[品牌色](#我有品牌色)）；宿主自己的外壳挂 [`fve-tokens`](#宿主自己的外壳) |
 
 `ViewHost` 把预设与品牌色点名在 `<html>` 上，也在那里画明暗（`colorMode`，[见下](#亮、暗与跟随系统)）。本页其余部分是这两行底下的东西，以及越过它们时伸手去拿的东西。`ViewHost` 的其余端口——路由、语言与每个资源的 `bind`——见[接入宿主](./host)；页面开着严格的内容安全策略时样式表怎样加载，见[内容安全策略](./csp)。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同。
@@ -64,21 +64,20 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 | 预设        | 性格                                                                                               | 圆角           | 图表八色 |
 | ----------- | -------------------------------------------------------------------------------------------------- | -------------- | -------- |
-| `neutral`   | 默认：中性灰、黑色主色                                                                             | 10px           | 默认     |
-| `azure`     | 中国企业后台：明快的蓝、灰底白行、中文优先的系统字体栈                                             | 6px            | 自带     |
+| `neutral`   | 默认：带冷调的灰、靠明度分开的几层底、靛蓝主色                                                     | 6px            | 默认     |
 | `porcelain` | 桌面原生：系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格 | 6px／卡片 12px | 自带     |
 | `contrast`  | 高对比：字 ≥7:1，2px 的控件边与离控件 2px 的 2px 焦点 ≥4.5:1，选中行着色，默认开图表花纹           | 4px            | 自带     |
 
 我的品牌该选哪套：
 
-| 你的情况                           | 用什么                                                                        |
-| ---------------------------------- | ----------------------------------------------------------------------------- |
-| 已经是 shadcn 应用，有自己的主题   | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设                                 |
-| 没有设计系统，要一个现成的风格     | 上表里最像你产品的那一套                                                      |
-| 后台长得像国内常见的开源组件库     | `azure`；仪表盘面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"`  |
-| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                   |
-| 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)） |
-| 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                       |
+| 你的情况                           | 用什么                                                                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 已经是 shadcn 应用，有自己的主题   | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设                                                                                          |
+| 没有设计系统，要一个现成的风格     | 上表里最像你产品的那一套                                                                                                               |
+| 界面以中文为主                     | 任何一套，加一行中文优先的 `--fve-font-sans`（见[字体](#字体)）；仪表盘面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
+| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                                                                            |
+| 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)）                                                          |
+| 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                                                                                |
 
 每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
 
@@ -115,7 +114,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 
 ```css
 @import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/azure.css';
+@import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 :root {
   --fve-brand: #7c3aed;
@@ -124,7 +123,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 ```
 
 ```html
-<html data-fve-preset="azure"></html>
+<html data-fve-preset="porcelain"></html>
 ```
 
 主色取你的颜色的色相，选中项（`accent`）、视图列表里悬停的那一个（`sidebar-accent`）与选中行（`row-selected`）的淡色也取它；焦点环就是主色，也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），在视图自己身上算；每套预设只给它在自己的底上量出来的**边界**：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线——有一个测试在每套、两种明暗下扫过整个 sRGB——太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、`input`、状态色与图表八色仍是预设自己的。
@@ -134,7 +133,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 - 你自己设的 `--fve-primary`（或 `--fve-accent`、`--fve-sidebar-accent`、`--fve-row-selected`、`--fve-ring`）仍赢过品牌色，品牌色又赢过预设自己的颜色。
 - 边界也是预设层的变量（`--fvp-brand-l-min`、`--fvp-brand-l-max`、`--fvp-brand-c-max`，以及 token 表里其余 `brand-*` 几行）。宿主可以用 `--fve-brand-l-max` 这样的写法放宽或收紧某一个，写了它的测量就归你。
 - 图表第 1 色默认保持预设的颜色，在 `<html>`（或视图的任一祖先）上加 `data-fve-brand-chart` 属性才跟品牌色：取你的色相、保留预设调好的亮度与彩度，此时色板的测量归你，与自己设 `--fve-chart-1` 一样。它与预设、密度一样是属性：有就开、没有就关，视图会把它抄到弹层上。
-- [链接](#角色的链接)到主色或选中行的角色也跟着品牌色：`porcelain` 的菜单高亮，`azure` 的当前视图与已选项。
+- [链接](#角色的链接)到主色或选中行的角色也跟着品牌色：`porcelain` 的菜单高亮，以及你自己链接的角色（比如当前视图与已选项）。
 - 没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，预设原样。
 
 ## 宿主覆盖
@@ -202,11 +201,11 @@ declare const engine: ViewEngine;
 
 | 面的哪一部分 | 角色                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 底与卡片     | `canvas`（仪表盘的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                                |
-| 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-selected-mark`（选中行左边的色条，不设就没有）、`row-hover`、`row-stripe`（不设就关）、`row-divider`（表体行线，不设就是 `border`）、`table-sort-idle`（未排序列的标记在指针设备上显示多少，不设是 1）                                                                                                                                                                                                              |
+| 底与卡片     | `canvas`（仪表盘的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                              |
+| 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-selected-mark`（选中行左边的色条，不设就没有）、`row-hover`、`row-stripe`（不设就关）、`row-divider`（表体行线，不设就是 `border`）、`table-sort-idle`（未排序列的标记在指针设备上显示多少，不设是 1）                                        |
 | 状态         | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）；`item-selected`、`item-selected-foreground`、`item-selected-weight`（其中已选中的那一项）；`nav-current`、`nav-current-foreground`、`nav-current-edge`、`nav-current-shadow`（视图列表里正在看的那一个）；`control-hover`、`control-pressed`；`outline-hover-edge`、`outline-hover-foreground`（指针下的描边按钮） |
 | 焦点         | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                                                                                                                                                                                                        |
-| 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（仪表盘的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                            |
+| 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（仪表盘的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                          |
 | 圆角         | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox`                                                                                                                                                                                                                                                                                                              |
 | 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground`                                                                                                                                                                                                                                                                                                                                  |
 | 图表         | 见[图表的角色](#图表的角色)                                                                                                                                                                                                                                                                                                                                                                       |
@@ -236,34 +235,34 @@ declare const engine: ViewEngine;
 }
 ```
 
-写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 亮色就是主色本身，暗色是主色的色相深一档；预设可以把这一档写成固定的颜色（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条，`azure` 链了当前视图、已选项与描边按钮悬停时的边——所以它们会跟着品牌色。
+写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 亮色就是主色本身，暗色是主色的色相深一档；预设可以把这一档写成固定的颜色（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条——所以它们会跟着品牌色；当前视图、已选项与描边按钮悬停时的边没有哪套内置预设链接，留给宿主。
 
 ## 图表的角色
 
 图表库自己画 SVG，样式表够不到，所以图表把自己的整个外观从元素上读回来——颜色读成颜色，长度读成像素，数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再按它画：
 
-| 角色                                                                | 是什么                                              | 不设时                                       |
-| ------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------- |
-| `chart-grid`、`chart-grid-width`                                    | 网格线与坐标轴的轴线                                | `border`、1px                                |
-| `chart-axis`                                                        | 图表里弱一级的字：刻度、轴名、色阶两端              | `muted-foreground`                           |
-| `chart-text-size`、`chart-label-size`                               | 图表的字号与值标签的字号                            | `text-ui` 减 1px、减 2px                     |
-| `chart-line-width`、`chart-area-opacity`                            | 折线，与它下面的面积                                | 2px、0.2                                     |
-| `chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`    | 柱的圆角与柱宽的上下限                              | `radius` 的 0.6、至多 2px；无；80px          |
-| `chart-slice-border`                                                | 扇区之间的缝                                        | 1px                                          |
-| `chart-map-edge` | 地图的边界线，描在每个区域四周：没数的区域、岛屿与争议线靠它才与底色分得开；它是边，对底色和色阶最浅的一档都要 3:1 | `chart-axis` |
-| `chart-tooltip`、`chart-tooltip-foreground`、`chart-tooltip-shadow` | 图表的提示框，它是 HTML，像其他弹层一样读这几个角色 | `popover`、`popover-foreground`、`shadow-md` |
+| 角色                                                                | 是什么                                                                                                             | 不设时                                       |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `chart-grid`、`chart-grid-width`                                    | 网格线与坐标轴的轴线                                                                                               | `border`、1px                                |
+| `chart-axis`                                                        | 图表里弱一级的字：刻度、轴名、色阶两端                                                                             | `muted-foreground`                           |
+| `chart-text-size`、`chart-label-size`                               | 图表的字号与值标签的字号                                                                                           | `text-ui` 减 1px、减 2px                     |
+| `chart-line-width`、`chart-area-opacity`                            | 折线，与它下面的面积                                                                                               | 2px、0.2                                     |
+| `chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`    | 柱的圆角与柱宽的上下限                                                                                             | `radius` 的 0.6、至多 2px；无；80px          |
+| `chart-slice-border`                                                | 扇区之间的缝                                                                                                       | 1px                                          |
+| `chart-map-edge`                                                    | 地图的边界线，描在每个区域四周：没数的区域、岛屿与争议线靠它才与底色分得开；它是边，对底色和色阶最浅的一档都要 3:1 | `chart-axis`                                 |
+| `chart-tooltip`、`chart-tooltip-foreground`、`chart-tooltip-shadow` | 图表的提示框，它是 HTML，像其他弹层一样读这几个角色                                                                | `popover`、`popover-foreground`、`shadow-md` |
 
 柱的圆角跟着 `radius`，所以方角风格的柱子自己就方了，不必另说。主题一变，图表会被告知重读（见[嵌入与弹层](#嵌入与弹层)）。
 
 ## 亮、暗与跟随系统
 
-| 做法                                                                     | 效果                                                                                                                                   |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `ViewHost` 缺省（`colorMode="system"`）                                  | 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`useColorMode()` 让宿主的开关钉住一种，按 `rememberColorMode` 记住 |
-| `ViewHost` 上写 `colorMode="light"` 或 `"dark"`                          | 从钉住开始；读者仍可另选                                                                                                               |
-| `ViewHost` 上写 `colorMode="host"`，宿主自己挂 `.dark`（通常在 `<html>`） | 视图跟随页面的明暗（next-themes、宿主自己的开关）；引擎不碰 `<html>`                                                                    |
-| 在 `ViewSurface`、工作台或嵌入组件上写 `colorMode="light"` 或 `colorMode="dark"` | 钉住这一个视图                                                                                                                         |
-| `colorMode="system"`                                                         | 这一个视图跟随读者的 `prefers-color-scheme` 并实时切换                                                                                 |
+| 做法                                                                             | 效果                                                                                                                                 |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `ViewHost` 缺省（`colorMode="system"`）                                          | 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`useColorMode()` 让宿主的开关钉住一种，按 `rememberColorMode` 记住 |
+| `ViewHost` 上写 `colorMode="light"` 或 `"dark"`                                  | 从钉住开始；读者仍可另选                                                                                                             |
+| `ViewHost` 上写 `colorMode="host"`，宿主自己挂 `.dark`（通常在 `<html>`）        | 视图跟随页面的明暗（next-themes、宿主自己的开关）；引擎不碰 `<html>`                                                                 |
+| 在 `ViewSurface`、工作台或嵌入组件上写 `colorMode="light"` 或 `colorMode="dark"` | 钉住这一个视图                                                                                                                       |
+| `colorMode="system"`                                                             | 这一个视图跟随读者的 `prefers-color-scheme` 并实时切换                                                                               |
 
 **暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`。** shadcn 的习惯——在 `.dark` 下重写同一个变量——过不了「钉住」：变量从 `<html class="dark">` 一路继承下来，钉在浅色的视图拿到的就是宿主的暗色值，分不出是给哪种模式的。两半各按自己的模式起名，每块面才能挑自己的。走[桥接](#shadcn-桥接)的宿主不受影响：桥接读的是宿主自己按 `.dark` 切换的 shadcn 变量。
 
@@ -279,7 +278,12 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} colorMode="dark" preset="azure" />
+<EmbeddedView
+  engine={engine}
+  instanceId={id}
+  colorMode="dark"
+  preset="porcelain"
+/>
 ```
 
 ## 嵌入与弹层
@@ -341,7 +345,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 | 线                                                | 量什么                                                                                                                                                                               |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 文字，≥4.5:1（`contrast` 为 7:1）                 | 每个前景色在它的底上：页面、卡片、弹层、表头带与合计带、选中行、隔行与悬停行、高亮项与已选项、当前视图、提示框、图表里弱一级的字；状态色作为文字，以及作为徽标的字落在它自己的淡底上 |
-| 控件、焦点与状态标记，≥3:1（`contrast` 为 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上；`primary`、`rise-fill`、`fall-fill` 填充表示状态的标记时                                                           |
+| 控件、焦点与状态标记，≥3:1（`contrast` 为 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上；`primary`、`rise-fill`、`fall-fill` 填充表示状态的标记时                                                                                   |
 | 无                                                | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                          |
 
 设了一个颜色——token、角色、链接、品牌色的边界——它落到的每一种底上的那条线就归你负责。宿主最常丢的是 `--fve-ring` 与 `--fve-input`（或它们的 `--fve-dark-` 一半）：没勾的复选框只剩 `input` 那一圈边，获焦的控件靠 `ring` 那条边认出来。落在预设边界之内的品牌色、你没设的角色，都不欠你什么。
@@ -354,7 +358,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 ```bash
 pnpm exec wow-view-engine theme-check src/theme.css
-pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porcelain
+pnpm exec wow-view-engine theme-check src/theme.css --preset porcelain --preset contrast
 ```
 
 它读你的样式表（给几个就按次序拼起来），报出问题与行列号：
@@ -557,6 +561,20 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 
 字体归宿主：面上写的是 `font-family: var(--fve-font-sans, var(--fvp-font-sans))`——先宿主、后预设——不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
 
+### 字体
+
+界面以中文为主时，把中文的系统字体排在前面——点名 `PingFang SC`，没写 `lang` 的页面才不会落到繁体字形上。一行就够，配哪套预设都行；什么都不打包、不下载，只引用系统里已有的字体：
+
+```css
+:root {
+  --fve-font-sans:
+    system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+```
+
+这条字体栈原先由内置预设 `azure` 带着；`azure` 已移除，中文优先的字体是宿主的一个变量，不是一套预设。
+
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
 
 `input` 与 `ring` 要守一条别的 token 不必守的线：控件的边与焦点标记按 WCAG 1.4.11 要与身后的颜色有 3:1，两个默认值在明暗两态都调到过线（Storybook 的对比度故事在浏览器里量）。它们刻意是独立的值。常见的 shadcn 品牌主题会把它们改指别处——`--ring: var(--primary)`、`--input: var(--border)`——这就把 3:1 交给了一个品牌色和一档分隔线灰，而它们都不欠这条线：未勾的复选框成了一根细线，获焦的行只剩一层淡色。设 `--fve-primary` 或 `--fve-border` 不会动到它们；设了 `--fve-ring`／`--fve-input`（或 `--fve-dark-` 那一半）的宿主，同样欠自己的主题这条 3:1，应当自己量。
@@ -608,13 +626,13 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 
 样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，以及引擎作画所用的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
 
-|                           | `.fve-root`                                       | `.fve-tokens`                                                    |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
-| 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                 | 你自己的 DOM                                                     |
-| token、utility、preflight | 有                                                | 有                                                               |
-| 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己涂 `var(--background)` 与 `var(--foreground)` |
-| 明暗                      | 祖先上的 `.dark`，或 `colorMode` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
-| 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
+|                           | `.fve-root`                                           | `.fve-tokens`                                                               |
+| ------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                     | 你自己的 DOM                                                                |
+| token、utility、preflight | 有                                                    | 有                                                                          |
+| 涂底色与文字色            | 涂                                                    | **不涂**——想要本包那张底，自己涂 `var(--background)` 与 `var(--foreground)` |
+| 明暗                      | 祖先上的 `.dark`，或 `colorMode` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                                        |
+| 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                         | 没有                                                                        |
 
 **`fve-tokens` 许诺的是 token，不是 utility，也不是组件。** 边界里，主题的 token 以 shadcn 的名字声明——`--background`、`--foreground`、`--card`、`--card-foreground`、`--primary`、`--muted`、`--border`、`--radius` 等等——已按预设、你的覆盖与明暗解析好。你自己的 Tailwind 主题照 shadcn/ui 的做法映射它们（`--color-card: var(--card)`），你自己的类（`bg-card`）与你自己那份 shadcn/ui 在这里就穿上本主题；纯 CSS 用 `var(--card)` 读。引擎的 `fve:` utility 是引擎自己的：样式表只在引擎某个组件写着它的时候才有这一条，今天可用的，下一个版本可能就没了。本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，同样不公开——所以请用你自己的组件与类搭 chrome，由这道边界把本主题的配色交给它们：
 
