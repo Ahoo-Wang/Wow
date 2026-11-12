@@ -245,7 +245,7 @@ class OrderingAnalyticsTest {
         server.http.get(path, caller + headers)
 
     private companion object {
-        const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
+        const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:25.3.14.14-alpine"
         const val ORDERS = "/eshop-ordering/order/snapshot/query"
         const val ORDER_EVENTS = "/eshop-ordering/order/events/query"
         const val SALES = "/wow/dataset/eshop-ordering/sales/query"

@@ -29,7 +29,7 @@ Commit `285da855678f1bbca710da66a536cedd5ddecfb8` (branch `claude/v10-eshop-e2e`
 ## Machine
 
 - Apple M4, 10 cores, 16 GB, macOS 27.0.1.
-- Docker Desktop 29.8.2, its VM given 10 CPUs and 8 GB: `postgres:17-alpine`, `confluentinc/cp-kafka:7.4.0`, `clickhouse/clickhouse-server:24.8.14.39-alpine`.
+- Docker Desktop 29.8.2, its VM given 10 CPUs and 8 GB: `postgres:17-alpine`, `confluentinc/cp-kafka:7.4.0`, `clickhouse/clickhouse-server:25.3.14.14-alpine`.
 - JDK 21.0.12 (Eclipse Temurin), the services' JVMs with their default heap; the log of 4 partitions, `EshopStack`'s short cluster timings.
 
 ## Reproducing it
