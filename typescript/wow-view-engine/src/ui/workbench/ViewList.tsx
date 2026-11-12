@@ -140,24 +140,23 @@ export function ViewList({
       {/* The heading is its own row: the definition's name, and whatever acts
           on the list as a whole sits beside it rather than among the views.
 
-          It is ruled off, and the rule lands on the same line as the title
-          bar's: the two columns each have a head, and two heads that end at
-          two different heights read as two pages side by side. The geometry
-          is therefore copied rather than guessed — `WorkbenchShell`'s `main`
-          opens with `p-4`, and its `view-header-block` is a `min-h-10` row
-          over `pb-3` and a border, so this is the same four numbers in the
-          same order. `RecordWorkbenchSidebar.test.stories.tsx` measures the two
-          bottoms against each other.
+          It starts where the title bar does and is as tall: the two columns
+          each have a head, and two heads at two different heights read as
+          two pages side by side. The geometry is therefore copied rather
+          than guessed — `WorkbenchShell`'s `main` opens with `p-4`, and its
+          `view-header-block` is a `min-h-10` row, so this is the same
+          numbers in the same order. Neither head is ruled off (2026-11-12
+          review): each was, on one line across both columns, and with the
+          result's own rule and the toolbar's that made four lines above the
+          first row. `RecordWorkbenchSidebar.test.stories.tsx` measures the
+          two rows against each other.
 
           The `+` is D12's third button, and it is here only with a command
           behind it (`useWorkbench.create`): a control with no command is a
           promise, so by D4 it is absent rather than disabled. It leads: it
           is the one action that adds to the list under it, the other two
           act on the list as it is. */}
-      <div
-        data-slot="view-list-header"
-        className="fve:border-sidebar-border fve:border-b fve:px-3 fve:pt-4 fve:pb-3"
-      >
+      <div data-slot="view-list-header" className="fve:px-3 fve:pt-4 fve:pb-3">
         <div className="fve:flex fve:min-h-10 fve:min-w-0 fve:items-center fve:gap-1">
           {/* The page's own name, one level above every view in it (the
               view's name is the `h2` in the title bar): a definition is the

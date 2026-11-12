@@ -55,6 +55,18 @@
 }
 
 /*
+ * An embedded board stands in from its top as far as from its sides. Its
+ * rows outside the grid (its head, its filter bar) are inset by the grid's
+ * own padding to line up with the panels (`BOARD_INSET`, 10px), and the
+ * grid pads its own foot; the top had nothing, so the first row sat flush
+ * against whatever the host put above the embed (2026-11-12 review). A
+ * host that wants more room adds its own around the embed.
+ */
+.fve-root[data-embed-size][data-kind='dashboard'] {
+  padding-block-start: 10px;
+}
+
+/*
  * A kanban fills what is left like the cards do, and scrolls sideways at
  * its foot; each lane scrolls its own cards inside that height (D83).
  */

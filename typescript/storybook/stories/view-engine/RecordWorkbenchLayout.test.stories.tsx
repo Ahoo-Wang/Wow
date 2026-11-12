@@ -91,9 +91,9 @@ export const BlockSpacing: Story = {
     await expect(column.gap).toBe('16px');
 
     // And the result block is one framed region (D12 Ⅳ–Ⅶ): no row gap of
-    // its own — the toolbar is its first row and the pagination its last,
-    // each ruled off from the rows between them with a hairline, so the
-    // space inside the frame is the slots' padding, not a gap.
+    // its own — the toolbar is its first row and the pagination its last.
+    // One rule above the first row, the frame's own: the title bar and the
+    // toolbar draw none (2026-11-12 review), the pagination keeps its own.
     const result = canvasElement.querySelector<HTMLElement>(
       '[data-slot="result-block"]',
     )!;
@@ -103,7 +103,7 @@ export const BlockSpacing: Story = {
     const toolbar = canvasElement.querySelector<HTMLElement>(
       '[data-slot="result-toolbar"]',
     )!;
-    await expect(getComputedStyle(toolbar).borderBottomWidth).toBe('1px');
+    await expect(getComputedStyle(toolbar).borderBottomWidth).toBe('0px');
     const pagination = canvasElement.querySelector<HTMLElement>(
       '[data-slot="record-pagination"]',
     )!;

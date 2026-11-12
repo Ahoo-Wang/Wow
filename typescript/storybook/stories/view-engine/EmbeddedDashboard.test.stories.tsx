@@ -78,6 +78,16 @@ export const CustomerDetail: Story = {
       name: label('label.embed.locked-name', { filter: '客户' }),
     });
     await expect(customer).toHaveTextContent('晨光食品');
+    // The board stands in from its top as far as from its sides: its first
+    // row is not flush against what the host puts above it.
+    const board = bar.closest<HTMLElement>('[data-embed-size]')!;
+    const firstRow = bar.closest<HTMLElement>(
+      '[data-slot=dashboard-filter-row]',
+    );
+    await expect(getComputedStyle(board).paddingTop).toBe(
+      getComputedStyle(firstRow ?? bar).paddingLeft,
+    );
+    await expect(getComputedStyle(board).paddingTop).toBe('10px');
     await expect(within(customer).queryByRole('combobox')).toBeNull();
     await expect(
       within(customer).getByRole('button', {

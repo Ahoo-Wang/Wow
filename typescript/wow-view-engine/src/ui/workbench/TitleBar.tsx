@@ -87,10 +87,11 @@ export function TitleBar({
   return (
     <div
       data-slot="view-header-block"
-      // The rule runs the whole width of the column, under `main`'s own
-      // padding, so it meets the sidebar's edge and the two heads end
-      // on one continuous line rather than two dashes with a gap.
-      className="fve:border-border fve:-mx-4 fve:border-b fve:px-4 fve:pb-3"
+      // No rule under it (2026-11-12 review): the title and the conditions
+      // under it are the view's head, set apart by the column's gap, and
+      // the one rule above the first row is the result's own, where the
+      // conditions end and the rows begin (`resultFrameChrome`).
+      className="fve:-mx-4 fve:px-4"
     >
       <ViewHeader
         state={state}

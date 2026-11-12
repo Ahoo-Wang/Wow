@@ -137,6 +137,15 @@ describe('inkOn: a label written on a mark', () => {
     expect(inkOn(DARK, 'rgb(220, 232, 250)')).toBe(DARK.ink.dark);
   });
 
+  it('takes the light ink wherever it reads, a near tie included', () => {
+    // A saturated mid blue: white reads 4.58:1 on it and black 4.59. The
+    // tie went to black; the primary button writes white on such a blue.
+    expect(inkOn(LIGHT, 'rgb(0, 113, 237)')).toBe(LIGHT.ink.light);
+    expect(inkOn(DARK, 'rgb(0, 113, 237)')).toBe(DARK.ink.light);
+    // Under the line the further ink still wins: white reads 3.2:1 here.
+    expect(inkOn(LIGHT, 'rgb(0, 150, 136)')).toBe(LIGHT.ink.dark);
+  });
+
   it('are the chart’s own, not the page’s words and ground', () => {
     // A page written in a soft ink on a pale ground: neither reads on a
     // mid-tone mark, and neither is what the label takes.

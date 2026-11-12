@@ -243,16 +243,29 @@ export function emphasized(theme: ChartTheme, fill: string): string {
  * own, not the page's words and ground: those are chosen to read on each
  * other, and a softer ink or a lighter dark ground left a mid-tone slot
  * with neither at 4.5:1.
+ *
+ * **The light ink wherever it reads** (`LABEL_LINE`, 4.5:1), the dark one
+ * only where it does not. On a mid-tone fill the two tie — a saturated blue
+ * at 4.58 against 4.59 — and the tie went to the dark ink: black words on
+ * the blue the primary button writes in white (2026-11-12 review). Where
+ * the light ink clears the line the dark one cannot be far ahead (the two
+ * ratios multiply to about 21), so this decides the near ties and nothing
+ * else.
  */
 export function inkOn(theme: ChartTheme, fill: string): string {
   const under = parse(fill);
   const dark = parse(theme.ink.dark);
   const light = parse(theme.ink.light);
   if (!under || !dark || !light) return theme.ink.dark;
-  return wcagContrast(under, dark) >= wcagContrast(under, light)
+  const onLight = wcagContrast(under, light);
+  if (onLight >= LABEL_LINE) return theme.ink.light;
+  return wcagContrast(under, dark) >= onLight
     ? theme.ink.dark
     : theme.ink.light;
 }
+
+/** What a label owes its fill (WCAG 1.4.3). */
+const LABEL_LINE = 4.5;
 
 /** The colour of nothing, as `concreteColor` writes it. */
 const TRANSPARENT = /^rgba\(.*,\s*0\)$/;
