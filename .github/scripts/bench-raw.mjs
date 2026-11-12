@@ -39,7 +39,7 @@ export function rawSuites(HEAD_PG, HEAD_MONGO) {
       measure: 'raw',
       arms: [HEAD_PG],
       answers:
-        "What PostgreSQL alone does with the writes Wow asks of it, and with the shapes that price a candidate: Wow's tables cloned and written with rows of Wow's own commits through the driver alone. Today's shape (the calibration: its WAL per command against Wow's own), the append alone, the snapshot upsert alone at 4, 10 and 25 rows a statement, synchronous and not, at fillfactor 100 and 80 (P0, P1), the append and its snapshots in one synchronous transaction against today's split at one rate (P2), and a point read; per case, units a second, the store's CPU, WAL bytes, syncs and commits per unit, and the HOT share of the snapshot updates.",
+        "What PostgreSQL alone does with the writes Wow asks of it, and with the shapes that price a candidate: Wow's tables cloned and written with rows of Wow's own commits through the driver alone. Today's shape, first on Wow's ground as the calibration (WAL records, commits, bytes and the HOT share per command against Wow's own, full-page images apart), the append alone, the snapshot upsert alone at 4, 10 and 25 rows a statement, synchronous and not, at fillfactor 100 and 80 (P0, P1), the append and its snapshots in one synchronous transaction against today's split at one rate (P2), and a point read; per case, units a second, the store's CPU, WAL bytes, syncs and commits per unit, and the HOT share of the snapshot updates.",
     },
     'raw-mongo': {
       group: 'raw',
@@ -47,7 +47,7 @@ export function rawSuites(HEAD_PG, HEAD_MONGO) {
       measure: 'raw',
       arms: [HEAD_MONGO],
       answers:
-        "What MongoDB alone does with the writes Wow asks of it, as raw-pg: today's shape (the calibration), the log's insertMany alone, the snapshot update in each shape its store cost is priced in (M0 today's pipeline, M1 a modifier $set, M2 with $setOnInsert, M3 replaceOne) at 4, 10 and 25 a bulkWrite with the domain's state and a 4 KB one, and the log's insert and its snapshots in one multi-document transaction beside the same calls back to back; per update, mongod's CPU, its write latency (latencyStats), journal and oplog bytes.",
+        "What MongoDB alone does with the writes Wow asks of it, as raw-pg: today's shape, first on Wow's ground as the calibration (inserts, updates, journal and oplog bytes per command against Wow's own), the log's insertMany alone, the snapshot update in each shape its store cost is priced in (M0 today's pipeline, M1 a modifier $set, M2 with $setOnInsert, M3 replaceOne) at 4, 10 and 25 a bulkWrite with the domain's state and a 4 KB one, and the log's insert and its snapshots in one multi-document transaction beside the same calls back to back, each step on a pool of its connections; per update, mongod's CPU, its write latency (latencyStats), journal and oplog bytes.",
     },
   };
 }
@@ -101,18 +101,37 @@ const perUnit = (step, key, digits = 2, scale = 1) =>
     ? num(step.perUnit[key] * scale, digits)
     : '-';
 
-/** A raw run's calibration in words: Wow's bytes per command against the clone's, and whether it passed. */
+const ratioText = check =>
+  Number.isFinite(check.absolute)
+    ? `${num(check.rawPerCommand, 3)} against Wow's ${num(check.wowPerCommand, 3)} (within ±${num(check.absolute, 2)}: ${check.passed ? 'yes' : 'no'})`
+    : Number.isFinite(check.rawPerCommand) &&
+        Number.isFinite(check.wowPerCommand)
+      ? `${num(check.rawPerCommand, 3)} against Wow's ${num(check.wowPerCommand, 3)} (${num(check.rawPerCommand / check.wowPerCommand, 3)}${Number.isFinite(check.share) ? `, within ±${num(check.share * 100, 0)}%: ${check.passed ? 'yes' : 'no'}` : ''})`
+      : `not read on both sides (Wow ${check.wowPerCommand ?? 'none'}, clone ${check.rawPerCommand ?? 'none'})`;
+
+/**
+ * A raw run's calibration in words: each check of the clone's counters per command on Wow's ground against Wow's own,
+ * then those reported apart, and whether it passed.
+ */
 export function calibrationText(raw) {
   const c = raw?.calibration;
-  if (!c)
+  if (!c || !Array.isArray(c.checks))
     return '**Uncalibrated: the run recorded no calibration. No case of it is read.**';
+  const checks = c.checks
+    .map(check => `${check.metric} ${ratioText(check)}`)
+    .join('; ');
+  const apart = (c.apart ?? [])
+    .map(check => `${check.metric} ${ratioText(check)}`)
+    .join('; ');
+  const tail = apart ? ` Apart: ${apart}.` : '';
   if (!c.passed) {
-    const measured = Number.isFinite(c.ratio)
-      ? `the clone's ${c.metric} per command is ${num(c.rawPerCommand, 0)} against Wow's ${num(c.wowPerCommand, 0)} (${num(c.ratio, 3)}, outside ±${num(c.tolerance * 100, 0)}%)`
-      : `${c.metric} per command could not be read on both sides (Wow ${c.wowPerCommand ?? 'none'}, clone ${c.rawPerCommand ?? 'none'})`;
-    return `**Uncalibrated: ${measured}. No case of this run is read.**`;
+    const why =
+      c.read === false
+        ? 'its step had a failed or refused write'
+        : 'a check is outside its bound';
+    return `**Uncalibrated (${why}): ${checks || 'no check'}.${tail} No case of this run is read.**`;
   }
-  return `Calibrated: the clone's ${c.metric} per command is ${num(c.rawPerCommand, 0)} against Wow's own ${num(c.wowPerCommand, 0)} (${num(c.ratio, 3)}, within ±${num(c.tolerance * 100, 0)}%).`;
+  return `Calibrated on Wow's ground, per command: ${checks}.${tail}`;
 }
 
 /** The store's version and durability settings, and the run's batch shape, a ceiling is quoted with. */
@@ -123,12 +142,18 @@ export function settingsText(raw) {
   return `Store: ${store || 'not recorded'}. Batches: ${raw?.logBatch ?? '?'} commands a flush, their snapshots ${raw?.snapshotBatch ?? '?'} a statement or call; cases at ${(raw?.batches ?? []).join(', ')} a statement or call; ${raw?.aggregates ?? '?'} aggregates.`;
 }
 
+/** Whether a step is read: every write it asked for taken and none failed, else what was not. */
+const readText = step =>
+  step.read
+    ? 'yes'
+    : `no: ${step.failures ?? '?'} failed, ${step.refused ?? '?'} refused`;
+
 /** A raw run's steps as a table: per case and connections, what it did and what each unit cost. */
 export function rawTable(run) {
   const mongo = run.raw?.backend === 'mongo';
   const head = mongo
-    ? '| Case | Prices | Unit | Connections | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Failures |'
-    : '| Case | Prices | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Failures |';
+    ? '| Case | Prices | Unit | Connections | Pool | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Read |'
+    : '| Case | Prices | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Late | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Read |';
   return [
     head,
     `| ${head
@@ -147,6 +172,7 @@ export function rawTable(run) {
             step.prices,
             step.unit,
             step.connections,
+            step.pool ?? 'default',
             num(step.unitsPerSecond, 0),
             flush,
             cpu,
@@ -156,7 +182,7 @@ export function rawTable(run) {
             perUnit(step, 'journalBytes', 0),
             perUnit(step, 'oplogBytes', 0),
             perUnit(step, 'journalSyncs', 3),
-            step.failures,
+            readText(step),
           ]
         : [
             step.case,
@@ -168,6 +194,7 @@ export function rawTable(run) {
               : 'closed loop',
             num(step.unitsPerSecond, 0),
             flush,
+            Number.isFinite(step.rate) ? step.late : '-',
             cpu,
             perUnit(step, 'walBytes', 0),
             perUnit(step, 'walSyncs', 3),
@@ -176,14 +203,17 @@ export function rawTable(run) {
             Number.isFinite(step.ratios?.hotShare)
               ? `${num(step.ratios.hotShare * 100, 0)}%`
               : '-',
-            step.failures,
+            readText(step),
           ];
       return `| ${cells.join(' | ')} |`;
     }),
   ];
 }
 
-/** A raw suite's anomalies: a run that failed, an uncalibrated run, and a step with failed flushes. */
+/**
+ * A raw suite's anomalies: a run that failed, an uncalibrated run, a step not read (a failed or refused write), and a
+ * paced step whose flushes started late.
+ */
 export function rawAnomalies(suite) {
   const rows = [];
   const row = (run, context, kind, detail) =>
@@ -194,12 +224,21 @@ export function rawAnomalies(suite) {
     if (run.status === 'ok' && !run.raw?.calibration?.passed)
       row(run, 'calibration', 'uncalibrated', 'no case of this run is read');
     for (const step of run.raw?.steps ?? []) {
-      if (step.failures > 0) {
+      const context = `${step.case} at ${step.connections}`;
+      if (!step.read) {
         row(
           run,
-          `${step.case} at ${step.connections}`,
-          'failed flushes',
-          `${step.failures} of ${step.flushes + step.failures}`,
+          context,
+          'not read',
+          `${step.failures} failed flushes of ${step.flushes + step.failures}, ${step.refused} units refused`,
+        );
+      }
+      if (Number.isFinite(step.rate) && step.late > 0) {
+        row(
+          run,
+          context,
+          'late flushes',
+          `${step.late} of ${step.flushes} started over 1 ms after their time`,
         );
       }
     }

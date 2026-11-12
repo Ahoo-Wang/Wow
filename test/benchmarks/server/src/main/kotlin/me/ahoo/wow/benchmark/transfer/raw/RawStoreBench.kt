@@ -24,20 +24,23 @@ import java.io.File
 import kotlin.system.exitProcess
 
 /**
- * The raw-driver ceiling: what the store alone does with the durable writes Wow asks of it,
- * per command, row or update, in today's shape and in the shapes that price a candidate (MongoDB's update shapes M0–M3; PostgreSQL's P0–P2),
- * before any kernel work.
+ * The raw-driver ceiling: what the store alone does with the durable writes Wow asks of it, per command, row or
+ * update, in today's shape and in the shapes that price a candidate (MongoDB's update shapes M0–M3; PostgreSQL's
+ * P0–P2), before any kernel work.
  *
  * First the benchmark's domain runs in this JVM on the store (ComponentRun, as the L1 benchmark does): `--templates`
- * accounts and four deposits each, so Wow creates its tables and writes real rows, and its WAL (PostgreSQL) or journal
- * (MongoDB) bytes per command are read around it. Then, with the driver alone, each case runs on fresh clones of Wow's
- * tables over `--connections`, `--warm-up` seconds unmeasured and `--seconds` measured, over `--aggregates` aggregates
- * whose snapshots exist; on PostgreSQL P2's two cases run again at `--p2-share` of the split's throughput, so they
- * compare at one rate. `--cases` keeps the cases whose name starts with one of its prefixes.
+ * accounts and four deposits each, so Wow creates its tables and writes real rows, and the store's counters per
+ * command are read around it. Then, with the driver alone, each case runs on fresh clones of Wow's tables over
+ * `--connections`, `--warm-up` seconds unmeasured and `--seconds` measured, over `--aggregates` opened aggregates
+ * whose versions its steps carry on; on PostgreSQL P2's two cases run again at `--p2-share` of the split's
+ * throughput, so they compare at one rate. `--cases` keeps the cases whose name starts with one of its prefixes.
  *
- * The calibration leads raw.json: the `wow-today` case's bytes per command against Wow's own, within 10%. A run that
- * fails it or cannot take it says so first, and none of its cases is read. raw.json goes to `--out`, with the store's
- * version and durability settings and the run's batch parameters.
+ * The calibration leads raw.json: today's shape on Wow's ground (as many aggregates as Wow's run, every one written
+ * since the checkpoint, at its concurrency) against Wow's own counters per command, each within its bound: WAL
+ * records, commits, bytes and the HOT share on PostgreSQL; inserts, updates, journal and oplog bytes on MongoDB. Full
+ * page images and commands are reported apart. A run that fails it or cannot take it says so first, and none of its
+ * cases is read; nor is a step with a failed or refused write. raw.json goes to `--out`, with the store's version and
+ * durability settings and the run's batch parameters.
  *
  * Run it on the install's class path with main class `RawStoreBenchKt`; bench.sh's `measure --program=raw` does.
  */
@@ -120,6 +123,9 @@ data class RawSettings(
             require(settings.connections.max() * widest <= settings.aggregates) {
                 "Each connection's flush needs $widest aggregates of its own: raise --aggregates."
             }
+            require(CALIBRATION_CONNECTIONS * settings.logBatch <= settings.templates) {
+                "The calibration's $CALIBRATION_CONNECTIONS connections need ${settings.logBatch} templates each."
+            }
             return settings
         }
 
@@ -188,51 +194,62 @@ private fun seed(
     return after.mapValues { (key, value) -> (value - (before[key] ?: value)) / ops } + statements
 }
 
+/** The calibration's connections: Wow's run's concurrency. */
+const val CALIBRATION_CONNECTIONS = 64
+
+/** The calibration's case: today's, on Wow's ground. */
+const val CALIBRATION = "calibration"
+
+/** Versions of [aggregates] opened aggregates, at version 1, which a case's steps carry on. */
+fun opened(aggregates: Int): IntArray = IntArray(aggregates) { 1 }
+
 private fun postgres(settings: RawSettings, options: Map<String, String>): RawResult {
     val raw = RawPostgres(
         url = options["spring.datasource.url"] ?: "jdbc:postgresql://localhost:5432/transfer",
         user = options["spring.datasource.username"] ?: "postgres",
         password = options["spring.datasource.password"] ?: "postgres",
-        partitions = options["wow.log.partitions"]?.toInt() ?: PARTITIONS,
     )
     val wow = seed("postgres", settings.templates, options, { raw.counters() + raw.tables() }, raw::checkpoint)
     raw.loadTemplates(settings.templates)
     val cpu = ContainerCpu(settings.container)
-    val cases = raw.cases(
-        settings.logBatch,
-        settings.snapshotBatch,
-        settings.batches
-    ).filter { settings.keeps(it.case.name) }
-    fun step(case: RawPostgres.Case, connections: Int, rate: Double?): RawStep = runStep(
-        case = case.case,
-        connections = connections,
-        rate = rate,
-        timing = settings.timing,
-        cpu = cpu,
-        counters = raw::counters,
-        ratios = raw::ratios,
-    ) { index ->
-        val connection = raw.connect()
-        val owned = Aggregates(settings.aggregates, index, connections)
-        object : RawWorker {
-            override fun flush(): Int = case.flush(connection, owned)
-            override fun close() = connection.close()
-        }
-    }.also(::print)
-    val steps = cases.flatMap { case ->
+    val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
+    fun step(case: RawPostgres.Case, connections: Int, pace: Pace, versions: IntArray): RawStep =
+        runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
+            val connection = raw.connect()
+            val owned = Aggregates(versions, index, connections)
+            object : RawWorker {
+                override fun flush(): Flushed = case.flush(connection, owned)
+                override fun close() = connection.close()
+            }
+        }.also(::print)
+    val today = cases.first { it.case.name == RawPostgres.WOW_TODAY }
+    raw.prepare(today.fillfactor, settings.templates)
+    val calibrating = step(
+        RawPostgres.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.fillfactor, today.flush),
+        CALIBRATION_CONNECTIONS,
+        Pace(settings.timing),
+        opened(settings.templates),
+    )
+    val steps = mutableListOf(calibrating)
+    for (case in cases.filter { settings.keeps(it.case.name) }) {
         raw.prepare(case.fillfactor, settings.aggregates)
-        settings.connections.map { step(case, it, null) }
-    }.toMutableList()
+        val versions = opened(settings.aggregates)
+        settings.connections.forEach { steps += step(case, it, Pace(settings.timing), versions) }
+    }
     // P2 at one rate: both cases at a share of the split's throughput at the most connections.
-    val split = steps.lastOrNull { it.case.name == RawPostgres.P2_SEPARATE }
+    val split = steps.lastOrNull { it.case.name == RawPostgres.P2_SEPARATE && it.rate == null }
     if (split != null) {
-        val rate = split.unitsPerSecond * settings.p2Share
-        for (case in cases.filter { it.case.name == RawPostgres.P2_SEPARATE || it.case.name == RawPostgres.P2_COMBINED }) {
+        val pace = Pace(settings.timing, split.unitsPerSecond * settings.p2Share)
+        for (case in cases.filter { it.case.name in setOf(RawPostgres.P2_SEPARATE, RawPostgres.P2_COMBINED) }) {
             raw.prepare(case.fillfactor, settings.aggregates)
-            steps += step(case, split.connections, rate)
+            steps += step(case, split.connections, pace, opened(settings.aggregates))
         }
     }
-    return RawResult(calibrationOf(WAL_BYTES, wow, steps, RawPostgres.WOW_TODAY), raw.settings(), steps)
+    // Wow's HOT share, of its snapshot table's updates per command.
+    val table = RawPostgres.SNAPSHOT
+    val wowHot = (wow["$table updates"] ?: 0.0).takeIf { it > 0 }
+        ?.let { mapOf("hotShare" to (wow["$table hot updates"] ?: 0.0) / it) }.orEmpty()
+    return RawResult(calibrationOf(POSTGRES_CHECKS, listOf("walFpi"), wow + wowHot, calibrating), raw.settings(), steps)
 }
 
 private fun mongo(settings: RawSettings, options: Map<String, String>): RawResult =
@@ -244,54 +261,70 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         raw.loadTemplates(settings.templates)
         val cpu = ContainerCpu(settings.container)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
-            .filter { settings.keeps(it.case.name) }
-        val steps = cases.flatMap { case ->
-            raw.prepare(settings.aggregates, case.bigState)
-            settings.connections.map { connections ->
-                runStep(
-                    case = case.case,
-                    connections = connections,
-                    rate = null,
-                    timing = settings.timing,
-                    cpu = cpu,
-                    counters = raw::counters,
-                    ratios = raw::ratios,
-                ) { index ->
-                    val session = raw.session(case.case)
-                    val owned = Aggregates(settings.aggregates, index, connections)
+        fun step(case: RawMongo.Case, connections: Int, versions: IntArray): RawStep =
+            raw.client(connections).use { client ->
+                runStep(case.case, connections, Pace(settings.timing), cpu, raw::counters, raw::ratios) { index ->
+                    val writer = raw.writer(client, case.case)
+                    val owned = Aggregates(versions, index, connections)
                     object : RawWorker {
-                        override fun flush(): Int = case.flush(session, owned)
-                        override fun close() {
-                            session?.close()
-                        }
+                        override fun flush(): Flushed = case.flush(writer, owned)
+                        override fun close() = writer.close()
                     }
-                }.also(::print)
-            }
+                }.copy(pool = connections)
+            }.also(::print)
+        val today = cases.first { it.case.name == RawMongo.WOW_TODAY }
+        raw.prepare(settings.templates, today.bigState)
+        val calibrating = step(
+            RawMongo.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.bigState, today.flush),
+            CALIBRATION_CONNECTIONS,
+            opened(settings.templates),
+        )
+        val steps = mutableListOf(calibrating)
+        for (case in cases.filter { settings.keeps(it.case.name) }) {
+            raw.prepare(settings.aggregates, case.bigState)
+            val versions = opened(settings.aggregates)
+            settings.connections.forEach { steps += step(case, it, versions) }
         }
-        RawResult(calibrationOf(JOURNAL_BYTES, wow, steps, RawMongo.WOW_TODAY), raw.settings(), steps)
+        RawResult(calibrationOf(MONGO_CHECKS, listOf("commands"), wow, calibrating), raw.settings(), steps)
     }
 
 /**
- * The calibration: [metric] per command of Wow's own run ([wow], every counter's) against [today]'s step at the median
- * of its throughput over the connections, every counter of both beside it.
+ * The calibration: each of [checks]' metrics per command of Wow's own run ([wow], every counter's) against the
+ * [calibrating] step's, within its bound; [apart]'s metrics reported beside them, unbounded.
  */
-private fun calibrationOf(
-    metric: String,
+fun calibrationOf(
+    checks: List<Pair<String, RawCheck.Bound>>,
+    apart: List<String>,
     wow: Map<String, Double>,
-    steps: List<RawStep>,
-    today: String
+    calibrating: RawStep,
 ): RawCalibration {
-    val todays = steps.filter { it.case.name == today && it.rate == null }.sortedBy { it.unitsPerSecond }
-    val raw = todays.getOrNull(todays.size / 2)?.perUnit.orEmpty()
-    return RawCalibration(metric, wow[metric], raw[metric], wow, raw)
+    val raw = calibrating.perUnit + calibrating.ratios
+    return RawCalibration(
+        checks = checks.map { (metric, bound) -> RawCheck(metric, wow[metric], raw[metric], bound) },
+        apart = apart.map { RawCheck(it, wow[it], raw[it], RawCheck.Bound()) },
+        wowCounters = wow,
+        rawCounters = raw,
+        read = calibrating.read,
+    )
 }
 
 private fun print(step: RawStep) =
     println("raw ${step.case.name} at ${step.connections}: ${step.unitsPerSecond} ${step.case.unit}s/s")
 
-private const val SEED_CONCURRENCY = 64
+private const val SEED_CONCURRENCY = CALIBRATION_CONNECTIONS
 private const val DEPOSITS = 4
 private const val SETTLE_MILLIS = 2_000L
-private const val PARTITIONS = 64
-private const val WAL_BYTES = "walBytes"
-private const val JOURNAL_BYTES = "journalBytes"
+private const val SHARE = 0.10
+private const val WOW_GROUND = "today on Wow's ground: the calibration"
+
+/** PostgreSQL's checks: WAL records, commits and bytes within 10%, the HOT share within 0.10. */
+private val POSTGRES_CHECKS = listOf(
+    "walRecords" to RawCheck.Bound(share = SHARE),
+    "commits" to RawCheck.Bound(share = SHARE),
+    "walBytes" to RawCheck.Bound(share = SHARE),
+    "hotShare" to RawCheck.Bound(absolute = SHARE),
+)
+
+/** MongoDB's checks: inserts, updates, journal and oplog bytes, each within 10%. */
+private val MONGO_CHECKS = listOf("inserts", "updates", "journalBytes", "oplogBytes")
+    .map { it to RawCheck.Bound(share = SHARE) }

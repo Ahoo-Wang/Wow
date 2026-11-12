@@ -17,12 +17,35 @@ import {
 } from './bench-raw.mjs';
 
 const CALIBRATED = {
-  metric: 'walBytes',
-  wowPerCommand: 1290,
-  rawPerCommand: 1310,
-  ratio: 1.0155,
-  tolerance: 0.1,
   passed: true,
+  read: true,
+  checks: [
+    {
+      metric: 'walRecords',
+      wowPerCommand: 9.5,
+      rawPerCommand: 9.6,
+      share: 0.1,
+      absolute: null,
+      passed: true,
+    },
+    {
+      metric: 'hotShare',
+      wowPerCommand: 0.92,
+      rawPerCommand: 0.9,
+      share: null,
+      absolute: 0.1,
+      passed: true,
+    },
+  ],
+  apart: [
+    {
+      metric: 'walFpi',
+      wowPerCommand: 0.01,
+      rawPerCommand: 0.02,
+      share: null,
+      absolute: null,
+    },
+  ],
 };
 
 const STEP = {
@@ -35,6 +58,10 @@ const STEP = {
   units: 52000,
   flushes: 13000,
   failures: 0,
+  refused: 0,
+  late: 0,
+  read: true,
+  pool: null,
   unitsPerSecond: 2600,
   p50FlushMs: 3.2,
   p99FlushMs: 11.5,
@@ -96,34 +123,34 @@ test("a raw run passes the program's timing, the head's install and the server's
   );
 });
 
-test('the calibration says whether the clone writes what Wow writes, and an uncalibrated run is read for nothing', () => {
-  assert.match(
+test('the calibration names each check against Wow, and an uncalibrated run is read for nothing', () => {
+  assert.equal(
     calibrationText(RUN.raw),
-    /^Calibrated: the clone's walBytes per command is 1310 against Wow's own 1290 \(1\.016, within ±10%\)\.$/,
+    "Calibrated on Wow's ground, per command: walRecords 9.600 against Wow's 9.500 (1.011, within ±10%: yes); hotShare 0.900 against Wow's 0.920 (within ±0.10: yes). Apart: walFpi 0.020 against Wow's 0.010 (2.000).",
   );
-  assert.match(
-    calibrationText({
-      calibration: {
-        ...CALIBRATED,
-        rawPerCommand: 1500,
-        ratio: 1.163,
-        passed: false,
-      },
-    }),
-    /^\*\*Uncalibrated: .*outside ±10%\)\. No case of this run is read\.\*\*$/,
-  );
-  assert.match(
-    calibrationText({
-      calibration: {
+  const outside = {
+    ...CALIBRATED,
+    passed: false,
+    checks: [
+      { ...CALIBRATED.checks[0], rawPerCommand: 12, passed: false },
+      {
         metric: 'journalBytes',
         wowPerCommand: null,
         rawPerCommand: 900,
-        ratio: null,
-        tolerance: 0.1,
+        share: 0.1,
         passed: false,
       },
+    ],
+  };
+  assert.match(
+    calibrationText({ calibration: outside }),
+    /^\*\*Uncalibrated \(a check is outside its bound\): walRecords 12\.000 against Wow's 9\.500 \(1\.263, within ±10%: no\); journalBytes not read on both sides \(Wow none, clone 900\)\. .* No case of this run is read\.\*\*$/,
+  );
+  assert.match(
+    calibrationText({
+      calibration: { ...CALIBRATED, passed: false, read: false },
     }),
-    /could not be read on both sides \(Wow none, clone 900\)/,
+    /^\*\*Uncalibrated \(its step had a failed or refused write\)/,
   );
   assert.match(calibrationText({}), /recorded no calibration/);
 });
@@ -145,9 +172,12 @@ test("a PostgreSQL step's row is per unit, its HOT share beside it, a paced step
   assert.match(head, /WAL bytes\/unit .* HOT share/);
   assert.equal(
     row,
-    '| snapshot-4-async-ff100 | P0: today | row | 64 | closed loop | 2600 | 3.20 / 11.50 ms | 51.2 | 640 | 0.010 | 0.020 | 0.250 | 75% | 0 |',
+    '| snapshot-4-async-ff100 | P0: today | row | 64 | closed loop | 2600 | 3.20 / 11.50 ms | - | 51.2 | 640 | 0.010 | 0.020 | 0.250 | 75% | yes |',
   );
-  assert.match(paced, /^\| p2-combined \| .* \| 1200\/s \|/);
+  assert.match(
+    paced,
+    /^\| p2-combined \| .* \| 1200\/s \| 2600 \| 3\.20 \/ 11\.50 ms \| 0 \|/,
+  );
 });
 
 test("a MongoDB step's row is mongod's CPU, the write latency, the journal and the oplog per update", () => {
@@ -159,6 +189,7 @@ test("a MongoDB step's row is mongod's CPU, the write latency, the journal and t
     storeCpuMsPerUnit: null,
     perUnit: { journalBytes: 512.2, oplogBytes: 300.6, journalSyncs: 0.004 },
     ratios: { snapshotWriteMicros: 41.25 },
+    pool: 64,
   };
   const [head, , row] = rawTable({
     raw: { backend: 'mongo', steps: [step] },
@@ -166,11 +197,11 @@ test("a MongoDB step's row is mongod's CPU, the write latency, the journal and t
   assert.match(head, /mongod CPU µs\/unit \| Write latency µs/);
   assert.equal(
     row,
-    '| m1-10-state | B: M1 | update | 64 | 2600 | 3.20 / 11.50 ms | not recorded | 41.3 | 512 | 301 | 0.004 | 0 |',
+    '| m1-10-state | B: M1 | update | 64 | 64 | 2600 | 3.20 / 11.50 ms | not recorded | 41.3 | 512 | 301 | 0.004 | yes |',
   );
 });
 
-test('a failed run, an uncalibrated one and failed flushes are anomalies; the summary leads each run with its calibration', () => {
+test('a failed run, an uncalibrated one, a step not read and late paced flushes are anomalies; the summary leads each run with its calibration', () => {
   const suite = {
     name: 'raw-mongo',
     runner: {
@@ -186,8 +217,11 @@ test('a failed run, an uncalibrated one and failed flushes are anomalies; the su
         raw: {
           ...RUN.raw,
           backend: 'mongo',
-          calibration: { ...CALIBRATED, passed: false, ratio: 1.3 },
-          steps: [{ ...STEP, failures: 3 }],
+          calibration: { ...CALIBRATED, passed: false },
+          steps: [
+            { ...STEP, failures: 3, refused: 2, read: false },
+            { ...STEP, case: 'p2-combined', rate: 1200, late: 7 },
+          ],
         },
       },
       { name: 'other', status: 'failed' },
@@ -195,12 +229,16 @@ test('a failed run, an uncalibrated one and failed flushes are anomalies; the su
   };
   assert.deepEqual(
     rawAnomalies(suite).map(row => row.kind),
-    ['uncalibrated', 'failed flushes', 'run failed'],
+    ['uncalibrated', 'not read', 'late flushes', 'run failed'],
+  );
+  assert.equal(
+    rawTable(suite.runs[0])[2].split(' | ').at(-1),
+    'no: 3 failed, 2 refused |',
   );
   const summary = renderRaw(suite, SUITES['raw-mongo']);
   assert.match(summary, /^## raw-mongo@100k/);
   assert.match(summary, /Eclipse Adoptium 25\.0\.5\+8-LTS/);
-  assert.match(summary, /### head\n\n\*\*Uncalibrated:/);
+  assert.match(summary, /### head\n\n\*\*Uncalibrated \(/);
   assert.match(summary, /`c-transaction` is a multi-document transaction/);
   assert.match(summary, /\*\*1 run\(s\) failed\*\*/);
 });

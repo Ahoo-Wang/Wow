@@ -16,6 +16,8 @@ package me.ahoo.wow.benchmark.transfer.raw
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 class RawRunTest {
     @Test
@@ -40,24 +42,68 @@ class RawRunTest {
     }
 
     @Test
-    fun `each worker owns its own aggregates, taken in turn, their versions its own`() {
-        val first = Aggregates(10, 0, 3)
-        List(4) { first.next().id }.assert().containsExactly("raw-0", "raw-3", "raw-6", "raw-9")
-        Aggregates(10, 1, 3).take(2).map { it.id to it.version }.assert().containsExactly("raw-1" to 2, "raw-4" to 2)
-        assertThrows<IllegalArgumentException> { Aggregates(2, 5, 6) }
+    fun `each worker owns its own aggregates, taken in turn, their versions the case's`() {
+        val versions = opened(10)
+        val first = Aggregates(versions, 0, 3)
+        List(4) { first.next().number }.assert().containsExactly(0, 3, 6, 9)
+        Aggregates(versions, 1, 3).take(2).map { it.number to it.version }.assert().containsExactly(1 to 2, 4 to 2)
+        Aggregates(versions, 1, 2).take(1).single().assert().isEqualTo(Aggregates.Command(1, 3))
+        Aggregates.idOf(42).apply {
+            length.assert().isEqualTo(36)
+            assert().isEqualTo("raw-00000000000000000000000000000042")
+        }
+        assertThrows<IllegalArgumentException> { Aggregates(IntArray(2), 5, 6) }
     }
 
     @Test
-    fun `the calibration passes within ten percent of Wow's own, and fails without either side`() {
-        RawCalibration("walBytes", wow = 1300.0, raw = 1350.0).apply {
-            passed.assert().isTrue()
-            ratio!!.assert().isCloseTo(1.038, org.assertj.core.data.Offset.offset(0.001))
+    fun `a case's second step goes on from the versions its first wrote`() {
+        val written = ConcurrentHashMap<Int, MutableList<Int>>()
+        val versions = opened(40)
+        fun step(connections: Int): Map<Int, List<Int>> {
+            written.clear()
+            runStep(CASE, connections, Pace(0 to 1), ContainerCpu(null), { emptyMap() }) { index ->
+                val owned = Aggregates(versions, index, connections)
+                fake { owned.take(2).forEach { written.computeIfAbsent(it.number) { ArrayList() }.add(it.version) } }
+            }.read.assert().isTrue()
+            return written.mapValues { (_, list) -> list.toList() }
         }
-        RawCalibration("walBytes", wow = 1300.0, raw = 1500.0).passed.assert().isFalse()
-        RawCalibration("journalBytes", wow = null, raw = 900.0).apply {
-            passed.assert().isFalse()
-            ratio.assert().isNull()
+        val first = step(2)
+        val second = step(4)
+        second.keys.assert().isNotEmpty()
+        for ((number, later) in second) {
+            val highest = first[number]?.max() ?: continue
+            later.min().assert().describedAs("aggregate $number").isGreaterThan(highest)
         }
+    }
+
+    @Test
+    fun `a step with a refused or failed write is not read`() {
+        val refused = runStep(CASE, 2, Pace(0 to 1), ContainerCpu(null), { emptyMap() }) {
+            fake(Flushed(1, refused = 1)) {}
+        }
+        refused.refused.assert().isGreaterThan(0)
+        refused.read.assert().isFalse()
+        val calls = AtomicInteger()
+        val failed = runStep(CASE, 2, Pace(0 to 1), ContainerCpu(null), { emptyMap() }) {
+            fake(Flushed(1)) { check(calls.incrementAndGet() % 2 == 0) { "the store failed" } }
+        }
+        failed.units.assert().isGreaterThan(0)
+        failed.failures.assert().isGreaterThan(0)
+        failed.read.assert().isFalse()
+    }
+
+    @Test
+    fun `the calibration passes when every check is within its bound and its step was read`() {
+        val share = RawCheck.Bound(share = 0.1)
+        RawCheck("walBytes", wow = 1300.0, raw = 1350.0, bound = share).passed.assert().isTrue()
+        RawCheck("walBytes", wow = 1300.0, raw = 1500.0, bound = share).passed.assert().isFalse()
+        RawCheck("journalBytes", wow = null, raw = 900.0, bound = share).passed.assert().isFalse()
+        RawCheck("hotShare", wow = 0.9, raw = 0.85, bound = RawCheck.Bound(absolute = 0.1)).passed.assert().isTrue()
+        val checks = listOf(RawCheck("commits", 0.35, 0.36, share))
+        RawCalibration(checks).passed.assert().isTrue()
+        RawCalibration(checks, read = false).passed.assert().isFalse()
+        RawCalibration(emptyList()).passed.assert().isFalse()
+        RawCalibration(checks + RawCheck("walRecords", 10.0, 13.0, share)).passed.assert().isFalse()
     }
 
     @Test
@@ -83,34 +129,59 @@ class RawRunTest {
     @Test
     fun `raw json leads with the calibration, then the settings, the store and each step per unit`() {
         val step = RawStep(
-            case = RawCase("wow-today", "command", 10, "today: the calibration"),
+            case = RawCase("wow-today", "command", 10, "today"),
             connections = 4,
             rate = null,
             seconds = 2.0,
             units = 1000,
             flushes = 100,
             failures = 0,
+            refused = 0,
+            late = 0,
             p50FlushMs = 1.5,
             p99FlushMs = 9.0,
             storeCpuMsPerUnit = null,
             perUnit = mapOf("walBytes" to 1300.0),
             ratios = mapOf("hotShare" to 0.75),
+            pool = 4,
         )
         step.unitsPerSecond.assert().isEqualTo(500.0)
+        val calibration = RawCalibration(
+            checks = listOf(RawCheck("walBytes", 1290.0, 1300.0, RawCheck.Bound(share = 0.1))),
+            apart = listOf(RawCheck("walFpi", 0.1, 0.2, RawCheck.Bound())),
+        )
         val json = rawJson(
-            RawCalibration("walBytes", 1290.0, 1300.0),
+            calibration,
             mapOf("backend" to "postgres"),
             mapOf("server_version" to "17.6", "synchronous_commit" to "on"),
             listOf(step),
         )
-        json.assert().startsWith("{\"schema\":\"wow-e2e-bench/raw/1\",\"calibration\":{\"metric\":\"walBytes\"")
+        json.assert().startsWith("{\"schema\":\"wow-e2e-bench/raw/1\",\"calibration\":{\"passed\":true")
         json.assert().contains(
-            "\"passed\":true",
+            "\"checks\":[{\"metric\":\"walBytes\"",
+            "\"apart\":[{\"metric\":\"walFpi\"",
             "\"store\":{\"server_version\":\"17.6\",\"synchronous_commit\":\"on\"}",
             "\"case\":\"wow-today\"",
+            "\"pool\":4",
+            "\"read\":true",
             "\"unitsPerSecond\":500.0",
             "\"storeCpuMsPerUnit\":null",
             "\"hotShare\":0.75",
         )
+    }
+
+    private companion object {
+        val CASE = RawCase("fake", "command", 2, "a fake store")
+
+        /** A worker of a fake store: [write] for each flush, which returns [flushed]. */
+        fun fake(flushed: Flushed = Flushed(2), write: () -> Unit) = object : RawWorker {
+            override fun flush(): Flushed {
+                write()
+                Thread.sleep(1)
+                return flushed
+            }
+
+            override fun close() = Unit
+        }
     }
 }
