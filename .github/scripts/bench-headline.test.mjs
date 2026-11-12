@@ -10,12 +10,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   M5MAX,
+  NOT_RECORDED,
   REPORTS,
   REPORTS_DIR,
   SCHEMA,
   actionsSnapshot,
   axonComparison,
   headlineOf,
+  jdkOf,
   m5maxSnapshot,
   writeHeadlines,
 } from './bench-headline.mjs';
@@ -36,7 +38,11 @@ function rootWith(files) {
   return root;
 }
 
-const RUNNER = { cpu: 'AMD EPYC 7763 64-Core Processor', cores: 4 };
+const RUNNER = {
+  cpu: 'AMD EPYC 7763 64-Core Processor',
+  cores: 4,
+  jdk: 'Eclipse Adoptium 25.0.5+8-LTS',
+};
 const REFS = { headSha: 'a7c372ad3ef808f479776a6183247c39f46189fc' };
 
 test('an Actions capacity suite gives each scenario its sustainable rate, beside its saturation', () => {
@@ -73,6 +79,7 @@ test('an Actions capacity suite gives each scenario its sustainable rate, beside
     saturation: 4912.5,
     commit: 'a7c372ad3e',
     cpu: RUNNER.cpu,
+    jdk: '25.0.5+8',
     run: REPORTS['actions-snapshot'].runs.l4,
     source: 'actions-snapshot/l4/sustainable-pg.100k/suite.json',
   });
@@ -125,7 +132,7 @@ test("an L3 round of the head is a unit cost at its own rate, the node's, the st
 test("the M5 Max snapshot's sweeps are summarize.py's, each step kept, an attempt set aside left out", () => {
   const root = rootWith({
     'm5max-snapshot/environment.txt':
-      'machine: Mac17,14\ncommit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36\n',
+      'machine: Mac17,14\ncommit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36\njdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)\n',
     'm5max-snapshot/summary.json': {
       measurements: {
         '1-S-postgres/e1-sweep': {
@@ -183,6 +190,20 @@ test("the M5 Max snapshot's sweeps are summarize.py's, each step kept, an attemp
   });
   assert.equal(figures[0].commit, 'd9b0781205');
   assert.equal(figures[0].cpu, M5MAX);
+  assert.equal(figures[0].jdk, '25.0.5+8');
+});
+
+test('a JDK is the version its run records, never an assumed one', () => {
+  assert.equal(jdkOf('Eclipse Adoptium 25.0.5+8-LTS'), '25.0.5+8');
+  assert.equal(
+    jdkOf(
+      'OpenJDK Runtime Environment Temurin-21.0.9+10 (build 21.0.9+10-LTS)',
+    ),
+    '21.0.9+10',
+  );
+  assert.equal(jdkOf('openjdk 25'), '25');
+  assert.equal(jdkOf(undefined), NOT_RECORDED);
+  assert.equal(jdkOf('unknown'), NOT_RECORDED);
 });
 
 test("an Axon comparison is Wow's range over Axon's with the A/A spread's verdict, and not comparable when a store was wrong", () => {
@@ -265,7 +286,7 @@ test("every headline.json in the tree is what its report's data gives", () => {
     assert.equal(headline.schema, SCHEMA);
     for (const figure of headline.figures) {
       assert.ok(
-        figure.commit && figure.cpu && figure.source,
+        figure.commit && figure.cpu && figure.jdk && figure.source,
         `${report}: ${figure.id} lacks its provenance`,
       );
     }

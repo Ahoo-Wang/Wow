@@ -23,6 +23,7 @@ import {
 const FROM = {
   commit: 'd9b0781205',
   cpu: 'Apple M5 Max, 18 cores, 64 GB',
+  jdk: '25.0.5+8',
   source: 'm5max-snapshot/1-S-postgres/e1-sweep',
 };
 
@@ -91,6 +92,7 @@ const ACTIONS = {
       saturation: 4912.5,
       commit: 'd8284109df',
       cpu: 'AMD EPYC 9V45 96-Core Processor',
+      jdk: '25.0.5+8',
       source: 'actions-snapshot/l4/sustainable-pg.100k/suite.json',
     },
     {
@@ -98,6 +100,7 @@ const ACTIONS = {
       kind: 'unit',
       commit: 'a7c372ad3e',
       cpu: 'AMD EPYC 7763 64-Core Processor',
+      jdk: '25.0.5+8',
       source: 'actions-snapshot/l3/e1-pg-uniform.100k/suite.json',
     },
   ],
@@ -123,12 +126,12 @@ test('a headline is a table of its figures, under its environment, report and bu
   );
   assert.ok(
     block.includes(
-      '| PostgreSQL | one | E1 | uniform | ≥ 37,713.6/s, at 4,096 clients | 23,030.1/s, at 1,024 clients, p99 74.8 ms | Apple M5 Max, `d9b0781205` |',
+      '| PostgreSQL | one | E1 | uniform | ≥ 37,713.6/s, at 4,096 clients | 23,030.1/s, at 1,024 clients, p99 74.8 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |',
     ),
   );
   assert.ok(
     block.includes(
-      '| MongoDB | 3 | E3 | one hot account | 5,380.1/s, at 1,024 clients | – | Apple M5 Max, `d9b0781205` |',
+      '| MongoDB | 3 | E3 | one hot account | 5,380.1/s, at 1,024 clients | – | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |',
     ),
   );
   assert.equal(
@@ -144,7 +147,7 @@ test('a headline is a table of its figures, under its environment, report and bu
   );
   assert.ok(
     performanceBlock('zh', [HEADLINE]).includes(
-      '| MongoDB | 3 | E3 | 单个热点账户 | 5,380.1/s，1,024 个客户端 | – | Apple M5 Max，`d9b0781205` |',
+      '| MongoDB | 3 | E3 | 单个热点账户 | 5,380.1/s，1,024 个客户端 | – | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |',
     ),
   );
 });
@@ -153,7 +156,7 @@ test("an Actions headline is its sustainable rates beside the closed-loop satura
   const block = performanceBlock('en', [ACTIONS]);
   assert.ok(
     block.includes(
-      '| PostgreSQL | one | E1 | uniform | 4,912.5/s, closed loop | 2,609.8/s, open loop, p99 160.8 ms | EPYC 9V45, `d8284109df` |',
+      '| PostgreSQL | one | E1 | uniform | 4,912.5/s, closed loop | 2,609.8/s, open loop, p99 160.8 ms | EPYC 9V45, JDK 25.0.5+8, `d8284109df` |',
     ),
   );
   // A unit cost is no row of this table.
@@ -180,7 +183,7 @@ test('a headline that lacks a field the table needs is refused, naming it', () =
         },
         'h.json',
       ),
-    /figure 1 lacks source/,
+    /figure 1 lacks jdk, source/,
   );
   assert.throws(
     () =>
@@ -253,5 +256,38 @@ test('a report with no row the table quotes is left out of the block', () => {
   assert.match(
     performanceBlock('en', [empty]),
     /No report quotes its figures here yet/,
+  );
+});
+
+test('the block says once that the figures are measured again on 10.0.0-beta.3, in each locale', () => {
+  assert.match(
+    performanceBlock('en', [HEADLINE]),
+    /each is measured again on 10\.0\.0-beta\.3\./,
+  );
+  assert.match(
+    performanceBlock('zh', [HEADLINE]),
+    /都将在 10\.0\.0-beta\.3 上重测。/,
+  );
+});
+
+test('a row measured on a JDK other than 25 says so, and one whose run recorded none says that', () => {
+  const on = jdk => ({
+    ...HEADLINE,
+    figures: [{ ...HEADLINE.figures[0], jdk }],
+  });
+  assert.ok(
+    performanceBlock('en', [on('21.0.9+10')]).includes(
+      'Apple M5 Max, JDK 21.0.9+10 (not JDK 25), `d9b0781205` |',
+    ),
+  );
+  assert.ok(
+    performanceBlock('zh', [on('21.0.9+10')]).includes(
+      'JDK 21.0.9+10（不是 JDK 25）',
+    ),
+  );
+  assert.ok(
+    performanceBlock('en', [on('not recorded')]).includes(
+      'Apple M5 Max, JDK not recorded, `d9b0781205` |',
+    ),
   );
 });

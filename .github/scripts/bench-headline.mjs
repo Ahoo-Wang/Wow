@@ -78,9 +78,24 @@ function provenance(suite, source, run) {
       suite.runner?.cpu && suite.runner.cpu !== 'unknown'
         ? suite.runner.cpu
         : M5MAX,
+    jdk: jdkOf(suite.runner?.jdk),
     ...(run ? { run } : {}),
     source,
   };
+}
+
+/** What a page says of a figure whose run did not record its JDK: never an assumed one. */
+export const NOT_RECORDED = 'not recorded';
+
+/**
+ * A JDK's version as a run records it (`Eclipse Adoptium 25.0.5+8-LTS`, `OpenJDK Runtime Environment
+ * Temurin-25.0.5+8 (build 25.0.5+8-LTS)`): `25.0.5+8`, or its major version alone; NOT_RECORDED without one.
+ */
+export function jdkOf(text) {
+  const version =
+    /(\d+(?:\.\d+){1,2}\+\d+)/.exec(text ?? '')?.[1] ??
+    /\b(\d{2})\b/.exec(text ?? '')?.[1];
+  return version ?? NOT_RECORDED;
 }
 
 const round = (value, digits = 1) =>
@@ -246,13 +261,13 @@ export function m5maxSnapshot(root, report) {
   const path = join(root, REPORTS_DIR, report, 'summary.json');
   if (!existsSync(path)) return [];
   const summary = readJson(path);
-  const commit = environmentCommit(
-    join(root, REPORTS_DIR, report, 'environment.txt'),
-  );
+  const environment = join(root, REPORTS_DIR, report, 'environment.txt');
+  const commit = environmentCommit(environment);
+  const jdk = jdkOf(environmentLine(environment, 'jdk'));
   const figures = [];
   for (const [label, m] of Object.entries(summary.measurements)) {
     if (m.setAside) continue;
-    const from = { commit, cpu: M5MAX, source: `${report}/${label}` };
+    const from = { commit, cpu: M5MAX, jdk, source: `${report}/${label}` };
     const store = STORES[m.backend] ?? m.backend;
     const nodes = Number(m.nodes) || 1;
     if (m.kind === 'sweep') {
@@ -294,11 +309,19 @@ export function m5maxSnapshot(root, report) {
 
 /** The commit `environment.txt` records (`commit=<sha>`), cut to ten characters. */
 function environmentCommit(path) {
+  return environmentLine(path, 'commit')?.slice(0, 10);
+}
+
+/** The value of `environment.txt`'s first line `<key>: <value>` (or `=`), the run's own record; undefined without one. */
+function environmentLine(path, key) {
   if (!existsSync(path)) return undefined;
   const line = readFileSync(path, 'utf8')
     .split('\n')
-    .find(text => /^commit[=:]/.test(text.trim()));
-  return line?.split(/[=:]/)[1]?.trim().slice(0, 10);
+    .find(text => new RegExp(`^${key}[=:]`).test(text.trim()));
+  return line
+    ?.trim()
+    .slice(key.length + 1)
+    .trim();
 }
 
 /**

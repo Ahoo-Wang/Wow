@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  NOT_RECORDED,
   headlineFiles,
   headlineOf,
   headlinePath,
@@ -53,7 +54,13 @@ const WORDS = {
     },
     title: (headline, environment, builds) =>
       `**${environment}**: [${headline.report}](${REPORTS}${headline.report}.md), ${builds.length === 1 ? 'build' : 'builds'} ${builds.map(b => `\`${b}\``).join(', ')}.`,
-    head: '| Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, build |',
+    head: '| Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |',
+    remeasured:
+      'Each figure is from the build, the JDK and the runner its row names, and each is measured again on 10.0.0-beta.3.',
+    jdk: jdk =>
+      jdk === NOT_RECORDED
+        ? 'JDK not recorded'
+        : `JDK ${jdk}${major(jdk) === 25 ? '' : ' (not JDK 25)'}`,
     nodes: n => (n === 1 ? 'one' : String(n)),
     keys: { uniform: 'uniform', zipf: 'Zipf', hot: 'one hot account' },
     clients: n => `at ${n.toLocaleString('en-US')} clients`,
@@ -72,7 +79,13 @@ const WORDS = {
     },
     title: (headline, environment, builds) =>
       `**${environment}**：[${headline.report}](${REPORTS}${headline.report}.md)，构建 ${builds.map(b => `\`${b}\``).join('、')}。`,
-    head: '| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、构建 |',
+    head: '| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |',
+    remeasured:
+      '每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。',
+    jdk: jdk =>
+      jdk === NOT_RECORDED
+        ? '未记录 JDK'
+        : `JDK ${jdk}${major(jdk) === 25 ? '' : '（不是 JDK 25）'}`,
     nodes: n => (n === 1 ? '一个' : String(n)),
     keys: { uniform: '均匀', zipf: 'Zipf', hot: '单个热点账户' },
     clients: n => `${n.toLocaleString('en-US')} 个客户端`,
@@ -84,6 +97,9 @@ const WORDS = {
 };
 
 const STORES = { postgres: 'PostgreSQL', mongo: 'MongoDB' };
+
+/** A JDK version's major version: `25.0.5+8` is 25. */
+const major = jdk => Number(String(jdk).split(/[.+]/)[0]);
 
 const rate = value =>
   `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}/s`;
@@ -160,7 +176,8 @@ const cell = (words, figure) =>
 
 /**
  * A headline as the page reads it, refusing one that lacks what the table needs: `schema`, `report`, `environment`
- * and `figures`, each figure an `id`, a `kind`, and its `commit`, `cpu` and `source`, and a quoted row a known store.
+ * and `figures`, each figure an `id`, a `kind`, and its `commit`, `cpu`, `jdk` and `source`, and a quoted row a known
+ * store.
  */
 export function checkedHeadline(headline, path) {
   const missing = ['schema', 'report', 'environment', 'figures'].filter(
@@ -169,7 +186,7 @@ export function checkedHeadline(headline, path) {
   if (missing.length > 0)
     throw new Error(`${path} lacks ${missing.join(', ')}`);
   for (const [i, figure] of headline.figures.entries()) {
-    const lacks = ['id', 'kind', 'commit', 'cpu', 'source'].filter(
+    const lacks = ['id', 'kind', 'commit', 'cpu', 'jdk', 'source'].filter(
       key => figure[key] === undefined,
     );
     if (lacks.length > 0)
@@ -209,13 +226,21 @@ export function performanceBlock(locale, headlines) {
           words.keys[row.keys] ?? row.keys,
           cell(words, row.peak),
           cell(words, row.sustainable),
-          `${cpuName(row.cpu)}${words.separator}\`${row.commit}\``,
+          [cpuName(row.cpu), words.jdk(row.jdk), `\`${row.commit}\``].join(
+            words.separator,
+          ),
         ];
         return `| ${cells.map(text => String(text).replaceAll('|', '\\|')).join(' | ')} |`;
       }),
     ].join('\n');
   });
-  return [words.generated, '', sections.join('\n\n')].join('\n');
+  return [
+    words.generated,
+    '',
+    words.remeasured,
+    '',
+    sections.join('\n\n'),
+  ].join('\n');
 }
 
 /** `text` with its block between the markers replaced by `block`; fails when the markers are not there once each, in order. */
