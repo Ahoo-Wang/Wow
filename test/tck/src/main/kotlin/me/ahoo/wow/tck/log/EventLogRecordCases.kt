@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -110,7 +111,8 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
                 "none" to emptyList<String>(),
             ),
         )
-        val none = stream("b", 1, access = emptyMap())
+        // Stamped with no value: a stream's attributes hold the built-in ones whatever it holds ([AccessValues.ofStream]).
+        val none = stream("b", 1, access = AccessValues.ofStream(emptyMap(), Scope.NONE))
         val unstamped = stream("c", 1, access = null)
         val streams = listOf(stamped, none, unstamped)
         streams.forEach { log.append(it) }

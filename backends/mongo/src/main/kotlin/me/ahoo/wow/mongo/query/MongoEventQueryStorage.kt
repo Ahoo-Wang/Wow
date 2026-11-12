@@ -37,6 +37,7 @@ import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.log.Partitioner
 import org.bson.Document
 import org.bson.conversions.Bson
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
@@ -186,24 +187,27 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                             .set(EventFields.BODY, ExactBson.node(event[PAYLOAD]))
                     }
                 }
-                EventStreamFields.OPERATOR -> set(
-                    logical,
-                    MongoOperators.of(document.get(physical, Document::class.java))?.let { operator ->
-                        nodes.objectNode()
-                            .put(MongoOperators.ID, operator.id)
-                            .put(MongoOperators.TENANT_ID, operator.tenantId)
-                            .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
-                    } ?: nodes.nullNode(),
-                )
-                // The built-in attributes a stream leaves out when they have no value, put back as null.
-                EventStreamFields.ACCESS -> set(
-                    logical,
-                    document.get(physical, Document::class.java)?.let { ExactBson.node(MongoAccess.restored(it)) }
-                        ?: nodes.nullNode(),
-                )
+                EventStreamFields.OPERATOR, EventStreamFields.ACCESS ->
+                    set(logical, storedObject(logical, document.get(physical, Document::class.java)))
                 else -> set(logical, ExactBson.node(document[physical]))
             }
         }
+    }
+
+    /**
+     * The record's operator or access attributes of their stored sub-document [stored]: the operator as
+     * `{id, tenantId, actedElsewhere}`; the attributes with the built-in ones a stream leaves out without a value put
+     * back as null ([MongoAccess.restored]); JSON null when the document holds none.
+     */
+    private fun storedObject(logical: String, stored: Document?): JsonNode = when {
+        stored == null -> nodes.nullNode()
+        logical == EventStreamFields.ACCESS -> ExactBson.node(MongoAccess.restored(stored))
+        else -> MongoOperators.of(stored)?.let { operator ->
+            nodes.objectNode()
+                .put(MongoOperators.ID, operator.id)
+                .put(MongoOperators.TENANT_ID, operator.tenantId)
+                .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
+        } ?: nodes.nullNode()
     }
 }
 

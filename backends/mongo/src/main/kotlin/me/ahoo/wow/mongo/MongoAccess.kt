@@ -28,8 +28,8 @@ import org.bson.Document
  * value by its name, a string, an `int64`, a boolean or null, a multiple one's an array of them.
  *
  * A log stream leaves out a built-in attribute ([AccessValues.OWNER], [AccessValues.SPACE]) that has no value, and
- * keeps each one that has a value a second time, scoped by its tenant, in its own field `access_key` ([keys], decision
- * D420): the store's sparse index of each built-in reads that key, so a stream of an aggregate without an owner or a
+ * keeps each one that has a value a second time, scoped by its tenant, in its own field `access_key` ([keys]): the
+ * store's sparse index of each built-in reads that key, so a stream of an aggregate without an owner or a
  * space adds no entry, and an equality reads the tenant's entries alone. Every stamped stream holds both built-ins
  * ([AccessValues.ofStream]), so the readers put a missing one back as null ([restored]) and never read `access_key`:
  * above this store, a null and an absent attribute stay two facts.
@@ -59,7 +59,7 @@ internal object MongoAccess {
 
     /**
      * [document], a log stream's access sub-document, with each built-in attribute it leaves out put back as null,
-     * first, as a stream holds them; one written before D420, which holds the nulls, reads the same.
+     * first, as a stream holds them; one written by an earlier version, which holds the nulls, reads the same.
      */
     fun restored(document: Document): Document {
         if (BUILT_IN.all { it in document }) return document

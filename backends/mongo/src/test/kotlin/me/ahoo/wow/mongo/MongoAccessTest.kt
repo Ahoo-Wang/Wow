@@ -38,7 +38,8 @@ class MongoAccessTest {
 
     @Test
     fun `a stream leaves a built-in attribute without a value out, keys the others by tenant, and reads them back`() {
-        val access = linkedMapOf<String, Any?>("owner" to "alice", "space" to null, "region" to null, "teams" to listOf("a"))
+        val access =
+            linkedMapOf<String, Any?>("owner" to "alice", "space" to null, "region" to null, "teams" to listOf("a"))
         val stored = MongoAccess.log(access)
         stored.keys.assert().containsExactly("owner", "region", "teams")
         MongoAccess.keys("acme", access).assert().isEqualTo(Document("owner", MongoAccess.key("acme", "alice")))

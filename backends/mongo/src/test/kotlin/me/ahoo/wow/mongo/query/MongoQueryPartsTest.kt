@@ -131,7 +131,7 @@ class MongoQueryPartsTest {
     fun `a stream query leaves out the log's own fields and is given the partitions of the aggregates it pins`() {
         val unread = MongoEventDocuments.unread
         MongoProjections.native(admitted(Projection.ALL), unread = unread).toBsonDocument().toJson().assert().isEqualTo(
-            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "transport": 0, "_id": 0}""",
+            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "access_key": 0, "transport": 0, "_id": 0}""",
         )
         MongoProjections.native(admitted(Projection(include = listOf(QueryField("tenantId")))), unread = unread)
             .toBsonDocument().toJson().assert().isEqualTo("""{"tenant_id": 1, "_id": 0}""")

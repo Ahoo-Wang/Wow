@@ -82,7 +82,10 @@ internal class MongoLogDocuments(private val context: String) {
         .apply {
             stream.access?.let { access ->
                 append(ACCESS, MongoAccess.log(access))
-                MongoAccess.keys(stream.ref.tenantId, access).takeUnless { it.isEmpty() }?.let { append(ACCESS_KEY, it) }
+                MongoAccess.keys(
+                    stream.ref.tenantId,
+                    access
+                ).takeUnless { it.isEmpty() }?.let { append(ACCESS_KEY, it) }
             }
             stream.accessVersion?.let { append(ACCESS_VERSION, it) }
         }

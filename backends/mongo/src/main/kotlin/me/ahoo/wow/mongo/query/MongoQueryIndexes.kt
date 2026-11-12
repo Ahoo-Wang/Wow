@@ -138,7 +138,7 @@ object MongoQueryIndexes {
      * read for an order, which for an `events` query ends with the stream key (tenant, aggregate, version).
      *
      * A built-in attribute's index (`owner`, `space`) is instead the sparse index of its tenant-scoped key
-     * (`access_key.owner`, [me.ahoo.wow.mongo.MongoAccess.keys], decision D420): a stream without the attribute adds no
+     * (`access_key.owner`, [me.ahoo.wow.mongo.MongoAccess.keys]): a stream without the attribute adds no
      * entry, an equality or an `$in` the compiler maps to the key reads the tenant's entries alone, and an `$or` branch
      * can use it, which a partial index whose filter only the branch implies it cannot. A negation and `isNull` read
      * the attribute itself, by no index of its own.
@@ -155,7 +155,7 @@ object MongoQueryIndexes {
                 val physical = key.physicalField
                 MongoSnapshotDocuments.checked(physical.path)
             }
-            // A built-in attribute's index is its tenant-scoped key's, sparse (D420): an `$or` branch can use it, its
+            // A built-in attribute's index is its tenant-scoped key's, sparse: an `$or` branch can use it, its
             // bounds stay in the tenant, and a stream without the attribute adds no entry.
             paths.singleOrNull { it in BUILT_IN_ACCESS }?.let { path ->
                 val key = MongoEventLog.ACCESS_KEY + "." + path.substringAfter('.')

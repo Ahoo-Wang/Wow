@@ -245,7 +245,7 @@ internal object MongoMatchCompiler {
 
     /**
      * An equality or an `$in` of a stream's built-in access attribute ([AccessValues.OWNER], [AccessValues.SPACE]) on
-     * the `events` model, as the match of its tenant-scoped key (`access_key.<attribute>`, decision D420), whose sparse
+     * the `events` model, as the match of its tenant-scoped key (`access_key.<attribute>`), whose sparse
      * index the log keeps instead of the attribute's: one key for each tenant the query requires and each value. Null,
      * the attribute's own path, for a query that requires no tenant (`tenant=*`), which then reads the attribute by no
      * index, a scan; and for any other field, model, operand or element scope.
@@ -274,7 +274,9 @@ internal object MongoMatchCompiler {
     private fun requiredTenants(filter: FilterExpression): Set<String>? = when (filter) {
         is TenantIdFilter -> setOf(filter.value)
         is OrFilter -> filter.operands.map { (it as? TenantIdFilter)?.value ?: return null }.toSet()
-        is AndFilter -> filter.operands.mapNotNull(::requiredTenants).reduceOrNull { left, right -> left intersect right }
+        is AndFilter -> filter.operands.mapNotNull(
+            ::requiredTenants
+        ).reduceOrNull { left, right -> left intersect right }
         else -> null
     }
 
