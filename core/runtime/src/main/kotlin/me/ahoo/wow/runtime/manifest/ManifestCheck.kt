@@ -15,10 +15,10 @@ package me.ahoo.wow.runtime.manifest
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.SystemCommandGroups
 
 /**
  * Whether a service's Manifest and the aggregate models it runs say the same: every edge projects
@@ -96,7 +96,8 @@ internal object ManifestCheck {
             val (mounted, decided) = aggregate.domainCommands.partition { it.mounted }
             val listed = decided.mapTo(HashSet()) { fullName(type, it.name) }
             model.commandTypes
-                .filter { Lifecycle.nameOf(it.type) == null && Schedules.nameOf(it.type) == null && it.name !in listed }
+                // The kernel's commands, which every aggregate decides, need not be listed.
+                .filter { it.type !in SystemCommandGroups.DECIDED_BY_EVERY_AGGREGATE && it.name !in listed }
                 .forEach { add("command ${it.name} is decided by the model of $type but not in the Manifest") }
             val listedMounted = mounted.mapTo(HashSet()) { fullName(type, it.name) }
             model.mountedCommandTypes.filter { it.name !in listedMounted }

@@ -44,6 +44,7 @@ import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.call.requestIdOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
@@ -253,7 +254,9 @@ class HttpCommandClient internal constructor(
                 "the command object ${command.javaClass.name}."
         }
         val name = names.commandTypeOf(type.toString(), command.javaClass)
-            ?: SystemCommandNames.of(command.javaClass)?.let { names.systemCommandTypeOf(type.toString(), it) }
+            // A system command by the system name a contract lists it under: its lifecycle, its rebuild, a job's.
+            ?: SystemCommandGroups.LISTED_BY_A_CONTRACT.nameOf(command.javaClass)
+                ?.let { names.systemCommandTypeOf(type.toString(), it) }
             ?: throw Misuse.Argument(
                 "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
                     "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type " +

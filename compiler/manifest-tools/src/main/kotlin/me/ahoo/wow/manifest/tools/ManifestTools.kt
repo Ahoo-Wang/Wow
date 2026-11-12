@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.manifest.tools
 
-import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
@@ -22,6 +20,7 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.openapi.ManifestOpenApi
+import me.ahoo.wow.spi.SystemCommandGroups
 import java.io.File
 
 /**
@@ -163,12 +162,13 @@ object ManifestTools {
     /**
      * What a subscription of [manifest] derives by its class's schema reference (`#/$defs/<binary name>`, a command
      * no module of its context decides) that no context of [manifest] or of the peer [contracts] decides, the system
-     * commands every context takes (a lifecycle or a ledger command) left out: one line per subscription and command.
+     * commands left out ([SystemCommandGroups.ALL]: the framework decides each somewhere): one line per subscription
+     * and command.
      */
     internal fun undecidedCommands(manifest: Manifest, contracts: List<Manifest>): List<String> {
         val decided = (listOf(manifest) + contracts).flatMap { it.contexts }.flatMap { it.aggregates }
             .flatMap { aggregate -> aggregate.commands.filterNot { it.mounted }.map { it.schema } }.toSet() +
-            (Lifecycle.COMMANDS.values + Ledger.COMMANDS.values).map { Manifest.schemaRef(it.name) }
+            SystemCommandGroups.ALL.classes.map { Manifest.schemaRef(it.name) }
         return manifest.contexts.flatMap { context ->
             context.subscriptions.flatMap { subscription ->
                 subscription.derives.orEmpty().filter { Manifest.isSchemaRef(it) && it !in decided }.map {
