@@ -10,6 +10,8 @@ ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复�
 
 ## 连接服务 {#connect-a-service}
 
+服务器须为 ClickHouse 25.3 或更新版本。从 25.3 起，服务器会把数据集的租户条件带进它所连接的每个合并（`FINAL`）来源，租户的查询只读该来源中这个租户的行；更旧的服务器每次查询都会读整个来源。
+
 把 `wow-clickhouse` 放到类路径上，设置 `wow.clickhouse.endpoint`（服务器的 HTTP 端点），并用 `wow.clickhouse.sink.enabled: true` 开启 Sink。把每个事件写入数据仓库是服务主动选择承担的开销，所以在该设置开启之前 Sink 一直关闭；端点和客户端都不会开启它。eShop 的 ordering 服务在它的 `clickhouse` profile 中两者都做了：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->

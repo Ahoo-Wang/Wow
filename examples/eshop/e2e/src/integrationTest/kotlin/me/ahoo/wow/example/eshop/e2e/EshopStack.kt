@@ -252,7 +252,7 @@ class EshopStack(
     companion object {
         const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
         const val POSTGRES_IMAGE = "postgres:17-alpine"
-        const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
+        const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:25.3.14.14-alpine"
         const val CATALOG_MAIN = "me.ahoo.wow.example.eshop.catalog.server.CatalogServerKt"
         const val BASKET_MAIN = "me.ahoo.wow.example.eshop.basket.server.BasketServerKt"
         const val ORDERING_MAIN = "me.ahoo.wow.example.eshop.ordering.server.OrderingServerKt"

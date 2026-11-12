@@ -36,7 +36,7 @@ object WowContainers {
     /** The MongoDB image, the one 9.x's wow-tck tests against (`ContainerImages.MONGO`). */
     const val MONGO_IMAGE = "mongo:7.0"
     const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
-    const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
+    const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:25.3.14.14-alpine"
 
     /** The Elasticsearch image, the one 9.x's wow-tck tests against (`ContainerImages.ELASTICSEARCH_*`). */
     const val ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.2.6"

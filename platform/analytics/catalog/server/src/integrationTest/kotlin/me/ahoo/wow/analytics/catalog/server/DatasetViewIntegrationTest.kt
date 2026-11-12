@@ -117,6 +117,25 @@ class DatasetViewIntegrationTest {
         rows[1].getString("region").assert().isEqualTo("South")
     }
 
+    /**
+     * A tenant's query of a view reads its merged (`FINAL`) source by that source's tenant key: the server carries the
+     * view's tenant condition through the join into the source's subquery (ClickHouse 25.3 and later; 24.8 reads the
+     * whole source). The plan, not the rows, shows it, so a server that stops doing it fails here.
+     */
+    @Test
+    fun `a tenant's query should read a merged source by its tenant key`() {
+        val compiled = DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 3) as DatasetCompilation.Compiled
+        val artifact = compiled.artifact
+        execute(artifact.ddl)
+        val plan = client.queryAll(
+            "EXPLAIN indexes = 1 SELECT * FROM ${artifact.database}.${artifact.view} WHERE tenant_id = 't1'",
+        ).map { it.getString("explain").trim() }
+        val merged = plan.dropWhile { it != "ReadFromMergeTree ($DATABASE.shop_member_state)" }.drop(1)
+            .takeWhile { !it.startsWith("ReadFromMergeTree") }
+        merged.assert().describedAs(plan.joinToString("\n")).contains("PrimaryKey")
+            .anyMatch { it.startsWith("Condition:") && "tenant_id" in it }
+    }
+
     private companion object {
         const val DATABASE = "wow_dataset_it"
         val MEMBERS_ID = AnalyticsCatalogContext.sourceIdOf("warehouse", DATABASE, "shop_member_state")

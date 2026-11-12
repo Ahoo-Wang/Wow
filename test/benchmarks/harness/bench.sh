@@ -80,7 +80,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 # The access scale check's ClickHouse (bench.sh measure): the image the tests run, on a port of its own.
 CLICKHOUSE=wow-e2e-bench-clickhouse
-CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:24.8.14.39-alpine
+CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:25.3.14.14-alpine
 CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
