@@ -139,6 +139,7 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 - `data-fve-change-colors` 缺省即 `semantic`：按**好坏**着色（西方 BI 与 IBCS 的做法）；`red-up`／`green-up` 按**方向**，红涨绿跌是中国大陆股市与大量企业看板的口径，绿涨红跌是港股与欧美的。**不按界面语言自动切**（D35 Q61）：语言不等于市场，自动切会让同一个仪表盘换个语言就红绿颠倒。
 - `--rise`／`--fall` 是方向的颜色：宿主的 `--fve-rise`／`--fve-fall` 优先，否则取约定的默认对——`semantic`、`green-up` 下是成功色／危险色，`red-up` 下对调。预设不写这四个变量。默认对写在 `:where(.fve-root, .fve-tokens)` 上而不是 `<html>` 上：`var(--destructive)` 在声明它的元素上替换，`<html>` 上没有 `--destructive`。
+- **字用墨色，标记用填色**（D94，审计 F7）：`--rise`／`--fall` 是调到能当字读的墨色（4.5:1），拿来填柱子比旁边的系列重得多（neutral 亮色对卡片 7.31:1，第一色位 4.61:1；暗色 10.12:1 对 4.92:1）。`rise-fill`／`fall-fill` 是同一色相、明度取画系列的那一档的填色：`styles/brand.css` 的 `@supports` 块里 `oklch(from var(--_fve-rise) 0.55 c h)`，暗色 0.62（neutral 亮色 4.59:1 与 5.34:1，暗色 5.23:1 与 4.62:1），每套预设都过标记的 3:1，`contrast` 亮色过它的 4.5:1。因为是从墨色算，约定对调、宿主写自己的 `--fve-rise` 时填色都跟着；宿主的 `--fve-rise-fill`／`--fve-fall-fill` 优先；预设不写它们，理由与墨色相同。不支持相对颜色的浏览器里标记仍用墨色填。图表读的是填色（`CHART_TOKENS`），指标卡的变化徽标读墨色。
 - 瀑布图与 K 线的升降永远按方向；指标卡的变化徽标（`ChangeBadge`）在 `semantic` 下按好坏（`data-tone`），在按方向的两种约定下按 `data-change` 取 `--rise`／`--fall`。选择全在 `styles.css`，组件不知道约定、不经 context；弹层经 `useSurfaceAttributes()` 照抄最近祖先的属性，与预设同一条路。
 - **颜色从来不是唯一的线索**：红与绿对红绿色弱几乎一样，所以徽标带方向箭头与正负号，瀑布图的标签带符号，提示框写「较上一期 +12%」。（见 test/metricCardUi.test.tsx「says the direction without colour」，test/presetContrast.test.ts 三种约定下各量一遍）
 

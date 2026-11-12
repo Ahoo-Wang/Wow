@@ -609,11 +609,11 @@ describe('EChart: the drawing bound to its element', () => {
   });
 
   it('reads the theme again when the host names another change convention', async () => {
-    // `data-fve-change-colors` moves `--_fve-rise` / `--_fve-fall` and nothing else a
+    // `data-fve-change-colors` moves a rise's and a fall's fill and nothing else a
     // bar reads (themes.md 2.6), so it is watched on its own, as a preset is.
     sheet(`
-      .fve-root { --_fve-rise: rgb(1, 1, 1); }
-      html[data-fve-change-colors='red-up'] .fve-root { --_fve-rise: rgb(2, 2, 2); }
+      .fve-root { --_fve-rise-fill: rgb(1, 1, 1); }
+      html[data-fve-change-colors='red-up'] .fve-root { --_fve-rise-fill: rgb(2, 2, 2); }
     `);
     let seen: string | undefined;
     function Tokens() {

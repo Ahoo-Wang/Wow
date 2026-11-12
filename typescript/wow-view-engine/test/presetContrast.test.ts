@@ -170,6 +170,49 @@ describe('the change convention decides a rise and a fall', () => {
 });
 
 /**
+ * A mark that says a direction is filled with the direction's fill, not the
+ * ink its words are written in (D94): the ink's hue, at the lightness a
+ * series is drawn at, so a waterfall's steps weigh what the bars beside
+ * them do. Derived from the ink, so it follows the convention and a host's
+ * own rise; a host's own fill is read before it.
+ */
+describe('a rise and a fall as fills', () => {
+  const oklchOf = (color: { r: number; g: number; b: number }) =>
+    toOklch({ mode: 'rgb', ...color });
+
+  it.each(
+    PRESET_NAMES.flatMap(preset =>
+      (['light', 'dark'] as const).map(mode => [preset, mode] as const),
+    ),
+  )('%s, %s: the ink’s hue at a mark’s lightness', (preset, mode) => {
+    for (const convention of CONVENTIONS) {
+      const tokens = resolveTokens(preset, mode, convention);
+      for (const direction of ['rise', 'fall']) {
+        const ink = oklchOf(tokens.get(`--_fve-${direction}`)!);
+        const fill = oklchOf(tokens.get(`--_fve-${direction}-fill`)!);
+        const said = `${convention} ${direction}`;
+        expect(fill.l, said).toBeCloseTo(mode === 'dark' ? 0.62 : 0.55, 2);
+        expect(Math.abs((fill.h ?? 0) - (ink.h ?? 0)), said).toBeLessThan(1);
+      }
+    }
+  });
+
+  it('follows a host’s own rise, and yields to a host’s own fill', () => {
+    const blue = resolveTokens('neutral', 'light', 'semantic', {
+      '--fve-rise': 'oklch(0.45 0.08 250deg)',
+    });
+    expect(oklchOf(blue.get('--_fve-rise-fill')!).h).toBeCloseTo(250, 0);
+    expect(oklchOf(blue.get('--_fve-rise-fill')!).l).toBeCloseTo(0.55, 2);
+    const own = resolveTokens('neutral', 'light', 'semantic', {
+      '--fve-rise': 'oklch(0.45 0.08 250deg)',
+      '--fve-rise-fill': 'oklch(0.7 0.1 80deg)',
+    });
+    expect(oklchOf(own.get('--_fve-rise-fill')!).h).toBeCloseTo(80, 0);
+    expect(oklchOf(own.get('--_fve-rise-fill')!).l).toBeCloseTo(0.7, 2);
+  });
+});
+
+/**
  * Q44: the dark status colours are quiet. The Tailwind 400 steps they were
  * carried a chroma of 0.19–0.21, which on a dark ground made a soft badge
  * glare; they sit in 0.14–0.16 now, still clearing 4.5:1 above.

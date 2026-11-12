@@ -192,6 +192,34 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     light: same('`destructive`'),
     dark: same('`destructive`'),
   },
+  'rise-fill': {
+    role: {
+      en: 'A rise as a fill: a mark that says the direction',
+      zh: '上升的填色：说方向的标记',
+    },
+    light: {
+      en: '`rise` at lightness 0.55 (the ink itself without relative colours)',
+      zh: '明度 0.55 的 `rise`（不支持相对颜色时就是墨色）',
+    },
+    dark: {
+      en: '`rise` at lightness 0.62',
+      zh: '明度 0.62 的 `rise`',
+    },
+  },
+  'fall-fill': {
+    role: {
+      en: 'A fall as a fill: a mark that says the direction',
+      zh: '下降的填色：说方向的标记',
+    },
+    light: {
+      en: '`fall` at lightness 0.55',
+      zh: '明度 0.55 的 `fall`',
+    },
+    dark: {
+      en: '`fall` at lightness 0.62',
+      zh: '明度 0.62 的 `fall`',
+    },
+  },
   'shadow-sm': lift('sm', {
     en: 'The low lift: a raised card',
     zh: '低的一档浮起：浮起的卡片',
