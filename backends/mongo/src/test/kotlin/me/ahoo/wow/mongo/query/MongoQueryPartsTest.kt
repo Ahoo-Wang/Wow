@@ -200,6 +200,22 @@ class MongoQueryPartsTest {
     }
 
     @Test
+    fun `an events record reads an operator and access attributes held as null as null`() {
+        // A document an earlier version wrote may hold either field as an explicit null.
+        val document = Document("tenant_id", "t").append("operator", null).append("access", null)
+        val record = MongoEventDocuments.record(document)
+        record.get("operator").isNull.assert().isTrue()
+        record.get("access").isNull.assert().isTrue()
+        val held = Document("tenant_id", "t")
+            .append("operator", Document("id", "u").append("tenantId", "t"))
+            .append("access", Document("region", "east"))
+        MongoEventDocuments.record(held).toString().assert().isEqualTo(
+            """{"tenantId":"t","operator":{"id":"u","tenantId":"t","actedElsewhere":false},""" +
+                """"access":{"owner":null,"space":null,"region":"east"}}""",
+        )
+    }
+
+    @Test
     fun `a timeout is whole milliseconds, at least one, and MongoDB's expiry is the query timeout`() {
         MongoSnapshotQueryBackend.maxTimeMillis(Duration.ofNanos(1)).assert().isEqualTo(1L)
         MongoSnapshotQueryBackend.maxTimeMillis(Duration.ofMillis(5)).assert().isEqualTo(5L)

@@ -184,6 +184,15 @@ class MongoEventQueryIndexesTest {
                 .contains(MongoAccess.key("t3", "u-7")).contains(MongoAccess.key("t3", "u-8"))
             plan(InFilter(owner, listOf("u-7")), tenants = listOf("t3", "t4")).assert().contains(uses("access_owner"))
                 .contains(MongoAccess.key("t3", "u-7")).contains(MongoAccess.key("t4", "u-7"))
+            // An operand admission lets through that is not a string, an equality to null or to a list, reads the
+            // attribute itself; `eq null` matches what `isNull` does.
+            fun compiledJson(filter: FilterExpression) = compiled(schema, filter).toBsonDocument().toJson()
+            listOf(EqualFilter(owner, null), EqualFilter(owner, listOf("u-7", "u-8"))).forEach {
+                compiledJson(it).assert().contains("\"access.owner\"").doesNotContain(MongoEventLog.ACCESS_KEY)
+            }
+            val unowned = collection().countDocuments(compiled(schema, IsNullFilter(owner)))
+            unowned.assert().isPositive()
+            collection().countDocuments(compiled(schema, EqualFilter(owner, null))).assert().isEqualTo(unowned)
             // The tenants a query requires: an `OR` that holds anything but tenants requires none, and an `AND` what all
             // its operands require.
             val t3 = TenantIdFilter("t3")
