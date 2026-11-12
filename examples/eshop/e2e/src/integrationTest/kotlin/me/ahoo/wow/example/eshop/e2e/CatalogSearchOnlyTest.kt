@@ -27,17 +27,16 @@ import java.math.BigDecimal
 import java.util.UUID
 
 /**
- * The catalog with its products' snapshots on Elasticsearch alone: the `search` profile with the product's own
- * snapshot store set to the Elasticsearch store, so the products' log is on MongoDB and their state is stored once, in
- * the index their snapshot queries read, its writes searchable when they return (`refresh: wait-for`). A command sent
- * over HTTP with the default wait answers once the index holds it, so the state read by id and the product list read
- * next both have the new price, every time.
+ * The catalog with its products' snapshots on Elasticsearch alone, its `search-only` profile: the products' log is on
+ * MongoDB and their state is stored once, in the index their snapshot queries read, its writes searchable when they
+ * return (`refresh: wait-for`). A command sent over HTTP with the default wait answers once the index holds it, so the
+ * state read by id and the product list read next both have the new price, every time.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogSearchOnlyTest {
     private val run = UUID.randomUUID().toString().take(8)
     private val server = wowServer<CatalogServer>(
-        "search",
+        "search-only",
         "dev",
         properties = mapOf(
             "spring.application.name" to "eshop-catalog-service",
@@ -45,8 +44,6 @@ class CatalogSearchOnlyTest {
             "spring.elasticsearch.uris" to "http://" + WowContainers.elasticsearch.httpHostAddress,
             "wow.stores.main.database" to "e2e_search_only_$run",
             "wow.stores.search.index-prefix" to "e2e-search-only-$run",
-            "wow.stores.search.refresh" to "wait-for",
-            "wow.aggregates.[eshop-catalog.product].snapshot.store" to "search",
             "wow.log.partitions" to 4,
             // The test's class path holds the other contexts' domains too.
             "wow.contexts.include" to "eshop-catalog",

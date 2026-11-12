@@ -73,6 +73,41 @@ wow:
           store: search
 # endregion
 ---
+# region search-only
+# MongoDB for the log, Elasticsearch as the products' only snapshot store (Operate › Elasticsearch › As an aggregate's
+# only snapshot store), instead of the search profile's copy: the products' state is stored once, in the index their
+# snapshot queries read, and their commands load it from there by id. Each snapshot write waits for a refresh
+# (refresh: wait-for), so a product list read after a command holds it: a command's commit is no slower, but its answer
+# under the default wait comes up to a refresh interval later. Elasticsearch is then on the commands' path: while it is
+# down, the catalog is not ready.
+spring:
+  config:
+    activate:
+      on-profile: search-only
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+  elasticsearch:
+    uris: http://localhost:9200
+wow:
+  stores:
+    main:
+      type: mongo
+      database: eshop_catalog
+    search:
+      type: elasticsearch
+      index-prefix: eshop
+      refresh: wait-for
+  log:
+    store: main
+  aggregates:
+    "[eshop-catalog.product]":
+      snapshot:
+        store: search
+      query:
+        events:
+          store: search
+# endregion
+---
 spring:
   config:
     activate:

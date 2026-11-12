@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.net.ServerSocket
 import java.util.UUID
 
 /** A meter registry to read, for an outage's counted fallbacks. */
@@ -56,10 +57,12 @@ class OutageElasticsearchClient {
 }
 
 /**
- * Elasticsearch, the account's only snapshot store, stopping mid-run, the account's log on MongoDB. A type's own
- * snapshot store is on the write path whatever its type, so the node is not ready once it has kept failing. A command that still reaches the node commits, its load replaying the log (each failed
- * load counted, not logged), but its default wait times out; a state read fails, retryable; and once the store is
- * back the node is ready again and the snapshot subscription catches up by itself.
+ * Elasticsearch, the account's only snapshot store, out of service mid-run, the account's log on MongoDB: paused (it
+ * answers nothing, so each call waits out the client's timeouts) or stopped and started again (a call is refused at
+ * once). A type's own snapshot store is on the write path whatever its type, so the node is not ready once it has kept
+ * failing. A command that still reaches the node commits, its load replaying the log (each failed load counted, not
+ * logged), but its default wait times out; a state read fails, retryable; and once the store is back the node is
+ * ready again and the snapshot subscription catches up by itself.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ElasticsearchOutageTest {
@@ -95,14 +98,31 @@ class ElasticsearchOutageTest {
     }
 
     @Test
-    fun `a type's own snapshot store stopping should take the node out of service until it is back`() {
+    fun `the only snapshot store paused should take the node out of service until it is back`() {
+        outage(
+            stop = { elasticsearch.dockerClient.pauseContainerCmd(elasticsearch.containerId).exec() },
+            start = { elasticsearch.dockerClient.unpauseContainerCmd(elasticsearch.containerId).exec() },
+        )
+    }
+
+    @Test
+    fun `the only snapshot store stopped and started again should take the node out of service until it is back`() {
+        outage(
+            stop = { elasticsearch.dockerClient.stopContainerCmd(elasticsearch.containerId).exec() },
+            start = { elasticsearch.dockerClient.startContainerCmd(elasticsearch.containerId).exec() },
+        )
+    }
+
+    /** The outage [stop] begins and [start] ends, seen from a command, the node's health and a state read. */
+    private fun outage(stop: () -> Unit, start: () -> Unit) {
         val opened = host.post("/bank/account/open-account", """{"owner":"olga"}""")
         opened.status.assert().isEqualTo(OK)
         val id = opened.body!!["ref"]["id"].asString()
         host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(OK)
-        readiness().assert().isEqualTo(HealthStatus.UP)
+        eventually { readiness() == HealthStatus.UP }
+        val fallbacks = loadFallbacks()
 
-        elasticsearch.dockerClient.pauseContainerCmd(elasticsearch.containerId).exec()
+        stop()
         try {
             // 1. A command still commits: its load replays the log. Its default wait, for the snapshot, times out.
             val deposited = host.post("/bank/account/$id/deposit", """{"amount":2}""")
@@ -111,9 +131,7 @@ class ElasticsearchOutageTest {
             deposited.body!!["result"]["version"].asInt().assert().describedAs(deposited.body.toString()).isEqualTo(3)
             deposited.body!!["result"]["hop"]["stage"].asString().assert().isEqualTo("committed")
             // Its load's failure is counted, not logged at every miss.
-            host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS.name)
-                .tags(WowMetrics.CAPABILITY, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD.value)
-                .counters().sumOf { it.count() }.assert().isPositive()
+            loadFallbacks().assert().isGreaterThan(fallbacks)
             // 2. The store is on the write path: once it has kept failing, the node is not ready.
             eventually { readiness() == HealthStatus.DOWN }
             host.context.getBean(NodeHealth::class.java).readiness().components
@@ -124,7 +142,7 @@ class ElasticsearchOutageTest {
             state.status.assert().isEqualTo(UNAVAILABLE)
             state.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
         } finally {
-            elasticsearch.dockerClient.unpauseContainerCmd(elasticsearch.containerId).exec()
+            start()
         }
 
         // 4. Back, the node is ready again, the snapshot subscription catches up, and the default wait ends there.
@@ -135,6 +153,11 @@ class ElasticsearchOutageTest {
         after.body!!["hop"]["subscription"].asString().assert().isEqualTo("wow.snapshot")
         host.get("/bank/account/$id/state").body!!["state"]["balance"].asLong().assert().isEqualTo(4L)
     }
+
+    private fun loadFallbacks(): Double =
+        host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS.name)
+            .tags(WowMetrics.CAPABILITY, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD.value)
+            .counters().sumOf { it.count() }
 
     private fun readiness(): HealthStatus = host.context.getBean(NodeHealth::class.java).readiness().status
 
@@ -147,9 +170,16 @@ class ElasticsearchOutageTest {
     }
 
     companion object {
-        private val elasticsearch = WowContainers.newElasticsearch().also { it.start() }
+        /**
+         * The test's own Elasticsearch, its HTTP port bound to a fixed host port so that the client's address holds
+         * once the container is started again; the transport port, which nothing here reads, stays Docker's to assign.
+         */
+        private val elasticsearch = WowContainers.newElasticsearch().apply {
+            portBindings = listOf("${ServerSocket(0).use { it.localPort }}:9200")
+            start()
+        }
 
-        /** The address of the test's own Elasticsearch, which it pauses. */
+        /** The address of the test's own Elasticsearch, which it pauses and stops. */
         val address: String get() = elasticsearch.httpHostAddress
         private const val OK = 200
         private const val UNAVAILABLE = 503
