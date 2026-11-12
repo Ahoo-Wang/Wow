@@ -7,7 +7,7 @@
 #
 # values-postgres.yaml after these puts the service on PostgreSQL instead.
 image:
-  # The image the released image, tagged with the chart's version (the Wow version) unless image.tag says otherwise; or one built from this repository (README.md).
+  # The released image, tagged with the chart's version (the Wow version) unless image.tag says otherwise; or one built from this repository (README.md).
   repository: ahoowang/wow-view-store-server
 # The ports of the image's own configuration (application.yaml), which the chart sets on the pod.
 ports:

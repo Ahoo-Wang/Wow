@@ -28,7 +28,7 @@ The build writes the values it knows from the service's contract (`generateWowHe
 3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate`: a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 
    ```bash
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.commands --partitions 64
+   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.commands --partitions 64 --replication-factor 3 --config min.insync.replicas=2
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.receipts --partitions 64
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.parked.state --partitions 64
    ```
@@ -56,4 +56,4 @@ A request without a token, or with one the gateway refuses or that has expired, 
 
 - **CoSec.** The `cosec` profile runs CoSec's gateway mode (`wow.cosec.mode: gateway`) behind the CoSec gateway: the gateway verifies each token and decides the request, and the service reads the principal, its tenant and its roles from the `CoSec-Identity` header the gateway forwards, holding no secret, documents or Redis of CoSec's. It believes any such header, so only the gateway may reach the HTTP port (the chart's `ops-service-public` NetworkPolicy, in a cluster whose network plugin enforces it). Whether a caller is an operator is the service's to say, by its roles.
 - **Traces and metrics.** The image carries Wow's observability module (`wow-observability`), whose spans and meters go through the OpenTelemetry Java agent. The pod asks the [OpenTelemetry Operator](https://opentelemetry.io/docs/kubernetes/operator/automatic/) to inject it (`instrumentation.opentelemetry.io/inject-java`), which needs an `Instrumentation` resource in the namespace. Where nothing injects the agent, the module records into no-ops. `values.yaml` names the collector (`OTEL_*`; the chart names the service); `wow.observability.enabled=false` turns the module off.
-- **Internal port.** Reached by the service's own nodes only. The services whose entries it shows reach it through Kafka.
+- **Internal port.** Reached by the service's own nodes and the platform's pods (`partOf: wow-platform`: the view store and the analytics catalog). The services whose entries it shows reach it through Kafka.
