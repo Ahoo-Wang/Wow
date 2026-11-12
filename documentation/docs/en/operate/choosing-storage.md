@@ -53,6 +53,21 @@ A copy on Elasticsearch is not written beside the aggregate's own snapshot store
 
 So the host refuses an Elasticsearch store as a log store. It may be an aggregate type's own snapshot store, which the commands and the state reads read by id ([Elasticsearch](./elasticsearch#only-snapshot-store)). The type's state is then stored once, beside a MongoDB log, and its default wait, its lists and its outage are Elasticsearch's. Keep a database's snapshot store with a copy when Elasticsearch should stay off the commands' path: its outage then only makes the search stale.
 
+### The only store, or a copy {#only-store-or-copy}
+
+A type whose states are searched on Elasticsearch has two arrangements. They differ in what Elasticsearch's availability does to its commands:
+
+| | Elasticsearch as the type's only snapshot store | A database's snapshot store with a copy on Elasticsearch |
+| --- | --- | --- |
+| The state is stored | Once, in the index | Twice: in the database and in the index |
+| Commands load from | Elasticsearch, by id, and the log's tail | The database |
+| The default wait (`snapshot`) ends | When the index holds the commit | When the database holds it |
+| A list read right after a command | Holds it with `refresh: wait-for`, which every command of the store's types then waits for; with `refresh: none` it may miss it | Holds it when the caller waits `queryable`, with `refresh: wait-for` on the copy; other callers keep the database's latency |
+| Elasticsearch down | On the commands' path: the node is not ready, a command reaching it commits but its default wait times out, and its state reads fail | Off the commands' path: search is stale until Elasticsearch is back, and commands, waits and state reads go on |
+| A state the index refuses | The aggregate is parked: no newer snapshot, and its waits fail | Missing from search only |
+
+`refresh: wait-for` costs by its mechanism: each write to the index returns only after a refresh, so every wait that ends there ends up to a refresh interval later. The subscription that writes the index is capped at one batch per write lane a refresh interval.
+
 ## The costs {#costs}
 
 - **More writes.** Each snapshot store is written for every commit of its types: two stores, twice the snapshot writes.

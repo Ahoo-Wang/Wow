@@ -36,8 +36,8 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set.
     implementation("me.ahoo.wow:wow-mongo")
-    // The `search` profile, MongoDB with the products' search on Elasticsearch, over the client Spring Boot's
-    // Elasticsearch support makes of `spring.elasticsearch.uris`.
+    // The `search` and `search-only` profiles, MongoDB with the products' snapshots copied to or kept only on
+    // Elasticsearch, over the client Spring Boot's Elasticsearch support makes of `spring.elasticsearch.uris`.
     implementation("me.ahoo.wow:wow-elasticsearch")
     implementation("org.springframework.boot:spring-boot-elasticsearch")
     // The `cosec` profile, behind the CoSec gateway: CoSec's gateway mode reads the principal the gateway verified
