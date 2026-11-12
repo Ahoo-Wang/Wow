@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
@@ -142,6 +143,15 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
         bare.path("access").path("owner").isNull.assert().isTrue()
         bare.path("access").path("space").isNull.assert().isTrue()
         records.getValue("o1@1").path("access").path("space").isNull.assert().isTrue()
+        Unit
+    }
+
+    @Test
+    fun `an owner without a value is null to a filter, as a system field and as a built-in attribute`() = blocking {
+        val fixture = given(stampedStreams())
+        val owned = arrayOf("o1@1", "o1@2", "o3@1", "o4@1", "o5@1")
+        fixture.keys(IsNullFilter(QueryField("ownerId"))).assert().containsExactly("o6@1")
+        fixture.keys(IsNullFilter(QueryField("access.owner"))).assert().contains("o6@1").doesNotContain(*owned)
         Unit
     }
 
