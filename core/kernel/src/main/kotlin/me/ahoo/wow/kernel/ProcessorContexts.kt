@@ -277,7 +277,7 @@ internal class SagaDerivation(
             "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +
                 "service or its peers names."
         }
-        val body = SetSchedule(key, rule, type, codec.commandText(command))
+        val body = SetSchedule(key, rule, type, codec.commandBody(command))
         recorded += derive(
             target,
             body,

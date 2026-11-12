@@ -39,6 +39,8 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 
 /** The `timers` subscription writes the timer store from the schedule events (decisions D166, D198). */
 class TimersSubscriptionTest {
@@ -62,7 +64,7 @@ class TimersSubscriptionTest {
         )
 
     private fun set(key: String, rule: ScheduleRule) =
-        ScheduleSet(key, rule, order("o-1"), "shop.order.CancelOrder", """{"reason":"$key"}""")
+        ScheduleSet(key, rule, order("o-1"), "shop.order.CancelOrder", commandOf("reason" to "$key"))
 
     private fun event(name: String, payload: Any) = EventRecord(name, 1, WowJson.mapper.writeValueAsString(payload))
 
@@ -148,7 +150,7 @@ class TimersSubscriptionTest {
         runBlocking {
             val job = ScheduleJobs.typeOf(SHOP).ref("acme", "invoice")
             val rule = ScheduleRule.Cron("0 0 0 1 * *")
-            val set = ScheduleSet(ScheduleJobs.TICK_KEY, rule, job, ScheduleJobs.TICK_JOB, "{}")
+            val set = ScheduleSet(ScheduleJobs.TICK_KEY, rule, job, ScheduleJobs.TICK_JOB, commandOf())
             val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copyWith(ref = job)
             timers.subscription.handle(SubscribedEntry(stream, null, stream.events))
             val timer = checkNotNull(store.find(job, ScheduleJobs.TICK_KEY))
@@ -177,3 +179,6 @@ class TimersSubscriptionTest {
         const val PARTITIONS = 4
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }

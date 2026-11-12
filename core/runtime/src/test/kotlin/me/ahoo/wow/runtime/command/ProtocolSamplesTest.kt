@@ -26,6 +26,9 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -39,6 +42,7 @@ import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.io.File
 
 /**
@@ -97,6 +101,24 @@ class ProtocolSamplesTest {
             ReplyTo.of("bank", execution),
         )
         check("command", CommandMessages.command(wire, 5, wait).value)
+    }
+
+    @Test
+    fun `a saga's schedule is sent with its command as an object, byte for byte`() {
+        val transfer = AggregateType("bank", "transfer").ref("t1", "tr-9")
+        val execution = ExecutionId("bank", "TransferSaga.onRequested", transfer, 1)
+        val command = tree("""{"reason":"expired","fee":2.50}""") as ObjectNode
+        val set = SetSchedule.of("expire", ScheduleRule.After(60_000), "bank.account.Close", command)
+        val wire = ClusterCodec.wire(
+            Schedules.SET_SCHEDULE,
+            Command("c-4", "tr-9@1#1", ref, set, operator = operator),
+            ReplyTo.of("bank", execution),
+        )
+        val sent = String(CommandMessages.command(wire, 5, wait).value)
+        sent.assert().contains(
+            """"body":{"key":"expire","rule":{"type":"after","millis":60000},"commandType":"bank.account.Close",""" +
+                """"command":{"reason":"expired","fee":2.50}}""",
+        )
     }
 
     @Test

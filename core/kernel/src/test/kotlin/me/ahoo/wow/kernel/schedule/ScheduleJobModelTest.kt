@@ -42,6 +42,8 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -263,7 +265,7 @@ class ScheduleJobModelTest {
         committed.stream.events.map { codec.decode(model, it) }.assert().containsExactly(
             JobTicked(timer, 1, 0, 900),
             JobRescheduled(rule, shanghai),
-            ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK_JOB, "{}"),
+            ScheduleSet(ScheduleJobs.TICK_KEY, rule, ref, ScheduleJobs.TICK_JOB, commandOf()),
         )
         // A node without the job disables the instance on its next tick.
         val next = Command("c-3", "r-3", ref, TickJob(), headers = ScheduleContext(timer, "tick", 2, 950).headers())
@@ -272,3 +274,6 @@ class ScheduleJobModelTest {
             .containsExactly(JobDisabled(), ScheduleCancelled(ScheduleJobs.TICK_KEY))
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }
