@@ -75,8 +75,8 @@ class PostgresSnapshotSqlCompilerTest {
             "SELECT tenant_id, aggregate_id, version, owner_id, space_id, deleted, access, first_event_time, last_event_time, operator, " +
                 "first_operator, schedules, state " +
                 "FROM \"wow_snapshot__shop__order\" WHERE (tenant_id = ? AND " +
-                "(((CASE WHEN jsonb_typeof((state #> '{name}')) = 'string' THEN state #>> '{name}' END) COLLATE \"C\") = ?)) " +
-                "ORDER BY (CASE WHEN jsonb_typeof((state #> '{amount}')) = 'number' THEN (state #>> '{amount}')::numeric END) " +
+                "(((jsonb_path_query_first((state #> '{name}'), 'strict \$ ? (@.type() == \"string\")') #>> '{}') COLLATE \"C\") = ?)) " +
+                "ORDER BY ((jsonb_path_query_first((state #> '{amount}'), 'strict \$ ? (@.type() == \"number\")'))::numeric) " +
                 "DESC NULLS LAST, tenant_id DESC, aggregate_id DESC LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
@@ -101,7 +101,8 @@ class PostgresSnapshotSqlCompilerTest {
         )
         statements.forEach { statement ->
             statement.sql.assert().doesNotContain("DROP")
-            statement.sql.count { it == '?' }.assert().isEqualTo(statement.parameters.size)
+            // A `?` inside a string literal (a jsonpath filter's) is text, as the driver reads it, not a placeholder.
+            statement.sql.placeholders().assert().isEqualTo(statement.parameters.size)
             statement.parameters.toString().assert().contains("DROP")
         }
         val aggregation = aggregations.compile(
@@ -116,13 +117,13 @@ class PostgresSnapshotSqlCompilerTest {
             GroupWindow.First(10),
         )
         aggregation.sql.assert().doesNotContain("DROP").doesNotContain("drop_table")
-        aggregation.sql.count { it == '?' }.assert().isEqualTo(aggregation.parameters.size)
+        aggregation.sql.placeholders().assert().isEqualTo(aggregation.parameters.size)
     }
 
     @Test
     fun `a literal match escapes the LIKE wildcards`() {
         val statement = list(ContainsFilter(NAME, "50%_off\\", StringComparison.CASE_INSENSITIVE))
-        statement.sql.assert().contains("lower(((CASE").contains("COLLATE \"default\") LIKE lower(?) ESCAPE '\\'")
+        statement.sql.assert().contains("lower(((jsonb_path_query_first(").contains("COLLATE \"default\") LIKE lower(?) ESCAPE '\\'")
         statement.parameters.assert().contains(SqlParameter.Text("%50\\%\\_off\\\\%"))
     }
 
@@ -441,3 +442,6 @@ class PostgresSnapshotSqlCompilerTest {
         val KEYWORDS = QueryField("state.keywords")
     }
 }
+
+/** The `?` placeholders of [this] SQL text: those outside its single-quoted string literals. */
+private fun String.placeholders(): Int = replace(Regex("'(?:[^']|'')*'"), "''").count { it == '?' }

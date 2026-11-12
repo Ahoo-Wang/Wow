@@ -90,15 +90,21 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
  * A system field is its column (`tenantId` is `tenant_id`). A path below `state`, `access`, `operator`,
  * `firstOperator` or `schedules`, all `jsonb`, is
  * - its node, `(state #> '{a,b}')`, which presence, containment and array operators read; and
- * - its typed value: the node's text cast to the type when the node holds a JSON value of that type, otherwise
- *   `NULL`, so a value of another type never matches, never fails a cast, and never fails the save of a snapshot
- *   under an expression index. Text is `COLLATE "C"`, ordered by code point:
+ * - its typed value: the node cast to the type when it holds a JSON value of that type, otherwise `NULL`, so a value
+ *   of another type never matches, never fails a cast, and never fails the save of a snapshot under an expression
+ *   index. Text is `COLLATE "C"`, ordered by code point.
+ *
+ * The typed value names the column once: the node, read by `#>` as the path says (a numeric segment is an array's
+ * index or an object's key, as `#>` reads it), is kept by a constant `strict` jsonpath filter only when it is of the
+ * type. A `strict` filter does not unwrap an array, so an array of numbers is not a number. Naming the column twice,
+ * as a `CASE` on `jsonb_typeof` would, makes PostgreSQL detoast a stored state twice for every row an unindexed
+ * filter or sort reads (PG-9, D421).
  *
  * | Type | Expression |
  * | --- | --- |
- * | [PostgresQueryType.TEXT] | `((CASE WHEN jsonb_typeof(state #> '{a}') = 'string' THEN state #>> '{a}' END) COLLATE "C")` |
- * | [PostgresQueryType.NUMERIC] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'number' THEN (state #>> '{a}')::numeric END)` |
- * | [PostgresQueryType.BOOLEAN] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'boolean' THEN (state #>> '{a}')::boolean END)` |
+ * | [PostgresQueryType.TEXT] | `((jsonb_path_query_first((state #> '{a}'), 'strict $ ? (@.type() == "string")') #>> '{}') COLLATE "C")` |
+ * | [PostgresQueryType.NUMERIC] | `((jsonb_path_query_first((state #> '{a}'), 'strict $ ? (@.type() == "number")'))::numeric)` |
+ * | [PostgresQueryType.BOOLEAN] | `((jsonb_path_query_first((state #> '{a}'), 'strict $ ? (@.type() == "boolean")'))::boolean)` |
  */
 internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
     columns = mapOf(
@@ -199,17 +205,20 @@ internal open class PostgresQueryExpressions(
     /** The typed value at [segments] below the `jsonb` expression [base]: see the table of this object. */
     fun value(base: String, segments: List<String>, type: PostgresQueryType): String {
         val node = node(base, segments)
-        val text = if (segments.isEmpty()) "$base #>> '{}'" else "$base #>> '${pathLiteral(segments)}'"
         return when (type) {
-            PostgresQueryType.TEXT -> "((CASE WHEN jsonb_typeof($node) = 'string' THEN $text END) COLLATE \"C\")"
+            PostgresQueryType.TEXT -> "((${typed(node, "string")} #>> '{}') COLLATE \"C\")"
             PostgresQueryType.NUMERIC,
             PostgresQueryType.INTEGER,
             PostgresQueryType.BIGINT,
-            -> "(CASE WHEN jsonb_typeof($node) = 'number' THEN ($text)::numeric END)"
-            PostgresQueryType.BOOLEAN -> "(CASE WHEN jsonb_typeof($node) = 'boolean' THEN ($text)::boolean END)"
+            -> "((${typed(node, "number")})::numeric)"
+            PostgresQueryType.BOOLEAN -> "((${typed(node, "boolean")})::boolean)"
             PostgresQueryType.JSONB -> node
         }
     }
+
+    /** [node] when it holds a JSON value of [jsonType], otherwise `NULL`; [node] appears once. */
+    private fun typed(node: String, jsonType: String): String =
+        "jsonb_path_query_first($node, 'strict \$ ? (@.type() == \"$jsonType\")')"
 
     /** The column of the system field [field]. */
     fun column(field: String): String =
