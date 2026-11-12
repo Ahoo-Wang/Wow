@@ -104,6 +104,24 @@ class NodeLoopsTest {
     }
 
     @Test
+    fun `a stack overflow should be a loop's end, the error of the loop's own code, not a fatal one`(): Unit =
+        runBlocking {
+            withTimeout(5.seconds) { scope.launchLoop("overflowing") { throw StackOverflowError() }.join() }
+
+            fatals.endedLoop!!.error.assert().isEqualTo(StackOverflowError::class.java.name)
+            fatals.isFatal.assert().isFalse()
+        }
+
+    @Test
+    fun `the first loop that ended should stay the one named, each later one counted`(): Unit = runBlocking {
+        withTimeout(5.seconds) { scope.launchLoop("first") { throw NotImplementedError() }.join() }
+        withTimeout(5.seconds) { scope.launchLoop("second") { error("not caught") }.join() }
+
+        fatals.endedLoop!!.loop.assert().isEqualTo("first")
+        fatals.endedCount.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `a stopped scope and a worker that is done should end their loops quietly`(): Unit = runBlocking {
         val rounds = AtomicInteger()
         val worker = scope.launchWorker("done") { rounds.incrementAndGet() < 3 }
