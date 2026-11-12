@@ -13,6 +13,8 @@
 package me.ahoo.wow.mongo.ledger
 
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.Indexes
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -27,8 +29,9 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * [MongoFailureLedger.due] reads by the key index whatever the planner would choose. At a tenth of the entries due,
- * a fresh plan of a page in the middle of a round reads the due index and sorts every due entry of the partitions
+ * [MongoFailureLedger.due] reads by the key index whatever the planner would choose, on a collection that still holds
+ * the index on the partition and the next attempt an earlier build created (`ledger_due`). At a tenth of the entries
+ * due, a fresh plan of a page in the middle of a round reads that index and sorts every due entry of the partitions
  * again, page after page; by the key, a round reads each of the subscription's entries once, and each page at most a
  * page of keys more, where the keyset's branches (one for each column of the key) start their ranges. The profiler, on a
  * database of the test's own, records what each page read.
@@ -41,6 +44,11 @@ class MongoFailureLedgerDuePlanTest {
         try {
             val ledger = MongoFailureLedger(MongoLogFixture.client, DATABASE).also { it.createSchema() }
             val collection = database.getCollection(COLLECTION)
+            // The index an earlier build created, which a database keeps.
+            collection.createIndex(
+                Indexes.ascending("service", "subscription_context", "subscription", "partition", "next_attempt_at"),
+                IndexOptions().name("ledger_due"),
+            )
             val first = ParkedAggregate(SUBSCRIPTION, TYPE.ref("tenant", "template"), 0, 1, "failed", 1)
             runBlocking { ledger.park(first) }
             val template = checkNotNull(collection.find().first()).apply { remove("_id") }

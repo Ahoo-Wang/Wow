@@ -66,11 +66,12 @@ import kotlin.time.Duration.Companion.milliseconds
  * `updateOne` of the whole entry whose filter carries the revision it read. No collation is set: MongoDB then
  * compares strings by their UTF-8 bytes, which is code point order, so [list] pages in the order the contract asks for.
  *
- * Besides the key index, [DUE_INDEX] is on (service, subscription, partition, next attempt), and [TENANT_INDEX] on
- * (service, subscription, tenant, then the key) answers a tenant's [list] in its order, a subscription being its
- * context and name. [due] reads by the key index ([LEDGER_KEY], a hint): a page of what is due comes in the key's
- * order, and the due index would have each page read and sort every due entry of the partitions again, a round's
- * cost growing with the square of what is due. By the key, a round reads each of the subscription's entries once.
+ * Besides the key index, [TENANT_INDEX] on (service, subscription, tenant, then the key) answers a tenant's [list] in
+ * its order, a subscription being its context and name. [due] reads by the key index ([LEDGER_KEY], a hint): a page of
+ * what is due comes in the key's order, so an index on the partition and the next attempt would have each page read
+ * and sort every due entry of the partitions again, a round's cost growing with the square of what is due. By the
+ * key, a round reads each of the subscription's entries once. The store creates no such index; one an earlier build
+ * created (`ledger_due`) is left in place, unread.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -92,7 +93,7 @@ class MongoFailureLedger(
 
     /**
      * Claims the collection's format ([MongoFormat]) and creates its indexes when missing: the key index, which also
-     * serves [list]'s order, [due] and [count], [DUE_INDEX] and [TENANT_INDEX].
+     * serves [list]'s order, [due] and [count], and [TENANT_INDEX].
      */
     fun createSchema() {
         MongoFormat.claim(database, collection, FORMAT, ddl)
@@ -108,12 +109,6 @@ class MongoFailureLedger(
                 AGGREGATE_ID,
             ),
             IndexOptions().unique(true).name(LEDGER_KEY),
-            ddl,
-        )
-        MongoFormat.index(
-            ledger,
-            Indexes.ascending(SERVICE, SUBSCRIPTION_CONTEXT, SUBSCRIPTION, PARTITION, NEXT_ATTEMPT_AT),
-            IndexOptions().name(DUE_INDEX),
             ddl,
         )
         MongoFormat.index(
@@ -396,7 +391,6 @@ class MongoFailureLedger(
          */
         const val FORMAT = 1
         const val LEDGER_KEY = "ledger_key"
-        const val DUE_INDEX = "ledger_due"
         const val TENANT_INDEX = "ledger_tenant"
         const val SERVICE = "service"
         const val SUBSCRIPTION_CONTEXT = "subscription_context"
