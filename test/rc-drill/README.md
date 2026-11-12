@@ -2,7 +2,7 @@
 
 Before the release candidate, the eShop and Wow's platform services are deployed as a user deploys them: from a release's published artifacts, on a cluster of several nodes in three zones, with the stores replicated and authenticated, behind an ingress and the CoSec gateway, with a metrics pipeline and the documented alerts. Then the drill drives the end-to-end suite through the ingress, while it upgrades, kills, stops, scales and drains. This folder holds that deployment's shape. The script that runs the steps comes with it.
 
-The drill runs twice on one machine: on 10.0.0-beta.2 as the dress rehearsal, then on 10.0.0-beta.3, with the upgrade from beta.2. It runs in a window when nothing else uses the machine's Docker.
+The drill runs once, on one machine, after 10.0.0-beta.3 is released: it installs 10.0.0-beta.2 from its published chart and images, then upgrades to beta.3 under load (step 4). There is no dress rehearsal before it (the owner's decision), so what can be proven without a cluster is proven before (`tools`, `artifacts`, `compare`, the eShop's build against the published Wow, the renders), and the first run is the first on a cluster. It runs in a window when nothing else uses the machine's Docker or Gradle.
 
 ## What the machine needs
 
@@ -37,10 +37,10 @@ The drill was written and checked against these versions. Install matching ones:
 | `helm` | **4.3.1** | The version CI installs the chart with (ci.yml's `helm-kind`, ga-e2e.yml). CI's `helm` job also renders, lints and unit-tests the chart under 3.22.1. The drill's values and the third-party charts were rendered under 4.3.1 only. |
 | `kind` | **v0.33.0** | As CI's kind clusters. |
 | Node image | `kindest/node:v1.37.0` | kind v0.33.0's own, pinned by digest in `kind.yaml`: Kubernetes 1.37.0. |
-| `kubectl` | **1.36 to 1.38** | kubectl supports one minor version of skew from the server, 1.37. The machine's v1.33.9 is too old for it. |
+| `kubectl` | **1.36 to 1.38** | kubectl supports one minor version of skew from the server, 1.37. On this machine: Homebrew's `kubernetes-cli` 1.37.2 at `/opt/homebrew/bin/kubectl`, and OrbStack's own v1.33.9 at `/usr/local/bin/kubectl`, which a shell started before the path changed still finds first. The drill resolves kubectl once (`DRILL_KUBECTL`, else the first on the path), and `drill.sh tools` refuses one outside 1.36 to 1.38: run it with `DRILL_KUBECTL=/opt/homebrew/bin/kubectl` to be sure. |
 | Calico | v3.32.2 | `versions.env`, checked by SHA-256. |
 | Docker | OrbStack | Sized as above. |
-| JDK | 25 | Builds the eShop's servers against the published Wow. |
+| JDK | **21** | The build's toolchain, as CI's: it builds the eShop's servers and the platform's generated values. The images run their own JDK 25. |
 
 Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registries for the release's artifacts.
 
@@ -93,7 +93,7 @@ The order, which the drill's script follows:
    - `values/<service>.yaml` when there is one;
    - for the eShop's services, `--set image.tag=<version>`.
 
-   The platform's three take the published images at the chart's version.
+   The platform's three take the published images at the chart's version. Building their generated values compiles the platform's servers, and Wow, at the release's tag (step 2's `build`): it reads their contracts for the values, and none of what it builds is deployed. Only the eShop's five services run images the drill built, from the tag against the published Wow.
 
 ### Secrets
 
@@ -115,12 +115,10 @@ None is committed. The drill generates each for the run (random values, hex), cr
 `drill.sh` runs the steps, one command per step, or all of them in order. It dispatches; the steps are in `lib/` by what they are: `common.sh` (the settings, the helpers, the evidence), `platform.sh`, `release.sh` (artifacts, build, install, upgrade), `faults.sh` and `verdict.sh`.
 
 ```bash
-DRILL_EVIDENCE=build/rc-drill/beta.2 test/rc-drill/drill.sh run 10.0.0-beta.2
+DRILL_KUBECTL=/opt/homebrew/bin/kubectl DRILL_EVIDENCE=build/rc-drill/beta.3 DRILL_UPGRADE=rolling test/rc-drill/drill.sh run 10.0.0-beta.3 10.0.0-beta.2
 ```
 
-```bash
-DRILL_EVIDENCE=build/rc-drill/beta.3 DRILL_UPGRADE=rolling test/rc-drill/drill.sh run 10.0.0-beta.3 10.0.0-beta.2
-```
+The first run goes one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.3`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
 
 With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:

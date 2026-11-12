@@ -20,7 +20,8 @@
 e2e() {
   local scenarios=$1 label=${2:-$1} extra=("${@:3}")
   mkdir -p "$evidence/e2e/$label"
-  "$root/gradlew" -p "$root" :eshop-e2e:clusterTest --console=plain \
+  # The test's own kubectl is the one first on its path: the drill's, whatever the shell's path says.
+  PATH="$(dirname "$kubectl"):$PATH" "$root/gradlew" -p "$root" :eshop-e2e:clusterTest --console=plain \
     "-Pga.gateway=$gateway" "-Pga.secret=$(cat "$evidence/secrets/JWT")" -Pga.backend=mongo -Pga.partitions=64 \
     "-Pga.namespace=$namespace" "-Pga.run=$(basename "$evidence")" "-Pga.scenarios=$scenarios" \
     "-Pga.report=$evidence/e2e/$label" ${extra[@]+"${extra[@]}"}

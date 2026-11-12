@@ -15,6 +15,7 @@
 # platform/ and values/, then the drill's steps, each timed and its evidence kept. One command per step, or `run` for
 # all of them in the plan's order:
 #
+#   drill.sh tools                           0  the tools' paths and versions, refused unless README.md's
 #   drill.sh artifacts <version>             0  the release's artifacts on every registry it publishes to
 #   drill.sh compare <from> <to>                the changes between two releases a running deployment cannot cross
 #   drill.sh cluster                         1  the kind cluster, Calico and the namespace
@@ -63,6 +64,7 @@ run() {
   first=${previous:-$version}
   mkdir -p "$evidence"
   : >"$evidence/steps.tsv"
+  step 0-tools tools
   step 0-artifacts artifacts "$version"
   [ -z "$previous" ] || step 0-artifacts-previous artifacts "$previous"
   step 1-cluster cluster
@@ -94,7 +96,7 @@ run() {
   log "done: $evidence"
 }
 
-command=${1:?usage: drill.sh artifacts|compare|cluster|secrets|platform|build|install|e2e|upgrade|node-loss|store-faults|scale|drain|alerts|backup|reinstall|diagnostics|teardown|run ...}
+command=${1:?usage: drill.sh tools|artifacts|compare|cluster|secrets|platform|build|install|e2e|upgrade|node-loss|store-faults|scale|drain|alerts|backup|reinstall|diagnostics|teardown|run ...}
 shift
 mkdir -p "$evidence"
 "$command" "$@"

@@ -29,7 +29,7 @@ zone_down() {
   log "node $node stopped"
   sleep 180
   docker start "$node" >/dev/null
-  kubectl --context "kind-$cluster" wait --for=condition=Ready "node/$node" --timeout=600s
+  "$kubectl" --context "kind-$cluster" wait --for=condition=Ready "node/$node" --timeout=600s
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }
 
@@ -97,9 +97,9 @@ drain() {
 
 drain_worker() {
   local node=$1
-  kubectl --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s
+  "$kubectl" --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s
   sleep 60
-  kubectl --context "kind-$cluster" uncordon "$node"
+  "$kubectl" --context "kind-$cluster" uncordon "$node"
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }
 
