@@ -316,6 +316,8 @@ export const viewMessages = {
   'view.publish.forbidden':
     'You may not publish system views; ask an administrator.',
   'view.save.failed': 'This view could not be saved.',
+  'view.save.not-applied':
+    'The changes did not run, so nothing was saved.',
   'view.save.forbidden':
     'You may not save changes to this view; save a copy of your own instead.',
   'view.system.read-only': 'A built-in view cannot be changed ({action}).',

@@ -77,7 +77,7 @@ describe('when the list cannot be read', () => {
         : read(...args),
     );
     act(() => runtime.edit({ pageSize: 30 }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply and save' }));
     await waitFor(() =>
       expect(within(sidebar()).getByRole('status')).toBeDefined(),
     );

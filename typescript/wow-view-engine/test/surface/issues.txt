@@ -1,4 +1,4 @@
-# Issue codes — 530.
+# Issue codes — 531.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -515,6 +515,7 @@ view.runtime.not-owned
 view.save-as.failed
 view.save.failed
 view.save.forbidden
+view.save.not-applied
 view.system.read-only
 view.title.empty
 view.title.too-long

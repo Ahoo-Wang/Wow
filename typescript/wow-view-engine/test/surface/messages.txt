@@ -1,4 +1,4 @@
-# Message keys — 2219.
+# Message keys — 2221.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1872,6 +1872,7 @@ label.save-as.copy-title
 label.save-as.description
 label.save-as.heading
 label.save-as.submit
+label.save.apply-and-save
 label.save.audience
 label.save.first-description
 label.save.first-heading
@@ -2204,6 +2205,7 @@ view.runtime.not-owned
 view.save-as.failed
 view.save.failed
 view.save.forbidden
+view.save.not-applied
 view.system.read-only
 view.title.empty
 view.title.too-long

@@ -623,6 +623,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `view.save-as.failed` | This view could not be saved as a copy. |
 | `view.save.failed` | This view could not be saved. |
 | `view.save.forbidden` | You may not save changes to this view; save a copy of your own instead. |
+| `view.save.not-applied` | The changes did not run, so nothing was saved. |
 | `view.system.read-only` | A built-in view cannot be changed ({action}). |
 | `view.title.empty` | A view needs a title. |
 | `view.title.too-long` | A view’s title can be at most {max} characters. |

@@ -3743,6 +3743,7 @@ export interface SaveCommands {
 
 // @public (undocumented)
 export interface SaveCommandState {
+    applies: boolean;
     audience: ViewAudience | null;
     blocked: boolean;
     // (undocumented)

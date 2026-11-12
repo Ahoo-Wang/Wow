@@ -138,7 +138,7 @@ describe('DataWorkbench', () => {
     vi.spyOn(store, 'save').mockRejectedValueOnce(new Error('socket closed'));
     act(() => engine.openRuntimes()[0].edit({ pageSize: 30 }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply and save' }));
     await screen.findByText(/got no answer; it may already have gone through/);
     expect(engine.pendingWrites().size).toBe(1);
 
