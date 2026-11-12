@@ -14,9 +14,6 @@
 package me.ahoo.wow.example.eshop.e2e.cluster
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -93,6 +90,7 @@ class GaE2eTest {
     private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
     private val requestIds = RequestIds(kube, flows)
     private val search = SearchStore(kube, network, flows, report)
+    private val scenarios = Scenarios(flows, kube, report, network, probes, ops, reads)
 
     init {
         flows.onLate = { report.note(it) }
@@ -140,9 +138,7 @@ class GaE2eTest {
     @Test
     @Order(1)
     fun `the catalog and the stock are filed through the gateway`() = scenario("functional", "catalog and stock") {
-        Deployment.PRODUCTS.forEach { (id, price) -> flows.product(id, "Wow $id", price) }
-        Deployment.STOCK.forEach { (id, quantity) -> flows.receive(id, quantity) }
-        "${Deployment.PRODUCTS.size} products published, ${Deployment.STOCK.size} stocks received"
+        scenarios.catalogAndStock()
     }
 
     @Test
@@ -151,33 +147,9 @@ class GaE2eTest {
         "functional",
         "full chain"
     ) {
-        flows.addItem("alice", "mug", flows.price("mug"), 2)
-        flows.addItem("alice", "cap", flows.price("cap"), 1)
-        val result = flows.checkoutWaiting("alice", ShopFlows.FULL_CHAIN)
-        result["status"].asString().assert().describedAs(result.toString()).isEqualTo("succeeded")
-        result["hop"]["stage"].asString().assert().isEqualTo("committed")
-        result["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
-        result["function"]["name"].asString().assert().isEqualTo("PayOrder")
-        val number = flows.numberOf(result)
+        val (number, detail) = scenarios.fullChain("alice")
         aliceOrder = number
-        flows.eventually("$number paid") { flows.orderStatus(number) == "PAID" }
-        flows.ship(number)
-        flows.eventually("the reservations of $number committed") {
-            flows.stock("mug")["reservations"][number] == null && flows.stock("cap")["reservations"][number] == null
-        }
-        val events = flows.trace("/eshop-ordering/order/$number").flatMap { it.events }
-        events.assert().containsExactly(
-            "OrderSubmitted",
-            "OrderAwaitingValidation",
-            "OrderStockItemConfirmed",
-            "OrderStockItemConfirmed",
-            "OrderStockConfirmed",
-            "ScheduleSet",
-            "OrderPaid",
-            "ScheduleCancelled",
-            "OrderShipped",
-        )
-        "$number paid in one Wow-Wait of 15 hops and shipped: ${events.joinToString(", ")}"
+        detail
     }
 
     @Test
@@ -186,16 +158,7 @@ class GaE2eTest {
         "functional",
         "declined payment"
     ) {
-        flows.addItem("erin", "tv", flows.price("tv"), 1)
-        val ended = flows.checkoutWaiting("erin", ShopFlows.FULL_CHAIN)
-        ended["status"].asString().assert().describedAs(ended.toString()).isEqualTo("succeeded")
-        ended["hop"]["subscription"].asString().assert().isEqualTo("OrderPaymentSaga.onPaymentSucceeded")
-        ended["chainEnded"].asBoolean().assert().isTrue()
-        // The payment saga's hop names the payment, whose id is its order's number.
-        val number = flows.numberOf(ended)
-        flows.eventually("$number cancelled") { flows.orderStatus(number) == "CANCELLED" }
-        checkNotNull(flows.payment(number))["status"].asString().assert().isEqualTo("FAILED")
-        "$number declined over the gateway's limit: the wait ended at the payment saga, the order cancelled"
+        scenarios.declinedPayment("erin")
     }
 
     @Test
@@ -204,18 +167,7 @@ class GaE2eTest {
         "functional",
         "stock rejection"
     ) {
-        flows.addItem("bob", "pad", flows.price("pad"), 1)
-        flows.addItem("bob", "pen", flows.price("pen"), 3)
-        val number = flows.numberOf(flows.checkoutWaiting("bob", ShopFlows.TO_ORDERING))
-        flows.eventually("$number cancelled") { flows.orderStatus(number) == "CANCELLED" }
-        checkNotNull(flows.order(number))["cancelReason"].asString().assert().contains("pen")
-        // The compensation: the pad reserved for $number is released.
-        flows.eventually("the pad released") {
-            flows.stock("pad")["available"].asInt() == Deployment.STOCK.getValue("pad") && flows.stock("pad")["reservations"][number] == null
-        }
-        flows.stock("pen")["available"].asInt().assert().isEqualTo(Deployment.STOCK.getValue("pen"))
-        flows.payment(number).assert().isNull()
-        "$number cancelled for the pen, the pad's reservation released, no payment requested"
+        scenarios.stockRejection("bob")
     }
 
     @Test
@@ -298,31 +250,13 @@ class GaE2eTest {
         "security",
         "public ports behind the gateway"
     ) {
-        val blocked = Deployment.PUBLIC.filter { it.first !in excluded }.map { (service, port) ->
-            val outsider = network.reach("outsider", service, port)
-            val insider = network.reach("insider", service, port)
-            check(outsider.startsWith("000")) { "the outsider reached $service's public port: $outsider" }
-            check(
-                insider.startsWith("000")
-            ) { "a shop pod that is not the gateway reached $service's public port: $insider" }
-            service
-        }
-        "blocked around the gateway: ${blocked.joinToString()}"
+        scenarios.publicPorts(excluded)
     }
 
     @Test
     @Order(11)
     fun `the internal ports are reachable from the platform's pods alone`() = scenario("security", "internal ports") {
-        Deployment.INTERNAL.filter { it.first !in excluded }.forEach { (service, port) ->
-            val outsider = network.reach("outsider", "$service-cluster", port)
-            check(outsider.startsWith("000")) { "the outsider reached $service's internal port: $outsider" }
-        }
-        // The positive control: a pod of the shop reaches them, so the refusals are the policies'.
-        Deployment.INTERNAL.filter { it.first.startsWith("eshop-") && it.first !in excluded }.forEach { (service, port) ->
-            val insider = network.reach("insider", "$service-cluster", port)
-            check(!insider.startsWith("000")) { "the shop's own pod did not reach $service's internal port: $insider" }
-        }
-        "outsider refused on ${Deployment.INTERNAL.size} internal ports; the shop's pod served on the eShop's"
+        scenarios.internalPorts(excluded)
     }
 
     @Test
@@ -357,36 +291,7 @@ class GaE2eTest {
     @Test
     @Order(20)
     fun `a parked payment reaches ops and is retried there`() = scenario("ops", "parked, retried from ops") {
-        val started = System.currentTimeMillis()
-        ops.outage(true)
-        flows.addItem("olga", "mug", flows.price("mug"), 1)
-        val number = flows.numberOf(flows.checkoutWaiting("olga", ShopFlows.TO_ORDERING))
-        val id = Ledger.parkedId(
-            "eshop-payment-service",
-            "eshop-payment",
-            GATEWAY_SAGA,
-            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, number)
-        )
-        flows.eventually("the parked payment listed by ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
-        val received = System.currentTimeMillis() - started
-        flows.orderStatus(number).assert().isEqualTo("STOCK_CONFIRMED")
-        shop.post("/ops/parked/$id/retry", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
-        ops.outage(false)
-        with(flows) {
-            command(
-                "/ops/parked/$id/retry",
-                """{"reason":"The gateway is back."}""",
-                Who.OPERATOR
-            ).committed("retry $id")
-        }
-        flows.eventually(
-            "the entry resolved in ops",
-            OPS_BOUND
-        ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
-        flows.eventually("$number paid") { flows.orderStatus(number) == "PAID" }
-        ops.exhausted(started).assert().doesNotContain(id)
-        reads.parked("payment").filter { it["aggregateId"] == number }.assert().isEmpty()
-        "parked, seen in ops after $received ms, retried by an operator, resolved and paid; the ledger entry is gone"
+        scenarios.parkedRetriedFromOps("olga")
     }
 
     @Test
@@ -399,12 +304,7 @@ class GaE2eTest {
         ops.outage(true)
         flows.addItem("gus", "mug", flows.price("mug"), 1)
         val number = flows.numberOf(flows.checkoutWaiting("gus", ShopFlows.TO_ORDERING))
-        val id = Ledger.parkedId(
-            "eshop-payment-service",
-            "eshop-payment",
-            GATEWAY_SAGA,
-            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, number)
-        )
+        val id = scenarios.parkedPayment(number)
         flows.eventually("the parked payment of $number in ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         flows.eventually(
             "$number cancelled by its grace period",
@@ -493,47 +393,8 @@ class GaE2eTest {
             // PostgreSQL backends behind (F10).
             (1..OWNER_DELETIONS).joinToString(
                 "; "
-            ) { round -> deleteOwnerMidCheckout(if (round == 1) "carol" else "carol$round") }
+            ) { round -> scenarios.deleteOwnerMidCheckout(if (round == 1) "carol" else "carol$round") }
         }
-
-    /**
-     * Force-deletes the owner of [buyer]'s order's partition mid-checkout; the order is paid once and shipped. The
-     * ordering numbers the order, so its partition, and the pod that owns it, are known once the checkout answers at
-     * the order's commit: the pod is deleted then, while the order process goes on (the reservation, the payment).
-     */
-    private fun deleteOwnerMidCheckout(buyer: String): String {
-        flows.addItem(buyer, "kite", flows.price("kite"), 2)
-        var order = ""
-        var owner = ""
-        val load = Load(flows).start()
-        try {
-            Outages.measure(
-                report,
-                "delete the owner of $buyer's order's partition",
-                TAKEOVER_BOUND,
-                "checkout to the ordering",
-                probes::probeToOrdering,
-                settled = { kube.pods(Deployment.ORDERING).count { it.ready && !it.deleting } == 2 },
-            ) {
-                order = flows.numberOf(flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING))
-                owner = probes.partitionOwner(order)
-                report.note(
-                    "force-deleting $owner, the owner of $order's partition, at " +
-                        "${kube.pods(Deployment.ORDERING).find { it.name == owner }?.ip}",
-                )
-                kube.deletePod(owner, force = true)
-            }
-        } finally {
-            load.stop()
-        }
-        flows.eventually("$order paid after the deletion", TAKEOVER_BOUND.multipliedBy(2)) {
-            flows.orderStatus(order) == "PAID"
-        }
-        flows.ship(order)
-        flows.trace("/eshop-payment/payment/$order").flatMap { it.events }
-            .assert().containsExactly("PaymentRequested", "PaymentSucceeded")
-        return "$owner deleted mid-checkout; $order paid once and shipped"
-    }
 
     @Test
     @Order(33)
@@ -712,14 +573,12 @@ class GaE2eTest {
         const val UNAUTHORIZED = 401
         const val MILLIS = 1000
         const val LISTED = 10
-        const val GATEWAY_SAGA = "PaymentGatewaySaga.onPaymentRequested"
 
         /** The ordering's payment grace period in this deployment (services/eshop-ordering/config.yaml). */
         val GRACE: Duration = Duration.ofSeconds(120)
         val OPS_BOUND: Duration = Duration.ofSeconds(90)
         val SCALE_BOUND: Duration = Duration.ofSeconds(30)
         val ROLLING_BOUND: Duration = Duration.ofSeconds(60)
-        val TAKEOVER_BOUND: Duration = Duration.ofSeconds(120)
         val KAFKA_BOUND: Duration = Duration.ofSeconds(120)
         val STEP_DOWN_BOUND: Duration = Duration.ofSeconds(60)
     }
