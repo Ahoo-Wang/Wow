@@ -21,6 +21,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.problem.WowProblemException
@@ -34,6 +35,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.IdGenerators
 import java.util.Collections
@@ -266,6 +268,7 @@ internal class SagaDerivation(
     }
 
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>) {
+        ScheduleSlots.problemOf(key, rule)?.let { throw Misuse.Argument("$it ${ScheduleSlots.FROM_INPUT}") }
         val command = request.command
         sends?.checkSchedules(executionId.subscription, command.javaClass)
         require(request.expectedVersion == null) {

@@ -188,7 +188,8 @@ enum class Misfire {
  * The system command `wow.schedule.SetSchedule`: sets the schedule [key] of the aggregate it is sent to, to
  * send it the command of type [commandType] (`context.aggregate.Command`), [command] its body as a JSON object, as
  * [rule] says. Every aggregate decides it without user code, on an aggregate that exists; a saga derives it
- * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]).
+ * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]). A cron rule whose expression or time zone cannot be read, or that
+ * names no time that ever comes, is rejected (`wow.command.invalid`), and nothing is committed.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */

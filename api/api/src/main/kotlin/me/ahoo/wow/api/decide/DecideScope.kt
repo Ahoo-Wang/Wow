@@ -130,6 +130,10 @@ interface DecideScope {
      * target reads from [Command.schedule]). The target decides it on its state then; a rejection is a normal guard,
      * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
      * context's Manifest.
+     *
+     * A cron rule whose expression or time zone cannot be read, or that names no time that ever comes (`0 0 0 30 2 *`),
+     * is the code's mistake: the command fails and commits nothing. A rule from input is checked by the domain
+     * before it is scheduled, so that its decide function rejects it with a rejection of its own.
      */
     fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef)
 

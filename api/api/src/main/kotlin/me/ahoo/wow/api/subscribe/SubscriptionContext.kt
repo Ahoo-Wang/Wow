@@ -173,6 +173,10 @@ interface SagaContext : SubscriptionContext {
      * it rejects the command, which the saga's `@OnRejected` handler for [SetSchedule] gets.
      * [key] names the schedule among the target's: setting it again replaces it, and [cancelSchedule] cancels it. An
      * `after` rule counts from the commit that sets it on the target.
+     *
+     * A cron rule whose expression or time zone cannot be read, or that names no time that ever comes, is the
+     * handler's mistake: its handling fails for good and parks. A rule from input is checked by the domain before it
+     * is scheduled.
      */
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>)
 
