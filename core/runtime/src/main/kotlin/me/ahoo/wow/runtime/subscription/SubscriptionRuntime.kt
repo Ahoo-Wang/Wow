@@ -320,7 +320,7 @@ class SubscriptionRuntime internal constructor(
     private fun requirePartition(partition: Int) = source.requirePartition(partition)
 
     private fun open(run: Running, partition: Int, starts: Map<String, WorkerStart>, reads: Job? = null) {
-        val part = PartitionRun(partition, run, reads)
+        val part = PartitionRun(partition, run, reads, source, options, catchUps)
         run.partitions[partition] = part
         val workers = subscriptions.values.map { worker(run, part, starts.getValue(it.name)) }
         part.runner.start(workers)
@@ -531,45 +531,6 @@ class SubscriptionRuntime internal constructor(
                     "retrying on the next tick."
             }
         }
-    }
-
-    /** Guarded by `lifecycle`, except [workers], which waits and the checkpoint ticker read from any thread. */
-    private class Running(
-        val root: Job,
-        val scope: CoroutineScope,
-        /** The aggregates held back in the partitions the run starts, the moved ones looked for once. */
-        val parked: ParkedAtStart,
-    ) {
-        val partitions = ConcurrentHashMap<Int, PartitionRun>()
-        val workers = ConcurrentHashMap<Pair<String, Int>, SubscriptionWorker>()
-
-        /** The partitions [startPartition] is reading the starts of, outside the mutex, each done once it opened. */
-        val starting = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
-
-        /** The subscriptions that had read the stream when the runtime started ([WorkerStarts.joinedSubscriptions]). */
-        var joined: Set<String> = emptySet()
-    }
-
-    /**
-     * One partition being read: its shared tail and catch-up reads, and its subscriptions' lanes, stopped together.
-     * Its reads wait for [reads], when given ([startPartition]).
-     */
-    private inner class PartitionRun(val partition: Int, run: Running, reads: Job?) {
-        val readersJob = SupervisorJob(run.root)
-        val lanesJob = SupervisorJob(run.root)
-        val lanes = CoroutineScope(run.scope.coroutineContext + lanesJob)
-        val runner = PartitionRunner(
-            partition,
-            source,
-            CoroutineScope(run.scope.coroutineContext + readersJob),
-            options,
-            reads,
-            catchUps,
-        )
-        val workers = ArrayList<SubscriptionWorker>()
-
-        /** Whether the partition reads: not held back, nor waiting for a catch-up permit. */
-        val reading: Boolean get() = runner.reading
     }
 }
 
