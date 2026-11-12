@@ -969,6 +969,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capab
 
 public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason : java/lang/Enum {
 	public static final field FAILED Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
+	public static final field TIMED_OUT Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
 	public static final field UNSUPPORTED Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getValue ()Ljava/lang/String;

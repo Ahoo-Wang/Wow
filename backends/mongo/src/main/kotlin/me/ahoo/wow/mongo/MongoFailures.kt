@@ -24,6 +24,7 @@ import com.mongodb.MongoWriteConcernException
 import com.mongodb.internal.connection.MongoWriteConcernWithResponseException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -126,6 +127,23 @@ internal suspend fun <T> CoroutineDispatcher.mongo(block: suspend CoroutineScope
     try {
         block()
     } catch (failure: MongoException) {
+        throw MongoFailures.translate(failure)
+    }
+}
+
+/**
+ * [mongo] for a read its caller may give up on: cancelling the caller interrupts the thread blocked in the driver, which
+ * closes the connection's socket, so the read ends at once and its connection leaves the pool instead of waiting out
+ * the store's operation timeout. Only for reads: a write interrupted half-way has an unknown outcome.
+ */
+internal suspend fun <T> CoroutineDispatcher.mongoRead(block: () -> T): T = runInterruptible(this) {
+    try {
+        block()
+    } catch (failure: MongoException) {
+        // The driver reports its interruption as a failure of its own: it is the caller's cancellation.
+        if (Thread.currentThread().isInterrupted) {
+            throw InterruptedException(failure.message).apply { initCause(failure) }
+        }
         throw MongoFailures.translate(failure)
     }
 }

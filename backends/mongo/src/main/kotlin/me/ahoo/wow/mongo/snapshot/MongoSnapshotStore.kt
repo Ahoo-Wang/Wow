@@ -50,6 +50,7 @@ import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.mongo.mongoRead
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.VirtualThreads
@@ -435,7 +436,8 @@ class MongoSnapshotStore(
         backfilled = document.getBoolean(BACKFILLED),
     )
 
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
+    // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongoRead {
         require(ref.type.context == context) { "$ref is not in context $context." }
         collectionOf(ref.type.name).find(keyFilter(ref)).first()?.let { snapshotOf(ref.type, it) }
     }

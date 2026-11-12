@@ -263,6 +263,18 @@ class MongoFailuresTest {
         const val DUPLICATE_KEY = 11000
         const val BSON_OBJECT_TOO_LARGE = 10334
     }
+
+    @Test
+    fun `a read its caller did not give up on fails as the driver's failure translates`() {
+        val failure = assertThrows<StorageUnavailableException> {
+            runBlocking {
+                Dispatchers.IO.mongoRead<Unit> {
+                    throw MongoSocketReadException("The server closed the connection.", ServerAddress())
+                }
+            }
+        }
+        failure.causes().any { it is MongoSocketReadException }.assert().isTrue()
+    }
 }
 
 /** This throwable and its causes: a coroutine may rethrow a copy of what was thrown, with it as the cause. */
