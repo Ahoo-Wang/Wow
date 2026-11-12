@@ -13,7 +13,15 @@
 
 package me.ahoo.wow.api.query
 
-interface RewritableFilter<Q : RewritableFilter<Q>> {
+/**
+ * A query, or a filter, whose condition can be replaced ([withFilter]) or narrowed ([appendFilter]), each a new one.
+ *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
+ *
+ * @param Q The type of the query object that implements this interface, enabling method chaining.
+ */
+sealed interface RewritableFilter<Q : RewritableFilter<Q>> {
     fun withFilter(newFilter: FilterExpression): Q
 
     fun appendFilter(append: FilterExpression): Q

@@ -1753,17 +1753,11 @@ public final class me/ahoo/wow/api/schedule/ScheduleTick {
 	public final fun getSlot ()J
 	public final fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/api/schedule/ScheduleTick;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;JJ)Lme/ahoo/wow/api/schedule/ScheduleTick;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/ScheduleTick;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;JJJLjava/lang/Integer;)Lme/ahoo/wow/api/schedule/ScheduleTick;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/schedule/ScheduleTick$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/api/schedule/ScheduleTick;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;JJ)Lme/ahoo/wow/api/schedule/ScheduleTick;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/ScheduleTick;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;JJJLjava/lang/Integer;)Lme/ahoo/wow/api/schedule/ScheduleTick;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/schedule/ScheduleTick$Companion;Ljava/lang/String;Ljava/lang/String;JJJLjava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/schedule/ScheduleTick;
 }
