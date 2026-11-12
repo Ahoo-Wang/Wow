@@ -46,11 +46,14 @@ import me.ahoo.wow.api.result.Stage
 internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     private var index = 0
     private var generation: Set<String> = setOf(rootCommandId)
-    private val past = HashSet<String>()
     private val reached = LinkedHashMap<String, CommandResult>()
-    private val buffered = ArrayList<CommandResult>()
     private val seen = HashSet<SignalKey>()
-    private val committedResults = HashMap<String, Map<String, Any>>()
+
+    // Made on first use, as most waits never use them: the generations a saga left behind (a chain's alone), the
+    // results that arrived early (out of order alone), and the results decide functions put (a few commands').
+    private var past: MutableSet<String>? = null
+    private var buffered: MutableList<CommandResult>? = null
+    private var committedResults: MutableMap<String, Map<String, Any>>? = null
     private var hopCompleted = false
 
     /**
@@ -71,16 +74,17 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
      */
     fun offer(result: CommandResult): List<CommandResult>? {
         if (result.hop.stage == Stage.COMMITTED && result.results.isNotEmpty()) {
-            committedResults.putIfAbsent(result.commandId, result.results)
+            (committedResults ?: HashMap<String, Map<String, Any>>().also { committedResults = it })
+                .putIfAbsent(result.commandId, result.results)
         }
         if (outcome != null || !seen.add(SignalKey.of(result))) {
             return null
         }
         val completed = ArrayList<CommandResult>()
         var moved = apply(result, completed)
-        while (moved && outcome == null && buffered.isNotEmpty()) {
-            val pending = buffered.toList()
-            buffered.clear()
+        while (moved && outcome == null) {
+            val pending = buffered ?: break
+            buffered = null
             moved = false
             pending.forEach { moved = apply(it, completed) || moved }
         }
@@ -95,7 +99,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         if (result.hop.stage != Stage.HANDLED || result.results.isNotEmpty()) {
             return result
         }
-        return committedResults[result.commandId]?.let { result.copyWith(results = it) } ?: result
+        return committedResults?.get(result.commandId)?.let { result.copyWith(results = it) } ?: result
     }
 
     /** Ends the wait with [result], unless it already ended; returns it as the final result. */
@@ -110,11 +114,11 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     /** Applies [result]; true when it moved the chain to a next hop or ended the wait. */
     private fun apply(result: CommandResult, completed: MutableList<CommandResult>): Boolean {
         val id = result.commandId
-        if (id in past || outcome != null) {
+        if (past?.contains(id) == true || outcome != null) {
             return false
         }
         if (id !in generation) {
-            buffered += result
+            buffer(result)
             return false
         }
         if (result.status != CommandResult.Status.SUCCEEDED) {
@@ -139,7 +143,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             }
 
             laterInGeneration(result.hop) -> {
-                buffered += result
+                buffer(result)
                 false
             }
 
@@ -153,6 +157,10 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
                 false
             }
         }
+    }
+
+    private fun buffer(result: CommandResult) {
+        (buffered ?: ArrayList<CommandResult>().also { buffered = it }) += result
     }
 
     /** Whether [stage] is before the stage the wait already reached. */
@@ -191,7 +199,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         reached.clear()
         index++
         if (saga) {
-            past += generation
+            (past ?: HashSet<String>().also { past = it }) += generation
             generation = derived
         }
         if (index == hops.size) {
