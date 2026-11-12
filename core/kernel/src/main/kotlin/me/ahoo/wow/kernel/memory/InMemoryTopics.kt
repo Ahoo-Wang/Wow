@@ -40,6 +40,10 @@ import kotlin.concurrent.withLock
  *
  * As a [TopicAdmin], it describes the topics created so far and creates the ones asked for; [grow]
  * adds partitions to a topic, as an operator does to a Kafka topic.
+ *
+ * Public, unlike the other in-memory backends: the test server takes one to share between the nodes it starts
+ * (`wowServer(topics = …)`) and gives each node's (`server.bean<InMemoryTopics>()`), so a test reads what the sagas sent
+ * and the streams published.
  */
 class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicProducer, PartitionedSource, TopicAdmin {
     private val topics = ConcurrentHashMap<String, Topic>()
