@@ -1,0 +1,14 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794440378	5.75	8.40	10.77	51	WindowServer 30, WallpaperAerialsExtension 5, sysmond 4		91	0	0.4	
+1794440390	5.34	8.22	10.68	23	WindowServer 15, jstat 3, WallpaperAerialsExtension 2		660	69	0.0	
+1794440402	6.33	8.30	10.67	74	WindowServer 21, Claude 12, Claude Helper (Renderer) 10		827	73	0.4	
+1794440414	9.15	8.86	10.84	245	Claude Helper (Renderer) 165, Claude 52, WindowServer 9		877	66	0.0	
+1794440426	11.96	9.47	11.02	25	jstat 13, WindowServer 1, Google Chrome Helper (Aperitif Renderer) 1		820	71	0.0	
+1794440438	11.62	9.47	11.00	182	Claude Helper (Renderer) 166, jstat 13, AppleCentauriAlpha 1		842	71	0.3	
+1794440450	11.81	9.57	11.02	15	jstat 9, AppleCentauriAlpha 1, WindowServer 1		694	72	0.3	
+1794440462	13.16	9.96	11.12	47	NotificationCenter 14, WindowServer 12, claude 4		667	73	0.7	
+1794440474	13.02	10.04	11.14	26	jstat 12, sysmond 3, WindowServer 2		853	63	0.0	
+1794440486	12.99	10.21	11.18	15	jstat 12, claude 1, AppleCentauriAlpha 0		735	72	0.4	
+1794440498	12.17	10.12	11.14	21	jstat 13, Google Chrome Helper (Aperitif Renderer) 2, AppleCentauriAlpha 1		694	73	0.3	
+1794440510	12.91	10.36	11.21	21	jstat 13, sysmond 3, claude 2		693	73	0.3	
+1794440522	11.81	10.24	11.16	15	jstat 7, configd 2, mDNSResponder 2		734	72	0.3	

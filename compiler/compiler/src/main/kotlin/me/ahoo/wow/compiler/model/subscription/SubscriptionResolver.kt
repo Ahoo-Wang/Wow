@@ -40,6 +40,7 @@ import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.dependencyName
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.isHandler
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
@@ -64,7 +65,7 @@ import me.ahoo.wow.compiler.model.symbol.javaTypeOf
  *   [ReceiptHandlerResolver]'s;
  * - no annotation outside the annotation set ([AnnotationSet]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
- *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`;
+ *   by a constructor that is not private, whose parameters are domain services, each named by its `@DependencyName`;
  *   a handler's state type takes no type arguments.
  *
  * A handler a processor inherits is its handler, its annotations those of the function it overrides when the
@@ -347,7 +348,7 @@ internal object SubscriptionResolver {
 
     /**
      * The constructor parameters of [processor], each a domain service the host's `Dependencies` gives by its type
-     * and, when the parameter has a `@Name`, by that qualifier.
+     * and, when the parameter has a `@DependencyName`, by that name.
      */
     private fun dependencies(
         processor: KSClassDeclaration,
@@ -355,13 +356,14 @@ internal object SubscriptionResolver {
         problems: MutableList<String>,
     ): List<Dependency> = constructorOf(processor)?.parameters.orEmpty().mapIndexed { index, parameter ->
         val type = parameter.type.resolve()
-        val qualifier = parameter.declaredName(problems)
-        if (qualifier != null && qualifier.isBlank()) {
-            problems += "processor $className's parameter ${parameter.name?.asString()} has a blank @Name: a " +
-                "qualifier names the dependency"
+        val dependencyName = parameter.dependencyName(problems)
+        if (dependencyName != null && dependencyName.isBlank()) {
+            // A constructor's parameter always has a name.
+            problems += "processor $className's parameter ${parameter.name!!.asString()} has a blank " +
+                "@DependencyName: it names the dependency"
         }
         val name = parameter.name?.asString() ?: "dependency$index"
-        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
+        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), dependencyName, type.javaTypeOf())
     }
 
     private fun handler(

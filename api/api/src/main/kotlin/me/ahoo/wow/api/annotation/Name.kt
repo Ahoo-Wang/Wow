@@ -21,13 +21,11 @@ package me.ahoo.wow.api.annotation
  * name in its subscription, `processor.name`, in place of the function's: the subscription, its checkpoint and its
  * executions keep that name, so renaming the function with `@Name("<its former name>")` keeps the subscription.
  *
- * On a parameter of a command function or an after hook that takes a domain service, it is the service's qualifier:
- * the module's binding index asks the host's dependencies for the service of that type named
- * [value], so two parameters of one type can take two services.
+ * A parameter's dependency is named by [DependencyName], not by this.
  *
- * @param value the name, or the qualifier.
+ * @param value the name.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class Name(
     val value: String,

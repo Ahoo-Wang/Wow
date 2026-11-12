@@ -85,7 +85,7 @@ internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShape
         QueryType.CURSOR -> {
             val cursor = query as CursorQuery
             queryable(cursor)
-            token("size", cursor.size)
+            token("size", cursor.size ?: 0) // No size tokenizes as 0, as a list without a limit.
             token(if (cursor.cursor == null) "first" else "next")
         }
         QueryType.COUNT -> {

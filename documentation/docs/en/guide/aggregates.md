@@ -185,7 +185,7 @@ A function need not check that the caller may reach the aggregate: the kernel do
 
 ## Take domain services
 
-The parameters after the command are domain services, or the `DecideScope`. A service becomes a parameter of the generated model, and the host binds it once, when it builds the model: it takes the application's only bean of that type, or its primary one. `@Name("…")` on the parameter takes the bean of that name instead, so two parameters of one type can take two beans.
+The parameters after the command are domain services, or the `DecideScope`. A service becomes a parameter of the generated model, and the host binds it once, when it builds the model: it takes the application's only bean of that type, or its primary one. `@DependencyName("…")` on the parameter takes the bean of that name instead, so two parameters of one type can take two beans.
 
 The order takes its payment policy as a service, and schedules its own cancellation with the `DecideScope` once its stock is confirmed:
 

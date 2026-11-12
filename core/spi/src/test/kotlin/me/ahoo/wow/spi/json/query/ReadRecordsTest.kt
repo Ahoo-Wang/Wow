@@ -101,4 +101,11 @@ class ReadRecordsTest {
         record.putNull(SnapshotFields.SCHEDULES)
         record.toSnapshot(type, JsonNode::class.java).schedules.assert().isEmpty()
     }
+
+    @Test
+    fun `an operator stored without actedElsewhere should read as one that acted in its own scope`() {
+        val record = Snapshot.of(ref, 1, Scope.NONE, emptyMap(), false, null, 1, 2, state, null, emptyMap()).toRecord()
+        record.putObject(SnapshotFields.OPERATOR).put(OperatorFields.ID, "alice").put(OperatorFields.TENANT_ID, "acme")
+        record.toSnapshot(type, JsonNode::class.java).operator.assert().isEqualTo(Operator.of("alice", "acme"))
+    }
 }

@@ -99,10 +99,13 @@ class SingleQueryDsl : QueryableDsl<SingleQuery>() {
     override fun build(): SingleQuery = SingleQuery(filter, projection, sort)
 }
 
-/** Builds a `cursor` query: [size] records after [cursor], the `nextCursor` of the previous page (none at first). */
+/**
+ * Builds a `cursor` query: [size] records (the server's cursor page size by default) after [cursor], the
+ * `nextCursor` of the previous page (none at first).
+ */
 @QueryDslMarker
 class CursorQueryDsl : QueryableDsl<CursorQuery>() {
-    private var size: Int = CursorQuery.DEFAULT_SIZE
+    private var size: Int? = null
     private var cursor: String? = null
 
     fun size(value: Int) {

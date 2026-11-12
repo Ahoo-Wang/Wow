@@ -53,7 +53,7 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
         fun of(providers: List<ModelProvider>): MigrationModels = try {
             MigrationModels(providers.flatMap { it.models(STAND_INS) })
         } catch (missing: MissingDependencyException) {
-            val named = missing.qualifier?.let { " named \"$it\"" }.orEmpty()
+            val named = missing.name?.let { " named \"$it\"" }.orEmpty()
             throw MigrationException(
                 "${missing.building ?: "A V10 model"} takes a ${missing.fullType.typeName}$named, which the tool " +
                     "can neither stand in for nor build: it stands in for an interface, which rebuilding a state " +
@@ -94,7 +94,7 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
          * hands them to the aggregate's factory, and a call to a stand-in, which only a decide function would make,
          * fails.
          */
-        val STAND_INS: Dependencies = Dependencies { type, qualifier ->
+        val STAND_INS: Dependencies = Dependencies { type, name ->
             val built = BUILT[type]
             if (built != null) {
                 built()
@@ -103,7 +103,7 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
             } else {
                 Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { proxy, method, arguments ->
                     when (method.name) {
-                        "toString" -> "stand-in ${type.name}${qualifier?.let { " \"$it\"" }.orEmpty()}"
+                        "toString" -> "stand-in ${type.name}${name?.let { " \"$it\"" }.orEmpty()}"
                         "hashCode" -> System.identityHashCode(proxy)
                         "equals" -> proxy === arguments?.firstOrNull()
                         else -> throw MigrationException(

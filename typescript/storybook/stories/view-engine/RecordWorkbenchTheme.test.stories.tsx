@@ -1137,9 +1137,8 @@ export const OutlineBadgeEdgesInDarkTheme: Story = outlineBadgeEdges('dark');
 /**
  * 工具栏上以文字或图标自明的按钮（列设置、排序、导出）穿主题的 `control` 与
  * `control-edge`，和看板的筛选胶囊、分段控件同一组（D59 第 7 项，D43 留给下一
- * 步的一项）：porcelain 填灰、没有边，像 macOS 的工具栏；neutral 不设这一组，
- * 仍是注册表的描边按钮——白底、`border` 的边，像素不变。量的是按钮在它自己的
- * 层叠里解析出的颜色，和同一处放一块探针量出的 token 比。
+ * 步的一项）：都是填色加一道细边，各用自己的 `control-edge`（D94）。量的是
+ * 按钮在它自己的层叠里解析出的颜色，和同一处放一块探针量出的 token 比。
  */
 const toolbarButtonsIn = (preset: 'porcelain' | 'neutral'): Story => ({
   ...DisplayWithData,
@@ -1160,10 +1159,7 @@ const toolbarButtonsIn = (preset: 'porcelain' | 'neutral'): Story => ({
       probe.remove();
       return read;
     };
-    const want =
-      preset === 'porcelain'
-        ? token('var(--_fve-control)', 'var(--_fve-control-edge)')
-        : token('var(--background)', 'var(--border)');
+    const want = token('var(--_fve-control)', 'var(--_fve-control-edge)');
     await waitFor(() => {
       const style = getComputedStyle(columns);
       expect({
@@ -1171,18 +1167,15 @@ const toolbarButtonsIn = (preset: 'porcelain' | 'neutral'): Story => ({
         edge: style.borderTopColor,
       }).toEqual(want);
     });
-    if (preset === 'porcelain') {
-      // Filled, and its edge kept (D63).
-      await expect(want.fill).not.toBe(token('var(--background)', '').fill);
-      await expect(want.edge).not.toMatch(/\/ 0\)$|, 0\)$/);
-    }
+    // Filled, inside the theme's edge for a control (D63, D94).
+    await expect(want.fill).not.toBe(token('var(--background)', '').fill);
+    await expect(want.edge).not.toMatch(/\/ 0\)$|, 0\)$/);
   },
 });
 
 export const ToolbarButtonsFillInPorcelain: Story =
   toolbarButtonsIn('porcelain');
-export const ToolbarButtonsOutlinedInNeutral: Story =
-  toolbarButtonsIn('neutral');
+export const ToolbarButtonsFillInNeutral: Story = toolbarButtonsIn('neutral');
 
 /**
  * 只选了几行时，全选框画成一道横线，而不是勾：从前 20 行选了 2 行，全选框是白底

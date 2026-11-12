@@ -484,9 +484,9 @@ describe('the tokens the theme declares', () => {
     expect(DECLARATIONS.some(([prop]) => prop === '--color-info')).toBe(false);
   });
 
-  // The four groups D43 added draw, unset, exactly what was drawn before
-  // them — so `neutral` and a host that sets none of them do not move.
-  it('defaults the layering and control groups to what was drawn before', () => {
+  // Where nothing sets them, the groups D43 added are the stylesheet's own
+  // look (D94): the canvas a step off the cards, a control filled.
+  it('gives the layering and control groups their built-in values', () => {
     for (const mode of ['light', 'dark'] as const) {
       const token = (name: string) =>
         block(mode)
@@ -502,15 +502,13 @@ describe('the tokens the theme declares', () => {
         /, color-mix\(in oklab, var\(--foreground\) 10%, transparent\)\)\)$/,
       );
       expect(token('--_fve-card-shadow'), mode).toMatch(/, 0 0 #0000\)\)$/);
-      // No built-in value: each control keeps its own fallback.
-      for (const name of [
-        '--_fve-control',
-        '--_fve-control-edge',
-        '--_fve-control-thumb',
-      ])
-        expect(token(name), `${mode} ${name}`).toMatch(
-          /^var\(--fve-(dark-)?control(-edge|-thumb)?, var\(--fvp-(dark-)?control(-edge|-thumb)?\)\)$/,
-        );
+      // A control is filled with the well inside the divider's hairline.
+      expect(token('--_fve-control'), mode).toMatch(
+        /, var\(--secondary\)\)\)$/,
+      );
+      expect(token('--_fve-control-edge'), mode).toMatch(
+        /, var\(--border\)\)\)$/,
+      );
     }
     // The registry's `font-medium`; a weight has no dark half.
     expect(block('light').get('--_fve-title-weight')).toBe(

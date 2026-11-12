@@ -120,6 +120,8 @@ object Ledger {
  * operations tool, not only Wow's own, writes its JSON: `{"subscription": ..., "context": ..., "aggregate": ...,
  * "tenantId": ..., "id": ...}`. A caller sends it as the system command its name says ([Ledger.COMMANDS]), which a
  * service's call permits must list explicitly (`wow.ledger.*`).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface LedgerCommand {
     val subscription: String
@@ -369,7 +371,11 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
     }
 }
 
-/** What an operator marked a parked entry (9.x `RecoverableType`); only [UNRECOVERABLE] stops its automatic retries. */
+/**
+ * What an operator marked a parked entry (9.x `RecoverableType`); only [UNRECOVERABLE] stops its automatic retries.
+ *
+ * No case is added within 10.x, so a `when` over it may name every case.
+ */
 enum class Recoverable {
     /** Nobody said: retried automatically. */
     UNKNOWN,
@@ -384,6 +390,8 @@ enum class Recoverable {
 /**
  * An operator's request on a parked entry, left in the ledger by a node that does not own the entry's partition:
  * the owner takes it (the ledger's `ParkedAmendment.TakeRequest`) and runs it.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class LedgerRequest {
     /** Handle the aggregate again from where it is parked. */

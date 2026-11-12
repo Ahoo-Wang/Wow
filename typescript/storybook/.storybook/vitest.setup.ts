@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { composeStory } from 'storybook/preview-api';
+import { afterAll } from 'vitest';
 import { commands } from 'vitest/browser';
 // The globals the stories read the real mouse and the media from are
 // declared there.
@@ -94,6 +96,47 @@ globalThis.storybookMedia = {
  */
 await commands.emulateMedia({ reducedMotion: 'no-preference' });
 
+/**
+ * A file's last story is unmounted before its frame goes, and the file
+ * fails if it leaves a listener on the page.
+ *
+ * A popup open in a story listens outside the story's frame: Base UI
+ * positions it with Floating UI's `autoUpdate`, which listens for `scroll`
+ * and `resize` on every ancestor that can scroll — across a same-origin
+ * frame's edge too, so on this page's own `window` and `visualViewport` —
+ * and takes those listeners off when the popup closes or unmounts. A file's
+ * last story did neither: it was still mounted when Vitest removed the
+ * file's frame, so the page held a function of the removed frame, and
+ * through it the frame's document, modules and data. Focus resting on a
+ * button that has a tooltip was enough. One renderer process draws every
+ * file of a run, and the frames it kept grew it until it died — "Browser
+ * connection was closed while running tests", with no test failed (#6075).
+ *
+ * The unmount leans on how Storybook works, not on a call it offers:
+ * Storybook runs a story's cleanups when the next one loads, and registers
+ * no unmount at a file's end, so loading a story that renders nothing is
+ * what unmounts the last one. The count below is what says so if an update
+ * changes that: the listeners on the page's `window` and `visualViewport`
+ * (`pageListeners.ts`) as the file begins and again after the unmount. The
+ * page has listeners of its own, so the two are compared; a file that ends
+ * with more than it began with fails, by its own name.
+ */
+const listenersAtStart = await commands.pageListeners();
+
+afterAll(async () => {
+  await composeStory({ render: () => null }, { title: 'Teardown' }).load();
+  const listenersAtEnd = await commands.pageListeners();
+  if (listenersAtStart === null || listenersAtEnd === null) return;
+  const left = listenersAtEnd - listenersAtStart;
+  if (left > 0)
+    throw new Error(
+      `This file left ${left} event listener(s) on the page outside its ` +
+        'frame (window or visualViewport): the removed frame stays in ' +
+        'memory. Something it mounted was not unmounted, or listens on ' +
+        'the parent page and never stops (.storybook/vitest.setup.ts).',
+    );
+});
+
 declare module 'vitest/browser' {
   interface BrowserCommands {
     emulateMedia: (media: {
@@ -107,5 +150,6 @@ declare module 'vitest/browser' {
       y: number,
     ) => Promise<void>;
     realMouseAway: () => Promise<void>;
+    pageListeners: () => Promise<number | null>;
   }
 }

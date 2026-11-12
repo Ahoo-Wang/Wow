@@ -27,8 +27,8 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.DependencyName
 import me.ahoo.wow.api.annotation.InternalCommand
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
@@ -54,6 +54,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.dependencyName
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
@@ -299,8 +300,8 @@ internal class AggregateAnalyzer(
         if (command.hasAnnotation(Revision::class.java.name)) {
             problems += "command ${command.simpleName.asString()} is annotated @Revision: only events have revisions"
         }
-        if (parameters.first().hasAnnotation(Name::class.java.name)) {
-            problems += "$name's command parameter is annotated @Name: a qualifier names a dependency parameter"
+        if (parameters.first().hasAnnotation(DependencyName::class.java.name)) {
+            problems += "$name's command parameter is annotated @DependencyName: only a dependency parameter takes one"
         }
         val returnType = function.returnType?.resolve()
         val open = EventYield.openEvent(returnType)
@@ -408,7 +409,7 @@ internal class AggregateAnalyzer(
 
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
-     * takes, qualified by the parameter's `@Name`. One type with one qualifier, or none, is one
+     * takes, named by the parameter's `@DependencyName`. One type with one dependencyName, or none, is one
      * dependency, however many functions take it. Of Wow's types, only the services every host binds are dependencies
      * ([SERVICES]): a framework type of 9.x has no Wow 10 counterpart to pass, and no host passes any other.
      */
@@ -420,11 +421,11 @@ internal class AggregateAnalyzer(
     ): String? {
         val type = parameter.type.resolve()
         val rendered = type.render()
-        val qualifier = parameter.declaredName(problems)
+        val dependencyName = parameter.dependencyName(problems)
         val where = "$function's parameter ${parameter.name?.asString()}"
         if (rendered == DECIDE_SCOPE) {
-            if (qualifier != null) {
-                problems += "$where is annotated @Name: the decide scope takes no qualifier"
+            if (dependencyName != null) {
+                problems += "$where is annotated @DependencyName: the decide scope takes none"
             }
             return "this"
         }
@@ -448,21 +449,22 @@ internal class AggregateAnalyzer(
                 "a dependency from the host, so it has none"
             return null
         }
-        if (qualifier != null && qualifier.isBlank()) {
-            problems += "$where has a blank @Name: a qualifier names the dependency"
+        if (dependencyName != null && dependencyName.isBlank()) {
+            problems += "$where has a blank @DependencyName: it names the dependency"
             return null
         }
-        return dependencies.getOrPut(if (qualifier == null) rendered else "$rendered@$qualifier") {
+        return dependencies.getOrPut(if (dependencyName == null) rendered else "$rendered@$dependencyName") {
             val simple = type.declaration.simpleName.asString().withFirst(Char::lowercaseChar) +
-                qualifier?.let(::identifierSuffix).orEmpty()
+                dependencyName?.let(::identifierSuffix).orEmpty()
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
-            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
+            val erasure = type.declaration.qualifiedName!!.asString()
+            Dependency(unique, rendered, erasure, dependencyName, type.javaTypeOf())
         }.name
     }
 
-    /** `"fx.primary"` gives `FxPrimary`, to name a qualified dependency's factory parameter. */
-    private fun identifierSuffix(qualifier: String): String =
-        qualifier.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
+    /** `"fx.primary"` gives `FxPrimary`, to name a named dependency's factory parameter. */
+    private fun identifierSuffix(dependencyName: String): String =
+        dependencyName.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
             .joinToString("") { it.withFirst(Char::uppercaseChar) }
 
     /** This non-empty name with its first character mapped by [first]. */

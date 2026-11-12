@@ -400,7 +400,7 @@
         color-mix(
           in oklab,
           var(--foreground) var(--_fve-state-hover),
-          var(--_fve-control, transparent)
+          var(--_fve-control)
         )
       )
     );
@@ -411,7 +411,7 @@
         color-mix(
           in oklab,
           var(--foreground) var(--_fve-state-pressed),
-          var(--_fve-control, transparent)
+          var(--_fve-control)
         )
       )
     );
@@ -430,14 +430,17 @@
       --fve-dark-focus-halo,
       var(--fvp-dark-focus-halo, transparent)
     );
-    --_fve-control: var(--fve-dark-control, var(--fvp-dark-control));
+    --_fve-control: var(
+      --fve-dark-control,
+      var(--fvp-dark-control, var(--secondary))
+    );
     --_fve-control-edge: var(
       --fve-dark-control-edge,
-      var(--fvp-dark-control-edge)
+      var(--fvp-dark-control-edge, var(--border))
     );
     --_fve-control-thumb: var(
       --fve-dark-control-thumb,
-      var(--fvp-dark-control-thumb)
+      var(--fvp-dark-control-thumb, var(--background))
     );
     --_fve-control-thumb-shadow: var(
       --fve-dark-control-thumb-shadow,

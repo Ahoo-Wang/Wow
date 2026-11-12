@@ -15,16 +15,30 @@ import { describe, expect, it } from 'vitest';
 import { asc, cursorQuery, filter, SortDirection } from '../../src/dsl.js';
 
 describe('cursorQuery', () => {
-  it('creates a Wow V9 cursor request with server defaults', () => {
+  it('creates a cursor request that leaves the page size to the server', () => {
     const query = cursorQuery({ filter: filter.matchAll() });
 
     expect(query).toEqual({
       filter: { op: 'match-all' },
       projection: {},
       sort: [],
-      size: 10,
       cursor: null,
     });
+    expect(JSON.parse(JSON.stringify(query))).not.toHaveProperty('size');
+  });
+
+  it('matches every record when no filter is given', () => {
+    expect(cursorQuery().filter).toEqual({ op: 'match-all' });
+    expect(cursorQuery({ size: 5 })).toMatchObject({
+      filter: { op: 'match-all' },
+      size: 5,
+    });
+  });
+
+  it('rejects a null filter', () => {
+    expect(() => cursorQuery({ filter: null as unknown as undefined })).toThrow(
+      'filter cannot be null.',
+    );
   });
 
   it('isolates the default projection between cursor requests', () => {

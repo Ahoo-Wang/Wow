@@ -1,0 +1,6 @@
+[2026-11-11 16:02:42] rate 8000/s, warm-up 30 s, measured 120 s
+[2026-11-11 16:02:42] up r3-main (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/server/build/install/benchmark-server
+[2026-11-11 16:06:25] up r3-main-noidx (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/server/build/install/benchmark-server
+[2026-11-11 16:10:10] up r4-main-noidx (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/server/build/install/benchmark-server
+[2026-11-11 16:13:56] up r4-main (attempt 1): --backend=mongo --accounts=100000 --heap=1g --install=/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/server/build/install/benchmark-server
+[2026-11-11 16:17:40] store-cost done; verdicts in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/mongo-store-cost/verdicts.txt

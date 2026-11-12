@@ -28,7 +28,7 @@ import me.ahoo.wow.compiler.model.symbol.blocking
  * `ProcessorBinding`, so a domain module depends on `wow-kernel` only:
  *
  * - per processor, in its package, `fun <processor>Handlers(dependencies): List<ProcessorBinding<*>>`: the processor
- *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`),
+ *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@DependencyName`),
  * or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
  *   publisher, and, for a saga, read as the requests of the commands it derives (`requestsOf`). A saga's
@@ -104,7 +104,7 @@ internal object SubscriptionSource {
 
     /**
      * The subscriptions of [binding]'s processor constructed with the services the host's `Dependencies` gives, by type
-     * and `@Name`: the model provider's, and a host's.
+     * and `@DependencyName`: the model provider's, and a host's.
      */
     private fun StringBuilder.renderFromDependencies(binding: SubscriptionBinding) {
         appendLine("/**")
@@ -285,14 +285,14 @@ internal object SubscriptionSource {
 
     /**
      * The lookup of [dependency] in the `dependencies` of a generated function that builds [building] with it: by its
-     * class and qualifier; a parameterized one by its full type too, naming the parameter, and cast to its type.
+     * class and its `@DependencyName`; a parameterized one by its full type too, naming the parameter, and cast to its type.
      */
     fun lookup(dependency: Dependency, building: String): String {
-        val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
+        val dependencyName = dependency.dependencyName?.let { "\"${escape(it)}\"" } ?: "null"
         val raw = "${dependency.erasure}::class.javaObjectType"
         val lookup = when (val fullType = dependency.fullType) {
-            null -> "dependencies.get($raw, $qualifier, \"${escape(building)}\")"
-            else -> "dependencies.get($raw, $fullType, $qualifier, \"${escape(building)}\", " +
+            null -> "dependencies.get($raw, $dependencyName, \"${escape(building)}\")"
+            else -> "dependencies.get($raw, $fullType, $dependencyName, \"${escape(building)}\", " +
                 "\"${escape(dependency.name)}\")"
         }
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"

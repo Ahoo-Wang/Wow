@@ -20,6 +20,8 @@ package me.ahoo.wow.api.aggregate
  * reads and writes only its own aggregates; a tenant-level caller (no owner) reads and writes every aggregate of its
  * tenant, each action protected by action-level authorization (a part absent from the caller's
  * scope is not checked).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class Ownership {
     /**

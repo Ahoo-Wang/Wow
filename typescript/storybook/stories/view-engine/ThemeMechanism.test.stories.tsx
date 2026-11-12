@@ -480,8 +480,8 @@ export const FocusMarksReadTheThemeInNeutral: Story = focusMarks('neutral');
 
 /**
  * 暗色下控件没有自己的淡底（D94）。registry 在暗色里给输入框、勾选框与描边
- * 按钮铺一层 `input` 的 30%；引擎拿掉它，控件立在所在的面上。给控件填色的
- * 主题（porcelain 的 `control`）工具栏上的描边按钮仍是那层填色，neutral 没有；
+ * 按钮铺一层 `input` 的 30%；引擎拿掉它，控件立在所在的面上。工具栏上的描边
+ * 按钮是主题的控件填色（`control`），不是那层淡底；
  * 勾上的与半选的勾选框仍是主色的填色。
  */
 const NO_FILL = 'rgba(0, 0, 0, 0)';
@@ -519,10 +519,9 @@ const darkControlsWearNoWash = (preset: 'neutral' | 'porcelain'): Story => ({
     await expect(fillOf(canvas.getByRole('button', { name: '按钮' }))).toBe(
       NO_FILL,
     );
-    const tool = fillOf(canvas.getByRole('button', { name: '工具' }));
-    if (preset === 'porcelain')
-      await expect(rgbOf(tool)).toBe(colorOf(root, '--_fve-control'));
-    else await expect(tool).toBe(NO_FILL);
+    await expect(
+      rgbOf(fillOf(canvas.getByRole('button', { name: '工具' }))),
+    ).toBe(colorOf(root, '--_fve-control'));
   },
 });
 

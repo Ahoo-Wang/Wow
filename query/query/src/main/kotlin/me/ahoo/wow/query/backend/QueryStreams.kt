@@ -38,7 +38,7 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
 }
 
 /**
- * The records of [query] as a resumable stream: keyset pages of [CursorQuery.size] records, each its
+ * The records of [query] as a resumable stream: keyset pages of [CursorQuery.size] records (admitted, never `null`), each its
  * own [QueryBackend.page] call within the admitted timeout, one after the other from after the query's cursor token,
  * until a page comes back short or [limit] records were emitted (`null`: no limit). Each record carries the token of its
  * position.
@@ -56,9 +56,10 @@ fun QueryBackend.chunks(query: AdmittedQuery<CursorQuery>, limit: Int? = null): 
         val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
         val tokens = CursorTokens.of(aggregateType, query.schema, sort, cursorPositions)
         var after = cursor.cursor?.let(tokens::decode)
+        val chunkSize = cursor.admittedSize()
         var remaining = limit ?: 0
         while (true) {
-            val size = if (limit == null) cursor.size else minOf(cursor.size, remaining)
+            val size = if (limit == null) chunkSize else minOf(chunkSize, remaining)
             val page = executing(query.timeout) { page(query, PageWindow.Keyset(after, size)) }
             val rows = page.rows.take(size)
             if (rows.isEmpty()) return@flow

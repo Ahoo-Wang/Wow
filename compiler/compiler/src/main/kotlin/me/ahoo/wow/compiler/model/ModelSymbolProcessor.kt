@@ -102,8 +102,8 @@ import tools.jackson.databind.json.JsonMapper
  * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles: the generated
  * model calls `lifecycle(...)` with them before `configure`, and the fragment lists them.
  *
- * `@Name` on a dependency parameter qualifies it: the binding index asks for the dependency of its
- * type by that name, and two parameters of one type with different qualifiers are two dependencies.
+ * `@DependencyName` on a dependency parameter names it: the binding index asks for the dependency of its
+ * type by that name, and two parameters of one type with different names are two dependencies.
  * `@OnCommand(produces = [...])` declares the events of a function whose return type does not say,
  * such as a `Decision`; a conventionally named `onCommand` needs the annotation to declare them. The module's
  * `@ErrorCode` constants ([ErrorCodeResolver]) are the context's `errors` in the fragment.

@@ -104,9 +104,9 @@ class GenericDependencyTest {
         val clock = Clock { 0 }
 
         val byType = object : Dependencies {
-            override fun find(type: Class<*>, qualifier: String?): Any? = if (type == Clock::class.java) clock else null
+            override fun find(type: Class<*>, name: String?): Any? = if (type == Clock::class.java) clock else null
 
-            override fun find(type: Type, qualifier: String?): Any? = when (type) {
+            override fun find(type: Type, name: String?): Any? = when (type) {
                 Types.parameterized(Catalog::class.java, Price::class.java) -> prices
                 Types.parameterized(
                     Catalog::class.java,

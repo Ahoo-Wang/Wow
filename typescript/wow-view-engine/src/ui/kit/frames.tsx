@@ -137,12 +137,12 @@ export function PanelCard({
  * quieter by its frame, dashed on the page's ground, never by fading the
  * words.
  *
- * A theme may draw it filled (`--_fve-control`, `--_fve-control-edge`; themes.md 7):
- * a chip whose controls are picked — a select names itself by its words
- * and its chevron — needs no edge to be found (1.4.11 asks a boundary of
- * none), so it takes the theme's fill and edge. A chip holding a text box
- * keeps the `--input` edge whatever the theme says: a field typed into is
- * found by its boundary. Unset, both are what the chip always wore.
+ * It is the theme's control fill and edge (`--_fve-control`,
+ * `--_fve-control-edge`; themes.md 7): a chip whose controls are picked — a
+ * select names itself by its words and its chevron — needs no edge to be
+ * found (1.4.11 asks a boundary of none). A chip holding a text box keeps
+ * the `--input` edge whatever the theme says: a field typed into is found
+ * by its boundary.
  */
 export function ControlFrame({
   className,
@@ -154,7 +154,7 @@ export function ControlFrame({
       // (`styles.css`), found by this.
       data-control-frame=""
       className={cn(
-        'fve:rounded-md fve:border fve:border-[color:var(--_fve-control-edge,var(--input))] fve:bg-[color:var(--_fve-control,color-mix(in_oklab,var(--muted)_40%,transparent))] fve:has-[[data-slot=input]]:border-input fve:data-[idle]:border-dashed fve:data-[idle]:border-input fve:data-[idle]:bg-background',
+        'fve:rounded-md fve:border fve:border-(--_fve-control-edge) fve:bg-(--_fve-control) fve:has-[[data-slot=input]]:border-input fve:data-[idle]:border-dashed fve:data-[idle]:border-input fve:data-[idle]:bg-background',
         className,
       )}
       {...props}

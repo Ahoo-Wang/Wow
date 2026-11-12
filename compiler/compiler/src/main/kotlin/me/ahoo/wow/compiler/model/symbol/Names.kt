@@ -20,6 +20,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.DependencyName
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.naming.TypeNames
 
@@ -36,6 +37,13 @@ internal fun KSClassDeclaration.toName(problems: MutableList<String>): String =
  */
 internal fun KSAnnotated.declaredName(problems: MutableList<String>): String? =
     argumentsOf(Name::class, problems)?.string(AnnotationArguments.VALUE)
+
+/**
+ * The value of this parameter's `@DependencyName`, the dependency it takes; null without one, or, one of [problems],
+ * when KSP evaluated no value for it ([argumentsOf]).
+ */
+internal fun KSAnnotated.dependencyName(problems: MutableList<String>): String? =
+    argumentsOf(DependencyName::class, problems)?.string(AnnotationArguments.VALUE)
 
 /** The JVM binary name of the class (`sample.Commands$Clear`), which keys its schema in the Manifest fragment. */
 internal fun KSDeclaration.binaryName(): String {

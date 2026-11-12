@@ -652,7 +652,7 @@
       color-mix(
         in oklab,
         var(--foreground) var(--_fve-state-hover),
-        var(--_fve-control, transparent)
+        var(--_fve-control)
       )
     )
   );
@@ -663,7 +663,7 @@
       color-mix(
         in oklab,
         var(--foreground) var(--_fve-state-pressed),
-        var(--_fve-control, transparent)
+        var(--_fve-control)
       )
     )
   );
@@ -702,11 +702,15 @@
   /*
    * The controls. `control`, `control-edge` and `control-thumb` are the
    * rest fill, the edge and the pressed fill of a control its own words or
-   * icons name — a segmented control, a board filter's chip — so a theme
-   * can draw them filled rather than outlined; they have no built-in value
-   * (each rule carries what the control was drawn with), and a field one
-   * types into keeps `input`, which owes 3:1 (WCAG 1.4.11).
-   * `control-thumb-shadow` lifts the thumb off its track. The heights are
+   * icons name — a segmented control, a board filter's chip, a toolbar's
+   * button. Such a control is found by its words, so it needs no boundary
+   * (WCAG 1.4.11 asks one of a field typed into, which keeps `input`): it
+   * is filled with the well inside a hairline, the divider's, and its pressed
+   * thumb is the surface's own ground on that track. The hairline is what
+   * keeps a control's shape on the canvas, where the well is 0.02 from the
+   * ground. A theme that outlines its controls gives a transparent fill and
+   * a stronger edge. `control-thumb-shadow` lifts the thumb
+   * off its track. The heights are
    * the registry's two steps (`h-8`, `h-7`); a board filter's chip is its
    * controls, 2px round them and its two 1px edges — 34px round the small
    * step, 38px round a text box — unless `filter-height` gives it one
@@ -715,12 +719,18 @@
    * and `badge-fill` are how much of its tone a toned badge's edge and wash
    * take; the edge is kept by default (D46 10.5).
    */
-  --_fve-control: var(--fve-control, var(--fvp-control));
-  --_fve-control-edge: var(--fve-control-edge, var(--fvp-control-edge));
-  --_fve-control-thumb: var(--fve-control-thumb, var(--fvp-control-thumb));
+  --_fve-control: var(--fve-control, var(--fvp-control, var(--secondary)));
+  --_fve-control-edge: var(
+    --fve-control-edge,
+    var(--fvp-control-edge, var(--border))
+  );
+  --_fve-control-thumb: var(
+    --fve-control-thumb,
+    var(--fvp-control-thumb, var(--background))
+  );
   --_fve-control-thumb-shadow: var(
     --fve-control-thumb-shadow,
-    var(--fvp-control-thumb-shadow, 0 0 #0000)
+    var(--fvp-control-thumb-shadow, 0 1px 2px 0 oklch(0 0 0deg / 12%))
   );
   --_fve-control-height: var(
     --fve-control-height,

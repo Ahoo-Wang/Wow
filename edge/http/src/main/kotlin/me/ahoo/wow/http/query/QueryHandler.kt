@@ -55,6 +55,7 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.admission.QueryTargets
+import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.error.QueryError
@@ -263,7 +264,11 @@ internal class QueryHandler(
             json(gateway.list(query, caller).toList(), rebuilding)
         }
         QueryKind.PAGED -> json(gateway.paged(body.query as PagedQuery, caller), rebuilding)
-        QueryKind.CURSOR -> json(gateway.cursor(body.query as CursorQuery, caller), rebuilding)
+        QueryKind.CURSOR -> {
+            val default = gateway.entryPolicy.http.cursorDefault(queries.defaultListSize)
+            val query = (body.query as CursorQuery).withDefaultSize(default)
+            json(gateway.cursor(query, caller), rebuilding)
+        }
         QueryKind.SINGLE ->
             single(gateway.single(body.query as SingleQuery, caller), gateway.aggregateType, rebuilding)
         QueryKind.COUNT -> json(gateway.count(body.query as CountQuery, caller), rebuilding)

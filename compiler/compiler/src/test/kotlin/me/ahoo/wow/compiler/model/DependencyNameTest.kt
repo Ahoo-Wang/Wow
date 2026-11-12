@@ -22,9 +22,9 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URLClassLoader
 
-/** Decision D119: `@Name` on a dependency parameter is its qualifier. */
+/** Decision D119, D419: `@DependencyName` on a dependency parameter names the dependency it takes. */
 @OptIn(ExperimentalCompilerApi::class)
-class DependencyQualifierTest {
+class DependencyNameTest {
     private val options = mapOf(
         ModelSymbolProcessorProvider.CONTEXT_OPTION to "bank",
         ModelSymbolProcessorProvider.MODULE_OPTION to "bank-domain",
@@ -37,7 +37,7 @@ class DependencyQualifierTest {
 
         import me.ahoo.wow.api.annotation.AggregateRoot
         import me.ahoo.wow.api.annotation.CreateAggregate
-        import me.ahoo.wow.api.annotation.Name
+        import me.ahoo.wow.api.annotation.DependencyName
 
         @CreateAggregate
         data class Convert(val amount: Int)
@@ -48,13 +48,13 @@ class DependencyQualifierTest {
         class Wallet(private val state: WalletState) {
             fun onCommand(
                 command: Convert,
-                @Name("/fx/primary") primary: Rate,
-                @Name("backup") backup: Rate,
+                @DependencyName("/fx/primary") primary: Rate,
+                @DependencyName("backup") backup: Rate,
                 plain: Rate,
             ): Converted = Converted(primary.of(command.amount) * 100 + backup.of(command.amount) * 10 + plain.of(0))
 
-            // The same qualifier, and no qualifier, are the dependencies the command function takes.
-            fun afterCommand(command: Convert, @Name("backup") again: Rate, unqualified: Rate): List<Converted> =
+            // The same name, and no name, are the dependencies the command function takes.
+            fun afterCommand(command: Convert, @DependencyName("backup") again: Rate, unqualified: Rate): List<Converted> =
                 emptyList()
         }
 
@@ -65,7 +65,7 @@ class DependencyQualifierTest {
         """.trimIndent(),
     )
 
-    /** Loads the module's provider as a host would, with two qualified rates and an unqualified one. */
+    /** Loads the module's provider as a host would, with two named rates and an unnamed one. */
     private val scenario = SourceFile.kotlin(
         "Scenario.kt",
         """
@@ -96,7 +96,7 @@ class DependencyQualifierTest {
         compilation.workingDir.walkTopDown().first { it.isFile && it.name == name }
 
     @Test
-    fun `a qualified parameter should be its own dependency, found by its qualifier`() {
+    fun `a named parameter should be its own dependency, found by its name`() {
         val (compilation, result) = compileModel("generate", options, wallet, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         // The factory defaults to the module's context, and the aggregate's names are an object beside it.
@@ -122,14 +122,14 @@ class DependencyQualifierTest {
     }
 
     @Test
-    fun `a qualifier should name a dependency parameter only, and not be blank`() {
+    fun `a dependency name should name a dependency parameter only, and not be blank`() {
         val misplaced = SourceFile.kotlin(
             "Misplaced.kt",
             """
             package sample
 
             import me.ahoo.wow.api.annotation.AggregateRoot
-            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.DependencyName
             import me.ahoo.wow.api.decide.DecideScope
 
             data class Post(val note: String)
@@ -138,7 +138,7 @@ class DependencyQualifierTest {
 
             @AggregateRoot
             class Journal(val id: String) {
-                fun onCommand(@Name("post") command: Post, @Name("scope") scope: DecideScope, @Name(" ") clock: Clock): Posted =
+                fun onCommand(@DependencyName("post") command: Post, @DependencyName("scope") scope: DecideScope, @DependencyName(" ") clock: Clock): Posted =
                     Posted(command.note)
 
                 fun onSourcing(event: Posted) = Unit
@@ -148,9 +148,9 @@ class DependencyQualifierTest {
         val (_, result) = compileModel("generate", options, misplaced)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
-            "onCommand's command parameter is annotated @Name: a qualifier names a dependency parameter",
-            "onCommand's parameter scope is annotated @Name: the decide scope takes no qualifier",
-            "onCommand's parameter clock has a blank @Name: a qualifier names the dependency",
+            "onCommand's command parameter is annotated @DependencyName: only a dependency parameter takes one",
+            "onCommand's parameter scope is annotated @DependencyName: the decide scope takes none",
+            "onCommand's parameter clock has a blank @DependencyName: it names the dependency",
         )
     }
 }

@@ -116,10 +116,23 @@ class QueryBudget(
     }
 
     fun check(query: CursorQuery, scope: FilterExpression = MatchAllFilter) {
-        requireValid(query.size >= 1 && (maxPageSize == 0 || query.size <= maxPageSize)) {
-            QueryViolation.SizeOutOfRange(label, "cursor size", query.size.toLong(), 1, maxPageSize.toLong(), "size")
+        query.size?.let { size ->
+            requireValid(maxPageSize == 0 || size <= maxPageSize) {
+                QueryViolation.SizeOutOfRange(label, "cursor size", size.toLong(), 1, maxPageSize.toLong(), "size")
+            }
         }
         checkFilter(query.filter, scope, counting = false)
+    }
+
+    /**
+     * The size of a cursor page that names none, from the entry's configured [default] list size, the one a list that
+     * names no limit takes ([listDefault]): at most [maxPageSize]; [maxPageSize] when [default] is `0`; `null` when
+     * both are `0`, so the gateway pages by its own size ([me.ahoo.wow.query.QueryGateway.DEFAULT_STREAM_CHUNK_SIZE]).
+     */
+    fun cursorDefault(default: Int): Int? = when {
+        default > 0 -> if (maxPageSize == 0) default else default.coerceAtMost(maxPageSize)
+        maxPageSize > 0 -> maxPageSize
+        else -> null
     }
 
     /**
@@ -308,3 +321,12 @@ class QueryBudget(
         val IN_PROCESS_DEFAULT: QueryBudget = QueryBudget(IN_PROCESS_LABEL)
     }
 }
+
+/**
+ * This cursor query with its page size filled in when it names none: [default], the size its entry gives one
+ * ([QueryBudget.cursorDefault], or the entry's own default list size where it has no budget). Itself when it names a
+ * size or [default] is `null`. Every entry fills a cursor's size through this one copy, so a field [CursorQuery] gains
+ * is kept.
+ */
+fun CursorQuery.withDefaultSize(default: Int?): CursorQuery =
+    if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)

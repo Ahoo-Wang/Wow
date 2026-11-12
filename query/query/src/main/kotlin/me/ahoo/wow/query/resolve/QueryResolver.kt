@@ -169,13 +169,16 @@ internal class QueryResolver(
         return paged
     }
 
-    /** A cursor query, its sort completed by the fields of [uniqueKey] as tie-breakers ([withUniqueSort]). */
-    fun cursor(query: CursorQuery, uniqueKey: List<QueryField<*>>): CursorQuery {
+    /**
+     * A cursor query of pages of [size], its sort completed by the fields of [uniqueKey] as tie-breakers
+     * ([withUniqueSort]).
+     */
+    fun cursor(query: CursorQuery, uniqueKey: List<QueryField<*>>, size: Int): CursorQuery {
         val effectiveSort = query.sort.withUniqueSort(uniqueKey)
         requireCursorSort(effectiveSort)
         val filter = filter(query.filter)
         val projection = projection(query.projection)
-        val cursor = CursorQuery(filter, projection, sort(effectiveSort, cursor = true), query.size, query.cursor)
+        val cursor = CursorQuery(filter, projection, sort(effectiveSort, cursor = true), size, query.cursor)
         requireValid(schema.storage.paging.keyset != SupportMode.NONE) {
             QueryViolation.StorageUnsupported("cursor queries")
         }

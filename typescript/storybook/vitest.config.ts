@@ -17,6 +17,7 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import { emulateMedia } from './.storybook/media.js';
+import { pageListeners } from './.storybook/pageListeners.js';
 import { realMouse, realMouseAway } from './.storybook/realMouse.js';
 import { sourceAliases } from './.storybook/sourceAliases.js';
 import { DurationShardSequencer } from './scripts/shard-sequencer.mjs';
@@ -140,9 +141,10 @@ function storybookProject(
       browser: {
         enabled: true,
         // The browser's own mouse, for what a built event cannot stand in
-        // for (.storybook/realMouse.ts), and the media the page is laid out
-        // for (.storybook/media.ts).
-        commands: { realMouse, realMouseAway, emulateMedia },
+        // for (.storybook/realMouse.ts), the media the page is laid out for
+        // (.storybook/media.ts), and the listeners a file may have left on
+        // the page (.storybook/pageListeners.ts).
+        commands: { realMouse, realMouseAway, emulateMedia, pageListeners },
         fileParallelism: false,
         headless: true,
         provider: playwright({

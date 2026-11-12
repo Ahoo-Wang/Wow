@@ -148,9 +148,18 @@ class RetryManifest @InternalWowApi constructor(
         listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier, systemic)
 }
 
+/**
+ * The kind of a subscription a context declares: a projection, a reactor or a saga.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
 
-/** Where a new subscription, one without a checkpoint, starts reading the log or the stream. */
+/**
+ * Where a new subscription, one without a checkpoint, starts reading the log or the stream.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class SubscriptionStart {
     /** From the first entry: a projection builds its read model from the whole history. */
     BEGINNING,

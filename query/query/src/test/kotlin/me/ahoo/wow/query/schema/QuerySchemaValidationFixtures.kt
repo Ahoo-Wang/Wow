@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.resolve.QueryResolver
 import java.time.Instant
@@ -44,7 +45,8 @@ internal object QuerySchemaValidationFixtures {
     /** The cursor's own sort: its first field stands in for the tie-breaker admission appends. */
     fun validateQuery(query: CursorQuery, schema: QueryModelSchema): CursorQuery = query.also {
         val tieBreaker = it.sort.firstOrNull()?.field ?: schema.requireIdentityField()
-        QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker))
+        val size = it.size ?: QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
+        QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker), size)
     }
 
     fun validateQuery(query: FilterExpression, schema: QueryModelSchema): FilterExpression =

@@ -15,6 +15,8 @@ package me.ahoo.wow.api.aggregate
 
 /**
  * Where an aggregate's id comes from, as `@AggregateRoot(idSource)` declares it.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class AggregateIdSource {
     /**

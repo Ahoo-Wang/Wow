@@ -16,6 +16,8 @@ package me.ahoo.wow.api.aggregate
 /**
  * How a command relates to its aggregate's existence, as `@CreateAggregate` and `@AllowCreate` declare it. The
  * Manifest states it in its own vocabulary (`Creation` of `wow-manifest`), which a test of that module keeps in step.
+ *
+ * No case is added within 10.x, so a `when` over it may name every case.
  */
 enum class Creation {
     /** The aggregate must exist. */

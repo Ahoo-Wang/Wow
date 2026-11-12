@@ -296,7 +296,7 @@ Records that tie on every sort field are ordered by the record's unique key (`te
 | `count` | `filter`, `limit` | `{"count": …, "exact": …}` |
 | `aggregate` | `filter`, `elements`, `groupBy`, `metrics`, `sort`, `limit`, `having` | A JSON array of rows |
 
-`filter` is required in every kind but `aggregate` (where it defaults to `match-all`); `{"op":"match-all"}` matches every record.
+`filter` defaults to `match-all` in every kind, which matches every record; a `null` filter is refused.
 
 ### `list`
 
@@ -323,7 +323,7 @@ A failure after the first record ends the stream with an `error` event holding t
 
 ### `cursor`
 
-A cursor page is the next `size` records (10 by default, at most `max-page-size`) after `cursor`, the `nextCursor` of the previous page; the first page has none. The server appends the record's unique key to `sort` (`tenantId`, `aggregateId` on the snapshot model), in the direction of the last sort field, so the order is total and a page never repeats or skips a record. `nextCursor` is `null` on the last page. A cursor is opaque and belongs to its model and sort: send it with the same sort and filter (another sort is `invalid-cursor`). Endless scrolling uses a cursor; it never counts.
+A cursor page is the next `size` records after `cursor`, the `nextCursor` of the previous page; the first page has none. A page that names no `size` takes `default-list-size` (100), at most `max-page-size` (100), as a list without a `limit` does; with no default list size, `max-page-size`. The server appends the record's unique key to `sort` (`tenantId`, `aggregateId` on the snapshot model), in the direction of the last sort field, so the order is total and a page never repeats or skips a record. `nextCursor` is `null` on the last page. A cursor is opaque and belongs to its model and sort: send it with the same sort and filter (another sort is `invalid-cursor`). Endless scrolling uses a cursor; it never counts.
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 

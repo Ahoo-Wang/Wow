@@ -103,7 +103,7 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
     }
 
     companion object {
-        /** The one argument of `@Name`, `@Revision`, `@Alias`, `@Description` and `@Summary`. */
+        /** The one argument of `@Name`, `@DependencyName`, `@Revision`, `@Alias`, `@Description` and `@Summary`. */
         const val VALUE = "value"
     }
 }

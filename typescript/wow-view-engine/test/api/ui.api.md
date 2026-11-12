@@ -7899,6 +7899,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "focus-halo";
 }, {
+    readonly fallback: "secondary";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7908,6 +7909,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "control";
 }, {
+    readonly fallback: "border";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;
@@ -7917,6 +7919,7 @@ const TOKENS: readonly [{
     readonly area: RoleArea;
     readonly name: "control-edge";
 }, {
+    readonly fallback: "background";
     readonly tier: "role";
     readonly kind: "color";
     readonly modes: 2;

@@ -84,7 +84,7 @@ class SubscriptionResolverTest {
             """
             package sample
 
-            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.DependencyName
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Reactor
@@ -117,7 +117,7 @@ class SubscriptionResolverTest {
             }
 
             @Reactor
-            class Qualified(@Name(" ") val service: Runnable) {
+            class Qualified(@DependencyName(" ") val service: Runnable) {
                 @OnEvent
                 fun onEvent(event: StateEvent<Box<String>>) = Unit
             }
@@ -130,7 +130,7 @@ class SubscriptionResolverTest {
             .contains("processor Hidden is private")
             .contains("processor Sealed's constructor is private")
             .contains("processor Generic has type parameters")
-            .contains("processor Qualified's parameter service has a blank @Name")
+            .contains("processor Qualified's parameter service has a blank @DependencyName")
             .contains(
                 "handler Qualified.onEvent takes a StateEvent of sample.Box<kotlin.String>: an aggregate's state " +
                     "takes no type arguments",

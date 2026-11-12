@@ -212,7 +212,10 @@ export interface AggregationLimitsDescriptor {
 export interface LimitsDescriptor {
   /** Largest `limit` of a list query. */
   maxListSize: number | null;
-  /** The `limit` a list query without one gets. */
+  /**
+   * The `limit` a list query without one gets. A cursor query without a
+   * `size` gets the same default, at most `maxPageSize`.
+   */
   defaultListSize: number | null;
   /** Largest page `size` of a paged or cursor query. */
   maxPageSize: number | null;

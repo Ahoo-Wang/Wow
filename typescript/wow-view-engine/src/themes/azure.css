@@ -51,7 +51,7 @@
  *   (ui/theme.md「链接：角色跟着面上解析出的 token」), so given a brand colour the open view and
  *   the chosen item take it too.
  * - An outline button under the pointer turns its edge the primary (a link
- *   again) over the black 6% hover fill below. Its words stay the
+ *   again) over the hover fill, the ink at 6% below. Its words stay the
  *   foreground, where the look it recalls turns them blue too: the primary
  *   reads 4.17:1 on that fill, and a green brand colour 4.09.
  * - Rows are white (`content`) on the grey page: a header band of #FAFAFA
@@ -185,10 +185,10 @@
   --fvp-item-selected-link: 100%;
   --fvp-item-selected-weight: 600;
   --fvp-outline-hover-edge-link: 100%;
-  --fvp-control-hover: oklch(0 0 0deg / 6%);
-  --fvp-dark-control-hover: oklch(1 0 0deg / 8%);
-  --fvp-control-pressed: oklch(0 0 0deg / 10%);
-  --fvp-dark-control-pressed: oklch(1 0 0deg / 15%);
+  --fvp-state-hover: 6%;
+  --fvp-dark-state-hover: 8%;
+  --fvp-state-pressed: 10%;
+  --fvp-dark-state-pressed: 15%;
   --fvp-focus-width: 2px;
   --fvp-focus-offset: -1px;
   --fvp-focus-halo: oklch(0.541 0.1928 258.885deg / 15%);

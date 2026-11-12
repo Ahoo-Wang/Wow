@@ -72,6 +72,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `CLASS`
 - Parameters: None.
 
+## `@DependencyName`
+
+[DependencyName](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/DependencyName.kt): The name of the dependency a parameter takes.
+
+- Targets: `VALUE_PARAMETER`
+- Parameters: `value: String`
+
 ## `@Description`
 
 [Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
@@ -104,7 +111,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 [Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
 
-- Targets: `CLASS`, `FUNCTION`, `VALUE_PARAMETER`
+- Targets: `CLASS`, `FUNCTION`
 - Parameters: `value: String`
 
 ## `@OnCommand`

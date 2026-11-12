@@ -301,7 +301,12 @@ export interface CursorQuery<FIELDS extends string = string> {
 }
 
 // @public
-export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
+export function cursorQuery<FIELDS extends string = string>(input?: CursorQueryOptions<FIELDS>): CursorQuery<FIELDS>;
+
+// @public
+export type CursorQueryOptions<FIELDS extends string = string> = Omit<CursorQuery<FIELDS>, 'filter'> & {
+    filter?: FilterExpression<FIELDS>;
+};
 
 // @public
 export interface DateDiffAggregationExpression<FIELDS extends string = string> {
@@ -362,9 +367,6 @@ export type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptio
     field: QueryField<FIELDS>;
     days: number;
 };
-
-// @public
-export const DEFAULT_CURSOR_SIZE = 10;
 
 // @public
 export const DEFAULT_PAGINATION: Readonly<Pagination>;

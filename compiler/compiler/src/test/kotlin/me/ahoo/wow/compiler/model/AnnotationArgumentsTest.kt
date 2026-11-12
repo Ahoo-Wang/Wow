@@ -103,6 +103,7 @@ class AnnotationArgumentsTest {
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.Alias
             import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.DependencyName
             import me.ahoo.wow.api.annotation.Description
             import me.ahoo.wow.api.annotation.ErrorCode
             import me.ahoo.wow.api.annotation.MountedCommand
@@ -165,7 +166,10 @@ class AnnotationArgumentsTest {
                 retiredEvents = [Names.RETIRED],
             )
             class Cart(private val state: CartState) {
-                fun onCommand(command: Open, @Name(${slot("QUALIFIER")}) audit: Audit): Opened = Opened(command.id, "")
+                fun onCommand(
+                    command: Open,
+                    @DependencyName(${slot("QUALIFIER")}) audit: Audit,
+                ): Opened = Opened(command.id, "")
 
                 @OnCommand(onDeleted = ${slot("ON_DELETED")})
                 fun onCommand(command: Close): Closed = Closed(command.id)
@@ -200,7 +204,7 @@ class AnnotationArgumentsTest {
 
             @Name(${slot("PROCESSOR_NAME")})
             @Projection
-            class CartBoard(@Name(${slot("PROCESSOR_QUALIFIER")}) private val audit: Audit) {
+            class CartBoard(@DependencyName(${slot("PROCESSOR_QUALIFIER")}) private val audit: Audit) {
                 @Name(${slot("HANDLER_NAME")})
                 @OnEvent(aggregates = [Names.QUALIFIED_CART], start = ${slot("START")})
                 fun onEvent(event: StateEvent<CartState>) = Unit
@@ -268,7 +272,7 @@ class AnnotationArgumentsTest {
         // Jackson's names: the state's query fields.
         generated(compilation, "CartStateProperties.kt")!!.readText().assert()
             .contains("\"state.tag\"").doesNotContain("\"state.label\"", "\"state.note\"", "\"state.hidden\"")
-        // The qualifier names the dependency of the aggregate's model and of the processor's handlers.
+        // The dependency name names the dependency of the aggregate's model and of the processor's handlers.
         generated(compilation, "ShopDomainModelProvider.kt")!!.readText().assert()
             .contains("dependencies.get(sample.Audit::class.javaObjectType, \"audit\", \"the Cart model\")")
         generated(compilation, "CartBoardSubscriptions.kt")!!.readText().assert()
@@ -297,11 +301,11 @@ class AnnotationArgumentsTest {
                 "@Name of sample.Cart: KSP evaluated no value for its argument value, so the model takes nothing " +
                     "from it; an argument must be a constant KSP can read, a literal or a const val",
                 "@Name of sample.Open: KSP evaluated no value for its argument value",
-                "@Name of parameter audit of sample.Cart.onCommand: KSP evaluated no value for its argument value",
+                "@DependencyName of parameter audit of sample.Cart.onCommand: KSP evaluated no value for its argument value",
                 "@Name of sample.Opened: KSP evaluated no value for its argument value",
                 "@Name of sample.ImportCart: KSP evaluated no value for its argument value",
                 "@Name of sample.CartBoard: KSP evaluated no value for its argument value",
-                "@Name of parameter audit of sample.CartBoard.<init>: KSP evaluated no value for its argument value",
+                "@DependencyName of parameter audit of sample.CartBoard.<init>: KSP evaluated no value for its argument value",
                 "@Name of sample.CartBoard.onEvent: KSP evaluated no value for its argument value",
             ),
             missing = listOf("CartModel.kt", "CartBoardSubscriptions.kt"),

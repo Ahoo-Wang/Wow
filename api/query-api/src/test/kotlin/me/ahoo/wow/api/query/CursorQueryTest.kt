@@ -24,7 +24,7 @@ class CursorQueryTest {
 
         query.projection.assert().isEqualTo(Projection.ALL)
         query.sort.assert().isEmpty()
-        query.size.assert().isEqualTo(10)
+        query.size.assert().isNull() // The server picks the page size.
         query.cursor.assert().isNull()
     }
 

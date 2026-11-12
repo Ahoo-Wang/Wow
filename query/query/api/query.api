@@ -128,6 +128,7 @@ public final class me/ahoo/wow/query/admission/QueryBudget {
 	public final fun checkStream (Lme/ahoo/wow/api/query/CursorQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
 	public static synthetic fun checkStream$default (Lme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/api/query/CursorQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
 	public final fun countLimit (Lme/ahoo/wow/api/query/CountQuery;)Ljava/lang/Integer;
+	public final fun cursorDefault (I)Ljava/lang/Integer;
 	public final fun getAllowExactCount ()Z
 	public final fun getAllowExpensiveOperators ()Z
 	public final fun getCountLimit ()I
@@ -148,6 +149,10 @@ public final class me/ahoo/wow/query/admission/QueryBudget$Companion {
 	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun getHTTP_DEFAULT ()Lme/ahoo/wow/query/admission/QueryBudget;
 	public final fun getIN_PROCESS_DEFAULT ()Lme/ahoo/wow/query/admission/QueryBudget;
+}
+
+public final class me/ahoo/wow/query/admission/QueryBudgetKt {
+	public static final fun withDefaultSize (Lme/ahoo/wow/api/query/CursorQuery;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CursorQuery;
 }
 
 public final class me/ahoo/wow/query/aggregation/AggregationShapeKt {

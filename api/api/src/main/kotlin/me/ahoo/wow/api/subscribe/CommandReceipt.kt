@@ -45,6 +45,8 @@ import me.ahoo.wow.api.result.ErrorInfo
  *
  * Fields may be added: the runtime builds a receipt, and a test hands one to a saga with the test DSL's
  * `whenRejected` or `whenCommitted`; the constructors are internal to Wow.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface CommandReceipt<C : Any> {
     val commandId: String

@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * It supports all standard query operations ([Queryable]) and retrieves one page of the results.
  *
- * @property filter The filter expression to apply to the query.
+ * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
  * @property pagination The pagination settings to control which page and how many items to return.
@@ -36,7 +36,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * ```
  */
 class PagedQuery @InternalWowApi constructor(
-    override val filter: FilterExpression,
+    override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     val pagination: Pagination = Pagination.DEFAULT,
@@ -82,7 +82,7 @@ class PagedQuery @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            filter: FilterExpression,
+            filter: FilterExpression = MatchAllFilter,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
             pagination: Pagination = Pagination.DEFAULT,

@@ -49,9 +49,6 @@ object CaseSetRules {
      * sentence any more is stale and fails the rule.
      */
     val PENDING: Map<String, String> = mapOf(
-        "api/api" to "the types of `:api`",
-        "api/manifest" to "the Manifest's types",
-        "core/kernel" to "the kernel's functions and start positions",
         "api/query-api" to "the query protocol's types",
         "query/query" to "the query engine's types",
         "query/query-tck" to "the query TCK's types",

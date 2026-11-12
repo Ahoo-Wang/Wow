@@ -16,7 +16,11 @@ package me.ahoo.wow.api.schedule
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** Who a job of [me.ahoo.wow.api.annotation.OnSchedule] runs for. */
+/**
+ * Who a job of [me.ahoo.wow.api.annotation.OnSchedule] runs for.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class JobScope {
     /** One instance for the service, in the default tenant, enabled by the host at startup. */
     SYSTEM,

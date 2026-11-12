@@ -215,11 +215,9 @@ export const OnEveryPreset: Story = {
       return found;
     });
     const measured = readMatrix(matrix);
-    // A pair a preset does not paint (it leaves the token it requires
-    // unset) is left unmeasured, as the arithmetic leaves it out.
-    const skipped = unmeasured(matrix);
-    await expect(skipped.filter(({ requires }) => !requires)).toEqual([]);
-    await expect(measured.length + skipped.length).toBe(
+    // Every pair has a value in every theme: none is left unmeasured.
+    await expect(unmeasured(matrix)).toEqual([]);
+    await expect(measured.length).toBe(
       SHOWN.length *
         MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );

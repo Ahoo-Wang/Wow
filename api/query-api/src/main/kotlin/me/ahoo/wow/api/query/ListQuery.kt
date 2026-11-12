@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * It supports all standard query operations ([Queryable]) and limits how many items it returns.
  *
- * @property filter The filter expression to apply to the query.
+ * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
  * @property limit The most items to return, at least 1; `null`, the default, takes the entry's default list size.
@@ -37,7 +37,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * ```
  */
 class ListQuery @InternalWowApi constructor(
-    override val filter: FilterExpression,
+    override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     val limit: Int? = null,
@@ -81,7 +81,7 @@ class ListQuery @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            filter: FilterExpression,
+            filter: FilterExpression = MatchAllFilter,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
             limit: Int? = null,

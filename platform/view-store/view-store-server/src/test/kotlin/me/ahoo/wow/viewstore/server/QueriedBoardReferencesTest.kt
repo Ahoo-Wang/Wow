@@ -46,7 +46,7 @@ class QueriedBoardReferencesTest {
                 val query = firstArg<CursorQuery>()
                 asked += query
                 val from = query.cursor?.toInt() ?: 0
-                val until = minOf(total, from + query.size)
+                val until = minOf(total, from + checkNotNull(query.size))
                 val list = (from until until).map { board(it, referencing = if (it == total - 1) "v-1" else "v-other") }
                 CursorPage.of(list, until.takeIf { it < total }?.toString())
             }

@@ -160,13 +160,14 @@ class InProcessQueryApiTest {
         models: ReadModels = ReadModels(
             listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get)),
         ),
+        // The host's default (`wow.query.budgets.in-process.*`): the HTTP defaults.
+        entryPolicy: QueryEntryPolicy = QueryEntryPolicy(inProcess = QueryBudget.IN_PROCESS_DEFAULT),
     ): InProcessQueryApi {
         val events = InMemoryEventQueryStorage({ type -> if (type == cart) streams else emptyList() })
         val engine = QueryEngine.Builder(manifest)
             .snapshots(snapshots) { it == cart }
             .events { type -> events.binding(type).takeIf { type == cart } }
-            // The host's default (`wow.query.budgets.in-process.*`): the HTTP defaults.
-            .entryPolicy(QueryEntryPolicy(inProcess = QueryBudget.IN_PROCESS_DEFAULT))
+            .entryPolicy(entryPolicy)
             .policies(policies)
             .build()
         return InProcessQueryApi(
@@ -311,6 +312,26 @@ class InProcessQueryApiTest {
         api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().list(ListQuery(MatchAllFilter))
             .toList().assert().hasSize(3)
     }
+
+    @Test
+    fun `a cursor page that names no size should take the default list size, at most the budget's page size`(): Unit =
+        runBlocking {
+            (1..3).forEach { save("acme", "c-$it", "alice") }
+            api(defaultListSize = 2).of(alice).snapshots<CartState>().cursor(CursorQuery())
+                .list.assert().hasSize(2)
+            api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().cursor(CursorQuery(size = 3))
+                .list.assert().hasSize(3)
+            val bounded = api(
+                defaultListSize = 2,
+                entryPolicy = QueryEntryPolicy(inProcess = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxPageSize = 1)),
+            )
+            bounded.of(alice).snapshots<CartState>().cursor(CursorQuery()).list.assert().hasSize(1)
+            // No in-process budget: the default list size itself; none either, the gateway's stream chunk.
+            api(defaultListSize = 2, entryPolicy = QueryEntryPolicy()).of(alice).snapshots<CartState>()
+                .cursor(CursorQuery()).list.assert().hasSize(2)
+            api(defaultListSize = 0, entryPolicy = QueryEntryPolicy()).of(alice).snapshots<CartState>()
+                .cursor(CursorQuery()).list.assert().hasSize(3)
+        }
 
     @Test
     fun `a stream should resume after a position, bounded by neither the list size nor the default`(): Unit =

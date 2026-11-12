@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * It supports all standard query operations ([Queryable]) and expects at most one result, or none.
  *
- * @property filter The filter expression to apply to the query.
+ * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the result.
  * @property sort The sorting criteria to order results (useful when multiple matches exist).
  *
@@ -33,7 +33,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * ```
  */
 class SingleQuery @InternalWowApi constructor(
-    override val filter: FilterExpression,
+    override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : Queryable<SingleQuery> {
@@ -73,7 +73,7 @@ class SingleQuery @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            filter: FilterExpression,
+            filter: FilterExpression = MatchAllFilter,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
         ): SingleQuery = SingleQuery(filter, projection, sort)
