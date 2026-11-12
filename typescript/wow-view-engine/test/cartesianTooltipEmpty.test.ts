@@ -64,12 +64,10 @@ const context: CartesianContext = {
   pickable: false,
 };
 
-// The option is the library's loose shape.
+// The option is the library's loose shape; the test reads into it freely.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { tooltip } = cartesianOption(data, context, theme) as Record<
-  string,
-  any
->;
+type Loose = Record<string, any>;
+const { tooltip } = cartesianOption(data, context, theme) as Loose;
 
 describe('the axis tooltip over a bucket', () => {
   it('draws nothing where no series has a number', () => {
