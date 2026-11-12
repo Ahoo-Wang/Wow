@@ -26,6 +26,7 @@ outline: deep
 - 新修订号的节点以新修订号声明快照表。滚动升级期间，旧修订号的节点继续以它们的修订号写入，存储会阻止它们覆盖新修订号的快照。
 - 同一时刻只有一个节点从日志逐页重写表中的快照，没有剩余的快照时就把表标记为已重建。
 - 表被标记为已重建时，重建就完成了；节点记录日志 `The snapshots of <type> in <store> are rebuilt at state revision <n>.`
+- **重写不了的快照**不会拖住整张表。历史不再能重放的（模型已读不了其中某个事件，或溯源函数抛出异常）、读取或重写因其自身数据被存储拒绝的、或者日志里没有它任何流的快照，会在失败台账里停放在 `wow.snapshot.rewrite` 之下，重建接着处理其他快照。存储宕机、繁忙或变慢不算这类失败：这一轮停下，下一轮从停下的地方继续。只剩停放的快照时，表被标记为已重建，查询不再回答 `Wow-Rebuilding: true`。停放的快照保持存储时的样子，是旧修订号的、仍待重写：查询返回它，与返回任何尚未重写的快照一样，没有单独的标记；发往这个聚合的命令会像没有快照时那样重放它的日志，因此在重建失败的地方同样失败。每个停放的快照记一次日志（`The snapshot-rewrite of <type> skipped <aggregate> (<reason>)`），计入 `wow.maintenance.skipped`（kind 为 `snapshot-rewrite`），并与其他停放条目一起列出（[停放的聚合](#parked-aggregates)）。没有任何东西会自动重试它：部署了能重新读出其历史的版本之后，重试该条目，会按表的修订号从日志重写快照并解决条目（在其他修订号的节点上，它留给该修订号的节点，由它们的重建来解决）。跳过该条目会解决它，快照保持原样、仍待重写：没有任何东西声称它已被重写，跳过的计数也不减少。
 
 ## 快照：按请求重建部分快照 {#snapshots-rebuild-some-on-request}
 
@@ -56,6 +57,7 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
 - **调优。** 要在维护窗口里遍历得更快，调高 `wow.access.walk-share`，最高到 `1`：遍历随即按存储和 `walk-rate` 允许的速度运行，写入受压时仍会让路。结束后请改回：整个集群是否空闲只有运维知道，任何节点都看不到。两种存储不一样。PostgreSQL 上，同一基准里全速遍历时命令的 p99 仍在噪声范围内，所以调高份额主要多花 CPU。MongoDB 上要谨慎：全速遍历使命令的中位延迟约翻倍，默认份额能避免这一点。若遍历期间（`wow.access.walk.pending` 为 1）命令的延迟上升，就调低它。
 - **MongoDB 上新增访问属性之后。** 每个聚合此后的第一次提交都会由 `wow.access` 为它更早的流盖章，这不受 `walk-share` 限制，所以写入延迟会升高一段时间，直到正在写入的聚合都盖过章（基准的最坏情形里，每条命令都落在未盖章的聚合上，中位延迟约为平时的 7 倍）：请避开业务高峰做这类变更。
 - **续跑。** 每页之后，遍历把进度记在日志的注册表里，所以重启后或换一个节点都从那里继续。一页的聚合数为按当前节奏约五秒能盖章的数量，至多 `wow.access.walk-batch`（默认 100）。
+- **读不了的聚合**不会让遍历停下。历史不再能重放的、或读取或盖章因其自身数据被存储拒绝的聚合，会在失败台账里停放在 `wow.access.walk` 之下，遍历接着进行；存储宕机、繁忙或变慢则让这一轮停下，下一轮从游标处继续。遍历在没有它的情况下完成，`wow.access.walk.walked` 只计已盖章的聚合。停放的聚合的历史保持原有内容：没有属性的流仍然没有，访问策略下的事件查询，以及以所有者身份或在某个空间中调用者的事件查询，都不会读到它，与不读任何尚未盖章的流一样。按先前模式盖章的流保留那个模式的属性，所以把该模式缺少的属性读作 `is null` 的规则仍会匹配它，直到该聚合被盖章。每个停放的聚合记一次日志，计入 `wow.maintenance.skipped`（kind 为 `access-walk`），并与其他停放条目一起列出；部署了能重新读出历史的版本之后重试该条目，会为它盖章并解决条目，跳过则解决条目、历史保持原样。
 - **观察。** 类型的遍历完成之前，`wow.access.walk.pending` 为 1，还没有遍历的类型不报告它；`wow.access.walk.walked` 是日志注册表记录的遍历已盖章的聚合数，每个节点报的值相同；`wow.access.walked` 计数本节点遍历过的聚合，`wow.access.stamped` 按原因计数盖过章的流（[指标](../reference/observability#metrics)）。遍历不统计类型的聚合数，所以没有指标给出剩余多少。估算时，先取该类型的聚合数：对它的快照做一次 `count` 查询（`{ "kind": "count", "filter": { "op": "match-all" } }`，[查询](../data/querying)），或者直接数日志（PostgreSQL 上 `SELECT count(*) FROM wow_log__<context>__<aggregate> WHERE version = 1`，MongoDB 上对该集合 `countDocuments({ version: 1 })`）；减去 `wow.access.walk.walked` 即剩余数，再除以最近几分钟遍历的速率（各节点 `rate(wow_access_walked_total[5m])` 之和）即还需的时间。注册表保存每个遍历的模式、日志头、游标、计数与是否完成：PostgreSQL 上用 `SELECT context, aggregate, access_walk FROM wow_log_aggregate`，MongoDB 上看 `wow_log_aggregate` 文档的 `access_walk` 字段。完成时，执行遍历的节点记录日志 `The access walk of <type> is completed: <n> aggregates stamped.`
 
 ## 数仓 {#the-warehouse}

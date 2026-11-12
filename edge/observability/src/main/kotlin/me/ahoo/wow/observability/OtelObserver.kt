@@ -146,6 +146,9 @@ class OtelObserver(
             is ObservedEvent.AccessWalked ->
                 cached.counter(WowMetrics.ACCESS_WALKED, event.type.context, event.type.name)
                     .increment(event.aggregates.toDouble())
+            is ObservedEvent.MaintenanceSkipped ->
+                cached.counter(WowMetrics.MAINTENANCE_SKIPPED, event.type.context, event.type.name, event.work.value)
+                    .increment()
             is ObservedEvent.PartitionPaused -> pausedNotice(event.group, event.subscription, WowMetrics.PAUSED_KIND)
             is ObservedEvent.PartitionResumed -> pausedNotice(event.group, event.subscription, WowMetrics.RESUMED_KIND)
             is ObservedEvent.PartitionThrottled -> partitionThrottled(event.group, event.subscription, event.throttled)

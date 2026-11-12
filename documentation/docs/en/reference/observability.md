@@ -60,6 +60,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.access.stamped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.reason` | Streams stamped with their aggregate's current access attributes: `change` (a commit changed them, so the streams before it take them), `walk` (the type's access walk), `catch-up` (`wow.access` read a stream without them after the walk's heads) |
 | `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | How long stamping one aggregate's history took: `change`, `walk`, `catch-up` |
 | `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | Aggregates the type's access walk stamped on this node |
+| `wow.maintenance.skipped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.kind` | Aggregates of the type the background work on its histories could not read and parked for an operator, once per parking, by the work: `access-walk` or `snapshot-rewrite` ([Rebuild and Replay](../operate/replay#access-attributes)). A retry or a skip does not lower it; the parked gauge counts those still parked |
 | `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 1 until the type's access walk completes, as its log records it, else 0: until then an events query under an access policy leaves out the streams the walk has not reached |
 | `wow.access.walk.walked` | Gauge | `wow.context`, `wow.aggregate.name` | Aggregates the type's access walk has stamped, as its log records it: every node reports the same, and it survives restarts |
 

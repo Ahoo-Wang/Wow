@@ -396,9 +396,17 @@ internal class NodeAssembly(
                     group.timers?.let {
                         ParkedOps.Scope.of(group.subscriptions.group, it.runner, group.log.partitions)
                     }
-                }
+                } + context.logGroups.flatMap { group -> skipScopes(context, group) }
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
     }
+
+    /** The aggregates the access walks and the snapshot rewrites of [context] parked in [group]'s ledger. */
+    private fun skipScopes(context: ContextNode, group: LogGroupNode): List<ParkedOps.Scope> = listOfNotNull(
+        context.accessWalking?.let { walking -> walking.skips?.let { ParkedOps.Scope.of(group, it, walking::retry) } },
+        context.snapshotMaintenance?.let { rewrites ->
+            rewrites.skips?.let { ParkedOps.Scope.of(group, it, rewrites::retry) }
+        },
+    )
 
     /**
      * Publishes the node's failure ledger to the ops context when [ServiceNodeOptions.ledger] says
