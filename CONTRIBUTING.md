@@ -13,7 +13,7 @@ Thank you for helping improve Wow. Contributions may include bug reports, featur
 
 `main` holds Wow 10. The 9.x line is maintained on the [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) branch: a 9.x fix goes there.
 
-The JVM build requires JDK 21. Use the Gradle wrapper from the repository root, with the module paths of `settings.gradle.kts` (`:api`, `:kernel`, `:runtime`, `:spring-boot`, `:eshop-catalog-domain`, …):
+The JVM build requires JDK 21. CI runs the tests on JDK 25, as Wow runs in production: to run them so locally, pass `-Pwow.test.java=25` (Gradle uses an installed JDK 25, or downloads one). Use the Gradle wrapper from the repository root, with the module paths of `settings.gradle.kts` (`:api`, `:kernel`, `:runtime`, `:spring-boot`, `:eshop-catalog-domain`, …):
 
 ```bash
 ./gradlew <module>:check
