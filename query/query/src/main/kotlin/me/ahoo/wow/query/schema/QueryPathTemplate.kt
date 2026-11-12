@@ -19,6 +19,8 @@ import me.ahoo.wow.api.query.QueryField
 /**
  * One part of a [QueryPathTemplate]: a named [Property], a dynamic [Key] whose name the core captures from the
  * logical path (a map's key, numbered by its [Key.slot]), or an array's [Item].
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface QueryPathSegment {
     /** The property [name]. */

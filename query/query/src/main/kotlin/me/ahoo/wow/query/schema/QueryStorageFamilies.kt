@@ -19,6 +19,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * A storage-neutral family of native types a logical value may be stored as. A storage adapter maps each family to
  * its own native types (BSON types, Elasticsearch field kinds); which families a logical value needs for a capability
  * is the Catalog's decision ([storageFamilies]).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class QueryStorageFamily {
     /** Any string representation, analyzed text included. */
