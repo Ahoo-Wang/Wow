@@ -70,8 +70,10 @@ describe('the header of a reference sorted by id', () => {
     expect(head.getAttribute('data-sorts-by')).toBe('id');
     expect(mark()?.textContent).toBe('by id');
     const button = screen.getByRole('button');
+    // Beside the label, as on screen: a name with the action between the
+    // two does not hold what the button shows (WCAG 2.5.3).
     expect(button.getAttribute('aria-label')).toBe(
-      'Sort by Customer, ascending · by id',
+      'Sort by Customer by id, ascending',
     );
     expect(describedText(button)).toContain(
       'Sorts by the stored id, not the name shown.',

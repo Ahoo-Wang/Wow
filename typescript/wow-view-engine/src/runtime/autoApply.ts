@@ -15,10 +15,12 @@ import { dequal } from 'dequal';
 import {
   autoRunMembers,
   presentationMembers,
+  type FilterTree,
   type Issue,
   type ViewConfig,
 } from '../model/index.js';
 import { hasError } from './runtimeStore.js';
+import { withScopeFilter } from './scope.js';
 
 /**
  * 「改了就跑」 (todo 批 7): a question that changed runs again on its
@@ -68,14 +70,55 @@ export function autoApplyDue(state: AutoApplyState): boolean {
  * strength as though they were the new ones (2026-09-23 audit). A refresh of
  * the same question is not this: its rows are the answer to what is being
  * asked, and they stay as they are until the new ones land.
+ *
+ * `scope` is the condition injected beside the view's own
+ * (`ViewRuntime.scopeFilter`): a board's filter reaches its panels that
+ * way, and changes what a panel asks without changing what it applied.
+ * Given — `null` for none in force — the conditions on their way are read
+ * with it, against the conditions the rows ran under (`result.config`), so
+ * a panel whose board filter moved is out of date like any other. Left out,
+ * only the view's own config is read.
  */
-export function answeringAnew(state: {
-  applied: ViewConfig;
-  query: { status: string };
-  result: { own: ViewConfig } | null;
-}): boolean {
+export function answeringAnew(
+  state: {
+    applied: ViewConfig;
+    query: { status: string };
+    result: { own: ViewConfig; config?: ViewConfig } | null;
+  },
+  scope?: FilterTree | null,
+): boolean {
   if (state.query.status !== 'loading' || state.result === null) return false;
-  return changedMembers(state.applied, state.result.own).length > 0;
+  if (changedMembers(state.applied, state.result.own).length > 0) return true;
+  return scope !== undefined && scopeMoved(state.applied, state.result, scope);
+}
+
+/**
+ * Both halves of a result that is out of date: the draft is about to run
+ * on its own, or what was applied — under `scope`, where one is given — is
+ * on its way.
+ */
+export function outOfDate(
+  state: AutoApplyState & Parameters<typeof answeringAnew>[0],
+  scope?: FilterTree | null,
+): boolean {
+  return autoApplyDue(state) || answeringAnew(state, scope);
+}
+
+/**
+ * Whether the conditions on their way — the applied ones under `scope` —
+ * are other than the ones the rows on screen ran under. A dashboard has no
+ * conditions of its own to run, and a result that does not say what it ran
+ * under is taken at its word.
+ */
+function scopeMoved(
+  applied: ViewConfig,
+  result: { config?: ViewConfig },
+  scope: FilterTree | null,
+): boolean {
+  const ran = result.config;
+  if (!ran || applied.kind === 'dashboard' || ran.kind === 'dashboard')
+    return false;
+  return !dequal(withScopeFilter(applied, scope).filter, ran.filter);
 }
 
 /**

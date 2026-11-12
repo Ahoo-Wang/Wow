@@ -41,6 +41,7 @@ import { summaryFunctionKey } from '../kit/display.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { cn } from 'cn';
 import { TEXT_UI } from '../kit/layout.js';
+import { STALE, staleProps } from '../kit/stale.js';
 import type { SummaryRow } from '../../record/index.js';
 import type { FieldOption, FieldTone } from '../../model/index.js';
 import { CARD_LIFT } from '../kit/frames.js';
@@ -49,6 +50,8 @@ import { Card, CardContent, CardHeader } from '../components/card.js';
 export interface RecordKanbanProps {
   /** The cards, rows and status: the same controller the cards draw from. */
   table: RecordTableController;
+  /** As the table's: the cards answer an older question, and are faded. */
+  stale?: boolean;
   /** The lanes (`useRecordKanban`). */
   kanban: RecordKanbanController;
   /** Renders one value of a card; see `RecordCardsProps.renderCell`. */
@@ -89,6 +92,7 @@ export interface RecordKanbanProps {
  */
 export function RecordKanban({
   table,
+  stale,
   kanban,
   renderCell,
   rowActions,
@@ -136,8 +140,12 @@ export function RecordKanban({
     >
       <div
         data-slot="record-kanban"
+        {...staleProps(stale)}
         // On a narrow screen a swipe comes to rest on a lane, not across two.
-        className="fve:bg-canvas fve:relative fve:flex fve:snap-x fve:snap-proximity fve:scroll-px-3 fve:gap-3 fve:overflow-x-auto fve:p-3"
+        className={cn(
+          'fve:bg-canvas fve:relative fve:flex fve:snap-x fve:snap-proximity fve:scroll-px-3 fve:gap-3 fve:overflow-x-auto fve:p-3',
+          STALE,
+        )}
       >
         {lanes
           .filter(lane => lane.value !== null || lane.rows.length > 0)

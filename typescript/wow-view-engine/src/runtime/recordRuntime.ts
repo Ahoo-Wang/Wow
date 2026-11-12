@@ -60,6 +60,11 @@ export class RecordDataViewRuntime
   /** The page the next query asks for. */
   private target: RecordPageTarget | undefined;
   /**
+   * The page asked for is another than the one on screen: set by `page`,
+   * cleared when an answer lands or the question starts over.
+   */
+  private turning = false;
+  /**
    * Whether the page on screen is one a refused cursor already sent back
    * to the start; cleared when a page lands, so the fall-back is once per
    * refusal and never a loop.
@@ -80,9 +85,21 @@ export class RecordDataViewRuntime
     this.target = firstPageOf(options.definition);
   }
 
+  /**
+   * Whether the rows on screen are another page than the one being read.
+   * A surface keeps them and fades them until it lands, as it does the
+   * rows of an older question (`useStale`): they are not the answer to
+   * what was asked. A refresh is not this; it reads the page on screen
+   * again. Nor is a kanban lane's next page, which is put after its cards.
+   */
+  get turningPage(): boolean {
+    return this.turning && this.state.query.status === 'loading';
+  }
+
   page(target: RecordPageTarget): void {
     if (this.disposed || !this.appliedAdmitted) return;
     this.target = target;
+    this.turning = true;
     this.store.setState({ selection: [] });
     this.execute({ keepSelection: false });
   }
@@ -239,6 +256,7 @@ export class RecordDataViewRuntime
   /** A new question starts on the first page, with nothing picked. */
   protected override startOver(): Partial<ViewRuntimeState<RecordViewConfig>> {
     this.target = firstPageOf(this.context.definition);
+    this.turning = false;
     return { selection: [] };
   }
 
@@ -272,6 +290,8 @@ export class RecordDataViewRuntime
   ): Partial<ViewRuntimeState<RecordViewConfig>> | null {
     this.restarted = false;
     const back = this.shrunkTo(data);
+    // Asking again for the last page there is still turns the page.
+    if (back === null) this.turning = false;
     if (back !== null) {
       this.target = { index: back };
       return null;

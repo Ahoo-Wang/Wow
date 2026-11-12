@@ -35,6 +35,8 @@ import { useHeaderSort } from '../analysis/headerSort.js';
 import { AppliedBar } from '../filter/AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
 import { QueryStrip } from '../kit/StatusStrip.js';
+import { STALE } from '../kit/stale.js';
+import { cn } from 'cn';
 
 const NO_SORT: readonly AnalysisSort[] = [];
 
@@ -117,7 +119,10 @@ export function EmbeddedAnalysis({
         )}
         <div
           data-slot="analysis-result"
-          className="fve:flex fve:min-w-0 fve:flex-col"
+          // As the workbench's result: kept and faded while a changed
+          // question's answer is on its way (`ui/kit/stale.ts`).
+          data-stale={analysis.stale || undefined}
+          className={cn('fve:flex fve:min-w-0 fve:flex-col', STALE)}
         >
           {view.rows.length === 0 ? (
             <AnalysisEmpty />
