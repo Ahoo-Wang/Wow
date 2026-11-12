@@ -321,3 +321,12 @@ class QueryBudget(
         val IN_PROCESS_DEFAULT: QueryBudget = QueryBudget(IN_PROCESS_LABEL)
     }
 }
+
+/**
+ * This cursor query with its page size filled in when it names none: [default], the size its entry gives one
+ * ([QueryBudget.cursorDefault], or the entry's own default list size where it has no budget). Itself when it names a
+ * size or [default] is `null`. Every entry fills a cursor's size through this one copy, so a field [CursorQuery] gains
+ * is kept.
+ */
+fun CursorQuery.withDefaultSize(default: Int?): CursorQuery =
+    if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)

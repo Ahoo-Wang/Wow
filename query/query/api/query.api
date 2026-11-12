@@ -151,6 +151,10 @@ public final class me/ahoo/wow/query/admission/QueryBudget$Companion {
 	public final fun getIN_PROCESS_DEFAULT ()Lme/ahoo/wow/query/admission/QueryBudget;
 }
 
+public final class me/ahoo/wow/query/admission/QueryBudgetKt {
+	public static final fun withDefaultSize (Lme/ahoo/wow/api/query/CursorQuery;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CursorQuery;
+}
+
 public final class me/ahoo/wow/query/aggregation/AggregationShapeKt {
 	public static final fun getDenseGroup (Lme/ahoo/wow/api/query/AggregationQuery;)Lme/ahoo/wow/api/query/AggregationGroup$DateHistogram;
 }

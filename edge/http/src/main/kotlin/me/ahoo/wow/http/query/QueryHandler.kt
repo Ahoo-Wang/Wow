@@ -55,6 +55,7 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.admission.QueryTargets
+import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.error.QueryError
@@ -264,7 +265,8 @@ internal class QueryHandler(
         }
         QueryKind.PAGED -> json(gateway.paged(body.query as PagedQuery, caller), rebuilding)
         QueryKind.CURSOR -> {
-            val query = (body.query as CursorQuery).withCursorDefault(gateway.entryPolicy.http)
+            val default = gateway.entryPolicy.http.cursorDefault(queries.defaultListSize)
+            val query = (body.query as CursorQuery).withDefaultSize(default)
             json(gateway.cursor(query, caller), rebuilding)
         }
         QueryKind.SINGLE ->
@@ -279,12 +281,6 @@ internal class QueryHandler(
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
         return if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)
-    }
-
-    /** This cursor query with the page size of [queries]' default list size under [budget] when it names none. */
-    private fun CursorQuery.withCursorDefault(budget: QueryBudget): CursorQuery {
-        val default = budget.cursorDefault(queries.defaultListSize)
-        return if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =

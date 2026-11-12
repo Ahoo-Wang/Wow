@@ -57,6 +57,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
@@ -212,14 +213,13 @@ class InProcessQueryApi @InternalWowApi constructor(
          * (`null`), as the public port runs it; [defaultListSize] itself without a budget.
          */
         private fun CursorQuery.withCursorDefault(): CursorQuery {
-            if (size != null) return this
             val budget = gateway.entryPolicy.budget(caller.entry)
             val default = if (budget == null) {
                 defaultListSize.takeIf { it > 0 }
             } else {
                 budget.cursorDefault(defaultListSize)
             }
-            return if (default == null) this else CursorQuery(filter, projection, sort, default, cursor)
+            return withDefaultSize(default)
         }
 
         /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
