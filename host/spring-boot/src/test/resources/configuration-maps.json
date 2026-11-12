@@ -155,6 +155,12 @@
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
   }, {
+    "name" : "wow.stores.<name>.operation-timeout",
+    "type" : "java.time.Duration",
+    "description" : "On elasticsearch: how long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an answer: a server that stops answering fails the request instead of holding it; the client's own response timeout still applies when shorter. On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : "PT30S"
+  }, {
     "name" : "wow.stores.<name>.database",
     "type" : "java.lang.String",
     "description" : "On mongo: the database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow.",
@@ -172,12 +178,6 @@
     "description" : "On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard.",
     "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "auto"
-  }, {
-    "name" : "wow.stores.<name>.operation-timeout",
-    "type" : "java.time.Duration",
-    "description" : "On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
-    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
-    "defaultValue" : "PT30S"
   }, {
     "name" : "wow.stores.<name>.pool-gauge",
     "type" : "java.lang.String",

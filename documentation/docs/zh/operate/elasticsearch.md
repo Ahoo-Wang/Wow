@@ -39,11 +39,16 @@ wow:
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`none`（在索引的刷新间隔内）、`wait-for`（写入返回时）或 `immediate` | `none` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
+| `wow.stores.<name>.operation-timeout` | 它的每个请求最多等待应答多久（[见下文](#a-server-that-stops-answering)） | `wow.elasticsearch.operation-timeout`，`30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；也可以是 Elasticsearch（[下文](#only-snapshot-store)） | `wow.snapshot.store`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储；不是它自己的存储时，这个存储就为这些查询保存一份它的快照副本 | 它自己的快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
 每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。
+
+### 服务器不再应答 {#a-server-that-stops-answering}
+
+存储的每个请求，无论写入、加载还是查询，最多等待 `operation-timeout` 得到应答，与 MongoDB 或 PostgreSQL 存储的调用一样。服务器不再应答时（被暂停，或连接已断开），请求以暂时性错误失败，而不是一直等下去：它的交换被中止，连接被关闭，腾出它在客户端连接池中的位置。加载失败的命令重放它的日志，写入失败的快照订阅暂停它的分区并重试。这个上限是存储自己的：`Rest5Client` 自己的超时更短时照样生效；用库的默认值构建、没有响应超时的客户端，也同样受这个上限约束。
 
 ## 快照查询 {#snapshot-queries}
 

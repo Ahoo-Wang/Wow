@@ -39,11 +39,16 @@ wow:
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
+| `wow.stores.<name>.operation-timeout` | How long each of its requests may wait for an answer ([below](#a-server-that-stops-answering)) | `wow.elasticsearch.operation-timeout`, `30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots, which its commands load from and its state reads read; Elasticsearch too ([below](#only-snapshot-store)) | `wow.snapshot.store`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read; another store than its own then keeps a copy of its snapshots for them | Its own snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
 Each index records its layout in its `_meta` and refuses a store that expects another.
+
+### A server that stops answering {#a-server-that-stops-answering}
+
+Each request of the store, a write, a load or a query, waits at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do. A server that stops answering, paused or behind a lost connection, fails the request as a transient error instead of holding it: its exchange is aborted and its connection closed, freeing its place in the client's pool. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries. The bound is the store's own: the `Rest5Client`'s timeouts still apply when they are shorter, and a client built with the library's defaults, which has no response timeout, is bounded all the same.
 
 ## Snapshot queries
 

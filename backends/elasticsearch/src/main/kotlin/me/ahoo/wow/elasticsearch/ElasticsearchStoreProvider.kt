@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
-import co.elastic.clients.transport.rest5_client.Rest5ClientTransport
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
@@ -39,6 +38,7 @@ import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import kotlin.time.Duration
 
 /**
  * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log, so a store of this
@@ -59,7 +59,10 @@ import me.ahoo.wow.spi.timer.TimerStore
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
- *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit.
+ *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit;
+ * - `operation-timeout`: how long each of its requests, writes, loads and queries alike, may wait for an answer
+ *   ([ElasticsearchTimeouts.OPERATION], 30 seconds, when not set), so that a server that stops answering fails them
+ *   instead of holding them; the client's own response timeout still applies when it is shorter.
  *
  * Found by `ServiceLoader`. It is never `available`: Elasticsearch holds no log, so `wow.backend=auto` never takes it.
  */
@@ -72,7 +75,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
     override val options: List<ProviderOption<*>> =
-        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND)
+        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND, OPERATION_TIMEOUT)
 
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
@@ -97,6 +100,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             config.settings.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
             rewriteRate = rewriteRate,
+            operationTimeout = config.settings.option(OPERATION_TIMEOUT),
         )
     }
 
@@ -142,6 +146,15 @@ internal class ElasticsearchStoreProvider : StoreProvider {
                 "the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
             ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
         )
+
+        /** The option bounding each of the store's requests. */
+        val OPERATION_TIMEOUT = ProviderOption.duration(
+            "operation-timeout",
+            "how long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an " +
+                "answer: a server that stops answering fails the request instead of holding it; the client's own " +
+                "response timeout still applies when shorter.",
+            ElasticsearchTimeouts.OPERATION,
+        )
     }
 }
 
@@ -175,9 +188,11 @@ internal class ElasticsearchStore(
     val queryRestClient: Rest5Client? = null,
     /** How many documents a second a mapping's rewrite indexes again (`reindex-requests-per-second`). */
     val rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
+    /** How long each request may wait for an answer (`operation-timeout`, [ElasticsearchTimeouts]). */
+    private val operationTimeout: Duration = ElasticsearchTimeouts.OPERATION,
 ) : Store(config) {
-    /** The client of Wow's JSON: a state's numbers are read and written exactly. */
-    val client: ElasticsearchAsyncClient by lazy { client(restClient) }
+    /** The client of Wow's JSON: a state's numbers are read and written exactly; each request [operationTimeout]. */
+    val client: ElasticsearchAsyncClient by lazy { client(restClient, operationTimeout) }
 
     /** The cluster's info, a `GET /`: the store answers. */
     override suspend fun probe() {
@@ -185,7 +200,9 @@ internal class ElasticsearchStore(
     }
 
     /** The client of the store's queries: its own pool's when it has one, else [client]. */
-    val queryClient: ElasticsearchAsyncClient by lazy { queryRestClient?.let(::client) ?: client }
+    val queryClient: ElasticsearchAsyncClient by lazy {
+        queryRestClient?.let { client(it, operationTimeout) } ?: client
+    }
 
     /** Whether the queries draw on the connection pool the snapshot writes use. */
     val queriesShareWrites: Boolean get() = queryRestClient == null
@@ -229,8 +246,11 @@ internal class ElasticsearchStore(
         )
 
     companion object {
-        /** An asynchronous client over [restClient] that reads and writes Wow's JSON. */
-        fun client(restClient: Rest5Client): ElasticsearchAsyncClient =
-            ElasticsearchAsyncClient(Rest5ClientTransport(restClient, Jackson3JsonpMapper(WowJson.mapper)))
+        /** An asynchronous client over [restClient] that reads and writes Wow's JSON, each request within [timeout]. */
+        fun client(
+            restClient: Rest5Client,
+            timeout: Duration = ElasticsearchTimeouts.OPERATION
+        ): ElasticsearchAsyncClient =
+            ElasticsearchAsyncClient(BoundedTransport(restClient, Jackson3JsonpMapper(WowJson.mapper), timeout))
     }
 }

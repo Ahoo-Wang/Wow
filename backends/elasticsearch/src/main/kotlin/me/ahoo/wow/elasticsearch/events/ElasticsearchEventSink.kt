@@ -163,7 +163,9 @@ class ElasticsearchEventSink internal constructor(
      * One `update_by_query` of the documents of [ref] of the versions from [from] until [until], each guarded in the
      * query and in its script: a document is written when it has no [ElasticsearchEventIndex.ACCESS_VERSION], one
      * before [asOf], or [asOf] with other attributes (a new model's). A document another stamp changed meanwhile is a
-     * version conflict, passed over and searched again, so the later of two stamps wins whatever their order.
+     * version conflict, passed over and searched again, so the later of two stamps wins whatever their order. The
+     * request waits for its completion within the store's `operation-timeout`; one that takes longer fails as transient,
+     * and its retry reads the range again and writes only what the script finds still to write.
      */
     override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
         if (from >= until) return 0
