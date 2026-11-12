@@ -112,6 +112,11 @@ export function cartesianTooltip(
             : [];
         }),
       ];
+      // A bucket where nothing was measured — an hour neither day has an
+      // order in, a gap the axis was filled across — has nothing to say: a
+      // box holding the bucket's name over no row read as a tooltip that
+      // failed to load (the daily report's hourly lines, 2026-11-12).
+      if (rows.length === 0) return '';
       const name = names[index] ?? '';
       const ongoing =
         data.unfinished !== undefined && data.unfinished.at === point.x;
