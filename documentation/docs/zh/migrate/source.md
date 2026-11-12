@@ -29,6 +29,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 手工添加的 `ksp("me.ahoo.wow:wow-compiler")` | 按角色的 Gradle 插件：领域模块用 `id("me.ahoo.wow")`（KSP），其 api 模块用 `id("me.ahoo.wow.api")`，服务器用 `id("me.ahoo.wow.service")`（Manifest 任务） |
 | 领域代码中的 `wow-query` | `wow-query-api`：查询类型、Kotlin DSL 和字段注解 |
 | `ISingleQuery`、`IListQuery`、`IPagedQuery`、`ICursorQuery`、`ICountQuery`、`IPagedList` | 类 `SingleQuery`、`ListQuery`、`PagedQuery`、`CursorQuery`、`CountQuery`、`PagedList`，用它们的 `of` 工厂或 DSL 构建；对查询泛型的代码接收 `Queryable<Q>` 或 `FilterCapable<Q>` |
+| 用 DSL 类的构造器构建查询，`ListQueryDsl().apply { … }.build()` | 用入口函数 `listQuery { … }`（以及 `pagedQuery`、`singleQuery`、`cursorQuery`、`countQuery`、`aggregation`、`filter`、`projection`、`sort`、`pagination`）：DSL 类的构造器和 `build()` 是 internal 的。写在 DSL 类上的扩展函数 `fun ListQueryDsl.mine()` 仍然可用 |
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
 | 不写 `size` 的 `CursorQuery`，一页 `CursorQuery.DEFAULT_SIZE`（10）条 | 不写 `size` 取入口的默认列表大小（`default-list-size`，100），至多 `max-page-size`（100）；`DEFAULT_SIZE` 已删除，要保持每页 10 条就写 `size = 10` |
 | 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
