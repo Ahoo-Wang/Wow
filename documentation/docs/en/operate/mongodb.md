@@ -141,6 +141,8 @@ A new aggregate type's collection is created the first time the log touches it; 
 
 `wow.ddl` decides whether the stores create their collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`), as on PostgreSQL ([PostgreSQL](./postgresql#manage-the-schema)).
 
+The failure ledger reads what is due by its key index, and creates no index on the partition and the next attempt. A `wow_failure_ledger` created by an earlier build keeps its `ledger_due` index, which nothing reads and every ledger write still maintains; Wow drops nothing on an existing database, and an operator may drop it: `db.wow_failure_ledger.dropIndex("ledger_due")`.
+
 ## Queries and read preferences
 
 Snapshot and `events` queries read the primary by default, beside the appends. A free filter over a large collection can scan; send such queries to a secondary with a read preference:

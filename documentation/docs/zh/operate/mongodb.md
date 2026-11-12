@@ -141,6 +141,8 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 
 与 PostgreSQL 一样，`wow.ddl` 决定存储是创建它们的集合和索引（`auto`，默认）、只检查它们（`validate`），还是两者都不做（`none`）（[PostgreSQL](./postgresql#manage-the-schema)）。
 
+失败台账按它的键索引读取到期条目，不再创建分区与下次尝试时间上的索引。由更早构建创建的 `wow_failure_ledger` 保留着它的 `ledger_due` 索引：没有读取会用到它，而每次台账写入仍要维护它；Wow 不会在已有数据库上删除任何东西，运维可以自行删除它：`db.wow_failure_ledger.dropIndex("ledger_due")`。
+
 ## 查询与读偏好 {#queries-and-read-preferences}
 
 快照查询和 `events` 查询默认读取主节点，与追加在一起。在大集合上的自由过滤可能会扫描；用读偏好把这类查询发到从节点：
