@@ -81,6 +81,10 @@ class HostBackends @InternalWowApi constructor(
     @InternalWowApi
     fun snapshotStoreOf(type: AggregateType): Store? = layout?.let { stores[it.snapshotStoreOf(type)] }
 
+    /** The store [type]'s snapshot queries read: its copy's when it has one, else its own; null without a layout. */
+    @InternalWowApi
+    fun querySnapshotStoreOf(type: AggregateType): Store? = layout?.let { stores[it.querySnapshotStoreOf(type)] }
+
     companion object {
         /**
          * In memory, each context its own log, snapshots and timers: for one node, whose data does not outlive it.

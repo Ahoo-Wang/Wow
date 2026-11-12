@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 284 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 282 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -50,10 +50,9 @@ Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `w
 | `wow.aggregates.[<context>.<aggregate>].log.store` | `String` |  | The store of `wow.stores` the type's log is on, over `wow.log.store`. |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | `String` |  | The store of `wow.stores` the type's `events` queries read; its log store when not set. |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | `UnpinnedEvents` |  | Whether an `events` query of the type that names no aggregate runs, over its store's. |
-| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | `String` |  | The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set. |
+| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | `String` |  | The store of `wow.stores` the type's `snapshot` queries read, which then keeps a copy of its snapshots; its `snapshot.store` when not set. |
 | `wow.aggregates.[<context>.<aggregate>].routing` | `CommandRouting` | `auto` | How the commands of the type are routed, over `wow.routing` (CommandRouting): `topic` writes them to its context's command topic, accepted once the broker acknowledged them, which needs a topic transport; `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it. |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | `String` |  | The one of them the type's write side and state reads read; the first when not set. |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | `List<String>` |  | The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`. |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | `String` |  | The store of `wow.stores` the type's snapshots are kept on, over `wow.snapshot.store`. |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | `String` |  | The tenant every aggregate of the type is in, whoever the caller is. |
 
 ## `wow.callers.<service>`
@@ -612,8 +611,7 @@ Where the snapshots are by default, and how the snapshot maintenance runs: `wow.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.snapshot.maintenance-interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
-| `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set. |
-| `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`. |
+| `wow.snapshot.store` | `String` |  | The store of `wow.stores` every aggregate's snapshots are kept on, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.store` names another; `wow.log.store` when not set. Its built-in subscription is `wow.snapshot`. The write side, the state reads and the snapshot queries read it, unless an aggregate's `query.snapshot.store` names another, which then keeps a copy for its queries. |
 | `wow.snapshot.write-batch` | `Integer` | `256` | How many snapshots of a partition the snapshot subscriptions write together at most. |
 
 ## `wow.snapshot.rebuild`

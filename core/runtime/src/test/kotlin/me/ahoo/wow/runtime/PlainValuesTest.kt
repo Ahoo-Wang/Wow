@@ -114,9 +114,9 @@ class PlainValuesTest {
     @Test
     fun `the snapshot, subscription and retry values`() {
         checks(
-            SnapshotPlacement.of(listOf("a", "b")),
-            SnapshotPlacement.of(listOf("a", "b"), "a"),
-            SnapshotPlacement.of(listOf("a", "b"), "b"),
+            SnapshotPlacement("a", "b"),
+            SnapshotPlacement("a", "b"),
+            SnapshotPlacement("a"),
             "SnapshotPlacement("
         )
         val entry = ParkedAggregate(SubscriptionId("shop", "s"), ref, 0, 1, "failed", 1L)

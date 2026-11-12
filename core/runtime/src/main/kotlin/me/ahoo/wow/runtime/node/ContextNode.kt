@@ -133,14 +133,15 @@ class ContextNode internal constructor(
         SharedStateReader(reader, models, kernel, codec, views, backends.primarySnapshots)
 
     /**
-     * The snapshot write checkpoint of [type]: the progress of the subscription of [type]'s primary
-     * snapshot target over the partitions of [type]'s log group ([SubscriptionRuntime.progress]). It
-     * does not move while no snapshot of the group's aggregate types is written, so a count of [type]'s snapshots
-     * taken at one value is still the count at that value. Null when [type] has no snapshots here.
+     * The snapshot write checkpoint of [type]: the progress of the subscription that writes the store [type]'s queries
+     * read (its copy's when it has one, else its own store's) over the partitions of [type]'s log group
+     * ([SubscriptionRuntime.progress]). It does not move while no snapshot of the group's aggregate types is written
+     * there, so a count of [type]'s snapshots taken at one value is still the count at that value. Null when [type] has
+     * no snapshots here.
      */
     suspend fun snapshotCheckpoint(type: AggregateType): Long? {
-        val primary = snapshotMaintenance?.targets?.primarySubscriptionOf(type) ?: snapshots?.name
-        val subscription = snapshotSubscriptions.firstOrNull { it.name == primary }?.subscription ?: return null
+        val queried = snapshotMaintenance?.targets?.querySubscriptionOf(type) ?: snapshots?.name
+        val subscription = snapshotSubscriptions.firstOrNull { it.name == queried }?.subscription ?: return null
         if (type.context != context || type.name !in subscription.filter.aggregates) {
             return null
         }

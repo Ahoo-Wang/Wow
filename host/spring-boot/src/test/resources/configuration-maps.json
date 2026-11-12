@@ -69,7 +69,7 @@
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.snapshot.store",
     "type" : "java.lang.String",
-    "description" : "The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set.",
+    "description" : "The store of `wow.stores` the type's `snapshot` queries read, which then keeps a copy of its snapshots; its `snapshot.store` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateQuerySnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].routing",
@@ -78,14 +78,9 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateProperties",
     "defaultValue" : "auto"
   }, {
-    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.primary",
+    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.store",
     "type" : "java.lang.String",
-    "description" : "The one of them the type's write side and state reads read; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
-  }, {
-    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.stores",
-    "type" : "java.util.List<java.lang.String>",
-    "description" : "The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`.",
+    "description" : "The store of `wow.stores` the type's snapshots are kept on, over `wow.snapshot.store`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].tenant",

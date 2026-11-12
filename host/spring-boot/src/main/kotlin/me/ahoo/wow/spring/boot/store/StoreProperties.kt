@@ -132,24 +132,18 @@ class QueryEventsProperties {
 }
 
 /**
- * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may be written to several stores; a
- * store added to them is backfilled from the log: switch the primary to it once it caught up, then drop the old
- * one.
+ * Where the snapshots are, and how the snapshot maintenance runs. Each aggregate type keeps its snapshots on one store;
+ * a store that replaces it is filled from the log, its snapshot queries answering `rebuilding` meanwhile.
  */
 @InternalWowApi
 class SnapshotProperties {
     /**
-     * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
-     * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
-     * first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`.
+     * The store of `wow.stores` every aggregate's snapshots are kept on, unless its
+     * `wow.aggregates.[<context>.<aggregate>].snapshot.store` names another; `wow.log.store` when not set. Its
+     * built-in subscription is `wow.snapshot`. The write side, the state reads and the snapshot queries read it, unless
+     * an aggregate's `query.snapshot.store` names another, which then keeps a copy for its queries.
      */
-    var stores: MutableList<String> = ArrayList()
-
-    /**
-     * The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's
-     * `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.
-     */
-    var primary: String? = null
+    var store: String? = null
 
     /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
     var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
