@@ -294,7 +294,7 @@ internal class AttemptScopes(
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
-        occurredAt: Long? = null,
+        occurredAt: Long?,
     ): AttemptScope? {
         val now = clock()
         val schedule = command.schedule
