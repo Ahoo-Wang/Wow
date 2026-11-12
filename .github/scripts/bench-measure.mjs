@@ -25,9 +25,11 @@ import {
   sinkAnomalies,
   SINK_PROGRAMS,
 } from './bench-sink.mjs';
+import { RAW_PROGRAMS, rawAnomalies, renderRaw, runRaw } from './bench-raw.mjs';
 
 // The `measure` kind of bench.mjs's suites, run through bench.sh's `measure` command: its programs' settings, runs,
-// results, tables and anomalies. It imports bench-common.mjs and bench-sink.mjs, never bench.mjs, which imports it.
+// results, tables and anomalies. It imports bench-common.mjs, bench-sink.mjs and bench-raw.mjs, never bench.mjs, which
+// imports it.
 
 // kind `measure`, measure `walk` (bench.sh measure --program=walk, AccessWalkBench): the access walk of the data set's
 // accounts of `streams` streams each under `rate` E1 deposits a second, open loop, over `warmUp` and `measure` seconds;
@@ -380,6 +382,7 @@ export const programOf = definition =>
 /** The anomalies of a `measure` suite, as [anomalies] lists them. */
 export function measureAnomalies(suite) {
   if (SINK_PROGRAMS.includes(suite.program)) return sinkAnomalies(suite);
+  if (RAW_PROGRAMS.includes(suite.program)) return rawAnomalies(suite);
   const rows = [];
   if (suite.kind === 'measure' && suite.program === 'walk') {
     // A run that failed, and deposits that failed: that run's numbers do not hold.
@@ -430,6 +433,7 @@ export function measureAnomalies(suite) {
 export function renderMeasure(suite, definition) {
   if (SINK_PROGRAMS.includes(suite.program))
     return renderSink(suite, definition);
+  if (RAW_PROGRAMS.includes(suite.program)) return renderRaw(suite, definition);
   if (suite.kind === 'measure' && suite.program === 'walk') {
     const lines = [
       `## ${labelOf(suite)}`,
@@ -477,7 +481,9 @@ export function runMeasure(
   suite,
   { benchPath, installs, out, data, cpuset, rounds, arms, save },
 ) {
-  if (SINK_PROGRAMS.includes(definition.measure)) {
+  if (RAW_PROGRAMS.includes(definition.measure)) {
+    runRaw(definition, suite, { benchPath, out, cpuset, arms, installs, save });
+  } else if (SINK_PROGRAMS.includes(definition.measure)) {
     runSink(definition, suite, {
       benchPath,
       out,

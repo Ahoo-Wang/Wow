@@ -2035,33 +2035,13 @@ export function resolveInputs({
   p99LimitMs = DEFAULTS.p99_limit_ms,
   properties,
 }) {
+  // Each suite group by its name, and `all`, every group: as the suites name them.
+  const groupNames = [
+    ...new Set(Object.values(SUITES).map(suite => suite.group)),
+  ];
   const groups = {
-    all: [
-      'ab',
-      'head',
-      'component',
-      'axon',
-      'axon-diag',
-      'jdk',
-      'jdk-saturation',
-      'access',
-      'access-dataset',
-      'access-walk',
-      'sink',
-      'codecs',
-    ],
-    ab: ['ab'],
-    head: ['head'],
-    component: ['component'],
-    axon: ['axon'],
-    'axon-diag': ['axon-diag'],
-    jdk: ['jdk'],
-    'jdk-saturation': ['jdk-saturation'],
-    access: ['access'],
-    'access-dataset': ['access-dataset'],
-    'access-walk': ['access-walk'],
-    sink: ['sink'],
-    codecs: ['codecs'],
+    all: groupNames,
+    ...Object.fromEntries(groupNames.map(name => [name, [name]])),
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(

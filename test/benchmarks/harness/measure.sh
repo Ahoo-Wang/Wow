@@ -13,6 +13,10 @@
 #
 # bench.sh's measure command and its programs, sourced by bench.sh: its helpers and settings are in scope.
 
+# The raw-driver ceiling's program.
+# shellcheck source=raw.sh
+. "$HARNESS/raw.sh"
+
 # The measure programs' Elasticsearch: the version CI runs (WowContainers.ELASTICSEARCH_IMAGE), one node, on its own
 # port; bench.sh's down removes it with ClickHouse.
 ELASTICSEARCH=wow-e2e-bench-elasticsearch
@@ -545,7 +549,7 @@ es_counts() {
       bulkOperations: (map(.bulk.total_operations) | add), refreshTotal: (map(.refresh.total) | add)})}'
 }
 
-# measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert or sink.
+# measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert, sink or raw (raw.sh).
 measure() {
   parse "$@"
   case "$(opt program dataset-access)" in
@@ -553,6 +557,7 @@ measure() {
     walk) measure_walk ;;
     clickhouse-insert) measure_clickhouse_insert ;;
     sink) measure_sink ;;
-    *) log "unknown program $(opt program ""): dataset-access, walk, clickhouse-insert or sink"; exit 2 ;;
+    raw) measure_raw ;;
+    *) log "unknown program $(opt program ""): dataset-access, walk, clickhouse-insert, sink or raw"; exit 2 ;;
   esac
 }
