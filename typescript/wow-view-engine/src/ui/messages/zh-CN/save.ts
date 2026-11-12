@@ -22,6 +22,7 @@ import type { saveMessages } from '../save.js';
 export const saveZhCN = {
   // 保存命令、相关对话框，以及一次写入的结局。
   'label.save.save': '保存',
+  'label.save.apply-and-save': '应用并保存',
   'label.save.save-as': '另存为',
   'label.save.revert': '还原',
   'label.save.title': '标题',

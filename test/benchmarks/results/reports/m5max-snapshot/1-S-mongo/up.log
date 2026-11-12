@@ -9,10 +9,10 @@
  Container wow-e2e-bench-kafka Created 
  Container wow-e2e-bench-kafka Starting 
  Container wow-e2e-bench-mongo Starting 
- Container wow-e2e-bench-kafka Started 
  Container wow-e2e-bench-mongo Started 
- Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Started 
  Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
  Container wow-e2e-bench-mongo Healthy 
  Container wow-e2e-bench-kafka Healthy 
 [bench] starting node 1 on mongo
@@ -20,15 +20,15 @@
 [bench] seeding 100000 accounts
 [seed] 100000 accounts in 15.9s, 0 retried, 0 failed
 [bench] checking every scenario once
-[check] E1: ok (40.2 ms)
-[check] E2: ok (36.5 ms)
-[check] E3: ok (22.6 ms)
-[check] E1-large: ok (11.3 ms)
-[check] E4-state: ok (2.3 ms)
-[check] E4-list: ok (69.3 ms)
+[check] E1: ok (44.1 ms)
+[check] E2: ok (30.4 ms)
+[check] E3: ok (18.7 ms)
+[check] E1-large: ok (7.9 ms)
+[check] E4-state: ok (1.8 ms)
+[check] E4-list: ok (56.1 ms)
 [bench] priming 100000 accounts
-[prime] 100000 accounts in 9.5s, 0 failed
-[settle] 1s: node-1 0.04
+[prime] 100000 accounts in 12.2s, 0 failed
+[settle] 1s: node-1 0.02
 [settle] 2s: node-1 0.03
 [settle] 3s: node-1 0.02
 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)

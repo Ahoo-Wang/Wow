@@ -266,7 +266,9 @@ object WowMetrics {
     val STORE_FALLBACKS: MetricSpec = MetricSpec.counter(
         "wow.store.fallbacks",
         "The times a store fell back from an optional capability and did the work the way every store can. A " +
-            "failed one is a store that failed where it should not: look at the warning it logged first.",
+            "failed one is a store that failed where it should not: look at the warning it logged first. A timed-out " +
+            "one is a store that gave no answer within its bound: an outage, or, at a steady rate while the store " +
+            "answers, a bound too tight for its load.",
         tags = listOf(CONTEXT, CAPABILITY, REASON),
         values = mapOf(
             CAPABILITY to ObservedEvent.StoreFellBack.Capability.entries.map { it.value },

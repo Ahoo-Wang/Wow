@@ -1,25 +1,25 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794381686	23.80	13.89	11.84	79	WindowServer 55, Claude Helper 8, sysmond 4	chprobe 2.62%	252	0	0.0	
-1794381698	20.37	13.48	11.72	78	WindowServer 54, Claude Helper 17, Claude Helper (Renderer) 4	chprobe 1.59%	583	8	0.0	
-1794381711	16.51	12.96	11.57	70	WindowServer 51, Claude Helper 15, Claude Helper (Renderer) 3	chprobe 1.52%	281	8	0.0	
-1794381723	14.89	12.73	11.50	66	WindowServer 50, Claude Helper 12, Claude Helper (Renderer) 3	chprobe 35.15%	212	2	0.0	
-1794381735	14.55	12.74	11.52	83	WindowServer 54, Claude Helper 13, Stats 7	chprobe 1.32%	314	7	0.0	
-1794381747	14.39	12.76	11.54	78	WindowServer 54, Claude Helper 16, Claude Helper (Renderer) 3	chprobe 1.76%	291	3	0.0	
-1794381759	13.49	12.64	11.52	77	WindowServer 52, Claude Helper 16, Claude Helper (Renderer) 4	chprobe 1.30%	339	3	0.0	
-1794381772	12.03	12.36	11.43	75	WindowServer 51, Claude Helper 14, claude 4	chprobe 27.14%	606	4	0.0	
-1794381784	13.47	12.66	11.56	15	Stats 5, sysmond 3, configd 2	chprobe 1.21%	328	3	0.0	
-1794381796	12.08	12.39	11.48	10	Stats 4, configd 2, WindowServer 1	chprobe 1.22%	281	2	0.0	
-1794381808	13.13	12.62	11.57	58	duetexpertd 39, biomesyncd 9, Stats 3	chprobe 1.32%	322	4	0.0	
-1794381820	12.21	12.45	11.52	7	Shadowrocket 2, claude 2, WindowServer 1	chprobe 35.45%	458	4	0.0	
-1794381833	11.41	12.27	11.47	2	launchd 1, Stats 0, claude 0	chprobe 16.38%	472	2	0.0	
-1794381845	9.62	11.83	11.33	17	Stats 5, sysmond 3, configd 3	chprobe 1.48%	524	5	0.0	
-1794381857	10.48	11.93	11.37	6	Stats 3, configd 2, WindowServer 1	chprobe 1.63%	730	6	0.0	
-1794381869	13.60	12.54	11.60	6	sysmond 3, Stats 2, configd 1	chprobe 1.60%	950	7	0.0	
-1794381881	15.76	13.02	11.77	1	Stats 0, configd 0, WindowServer 0	chprobe 1.51%	670	7	0.0	
-1794381894	14.25	12.79	11.71	37	biomesyncd 19, BiomeAgent 8, sysmond 3	chprobe 1.47%	833	9	0.0	
-1794381906	12.49	12.47	11.61	1	mdworker_shared 0, mds 0, claude 0	chprobe 1.65%	886	9	0.0	
-1794381918	15.26	13.09	11.84	7	Stats 3, WindowServer 1, configd 1	chprobe 1.74%	877	8	0.0	
-1794381930	17.69	13.70	12.08	6	sysmond 4, Stats 1, configd 1	chprobe 4.72%	1372	32	0.0	
-1794381942	16.56	13.59	12.06	6	sysmond 4, claude 2, Stats 0	chprobe 2.23%	937	3	0.0	
-1794381955	14.99	13.38	12.01	1	claude 0, claude 0, claude 0	chprobe 12.41%	1367	5	0.0	
-1794381967	14.30	13.29	11.99	12	sysmond 3, Stats 3, claude 3	chprobe 48.14%	1385	4	0.0	
+1794471948	26.70	13.96	11.53	67	WindowServer 38, Claude Helper 9, Claude Helper (Renderer) 8		160	0	0.2	
+1794471960	22.98	13.58	11.42	38	mds 7, Stats 6, claude 4		141	4	0.0	
+1794471972	18.47	13.05	11.27	42	WindowServer 9, mds 8, Stats 4		188	1	0.0	
+1794471985	16.74	12.85	11.22	7	Stats 2, AppleCentauriAlpha 1, configd 1		184	4	0.6	
+1794471997	14.11	12.45	11.10	5	Claude Helper (Renderer) 1, claude 1, AppleCentauriAlpha 1		257	2	0.1	
+1794472009	12.23	12.11	11.00	4	AppleCentauriAlpha 1, wifip2pd 1, claude 0		203	2	0.1	
+1794472021	10.03	11.63	10.84	37	dasd 7, configd 4, claude 4		250	3	0.1	
+1794472033	9.23	11.41	10.78	14	claude 5, Stats 4, configd 2		238	3	0.0	
+1794472046	9.60	11.42	10.79	206	PerfPowerServices 138, runningboardd 35, coreaudiod 4		372	3	0.4	
+1794472058	8.44	11.08	10.68	14	WindowServer 3, Claude 2, Claude Helper (Renderer) 2		409	4	0.1	
+1794472070	7.52	10.79	10.58	14	Claude Helper (Renderer) 7, WindowServer 3, Claude 1		276	2	0.0	
+1794472082	8.37	10.81	10.59	19	Claude Helper (Renderer) 5, WindowServer 4, Claude 3		402	4	0.1	
+1794472094	8.06	10.66	10.54	12	Stats 4, configd 2, WindowServer 2		436	5	0.0	
+1794472107	7.67	10.46	10.47	6	claude 2, claude 1, Stats 1		403	4	0.0	
+1794472119	9.00	10.67	10.54	61	WindowServer 28, Claude Helper 12, Claude Helper (Renderer) 8		685	5	0.0	
+1794472131	9.17	10.64	10.53	34	Claude Helper (Renderer) 11, WindowServer 6, Claude 4		844	5	0.1	
+1794472143	8.44	10.43	10.46	12	biomesyncd 3, Stats 3, Shadowrocket 1		744	8	0.0	
+1794472155	8.14	10.30	10.42	10	claude 4, Stats 2, configd 2		912	4	6.2	
+1794472168	8.31	10.24	10.39	9	sysmond 3, Stats 2, AppleCentauriAlpha 1		855	9	0.0	
+1794472180	10.77	10.72	10.56	18	WindowServer 3, UniversalControl 2, AppleCentauriAlpha 2		898	8	0.0	
+1794472192	10.02	10.55	10.50	24	launchd 11, symptomsd 8, WindowServer 1		1591	56	0.1	
+1794472204	11.38	10.84	10.61	13	Stats 4, configd 2, WindowServer 1		1537	33	0.0	
+1794472217	16.44	11.99	11.02	35	WindowServer 7, Claude 3, Stats 2		980	7	0.0	
+1794472229	15.95	12.04	11.05	5	AppleCentauriAlpha 1, duetexpertd 1, Stats 0		1333	9	0.0	

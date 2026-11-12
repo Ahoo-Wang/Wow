@@ -16,6 +16,13 @@ import { type Hop, Stage } from './wire.js';
 /** The name of the built-in subscription that writes snapshots. */
 export const SNAPSHOT_SUBSCRIPTION = 'wow.snapshot';
 
+/**
+ * The name a `queryable` hop gives the snapshot subscription of the store an
+ * aggregate type's snapshot queries read: its copy's where it has one, else
+ * its own store's, as `snapshot` is.
+ */
+export const QUERYABLE_SUBSCRIPTION = 'wow.queryable';
+
 const NAME = /^[A-Za-z0-9_.-]+$/;
 
 function checkName(kind: string, value: string): string {
@@ -59,15 +66,23 @@ export const wait = {
   /** Until the snapshot holds the commit: the caller reads its own write. */
   snapshot: (context?: string): Hop =>
     hop(Stage.HANDLED, context, SNAPSHOT_SUBSCRIPTION),
+  /**
+   * Until the store the aggregate type's snapshot queries read holds the
+   * commit: a list or a count the caller runs next sees it. The same as
+   * `snapshot` for a type whose queries read its own store.
+   */
+  queryable: (context?: string): Hop =>
+    hop(Stage.HANDLED, context, QUERYABLE_SUBSCRIPTION),
   /** Until the subscription named `processor.function` handled the commit. */
   handled: (subscription: string, context?: string): Hop =>
     hop(Stage.HANDLED, context, subscription),
 } as const;
 
 /**
- * A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and
- * `handled(subscription)`, each with its context when it has one:
- * `committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`.
+ * A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot`,
+ * `queryable` and `handled(subscription)`, each with its context when it has
+ * one: `committed(ctx)`, `snapshot(ctx)`, `queryable(ctx)`,
+ * `handled(ctx/subscription)`.
  *
  * @param value - The hop
  */
@@ -80,6 +95,9 @@ export function formatHop(value: Hop): string {
     }
     if (subscription === SNAPSHOT_SUBSCRIPTION) {
       return context === undefined ? 'snapshot' : `snapshot(${context})`;
+    }
+    if (subscription === QUERYABLE_SUBSCRIPTION) {
+      return context === undefined ? 'queryable' : `queryable(${context})`;
     }
     return context === undefined
       ? `handled(${subscription})`
@@ -177,7 +195,7 @@ const HOP = /^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$/;
 
 /**
  * The plan a `Wow-Wait` value spells, as the service reads it: hops
- * separated by `>`, each `accepted`, `committed`, `snapshot` or
+ * separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` or
  * `handled(subscription)`, with its context in parentheses
  * (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of
  * {@link formatWaitPlan}. Throws a `TypeError` for anything else.
@@ -208,6 +226,8 @@ export function parseHop(value: string): Hop {
       return wait.committed(argument);
     case 'snapshot':
       return wait.snapshot(argument);
+    case 'queryable':
+      return wait.queryable(argument);
     case 'handled': {
       if (argument === undefined) {
         throw new TypeError(

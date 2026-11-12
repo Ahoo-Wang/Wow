@@ -107,6 +107,7 @@ const accepted = await orders.cancelOrder(
 | `wait.accepted()` | 命令通过了准入；路由以 202 回答 |
 | `wait.committed()` | 它的事件已在日志中 |
 | `wait.snapshot()` | 快照包含这次提交，所以读取能看到它 |
+| `wait.queryable()` | 聚合的快照查询所读的存储包含这次提交，所以紧接着重新加载的列表能看到它；查询读副本时比 `snapshot` 晚 |
 | `wait.handled('Processor.function')` | 那个订阅处理了这次提交 |
 
 计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `contract.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
@@ -213,7 +214,7 @@ try {
 }
 ```
 
-`WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的，两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
+`WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的 UUIDv7（`newRequestId`，按生成时的毫秒排序，与 Kotlin 客户端一致），两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';

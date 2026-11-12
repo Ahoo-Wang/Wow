@@ -22,6 +22,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.ExactJson
@@ -105,11 +106,12 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         val store = store(context)
         val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         val tooPrecise = saved.copyWith(state = """{"items":[{"price":1.2345678901234567890123456789012345}]}""")
-        assertThrownBy<IllegalArgumentException> { runBlocking { store.save(tooPrecise) } }
+        // Refused as a value, for good: the aggregate is parked at once, not retried.
+        assertThrownBy<StorageRefusedException> { runBlocking { store.save(tooPrecise) } }
         store.load(saved.ref).assert().isNull()
         // So is an exponent Decimal128 cannot hold, or holds only by changing the scale.
         listOf("1E-6200", "1E+6120").forEach { number ->
-            assertThrownBy<IllegalArgumentException> {
+            assertThrownBy<StorageRefusedException> {
                 runBlocking { store.save(saved.copyWith(state = """{"n":$number}""")) }
             }
         }
@@ -213,9 +215,37 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         )
         val outcomes = store.saveAll(listOf(saved, tooPrecise))
         outcomes[0].assert().isEqualTo(SnapshotSaveOutcome.Written)
-        (outcomes[1] as SnapshotSaveOutcome.Failed).cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+        (outcomes[1] as SnapshotSaveOutcome.Failed).cause.assert().isInstanceOf(StorageRefusedException::class.java)
         store.saveAll(listOf(tooPrecise)).single().assert().isInstanceOf(SnapshotSaveOutcome.Failed::class.java)
         store.load(tooPrecise.ref).assert().isNull()
+    }
+
+    @Test
+    fun `a state beyond the document size limit is refused at save, as a value`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val store = store(context)
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        // The driver refuses it before sending it, with an exception that is no MongoException.
+        assertThrownBy<StorageRefusedException> { runBlocking { store.save(saved.copyWith(state = TOO_LARGE)) } }
+        store.load(saved.ref).assert().isNull()
+        store.save(saved).assert().isTrue()
+    }
+
+    @Test
+    fun `a batch's snapshot beyond the document size limit fails alone, as a value`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val store = store(context)
+        val type = AggregateType(context, "aggregate")
+        val saved = snapshot("a", 1).copyWith(ref = type.ref("tenant", "a"))
+        val tooLarge = snapshot("b", 1).copyWith(ref = type.ref("tenant", "b"), state = TOO_LARGE)
+        val after = snapshot("c", 1).copyWith(ref = type.ref("tenant", "c"))
+        val outcomes = store.saveAll(listOf(saved, tooLarge, after))
+        (outcomes[1] as SnapshotSaveOutcome.Failed).cause.assert().isInstanceOf(StorageRefusedException::class.java)
+        // The others are stored: written, or found written already when saved again alone.
+        listOf(outcomes[0], outcomes[2]).forEach { it.assert().isNotInstanceOf(SnapshotSaveOutcome.Failed::class.java) }
+        store.load(saved.ref)?.version.assert().isEqualTo(1)
+        store.load(tooLarge.ref).assert().isNull()
+        store.load(after.ref)?.version.assert().isEqualTo(1)
     }
 
     @Test
@@ -265,6 +295,8 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     private companion object {
+        /** A state beyond MongoDB's 16 MiB document size limit. */
+        val TOO_LARGE: String = """{"blob":"${"x".repeat(17 * 1024 * 1024)}"}"""
         const val BATCH = 20
     }
 }

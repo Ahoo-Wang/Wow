@@ -23,6 +23,8 @@ kubectl rollout status statefulset/mongodb
 kubectl wait --for=condition=complete job/mongodb-init --timeout=300s
 ```
 
+The NetworkPolicy (`networkpolicy.yaml`) admits the members, `mongodb-init`, migrate-data and the pods labelled `app.kubernetes.io/part-of` `eshop` or `wow-platform`, of the replica set's own namespace: it selects pods alone. Services in another namespace need a `namespaceSelector` added to it.
+
 ## Before it holds data you keep
 
 These manifests run MongoDB without authentication, TLS or backups. Turn on authentication (a keyfile for the members, users for the services, the credentials in each service's `SPRING_MONGODB_URI` secret), TLS where your network asks for it, and back the volumes up. Or run MongoDB as your platform provides it, through an operator or a hosted service, and point the services' URIs there.

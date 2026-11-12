@@ -46,7 +46,6 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -74,8 +73,8 @@ import kotlin.time.Duration.Companion.seconds
  * Snapshot rebuild, repair and backfill (decision D172, roadmap 6.2e) end to end, on the nodes of a service over the
  * snapshot stores a backend gives ([store]: `a`, which holds the log too, and `b`): an in-place rebuild after the state
  * revision is raised; a rolling upgrade, where a node of the old revision keeps serving without overwriting the new
- * one, and its rollback; a target added and backfilled, made primary, the old one dropped; and a rebuild request that
- * repairs a snapshot. Each backend runs it: memory here, PostgreSQL and MongoDB in the integration tests.
+ * one, and its rollback; a store that replaces a type's own, and a copy for its queries, each filled from the log
+ * (D423); and a rebuild request that repairs a snapshot. Each backend runs it: memory here, PostgreSQL and MongoDB in the integration tests.
  *
  * The snapshot maintenance runs only when a test drives it ([maintain]): its interval is an hour.
  */
@@ -167,50 +166,108 @@ abstract class SnapshotRebuildSpec {
         }
 
     @Test
-    fun `a target added is backfilled, made primary, and the old one dropped`(): Unit = runBlocking {
+    fun `a store that replaces a type's own is filled from the log, its queries rebuilding meanwhile (MS-3)`(): Unit =
+        runBlocking {
+            val first = start("node-1", revision = 1)
+            IDS.forEach { add(first, it, 3) }
+            eventually { IDS.all { snapshot(A, it)?.version == 1 } }
+            first.stop()
+
+            // `b` replaces `a` as the default store: `wow.snapshot`, `b`'s now, is at the log's head, so it has not
+            // written `b` from the beginning, and a subscription of its own fills `b` from the log.
+            val moved = start("node-2", revision = 1, snapshot = B)
+            moved.context(context).subscriptions.subscriptionIds.assert()
+                .contains(SubscriptionId.of(context, "wow.snapshot#$COUNTER"))
+            moved.snapshotStatus.rebuilding(type).assert().isTrue()
+            eventually {
+                maintain(moved)
+                table(B).backfilled
+            }
+            IDS.forEach { snapshot(B, it)!!.assertCounter(revision = 1, version = 1, total = 3, adds = 0) }
+            moved.snapshotStatus.rebuilding(type).assert().isFalse()
+            add(moved, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            snapshot(B, IDS.first())!!.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a copy for a type's queries is filled from the log by its own subscription, the queries rebuilding till then`():
+        Unit = runBlocking {
         val first = start("node-1", revision = 1)
         IDS.forEach { add(first, it, 3) }
-        eventually { IDS.all { snapshot(A, it)?.version == 1 } }
+        eventually {
+            maintain(first)
+            IDS.all { snapshot(A, it)?.version == 1 } && table(A).backfilled
+        }
         first.stop()
 
-        // `b`'s subscription starts from the beginning of the log; stopped before it caught up, its store is past the
-        // beginning but not backfilled: the next node fills it with a subscription of its own.
-        val started = start("node-2", revision = 1, targets = listOf(A, B))
-        started.context(context).snapshotSubscriptions.map { it.name }.assert()
+        val copied = start("node-2", revision = 1, copy = B)
+        copied.context(context).snapshotSubscriptions.map { it.name }.assert()
             .containsExactly("wow.snapshot", "wow.snapshot:$B")
-        started.snapshotStatus.rebuilding(type).assert().isTrue()
-        eventually { snapshot(B, IDS.first()) != null }
-        started.stop()
-        table(B).backfilled.assert().isFalse()
-        val both = start("node-3", revision = 1, targets = listOf(A, B))
-        both.context(
-            context
-        ).subscriptions.subscriptionIds.assert().contains(SubscriptionId.of(context, "wow.snapshot:$B#$COUNTER"))
+        // The type's own store is caught up; its queries read the copy, which is not yet (MS-1).
+        copied.snapshotStatus.rebuilding(type).assert().isTrue()
         eventually {
-            maintain(both)
-            table(A).backfilled && table(B).backfilled
+            maintain(copied)
+            table(B).backfilled
         }
         IDS.forEach { snapshot(B, it)!!.assertCounter(revision = 1, version = 1, total = 3, adds = 0) }
-        both.snapshotStatus.rebuilding(type).assert().isFalse()
-        // Caught up, the backfill of `b` stops writing; its store's subscription goes on.
-        add(both, IDS.last(), 1)
-        eventually { snapshot(A, IDS.last())?.version == 2 && snapshot(B, IDS.last())?.version == 2 }
-        both.stop()
-
-        val switched = start("node-4", revision = 1, targets = listOf(A, B), primary = B)
-        // The default wait is answered by the primary target's subscription.
-        add(switched, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        snapshot(B, IDS.first())!!.version.assert().isEqualTo(2)
-        switched.context(context).backends.primarySnapshots!!.load(type.ref(TENANT, IDS.first()))!!.version
+        copied.snapshotStatus.rebuilding(type).assert().isFalse()
+        // The default wait is answered by the type's own store's subscription; the copy follows on its own.
+        add(copied, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        snapshot(A, IDS.first())!!.version.assert().isEqualTo(2)
+        copied.context(context).backends.primarySnapshots!!.load(type.ref(TENANT, IDS.first()))!!.version
             .assert().isEqualTo(2)
-        // `a` is still a target, written by its own subscription, which the wait does not follow.
-        eventually { snapshot(A, IDS.first())?.version == 2 }
-        switched.stop()
+        eventually { snapshot(B, IDS.first())?.version == 2 }
+    }
 
-        val dropped = start("node-5", revision = 1, targets = listOf(B))
-        dropped.context(context).snapshotSubscriptions.map { it.name }.assert().containsExactly("wow.snapshot:$B")
-        add(dropped, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        snapshot(B, IDS.first())!!.assertCounter(revision = 1, version = 3, total = 5, adds = 0)
+    @Test
+    fun `a copy keeps its index and its checkpoints across a restart, with nothing read again`(): Unit = runBlocking {
+        // As a deployment of the list shape (`[a, b]`, `a` primary) left it: `b` caught up under `wow.snapshot:b`,
+        // the subscription the copy keeps under the new keys.
+        val first = start("node-1", revision = 1, copy = B)
+        IDS.forEach { add(first, it, 3) }
+        eventually {
+            maintain(first)
+            IDS.all { snapshot(B, it)?.version == 1 } && table(B).backfilled
+        }
+        first.stop()
+        val log = stores.getValue(A).checkpoints
+        val group = first.context(context).subscriptions.group
+        val kept = log.list(group, "wow.snapshot:$B")
+        kept.assert().isNotEmpty()
+
+        val restarted = start("node-2", revision = 1, copy = B)
+        // No backfill and no checkpoint read from the start: the copy goes on from where it stood.
+        restarted.context(context).subscriptions.subscriptionIds.assert()
+            .doesNotContain(SubscriptionId.of(context, "wow.snapshot:$B#$COUNTER"))
+        log.list(group, "wow.snapshot:$B").assert().containsExactlyInAnyOrderElementsOf(kept)
+        restarted.snapshotStatus.rebuilding(type).assert().isFalse()
+        add(restarted, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { snapshot(B, IDS.first())?.version == 2 }
+    }
+
+    @Test
+    fun `a default store changed while the old one keeps a type reads the log again under the old one's name, by version`():
+        Unit = runBlocking {
+        val first = start("node-1", revision = 1)
+        IDS.forEach { add(first, it, 3) }
+        eventually {
+            maintain(first)
+            IDS.all { snapshot(A, it)?.version == 1 } && table(A).backfilled
+        }
+        first.stop()
+
+        // `b` becomes the default store while the counter stays on `a`, whose subscription is now `wow.snapshot:a`:
+        // it has no checkpoint, so it reads the log from its start, writing nothing back, as `a` is caught up.
+        val changed = start("node-2", revision = 1, snapshot = B, own = A)
+        changed.context(context).snapshotMaintenance!!.targets.primarySubscriptionOf(type).assert()
+            .isEqualTo("wow.snapshot:$A")
+        val log = stores.getValue(A).checkpoints
+        val group = changed.context(context).subscriptions.group
+        eventually { log.list(group, "wow.snapshot:$A").size == changed.context(context).log.partitions }
+        table(A).backfilled.assert().isTrue()
+        changed.snapshotStatus.rebuilding(type).assert().isFalse()
+        IDS.forEach { snapshot(A, it)!!.assertCounter(revision = 1, version = 1, total = 3, adds = 0) }
+        add(changed, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         snapshot(A, IDS.first())!!.version.assert().isEqualTo(2)
     }
 
@@ -273,10 +330,16 @@ abstract class SnapshotRebuildSpec {
     private suspend fun start(
         name: String,
         revision: Int,
-        targets: List<String> = listOf(A),
-        primary: String = targets.first(),
+        snapshot: String = A,
+        own: String? = null,
+        copy: String? = null,
     ): ServiceNode {
-        val layout = StoreLayout(A, A, snapshotDefault = SnapshotPlacement(targets, primary))
+        val layout = StoreLayout(
+            A,
+            snapshot,
+            snapshots = own?.let { mapOf(type to it) }.orEmpty(),
+            copies = copy?.let { mapOf(type to it) }.orEmpty(),
+        )
         val backends = HostBackends.of(stores, layout, PARTITIONS)
         val node = ServiceNode(
             SERVICE,

@@ -76,6 +76,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
     private val aggregateIds = LinkedHashMap<Class<*>, (Any) -> String?>()
+    private val occurredAts = LinkedHashMap<Class<*>, (Any) -> Long?>()
     private val access = LinkedHashMap<AccessAttribute<*, *>, (S) -> Any?>()
 
     /** The state of an aggregate that has no event yet. */
@@ -175,6 +176,23 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     fun addAggregateId(commandType: Class<*>, read: (Any) -> String?) {
         require(aggregateIds.putIfAbsent(commandType, read) == null) {
             "$type reads the aggregate id of ${commandType.name} twice."
+        }
+    }
+
+    /**
+     * Reads when a command of type [C] declares that what it records happened (`@OccurredAt`), from its body: [read]
+     * gives null for one that declares nothing. [C] is a command this model decides that creates its aggregate
+     * (`Creation.REQUIRED`); when it creates the aggregate, its commit is at that time.
+     */
+    inline fun <reified C : Any> occurredAt(noinline read: (C) -> Long?) {
+        @Suppress("UNCHECKED_CAST")
+        addOccurredAt(C::class.java, read as (Any) -> Long?)
+    }
+
+    /** Reads when a command of [commandType] declares it occurred, from its body; see the reified overload. */
+    fun addOccurredAt(commandType: Class<*>, read: (Any) -> Long?) {
+        require(occurredAts.putIfAbsent(commandType, read) == null) {
+            "$type reads when ${commandType.name} occurred twice."
         }
     }
 
@@ -462,6 +480,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         idSource = idSource,
         aggregateIds = aggregateIds.toMap(),
         access = access.toMap(),
+        occurredAts = occurredAts.toMap(),
     )
 
     /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */

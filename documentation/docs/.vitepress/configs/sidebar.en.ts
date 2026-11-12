@@ -197,6 +197,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Evolve Events', link: 'event-evolution'},
                 {text: 'Ownership and Access', link: 'ownership'},
                 {text: 'Unique Keys', link: 'unique-keys'},
+                {text: 'Import from Another System', link: 'importing'},
             ],
         },
         {

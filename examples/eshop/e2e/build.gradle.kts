@@ -237,6 +237,13 @@ tasks.register<Test>("clusterTest") {
     val reportDir = layout.buildDirectory.dir("ga-e2e")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dga.report=${reportDir.get().asFile}") })
     providers.gradlePropertiesPrefixedBy("ga.").get().forEach { (name, value) -> systemProperty(name, value) }
+    // The rc drill's run (RcDrillTest, test/rc-drill) is the one with `ga.scenarios`, and runs alone; the GA end-to-end
+    // run never runs it.
+    val drill = providers.gradleProperty("ga.scenarios").isPresent
+    filter {
+        if (drill) includeTestsMatching("*.RcDrillTest") else excludeTestsMatching("*.RcDrillTest")
+        isFailOnNoMatchingTests = false
+    }
     // A cluster run is never up to date, and never retried: a second try would hide the first one's violations.
     outputs.upToDateWhen { false }
     doFirst {

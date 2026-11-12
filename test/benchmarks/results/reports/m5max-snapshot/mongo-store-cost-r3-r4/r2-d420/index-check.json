@@ -1,0 +1,1 @@
+{"documents":1400006,"keysPerIndex":{"_id_":1400006,"access_owner":0,"access_space":0,"request_key":1400006,"version_key":1400006},"valid":true,"lastAccess":{},"lastFields":["_id","partition","sequence","tenant_id","aggregate_id","version","command_id","request_id","command_type","commit_time","events","owner_id","space_id","causation","headers","access","access_version"]}

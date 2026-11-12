@@ -28,9 +28,10 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * The eShop's flows as a client drives them through the gateway (the requests of EshopFullChainTest), and what the
  * run did, for the verdict: the stock each product received, every buyer's checkouts, the numbers the ordering gave
- * the orders their answers named, and the orders shipped.
+ * the orders their answers named, and the orders shipped. With a [ledger], all of that is also kept across the test's
+ * runs: read back when the flows are made, and appended as they record it.
  */
-class ShopFlows(val shop: Shop) {
+class ShopFlows(val shop: Shop, private val ledger: RunLedger? = null) {
     /** Each product's received quantity. */
     val received: MutableMap<String, Int> = ConcurrentHashMap()
 
@@ -45,6 +46,17 @@ class ShopFlows(val shop: Shop) {
 
     /** The orders the run shipped. */
     val shipped: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    init {
+        ledger?.entries()?.forEach { entry ->
+            when (entry.kind) {
+                RunLedger.RECEIVED -> received.merge(entry.key, entry.quantity, Int::plus)
+                RunLedger.CHECKOUT -> checkouts.computeIfAbsent(entry.key) { AtomicInteger() }.incrementAndGet()
+                RunLedger.NUMBER -> numbers += entry.key
+                RunLedger.SHIPPED -> shipped += entry.key
+            }
+        }
+    }
 
     fun product(id: String, name: String, price: String) {
         // The brand and the category exist after the first product: their second creation is refused, and ignored.
@@ -71,6 +83,7 @@ class ShopFlows(val shop: Shop) {
         shop.post("/eshop-inventory/stock/$product/receive-stock", """{"quantity":$quantity}""", Who.EMPLOYEE)
             .require("receive $quantity of $product")
         received.merge(product, quantity, Int::plus)
+        ledger?.append(RunLedger.Entry(RunLedger.RECEIVED, product, quantity))
     }
 
     /** Adds to [buyer]'s own basket, by the route that names none. */
@@ -86,8 +99,14 @@ class ShopFlows(val shop: Shop) {
      */
     fun checkout(buyer: String, headers: Map<String, String> = emptyMap(), timeout: Duration = Shop.TIMEOUT): Answer {
         checkouts.computeIfAbsent(buyer) { AtomicInteger() }.incrementAndGet()
+        ledger?.append(RunLedger.Entry(RunLedger.CHECKOUT, buyer))
         return shop.post("/eshop-basket/basket/checkout-basket", "{}", Who.buyer(buyer), headers, timeout)
-            .also { answer -> numberOf(answer)?.let(numbers::add) }
+            .also { answer ->
+                numberOf(answer)?.let { number ->
+                    numbers += number
+                    ledger?.append(RunLedger.Entry(RunLedger.NUMBER, number))
+                }
+            }
     }
 
     /**
@@ -121,6 +140,7 @@ class ShopFlows(val shop: Shop) {
     fun ship(order: String) {
         command("/eshop-ordering/order/$order/ship-order", "{}", Who.EMPLOYEE).committed("ship $order")
         shipped += order
+        ledger?.append(RunLedger.Entry(RunLedger.SHIPPED, order))
     }
 
     /**

@@ -103,7 +103,7 @@ export const ENTRIES = [
 export const STYLESHEETS = [
   '@ahoo-wang/wow-view-engine/styles.css',
   '@ahoo-wang/wow-view-engine/themes.css',
-  '@ahoo-wang/wow-view-engine/themes/porcelain.css',
+  '@ahoo-wang/wow-view-engine/themes/contrast.css',
   '@ahoo-wang/wow-view-engine/shadcn-bridge.css',
 ];
 

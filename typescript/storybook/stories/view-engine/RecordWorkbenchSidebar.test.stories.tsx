@@ -86,22 +86,21 @@ export const SidebarIsANavigationColumn: Story = {
       parseFloat(getComputedStyle(column).borderRightWidth),
     ).toBeGreaterThan(0);
 
-    // Two columns, two heads, one line under both. The sidebar's header is
-    // ruled off at exactly the height the title bar is, so the screen reads
+    // Two columns, two heads, starting at one height, so the screen reads
     // as one page in two columns rather than as two pages side by side.
+    // Neither is ruled off (2026-11-12 review): the one rule is the result's.
     const listHead = canvasElement.querySelector<HTMLElement>(
       '[data-slot="view-list-header"]',
     )!;
     const titleBar = canvasElement.querySelector<HTMLElement>(
       '[data-slot="view-header-block"]',
     )!;
-    await expect(
-      parseFloat(getComputedStyle(listHead).borderBottomWidth),
-    ).toBeGreaterThan(0);
+    for (const head of [listHead, titleBar])
+      await expect(getComputedStyle(head).borderBottomWidth).toBe('0px');
     await expect(
       Math.abs(
-        listHead.getBoundingClientRect().bottom -
-          titleBar.getBoundingClientRect().bottom,
+        listHead.firstElementChild!.getBoundingClientRect().top -
+          titleBar.getBoundingClientRect().top,
       ),
     ).toBeLessThanOrEqual(1);
 

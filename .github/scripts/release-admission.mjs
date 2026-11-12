@@ -40,7 +40,8 @@ import {
 //    BREAKING CHANGE footer (typescript/RELEASING.md「发版准入」).
 //
 // ci.yml is the one CI workflow; its dispatch run turns every scope on, the
-// JVM jobs included, and the release workflow's preflight still runs
+// JVM jobs included, with their tests on JDK 25 and, as the floor, on JDK 21,
+// and the release workflow's preflight still runs
 // `./gradlew :check :integrationTest` on this very commit before anything is
 // published.
 

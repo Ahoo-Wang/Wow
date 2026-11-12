@@ -144,7 +144,6 @@ src/
   themes.css                  — The presets' index: the rules every preset keeps, and one `@import` per preset in the order every list follows; the build (`scripts/themes.mjs`) ships `themes.css` and `themes/<name>.css` from it, the notes taken out
   themes/                     — One file per preset: `--fve-*` values keyed by `data-fve-preset`, the colours always and the optional groups (chart colours, shadows, font stack) whole or not at all, with the notes on each value; only the host's documented contract (`test/themeFiles.test.ts`)
     neutral.css               — The stylesheet's own look: every variable `initial`, a full reset
-    porcelain.css             — Native desktop: system type, 12px corners, soft shadows, focus in the primary colour, its own palette
     contrast.css              — High contrast: text 7:1, edges 4.5:1, its own palette, the chart patterns pinned on
   shadcn-bridge.css           — A host's shadcn tokens as the `--fve-*` values (`input`, `ring`, status and chart colours and shadows excepted, the font stack included), only while no preset is named, an optional entry copied into `dist` as written
   model/                      — Types and constants only; imports nothing
@@ -336,7 +335,7 @@ src/
     execute.ts                — The two execution kinds a runtime drives; admission (`validateDataConfig`) with the compiled query weighed against the source's budgets
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
-    commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
+    commandChecks.ts          — `requireTitle`, `savableState`: what a command refuses of its own input before anything is sent, and the draft run first where part of it waits for apply (D94) (internal, not exported)
     generations.ts            — `Generations`: the one rule for an asynchronous answer — applied only against the state it was issued for (`admit` for server knowledge, `latest` for local intent, `confirm` on a confirmed write), by issue order since the stores' revisions are opaque; bounded to the tickets in flight (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     kanban.ts                 — A kanban's execution (D83): every lane's first page and the lane aggregation in one slot (`executeKanban`), and one lane's next page put after it (`executeLanePage`, `loadLane`)

@@ -120,9 +120,9 @@ class SnapshotMaintenanceTest {
     }
 
     @Test
-    fun `a rebuild request should read and replay the history once, however many targets it rewrites`(): Unit =
+    fun `a rebuild request should read and replay the history once, for its own store and its copy alike`(): Unit =
         runBlocking {
-            val stores = listOf("a", "b", "c").associateWith { InMemorySnapshotStore() }
+            val stores = listOf("a", "b").associateWith { InMemorySnapshotStore() }
             val reads = AtomicInteger()
             val counted = object : EventLog by log {
                 override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
@@ -131,7 +131,7 @@ class SnapshotMaintenanceTest {
             val maintenance = maintenance(
                 1,
                 stores.getValue("a"),
-                targets = SnapshotTargets("a", stores, fallback = SnapshotPlacement(stores.keys.toList())),
+                targets = SnapshotTargets("a", stores, fallback = SnapshotPlacement("a", copy = "b")),
                 rebuildLog = counted,
             )
             val ref = commit("a", 3)

@@ -88,7 +88,7 @@ helm upgrade --install eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --vers
   -f deploy/eshop-ordering/values.yaml --wait
 ```
 
-chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service` 和 `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`。它的 `values.schema.json` 只接受 chart 声明的键：拼错的键会让安装失败，正如节点拒绝它不认识的 `wow.*` 键。chart 的 [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) 列出每个 value。
+chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service` 和 `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`。它的 `values.schema.json` 只接受 chart 声明的键：拼错的键会让安装失败，正如节点拒绝它不认识的 `wow.*` 键。每个 value 的说明在 chart 的 [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml) 里；它的 [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) 列出它渲染的对象。
 
 ### 安装之前 {#before-you-install}
 
@@ -291,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型的主快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住或遇到致命错误时失败（[致命错误](./observability#fatal-errors)），从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。它不再是结束一次卡住的启动的唯一手段：调和在 `wow.health.liveness.stall-timeout` 内没有完成任何一步的启动中节点，存活检查也会失败（[部署模型](./topology#a-node-stuck-in-its-reconcile)）。
+就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型自己的快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住或遇到致命错误时失败（[致命错误](./observability#fatal-errors)），从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。它不再是结束一次卡住的启动的唯一手段：调和在 `wow.health.liveness.stall-timeout` 内没有完成任何一步的启动中节点，存活检查也会失败（[部署模型](./topology#a-node-stuck-in-its-reconcile)）。
 
 ## 优雅关闭 {#graceful-shutdown}
 
@@ -404,8 +404,11 @@ chart 两者都不要求：默认都关闭，此时副本数就是 `replicas`。
 <!-- sample: deploy/helm/wow-service/values.yaml#metrics -->
 
 ```yaml
-# Where Prometheus scrapes a node: the OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
-# port 9464, /metrics), or Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus).
+# Where Prometheus scrapes a node. The OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
+# port 9464, /metrics) is a port of its own, admitted from networkPolicy.metrics.from alone: the scraper reaches the
+# meters and nothing else. Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus) is on
+# the public port: with the NetworkPolicies on, the scraper is admitted there only through networkPolicy.public.from,
+# which admits it to the service's API too, and the public port believes the CoSec-Identity of whatever reaches it.
 metrics:
   port: 9464
   path: /metrics
@@ -419,7 +422,11 @@ metrics:
     labels: {}
 ```
 
-独立的指标端口会在 Pod 上打开，并由 `<name>-public` 按 `networkPolicy.metrics.from`（默认是 Prometheus 的 Pod）放行。给监控对象加上你的 Prometheus 所选择的标签（`labels`）。要对什么告警，见[可观测性](./observability#what-to-alert-on)。
+把指标放在 agent 的端口上。独立的指标端口会在 Pod 上打开，并由 `<name>-public` 只按 `networkPolicy.metrics.from`（默认是 Prometheus 的 Pod）放行：抓取方只能访问指标，别的都访问不到。监控对象读的是 agent 的 Prometheus exporter，它要设置 `OTEL_METRICS_EXPORTER=prometheus` 才会打开：eShop 的 values 用的是 OTLP 推送，所以启用监控对象之前，先在 `config` 里设置它。
+
+指标放在 HTTP 端口上（`metrics.port` 等于 `ports.http`）且开启了网络策略时，抓取方只能经 `networkPolicy.public.from` 放行，而这同时把服务的 API 也向它放行：公开端口相信到达它的任何 `CoSec-Identity`。chart 渲染这种配置时，它的说明会指出这一点；要清楚后果再选它。
+
+给监控对象加上你的 Prometheus 所选择的标签（`labels`）。要对什么告警，见[可观测性](./observability#what-to-alert-on)。
 
 ## 中断预算 {#disruption-budgets}
 

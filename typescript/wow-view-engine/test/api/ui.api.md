@@ -585,7 +585,7 @@ interface BoxplotSpec {
 }
 
 // @public
-export const BUILT_IN_PRESETS: readonly ["neutral", "porcelain", "contrast"];
+export const BUILT_IN_PRESETS: readonly ["neutral", "contrast"];
 
 // @public (undocumented)
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
@@ -3582,6 +3582,7 @@ export const en: {
     readonly 'view.publish.failed': "This view could not be published as a system view.";
     readonly 'view.publish.forbidden': "You may not publish system views; ask an administrator.";
     readonly 'view.save.failed': "This view could not be saved.";
+    readonly 'view.save.not-applied': "The changes did not run, so nothing was saved.";
     readonly 'view.save.forbidden': "You may not save changes to this view; save a copy of your own instead.";
     readonly 'view.system.read-only': "A built-in view cannot be changed ({action}).";
     readonly 'view.title.empty': "A view needs a title.";
@@ -4155,6 +4156,7 @@ export const en: {
     readonly 'label.board-pick.added': "Added to “{board}”";
     readonly 'label.editor.pending': "{count} not applied";
     readonly 'label.save.save': "Save";
+    readonly 'label.save.apply-and-save': "Apply and save";
     readonly 'label.save.save-as': "Save as";
     readonly 'label.save.revert': "Revert";
     readonly 'label.save.title': "Title";
@@ -4526,6 +4528,7 @@ interface FilterEditorController extends FilterTreeController {
     simple: boolean;
     submit(): void;
     unmarked: Issue[];
+    unset(paths: readonly FilterPath[]): void;
 }
 
 // @public (undocumented)
@@ -6732,6 +6735,7 @@ interface SaveCommands {
 
 // @public (undocumented)
 interface SaveCommandState {
+    applies: boolean;
     audience: ViewAudience | null;
     blocked: boolean;
     // (undocumented)
@@ -8996,7 +9000,9 @@ export interface ViewRouteState {
 
 // @public
 interface ViewRuntime<C extends ViewConfig = ViewConfig> {
-    apply(): void;
+    apply(only?: {
+        filter: FilterTree;
+    }): void;
     // (undocumented)
     readonly definition: DefinitionFor<C>;
     // (undocumented)

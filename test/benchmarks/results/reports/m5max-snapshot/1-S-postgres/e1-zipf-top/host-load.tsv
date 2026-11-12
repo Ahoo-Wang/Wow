@@ -1,17 +1,16 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794379536	19.95	15.31	9.71	87	WindowServer 46, Claude Helper 11, sysmond 8	chprobe 2.03%	253	0	0.0	
-1794379549	15.82	14.62	9.56	110	WindowServer 54, corespotlightd 12, Claude Helper 10	chprobe 9.03%	196	0	0.0	
-1794379561	14.00	14.27	9.49	91	WindowServer 56, Claude Helper 14, Claude Helper (Renderer) 6	chprobe 3.45%	177	0	0.0	
-1794379573	13.50	14.15	9.50	107	WindowServer 53, Claude Helper 12, sysmond 6	chprobe 2.01%	267	0	0.0	
-1794379585	10.89	13.54	9.37	114	WindowServer 55, claude 19, Claude Helper 10	chprobe 31.72%	215	0	0.0	
-1794379598	10.78	13.42	9.37	102	WindowServer 52, Claude Helper 14, Claude Helper (Renderer) 7	chprobe 1.82%	125	0	0.0	
-1794379610	8.90	12.88	9.25	118	WindowServer 50, Claude Helper (Renderer) 19, Claude Helper 14	chprobe 8.90%	165	0	0.0	
-1794379622	9.51	12.87	9.29	146	WindowServer 55, Claude Helper (Renderer) 21, Claude Helper 16	chprobe 25.95%	186	0	0.1	
-1794379634	8.09	12.39	9.18	103	WindowServer 51, Claude Helper 13, claude 11	chprobe 2.41%	198	0	0.0	
-1794379647	7.40	12.09	9.11	135	WindowServer 53, claude 21, Claude Helper 17	chprobe 4.55%	286	0	1.9	
-1794379659	6.56	11.68	9.02	118	WindowServer 52, Claude Helper 23, Claude Helper (Renderer) 10	chprobe 3.77%	190	0	0.1	
-1794379671	5.94	11.38	8.94	101	WindowServer 50, Claude Helper 22, Claude Helper (Renderer) 7	chprobe 3.27%	163	0	0.1	
-1794379683	5.35	11.07	8.86	107	WindowServer 51, Claude Helper 18, corespotlightd 9	chprobe 2.18%	270	2	0.0	
-1794379695	7.51	11.26	8.96	102	WindowServer 52, claude 17, Claude Helper 15	chprobe 1.98%	1157	28	0.1	
-1794379708	10.04	11.69	9.14	102	WindowServer 53, Claude Helper (Renderer) 18, Claude Helper 14	chprobe 24.32%	1193	28	0.0	
-1794379720	9.59	11.51	9.12	112	WindowServer 52, claude 21, Claude Helper (Renderer) 17	chprobe 1.98%	1196	26	0.1	
+1794469879	11.32	10.73	10.17	29	Stats 8, sysmond 7, configd 4		163	0	0.0	
+1794469892	9.90	10.45	10.08	41	claude 12, WindowServer 6, Dock 5		111	0	0.3	
+1794469904	8.60	10.15	9.98	7	Stats 1, AppleCentauriAlpha 1, wifip2pd 1		108	0	0.3	
+1794469916	7.21	9.77	9.84	18	sysmond 6, Shadowrocket 2, WindowServer 2		192	0	1.6	
+1794469928	6.10	9.44	9.73	5	claude 2, AppleCentauriAlpha 1, wifip2pd 1		115	0	0.0	
+1794469940	5.85	9.23	9.65	22	sysmond 6, Stats 4, WindowServer 3		104	0	0.0	
+1794469953	5.10	8.95	9.54	6	Stats 2, configd 1, AppleCentauriAlpha 1		70	0	0.0	
+1794469965	4.29	8.58	9.40	14	UniversalControl 3, AppleCentauriAlpha 2, BTLEServer 1		77	0	0.6	
+1794469977	4.15	8.41	9.33	12	UniversalControl 2, AppleCentauriAlpha 2, Claude 1		94	0	0.2	
+1794469989	3.59	8.15	9.23	36	Stats 10, sysmond 6, configd 6		127	0	0.0	
+1794470001	4.34	8.09	9.19	37	claude 23, Stats 4, configd 2		67	0	0.1	
+1794470014	3.84	7.86	9.09	26	sysmond 5, UniversalControl 4, AppleCentauriAlpha 3		1143	41	0.0	
+1794470026	8.68	8.69	9.36	4	AppleCentauriAlpha 1, wifip2pd 1, claude 0		1027	29	0.1	
+1794470039	11.80	9.39	9.60	10	Stats 3, claude 2, configd 1		1127	26	0.2	
+1794470051	13.14	9.77	9.73	5	claude 2, claude 2, AppleCentauriAlpha 1		1141	28	0.3	

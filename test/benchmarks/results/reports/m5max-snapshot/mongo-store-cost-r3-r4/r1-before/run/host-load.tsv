@@ -1,0 +1,14 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794474177	5.34	15.51	19.67	19	Stats 5, sysmond 3, configd 3		90	0	0.0	
+1794474189	5.59	15.06	19.44	11	jstat 4, sysmond 3, Stats 1		653	70	0.0	
+1794474200	5.25	14.68	19.25	14	jstat 5, Stats 4, configd 2		571	70	0.0	
+1794474212	5.12	14.35	19.08	18	Stats 4, claude 4, configd 3		632	71	0.0	
+1794474224	4.95	13.85	18.82	9	sysmond 3, Stats 2, configd 2		680	70	0.0	
+1794474236	5.33	13.64	18.69	41	jstat 12, WindowServer 11, NotificationCenter 7		868	68	0.0	
+1794474249	7.38	13.65	18.60	12	jstat 6, Stats 2, configd 2		690	69	0.0	
+1794474261	8.07	13.60	18.52	7	Stats 3, configd 2, WindowServer 1		551	70	0.0	
+1794474273	8.61	13.53	18.44	18	jstat 14, Stats 1, configd 1		851	66	0.0	
+1794474285	13.18	14.29	18.62	15	jstat 9, claude 2, Stats 2		537	70	0.0	
+1794474297	12.75	14.15	18.52	10	Stats 2, MenuBarAgent 1, MacPacketTunnel 1		500	69	0.0	
+1794474309	11.68	13.86	18.34	8	sysmond 3, Stats 1, claude 1		690	69	0.0	
+1794474321	10.89	13.62	18.20	23	claude 10, jstat 4, claude 3		467	71	0.0	

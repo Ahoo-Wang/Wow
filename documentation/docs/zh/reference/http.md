@@ -73,6 +73,7 @@ plan := hop (">" hop)*
 hop  := "accepted" ["(" context ")"]
       | "committed" ["(" context ")"]
       | "snapshot" ["(" context ")"]
+      | "queryable" ["(" context ")"]
       | "handled(" [context "/"] subscription ")"
 ```
 
@@ -81,6 +82,7 @@ hop  := "accepted" ["(" context ")"]
 | `accepted` | 命令通过了准入；只有经 Kafka 路由的命令才是持久的 |
 | `committed` | 它的事件已追加，或者它没有追加就有了结论 |
 | `snapshot` | 快照包含这次提交 |
+| `queryable` | 聚合的快照查询所读的存储包含这次提交：查询读另一个存储（`query.snapshot.store`）时是它的副本，否则与 `snapshot` 相同 |
 | `handled(sub)` | 订阅 `sub`（`processor.function`）处理了这次提交 |
 
 不带上下文的跳在命令所在的上下文中。在 Saga 的 `handled` 那一跳之后，后面的跳适用于 Saga 派生的命令，在它们各自的上下文中。一个计划至多 `wow.wait.max-hops`（16）跳。节点没有其 Manifest 的上下文中的跳，会在链到达那里时检查，除非 `wow.wait.unknown-contexts: reject` 以 `wow.wait.invalid` 拒绝它。

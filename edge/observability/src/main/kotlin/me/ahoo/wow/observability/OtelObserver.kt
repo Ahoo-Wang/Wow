@@ -285,9 +285,10 @@ class OtelObserver(
             .setAttribute(CONTEXT, context)
             .setAttribute(AGGREGATE_ID, stream.ref.id)
             .setAttribute(VERSION, stream.version.toLong())
-        // A message of a command or receipts topic commits nothing: it has no commit time to lag behind.
+        // A message of a command or receipts topic commits nothing: it has no commit time to lag behind. The lag is
+        // behind when the commit was written: an import's commit occurred long before.
         if (stream.commitTime > 0) {
-            val lag = (clock() - stream.commitTime).coerceAtLeast(0)
+            val lag = (clock() - stream.writtenAt).coerceAtLeast(0)
             cached.timer(WowMetrics.SUBSCRIPTION_LAG, group, subscription)
                 .record(lag, TimeUnit.MILLISECONDS)
         }

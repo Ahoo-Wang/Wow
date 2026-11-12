@@ -47,7 +47,7 @@ class AggregateProperties {
     /** The store of the type's log, over `wow.log.store`: the type's log group. */
     var log: AggregateStoreProperties = AggregateStoreProperties()
 
-    /** The stores of the type's snapshots, over `wow.snapshot.stores`; its queries read the primary one. */
+    /** The store of the type's snapshots, over `wow.snapshot.store`. */
     var snapshot: AggregateSnapshotProperties = AggregateSnapshotProperties()
 
     /**
@@ -87,13 +87,16 @@ class AggregateQueryProperties {
 }
 
 /**
- * An aggregate type's `snapshot` queries: [store], the snapshot store they read, one of the type's
- * `snapshot.stores`, its primary when not set: an Elasticsearch store that searches the states, say, while the
- * commands and the state reads stay on the primary.
+ * An aggregate type's `snapshot` queries: [store], the store they read, its `snapshot.store` when not set. Another store
+ * keeps a copy of the type's snapshots for them, written by that store's subscription (`wow.snapshot:<store>`): an
+ * Elasticsearch store that searches the states, say, while the commands and the state reads stay on the type's store.
  */
 @InternalWowApi
 class AggregateQuerySnapshotProperties {
-    /** The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set. */
+    /**
+     * The store of `wow.stores` the type's `snapshot` queries read, which then keeps a copy of its snapshots; its
+     * `snapshot.store` when not set.
+     */
     var store: String? = null
 }
 
@@ -112,17 +115,14 @@ class AggregateQueryEventsProperties {
 }
 
 /**
- * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
- * over `wow.snapshot.stores`; [primary] is the one its write side and state reads read, and its snapshot queries
- * unless its `query.snapshot.store` names another, the first when not set.
+ * One aggregate type's snapshot store: [store], the store of `wow.stores` its snapshots are kept on, over
+ * `wow.snapshot.store`, which its write side, its state reads and its snapshot queries read, unless its
+ * `query.snapshot.store` names another for the queries.
  */
 @InternalWowApi
 class AggregateSnapshotProperties {
-    /** The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`. */
-    var stores: MutableList<String> = ArrayList()
-
-    /** The one of them the type's write side and state reads read; the first when not set. */
-    var primary: String? = null
+    /** The store of `wow.stores` the type's snapshots are kept on, over `wow.snapshot.store`. */
+    var store: String? = null
 }
 
 /** One aggregate type's store of its log or of its snapshots: one of `wow.stores`. */

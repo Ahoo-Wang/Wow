@@ -122,7 +122,7 @@ internal object AggregateIdResolver {
     }
 
     /** The properties of [command] and its supertypes, the class's own first. */
-    private fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
+    internal fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
         command.getAllProperties() + command.getAllSuperTypes()
             .mapNotNull { it.declaration as? KSClassDeclaration }
             .flatMap { it.getAllProperties() }
@@ -133,13 +133,13 @@ internal object AggregateIdResolver {
             property.hasAnnotation(AGGREGATE_ID) || property.getter?.hasAnnotation(AGGREGATE_ID) == true
         }
 
-    private fun com.google.devtools.ksp.symbol.KSPropertyGetter.isPrivateGetter(): Boolean =
+    internal fun com.google.devtools.ksp.symbol.KSPropertyGetter.isPrivateGetter(): Boolean =
         com.google.devtools.ksp.symbol.Modifier.PRIVATE in modifiers
 
     private fun com.google.devtools.ksp.symbol.KSAnnotation.qualifiedName(): String? =
         annotationType.resolve().declaration.qualifiedName?.asString()
 
-    private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
+    internal fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.qualifiedName() == qualifiedName }
 
     /** The name of the property 9.x took a command's aggregate id from when no property was marked. */

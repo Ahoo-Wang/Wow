@@ -44,6 +44,7 @@ import {
 } from '../src/ui/workbench/WriteOutcome.js';
 import {
   deferred,
+  editApplied,
   ordersDefinition,
   recordConfig,
   testSource,
@@ -113,10 +114,9 @@ async function open(
   return { engine, store, runtime };
 }
 
-/** An edit the user could have made, so there is something to save. */
-function editIt(runtime: AnyViewRuntime, pageSize = 25) {
-  act(() => runtime.edit({ pageSize }));
-}
+/** An edit the user made and applied, so there is something to save. */
+const editIt = (runtime: AnyViewRuntime, pageSize = 25) =>
+  act(() => editApplied(runtime, { pageSize }));
 
 /** Compile-time key equality: `true` only when both sides name the same set. */
 type SameKeys<A, B> = [A] extends [B]

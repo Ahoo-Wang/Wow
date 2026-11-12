@@ -9,7 +9,7 @@ outline: deep
 In Wow you write the domain as plain Kotlin: commands, events, a state, and an aggregate that decides. The compiler turns them into models and a contract, and the Spring Boot host serves them over HTTP, with no controller or repository to write. This page builds a small bank service in one Gradle module: an `account` aggregate, its test, and a server that keeps its data in memory.
 
 ::: warning Pre-release
-Wow 10.0.0-beta.1 is a pre-release. Its API, configuration and stored formats may still change before 10.0.0.
+Wow 10.0.0-beta.3 is a pre-release. Its API, configuration and stored formats may still change before 10.0.0.
 :::
 
 ## What you need
@@ -45,7 +45,7 @@ plugins {
     kotlin("jvm") version "2.4.21"
     // The service in one module: KSP with wow-compiler, the BOM and the kernel of the same version, and the
     // service's Manifest.
-    id("me.ahoo.wow.service") version "10.0.0-beta.1"
+    id("me.ahoo.wow.service") version "10.0.0-beta.3"
     application
 }
 
@@ -75,7 +75,7 @@ tasks.test {
 }
 ```
 
-The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-beta.1`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
+The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-beta.3`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
 
 The plugin also registers an `integrationTest` test suite for the tests that run on real stores in containers: their sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them, apart from `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)). The bank needs none: its tests run in memory.
 

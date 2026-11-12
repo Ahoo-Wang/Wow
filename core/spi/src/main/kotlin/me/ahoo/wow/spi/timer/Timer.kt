@@ -297,7 +297,8 @@ object Timers {
 
     /**
      * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says
-     * counted from the commit; a rule the runtime evaluates (cron) is [NOT_EVALUATED] here, and the runtime gives it
+     * counted from when the commit was written ([EventStreamRecord.writtenAt]: an import's creation declares an earlier
+     * time it occurred, and its schedule is set when it is written); a rule the runtime evaluates (cron) is [NOT_EVALUATED] here, and the runtime gives it
      * its first slot before it writes it. Its causation is the commit (`ref@version`) in the chain of the command that
      * committed it. Its body is the text of the event's command object, as [WowJson] writes it.
      */
@@ -309,7 +310,7 @@ object Timers {
         version = stream.version,
         partition = Partitioner.partitionOf(stream.ref, partitions),
         rule = set.rule,
-        dueAt = set.rule.firstDue(stream.commitTime) ?: NOT_EVALUATED,
+        dueAt = set.rule.firstDue(stream.writtenAt) ?: NOT_EVALUATED,
         target = set.target,
         commandType = set.commandType,
         body = WowJson.mapper.writeValueAsString(set.command),

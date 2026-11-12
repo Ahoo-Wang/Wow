@@ -79,13 +79,12 @@ export function OpeningSkeleton({
       </span>
 
       {header && (
-        // The same banner the title bar is drawn in: ruled off, and the
-        // rule running out under `main`'s padding to meet the sidebar's.
+        // The same banner the title bar is drawn in, unruled as it is.
         <div
           data-slot="view-header-skeleton"
           aria-hidden
           className={cn(
-            'fve:border-border fve:-mx-4 fve:flex fve:min-h-10 fve:items-center fve:border-b fve:px-4 fve:pb-3',
+            'fve:-mx-4 fve:flex fve:min-h-10 fve:items-center fve:px-4',
             SPACE.GROUPS,
           )}
         >

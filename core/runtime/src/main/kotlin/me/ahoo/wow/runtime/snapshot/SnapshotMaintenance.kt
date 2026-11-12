@@ -74,16 +74,17 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   table rebuilding again. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
- *   of the log, by its store's subscription when that one has no checkpoint yet or is `snapshot` (the default store's,
- *   which wrote every type from the beginning before targets existed), else by a subscription of its own ([prepare],
- *   `<store subscription>#<aggregate>`) that stops writing once the target caught up. A target caught up
+ *   of the log, by the subscription that writes it when that one has no checkpoint yet, else by a subscription of its
+ *   own ([prepare], `<subscription>#<aggregate>`) that stops writing once the target caught up, whatever the store and
+ *   its subscription's name: a store that replaced a type's own, even the default one, is filled from the log too. A target caught up
  *   once its subscription's checkpoint in every partition reached the log's head of the previous run; the table is
  *   then marked backfilled.
  * - **Rebuild requests**: the built-in subscription [REBUILD_SUBSCRIPTION] rewrites, from the log, the snapshots each
  *   `wow.snapshot.SnapshotRebuildRequested` of the rebuild aggregate names ([SnapshotRebuildModel]), in each target: in place on
  *   a node of the claimed revision, else marked stale (or written at its own revision when missing) for the rebuild.
  *
- * It answers [rebuilding] for a type while the table of its primary target is rebuilding or not backfilled.
+ * It answers [rebuilding] for a type while the table of the store its queries read (its copy when it has one, else
+ * its own store) is rebuilding or not backfilled.
  *
  * The claims, rebuilds and backfill checks need a target store's rebuild control plane ([SnapshotStore.rebuilds]): a
  * store without one is left out of them, with a warning when the node prepares and a count of the fallback (the
@@ -145,9 +146,10 @@ class SnapshotMaintenance(
         if (type !in models) {
             return false
         }
-        val primary = targets.placementOf(type).primary
+        // The store the type's queries read, its copy when it has one: what a query of it is told is being filled.
+        val queried = targets.placementOf(type).query
         // A store without a rebuild control plane records no table: it never answers as catching up.
-        return tables[primary to type]?.catchingUp ?: (primary in placed)
+        return tables[queried to type]?.catchingUp ?: (queried in placed)
     }
 
     /**
@@ -170,9 +172,9 @@ class SnapshotMaintenance(
                 val table = claim(store, type)
                 if (!table.backfilled) {
                     val subscription = targets.subscriptionOf(store)
-                    // The default store's subscription, `snapshot`, has written every type from the beginning since
-                    // before targets: another store's, past the beginning, has not written this one from it.
-                    if (store != targets.default && progress.any { hasCheckpoint(it, subscription) }) {
+                    // A subscription past the beginning has not written this store from it, whatever its name: a
+                    // store first claimed for the type, or one that replaced the type's store, is filled from the log.
+                    if (progress.any { hasCheckpoint(it, subscription) }) {
                         val backfill = backfillOf(store, type)
                         tracked[store to type] = backfill.name
                         backfills += backfill
@@ -490,7 +492,7 @@ class SnapshotMaintenance(
         log,
         codec,
         name = "${targets.subscriptionOf(store)}#${type.name}",
-        answers = { false },
+        answers = { emptySet() },
         active = { (store to it) !in caughtUp },
         writeBatch = options.writeBatch,
         gate = gate,

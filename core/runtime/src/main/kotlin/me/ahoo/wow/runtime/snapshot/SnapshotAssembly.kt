@@ -41,7 +41,7 @@ internal class SnapshotAssembly(
     /** How the backfills' rebuilds replay the log ([SnapshotMaintenance]). */
     private val gate: ReplayGate = ReplayGate.OPEN,
 ) {
-    /** The aggregate types each target store keeps. */
+    /** The aggregate types each target store keeps, own or copied. */
     private val stores: Map<String, Set<AggregateType>> = targets?.storesOf(snapshotted.map { it.type }).orEmpty()
 
     /** The shared state readers of the snapshot subscriptions: each target store's, of the types it keeps. */
@@ -50,7 +50,8 @@ internal class SnapshotAssembly(
 
     /**
      * The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time and
-     * remembering what it wrote of at most [capacity] aggregates, the shared states' own capacity.
+     * remembering what it wrote of at most [capacity] aggregates, the shared states' own capacity. It answers the
+     * `snapshot` hop of the types it is the own store of, and the `queryable` hop of those whose queries read it.
      */
     fun subscriptions(views: SharedStates, writeBatch: Int, capacity: Int): List<SnapshotSubscription> =
         stores.map { (store, types) ->
@@ -64,7 +65,9 @@ internal class SnapshotAssembly(
                 views,
                 capacity,
                 name = targets.subscriptionOf(store),
-                answers = { type -> targets.placementOf(type).primary == store },
+                answers = { type ->
+                    targets.placementOf(type).let { SnapshotSubscription.hopsOf(it.store == store, it.query == store) }
+                },
                 writeBatch = writeBatch,
             )
         }

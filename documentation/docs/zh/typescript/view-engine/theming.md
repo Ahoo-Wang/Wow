@@ -14,7 +14,7 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 | 路         | 适合                                  | 写法                                                                                                                                                   |
 | ---------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `tokenSource="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                               |
-| 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="porcelain"`（引入它的文件），可加 `brand="#1d4ed8"`（[预设](#预设)、[品牌色](#我有品牌色)）；宿主自己的外壳挂 [`fve-tokens`](#宿主自己的外壳) |
+| 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="contrast"`（引入它的文件；默认的 `neutral` 两样都不用写），可加 `brand="#1d4ed8"`（[预设](#预设)、[品牌色](#我有品牌色)）；宿主自己的外壳挂 [`fve-tokens`](#宿主自己的外壳) |
 
 `ViewHost` 把预设与品牌色点名在 `<html>` 上，也在那里画明暗（`colorMode`，[见下](#亮、暗与跟随系统)）。本页其余部分是这两行底下的东西，以及越过它们时伸手去拿的东西。`ViewHost` 的其余端口——路由、语言与每个资源的 `bind`——见[接入宿主](./host)；页面开着严格的内容安全策略时样式表怎样加载，见[内容安全策略](./csp)。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同。
 
@@ -53,11 +53,11 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 ```
 
 ```html
-<html data-fve-preset="porcelain"></html>
+<html data-fve-preset="contrast"></html>
 ```
 
 要在运行时切换，就改引 `themes.css`（全部预设）。`<html>` 上的属性作用到所有视图与弹层；想让某一个视图用自己的，传 `preset`（见[钉住预设](#钉住预设)）。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的列表），给宿主在自己的 chrome 里做选择器——引擎不画选择器。
@@ -65,7 +65,6 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 预设        | 性格                                                                                               | 圆角           | 图表八色 |
 | ----------- | -------------------------------------------------------------------------------------------------- | -------------- | -------- |
 | `neutral`   | 默认：带冷调的灰、靠明度分开的几层底、靛蓝主色                                                     | 6px            | 默认     |
-| `porcelain` | 桌面原生：系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格 | 6px／卡片 12px | 自带     |
 | `contrast`  | 高对比：字 ≥7:1，2px 的控件边与离控件 2px 的 2px 焦点 ≥4.5:1，选中行着色，默认开图表花纹           | 4px            | 自带     |
 
 我的品牌该选哪套：
@@ -75,7 +74,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 已经是 shadcn 应用，有自己的主题   | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设                                                                                          |
 | 没有设计系统，要一个现成的风格     | 上表里最像你产品的那一套                                                                                                               |
 | 界面以中文为主                     | 任何一套，加一行中文优先的 `--fve-font-sans`（见[字体](#字体)）；仪表盘面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
-| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                                                                            |
+| 想要 macOS／Apple 桌面应用那种感觉 | 没有内置预设。把仓库里的示例主题 `typescript/storybook/stories/view-engine/host-theme/porcelain.css` 抄走，当你自己的预设（见[自己的预设](#自己的预设)） |
 | 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)）                                                          |
 | 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                                                                                |
 
@@ -106,7 +105,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **只写 `--fvp-*`，只写不一样的。** 不写 `initial`，也不抄你保留的值。预设块里的 `--fve-*` 是宿主变量：钉在这个元素里面的每一套预设都会输给它。
 - **检查它。** `wow-view-engine theme-check` 在你的 CI 里把它对到登记表与每一对对比度上（见[检查一套主题](#检查一套主题)）；也可以把它的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)：与内置预设一起逐对量，图表八色也过色板的门。
 
-Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子，即仓库里的 `stories/view-engine/host-theme/acme.css`：包外的一份样式表，一个品牌色、几个角色、链接到主色的菜单高亮、一套自己的图表八色，在浏览器里与包的测试里过同样的门。
+Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子，即仓库里的 `stories/view-engine/host-theme/acme.css`：包外的一份样式表，一个品牌色、几个角色、链接到主色的菜单高亮、一套自己的图表八色，在浏览器里与包的测试里过同样的门。它旁边的 `host-theme/porcelain.css` 是一整套可以抄走的预设：桌面原生的外观（系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格），曾是内置预设，后来移出了包。把这个文件抄进你的应用，在 `styles.css` 之后引入，`data-fve-preset="porcelain"` 照旧写，这个名字现在是你自己的；包的测试仍把它与内置预设一起量。
 
 ## 我有品牌色
 
@@ -114,7 +113,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 
 ```css
 @import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+@import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 
 :root {
   --fve-brand: #7c3aed;
@@ -123,7 +122,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 ```
 
 ```html
-<html data-fve-preset="porcelain"></html>
+<html data-fve-preset="contrast"></html>
 ```
 
 主色取你的颜色的色相，选中项（`accent`）、视图列表里悬停的那一个（`sidebar-accent`）与选中行（`row-selected`）的淡色也取它；焦点环就是主色，也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），在视图自己身上算；每套预设只给它在自己的底上量出来的**边界**：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线——有一个测试在每套、两种明暗下扫过整个 sRGB——太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、`input`、状态色与图表八色仍是预设自己的。
@@ -133,7 +132,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 - 你自己设的 `--fve-primary`（或 `--fve-accent`、`--fve-sidebar-accent`、`--fve-row-selected`、`--fve-ring`）仍赢过品牌色，品牌色又赢过预设自己的颜色。
 - 边界也是预设层的变量（`--fvp-brand-l-min`、`--fvp-brand-l-max`、`--fvp-brand-c-max`，以及 token 表里其余 `brand-*` 几行）。宿主可以用 `--fve-brand-l-max` 这样的写法放宽或收紧某一个，写了它的测量就归你。
 - 图表第 1 色默认保持预设的颜色，在 `<html>`（或视图的任一祖先）上加 `data-fve-brand-chart` 属性才跟品牌色：取你的色相、保留预设调好的亮度与彩度，此时色板的测量归你，与自己设 `--fve-chart-1` 一样。它与预设、密度一样是属性：有就开、没有就关，视图会把它抄到弹层上。
-- [链接](#角色的链接)到主色或选中行的角色也跟着品牌色：`porcelain` 的菜单高亮，以及你自己链接的角色（比如当前视图与已选项）。
+- [链接](#角色的链接)到主色或选中行的角色也跟着品牌色：`contrast` 的菜单高亮与选中行的色条，以及你自己链接的角色（比如当前视图与已选项）。
 - 没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，预设原样。
 
 ## 宿主覆盖
@@ -150,9 +149,9 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 }
 ```
 
-按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设——所以每一套预设上都要量：这里的主色够深，过得了 `contrast` 的 7:1，也过得了其余各套的 4.5:1；你的主题也由 [`theme-check`](#检查一套主题) 这样量。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
+按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设——所以每一套预设上都要量：这里的主色够深，过得了 `contrast` 的 7:1，也过得了 `neutral` 的 4.5:1；你的主题也由 [`theme-check`](#检查一套主题) 这样量。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
 
-`primary-fill` 是主色作为承载文字的填色：主按钮，以及链到它的菜单高亮项。亮色就是主色本身；暗色的主色浅到能在暗底上当字，也就托不住白字，所以暗色是主色自己的色相深一档、配白字——从你的 `--fve-dark-primary` 算出来，不用另写。有一处例外：预设把这一档写成固定的颜色时（`porcelain` 的暗色）它不跟着你的主色，在这样的预设上写暗色主色时也写上它，并像任何一对那样在它的字下量：
+`primary-fill` 是主色作为承载文字的填色：主按钮，以及链到它的菜单高亮项。亮色就是主色本身；暗色的主色浅到能在暗底上当字，也就托不住白字，所以暗色是主色自己的色相深一档、配白字——从你的 `--fve-dark-primary` 算出来，不用另写。有一处例外：预设把这一档写成固定的颜色时（`contrast` 的暗色，示例主题 `porcelain` 也是）它不跟着你的主色，在这样的预设上写暗色主色时也写上它，并像任何一对那样在它的字下量：
 
 ```css
 :root {
@@ -235,7 +234,7 @@ declare const engine: ViewEngine;
 }
 ```
 
-写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 亮色就是主色本身，暗色是主色的色相深一档；预设可以把这一档写成固定的颜色（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条——所以它们会跟着品牌色；当前视图、已选项与描边按钮悬停时的边没有哪套内置预设链接，留给宿主。
+写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 亮色就是主色本身，暗色是主色的色相深一档；预设可以把这一档写成固定的颜色（`contrast` 的暗色与示例主题 `porcelain` 的暗色，都给了边界，所以仍跟品牌色；你在这样的预设上写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`contrast` 链了菜单高亮与选中行的色条——所以它们会跟着品牌色，示例主题 `porcelain` 也这样链了菜单高亮；当前视图、已选项与描边按钮悬停时的边没有哪套内置预设链接，留给宿主。
 
 ## 图表的角色
 
@@ -268,7 +267,7 @@ declare const engine: ViewEngine;
 
 ## 钉住预设
 
-在 `ViewSurface`、工作台或嵌入组件上写 `preset="porcelain"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。钉住的预设完整替换外层那套，你自己的 `--fve-*` 在里面仍然赢。
+在 `ViewSurface`、工作台或嵌入组件上写 `preset="contrast"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。钉住的预设完整替换外层那套，你自己的 `--fve-*` 在里面仍然赢。
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -282,7 +281,7 @@ declare const id: string;
   engine={engine}
   instanceId={id}
   colorMode="dark"
-  preset="porcelain"
+  preset="contrast"
 />
 ```
 
@@ -358,7 +357,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 ```bash
 pnpm exec wow-view-engine theme-check src/theme.css
-pnpm exec wow-view-engine theme-check src/theme.css --preset porcelain --preset contrast
+pnpm exec wow-view-engine theme-check src/theme.css --preset contrast
 ```
 
 它读你的样式表（给几个就按次序拼起来），报出问题与行列号：

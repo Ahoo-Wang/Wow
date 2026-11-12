@@ -426,3 +426,17 @@ export function testLabels(): ReferenceLabels {
     failed: () => undefined,
   });
 }
+
+/**
+ * An edit and its apply in one step: what a test about saving starts from
+ * when it is not about what waits. A draft with a part still waiting is
+ * applied by the save itself (`savableState`), and the button then says
+ * 「Apply and save」.
+ */
+export function editApplied(
+  runtime: { edit(patch: never): void; apply(): void },
+  patch: Record<string, unknown>,
+): void {
+  runtime.edit(patch as never);
+  runtime.apply();
+}

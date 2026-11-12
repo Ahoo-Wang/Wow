@@ -58,8 +58,8 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set.
     implementation("me.ahoo.wow:wow-mongo")
-    // The `search` profile, MongoDB with the products' search on Elasticsearch, over the client Spring Boot's
-    // Elasticsearch support makes of `spring.elasticsearch.uris`.
+    // The `search` and `search-only` profiles, MongoDB with the products' snapshots copied to or kept only on
+    // Elasticsearch, over the client Spring Boot's Elasticsearch support makes of `spring.elasticsearch.uris`.
     implementation("me.ahoo.wow:wow-elasticsearch")
     implementation("org.springframework.boot:spring-boot-elasticsearch")
     // The `cosec` profile, behind the CoSec gateway: CoSec's gateway mode reads the principal the gateway verified
@@ -113,7 +113,7 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 
 With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
 
-A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.stores`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout. A type whose `query.events.store` names an Elasticsearch store has its events indexed there by a sink the host starts by itself ([Elasticsearch](../operate/elasticsearch#store-combinations)). [Choose the Stores](../operate/choosing-storage) says which store to use for what: MongoDB by default, and a search copy on Elasticsearch beside it.
+A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.store`, and per type `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. A type whose `query.snapshot.store` names another store keeps a copy of its snapshots there for its queries. [PostgreSQL](../operate/postgresql) shows a layout. A type whose `query.events.store` names an Elasticsearch store has its events indexed there by a sink the host starts by itself ([Elasticsearch](../operate/elasticsearch#store-combinations)). [Choose the Stores](../operate/choosing-storage) says which store to use for what: MongoDB by default, and a search copy on Elasticsearch beside it.
 
 `wow.ddl` decides whether the stores create their tables, collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`).
 

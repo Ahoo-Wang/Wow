@@ -1,0 +1,7 @@
+# The drill's basket, after the values its build generates and deploy/eshop-basket/values.yaml.
+config:
+  # The e2e's settings, not a deployment's (as .github/ga-e2e/services/): the failure ledger reaches ops within the ops
+  # scenario's bound, and a fault's parked entries retry before the verdict.
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s

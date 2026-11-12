@@ -33,7 +33,12 @@ import { checkTheme, type Finding } from '../theme-check/check';
 import { run } from '../theme-check/cli';
 import { registryData } from '../theme-check/registry';
 import { createResolver, themeSource } from '../theme-check/resolve';
-import { CONVENTIONS, PRESET_NAMES, RESOLVER } from './fixtures/themeTokens';
+import {
+  CONVENTIONS,
+  MEASURED_SOURCE,
+  PRESET_NAMES,
+  RESOLVER,
+} from './fixtures/themeTokens';
 import { stylesSource } from '../scripts/styles.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -53,9 +58,9 @@ const kinds = (findings: readonly Finding[]) => [
 ];
 
 describe('the token rules the build ships', () => {
-  const shipped = createResolver({
+  const rules = createResolver({
     styles: themeSource(STYLES),
-    presets: themesSource(),
+    presets: MEASURED_SOURCE,
     registry: REGISTRY,
   });
 
@@ -74,7 +79,7 @@ describe('the token rules the build ships', () => {
         string
       >[])
         expect(
-          shipped.declared(preset, mode, convention, host, {
+          rules.declared(preset, mode, convention, host, {
             brandChart: true,
           }),
         ).toEqual(
@@ -82,7 +87,7 @@ describe('the token rules the build ships', () => {
             brandChart: true,
           }),
         );
-    expect(shipped.resetVariables()).toEqual(RESOLVER.resetVariables());
+    expect(rules.resetVariables()).toEqual(RESOLVER.resetVariables());
   });
 });
 
@@ -282,9 +287,9 @@ describe('each check fires on what it names', () => {
     expect(REGISTRY.targetFloor).toBe(24);
   });
 
-  it('holds the package’s own presets to the floor', () => {
+  it('holds the built-in presets and the example theme to the floor', () => {
     expect(
-      check(themesSource(), [...PRESET_NAMES]).filter(
+      check(MEASURED_SOURCE, [...PRESET_NAMES]).filter(
         ({ check }) => check === 'target',
       ),
     ).toEqual([]);
@@ -394,8 +399,8 @@ describe('the command', () => {
 
   it('measures only the presets it is told to', () => {
     const path = file('ring.css', ':root { --fve-ring: #eeeeee; }');
-    const { text } = invoke('theme-check', path, '--preset', 'porcelain');
-    expect(text).toContain('porcelain/light');
+    const { text } = invoke('theme-check', path, '--preset', 'contrast');
+    expect(text).toContain('contrast/light');
     expect(text).not.toContain('neutral/light');
   });
 

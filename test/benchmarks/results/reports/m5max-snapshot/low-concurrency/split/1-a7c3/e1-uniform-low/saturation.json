@@ -1,0 +1,79 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 4149.2,
+  "saturationConcurrency": 16,
+  "generatorCores": 0.4942983460800305,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 4,
+      "seconds": 15,
+      "throughput": 1587.8666666666666,
+      "ok": 23818,
+      "errors": {},
+      "p50Ms": 1.791,
+      "p99Ms": 7.743,
+      "generatorCores": 0.2548564178898141,
+      "sentOk": 30301,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 16,
+      "seconds": 15,
+      "throughput": 4149.2,
+      "ok": 62238,
+      "errors": {},
+      "p50Ms": 2.895,
+      "p99Ms": 10.687,
+      "generatorCores": 0.4942983460800305,
+      "sentOk": 89794,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 4,
+      "seconds": 15,
+      "throughput": 676.4666666666667,
+      "ok": 10147,
+      "errors": {},
+      "p50Ms": 5.087,
+      "p99Ms": 17.023,
+      "generatorCores": 0.13180314423690956,
+      "sentOk": 13582,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 16,
+      "seconds": 15,
+      "throughput": 2778.6666666666665,
+      "ok": 41680,
+      "errors": {},
+      "p50Ms": 4.863,
+      "p99Ms": 15.999,
+      "generatorCores": 0.3434566900763329,
+      "sentOk": 55650,
+      "sentFailed": 0
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "27",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/20261112-013917-run-postgres-n1-saturation"
+  }
+}

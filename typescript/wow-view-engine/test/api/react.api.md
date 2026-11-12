@@ -1915,6 +1915,7 @@ export interface FilterEditorController extends FilterTreeController {
     simple: boolean;
     submit(): void;
     unmarked: Issue[];
+    unset(paths: readonly FilterPath[]): void;
 }
 
 // @public (undocumented)
@@ -3743,6 +3744,7 @@ export interface SaveCommands {
 
 // @public (undocumented)
 export interface SaveCommandState {
+    applies: boolean;
     audience: ViewAudience | null;
     blocked: boolean;
     // (undocumented)
@@ -4482,7 +4484,9 @@ interface ViewResult<C> {
 
 // @public
 interface ViewRuntime<C extends ViewConfig = ViewConfig> {
-    apply(): void;
+    apply(only?: {
+        filter: FilterTree;
+    }): void;
     // (undocumented)
     readonly definition: DefinitionFor<C>;
     // (undocumented)

@@ -150,6 +150,11 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CART.commands[AddItem].creation: creation changed from NONE to ALLOWED",
             ),
             row(
+                "command declares when it occurred",
+                BASELINE.addItem { it.copyWith(occurredAtProperty = "placedAt") },
+                "ADDITIVE $CART.commands[AddItem].occurredAtProperty: the command declares when it occurred, by placedAt",
+            ),
+            row(
                 "command made internal",
                 BASELINE.addItem { it.copyWith(internal = true) },
                 "BREAKING $CART.commands[AddItem].internal: the command was made internal: the public port no " +
@@ -465,6 +470,16 @@ class ManifestCompatibilityTest {
     fun `the reverse changes should be classified too`() {
         fun changes(baseline: Manifest, current: Manifest) =
             ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        val declaring = BASELINE.addItem { it.copyWith(occurredAtProperty = "placedAt") }
+        changes(declaring, BASELINE).assert().containsExactly(
+            "BREAKING $CART.commands[AddItem].occurredAtProperty: the command no longer declares when it occurred: an " +
+                "importer's times are ignored",
+        )
+        changes(declaring, BASELINE.addItem { it.copyWith(occurredAtProperty = "at") }).assert().containsExactly(
+            "BREAKING $CART.commands[AddItem].occurredAtProperty: the command declares when it occurred by at, not " +
+                "placedAt",
+        )
 
         changes(BASELINE.cart { it.copyWith(retired = listOf("ItemRemoved")) }, BASELINE)
             .assert().containsExactly("BREAKING $CART.retired: retired event ItemRemoved removed")

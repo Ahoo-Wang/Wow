@@ -1,6 +1,6 @@
 ---
 title: Choose the Stores
-description: What each store holds, MongoDB by default, PostgreSQL as an equal, Elasticsearch for search beside the primary, ClickHouse for analytics, and how to place an aggregate type's data.
+description: What each store holds, MongoDB by default, PostgreSQL as an equal, Elasticsearch for search, beside a type's own snapshot store or as it, ClickHouse for analytics, and how to place an aggregate type's data.
 ---
 
 # Choose the Stores
@@ -13,7 +13,7 @@ A service keeps its log, snapshots, timers, checkpoints, leases, failure ledger 
 | --- | --- | --- |
 | MongoDB | Everything: the log, snapshots, timers, checkpoints, leases, failure ledger and reservations; serves snapshot and `events` queries | The default. A replica set, sharded when one is not enough ([MongoDB](./mongodb#recommended-topology)) |
 | PostgreSQL | Everything, as MongoDB | An equal choice where PostgreSQL is what you run ([below](#when-postgresql)) |
-| Elasticsearch | A copy of an aggregate type's snapshots, and its events through a sink | Searching states and events: full text over the fields marked `@QueryText`, aggregations over many dimensions ([Elasticsearch](./elasticsearch#full-text-search)) |
+| Elasticsearch | An aggregate type's snapshots, a copy for its queries or its only snapshot store, and its events through a sink | Searching states and events: full text over the fields marked `@QueryText`, aggregations over many dimensions ([Elasticsearch](./elasticsearch#full-text-search)) |
 | ClickHouse | Not a store: a sink of the published streams, and the datasets' warehouse | Analytics across services ([ClickHouse](./clickhouse)) |
 
 ## Place an aggregate type's data {#per-aggregate-type}
@@ -32,28 +32,41 @@ A service keeps its log, snapshots, timers, checkpoints, leases, failure ledger 
        store: main
      aggregates:
        "[shop.product]":
-         snapshot:
-           stores: [main, search]
          query:
            snapshot:
              store: search
    ```
 
-   Its snapshot queries, lists included, read Elasticsearch. Its commands load their state from MongoDB, and its state reads (`GET …/state`, `minVersion` among them) read MongoDB, so a strong read never waits for Elasticsearch.
+   Its snapshot queries, lists included, read Elasticsearch, which keeps a copy of its snapshots for them. Its commands load their state from MongoDB, and its state reads (`GET …/state`, `minVersion` among them) read MongoDB, so a strong read never waits for Elasticsearch. A page that submits a command and then reloads such a list waits `queryable` ([Elasticsearch](./elasticsearch#reading-your-own-write)).
 
 3. **A type whose event history alone is searched** keeps its snapshots where they are, and names the Elasticsearch store for its `events` queries: `query.events.store: search`. The host starts the event search sink by itself, and no second snapshot store is needed.
 
 ## Not a dual write {#not-a-dual-write}
 
-A copy on Elasticsearch is not written beside the primary in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `wow.snapshot` for the default snapshot store (the first of `wow.snapshot.stores`, else the log's store), `wow.snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the primary; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
+A copy on Elasticsearch is not written beside the aggregate's own snapshot store in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `wow.snapshot` for the default snapshot store (`wow.snapshot.store`, else the log's store), `wow.snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the aggregate's own store; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
 
-## Elasticsearch is never the log, nor the primary {#elasticsearch-is-never-the-log}
+## Elasticsearch is never the log {#elasticsearch-is-never-the-log}
 
-- **Near real time.** A write becomes searchable after a refresh: by default within the index's refresh interval (`refresh: none`), or when its write returns with `refresh: wait-for`. A log's tails and a command's load must see a commit at once.
+- **Near real time.** A write becomes searchable after a refresh: by default within the index's refresh interval (`refresh: none`), or when its write returns with `refresh: wait-for`. A log's tails must see a commit at once. A read by id sees it when its write returns, a search only after a refresh.
 - **No transactions.** A document is replaced whole, guarded by optimistic concurrency; a log needs unique keys on a version and a request, which a search index does not keep.
 - **Mappings grow.** Every field of the states and the events is mapped, so the mapping grows with the model, and an index whose mapping must change is rebuilt rather than migrated.
 
-So the host refuses an Elasticsearch store as a log store, and as an aggregate type's primary or only snapshot store: its commands load their state from the primary, and a state read is a strong read of it. Read the copy for what it is good at, search, and the primary for everything that must be current.
+So the host refuses an Elasticsearch store as a log store. It may be an aggregate type's own snapshot store, which the commands and the state reads read by id ([Elasticsearch](./elasticsearch#only-snapshot-store)). The type's state is then stored once, beside a MongoDB log, and its default wait, its lists and its outage are Elasticsearch's. Keep a database's snapshot store with a copy when Elasticsearch should stay off the commands' path: its outage then only makes the search stale.
+
+### The only store, or a copy {#only-store-or-copy}
+
+A type whose states are searched on Elasticsearch has two arrangements. They differ in what Elasticsearch's availability does to its commands:
+
+| | Elasticsearch as the type's only snapshot store | A database's snapshot store with a copy on Elasticsearch |
+| --- | --- | --- |
+| The state is stored | Once, in the index | Twice: in the database and in the index |
+| Commands load from | Elasticsearch, by id, and the log's tail | The database |
+| The default wait (`snapshot`) ends | When the index holds the commit | When the database holds it |
+| A list read right after a command | Holds it with `refresh: wait-for`, which every command of the store's types then waits for; with `refresh: none` it may miss it | Holds it when the caller waits `queryable`, with `refresh: wait-for` on the copy; other callers keep the database's latency |
+| Elasticsearch down | On the commands' path: the node is not ready, a command reaching it commits but its default wait times out, and its state reads fail | Off the commands' path: search is stale until Elasticsearch is back, and commands, waits and state reads go on |
+| A state the index refuses | The aggregate is parked: no newer snapshot, and its waits fail | Missing from search only |
+
+`refresh: wait-for` costs by its mechanism: each write to the index returns only after a refresh, so every wait that ends there ends up to a refresh interval later. The subscription that writes the index is capped at one batch per write lane a refresh interval.
 
 ## The costs {#costs}
 

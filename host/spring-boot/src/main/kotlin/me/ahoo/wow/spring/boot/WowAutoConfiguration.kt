@@ -101,7 +101,7 @@ import tools.jackson.databind.json.JsonMapper
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
- *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
+ *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
  * - **Admission** ([NodeAdmission]): every [CommandAuthorizer][me.ahoo.wow.runtime.admission.CommandAuthorizer]
  *   bean, all asked in their order, the first denial the answer

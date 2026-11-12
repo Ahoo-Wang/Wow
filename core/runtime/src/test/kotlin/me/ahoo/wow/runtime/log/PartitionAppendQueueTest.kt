@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.log
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
@@ -365,8 +367,10 @@ class PartitionAppendQueueTest {
         runBlocking {
             // Decision D275: the store's fixed cost of a call is shared by the partitions' small groups.
             val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
-            // One committer, so the call in flight holds the others' groups back until they merge.
-            val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 1))
+            // One committer, so the call in flight holds the others' groups back until they merge. Its workers run on
+            // a dispatcher that tells when none of them is running.
+            val workers = IdleDispatcher()
+            val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 1), workers)
             queue.merging.assert().isTrue()
             val first = refIn(0)
             val sameLane = refIn(0, from = 1_000)
@@ -377,8 +381,10 @@ class PartitionAppendQueueTest {
                 async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { queue.append(stream(refIn(partition), 1)) }
             }
             val behind = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { queue.append(stream(sameLane, 1)) }
-            // The other partitions' groups are handed to the committer; partition 0's next waits for its first.
-            eventually(5.seconds) { queue.queued == 1 }
+            // The other partitions' groups are handed to the committer; partition 0's next waits for its first. The
+            // depth drops when a lane takes a group, before it hands it over; a lane takes and hands without suspending,
+            // so once no worker runs either, every taken group is with the committer.
+            eventually(5.seconds) { queue.queued == 1 && workers.idle }
             log.release.complete(Unit)
             (listOf(held, behind) + others).forEach {
                 it.await().assert().isInstanceOf(
@@ -520,6 +526,27 @@ class PartitionAppendQueueTest {
             } finally {
                 partitions.forEach { perPartition[it].decrementAndGet() }
                 calls.decrementAndGet()
+            }
+        }
+    }
+
+    /**
+     * [Dispatchers.Default], counting the tasks dispatched and not finished: [idle] once every coroutine on it is
+     * suspended.
+     */
+    private class IdleDispatcher : CoroutineDispatcher() {
+        private val running = AtomicInteger()
+
+        val idle: Boolean get() = running.get() == 0
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            running.incrementAndGet()
+            Dispatchers.Default.dispatch(context) {
+                try {
+                    block.run()
+                } finally {
+                    running.decrementAndGet()
+                }
             }
         }
     }

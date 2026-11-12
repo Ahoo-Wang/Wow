@@ -1,30 +1,30 @@
-## begin 2026-11-10T23:41:06-0800
-uptime: 23:41  up 1 day, 23:15, 2 users, load averages: 33.44 25.48 19.69
+## begin 2026-11-12T00:42:54-0800
+uptime:  0:42  up 3 days, 17 mins, 2 users, load averages: 35.72 28.38 20.21
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  5.4 592 sysmond
-  4.7 1103 Stats
-  2.8 349 configd
-  1.8 42514 bash
-  0.7 477 symptomsd
-  0.5 481 syspolicyd
-  0.5 408 WindowServer
-  0.4 47053 sed
-allowed JVMs (% of one core): 38528 77572 0.0
+  2.9 1103 Stats
+  2.5 592 sysmond
+  1.6 349 configd
+  1.4 597 AppleCentauriAlpha
+  1.2 36956 bash
+  1.1 50540 claude
+  0.9 893 UniversalControl
+  0.8 408 WindowServer
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:
-## end 2026-11-10T23:42:25-0800
-uptime: 23:42  up 1 day, 23:16, 2 users, load averages: 27.79 26.05 20.45
+## end 2026-11-12T00:44:13-0800
+uptime:  0:44  up 3 days, 18 mins, 2 users, load averages: 24.94 27.40 20.61
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
-containers: wow-e2e-bench-postgres wow-e2e-bench-kafka chprobe 
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  0.5 455 airportd
-  0.5 1103 Stats
-  0.4 349 configd
-  0.3 597 AppleCentauriAlpha
-  0.1 67619 claude
-  0.1 55777 claude
-  0.1 50579 claude
-  0.1 50540 claude
-allowed JVMs (% of one core): 38528 77572 0.0
+  3.0 592 sysmond
+  2.1 477 symptomsd
+  0.8 36956 bash
+  0.6 597 AppleCentauriAlpha
+  0.5 657 wifip2pd
+  0.3 41241 sed
+  0.3 41239 head
+  0.3 335 logd
+allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
 other JVMs:

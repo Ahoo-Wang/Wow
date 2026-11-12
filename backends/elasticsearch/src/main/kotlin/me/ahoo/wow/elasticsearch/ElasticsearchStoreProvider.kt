@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
-import co.elastic.clients.transport.rest5_client.Rest5ClientTransport
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
@@ -39,25 +38,31 @@ import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import kotlin.time.Duration
 
 /**
- * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log,
- * so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
- * primary that holds the log or snapshots in a database, never as the primary, and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
- * `client` option names (else the only one), with the settings:
+ * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log, so a store of this
+ * type is an aggregate type's own snapshot store (`wow.snapshot.store`, `wow.aggregates.[<context>.<aggregate>]
+ * .snapshot.store`), which its commands load their state from by id, or the copy its snapshot queries read
+ * (`wow.aggregates.[<context>.<aggregate>].query.snapshot.store`) beside its own store; never `wow.log.store`. Each
+ * store opens over the application's low-level `Rest5Client` that its `client` option names (else the only one), with
+ * the settings:
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
  *   several services or environments share; none by default;
  * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
- *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
- *   command's `snapshot` wait is answered by the subscription of its primary snapshot store, never this one's, so
- *   waiting for a refresh serves only an in-process caller that builds a wait hop on this store's subscription in
- *   code (`wow.snapshot:<store>`, a name `Wow-Wait` does not admit), and caps that subscription's writes at a batch
- *   per write lane a refresh interval;
+ *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A load by
+ *   id reads a write once it returns, whatever `refresh` is. A command's `snapshot` wait is answered by the
+ *   subscription of its type's own snapshot store, and its `queryable` wait by that of the store its snapshot queries
+ *   read, so with `wait_for` on that store a caller that waits `queryable` then sees its commit in a list or a count.
+ *   Waiting for a refresh caps that subscription's writes at a batch per write lane a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
- *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit.
+ *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit;
+ * - `operation-timeout`: how long the caller of each of its requests, writes, loads and queries alike, waits for an
+ *   answer ([ElasticsearchTimeouts.OPERATION], 30 seconds, when not set), so that a server that stops answering fails
+ *   its callers instead of holding them; the request and its connection are the client's ([BoundedHttpClient]).
  *
  * Found by `ServiceLoader`. It is never `available`: Elasticsearch holds no log, so `wow.backend=auto` never takes it.
  */
@@ -70,7 +75,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
     override val options: List<ProviderOption<*>> =
-        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND)
+        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND, OPERATION_TIMEOUT)
 
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
@@ -95,6 +100,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             config.settings.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
             rewriteRate = rewriteRate,
+            operationTimeout = config.settings.option(OPERATION_TIMEOUT),
         )
     }
 
@@ -124,10 +130,10 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         /** The option of when a write becomes visible to searches. */
         val REFRESH = ProviderOption.enumeration(
             "refresh",
-            "when a write becomes visible to searches: none (the default: within the index's refresh interval; a " +
-                "command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write " +
-                "returns, which only an in-process caller that waits on the store's own snapshot subscription in " +
-                "code can rely on) or immediate (an immediate refresh, for tests).",
+            "when a write becomes visible to searches: none (the default: within the index's refresh interval, " +
+                "while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its " +
+                "write returns, so a command that waits queryable sees its commit there; each write takes up to a " +
+                "refresh interval longer) or immediate (an immediate refresh, for tests).",
             ElasticsearchRefresh::class.java,
             ElasticsearchRefresh.NONE,
         )
@@ -139,6 +145,16 @@ internal class ElasticsearchStoreProvider : StoreProvider {
                 "that the documents written before it are found by it too; a search of the field misses them until " +
                 "the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
             ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
+        )
+
+        /** The option bounding each of the store's requests. */
+        val OPERATION_TIMEOUT = ProviderOption.duration(
+            "operation-timeout",
+            "how long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, " +
+                "waits for an answer: a server that stops answering fails the caller instead of holding it. The " +
+                "request and its connection are the client's, freed when the server answers or at the client's own " +
+                "response timeout.",
+            ElasticsearchTimeouts.OPERATION,
         )
     }
 }
@@ -173,9 +189,11 @@ internal class ElasticsearchStore(
     val queryRestClient: Rest5Client? = null,
     /** How many documents a second a mapping's rewrite indexes again (`reindex-requests-per-second`). */
     val rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
+    /** How long each request may wait for an answer (`operation-timeout`, [ElasticsearchTimeouts]). */
+    private val operationTimeout: Duration = ElasticsearchTimeouts.OPERATION,
 ) : Store(config) {
-    /** The client of Wow's JSON: a state's numbers are read and written exactly. */
-    val client: ElasticsearchAsyncClient by lazy { client(restClient) }
+    /** The client of Wow's JSON: a state's numbers are read and written exactly; each request [operationTimeout]. */
+    val client: ElasticsearchAsyncClient by lazy { client(restClient, operationTimeout) }
 
     /** The cluster's info, a `GET /`: the store answers. */
     override suspend fun probe() {
@@ -183,7 +201,9 @@ internal class ElasticsearchStore(
     }
 
     /** The client of the store's queries: its own pool's when it has one, else [client]. */
-    val queryClient: ElasticsearchAsyncClient by lazy { queryRestClient?.let(::client) ?: client }
+    val queryClient: ElasticsearchAsyncClient by lazy {
+        queryRestClient?.let { client(it, operationTimeout) } ?: client
+    }
 
     /** Whether the queries draw on the connection pool the snapshot writes use. */
     val queriesShareWrites: Boolean get() = queryRestClient == null
@@ -201,13 +221,6 @@ internal class ElasticsearchStore(
     }
 
     override val holdsLogs: Boolean get() = false
-
-    /**
-     * Never a primary snapshot store: the commands load their state from the primary, and a search index refreshed in
-     * near real time, without transactions, holds a copy of the snapshots beside a store that holds the log or
-     * snapshots in a database's guarantees.
-     */
-    override val primarySnapshots: Boolean get() = false
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =
         ElasticsearchSnapshotStore(client, names, context, ddl = config.ddl, refresh = refresh)
@@ -229,13 +242,16 @@ internal class ElasticsearchStore(
         UnsupportedOperationException(
             "The Elasticsearch store $name holds no log: snapshots only. Keep the log and the control plane " +
                 "(timers, checkpoints, leases, the failure ledger, reservations) on a PostgreSQL or MongoDB store " +
-                "(wow.log.store), and name $name among a type's snapshot stores " +
-                "(wow.aggregates.[<context>.<aggregate>].snapshot.stores).",
+                "(wow.log.store), and make $name the store a type's snapshot queries read, which keeps a copy of them " +
+                "(wow.aggregates.[<context>.<aggregate>].query.snapshot.store).",
         )
 
     companion object {
-        /** An asynchronous client over [restClient] that reads and writes Wow's JSON. */
-        fun client(restClient: Rest5Client): ElasticsearchAsyncClient =
-            ElasticsearchAsyncClient(Rest5ClientTransport(restClient, Jackson3JsonpMapper(WowJson.mapper)))
+        /** An asynchronous client over [restClient] that reads and writes Wow's JSON, each request within [timeout]. */
+        fun client(
+            restClient: Rest5Client,
+            timeout: Duration = ElasticsearchTimeouts.OPERATION
+        ): ElasticsearchAsyncClient =
+            ElasticsearchAsyncClient(BoundedTransport(restClient, Jackson3JsonpMapper(WowJson.mapper), timeout))
     }
 }

@@ -23,7 +23,7 @@ The components:
 | Component | `DOWN` (not ready) when | `DEGRADED` when |
 | --- | --- | --- |
 | `node` | The node is not running: starting, draining or stopped; or it met a [fatal error](#fatal-errors), from then on | |
-| `stores` | A log, or a store the writes need (one holding a log, a type's primary snapshot store), has kept failing for `wow.health.stores.down-after` (15 s) with no success since | One of them failed within `wow.health.stores.window` (1 min) |
+| `stores` | A log, or a store the writes need (one holding a log, a type's own snapshot store), has kept failing for `wow.health.stores.down-after` (15 s) with no success since | One of them failed within `wow.health.stores.window` (1 min) |
 | `secondaryStores` | Never: each store instance off the write path (an additional snapshot store, a query or search store) is `DOWN` by the same rule as `stores`, but its outage degrades the reads it serves, not the node, so readiness leaves it out | It failed within `wow.health.stores.window` (1 min) |
 | `ownership` | Its lease store is down, or the node owns none of its share of a lease group's partitions past `wow.health.ownership.handover-grace` (1 min) | It owns another set than its share for that long, or the lease store failed lately |
 | `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | It is still joining, with `wow.health.topics.required: false` |

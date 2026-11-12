@@ -50,7 +50,9 @@ import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.mongo.mongoRead
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.schema.EnsuredOnce
@@ -65,6 +67,7 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonInt64
 import org.bson.BsonMaxKey
+import org.bson.BsonMaximumSizeExceededException
 import org.bson.BsonMinKey
 import org.bson.BsonNull
 import org.bson.BsonString
@@ -150,7 +153,8 @@ class MongoSnapshotStore(
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        saveNow(collectionOf(snapshot.ref.type.name), snapshot)
+        val snapshots = collectionOf(snapshot.ref.type.name)
+        MongoFailures.refusing("the snapshot of ${snapshot.ref}") { saveNow(snapshots, snapshot) }
     }
 
     /** The version-guarded save of [snapshot]; a refused one marks a higher state revision stale. */
@@ -206,7 +210,8 @@ class MongoSnapshotStore(
                 written += index
             } catch (refused: IllegalArgumentException) {
                 // The state cannot be BSON, as a save would refuse it (ExactBson).
-                outcomes[index] = SnapshotSaveOutcome.Failed(refused)
+                outcomes[index] =
+                    SnapshotSaveOutcome.Failed(checkNotNull(MongoFailures.refusalOf("the snapshot of ${snapshot.ref}", refused)))
             }
         }
         if (upserts.isEmpty()) {
@@ -215,6 +220,10 @@ class MongoSnapshotStore(
         val again = try {
             snapshots.bulkWrite(upserts, UNORDERED)
             emptyList()
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            // The driver refuses a document beyond the size limit as it reaches it, after the batches before it went:
+            // each is saved again alone, guarded, so the one too large is refused alone.
+            written
         } catch (failure: MongoBulkWriteException) {
             if (failure.writeConcernError != null) {
                 throw failure
@@ -224,15 +233,26 @@ class MongoSnapshotStore(
                 if (error.category == ErrorCategory.DUPLICATE_KEY) {
                     index
                 } else {
+                    val write = MongoWriteException(error, failure.serverAddress, failure.errorLabels)
                     outcomes[index] = SnapshotSaveOutcome.Failed(
-                        MongoFailures.translate(MongoWriteException(error, failure.serverAddress, failure.errorLabels)),
+                        MongoFailures.refusalOf("the snapshot of ${batch[index].ref}", write)
+                            ?: MongoFailures.translate(write),
                     )
                     null
                 }
             }
         }
         written.forEach { index -> if (outcomes[index] == null && index !in again) outcomes[index] = SnapshotSaveOutcome.Written }
-        again.forEach { index -> outcomes[index] = SnapshotSaveOutcome.of(saveNow(snapshots, batch[index])) }
+        again.forEach { index -> outcomes[index] = alone(snapshots, batch[index]) }
+    }
+
+    /** [snapshot] saved alone, as [save] saves it: one the store can never take fails alone, refused. */
+    private fun alone(snapshots: MongoCollection<Document>, snapshot: SnapshotRecord): SnapshotSaveOutcome = try {
+        SnapshotSaveOutcome.of(
+            MongoFailures.refusing("the snapshot of ${snapshot.ref}") { saveNow(snapshots, snapshot) }
+        )
+    } catch (refused: StorageRefusedException) {
+        SnapshotSaveOutcome.Failed(refused)
     }
 
     /**
@@ -416,7 +436,8 @@ class MongoSnapshotStore(
         backfilled = document.getBoolean(BACKFILLED),
     )
 
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
+    // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongoRead {
         require(ref.type.context == context) { "$ref is not in context $context." }
         collectionOf(ref.type.name).find(keyFilter(ref)).first()?.let { snapshotOf(ref.type, it) }
     }

@@ -77,8 +77,9 @@ describe('the pairs measured', () => {
 });
 
 describe('the built-in presets', () => {
-  it('are the catalogue of D35, in its order', () => {
-    expect(PRESET_NAMES).toEqual(['neutral', 'porcelain', 'contrast']);
+  it('are the two the package ships, with the example theme after them', () => {
+    // The two the package ships, then the example theme measured with them.
+    expect(PRESET_NAMES).toEqual(['neutral', 'contrast', 'porcelain']);
   });
 
   it('leave neutral to the stylesheet: it writes nothing', () => {

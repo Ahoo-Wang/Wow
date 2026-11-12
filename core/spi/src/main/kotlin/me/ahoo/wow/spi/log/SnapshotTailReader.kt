@@ -25,15 +25,19 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * runtime gives it to the kernel for the aggregate types whose log and primary snapshots are on that one store; the
  * others are read the way every log can: the snapshot, then the tail ([readSnapshotTailApart]).
  *
- * The kernel reads through it on a cache miss, and reads apart, warning once and counting the fallback (the observer's
- * [me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack]), when it fails.
+ * The kernel reads through it on a cache miss. When it fails, the kernel reads apart; when it gives no answer within the
+ * kernel's snapshot load timeout, the kernel cancels it and reads the log alone ([readWithoutSnapshot]): its store is
+ * the log's, so a snapshot read apart would wait on it again. Each is counted (the observer's
+ * [me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack], `failed` or `timed-out`), and the first of each outage is
+ * logged as a warning, an outage ending with a read that answers.
  */
 @WowSpi
 fun interface SnapshotTailReader {
     /**
      * [ref]'s snapshot and the tail after it with the request keys before it, as [EventLog.readTail] reads them from
      * the snapshot's version, as one statement sees them; with no snapshot, every stream of [ref] and no earlier
-     * keys. A failure is thrown.
+     * keys. A failure is thrown. The kernel cancels the read at its deadline, and the read ends for it at once; what
+     * the read holds is freed by the store's client.
      */
     suspend fun readWithSnapshot(ref: AggregateRef, earlier: Int): SnapshotTail
 }
@@ -45,6 +49,11 @@ fun interface SnapshotTailReader {
 @InternalWowApi
 suspend fun EventLog.readSnapshotTailApart(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
     require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-    val snapshot = snapshots.load(ref) ?: return SnapshotTail(null, AggregateTail(read(ref).toList(), emptyList()))
+    val snapshot = snapshots.load(ref) ?: return readWithoutSnapshot(ref)
     return SnapshotTail(snapshot, readTail(ref, snapshot.version, earlier))
 }
+
+/** [ref] read with no snapshot: every stream of [ref] (a replay) and no earlier keys. */
+@InternalWowApi
+suspend fun EventLog.readWithoutSnapshot(ref: AggregateRef): SnapshotTail =
+    SnapshotTail(null, AggregateTail(read(ref).toList(), emptyList()))

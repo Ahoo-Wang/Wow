@@ -236,6 +236,7 @@ export const viewZhCN = {
   'view.publish.failed': '这个视图没能发布为系统视图。',
   'view.publish.forbidden': '你没有发布系统视图的权限，请联系管理员。',
   'view.save.failed': '视图保存失败。',
+  'view.save.not-applied': '这些改动没能查出结果，所以没有保存。',
   'view.save.forbidden': '你不能保存对这个视图的改动，另存一份自己的吧。',
   'view.system.read-only': '系统视图不能改（{action}）。',
   'view.title.empty': '视图需要一个标题。',

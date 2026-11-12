@@ -161,6 +161,11 @@ class ContractDirectoryTest {
         directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "stock")).assert().isTrue()
         directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "bin")).assert().isFalse()
         directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "missing")).assert().isFalse()
+        // The store a peer's queries read is known wherever its snapshot is: the hop is answered over there.
+        directory.kindOf("inventory", SystemSubscriptions.QUERYABLE).assert().isEqualTo(FunctionKind.SYSTEM)
+        directory.kindOf("payment", SystemSubscriptions.QUERYABLE).assert().isNull()
+        directory.covers(SystemSubscriptions.QUERYABLE, AggregateType("inventory", "stock")).assert().isTrue()
+        directory.covers(SystemSubscriptions.QUERYABLE, AggregateType("inventory", "bin")).assert().isFalse()
     }
 
     @Test

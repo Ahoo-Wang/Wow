@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -42,7 +43,7 @@ class StreamConverterTest {
                 },
             )
         }
-        return StreamConverter(MigrationPlan(map, manifest))
+        return StreamConverter(MigrationPlan(map, manifest)) { NineXExample.IMPORTED_AT }
     }
 
     private fun MigrationMap.order(change: AggregateMapping.() -> AggregateMapping): MigrationMap =
@@ -72,7 +73,9 @@ class StreamConverterTest {
         record.scope.assert().isEqualTo(Scope("customer-1"))
         record.operator.assert().isEqualTo(Operator("user-1", "(0)"))
         record.causation.assert().isEqualTo(Causation("0VY3Gwaw4OmV00F", "0VY3Gwaw4OmV00F"))
-        record.headers.assert().isEmpty()
+        // When it occurred is 9.x's, and when it was written the import's.
+        record.headers.assert().isEqualTo(mapOf(EventStreamRecord.WRITTEN_AT to "${NineXExample.IMPORTED_AT}"))
+        record.writtenAt.assert().isEqualTo(NineXExample.IMPORTED_AT)
         val event = record.events.single()
         event.name.assert().isEqualTo("example.order.OrderCreated")
         event.revision.assert().isEqualTo(1)
@@ -97,7 +100,13 @@ class StreamConverterTest {
             header = created.header + mapOf("app_id" to "web", "remote_ip" to "10.0.0.1", "command_wait_stage" to "x"),
         )
         converter(NineXExample.map.copy(headers = mapOf("app_id" to "app", "device_id" to "device")))
-            .convert(stream).headers.assert().isEqualTo(mapOf("app" to "web"))
+            .convert(stream).headers.assert()
+            .isEqualTo(mapOf("app" to "web", EventStreamRecord.WRITTEN_AT to "${NineXExample.IMPORTED_AT}"))
+    }
+
+    @Test
+    fun `a stream written when it occurred keeps no written-at header`() {
+        StreamConverter(NineXExample.plan) { created.createTime }.convert(created).headers.assert().isEmpty()
     }
 
     @Test

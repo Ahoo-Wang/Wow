@@ -94,7 +94,6 @@ class ElasticsearchStoresTest {
         "wow.stores.es.type" to "elasticsearch",
         "wow.stores.es.refresh" to "immediate",
         "wow.stores.es.index-prefix" to prefix,
-        "wow.snapshot.stores" to "$log, es",
         "wow.aggregates.[$BANK.account].query.snapshot.store" to "es",
         "wow.aggregates.[$BANK.account].query.events.store" to "es",
     ) + when (log) {

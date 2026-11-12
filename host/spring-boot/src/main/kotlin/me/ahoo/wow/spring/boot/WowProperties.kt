@@ -174,11 +174,9 @@ class WowProperties {
     /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots. */
     internal fun storePlacements(): StorePlacements = StorePlacements(
         log = log.store,
-        snapshot = snapshot.stores.firstOrNull { it.isNotBlank() },
-        snapshotTargets = snapshot.stores,
-        snapshotPrimary = snapshot.primary,
+        snapshot = snapshot.store,
         aggregates = aggregates.mapValues { (_, aggregate) ->
-            AggregatePlacement(aggregate.log.store, aggregate.snapshot.stores, aggregate.snapshot.primary)
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.query.snapshot.store)
         },
     )
 

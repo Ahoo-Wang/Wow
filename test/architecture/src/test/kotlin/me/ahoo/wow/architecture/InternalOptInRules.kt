@@ -26,6 +26,7 @@ object InternalOptInRules {
     private val APPLICATION_TOOLS = setOf(
         "benchmark-server",
         "benchmark-search-server",
+        "benchmark-subscriptions-server",
         "migration-rehearsal",
         "spi-consumer",
     )

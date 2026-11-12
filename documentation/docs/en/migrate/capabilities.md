@@ -79,7 +79,8 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | MongoDB event store | Kept | A first-class log backend; PostgreSQL is the other. |
 | Redis event and snapshot stores | Dropped | The data tool reads only the 9.x MongoDB store: move Redis data to MongoDB in 9.x first. |
 | Elasticsearch event store | Dropped | Elasticsearch receives copies of snapshots and event streams for search; it never holds the log. Move 9.x data to MongoDB before migrating. |
-| MongoDB and Elasticsearch snapshot stores | Kept | PostgreSQL as well. |
+| MongoDB snapshot store | Kept | PostgreSQL as well. |
+| Elasticsearch snapshot store | Kept | Elasticsearch is the type's only snapshot store (`snapshot.store`), beside a log on MongoDB or PostgreSQL ([As an aggregate's only snapshot store](../operate/elasticsearch#only-snapshot-store)). A type whose commands must not depend on Elasticsearch keeps its snapshots on the database instead, with a copy on Elasticsearch for its queries (`query.snapshot.store`); [the only store, or a copy](../operate/choosing-storage#only-store-or-copy) compares the two. |
 | Snapshot strategy (every n versions) | Replaced | A snapshot is written for every version, batched per aggregate. |
 | Turning snapshots off for an aggregate | Kept | New in V10. |
 | Storage per aggregate (`storage-routing`) | Kept | Named stores, chosen per aggregate for the log and the snapshots. |

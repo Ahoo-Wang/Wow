@@ -97,7 +97,7 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 - **所以链接写一个数**：`--fvp-<角色>-link: 100%`（宿主写 `--fve-<角色>-link`）。面上一条规则把它解析成 `color-mix(in oklab, var(<目标>) <数>, transparent)`，角色在宿主层与预设层之间读它：`var(--fve-x, var(--_fve-link-x, var(--fvp-x, …)))`。链到哪个 token 由登记表定（`link`），值只是「取多少」：`100%` 就是目标本身，少于它是把目标半透明地铺在底上（一个随品牌的淡色）。一个数管两种明暗，目标在每种明暗下各自解析。
 - 链接随品牌色、宿主自己的 `--fve-primary`、`tokens` 与明暗走；不设时无效，角色读预设的字面量。宿主写了角色本身的颜色仍然最先赢。
 - 今天的链接：`highlight` → `primary-fill`、`highlight-foreground` → `primary-fill-foreground`、`row-selected-mark` → `primary`、`nav-current` → `row-selected`、`nav-current-foreground` → `primary`、`item-selected` → `row-selected`、`outline-hover-edge` → `primary`、`outline-hover-foreground` → `primary`。以后再有角色要跟面上的 token，就在登记表加一个链接，不开新机制。
-- **`primary-fill`**（D76，D94）：主色作为承载文字的填色——主按钮（`states.css` 一条规则把 registry 的 `bg-primary`／`text-primary-foreground` 换成它与它的字，悬停是它的八成），以及链到它的菜单高亮项。亮色就是 `primary`／`primary-foreground`。暗色的主色浅到能在暗底上当字，也就托不住白字，内置值是从面上的主色派生的一档：`oklch(from var(--primary) 0.52 c h)` 配白字（`styles/brand.css` 的 `@supports` 块里的 `--_fve-derived-primary-fill`，0.52 是每种色相都还托得住白字 4.5:1 的最亮一档，品牌色扫描守着）。因为是从主色算，谁给的主色它都跟：预设、宿主的 `--fve-dark-primary`、品牌色；不支持相对颜色的浏览器回到 `primary`／`primary-foreground`。预设可以自己写这一档：porcelain 暗色是固定的 `#0058D0` 配白字；contrast 的暗色仍是主色配黑字（深填色配白字约 5:1，不到它的 7:1）；写成字面量的，给了品牌色时按预设的 `brand-primary-fill-l-min`／`-max` 取品牌色相，宿主在这样的预设上写自己的 `--fve-dark-primary` 时也写 `--fve-dark-primary-fill`。写死一个靛蓝试过：宿主只改暗色主色时主按钮会留在靛蓝上，所以没有那样做。
+- **`primary-fill`**（D76，D94）：主色作为承载文字的填色——主按钮（`states.css` 一条规则把 registry 的 `bg-primary`／`text-primary-foreground` 换成它与它的字，悬停是它的八成），以及链到它的菜单高亮项。亮色就是 `primary`／`primary-foreground`。暗色的主色浅到能在暗底上当字，也就托不住白字，内置值是从面上的主色派生的一档：`oklch(from var(--primary) 0.52 c h)` 配白字（`styles/brand.css` 的 `@supports` 块里的 `--_fve-derived-primary-fill`，0.52 是每种色相都还托得住白字 4.5:1 的最亮一档，品牌色扫描守着）。因为是从主色算，谁给的主色它都跟：预设、宿主的 `--fve-dark-primary`、品牌色；不支持相对颜色的浏览器回到 `primary`／`primary-foreground`。预设可以自己写这一档：contrast 的暗色仍是主色配黑字（深填色配白字约 5:1，不到它的 7:1），示例主题 `porcelain`（Storybook 的 `host-theme/porcelain.css`，曾是内置预设，D94 移出）的暗色是固定的 `#0058D0` 配白字；写成字面量的，给了品牌色时按预设的 `brand-primary-fill-l-min`／`-max` 取品牌色相，宿主在这样的预设上写自己的 `--fve-dark-primary` 时也写 `--fve-dark-primary-fill`。写死一个靛蓝试过：宿主只改暗色主色时主按钮会留在靛蓝上，所以没有那样做。
 - 没选的：关键字（`--fvp-highlight: primary`）要按值分支，靠 `@container style()` 或 `if()`，Firefox 都还没有；把这些角色也放进品牌派生只跟品牌色、不跟宿主的 `--fve-primary`，每个角色还要一组与主色重复的边界；让 JS 把外层的预设名抄到面上是第二个真相源。（见 test/themeLinks.test.ts，浏览器故事 `ThemeMechanism.test.stories.tsx`「PorcelainMenuFollowsTheBrandInDark」「HostMarksFollowTheBrandInLight」）
 
 ## 品牌色是输入，不是预设
@@ -106,21 +106,21 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 - **派生只写一处**：`styles.css` 里一个 `@supports (color: oklch(from red l c h))` 块，声明在面的边界上（`:where(.fve-root, .fve-tokens)`），所以 `var(--fve-brand)` 在面上替换，品牌色挂在任何祖先上都对。登记表标 `brand` 的 token 在块里多读一层：`var(--fve-x, var(--_fve-brand-x, var(--fvp-x, 内置值)))`——**宿主明写的 > 品牌派生 > 预设的字面量 > 内置值**。
 - **派生什么**：主色（`oklch(from var(--fve-brand) clamp(下, l, 上) min(c, 彩度上限) h)`，暗色一半同形）、`accent`、`sidebar-accent` 与选中行（`row-selected`）取品牌色相的一档淡色；焦点 `ring` 在主色自己的边界之间跟品牌色走，预设可以另给它一组边界；图表第 1 色只在宿主挂 `data-fve-brand-chart` 属性时跟品牌色相、保留预设第 1 色的亮度与彩度（D46；品牌色相与相邻色位的色觉间距对任意品牌色证明不了，所以默认关、开了由宿主与 `theme-check` 量）。其余（灰、`input`、状态色、图表其余七色）是预设自己的。
-- **边界是预设的**（`--fvp-brand-*` 这组参数，宿主也能写 `--fve-brand-*` 自己负责）：线是在预设自己的底上量的，同一个品牌色放在 porcelain 的底与 contrast 的底上，过线的亮度区间不同；neutral 用 `styles.css` 的默认（亮 0.40～0.50、暗 0.68～0.80）。代价是极亮（黄、青）或极暗的品牌色会被压进夹子，看起来比品牌手册深或浅——可达性优先，文档写明。
+- **边界是预设的**（`--fvp-brand-*` 这组参数，宿主也能写 `--fve-brand-*` 自己负责）：线是在预设自己的底上量的，同一个品牌色放在 neutral 的底与 contrast 的底上（示例主题 `porcelain` 的底又是一种），过线的亮度区间不同；neutral 用 `styles.css` 的默认（亮 0.40～0.50、暗 0.68～0.80）。代价是极亮（黄、青）或极暗的品牌色会被压进夹子，看起来比品牌手册深或浅——可达性优先，文档写明。
 - **没给颜色、或浏览器不支持相对颜色**：派生值在计算期无效（或整块 `@supports` 不生效），每个 token 落回预设的字面量，像素不变；不会失效成透明。
 - （见 test/brandInput.test.ts：每套 × 两种明暗 × 两种回到色域的方式扫 1 314 个颜色，夹具里每一对都过该预设的线；浏览器故事 `ThemeBrand.stories.tsx`）
 
 ## 内置预设
 
-| 名字        | 性格                                                                                          |
-| ----------- | --------------------------------------------------------------------------------------------- |
-| `neutral`   | 默认：带冷调的灰、靠明度分开的几层底、靛蓝主色（D94），就是样式表自己的值；一个预设变量也不写 |
-| `porcelain` | 桌面原生：系统字体、分部件的圆角、柔和的浮起、填色的控件、表格读作桌面列表（D59、D63、D69）   |
-| `contrast`  | 高对比：字 ≥7:1，控件边、焦点与标记 ≥4.5:1，2px 焦点与控件边，图表默认开花纹                  |
+| 名字       | 性格                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `neutral`  | 默认：带冷调的灰、靠明度分开的几层底、靛蓝主色（D94），就是样式表自己的值；一个预设变量也不写 |
+| `contrast` | 高对比：字 ≥7:1，控件边、焦点与标记 ≥4.5:1，2px 焦点与控件边，图表默认开花纹                  |
 
+- **内置预设是两套**（D94 修订）：示例主题 `porcelain`（Storybook 的 `host-theme/porcelain.css`，曾是内置预设，D94 移出）整份留在包外，与 `acme.css` 并排；宿主自己的预设就是这样写的（`:where([data-fve-preset='<名>'])` 下的 `--fvp-*`），想要桌面原生外观的宿主把它抄进自己的应用，`data-fve-preset="porcelain"` 照旧写，名字是宿主自己的。性格：系统字体、分部件的圆角、柔和的浮起、填色的控件、表格读作桌面列表（D59、D63、D69）。包的测试仍把它与内置预设一起量（`test/fixtures/themeTokens.ts`：对比度、色板与品牌色的门）；Storybook 把它当示例主题加载，工具栏列作「porcelain (example)」。
 - **每个值的理由写在它的源文件里**：`src/themes/<名>.css` 一套一个文件，块加上每个取值的理由（与参考的差异、量出来最紧的几对）；`src/themes.css` 是索引，顺序就是一切名单的顺序。构建由 `scripts/themes.mjs` 去掉注释做出 `themes.css`（全部）与 `themes/<名>.css`（单套，`./themes/*.css`）；`verify-package` 断言单套文件拼起来等于 `themes.css`、与 `BUILT_IN_PRESETS` 同序，并称重（每套 gzip ≤1.5 KB、`themes.css` ≤8 KB）。
 - **类型**：`/ui` 导出 `BUILT_IN_PRESETS`（只读名字数组）、`BuiltInPreset` 与 `ViewPreset`（内置名 ∪ `(string & {})`：内置名有补全，宿主自己的预设名也能传）。不导出显示名：引擎里没有选择器。
-- **命名**：描述性的普通词（材料、自然、性格），小写；不用任何公司、产品、设计系统或编辑器配色的名字。对外只描述性格，唯一的例外是主题指南「该选哪套」的指路表可以写「想要 macOS／Apple 桌面应用那种感觉 → `porcelain`」，只为让宿主找得到（D46：Apple 是商标，预设以风格命名）。值是按本包的门自己调出来的，不整套照搬；不带任何标识、图标、插画或字体文件，系统字体只经名字引用本机已装的。
+- **命名**：描述性的普通词（材料、自然、性格），小写；不用任何公司、产品、设计系统或编辑器配色的名字。对外只描述性格，唯一的例外是主题指南「该选哪套」的指路表可以写「想要 macOS／Apple 桌面应用那种感觉」，只为让宿主找得到（D46：Apple 是商标，预设以风格命名）；这一行现在指向示例主题 `porcelain` 的文件，不再指向内置预设。值是按本包的门自己调出来的，不整套照搬；不带任何标识、图标、插画或字体文件，系统字体只经名字引用本机已装的。
 - **预设可以带自己的图表八色**（D35 Q62，修订 D30 Q47）：全带或全不带，且必须过同一套色板门；过不了就用默认八色。色位是序数：`--chart-3` 是「第三个系列的颜色」，不是「青色」，所以写色位的 `ChartSpec.colors` 换预设会换色，要表达好坏、涨跌的用语义 token（[../model-shapes.md](../model-shapes.md)）。
 - **高对比不跟随系统自动切换**：换哪套预设是宿主的外观；系统的「提高对比度」自动开的是花纹（D33 Q57）；Windows 的强制颜色模式由浏览器接管颜色，本包保证的是焦点、控件边与选中在那种模式下仍看得见（见[打印与强制颜色](#打印与强制颜色)）。
 - **加回一套的条件**：有一个真实宿主要，且亮暗两半都过下面的门；预设名首发后锁定，改名是破坏性变更。
@@ -144,7 +144,7 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 ## 字体、阴影与状态色
 
-- **字体**：`.fve-root` 上 `font-family` 读表面字体，再读 `--fve-font-sans`、`--fvp-font-sans`；都没设时这条声明在计算期无效，按继承取宿主的，不需要写 `inherit`。预设可以带一条**系统字体栈**（`porcelain` 苹果优先，中文显式写 `PingFang SC`，否则缺 `lang` 时可能取到繁体字形）。中文优先的那一条不是预设：宿主写一行 `--fve-font-sans`，主题指南的「字体」一节给了现成的（D94 修订，`azure` 移除后）。
+- **字体**：`.fve-root` 上 `font-family` 读表面字体，再读 `--fve-font-sans`、`--fvp-font-sans`；都没设时这条声明在计算期无效，按继承取宿主的，不需要写 `inherit`。预设可以带一条**系统字体栈**（两套内置预设都不带；示例主题 `porcelain` 带一条，苹果优先，中文显式写 `PingFang SC`，否则缺 `lang` 时可能取到繁体字形）。中文优先的那一条不是预设：宿主写一行 `--fve-font-sans`，主题指南的「字体」一节给了现成的（D94 修订，`azure` 移除后）。
 - **弹层的字体就是面的字体**：弹层 portal 到 `<body>`，继承的是 `<body>` 的字体；宿主把字体写在应用外壳上而 `<body>` 不设时，弹层会退成浏览器的衬线体。所以面把自己**算出的** `font-family` 读回来（与读 token 同一处、同一组观察者），经 `useSurfaceFont()` 交给 `ui/kit/popups.tsx`，弹层写成自己身上的表面字体变量。它是面的计算值，所以预设的栈、宿主的 `--fve-font-sans`（挂在 `<html>` 或只挂在子树上）、继承来的宿主字体，哪一种来源弹层都与面一致；样式表在每个根上先把它设成 `initial`，面不会从宿主页面上拿到同名变量。（见 test/popups.test.tsx「every popup takes the type of its surface」）
 - **阴影三档**（`--fve-shadow-sm／md／lg`，亮暗各一份）只改阴影本身；卡片怎样浮起是 `card-shadow` 角色（D43）。**去掉阴影写透明阴影，不写 `none`**：工具类把阴影与 ring 拼成一个 `box-shadow` 列表，`none` 进了列表整条声明无效，弹层的发丝描边也跟着没了；测试禁止预设写 `none`。
 - **暗色状态色是安静的**（D30 Q44，结清 D18 第 12 条）：暗色 success／warning／destructive 保留色相、彩度降到约 0.15，软徽章在深底上不发艳，danger 徽章在选中行上直接用自己的 token 就过线，不再为暗色写 `color-mix` 补丁。亮色状态色取作字 ≥4.5 的那一档。（见 test/presetContrast.test.ts「the dark status colours are desaturated (Q44)」）
@@ -201,6 +201,6 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 
 ## Storybook
 
-- 工具栏有「Preset」（`fvePreset`，把 `data-fve-preset` 挂在 `<html>` 上；`neutral` 即不挂）、明暗（多一档 `system`）、「Density」「Change colors」四个全局，都像宿主一样写 `<html>`。Storybook 打开时是 `porcelain`，引擎自己的默认仍是 `neutral`，讲 neutral 的故事用 `globals` 钉住它。
+- 工具栏有「Preset」（`fvePreset`，把 `data-fve-preset` 挂在 `<html>` 上；`neutral` 即不挂）、明暗（多一档 `system`）、「Density」「Change colors」四个全局，都像宿主一样写 `<html>`。Storybook 打开时是 `neutral`，与引擎自己的默认一样；「Preset」里除两套内置预设外还列着示例主题「porcelain (example)」。
 - 预设名单读 `/ui` 的 `BUILT_IN_PRESETS`（`stories/view-engine/presets.ts`），工具栏、主题一览与对比度矩阵共用它：包里多一套，三处就多一套。
 - 「能力/主题与预设」下：每套一个主题一览（`ThemeGallery.stories.tsx`）、对比度矩阵、品牌色、宿主自定义主题；角色、三层、链接、图表角色、密度、打印与强制颜色各有自己的回归故事。

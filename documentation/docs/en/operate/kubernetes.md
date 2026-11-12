@@ -88,7 +88,7 @@ helm upgrade --install eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --vers
   -f deploy/eshop-ordering/values.yaml --wait
 ```
 
-The chart is also on `oci://registry-1.docker.io/ahoowang/wow-service` and `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`. Its `values.schema.json` holds every value to the keys the chart declares: a misspelt key fails the install, as a node refuses a `wow.*` key it does not know. The chart's [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) lists every value.
+The chart is also on `oci://registry-1.docker.io/ahoowang/wow-service` and `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`. Its `values.schema.json` holds every value to the keys the chart declares: a misspelt key fails the install, as a node refuses a `wow.*` key it does not know. Every value is described in the chart's [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml); its [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) lists the objects it renders.
 
 ### Before you install
 
@@ -291,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck or has met a fatal error ([Fatal errors](./observability#fatal-errors)), never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`). It is no longer the only thing that ends a hung start: a starting node whose reconcile finishes no step for `wow.health.liveness.stall-timeout` fails its liveness too ([Deployment Model](./topology#a-node-stuck-in-its-reconcile)).
+Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's own snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck or has met a fatal error ([Fatal errors](./observability#fatal-errors)), never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`). It is no longer the only thing that ends a hung start: a starting node whose reconcile finishes no step for `wow.health.liveness.stall-timeout` fails its liveness too ([Deployment Model](./topology#a-node-stuck-in-its-reconcile)).
 
 ## Graceful shutdown
 
@@ -404,8 +404,11 @@ The nodes' spans and meters go through the OpenTelemetry Java agent ([Observabil
 <!-- sample: deploy/helm/wow-service/values.yaml#metrics -->
 
 ```yaml
-# Where Prometheus scrapes a node: the OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
-# port 9464, /metrics), or Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus).
+# Where Prometheus scrapes a node. The OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
+# port 9464, /metrics) is a port of its own, admitted from networkPolicy.metrics.from alone: the scraper reaches the
+# meters and nothing else. Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus) is on
+# the public port: with the NetworkPolicies on, the scraper is admitted there only through networkPolicy.public.from,
+# which admits it to the service's API too, and the public port believes the CoSec-Identity of whatever reaches it.
 metrics:
   port: 9464
   path: /metrics
@@ -419,7 +422,11 @@ metrics:
     labels: {}
 ```
 
-A metrics port of its own is opened on the pod and admitted by `<name>-public` from `networkPolicy.metrics.from`, Prometheus' pods by default. Give the monitor the labels your Prometheus selects (`labels`). What to alert on is in [Observability](./observability#what-to-alert-on).
+Keep the meters on the agent's port. A metrics port of its own is opened on the pod and admitted by `<name>-public` from `networkPolicy.metrics.from` alone, Prometheus' pods by default: the scraper reaches the meters and nothing else. A monitor reads the agent's Prometheus exporter, which is off until `OTEL_METRICS_EXPORTER=prometheus` turns it on: the eShop's values push over OTLP instead, so set it in `config` before you enable a monitor.
+
+With the meters on the HTTP port (`metrics.port` equal to `ports.http`) and the NetworkPolicies on, the scraper is admitted only through `networkPolicy.public.from`, which admits it to the service's API too: the public port believes the `CoSec-Identity` of whatever reaches it. The chart's notes say so when it renders that setup; choose it knowingly.
+
+Give the monitor the labels your Prometheus selects (`labels`). What to alert on is in [Observability](./observability#what-to-alert-on).
 
 ## Disruption budgets
 

@@ -14,12 +14,15 @@
 package me.ahoo.wow.spring.boot.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_PARTITIONS
@@ -132,24 +135,18 @@ class QueryEventsProperties {
 }
 
 /**
- * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may be written to several stores; a
- * store added to them is backfilled from the log: switch the primary to it once it caught up, then drop the old
- * one.
+ * Where the snapshots are, and how the snapshot maintenance runs. Each aggregate type keeps its snapshots on one store;
+ * a store that replaces it is filled from the log, its snapshot queries answering `rebuilding` meanwhile.
  */
 @InternalWowApi
 class SnapshotProperties {
     /**
-     * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
-     * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
-     * first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`.
+     * The store of `wow.stores` every aggregate's snapshots are kept on, unless its
+     * `wow.aggregates.[<context>.<aggregate>].snapshot.store` names another; `wow.log.store` when not set. Its
+     * built-in subscription is `wow.snapshot`. The write side, the state reads and the snapshot queries read it, unless
+     * an aggregate's `query.snapshot.store` names another, which then keeps a copy for its queries.
      */
-    var stores: MutableList<String> = ArrayList()
-
-    /**
-     * The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's
-     * `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.
-     */
-    var primary: String? = null
+    var store: String? = null
 
     /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
     var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
@@ -160,11 +157,37 @@ class SnapshotProperties {
     /** How many snapshots of a partition the snapshot subscriptions write together at most. */
     var writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
 
-    /** The node's snapshot maintenance and write options. */
-    fun options(): SnapshotOptions {
+    /**
+     * How long a command's cache miss waits for its snapshot before it takes the load as failed and replays the
+     * log, counted in `wow.store.fallbacks` as `timed-out`: a snapshot is only a cache, so a store that stops answering
+     * costs a replay, not the command's wait. Below `wow.wait.default-timeout`, so such a command still answers at its
+     * commit.
+     */
+    var loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT.toJavaDuration()
+
+    /** The node's snapshot maintenance, write and load options; a load waits less than [defaultWaitTimeout]. */
+    fun options(defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT.toJavaDuration()): SnapshotOptions {
+        configCheck(
+            loadTimeout > Duration.ZERO && loadTimeout < defaultWaitTimeout,
+            "wow.snapshot.load-timeout",
+            loadTimeout,
+            "Set it above zero and below wow.wait.default-timeout ($defaultWaitTimeout), so a command whose snapshot " +
+                "store does not answer replays its log within its wait.",
+        ) {
+            "A snapshot load's timeout of $loadTimeout is not between zero and a command's default wait of " +
+                "$defaultWaitTimeout."
+        }
         val every = maintenanceInterval.toKotlinDuration()
         val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
-        return SnapshotOptions(every, rebuild.pageSize, rebuild.maxPages, ttl, ttl, writeBatch)
+        return SnapshotOptions(
+            every,
+            rebuild.pageSize,
+            rebuild.maxPages,
+            ttl,
+            ttl,
+            writeBatch,
+            loadTimeout.toKotlinDuration()
+        )
     }
 
     private companion object {

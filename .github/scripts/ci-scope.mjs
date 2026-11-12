@@ -175,6 +175,12 @@ const RULES = [
   ],
   // The site lists the package, and the stories render it.
   [/^typescript\/wow-view-store\//, [TYPESCRIPT, SDK, DOCS, STORYBOOK]],
+  // The example host themes: view-engine's own tests measure them beside
+  // the built-in presets (`test/fixtures/themeTokens.ts`).
+  [
+    /^typescript\/storybook\/stories\/view-engine\/host-theme\//,
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS],
+  ],
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   [/^typescript\//, [TYPESCRIPT, SDK]],

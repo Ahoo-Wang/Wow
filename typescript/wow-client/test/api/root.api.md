@@ -313,6 +313,7 @@ export interface CommandManifest {
     readonly mounted?: boolean;
     // (undocumented)
     readonly name: string;
+    readonly occurredAtProperty?: string;
     readonly produces?: readonly string[];
     // (undocumented)
     readonly routes: readonly RouteManifest[];
@@ -1517,6 +1518,9 @@ export interface PublishedManifest {
 }
 
 // @public
+export const QUERYABLE_SUBSCRIPTION = "wow.queryable";
+
+// @public
 type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
 
 // @public
@@ -2225,6 +2229,7 @@ export const wait: {
     readonly accepted: (context?: string) => Hop;
     readonly committed: (context?: string) => Hop;
     readonly snapshot: (context?: string) => Hop;
+    readonly queryable: (context?: string) => Hop;
     readonly handled: (subscription: string, context?: string) => Hop;
 };
 

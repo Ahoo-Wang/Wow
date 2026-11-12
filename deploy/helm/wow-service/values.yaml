@@ -200,8 +200,11 @@ autoscaling:
 
 # endregion
 # region metrics
-# Where Prometheus scrapes a node: the OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
-# port 9464, /metrics), or Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus).
+# Where Prometheus scrapes a node. The OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
+# port 9464, /metrics) is a port of its own, admitted from networkPolicy.metrics.from alone: the scraper reaches the
+# meters and nothing else. Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus) is on
+# the public port: with the NetworkPolicies on, the scraper is admitted there only through networkPolicy.public.from,
+# which admits it to the service's API too, and the public port believes the CoSec-Identity of whatever reaches it.
 metrics:
   port: 9464
   path: /metrics

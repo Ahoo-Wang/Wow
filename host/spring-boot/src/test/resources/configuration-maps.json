@@ -69,7 +69,7 @@
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].query.snapshot.store",
     "type" : "java.lang.String",
-    "description" : "The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set.",
+    "description" : "The store of `wow.stores` the type's `snapshot` queries read, which then keeps a copy of its snapshots; its `snapshot.store` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateQuerySnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].routing",
@@ -78,14 +78,9 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateProperties",
     "defaultValue" : "auto"
   }, {
-    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.primary",
+    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.store",
     "type" : "java.lang.String",
-    "description" : "The one of them the type's write side and state reads read; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
-  }, {
-    "name" : "wow.aggregates.[<context>.<aggregate>].snapshot.stores",
-    "type" : "java.util.List<java.lang.String>",
-    "description" : "The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`.",
+    "description" : "The store of `wow.stores` the type's snapshots are kept on, over `wow.snapshot.store`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateSnapshotProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].tenant",
@@ -150,7 +145,7 @@
   }, {
     "name" : "wow.stores.<name>.refresh",
     "type" : "me.ahoo.wow.elasticsearch.ElasticsearchRefresh",
-    "description" : "On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, which only an in-process caller that waits on the store's own snapshot subscription in code can rely on) or immediate (an immediate refresh, for tests).",
+    "description" : "On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests).",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "none"
   }, {
@@ -159,6 +154,12 @@
     "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
+  }, {
+    "name" : "wow.stores.<name>.operation-timeout",
+    "type" : "java.time.Duration",
+    "description" : "On elasticsearch: how long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout. On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : "PT30S"
   }, {
     "name" : "wow.stores.<name>.database",
     "type" : "java.lang.String",
@@ -177,12 +178,6 @@
     "description" : "On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard.",
     "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "auto"
-  }, {
-    "name" : "wow.stores.<name>.operation-timeout",
-    "type" : "java.time.Duration",
-    "description" : "On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
-    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
-    "defaultValue" : "PT30S"
   }, {
     "name" : "wow.stores.<name>.pool-gauge",
     "type" : "java.lang.String",

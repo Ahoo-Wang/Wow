@@ -45,6 +45,9 @@ interface DecideScope {
      * at, which a sourcing function reads back as `EventStream.commitTime`. A decision computes a deadline or an
      * expiry from it, not from the system clock, so a test sets it: the test DSL's time starts at its `start` and
      * moves with `advanceTime`. A decision decided again, after a version conflict, reads the clock anew.
+     *
+     * A creation command that declares when what it records occurred (`@OccurredAt`) is decided, and committed, at
+     * that time instead.
      */
     val now: Long
 

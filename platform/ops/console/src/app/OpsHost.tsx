@@ -19,7 +19,7 @@ import { consoleBindings } from "@/views/bindings.ts";
 import { engineMessages } from "@/views/messages.ts";
 import { useServices } from "./services.tsx";
 
-/** Wow's blue, the console's brand over the engine's porcelain preset. */
+/** Wow's blue, the console's brand over the engine's default look. */
 const BRAND = "oklch(0.546 0.245 262.881)";
 
 /**
@@ -38,7 +38,6 @@ export function OpsHost({ children }: { children: ReactNode }) {
       locale={locale}
       messages={engineMessages(locale)}
       bindings={bindings}
-      preset="porcelain"
       brand={BRAND}
       rememberColorMode="wow-ops-console.color-mode"
     >

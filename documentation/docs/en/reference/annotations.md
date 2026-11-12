@@ -114,6 +114,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `CLASS`, `FUNCTION`
 - Parameters: `value: String`
 
+## `@OccurredAt`
+
+[OccurredAt](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OccurredAt.kt): The property of a command that holds when what the command records occurred: a `Long` of epoch milliseconds the command's class declares, or `Long?`, whose null declares nothing.
+
+- Targets: `PROPERTY`, `FIELD`
+- Parameters: None.
+
 ## `@OnCommand`
 
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.

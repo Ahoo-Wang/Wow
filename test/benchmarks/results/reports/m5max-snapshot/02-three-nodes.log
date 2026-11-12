@@ -1,32 +1,11 @@
-[2026-11-10 23:26:34] up 3-N-postgres (attempt 1): --backend=postgres --nodes=3 --accounts=100000 --heap=1g
-[2026-11-10 23:27:33] sweep 3-N-postgres/e1-sweep
-[2026-11-10 23:32:18] sweep 3-N-postgres/e3-sweep
-[2026-11-10 23:39:28] sweep 3-N-postgres/e1-c1024
-[2026-11-10 23:41:06] sweep 3-N-postgres/e3-c1024
-[2026-11-10 23:42:34] up 3-N-mongo (attempt 1): --backend=mongo --nodes=3 --accounts=100000 --heap=1g
-[2026-11-10 23:43:39] sweep 3-N-mongo/e1-sweep
-[2026-11-10 23:48:25] 3-N-mongo/e1-sweep, attempt 1: void or disturbed: 64 clients: a container at 0.51 cores (chprobe 51.32%) | 4,096 clients: a container at 0.72 cores (chprobe 72.12%)
-[2026-11-10 23:48:25] waiting for a quiet host
-[2026-11-10 23:49:38] running it again; the attempt is in e1-sweep.void-1
-[2026-11-10 23:54:24] 3-N-mongo/e1-sweep, attempt 2: void or disturbed: 4,096 clients: a container at 0.51 cores (chprobe 51.44%)
-[2026-11-10 23:54:24] waiting for a quiet host
-[2026-11-10 23:56:01] running it again; the attempt is in e1-sweep.void-2
-[2026-11-11 00:00:47] 3-N-mongo/e1-sweep, attempt 3: void or disturbed: 64 clients: a container at 0.52 cores (chprobe 52.35%) | 256 clients: a container at 0.55 cores (chprobe 55.22%)
-[2026-11-11 00:00:47] left as it is after 2 reruns
-[2026-11-11 00:00:47] sweep 3-N-mongo/e3-sweep
-[2026-11-11 00:06:23] 3-N-mongo/e3-sweep, attempt 1: void or disturbed: 16 clients: a container at 0.54 cores (chprobe 53.85%) | 64 clients: a container at 0.56 cores (chprobe 55.62%) | 256 clients: a container at 0.51 cores (chprobe 51.33%) | 1,024 clients: a container at 0.56 cores (chprobe 56.12%)
-[2026-11-11 00:06:23] waiting for a quiet host
-[2026-11-11 00:07:36] running it again; the attempt is in e3-sweep.void-1
-[2026-11-11 00:12:31] sweep 3-N-mongo/e1-c1024
-[2026-11-11 00:13:54] sweep 3-N-mongo/e3-c1024
-[2026-11-11 00:15:14] 3-N-mongo/e3-c1024, attempt 1: void or disturbed: 1,024 clients: a container at 0.55 cores (chprobe 55.41%)
-[2026-11-11 00:15:14] waiting for a quiet host
-[2026-11-11 00:16:27] running it again; the attempt is in e3-c1024.void-1
-[2026-11-11 00:17:54] three nodes done
-[2026-11-11 00:33:32] moved the earlier 3-N-mongo to /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/replaced/20261111-003330/3-N-mongo
-[2026-11-11 00:33:32] up 3-N-mongo (attempt 1): --backend=mongo --nodes=3 --accounts=100000 --heap=1g
-[2026-11-11 00:34:42] sweep 3-N-mongo/e1-sweep
-[2026-11-11 00:39:28] sweep 3-N-mongo/e3-sweep
-[2026-11-11 00:44:54] sweep 3-N-mongo/e1-c1024
-[2026-11-11 00:46:16] sweep 3-N-mongo/e3-c1024
-[2026-11-11 00:47:41] three nodes done
+[2026-11-12 00:30:49] up 3-N-postgres (attempt 1): --backend=postgres --nodes=3 --accounts=100000 --heap=1g
+[2026-11-12 00:31:49] sweep 3-N-postgres/e1-sweep
+[2026-11-12 00:36:43] sweep 3-N-postgres/e3-sweep
+[2026-11-12 00:41:34] sweep 3-N-postgres/e1-c1024
+[2026-11-12 00:42:54] sweep 3-N-postgres/e3-c1024
+[2026-11-12 00:44:20] up 3-N-mongo (attempt 1): --backend=mongo --nodes=3 --accounts=100000 --heap=1g
+[2026-11-12 00:45:26] sweep 3-N-mongo/e1-sweep
+[2026-11-12 00:50:11] sweep 3-N-mongo/e3-sweep
+[2026-11-12 00:55:08] sweep 3-N-mongo/e1-c1024
+[2026-11-12 00:56:28] sweep 3-N-mongo/e3-c1024
+[2026-11-12 00:57:54] three nodes done

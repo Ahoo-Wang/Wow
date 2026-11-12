@@ -1,0 +1,16 @@
+# The OpenTelemetry Operator (versions.env: OTEL_OPERATOR_CHART_VERSION), in its own namespace, opentelemetry: it
+# injects the Java agent into every pod annotated instrumentation.opentelemetry.io/inject-java, as deploy/'s values ask,
+# from the Instrumentation of the pod's namespace (instrumentation.yaml). No cert-manager: the chart signs its webhook's
+# certificate itself. The drill runs its collector as a plain Deployment (collector.yaml), not through the operator.
+admissionWebhooks:
+  certManager:
+    enabled: false
+  autoGenerateCert:
+    enabled: true
+manager:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

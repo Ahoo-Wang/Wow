@@ -45,7 +45,6 @@ describe('useSaveCommands', () => {
   it('answers with no abilities when nothing is open', () => {
     const { engine } = engineWith();
     const { result } = renderHook(() => useSaveCommands(engine, null));
-
     expect(result.current.can).toEqual({
       save: false,
       saveAs: false,
@@ -66,6 +65,7 @@ describe('useSaveCommands', () => {
       hasErrors: false,
       audience: null,
       isNew: false,
+      applies: false,
       lastSavedAt: null,
     });
   });

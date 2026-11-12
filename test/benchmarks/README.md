@@ -10,6 +10,7 @@ V10 is measured against itself: each change against the code before it (alternat
 | --- | --- | --- |
 | `server/` | `:benchmark-server` | The account and transfer saga domain, its specs and its Spring Boot server, on V10 modules only (in the V10 region of the settings, checked by `:check`) |
 | `search-server/` | `:benchmark-search-server` | The benchmark server with an Elasticsearch store: its profile `search` puts the account's events on Elasticsearch, which starts the account's Elasticsearch sink, and the store's client counts the requests it sends (`search-requests`, logged once a second). Never in the benchmark server's own distribution: installed beside it (`server/build/install/benchmark-search-server`), so `bench.yml`'s server tarball carries it. For the `sink-es` suite and the search's measurements |
+| `subscriptions-server/` | `:benchmark-subscriptions-server` | The benchmark server with `benchmark.projections` no-op projections of the account, from 0 to 16: the cost of a subscription, measured locally at one, two and four against none ([its README](subscriptions-server/README.md)) |
 | `load/` | `:benchmark-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
 | `axon-server/` | none (a build of its own) | The industry comparison's server: the same domain on Axon Framework 4 with its JDBC event storage engine on PostgreSQL, no Axon Server, behind the routes E1 and E3 use. Axon Framework 4 runs on Spring Boot 3, Wow on 4, so it builds alone: `./gradlew -p test/benchmarks/axon-server installDist` |
 | `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up) |
@@ -75,7 +76,7 @@ Over the measured phase, beside the load:
 
 - every server JVM: CPU time and RSS from `ps` each second; heap and collections from one `jstat -gc -t <pid> 1000` per JVM (heap used max and average, the deltas of `YGC`, `YGCT`, `FGC`, `FGCT`, `CGC`, `CGCT`, `GCT`); `--jfr` adds a flight recording per server; the bytes it allocated (`totalThreadAllocatedBytes` of its `ThreadMXBean`, read over the Attach API at start and at stop, `Allocations.kt`), which the report divides by the run's operations as Alloc/op beside CPU ms/op;
 - every container: CPU and memory from one `docker stats` stream;
-- the stores: MongoDB's `serverStatus().opcounters`, PostgreSQL's `pg_stat_database` of `transfer`, and the end offsets of every Kafka topic, before and after, and their difference.
+- the stores: MongoDB's `serverStatus().opcounters` with its journal's syncs and their time (`wiredTiger.log`), PostgreSQL's `pg_stat_database` of `transfer` with `pg_stat_wal` (`track_wal_io_timing` gives the WAL's write and sync times), and the end offsets of every Kafka topic, before and after, and their difference; each store's counters also once a second over the phase (`postgresSeries`, `mongoSeries`).
 
 ## Running it
 

@@ -105,7 +105,8 @@ internal class PostgresAggregateReads(
         }
         return SnapshotTailReader { ref, earlier ->
             require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-            dispatcher.jdbc {
+            // Interruptible: the kernel gives up on the read past its timeout, and the read ends with it.
+            dispatcher.jdbcRead {
                 dataSource.autoCommitted { connection ->
                     val snapshot = shared(ref.type.name)
                     catalog.withTable(connection, ref.type) { table ->

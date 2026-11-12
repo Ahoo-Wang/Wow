@@ -10,7 +10,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 ## Checklist
 
 - The public port is reachable from the gateway alone.
-- The internal port, Kafka and the stores are never reachable from outside the platform: network policies, as in `deploy/`, let only the platform's own pods reach them.
+- The internal port, Kafka and the stores are never reachable from outside the platform: network policies let only the platform's own pods reach them. Those in `deploy/` cover MongoDB and migrate-data (`deploy/mongodb/networkpolicy.yaml`, `deploy/migrate-data/networkpolicy.yaml`), and the chart writes each service's own; Kafka's and the other stores' are the platform's to provide.
 - The gateway writes the forwarded headers itself and removes any `CoSec-Identity` a client sends; it never passes a client's on.
 - A caller resolver authenticates every request to the public port; CoSec provides one.
 - CoSec's documents are published, to a Redis that runs with `maxmemory-policy noeviction`, before the first request.

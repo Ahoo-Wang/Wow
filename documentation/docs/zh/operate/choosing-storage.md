@@ -1,6 +1,6 @@
 ---
 title: 选择存储
-description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可选，Elasticsearch 在主存储旁边做检索，ClickHouse 做分析；以及怎样安排一个聚合类型的数据。
+description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可选，Elasticsearch 在类型自己的快照存储旁或作为它做检索，ClickHouse 做分析；以及怎样安排一个聚合类型的数据。
 ---
 
 # 选择存储
@@ -13,7 +13,7 @@ description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可
 | --- | --- | --- |
 | MongoDB | 全部：日志、快照、定时器、检查点、租约、失败台账和预留；提供快照查询和 `events` 查询 | 默认选择。一个副本集，不够时分片（[MongoDB](./mongodb#recommended-topology)） |
 | PostgreSQL | 全部，与 MongoDB 相同 | 你运行的是 PostgreSQL 时，同样可选（[见下文](#when-postgresql)） |
-| Elasticsearch | 某个聚合类型快照的一份副本，以及通过 Sink 写入的事件 | 检索状态和事件：对标了 `@QueryText` 的字段做全文检索、多维度聚合（[Elasticsearch](./elasticsearch#full-text-search)） |
+| Elasticsearch | 某个聚合类型的快照，作供查询的副本或它唯一的快照存储，以及通过 Sink 写入的事件 | 检索状态和事件：对标了 `@QueryText` 的字段做全文检索、多维度聚合（[Elasticsearch](./elasticsearch#full-text-search)） |
 | ClickHouse | 不是存储：发布流的 Sink，以及数据集的数据仓库 | 跨服务的分析（[ClickHouse](./clickhouse)） |
 
 ## 安排聚合类型的数据 {#per-aggregate-type}
@@ -32,28 +32,41 @@ description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可
        store: main
      aggregates:
        "[shop.product]":
-         snapshot:
-           stores: [main, search]
          query:
            snapshot:
              store: search
    ```
 
-   它的快照查询（包括列表）读取 Elasticsearch。它的命令从 MongoDB 加载状态，状态读取（`GET …/state`，包括 `minVersion`）也读取 MongoDB，所以强一致读从不等待 Elasticsearch。
+   它的快照查询（包括列表）读取 Elasticsearch，后者为这些查询保存一份它的快照副本。它的命令从 MongoDB 加载状态，状态读取（`GET …/state`，包括 `minVersion`）也读取 MongoDB，所以强一致读从不等待 Elasticsearch。提交命令后重新加载这种列表的页面，等待 `queryable`（[Elasticsearch](./elasticsearch#reading-your-own-write)）。
 
 3. **只检索事件历史的类型**，快照留在原处，让它的 `events` 查询指向 Elasticsearch 存储：`query.events.store: search`。宿主会自行启动事件检索 Sink，不需要第二个快照存储。
 
 ## 不是双写 {#not-a-dual-write}
 
-Elasticsearch 上的副本不是在命令路径中与主存储并列写入的。命令提交到日志，每个快照存储由它自己的一个订阅从日志写入：默认快照存储（`wow.snapshot.stores` 的第一个，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`，各有自己的检查点。快照存储只保留它收到的最高版本，所以收到重复或迟到提交的存储，最终停在日志所说的位置。Elasticsearch 可能落后于主存储，但不会永久偏离它，需要时随时可以从日志重建（[重建与重放](./replay)）。
+Elasticsearch 上的副本不是在命令路径中与聚合自己的快照存储并列写入的。命令提交到日志，每个快照存储由它自己的一个订阅从日志写入：默认快照存储（`wow.snapshot.store`，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`，各有自己的检查点。快照存储只保留它收到的最高版本，所以收到重复或迟到提交的存储，最终停在日志所说的位置。Elasticsearch 可能落后于聚合自己的存储，但不会永久偏离它，需要时随时可以从日志重建（[重建与重放](./replay)）。
 
-## Elasticsearch 从不是日志，也从不是主存储 {#elasticsearch-is-never-the-log}
+## Elasticsearch 从不是日志 {#elasticsearch-is-never-the-log}
 
-- **近实时。** 写入在刷新之后才可检索：默认在索引的刷新间隔内（`refresh: none`），设为 `refresh: wait-for` 时在写入返回时。日志的尾读和命令的加载必须立即看到提交。
+- **近实时。** 写入在刷新之后才可检索：默认在索引的刷新间隔内（`refresh: none`），设为 `refresh: wait-for` 时在写入返回时。日志的尾读必须立即看到提交。按 ID 读取在写入返回时就看得到，检索要等刷新之后。
 - **没有事务。** 文档整体替换，由乐观并发保护；日志需要版本和请求上的唯一键，检索索引不维护这些。
 - **映射会增长。** 状态和事件的每个字段都会建立映射，所以映射随模型增长；映射必须改变的索引要重建，而不是迁移。
 
-因此宿主拒绝把 Elasticsearch 存储作为日志存储，也拒绝把它作为聚合类型的主快照存储或唯一的快照存储：命令从主存储加载状态，状态读取是对它的强一致读。副本用于它擅长的检索，主存储用于一切必须是最新的东西。
+因此宿主拒绝把 Elasticsearch 存储作为日志存储。它可以作聚合类型自己的快照存储，命令和状态读取按 ID 读它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。这时类型的状态只存一份，放在 MongoDB 日志旁，它的默认等待、列表和宕机都随 Elasticsearch。若要让 Elasticsearch 留在命令的路径之外，就保留数据库的快照存储再加一份副本：它宕机时只是检索变旧。
+
+### 唯一的存储，还是一份副本 {#only-store-or-copy}
+
+需要在 Elasticsearch 上检索状态的类型有两种安排，区别在于 Elasticsearch 的可用性对它的命令意味着什么：
+
+| | Elasticsearch 作类型唯一的快照存储 | 数据库的快照存储，外加 Elasticsearch 上的副本 |
+| --- | --- | --- |
+| 状态存几份 | 一份，在索引里 | 两份：数据库和索引各一份 |
+| 命令从哪里加载 | Elasticsearch（按 ID），以及日志的尾部 | 数据库 |
+| 默认等待（`snapshot`）何时结束 | 索引包含该提交时 | 数据库包含该提交时 |
+| 命令之后立即读列表 | 设 `refresh: wait-for` 时包含它，此时这个存储上各类型的每条命令都要等刷新；`refresh: none` 时可能读不到 | 调用方等待 `queryable` 且副本设 `refresh: wait-for` 时包含它；其他调用方保持数据库的延迟 |
+| Elasticsearch 宕机 | 在命令的路径上：节点未就绪，到达节点的命令照样提交但默认等待超时，状态读取失败 | 在命令的路径之外：检索在恢复前是旧的，命令、等待和状态读取照常 |
+| 索引拒绝某个状态 | 聚合被停放：没有更新的快照，它的等待失败 | 只是检索里没有它 |
+
+`refresh: wait-for` 的代价来自它的机制：每次写入索引都要等一次刷新才返回，所以止于它的每个等待都可能晚至多一个刷新间隔结束；写这个索引的订阅每个刷新间隔每条写入通道至多写一批。
 
 ## 代价 {#costs}
 

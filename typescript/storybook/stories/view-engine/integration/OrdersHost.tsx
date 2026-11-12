@@ -21,7 +21,7 @@ import {
   type ViewRouter,
 } from '@ahoo-wang/wow-view-engine/ui';
 // The engine's stylesheet, and the presets; a host that names one may
-// import it alone (`themes/porcelain.css`).
+// import it alone (`themes/contrast.css`).
 import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/themes.css';
 import { orderActions, type OrderCommands } from './orderActions.js';
@@ -73,9 +73,8 @@ export function OrdersHost({
       locale="zh-CN"
       messages={MESSAGES}
       bindings={bindings}
-      // The host follows the engine's preset; a host with a shadcn theme
+      // No `preset`: the engine's own look. A host with a shadcn theme
       // writes `tokenSource="host"` and imports `shadcn-bridge.css` instead.
-      preset="porcelain"
       // Light or dark on `<html>`: the system's until the reader picks.
       colorMode={colorMode}
       rememberColorMode="orders-app.color-mode"

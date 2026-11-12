@@ -201,6 +201,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '演进事件', link: 'event-evolution'},
                 {text: '归属与访问', link: 'ownership'},
                 {text: '唯一键', link: 'unique-keys'},
+                {text: '从其他系统导入', link: 'importing'},
             ],
         },
         {

@@ -1,13 +1,13 @@
-1794378882 [settle] 1s: node-1 0.02
-1794378883 [settle] 2s: node-1 0.01
-1794378884 [settle] 3s: node-1 0.02
-1794378884 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1794378925 [saturate] E1: concurrency=1 throughput=973.9/s p50=0ms errors={}
-1794378965 [saturate] E1: concurrency=4 throughput=1521.2/s p50=1ms errors={}
-1794379005 [saturate] E1: concurrency=16 throughput=5227.5/s p50=2ms errors={}
-1794379045 [saturate] E1: concurrency=64 throughput=10821.4/s p50=5ms errors={}
-1794379085 [saturate] E1: concurrency=256 throughput=15139.2/s p50=16ms errors={}
-1794379125 [saturate] E1: concurrency=1024 throughput=21373.1/s p50=46ms errors={}
-1794379165 [saturate] E1: concurrency=4096 throughput=33938.5/s p50=117ms errors={}
-1794379165 [saturate] saturation: 33938.5/s at concurrency 4096
-1794379165 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-sweep
+1794469225 [settle] 1s: node-1 0.03
+1794469226 [settle] 2s: node-1 0.02
+1794469227 [settle] 3s: node-1 0.02
+1794469227 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794469267 [saturate] E1: concurrency=1 throughput=776.3/s p50=0ms errors={}
+1794469307 [saturate] E1: concurrency=4 throughput=684.4/s p50=4ms errors={}
+1794469348 [saturate] E1: concurrency=16 throughput=2643.5/s p50=4ms errors={}
+1794469388 [saturate] E1: concurrency=64 throughput=9676.4/s p50=5ms errors={}
+1794469428 [saturate] E1: concurrency=256 throughput=16241.7/s p50=16ms errors={}
+1794469468 [saturate] E1: concurrency=1024 throughput=23030.1/s p50=48ms errors={}
+1794469508 [saturate] E1: concurrency=4096 throughput=37713.6/s p50=105ms errors={}
+1794469508 [saturate] saturation: 37713.6/s at concurrency 4096
+1794469508 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/1-S-postgres/e1-sweep

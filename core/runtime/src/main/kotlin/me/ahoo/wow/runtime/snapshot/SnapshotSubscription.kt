@@ -67,8 +67,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *
  * - **Snapshot targets**: the subscription writes one [store], the target it is [name]d after
  *   ([SnapshotTargets.subscriptionOf]); a context with several targets runs one per store, each with its own
- *   checkpoints. A wait's `snapshot` hop of an aggregate is answered by the subscription of its type's primary target
- *   ([answers]); a subscription that backfills a target stops writing a type once it is no longer [active] for it.
+ *   checkpoints. A wait's `snapshot` hop of an aggregate is answered by the subscription of its type's own store, its
+ *   `queryable` hop by the one of the store its queries read ([answers]); a subscription that backfills a target stops
+ *   writing a type once it is no longer [active] for it.
  * - **State revisions**: the snapshot carries the model's state revision; the store never lets it
  *   replace one of a higher revision, and marks that one stale instead, for the rebuild.
  *
@@ -88,8 +89,11 @@ class SnapshotSubscription(
     capacity: Int = SharedStateOptions.DEFAULT_CAPACITY,
     /** The subscription's name, and its reader's: `wow.snapshot` unless it writes another target than the default. */
     val name: String = SystemSubscriptions.SNAPSHOT,
-    /** Whether the subscription answers the `snapshot` hop of an aggregate of a type: it writes the primary target. */
-    answers: (AggregateType) -> Boolean = { true },
+    /**
+     * The hops of a wait the subscription answers for an aggregate of a type ([hopsOf]): `snapshot` where it writes the
+     * type's own store, `queryable` where it writes the store the type's queries read; both for a store alone.
+     */
+    answers: (AggregateType) -> Set<String> = { OWN_AND_QUERIED },
     /** Whether the subscription still writes the snapshots of a type: a backfill stops once its target caught up. */
     private val active: (AggregateType) -> Boolean = { true },
     /** How many snapshots one write of a partition holds at most ([SnapshotOptions.writeBatch]). */
@@ -124,7 +128,7 @@ class SnapshotSubscription(
         SubscriptionFilter(context, this.models.keys.mapTo(LinkedHashSet()) { it.name }),
         FunctionKind.SYSTEM,
         EntryDecoder.stateEvents(reader, decodeEvents = false),
-        answers = { type -> SystemSubscriptions.SNAPSHOT.takeIf { answers(type) } },
+        answers = answers,
         handler = ::write,
     )
 
@@ -211,11 +215,23 @@ class SnapshotSubscription(
         return FirstCommit.of(stream)
     }
 
-    private companion object {
+    internal companion object {
         /**
          * The snapshot writers a subscription runs at once: each batches the saves of a quarter
          * of the partitions, so a write commits several partitions' snapshots and four writes keep up with a node.
          */
-        const val WRITE_LANES = 4
+        private const val WRITE_LANES = 4
+
+        private val OWN = setOf(SystemSubscriptions.SNAPSHOT)
+        private val QUERIED = setOf(SystemSubscriptions.QUERYABLE)
+        private val OWN_AND_QUERIED = OWN + QUERIED
+
+        /** The hops a snapshot subscription answers for a type whose [own] store it writes, or whose [queried] one. */
+        fun hopsOf(own: Boolean, queried: Boolean): Set<String> = when {
+            own && queried -> OWN_AND_QUERIED
+            own -> OWN
+            queried -> QUERIED
+            else -> emptySet()
+        }
     }
 }

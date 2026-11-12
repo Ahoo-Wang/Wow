@@ -1,25 +1,25 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794382053	18.81	14.26	12.45	12	sysmond 6, bash 1, Stats 1	chprobe 4.15%	36	0	0.0	
-1794382066	14.79	13.60	12.24	4	claude 3, Stats 1, configd 0	chprobe 5.18%	161	4	0.0	
-1794382078	13.13	13.28	12.14	3	claude 0, claude 0, claude 0	chprobe 1.53%	178	2	0.0	
-1794382090	11.15	12.84	12.00	14	Stats 7, configd 4, WindowServer 1	chprobe 1.62%	179	4	0.0	
-1794382102	9.74	12.48	11.89	6	Stats 2, launchd 1, configd 1	chprobe 1.81%	469	9	0.0	
-1794382114	9.87	12.38	11.86	6	sysmond 3, claude 2, Stats 0	chprobe 41.75%	466	8	0.0	
-1794382127	9.03	12.12	11.77	1	Stats 0, AppleCentauriAlpha 0, runningboardd 0	chprobe 5.51%	449	9	0.1	
-1794382139	9.46	12.10	11.77	1	java 0, java 0, claude 0	chprobe 2.14%	1005	16	0.0	
-1794382151	10.52	12.19	11.81	5	Stats 3, configd 2, WindowServer 1	chprobe 1.75%	594	10	0.0	
-1794382163	12.33	12.54	11.94	6	Stats 2, configd 2, WindowServer 1	chprobe 1.87%	417	6	0.0	
-1794382175	10.37	12.09	11.79	4	WindowServer 1, Shadowrocket 1, Stats 1	chprobe 1.99%	1263	20	0.1	
-1794382188	9.99	11.96	11.74	4	claude 2, claude 0, claude 0	chprobe 2.50%	1230	16	0.1	
-1794382200	11.93	12.30	11.87	10	Stats 4, configd 3, Claude Helper (Renderer) 1	chprobe 11.00%	1272	17	0.1	
-1794382211	12.25	12.37	11.90	3	Stats 1, claude 1, configd 1	chprobe 2.22%	1203	16	0.1	
-1794382223	18.10	13.63	12.35	7	sysmond 3, Shadowrocket 1, WindowServer 1	chprobe 1.92%	1372	21	0.1	
-1794382236	21.60	14.60	12.72	4	sysmond 3, claude 1, java 0	chprobe 1.87%	1387	22	0.1	
-1794382248	26.11	15.84	13.18	12	Stats 5, sysmond 3, configd 2	chprobe 41.66%	1436	22	0.1	
-1794382260	25.20	16.13	13.33	8	sysmond 3, Stats 2, configd 1	chprobe 1.77%	1526	28	0.1	
-1794382272	30.31	17.52	13.86	3	Stats 1, configd 0, Claude 0	chprobe 1.86%	1512	30	0.1	
-1794382285	33.83	18.95	14.43	1	Claude 0, java 0, claude 0	chprobe 20.81%	1483	28	0.1	
-1794382297	32.70	19.21	14.58	15	Stats 5, configd 3, claude 2	chprobe 37.89%	1548	14	0.1	
-1794382309	39.21	21.34	15.42	4	Stats 2, configd 1, WindowServer 0	chprobe 2.02%	1590	13	0.1	
-1794382321	35.42	21.13	15.42	4	Shadowrocket 1, WindowServer 1, claude 1	chprobe 1.98%	1574	15	0.1	
-1794382334	34.22	21.37	15.57	1	claude 0, Stats 0, java 0	chprobe 1.76%	1576	12	0.1	
+1794472309	20.30	13.88	11.81	16	sysmond 3, claude 3, bash 1		27	0	0.0	
+1794472321	16.64	13.38	11.67	22	Stats 9, configd 5, WindowServer 3		137	9	0.2	
+1794472333	14.47	13.02	11.56	19	Stats 4, UniversalControl 3, AppleCentauriAlpha 2		151	3	0.6	
+1794472346	12.80	12.71	11.47	6	Stats 2, configd 1, AppleCentauriAlpha 1		184	4	0.3	
+1794472358	11.15	12.34	11.36	4	AppleCentauriAlpha 1, claude 1, Stats 1		439	5	0.0	
+1794472370	11.38	12.36	11.38	7	Shadowrocket 3, WindowServer 1, wifip2pd 1		297	5	0.0	
+1794472382	9.84	11.97	11.26	11	Stats 4, sysmond 3, configd 2		479	8	0.0	
+1794472395	8.95	11.71	11.17	11	claude 4, Stats 2, configd 1		588	9	0.0	
+1794472407	10.74	11.97	11.27	7	claude 1, AppleCentauriAlpha 1, Stats 1		444	6	0.0	
+1794472419	9.87	11.74	11.20	9	sysmond 3, claude 1, AppleCentauriAlpha 1		586	9	0.0	
+1794472431	8.50	11.38	11.08	2	AppleCentauriAlpha 1, wifip2pd 0, ContinuityCaptureAgent 0		576	8	0.2	
+1794472443	10.32	11.65	11.18	47	Claude Helper (Renderer) 34, Stats 3, configd 2		1285	20	0.2	
+1794472456	16.90	13.00	11.66	13	UniversalControl 3, AppleCentauriAlpha 3, bluetoothd 1		1174	15	0.4	
+1794472468	16.13	13.02	11.69	5	AppleCentauriAlpha 1, UniversalControl 1, Stats 1		1202	17	0.2	
+1794472480	15.47	12.97	11.69	3	claude 1, AppleCentauriAlpha 1, claude 0		1390	22	0.2	
+1794472492	24.57	15.11	12.48	9	Stats 3, configd 2, launchd 2		1480	25	0.2	
+1794472505	28.94	16.33	12.94	9	AppleCentauriAlpha 2, UniversalControl 2, Stats 1		1508	24	0.2	
+1794472517	37.02	18.70	13.84	7	claude 4, AppleCentauriAlpha 1, wifip2pd 0		1489	28	0.2	
+1794472529	39.07	19.72	14.26	4	Shadowrocket 1, AppleCentauriAlpha 1, WindowServer 1		1554	27	0.2	
+1794472541	39.32	20.73	14.71	16	spotlightknowledged.updater 3, Stats 3, dasd 2		1484	28	0.3	
+1794472554	40.19	21.56	15.08	6	AppleCentauriAlpha 1, Stats 1, symptomsd 1		1465	14	0.2	
+1794472566	38.62	21.83	15.25	7	claude 3, AppleCentauriAlpha 1, claude 1		1489	16	0.3	
+1794472578	35.47	21.96	15.41	3	AppleCentauriAlpha 1, claude 1, wifip2pd 0		1376	13	0.2	
+1794472590	33.28	21.94	15.48	12	Stats 3, claude 2, claude 2		1450	14	0.2	

@@ -26,6 +26,8 @@ export const opsWait = {
   committed: (): Hop => wait.committed(OpsContract.NAME),
   /** Until the snapshot of `ops` holds the commit. */
   snapshot: (): Hop => wait.snapshot(OpsContract.NAME),
+  /** Until the store the snapshot queries of `ops` read holds the commit. */
+  queryable: (): Hop => wait.queryable(OpsContract.NAME),
   /** Until a subscription of `ops` handled the commit. */
   handled: (subscription: OpsSubscription): Hop => wait.handled(subscription, OpsContract.NAME),
 } as const;

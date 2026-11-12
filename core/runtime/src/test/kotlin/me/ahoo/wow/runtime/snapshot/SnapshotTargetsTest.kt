@@ -48,47 +48,53 @@ class SnapshotTargetsTest {
     fun `one store is every type's only target, written by the snapshot subscription`() {
         val targets = SnapshotTargets.single(a)
         targets.default.assert().isEqualTo(SnapshotTargets.DEFAULT_STORE)
-        targets.placementOf(order).assert().isEqualTo(SnapshotPlacement(listOf(SnapshotTargets.DEFAULT_STORE)))
+        targets.placementOf(order).assert().isEqualTo(SnapshotPlacement(SnapshotTargets.DEFAULT_STORE))
         targets.primary.assert().isSameAs(a)
         targets.primaryOf(order).assert().isSameAs(a)
         targets.subscriptionOf(SnapshotTargets.DEFAULT_STORE).assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
         targets.primarySubscriptionOf(order).assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
+        targets.querySubscriptionOf(order).assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
         targets.storesOf(listOf(order, cart)).assert()
             .isEqualTo(mapOf(SnapshotTargets.DEFAULT_STORE to setOf(order, cart)))
         targets.storesOf(emptyList()).assert().isEmpty()
     }
 
     @Test
-    fun `each type is written to its targets and read from its primary`(): Unit = runBlocking {
-        val targets = SnapshotTargets(
-            "a",
-            mapOf("a" to a, "b" to b),
-            mapOf(order to SnapshotPlacement(listOf("a", "b"), primary = "b")),
-        )
+    fun `each type is kept on its own store and copied to the one its queries read, each store by its subscription`():
+        Unit = runBlocking {
+        // `a`, the default store, is cart's own and order's copy: one subscription writes both.
+        val targets =
+            SnapshotTargets("a", mapOf("a" to a, "b" to b), mapOf(order to SnapshotPlacement("b", copy = "a")))
         targets.primaryOf(order).assert().isSameAs(b)
         targets.primaryOf(cart).assert().isSameAs(a)
         targets.subscriptionOf("b").assert().isEqualTo("wow.snapshot:b")
         targets.primarySubscriptionOf(order).assert().isEqualTo("wow.snapshot:b")
         targets.primarySubscriptionOf(cart).assert().isEqualTo("wow.snapshot")
+        targets.querySubscriptionOf(order).assert().isEqualTo("wow.snapshot")
+        targets.querySubscriptionOf(cart).assert().isEqualTo("wow.snapshot")
         targets.storesOf(listOf(order, cart)).assert().isEqualTo(mapOf("a" to setOf(order, cart), "b" to setOf(order)))
         targets.primary.save(snapshot(order, "o")).assert().isTrue()
         b.load(order.ref("tenant", "o")).assert().isNotNull()
         a.load(order.ref("tenant", "o")).assert().isNull()
-        val moved = SnapshotTargets("a", mapOf("a" to a, "b" to b), fallback = SnapshotPlacement(listOf("b")))
+        val moved = SnapshotTargets("a", mapOf("a" to a, "b" to b), fallback = SnapshotPlacement("b"))
         moved.primaryOf(cart).assert().isSameAs(b)
         moved.storesOf(listOf(cart)).assert().isEqualTo(mapOf("b" to setOf(cart)))
     }
 
     @Test
     fun `a placement and the targets name stores that exist`() {
-        assertThrows<IllegalArgumentException> { SnapshotPlacement(emptyList()) }
-        assertThrows<IllegalArgumentException> { SnapshotPlacement(listOf(" ")) }
-        assertThrows<IllegalArgumentException> { SnapshotPlacement(listOf("a", "a")) }
-        assertThrows<IllegalArgumentException> { SnapshotPlacement(listOf("a"), primary = "b") }
+        assertThrows<IllegalArgumentException> { SnapshotPlacement(" ") }
+        assertThrows<IllegalArgumentException> { SnapshotPlacement("a", copy = "a") }
+        assertThrows<IllegalArgumentException> { SnapshotPlacement("a", copy = " ") }
         assertThrows<IllegalArgumentException> { SnapshotTargets("x", mapOf("a" to a)) }
         assertThrows<IllegalArgumentException> {
-            SnapshotTargets("a", mapOf("a" to a), mapOf(order to SnapshotPlacement(listOf("a", "z"))))
+            SnapshotTargets("a", mapOf("a" to a), mapOf(order to SnapshotPlacement("a", copy = "z")))
         }
+        SnapshotPlacement("a", copy = "b").let {
+            it.targets.assert().containsExactly("a", "b")
+            it.query.assert().isEqualTo("b")
+        }
+        SnapshotPlacement("a").query.assert().isEqualTo("a")
     }
 
     @Test
@@ -110,7 +116,7 @@ class SnapshotTargetsTest {
     }
 
     @Test
-    fun `the snapshot hop is the primary target's subscription`(): Unit = runBlocking {
+    fun `the snapshot hop is the subscription of the type's own store, never its copy's`(): Unit = runBlocking {
         val handled = mutableListOf<String>()
         val runtime = object : SubscriptionDirectory {
             override fun kindOf(context: String, subscription: String): FunctionKind? =
@@ -121,11 +127,8 @@ class SnapshotTargetsTest {
                 return true
             }
         }
-        val targets = SnapshotTargets(
-            "a",
-            mapOf("a" to a, "b" to b),
-            mapOf(order to SnapshotPlacement(listOf("a", "b"), primary = "b")),
-        )
+        val targets =
+            SnapshotTargets("a", mapOf("a" to a, "b" to b), mapOf(order to SnapshotPlacement("b", copy = "a")))
         val hops = SnapshotHops(runtime, "shop", targets, setOf(order))
         hops.kindOf("shop", SystemSubscriptions.SNAPSHOT).assert().isEqualTo(FunctionKind.SYSTEM)
         hops.kindOf("other", SystemSubscriptions.SNAPSHOT).assert().isNull()
@@ -139,7 +142,18 @@ class SnapshotTargetsTest {
         hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(order)).assert().isTrue()
         hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(cart)).assert().isTrue()
         hops.hasHandled("projector", stream(order)).assert().isTrue()
-        handled.assert().containsExactly("wow.snapshot:b", SystemSubscriptions.SNAPSHOT, "projector")
+        // The store order's queries read is its copy, `a`, written by `wow.snapshot`; cart's queries read its own.
+        hops.hasHandled(SystemSubscriptions.QUERYABLE, stream(order)).assert().isTrue()
+        hops.hasHandled(SystemSubscriptions.QUERYABLE, stream(cart)).assert().isTrue()
+        hops.kindOf("shop", SystemSubscriptions.QUERYABLE).assert().isEqualTo(FunctionKind.SYSTEM)
+        hops.covers(SystemSubscriptions.QUERYABLE, order).assert().isTrue()
+        handled.assert().containsExactly(
+            "wow.snapshot:b",
+            SystemSubscriptions.SNAPSHOT,
+            "projector",
+            SystemSubscriptions.SNAPSHOT,
+            SystemSubscriptions.QUERYABLE,
+        )
     }
 
     private fun stream(type: AggregateType) = EventStreamRecord(

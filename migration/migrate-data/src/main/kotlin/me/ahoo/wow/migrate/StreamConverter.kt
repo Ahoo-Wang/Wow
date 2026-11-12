@@ -37,7 +37,11 @@ import tools.jackson.databind.node.ObjectNode
  *   none. A root command's stream is caused by its command, as V10 records it; a derived command's stream records only
  *   the chain's root in 9.x, so its causation id is the root too.
  * - **Command type.** The mapped V10 name of the 9.x `upstream_name`.
- * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped.
+ * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped. The stream's commit
+ *   time is the 9.x `createTime`, when it occurred, and the time it is written is the import's ([clock]), kept as
+ *   `wow.commit.written-at` ([EventStreamRecord.WRITTEN_AT]) when the two differ, as V10 keeps it for any commit whose
+ *   time is earlier than its writing: a timer the stream sets, a subscription's start at an instant and the lag
+ *   count from when it was written.
  * - **Events.** Each event by its mapping: renamed to its full V10 name at the mapped revision, its top-level fields
  *   renamed as listed, its payload otherwise as stored (numbers exact); a retired event is written as stored under
  *   its retired name, which the V10 aggregate skips when it loads; a dropped event is left out. A mapping's
@@ -48,7 +52,17 @@ import tools.jackson.databind.node.ObjectNode
  * since, or a stream is malformed. A stream of an aggregate id V10 refuses ([RefusedIds]) fails too, naming the entry
  * that excludes it.
  */
-internal class StreamConverter(private val plan: MigrationPlan) {
+internal class StreamConverter(
+    private val plan: MigrationPlan,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+    /** The headers the map lists, renamed, and when the stream is written ([clock]) when that is after it occurred. */
+    private fun headersOf(aggregate: AggregatePlan, stream: NineXStream): Map<String, String> {
+        val mapped = aggregate.headers.mapNotNull { (from, to) -> stream.header[from]?.let { to to it } }.toMap()
+        val writtenAt = clock()
+        return if (writtenAt == stream.createTime) mapped else mapped + (EventStreamRecord.WRITTEN_AT to "$writtenAt")
+    }
+
     fun convert(stream: NineXStream): EventStreamRecord {
         val aggregate = plan.of(stream.aggregate)
         val subject = subjectOf(stream)
@@ -75,7 +89,7 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             events = events,
             scope = aggregate.ownership.scopeOf(scopeOf(stream, events)),
             causation = Causation(correlationId, correlationId),
-            headers = aggregate.headers.mapNotNull { (from, to) -> stream.header[from]?.let { to to it } }.toMap(),
+            headers = headersOf(aggregate, stream),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
         )
     }

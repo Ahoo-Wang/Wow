@@ -135,6 +135,8 @@ export interface CommandManifest {
   readonly transformsTo?: readonly string[];
   /** The property of the command's body that holds its aggregate's id. */
   readonly idProperty?: string;
+  /** The property of the creation command's body that declares when what it records happened, epoch milliseconds: the creating commit's time (@OccurredAt). */
+  readonly occurredAtProperty?: string;
   readonly description?: string;
 }
 

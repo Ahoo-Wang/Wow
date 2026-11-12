@@ -1,0 +1,13 @@
+## 04-mongo-store-cost.sh 2026-11-11T23:16:20-0800
+commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36
+changed paths: 0
+machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
+macOS: 27.2 (26B123)
+engine: OrbStack 2.2.5 (2020500)
+docker: 29.8.2, 16 CPUs, 33670660096 bytes
+jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
+allowed JVMs (pid, %cpu, rss KB, started, command): 10510 10555 64878 94957
+  10510   0.1 3626272 Wed Nov 11 23:13:33 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+  10555   0.0 2685216 Wed Nov 11 23:13:42 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
+  64878   0.0 4610288 Wed Nov 11 20:01:25 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
+  94957   0.1 2309504 Wed Nov 11 21:36:27 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv

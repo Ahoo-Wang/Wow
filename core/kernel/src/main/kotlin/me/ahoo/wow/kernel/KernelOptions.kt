@@ -29,7 +29,11 @@ import kotlin.time.Duration.Companion.seconds
  *   looking their request id up (0 looks every one up);
  * - [maxReplay]: the most streams a read of a state at a version folds ([Kernel.stateAt]): a state further from its
  *   snapshot, or from version 1 without one, is refused with [ReplayLimitExceededException], which names the
- *   aggregate, instead of replaying a long history on one read.
+ *   aggregate, instead of replaying a long history on one read;
+ * - [snapshotLoadTimeout]: how long a cache miss waits for its snapshot
+ *   ([SnapshotStore.load][me.ahoo.wow.spi.snapshot.SnapshotStore.load], or the one-round-trip read of the snapshot with
+ *   its tail) before it takes it as failed and replays the log: a snapshot is only a cache, so a store that stops
+ *   answering costs a replay, not the command's wait.
  *
  * Fields may be added: construct it with named arguments; the constructor is internal to Wow.
  */
@@ -40,12 +44,14 @@ class KernelOptions @InternalWowApi constructor(
     val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     val recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS,
     val maxReplay: Int = DEFAULT_MAX_REPLAY,
+    val snapshotLoadTimeout: Duration = DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
         require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
         require(maxReplay >= 1) { "A replay folds at least one stream." }
+        require(snapshotLoadTimeout.isPositive()) { "A snapshot load's timeout is positive." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -56,15 +62,30 @@ class KernelOptions @InternalWowApi constructor(
     override fun toString(): String =
         "KernelOptions(maxAttempts=$maxAttempts, verifyDecidePurity=$verifyDecidePurity, " +
             "reservationTtl=$reservationTtl, maxEarlyWait=$maxEarlyWait, recentRequests=$recentRequests, " +
-            "maxReplay=$maxReplay)"
+            "maxReplay=$maxReplay, snapshotLoadTimeout=$snapshotLoadTimeout)"
 
     private fun valueFields(): List<Any?> =
-        listOf(maxAttempts, verifyDecidePurity, reservationTtl, maxEarlyWait, recentRequests, maxReplay)
+        listOf(
+            maxAttempts,
+            verifyDecidePurity,
+            reservationTtl,
+            maxEarlyWait,
+            recentRequests,
+            maxReplay,
+            snapshotLoadTimeout
+        )
 
     companion object {
         const val DEFAULT_MAX_ATTEMPTS: Int = 3
         val DEFAULT_RESERVATION_TTL: Duration = 30.seconds
         val DEFAULT_MAX_EARLY_WAIT: Duration = 5.seconds
+
+        /**
+         * How long a cache miss waits for its snapshot by default: far above a healthy read by key, and with the replay
+         * and the append still inside the default wait (10 seconds), so a command whose snapshot store is down still
+         * answers at its commit.
+         */
+        val DEFAULT_SNAPSHOT_LOAD_TIMEOUT: Duration = 2.seconds
 
         /**
          * The most streams a read of a state at a version folds by default: a long history read whole on one request

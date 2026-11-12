@@ -549,9 +549,15 @@
     "description" : "A prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a cluster several services or environments share; none when not set.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider"
   }, {
+    "name" : "wow.elasticsearch.operation-timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : "PT30S"
+  }, {
     "name" : "wow.elasticsearch.refresh",
     "type" : "me.ahoo.wow.elasticsearch.ElasticsearchRefresh",
-    "description" : "When a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, which only an in-process caller that waits on the store's own snapshot subscription in code can rely on) or immediate (an immediate refresh, for tests).",
+    "description" : "When a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests).",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "none"
   }, {
@@ -1309,16 +1315,17 @@
     "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
     "sourceType" : "me.ahoo.wow.spring.boot.node.SharedStatesProperties"
   }, {
+    "name" : "wow.snapshot.load-timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a command's cache miss waits for its snapshot before it takes the load as failed and replays the log, counted in `wow.store.fallbacks` as `timed-out`: a snapshot is only a cache, so a store that stops answering costs a replay, not the command's wait. Below `wow.wait.default-timeout`, so such a command still answers at its commit.",
+    "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotProperties",
+    "defaultValue" : "PT2S"
+  }, {
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",
     "description" : "How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks.",
     "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotProperties",
     "defaultValue" : "PT5S"
-  }, {
-    "name" : "wow.snapshot.primary",
-    "type" : "java.lang.String",
-    "description" : "The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotProperties"
   }, {
     "name" : "wow.snapshot.rebuild.max-pages",
     "type" : "java.lang.Integer",
@@ -1332,9 +1339,9 @@
     "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotRebuildProperties",
     "defaultValue" : 100
   }, {
-    "name" : "wow.snapshot.stores",
-    "type" : "java.util.List<java.lang.String>",
-    "description" : "The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`.",
+    "name" : "wow.snapshot.store",
+    "type" : "java.lang.String",
+    "description" : "The store of `wow.stores` every aggregate's snapshots are kept on, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.store` names another; `wow.log.store` when not set. Its built-in subscription is `wow.snapshot`. The write side, the state reads and the snapshot queries read it, unless an aggregate's `query.snapshot.store` names another, which then keeps a copy for its queries.",
     "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotProperties"
   }, {
     "name" : "wow.snapshot.write-batch",

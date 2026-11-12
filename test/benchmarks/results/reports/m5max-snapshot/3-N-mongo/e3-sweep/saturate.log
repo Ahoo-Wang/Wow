@@ -1,45 +1,17 @@
-1794386369 [settle] 1s: node-1 1.76, node-2 2.89, node-3 3.05
-1794386370 [settle] 2s: node-1 1.92, node-2 2.39, node-3 3.77
-1794386371 [settle] 3s: node-1 2.29, node-2 1.89, node-3 3.65
-1794386372 [settle] 4s: node-1 2.30, node-2 2.34, node-3 3.77
-1794386374 [settle] 5s: node-1 3.20, node-2 1.19, node-3 4.14
-1794386375 [settle] 6s: node-1 2.93, node-2 1.42, node-3 3.70
-1794386376 [settle] 7s: node-1 1.42, node-2 0.72, node-3 3.23
-1794386377 [settle] 8s: node-1 0.25, node-2 0.74, node-3 1.69
-1794386378 [settle] 9s: node-1 0.08, node-2 0.99, node-3 1.70
-1794386379 [settle] 10s: node-1 0.05, node-2 1.81, node-3 2.98
-1794386380 [settle] 11s: node-1 0.04, node-2 1.26, node-3 2.98
-1794386381 [settle] 12s: node-1 0.03, node-2 0.88, node-3 3.21
-1794386382 [settle] 13s: node-1 0.03, node-2 1.39, node-3 3.06
-1794386383 [settle] 14s: node-1 0.01, node-2 0.30, node-3 4.01
-1794386384 [settle] 15s: node-1 0.02, node-2 0.01, node-3 3.07
-1794386385 [settle] 16s: node-1 0.01, node-2 0.02, node-3 4.86
-1794386386 [settle] 17s: node-1 0.02, node-2 0.02, node-3 5.21
-1794386387 [settle] 18s: node-1 0.01, node-2 0.29, node-3 5.36
-1794386388 [settle] 19s: node-1 0.02, node-2 0.01, node-3 5.64
-1794386389 [settle] 20s: node-1 0.01, node-2 0.20, node-3 5.86
-1794386390 [settle] 21s: node-1 0.02, node-2 0.01, node-3 5.45
-1794386391 [settle] 22s: node-1 0.01, node-2 0.01, node-3 5.61
-1794386392 [settle] 23s: node-1 0.02, node-2 0.02, node-3 4.27
-1794386393 [settle] 24s: node-1 0.02, node-2 0.01, node-3 3.53
-1794386394 [settle] 25s: node-1 0.01, node-2 0.01, node-3 4.61
-1794386395 [settle] 26s: node-1 0.01, node-2 0.02, node-3 3.00
-1794386396 [settle] 27s: node-1 0.01, node-2 0.01, node-3 3.04
-1794386397 [settle] 28s: node-1 0.01, node-2 0.01, node-3 2.53
-1794386398 [settle] 29s: node-1 0.02, node-2 0.01, node-3 2.81
-1794386399 [settle] 30s: node-1 0.01, node-2 0.01, node-3 2.39
-1794386400 [settle] 31s: node-1 0.01, node-2 0.01, node-3 1.67
-1794386401 [settle] 32s: node-1 0.02, node-2 0.02, node-3 0.71
-1794386402 [settle] 33s: node-1 0.02, node-2 0.01, node-3 0.02
-1794386403 [settle] 34s: node-1 0.03, node-2 0.02, node-3 0.02
-1794386404 [settle] 35s: node-1 0.03, node-2 0.01, node-3 0.17
-1794386404 [settle] quiet after 36s (below 0.25 cores for 3 s in a row)
-1794386445 [saturate] E3: concurrency=1 throughput=164.9/s p50=5ms errors={}
-1794386485 [saturate] E3: concurrency=4 throughput=380.5/s p50=8ms errors={}
-1794386525 [saturate] E3: concurrency=16 throughput=1464.3/s p50=10ms errors={}
-1794386565 [saturate] E3: concurrency=64 throughput=2879.8/s p50=20ms errors={}
-1794386605 [saturate] E3: concurrency=256 throughput=4871.1/s p50=50ms errors={}
-1794386645 [saturate] E3: concurrency=1024 throughput=5332.2/s p50=150ms errors={}
-1794386693 [saturate] E3: concurrency=4096 throughput=2358.7/s p50=321ms errors={http-504-wow.wait.timeout=3447}
-1794386693 [saturate] saturation: 5332.2/s at concurrency 1024
-1794386694 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-rc/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e3-sweep
+1794473413 [settle] 1s: node-1 0.04, node-2 0.01, node-3 0.43
+1794473414 [settle] 2s: node-1 0.02, node-2 0.01, node-3 0.52
+1794473415 [settle] 3s: node-1 0.02, node-2 0.01, node-3 0.05
+1794473416 [settle] 4s: node-1 0.02, node-2 0.01, node-3 0.56
+1794473417 [settle] 5s: node-1 0.01, node-2 0.01, node-3 0.03
+1794473418 [settle] 6s: node-1 0.01, node-2 0.02, node-3 0.02
+1794473419 [settle] 7s: node-1 0.02, node-2 0.01, node-3 0.02
+1794473419 [settle] quiet after 7s (below 0.25 cores for 3 s in a row)
+1794473459 [saturate] E3: concurrency=1 throughput=155.0/s p50=5ms errors={}
+1794473499 [saturate] E3: concurrency=4 throughput=530.2/s p50=6ms errors={}
+1794473539 [saturate] E3: concurrency=16 throughput=1150.2/s p50=11ms errors={}
+1794473579 [saturate] E3: concurrency=64 throughput=2885.8/s p50=20ms errors={}
+1794473619 [saturate] E3: concurrency=256 throughput=4894.1/s p50=49ms errors={}
+1794473660 [saturate] E3: concurrency=1024 throughput=5380.1/s p50=149ms errors={}
+1794473708 [saturate] E3: concurrency=4096 throughput=2495.1/s p50=1277ms errors={}
+1794473708 [saturate] saturation: 5380.1/s at concurrency 1024
+1794473708 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e3-sweep

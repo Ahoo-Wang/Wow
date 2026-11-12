@@ -131,7 +131,6 @@ const engine = new ViewEngine({
   router={useReactRouter()}
   locale={locale}
   messages={consoleText}
-  preset="porcelain"
   bindings={[
     bind(EXECUTION_FAILED, {
       route: view => withView('/executions', view),
@@ -165,10 +164,10 @@ const engine = new ViewEngine({
 
 改为两条路，宿主第一步只做一个选择，都在 **ViewHost** 上写：
 
-| 路             | 适合                                  | 写法                                             | 引擎做                                                                                                      |
-| -------------- | ------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **引擎跟宿主** | 已有 shadcn 主题（Tailwind v4）的宿主 | **tokenSource="host"**                           | 等同今天的 `shadcn-bridge.css`：预设层读宿主的同名变量；`input`、`ring`、状态色与图表色仍用本包的（对比度） |
-| **宿主跟引擎** | 没有主题、或愿意用引擎主题的宿主      | **preset="porcelain"**，可加 **brand="#1d4ed8"** | 预设与品牌；宿主自己的外壳挂 `fve-tokens` 拿到同一套 shadcn 名（`--background`、`--primary`…）              |
+| 路             | 适合                                  | 写法                                            | 引擎做                                                                                                      |
+| -------------- | ------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **引擎跟宿主** | 已有 shadcn 主题（Tailwind v4）的宿主 | **tokenSource="host"**                          | 等同今天的 `shadcn-bridge.css`：预设层读宿主的同名变量；`input`、`ring`、状态色与图表色仍用本包的（对比度） |
+| **宿主跟引擎** | 没有主题、或愿意用引擎主题的宿主      | **preset="contrast"**，可加 **brand="#1d4ed8"** | 预设与品牌；宿主自己的外壳挂 `fve-tokens` 拿到同一套 shadcn 名（`--background`、`--primary`…）              |
 
 - **明暗归 ViewHost**：**colorMode**（`system`／`light`／`dark`，可选记住读者的选择）写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统变化；控制台的明暗切换删去。面上的 `theme` 仍可把某一块钉在一种模式。
 - **进阶不挡路**：逐个 `--fve-*` 覆盖、`tokens`、品牌边界、密度、涨跌色与 `theme-check` 照旧，挪到文档站的进阶页；README 的主题一节压成约 30 行，只讲两条路与明暗。

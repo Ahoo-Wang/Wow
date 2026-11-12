@@ -73,6 +73,7 @@ plan := hop (">" hop)*
 hop  := "accepted" ["(" context ")"]
       | "committed" ["(" context ")"]
       | "snapshot" ["(" context ")"]
+      | "queryable" ["(" context ")"]
       | "handled(" [context "/"] subscription ")"
 ```
 
@@ -81,6 +82,7 @@ hop  := "accepted" ["(" context ")"]
 | `accepted` | The command passed admission; durable only for a command routed through Kafka |
 | `committed` | Its events are appended, or it was settled without appending |
 | `snapshot` | The snapshot holds the commit |
+| `queryable` | The store the aggregate's snapshot queries read holds the commit: its copy where its queries read another store (`query.snapshot.store`), else the same as `snapshot` |
 | `handled(sub)` | The subscription `sub`, `processor.function`, handled the commit |
 
 A hop without a context is in the command's context. After a saga's `handled` hop, the following hops apply to the commands the saga derived, in their contexts. A plan has at most `wow.wait.max-hops` (16) hops. A hop of a context the node has no Manifest of is checked where the chain arrives, unless `wow.wait.unknown-contexts: reject` refuses it with `wow.wait.invalid`.

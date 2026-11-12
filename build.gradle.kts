@@ -77,7 +77,8 @@ val codeCoverageReportProject = project(":code-coverage-report")
 // of the blue-green migration rehearsal (roadmap 8c.1, test/migration-rehearsal/) is such an application too: the 9.x
 // example ported, which its workflow drives against the 9.x one (migration-rehearsal.yml).
 val e2eBenchmarkProjects = includedProjects(
-    ":benchmark-server", ":benchmark-search-server", ":benchmark-load", ":migration-rehearsal",
+    ":benchmark-server", ":benchmark-search-server", ":benchmark-subscriptions-server", ":benchmark-load",
+    ":migration-rehearsal",
 )
 // The modules (documentation/designs/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (Wow's dependency rules), :routing-spike (spike H2), :lease-spike
@@ -91,7 +92,8 @@ val moduleProjects = listOf(
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike", "lease-spike", "benchmark-server", "benchmark-search-server", "migration-rehearsal", "spi-consumer",
+    "routing-spike", "lease-spike", "benchmark-server", "benchmark-search-server", "benchmark-subscriptions-server",
+    "migration-rehearsal", "spi-consumer",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The contract modules without a third-party runtime dependency of their own (R5.C-4, G8): they import no platform
@@ -121,8 +123,8 @@ val releaseProjects = publishedLibraries + bomProject
 // they reach past the public API.
 val userProjects = exampleProjects + includedProjects(
     ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
-    ":analytics-catalog-server", ":architecture", ":benchmark-server", ":benchmark-search-server", ":migration-rehearsal",
-    ":spi-consumer",
+    ":analytics-catalog-server", ":architecture", ":benchmark-server", ":benchmark-search-server",
+    ":benchmark-subscriptions-server", ":migration-rehearsal", ":spi-consumer",
 )
 
 // D87: a project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
@@ -143,8 +145,8 @@ val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBe
 // What the BOM constrains: exactly the libraries a 10.x release publishes.
 val bomConstrainedProjects = publishedLibraries
 val isInCI = !System.getenv("CI").isNullOrEmpty()
-// The JDK the tests run on, when not the toolchain's: off pull requests CI runs them on Temurin 25 too
-// (`-Pwow.test.java=25`; D29 tests on 21 and 25, D368 recommends 25), while the toolchain still compiles for 21.
+// The JDK the tests run on, when not the toolchain's: CI runs them on Temurin 25 (`-Pwow.test.java=25`; D368 runs
+// Wow on 25), and off pull requests on the toolchain's 21 too (D29), while the toolchain still compiles for 21.
 val testJava = providers.gradleProperty("wow.test.java").orNull
 ext.set("libraryProjects", libraryProjects)
 ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)

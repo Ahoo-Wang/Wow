@@ -58,6 +58,7 @@ public final class me/ahoo/wow/manifest/CommandManifest {
 	public final fun getInternal ()Z
 	public final fun getMounted ()Z
 	public final fun getName ()Ljava/lang/String;
+	public final fun getOccurredAtProperty ()Ljava/lang/String;
 	public final fun getProduces ()Ljava/util/List;
 	public final fun getRoutes ()Ljava/util/List;
 	public final fun getSchema ()Ljava/lang/String;

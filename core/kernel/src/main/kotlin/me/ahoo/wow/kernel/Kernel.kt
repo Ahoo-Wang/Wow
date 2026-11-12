@@ -153,7 +153,8 @@ class Kernel(
     policies: WritePolicies = WritePolicies.NONE,
 ) {
     /** Where a state comes from on a cache miss, and how streams fold into it. */
-    private val source = StateSourcing(log, codec, observer, snapshots, snapshotTailReaders)
+    private val source =
+        StateSourcing(log, codec, observer, snapshots, snapshotTailReaders, options.snapshotLoadTimeout)
 
     /** The reads of a committed state at a version or a time, and of its history. */
     private val history = StateHistory(source, log, codec)
@@ -297,7 +298,8 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            val attempt = attemptOn(command, loaded, waitBeyondCommitted, encode)
+            val attempt =
+                attemptOn(command, loaded, waitBeyondCommitted, encode, declaredTimeOf(model, command, loaded))
             val prepared = try {
                 preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -322,6 +324,10 @@ class Kernel(
         }
         return CommandOutcome.Contended(maxAttempts)
     }
+
+    /** The time [command] declares it occurred (`@OccurredAt`) when it creates its aggregate, [loaded]; else null. */
+    private fun declaredTimeOf(model: AggregateModel<*>, command: Command<*>, loaded: CachedState): Long? =
+        if (loaded.version == 0) model.occurredAtOf(command.body) else null
 
     /**
      * The answer to [prepared], a decision on [loaded] that appends nothing, as [requests] gives it
@@ -359,7 +365,9 @@ class Kernel(
         loaded: CachedState,
         wait: WaitContext?,
         noinline encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
-    ): AttemptScope = scopes.openDue(command, loaded, wait, encode) ?: openLate(command, loaded, wait, encode)
+        occurredAt: Long?,
+    ): AttemptScope = scopes.openDue(command, loaded, wait, encode, occurredAt)
+        ?: openLate(command, loaded, wait, encode, occurredAt)
 
     /**
      * An attempt of [command] on [loaded], sent for a slot that the clock read for the attempt found not yet due (it
@@ -370,9 +378,10 @@ class Kernel(
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
+        occurredAt: Long?,
     ): AttemptScope {
         val due = checkNotNull(command.schedule) { "Only a scheduled command is opened late." }.due
-        return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()))
+        return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()), occurredAt)
     }
 
     /**
@@ -427,6 +436,13 @@ class Kernel(
      */
     fun <S : Any> snapshotState(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? =
         source.stateOf(model, snapshot)
+
+    /**
+     * [store] as a cache-miss load reads it: a snapshot that fails to load, or gives no answer within
+     * [KernelOptions.snapshotLoadTimeout], is none, so the state is replayed from the log; each failure is counted
+     * (`wow.store.fallbacks`), the first logged as a warning.
+     */
+    fun tolerant(store: SnapshotStore): SnapshotStore = TolerantSnapshots(store, observer, options.snapshotLoadTimeout)
 
     /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
     fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)

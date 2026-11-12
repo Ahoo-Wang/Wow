@@ -169,15 +169,25 @@ export interface TransferSpace {
 }
 
 /**
- * A new request id (`Wow-Request-Id`): a random UUID. The client generates
- * one for a command sent without; generate it first to retry with it however
- * the request fails.
+ * A new request id (`Wow-Request-Id`): a UUIDv7 (RFC 9562), the Unix
+ * milliseconds it was made in, then random bits. The client generates one
+ * for a command sent without; generate it first to retry with it however the
+ * request fails.
+ *
+ * The time comes first so that ids sort by when they were made, as the
+ * Kotlin client's do: the service keeps a unique index on the request id,
+ * and ids that arrive in order insert at its end rather than at a random
+ * page. Ids made within one millisecond share its prefix and order among
+ * themselves at random, which keeps them on the same page without a counter
+ * shared across calls.
+ *
+ * The random bits come from `crypto.getRandomValues`, which a page served
+ * over plain HTTP has too (it lacks only `randomUUID`), else from
+ * `Math.random`.
  */
 export function newRequestId(): string {
-  const crypto = globalThis.crypto;
-  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
-  // An insecure browser context has no randomUUID: a version 4 UUID by hand.
   const bytes = new Uint8Array(16);
+  const crypto = globalThis.crypto;
   if (typeof crypto?.getRandomValues === 'function') {
     crypto.getRandomValues(bytes);
   } else {
@@ -185,7 +195,13 @@ export function newRequestId(): string {
       bytes[index] = Math.floor(Math.random() * 256);
     }
   }
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  // The 48-bit timestamp, big-endian, in the first six bytes.
+  let time = Date.now();
+  for (let index = 5; index >= 0; index--) {
+    bytes[index] = time % 256;
+    time = Math.floor(time / 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x70;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
   return [

@@ -215,6 +215,8 @@ The sorting key is a row's identity: a row with the same key as an earlier one r
 | `_events` | `ReplacingMergeTree` | the month of `commit_time` | `(tenant_id, aggregate_id, version, sequence)` |
 | `wow_catalog` | `ReplacingMergeTree(written_at)` | none | `(database, table, fingerprint)` |
 
+An imported history keeps its original commit times, so its commits land in the months they were made, and one insert of the sink may span many of them: its inserts set `max_partitions_per_insert_block = 0`, so a batch is never refused for the number of months it touches.
+
 Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N`, `wow.clickhouse.sink.deduplication-window`. `...history.ttl` adds `TTL toDateTime(commit_time) + toIntervalSecond(<seconds>)` to `_state_events` and `_events`. Without the history there are `_state` and `_state_flat` alone.
 
 **`_state_events` and `_state`**, one row per commit; `_state` has every column but `headers` and `events`:

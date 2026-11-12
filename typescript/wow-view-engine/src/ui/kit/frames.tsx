@@ -207,8 +207,10 @@ export function ModeBar({
  *
  * The frame has no padding, no ground and no row gap of its own: the rows
  * have to run to its edge, so the space inside belongs to each part — the
- * toolbar is its first row, ruled off, at the column's 16px so its controls
- * line up with the conditions above; a callout landing under that keeps a
+ * toolbar is its first row, at the column's 16px so its controls
+ * line up with the conditions above, and with no rule under it: the
+ * table's header band is what parts it from the rows (2026-11-12 review; a
+ * rule there was the third line above the first row); a callout landing under that keeps a
  * margin of its own. Those two are `WorkbenchShell`'s own slots
  * (`toolbar`, `strips`), named the same whichever kind is open, so they
  * stay with the frame.
@@ -224,7 +226,7 @@ export function ModeBar({
  */
 export const resultFrameChrome =
   'fve:bg-content fve:border-border fve:-mx-4 fve:-mb-4 fve:overflow-hidden fve:border-t ' +
-  'fve:[&>[data-slot=result-toolbar]]:border-border fve:[&>[data-slot=result-toolbar]]:border-b fve:[&>[data-slot=result-toolbar]]:px-4 fve:[&>[data-slot=result-toolbar]]:py-2 ' +
+  'fve:[&>[data-slot=result-toolbar]]:px-4 fve:[&>[data-slot=result-toolbar]]:py-2 ' +
   'fve:[&>[data-slot=status-strip]]:mx-4 fve:[&>[data-slot=status-strip]]:my-3';
 
 /**

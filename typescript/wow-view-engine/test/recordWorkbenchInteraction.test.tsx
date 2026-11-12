@@ -69,7 +69,7 @@ describe('DataWorkbench interaction', () => {
     // Every saved view opens with its conditions folded away; the tests
     // below are about what is inside the fold.
     fireEvent.click(editorToggle());
-    await screen.findByRole('button', { name: /Apply/ });
+    await screen.findByRole('button', { name: 'Apply' });
     return harness;
   }
 
@@ -80,7 +80,7 @@ describe('DataWorkbench interaction', () => {
 
     const value = await screen.findByLabelText('Warehouse value');
     fireEvent.change(value, { target: { value: 'CN' } });
-    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
@@ -206,7 +206,7 @@ describe('DataWorkbench interaction', () => {
       target: { value: 'CN' },
     });
     const asked = vi.mocked(source.paged).mock.calls.length;
-    const apply = screen.getByRole('button', { name: /Apply/ });
+    const apply = screen.getByRole('button', { name: 'Apply' });
 
     fireEvent.click(screen.getByRole('button', { name: /Amount/ }));
 
@@ -280,7 +280,7 @@ describe('DataWorkbench interaction', () => {
     expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked);
     expect(
       screen
-        .getByRole('button', { name: /Apply/ })
+        .getByRole('button', { name: 'Apply' })
         .querySelector('[data-slot="pending-dot"]'),
     ).not.toBeNull();
   });
@@ -314,11 +314,11 @@ describe('DataWorkbench interaction', () => {
     const source = await openEmpty();
 
     fireEvent.click(editorToggle());
-    await screen.findByRole('button', { name: /Apply/ });
+    await screen.findByRole('button', { name: 'Apply' });
     await addConditions(['Warehouse']);
     const value = await screen.findByLabelText('Warehouse value');
     fireEvent.change(value, { target: { value: 'CN' } });
-    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
       expect(calls[calls.length - 1][0].filter).toMatchObject({
@@ -351,7 +351,7 @@ describe('DataWorkbench interaction', () => {
     await openEmpty();
     // A saved view opens folded, which is the whole reason this way out
     // exists: the question to change is not on screen.
-    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -359,7 +359,7 @@ describe('DataWorkbench interaction', () => {
       }),
     );
 
-    await screen.findByRole('button', { name: /Apply/ });
+    await screen.findByRole('button', { name: 'Apply' });
   });
 
   /**
@@ -451,7 +451,7 @@ describe('DataWorkbench interaction', () => {
       />,
     );
     fireEvent.click(await screen.findByRole('button', { name: /^Filter/ }));
-    const apply = await screen.findByRole('button', { name: /Apply/ });
+    const apply = await screen.findByRole('button', { name: 'Apply' });
 
     // The rows are still coming. Typing never re-queries and the next apply
     // supersedes the request in flight, so nothing here has to wait for it.

@@ -27,4 +27,6 @@ export const eshopCatalogWait = {
   committed: (): Hop => wait.committed(EshopCatalogContract.NAME),
   /** Until the snapshot of `eshop-catalog` holds the commit. */
   snapshot: (): Hop => wait.snapshot(EshopCatalogContract.NAME),
+  /** Until the store the snapshot queries of `eshop-catalog` read holds the commit. */
+  queryable: (): Hop => wait.queryable(EshopCatalogContract.NAME),
 } as const;

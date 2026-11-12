@@ -71,10 +71,12 @@ At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; 
 `auto` suits development and tests. In production, create the topics yourself and set `wow.ddl: validate` (or `wow.kafka.ddl` alone), which catches a missing one at the first start. For the eShop's ordering context:
 
 ```bash
-kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.commands --partitions 64
+kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.commands --partitions 64 --replication-factor 3 --config min.insync.replicas=2
 kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.receipts --partitions 64
 kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.order.state --partitions 64
 ```
+
+The command topic takes the replication factor and `min.insync.replicas` that [Durability](#durability) asks of it; the others may take the broker's defaults.
 
 No node ever creates a topic as a side effect of reading it, so a stream that does not exist yet is waited for, not created with the broker's default partition count. The broker may, though: with `auto.create.topics.enable` on, Kafka's default, a producer that writes to a missing topic creates it with the broker's default count, often one. A service that takes commands refuses to start on a command topic made so, and one that takes the ledger's commands alone runs without them and warns. Turn it off on the brokers, and let Wow create its topics (`ddl: auto`) or check them (`validate`).
 

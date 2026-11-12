@@ -28,6 +28,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import kotlin.time.Duration
 
 /**
  * Where the [Kernel] gets an aggregate's committed state, and how the log's streams fold into it. On a cache miss, the
@@ -42,12 +43,13 @@ internal class StateSourcing(
     private val observer: Observer,
     snapshots: SnapshotStore?,
     snapshotTailReaders: (AggregateType) -> SnapshotTailReader?,
+    loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
 ) {
-    /** The snapshots a cache miss reads with the log's tail, a failing load read as none. */
-    private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
+    /** The snapshots a cache miss reads with the log's tail, a failing load, or one late past [loadTimeout], as none. */
+    private val loading: SnapshotStore? = snapshots?.let { TolerantSnapshots(it, observer, loadTimeout) }
 
-    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can. */
-    private val snapshotTails = SnapshotTailReads(log, snapshotTailReaders, observer)
+    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can, within [loadTimeout]. */
+    private val snapshotTails = SnapshotTailReads(log, snapshotTailReaders, observer, loadTimeout)
 
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and

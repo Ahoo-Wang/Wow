@@ -107,6 +107,7 @@ The hops a plan is made of:
 | `wait.accepted()` | The command passed admission; the route answers 202 |
 | `wait.committed()` | Its events are in the log |
 | `wait.snapshot()` | The snapshot holds the commit, so a read sees it |
+| `wait.queryable()` | The store the aggregate's snapshot queries read holds the commit, so a list reloaded next sees it; later than `snapshot` where those queries read a copy |
 | `wait.handled('Processor.function')` | That subscription handled the commit |
 
 A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `contract.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
@@ -213,7 +214,7 @@ try {
 }
 ```
 
-A `WowProblemError`'s `retry` says what a retry may do, as the error catalog declares it for its code: `none`, a retry fails alike; `same-request`, send it again with the same request id; `new-request`, send it again as it is. `retryAfterMs` says how long to wait first (`Retry-After`). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
+A `WowProblemError`'s `retry` says what a retry may do, as the error catalog declares it for its code: `none`, a retry fails alike; `same-request`, send it again with the same request id; `new-request`, send it again as it is. `retryAfterMs` says how long to wait first (`Retry-After`). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, a UUIDv7 (`newRequestId`, ordered by the millisecond it was made in, as the Kotlin client's are), which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';

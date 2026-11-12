@@ -9,7 +9,7 @@ outline: deep
 在 Wow 中，你用普通的 Kotlin 编写领域：命令、事件、一个状态，以及一个做出决定的聚合。编译器把它们变成模型和契约，Spring Boot 宿主经 HTTP 提供它们，不需要写控制器或仓储。本页在一个 Gradle 模块中构建一个小的银行服务：一个 `account` 聚合、它的测试，以及一个把数据放在内存中的服务器。
 
 ::: warning 预发布版本
-Wow 10.0.0-beta.1 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
+Wow 10.0.0-beta.3 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
 :::
 
 ## 你需要什么 {#what-you-need}
@@ -45,7 +45,7 @@ plugins {
     kotlin("jvm") version "2.4.21"
     // The service in one module: KSP with wow-compiler, the BOM and the kernel of the same version, and the
     // service's Manifest.
-    id("me.ahoo.wow.service") version "10.0.0-beta.1"
+    id("me.ahoo.wow.service") version "10.0.0-beta.3"
     application
 }
 
@@ -75,7 +75,7 @@ tasks.test {
 }
 ```
 
-插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-beta.1`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
+插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-beta.3`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
 插件还会注册测试套件 `integrationTest`，供在容器里的真实存储上运行的测试使用：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。这个银行用不到它：它的测试都在内存中运行。
 

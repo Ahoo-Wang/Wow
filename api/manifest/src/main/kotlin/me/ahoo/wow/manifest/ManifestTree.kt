@@ -97,6 +97,7 @@ object ManifestTree {
         "internal" to command.internal.takeIf { it },
         "transformsTo" to command.transformsTo,
         "idProperty" to command.idProperty,
+        "occurredAtProperty" to command.occurredAtProperty,
         "description" to command.description,
     )
 
@@ -288,6 +289,7 @@ object ManifestTree {
         system = node.booleanOrNull("system") ?: false,
         idProperty = node.stringOrNull("idProperty"),
         internal = node.booleanOrNull("internal") ?: false,
+        occurredAtProperty = node.stringOrNull("occurredAtProperty"),
     )
 
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))

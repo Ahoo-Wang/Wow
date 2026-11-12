@@ -21,6 +21,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.log.EventStreamRecord
+import java.time.Instant
 
 // The kernel's answers that need nothing but the command and what the log holds: its refusals before and after
 // deciding and its answers to a request already committed.
@@ -63,6 +64,32 @@ internal fun admissible(
                 FrameworkCodes.AGGREGATE_VERSION_MISMATCH,
                 "${command.ref} is at version $version, not ${command.expectedVersion}.",
             )
+
+        else -> null
+    }
+}
+
+/**
+ * Why [attempt] of [command] cannot be written at the time its command declares (`@OccurredAt`): one before the
+ * epoch, or one the node's clock has not reached when the attempt opens ([AttemptScope.writtenAt]); null when it
+ * declares none, or one that has come.
+ */
+internal fun unwritable(command: Command<*>, attempt: AttemptScope): CommandOutcome? {
+    if (!attempt.declaresTime) return null
+    val writtenAt = attempt.writtenAt
+    val declared = attempt.now
+    val name = command.body.javaClass.simpleName
+    return when {
+        declared < 0 -> rejected(
+            FrameworkCodes.COMMAND_INVALID,
+            "$name declares it occurred at $declared, which is no epoch millisecond.",
+        )
+
+        declared > writtenAt -> rejected(
+            FrameworkCodes.COMMAND_INVALID,
+            "$name declares it occurred at ${Instant.ofEpochMilli(declared)} ($declared), after now " +
+                "(${Instant.ofEpochMilli(writtenAt)}): a time the node's clock has not reached.",
+        )
 
         else -> null
     }

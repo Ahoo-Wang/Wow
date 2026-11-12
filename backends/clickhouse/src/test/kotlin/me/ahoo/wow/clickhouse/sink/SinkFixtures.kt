@@ -71,13 +71,14 @@ object SinkFixtures {
         tenantId: String = "tenant-1",
         type: AggregateType = ORDER,
         operator: Operator? = Operator("alice", "tenant-0", actedElsewhere = true),
+        commitTime: Long = 1_760_000_000_123L + version,
     ): StateEventRecord = StateEventRecord(
         ref = type.ref(tenantId, id),
         version = version,
         commandId = "command-$version",
         requestId = "request-$version",
         commandType = "shop.order.PlaceOrder",
-        commitTime = 1_760_000_000_123L + version,
+        commitTime = commitTime,
         events = listOf(
             StateEventPayload(
                 "order_placed",

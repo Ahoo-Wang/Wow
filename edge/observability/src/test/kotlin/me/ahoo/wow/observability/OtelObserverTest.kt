@@ -373,8 +373,9 @@ class OtelObserverTest {
         telemetry.meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).counter().count().assert().isEqualTo(1.0)
         tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
-            .containsExactly("snapshot-rebuild", "snapshot-tail-read")
-        tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
+            .containsExactly("snapshot-load", "snapshot-rebuild", "snapshot-tail-read")
+        tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert()
+            .containsExactly("failed", "timed-out", "unsupported")
         tags(WowMetrics.FATAL_ERRORS.name, WowMetrics.KIND).assert().containsExactly(
             "append-queue",
             "executor",
@@ -466,6 +467,17 @@ class OtelObserverTest {
                 .tags(WowMetrics.SUBSCRIPTION_LAG.tagsOf(SALES, "Board.onOrder")).timer()!!
             lag.count().assert().isEqualTo(1L)
             lag.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(1_000.0)
+        }
+
+    @Test
+    fun `an imported commit's lag should count from when it was written, not from when it occurred`(): Unit =
+        runBlocking {
+            // Created years before in the system it came from, written 500 ms ago.
+            val imported = stream.copyWith(commitTime = 1_000, headers = mapOf(EventStreamRecord.WRITTEN_AT to "9500"))
+            observer.handling(SALES, "Board.onOrder", SALES, imported, emptyMap(), null).observe { }
+            val lag = telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name)
+                .tags(WowMetrics.SUBSCRIPTION_LAG.tagsOf(SALES, "Board.onOrder")).timer()!!
+            lag.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(500.0)
         }
 
     @Test

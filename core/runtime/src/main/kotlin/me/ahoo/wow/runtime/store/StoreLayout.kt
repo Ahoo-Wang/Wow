@@ -29,42 +29,45 @@ import me.ahoo.wow.spi.store.CoveredSnapshots
 import me.ahoo.wow.spi.store.Store
 
 /**
- * Where each aggregate's log and snapshots are: its log on the store [log] names
- * (`wow.log.store`) unless the logs map names another for its type (`wow.aggregates.[<context>.<aggregate>].log.store`);
- * its snapshots on the stores of its placement (`.snapshot.stores`, `.snapshot.primary`), else of [snapshotDefault]
- * (`wow.snapshot.stores`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store (the
- * first of `wow.snapshot.stores`) is each context's default one, whose subscription is `wow.snapshot`.
+ * Where each aggregate's log and snapshots are: its log on the store [log] names (`wow.log.store`) unless the
+ * logs map names another for its type (`wow.aggregates.[<context>.<aggregate>].log.store`); its snapshots on one store,
+ * the [snapshot] store (`wow.snapshot.store`, the [log] store by default) unless the snapshots map names another for its
+ * type (`.snapshot.store`); and, when its queries read another store (`.query.snapshot.store`), a copy of them there,
+ * which its own subscription writes. The [snapshot] store is each context's default one, whose subscription is
+ * `wow.snapshot`.
  */
 @InternalWowApi
 class StoreLayout(
     val log: String,
     val snapshot: String = log,
     private val logs: Map<AggregateType, String> = emptyMap(),
-    snapshots: Map<AggregateType, String> = emptyMap(),
-    private val placements: Map<AggregateType, SnapshotPlacement> =
-        snapshots.mapValues { SnapshotPlacement(listOf(it.value)) },
-    val snapshotDefault: SnapshotPlacement = SnapshotPlacement(listOf(snapshot)),
+    private val snapshots: Map<AggregateType, String> = emptyMap(),
+    private val copies: Map<AggregateType, String> = emptyMap(),
 ) {
     /** The store of [type]'s log: its log group. */
     fun logStoreOf(type: AggregateType): String = logs[type] ?: log
 
-    /** Where [type]'s snapshots are written. */
-    fun snapshotPlacementOf(type: AggregateType): SnapshotPlacement = placements[type] ?: snapshotDefault
+    /** Where [type]'s snapshots are written: its own store, and its copy when its queries read another. */
+    fun snapshotPlacementOf(type: AggregateType): SnapshotPlacement =
+        SnapshotPlacement(snapshotStoreOf(type), copies[type])
 
-    /** The store of [type]'s snapshots its snapshot queries read: its primary target. */
-    fun snapshotStoreOf(type: AggregateType): String = snapshotPlacementOf(type).primary
+    /** The store of [type]'s own snapshots, which its commands load from and its state reads read. */
+    fun snapshotStoreOf(type: AggregateType): String = snapshots[type] ?: snapshot
+
+    /** The store [type]'s snapshot queries read: its copy's when it has one, else its own. */
+    fun querySnapshotStoreOf(type: AggregateType): String = snapshotPlacementOf(type).query
 
     /** The stores some log is on. */
     val logStores: Set<String> get() = setOf(log) + logs.values
 
-    /** The stores some snapshots are on. */
-    val snapshotStores: Set<String>
-        get() = setOf(snapshot) + snapshotDefault.targets + placements.values.flatMap { it.targets }
+    /** The stores some snapshots are on, own or copied. */
+    val snapshotStores: Set<String> get() = setOf(snapshot) + snapshots.values + copies.values
 
     /**
      * The stores of [context] among [stores], each opened as this layout says: its default log group on [log], with
      * the checkpoints, leases, failure ledger, reservations and timers of that store; a log group per other store its
-     * aggregates' logs are on, with that store's reservations and timers; its snapshot targets, each type's as its placement says.
+     * aggregates' logs are on, with that store's reservations and timers; its snapshot targets, each type's own store
+     * and copy.
      */
     fun open(context: String, stores: Map<String, Store>, partitions: Int): ContextBackends {
         val default = stores.getValue(log)
@@ -82,18 +85,14 @@ class StoreLayout(
                     store.reservations,
                 )
             }
-        val placed = placements.filterKeys { it.context == context }
+        val placed = (snapshots.keys + copies.keys).filter { it.context == context }.associateWith(
+            ::snapshotPlacementOf
+        )
         val names = LinkedHashSet<String>().apply {
             add(snapshot)
-            addAll(snapshotDefault.targets)
             placed.values.forEach { addAll(it.targets) }
         }
-        val targets = SnapshotTargets(
-            snapshot,
-            names.associateWith { stores.getValue(it).snapshots(context) },
-            placed,
-            snapshotDefault,
-        )
+        val targets = SnapshotTargets(snapshot, names.associateWith { stores.getValue(it).snapshots(context) }, placed)
         // A context on one store alone, its log, the checkpoints its snapshot subscription saves and every snapshot
         // target: those checkpoints cover its snapshot writes there (CoveredSnapshots). Split, none is covered.
         if (groups.isEmpty() && names == setOf(log)) default.facet(CoveredSnapshots::class.java)?.cover(context)
@@ -109,8 +108,8 @@ class StoreLayout(
             groups = groups,
         )
         val logStores = setOf(log) + groups.map { it.store }
-        val primaries = setOf(snapshotDefault.primary) + placed.values.map { it.primary }
-        val writePath = (logStores + primaries).mapTo(LinkedHashSet(), stores::getValue)
+        val own = setOf(snapshot) + placed.values.map { it.store }
+        val writePath = (logStores + own).mapTo(LinkedHashSet(), stores::getValue)
         return backends.copyWith(
             stores = PlacedStores(writePath, names.map(stores::getValue).toSet() - writePath),
             snapshotTails = snapshotTailsOf(context, stores),
@@ -119,14 +118,14 @@ class StoreLayout(
 
     /**
      * The one-round-trip reads of [context]'s snapshots with their tails: of each aggregate type whose log store holds
-     * its primary snapshots, that store's ([Store.snapshotTails]).
+     * its own snapshots, that store's ([Store.snapshotTails]).
      */
     private fun snapshotTailsOf(context: String, stores: Map<String, Store>): SnapshotTailReaders {
-        fun readerOf(logStore: String, primary: String): SnapshotTailReader? =
-            if (logStore == primary) stores.getValue(logStore).snapshotTails(context) else null
-        val types = (logs.keys + placements.keys).filter { it.context == context }
+        fun readerOf(logStore: String, own: String): SnapshotTailReader? =
+            if (logStore == own) stores.getValue(logStore).snapshotTails(context) else null
+        val types = (logs.keys + snapshots.keys).filter { it.context == context }
         return SnapshotTailReaders(
-            readerOf(log, snapshotDefault.primary),
+            readerOf(log, snapshot),
             types.associateWith { readerOf(logStoreOf(it), snapshotStoreOf(it)) },
         )
     }
@@ -136,8 +135,7 @@ class StoreLayout(
         /**
          * The layout [placements] configure over [stores], the node's store instances by name, for the aggregate
          * types the node [serves]. Refused: a default or per-type store that names no store, or one that holds no log
-         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]), or a primary snapshot store that may not be one
-         * ([Store.primarySnapshots]); a `wow.aggregates` key of a type the node does
+         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a `wow.aggregates` key of a type the node does
          * not serve; more than one store and no `wow.log.store`; two log stores on one database.
          */
         fun of(
@@ -149,21 +147,16 @@ class StoreLayout(
             val log = defaultLogStore(placements, stores)
             val snapshot = placements.snapshot?.takeIf { it.isNotBlank() } ?: log
             stores.checked("wow.log.store", log, Store::holdsLogs, "log")
-            stores.checked("wow.snapshot.stores", snapshot, Store::holdsSnapshots, "snapshots")
-            val fallback = stores.placement(
-                "wow.snapshot",
-                "stores",
-                placements.snapshotTargets,
-                placements.snapshotPrimary,
-                listOf(snapshot),
-            )
+            stores.checked("wow.snapshot.store", snapshot, Store::holdsSnapshots, "snapshots")
             val served = serves.associateBy { "${it.context}.${it.name}" }
             val logs = LinkedHashMap<AggregateType, String>()
-            val snapshotPlacements = LinkedHashMap<AggregateType, SnapshotPlacement>()
+            val snapshots = LinkedHashMap<AggregateType, String>()
+            val copies = LinkedHashMap<AggregateType, String>()
             placements.aggregates.forEach { (key, aggregate) ->
                 val logStore = aggregate.log?.takeIf { it.isNotBlank() }
-                val placed = aggregate.snapshots.any { it.isNotBlank() } || !aggregate.snapshotPrimary.isNullOrBlank()
-                if (logStore == null && !placed) {
+                val snapshotStore = aggregate.snapshot?.takeIf { it.isNotBlank() }
+                val queryStore = aggregate.querySnapshot?.takeIf { it.isNotBlank() }
+                if (logStore == null && snapshotStore == null && queryStore == null) {
                     return@forEach
                 }
                 val type = configNotNull(
@@ -174,23 +167,17 @@ class StoreLayout(
                     "The store placement of $key names no aggregate type this node serves; it serves ${served.keys}."
                 }
                 logStore?.let { logs[type] = stores.checked("wow.aggregates.[$key].log.store", it, Store::holdsLogs, "log") }
-                if (placed) {
-                    snapshotPlacements[type] = stores.placement(
-                        "wow.aggregates.[$key].snapshot",
-                        "stores",
-                        aggregate.snapshots,
-                        aggregate.snapshotPrimary,
-                        fallback.targets,
-                    )
+                snapshotStore?.let {
+                    val snapshotKey = "wow.aggregates.[$key].snapshot.store"
+                    snapshots[type] = stores.checked(snapshotKey, it, Store::holdsSnapshots, "snapshots")
+                }
+                val own = snapshotStore ?: snapshot
+                queryStore?.takeIf { it != own }?.let {
+                    val queryKey = "wow.aggregates.[$key].query.snapshot.store"
+                    copies[type] = stores.checked(queryKey, it, Store::holdsSnapshots, "snapshots")
                 }
             }
-            return StoreLayout(
-                log,
-                snapshot,
-                logs,
-                placements = snapshotPlacements,
-                snapshotDefault = fallback
-            ).also { layout ->
+            return StoreLayout(log, snapshot, logs, snapshots, copies).also { layout ->
                 layout.logStores.map(stores::getValue).groupBy { it.location }.values.filter { it.size > 1 }.forEach {
                     throw IllegalStateException(
                         "The log stores ${it.map(Store::name)} are on one database: each log group's partition " +
@@ -225,64 +212,29 @@ class StoreLayout(
             }
             return name
         }
-
-        /**
-         * The snapshot placement `<key>.<list>` and `<key>.primary` configure: the stores [targets]
-         * lists, [fallback] when none; [primary], the first of them when not set, must be one of them.
-         */
-        private fun Map<String, Store>.placement(
-            key: String,
-            list: String,
-            targets: List<String>,
-            primary: String?,
-            fallback: List<String>,
-        ): SnapshotPlacement {
-            val listed = targets.filter { it.isNotBlank() }.distinct()
-            listed.forEach { checked("$key.$list", it, Store::holdsSnapshots, "snapshots") }
-            val chosen = listed.ifEmpty { fallback }
-            val explicit = primary?.takeIf { it.isNotBlank() }
-            val first = explicit ?: chosen.first()
-            configCheck(first in chosen, "$key.primary", first, "Name one of its targets: $chosen.") {
-                "The snapshot placement's primary store $first is not one of its targets $chosen."
-            }
-            val store = getValue(first)
-            configCheck(
-                store.primarySnapshots,
-                if (explicit != null) "$key.primary" else "$key.$list",
-                first,
-                "List a mongo or postgres store first, and query $first through the aggregate type's query " +
-                    "snapshot store.",
-            ) {
-                "The snapshot placement makes $first, of type ${store.type}, the primary snapshot store, which the " +
-                    "commands load their state from and which holds only a copy."
-            }
-            return SnapshotPlacement(chosen, first)
-        }
     }
 }
 
 /**
- * Where a host's configuration places the logs and snapshots, as the `wow.*` keys say: the
- * default [log] store (`wow.log.store`), the default [snapshot] store (the first of `wow.snapshot.stores`), the snapshot
- * stores of every aggregate ([snapshotTargets], `wow.snapshot.stores`, and [snapshotPrimary], `wow.snapshot.primary`),
- * and each aggregate's own, by `<context>.<aggregate>` ([aggregates], `wow.aggregates.[<context>.<aggregate>]`).
+ * Where a host's configuration places the logs and snapshots, as the `wow.*` keys say: the default [log] store
+ * (`wow.log.store`), the default [snapshot] store (`wow.snapshot.store`), and each aggregate's own, by
+ * `<context>.<aggregate>` ([aggregates], `wow.aggregates.[<context>.<aggregate>]`).
  */
 @InternalWowApi
 class StorePlacements(
     val log: String? = null,
     val snapshot: String? = null,
-    val snapshotTargets: List<String> = emptyList(),
-    val snapshotPrimary: String? = null,
     val aggregates: Map<String, AggregatePlacement> = emptyMap(),
 )
 
 /**
- * One aggregate type's stores: its [log] store (`.log.store`), its [snapshots] stores (`.snapshot.stores`)
- * and their [snapshotPrimary] (`.snapshot.primary`); none set, the defaults.
+ * One aggregate type's stores: its [log] store (`.log.store`), its [snapshot] store (`.snapshot.store`), and the store
+ * its snapshot queries read, [querySnapshot] (`.query.snapshot.store`), which keeps a copy of them when it is another;
+ * none set, the defaults.
  */
 @InternalWowApi
 class AggregatePlacement(
     val log: String? = null,
-    val snapshots: List<String> = emptyList(),
-    val snapshotPrimary: String? = null,
+    val snapshot: String? = null,
+    val querySnapshot: String? = null,
 )

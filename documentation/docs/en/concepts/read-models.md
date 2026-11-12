@@ -29,7 +29,7 @@ A snapshot is derived, not a fact. The write side never needs to rebuild one: a 
 
 - **The state's structure changed in a way old snapshots cannot express**, for example an evolve function whose meaning changed, or a new field that must be computed from history: raise the aggregate's state revision. The new deployment rebuilds the stored snapshots from the log, in place and in the background. Adding an optional field needs no new revision.
 - **A few snapshots are wrong**: a system command rebuilds the snapshots of given aggregates.
-- **Snapshots move to another store**: the new store is filled from the start of the log and becomes the primary once it has caught up.
+- **Snapshots move to another store**: the new store is filled from the start of the log, while the type's snapshot queries answer `rebuilding`.
 
 While a rebuild runs, queries keep answering, and their responses say that the data is being rebuilt.
 

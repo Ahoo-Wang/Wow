@@ -4848,6 +4848,10 @@
             "type" : "string",
             "description" : "The property of the command's body that holds its aggregate's id."
           },
+          "occurredAtProperty" : {
+            "type" : "string",
+            "description" : "The property of the creation command's body that declares when what it records happened, epoch milliseconds: the creating commit's time (@OccurredAt)."
+          },
           "description" : {
             "type" : "string"
           }
@@ -6802,7 +6806,7 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
         "schema" : {
           "type" : "string"
         }

@@ -837,6 +837,9 @@ export const SOURCES = {
   'manifest.md': [MANIFEST_TREE],
   'modules.md': [BUILD, SETTINGS, "each published module's build.gradle.kts"],
   'performance.md': HEADLINES,
+  'headline.json': [
+    "each quoted report's data under test/benchmarks/results/reports (its suite.json files; the M5 Max snapshot's summary.json)",
+  ],
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
   ],

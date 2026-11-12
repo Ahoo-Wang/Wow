@@ -580,6 +580,7 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public static final field REJECTION_EXTENSIONS Ljava/lang/String;
 	public static final field REJECTION_MESSAGE Ljava/lang/String;
 	public static final field REJECTION_PREFIX Ljava/lang/String;
+	public static final field WRITTEN_AT Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAccess ()Ljava/util/Map;
 	public final fun getAccessVersion ()Ljava/lang/Integer;
@@ -595,6 +596,7 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getVersion ()I
+	public final fun getWrittenAt ()J
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/spi/log/EventStreamRecord;
@@ -956,6 +958,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack : me/
 }
 
 public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability : java/lang/Enum {
+	public static final field SNAPSHOT_LOAD Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static final field SNAPSHOT_REBUILD Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static final field SNAPSHOT_TAIL_READ Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capability;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -966,6 +969,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Capab
 
 public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason : java/lang/Enum {
 	public static final field FAILED Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
+	public static final field TIMED_OUT Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
 	public static final field UNSUPPORTED Lme/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack$Reason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getValue ()Ljava/lang/String;
@@ -1410,6 +1414,7 @@ public final class me/ahoo/wow/spi/state/StateEventRecord {
 	public final fun getState ()Lme/ahoo/wow/spi/state/PublishedState;
 	public final fun getTransport ()Lme/ahoo/wow/spi/log/Transport;
 	public final fun getVersion ()I
+	public final fun getWrittenAt ()J
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;)Lme/ahoo/wow/spi/state/StateEventRecord;
@@ -1470,7 +1475,6 @@ public abstract class me/ahoo/wow/spi/store/Store : java/lang/AutoCloseable {
 	public final fun getLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 	public abstract fun getLocation ()Ljava/lang/Object;
 	public final fun getName ()Ljava/lang/String;
-	public fun getPrimarySnapshots ()Z
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getType ()Ljava/lang/String;
 	public final fun log (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;

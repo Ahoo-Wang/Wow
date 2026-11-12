@@ -59,7 +59,7 @@ val asService = WowClient.builder()
 | 请求头 | 何时带 | 为什么 |
 | --- | --- | --- |
 | `Wow-Request-Id` | 每条命令都带，每条命令一个新的 UUID；再次发送同一条命令时用同一个 | 同一个 ID 的重试被当作已完成（`duplicate`）答复，绝不会决策两次 |
-| `Wow-Wait` | 默认的等待 `snapshot` 不合适时 | 命令走到哪一步再答复：`accepted`、`committed`、`snapshot`，或它等待的订阅（`handled(<processor>.<function>)`） |
+| `Wow-Wait` | 默认的等待 `snapshot` 不合适时 | 命令走到哪一步再答复：`accepted`、`committed`、`snapshot`、`queryable`（聚合的快照查询所读的存储包含这次提交），或它等待的订阅（`handled(<processor>.<function>)`） |
 | `Wow-Wait-Timeout` | 默认的 10 秒不合适时 | 等待多久，至多 `wow.wait.max-timeout` |
 | `If-Match` | 命令必须作用于你读到的版本时 | 作用于其他版本的命令以 412 拒绝 |
 | `Authorization` | 网关认证所需的凭据 | 网关把它变成服务读取的身份 |

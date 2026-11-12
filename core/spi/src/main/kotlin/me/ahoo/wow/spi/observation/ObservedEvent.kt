@@ -271,6 +271,12 @@ sealed class ObservedEvent {
 
             /** A snapshot store's rebuild control plane ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore]). */
             SNAPSHOT_REBUILD("snapshot-rebuild"),
+
+            /**
+             * A snapshot store's load of an aggregate's snapshot ([me.ahoo.wow.spi.snapshot.SnapshotStore.load]), a cache
+             * of its log: when it fails, the state is replayed from the log instead.
+             */
+            SNAPSHOT_LOAD("snapshot-load"),
         }
 
         /**
@@ -284,6 +290,12 @@ sealed class ObservedEvent {
 
             /** The store does not have the capability. */
             UNSUPPORTED("unsupported"),
+
+            /**
+             * The capability gave no answer within its bound (a snapshot load's `wow.snapshot.load-timeout`); the work
+             * was done the other way, and the call was cancelled.
+             */
+            TIMED_OUT("timed-out"),
         }
     }
 

@@ -1,0 +1,44 @@
+# What to alert on, as Operate › Observability lists it ("What to alert on"), one rule per row of that table, in its
+# order. Step 10 of the drill reads them: each fault raises the alert the docs name for it, every alert clears after it,
+# and none fires in the steady state. The meters come through the collector's Prometheus exporter, which turns a dot
+# into an underscore and may add the unit and _total: each expression matches the name with or without those suffixes,
+# and the dress rehearsal records the names a node actually exports.
+groups:
+  - name: wow
+    rules:
+      - alert: WowReadinessDown
+        # Readiness down on a node for minutes: a store down, or a node that lost its partitions.
+        expr: |
+          kube_pod_status_ready{condition="false", namespace="wow-rc-drill",
+            pod=~"(eshop-.*|ops-.*|view-store-.*|analytics-catalog-.*)-service-.*"} == 1
+        for: 2m
+      - alert: WowParkedAggregates
+        # An aggregate waits for a fix and an operator (the Ops Service and Console).
+        expr: max by (service_name, k8s_pod_name) ({__name__=~"wow_subscription_parked_aggregates(_ratio)?"}) > 0
+        for: 1m
+      - alert: WowPausedPartitions
+        # A downstream store or service is down.
+        expr: max by (service_name, k8s_pod_name) ({__name__=~"wow_subscription_paused_partitions(_ratio)?"}) > 0
+        for: 5m
+      - alert: WowBacklogGrowing
+        # A subscription falls behind.
+        expr: sum by (service_name) (deriv({__name__=~"wow_subscription_backlog(_ratio)?"}[5m])) > 0
+        for: 10m
+      - alert: WowTimerDelayGrowing
+        # Timers fire late.
+        expr: max by (service_name) (deriv({__name__=~"wow_timer_delay(_seconds|_milliseconds)?_max"}[5m])) > 0
+        for: 10m
+      - alert: WowOffsetGaps
+        # A subscription skipped or stopped at retained data.
+        expr: sum by (service_name) (increase({__name__=~"wow_subscription_offset_gaps(_total)?"}[5m])) > 0
+      - alert: WowReservationLosses
+        # A unique key two aggregates now both rely on.
+        expr: sum by (service_name) (increase({__name__=~"wow_reservation_losses(_total)?"}[5m])) > 0
+      - alert: WowNodeFatalErrors
+        # A node met a fatal error of the JVM and handed its partitions off; it waits for its restart.
+        expr: sum by (service_name, k8s_pod_name) (increase({__name__=~"wow_node_fatal_errors(_total)?"}[5m])) > 0
+      - alert: WowCommandsBusy
+        # Nodes refuse commands under load.
+        expr: |
+          sum by (service_name) (increase({__name__=~"wow_command_refusals(_total)?", error_type="wow.command.busy"}[5m])) > 0
+        for: 2m

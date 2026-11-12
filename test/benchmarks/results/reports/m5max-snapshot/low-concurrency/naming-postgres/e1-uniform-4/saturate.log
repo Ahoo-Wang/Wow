@@ -1,0 +1,18 @@
+1794477192 [settle] 1s: node-1 0.02
+1794477193 [settle] 2s: node-1 0.02
+1794477194 [settle] 3s: node-1 0.02
+1794477194 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794477207 [saturate] E1: concurrency=4 throughput=2106.3/s p50=1ms errors={}
+1794477220 [saturate] E1: concurrency=4 throughput=1686.7/s p50=1ms errors={}
+1794477233 [saturate] E1: concurrency=4 throughput=2153.4/s p50=1ms errors={}
+1794477246 [saturate] E1: concurrency=4 throughput=1661.1/s p50=1ms errors={}
+1794477259 [saturate] E1: concurrency=4 throughput=738.1/s p50=4ms errors={}
+1794477272 [saturate] E1: concurrency=4 throughput=728.1/s p50=5ms errors={}
+1794477285 [saturate] E1: concurrency=4 throughput=737.2/s p50=4ms errors={}
+1794477298 [saturate] E1: concurrency=4 throughput=796.1/s p50=4ms errors={}
+1794477311 [saturate] E1: concurrency=4 throughput=739.3/s p50=4ms errors={}
+1794477324 [saturate] E1: concurrency=4 throughput=726.0/s p50=5ms errors={}
+1794477337 [saturate] E1: concurrency=4 throughput=1665.1/s p50=1ms errors={}
+1794477350 [saturate] E1: concurrency=4 throughput=1511.5/s p50=1ms errors={}
+1794477350 [saturate] saturation: 2153.4/s at concurrency 4
+1794477351 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/lowconc-naming/naming/e1-uniform-4

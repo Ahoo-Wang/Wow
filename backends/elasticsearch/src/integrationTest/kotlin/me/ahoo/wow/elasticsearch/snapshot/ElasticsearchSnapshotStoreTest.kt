@@ -23,6 +23,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
+import me.ahoo.wow.elasticsearch.ElasticsearchStore
+import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -149,6 +151,33 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         saving.await().assert().isTrue()
         createStore(context).load(type.ref("tenant", "a"))?.version.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a write that returned is read back by id at once at the default refresh, before any search sees it`(): Unit =
+        runBlocking {
+            val context = ElasticsearchFixture.newContext()
+            val opened = ElasticsearchStoreProvider().open(ElasticsearchFixture.config(options = emptyMap()))
+            val store = (opened as ElasticsearchStore).snapshots(context) as ElasticsearchSnapshotStore
+            store.createIndex("aggregate")
+            val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
+            // No refresh runs on its own: only a real-time read can see what is written next.
+            ElasticsearchFixture.client.indices().putSettings {
+                it.index(index).withJson(java.io.StringReader("""{"index.refresh_interval": "-1"}"""))
+            }.get()
+            val type = AggregateType(context, "aggregate")
+            val ref = type.ref("tenant", "a")
+            store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+            store.load(ref)?.version.assert().isEqualTo(1)
+            // Each later write is guarded by the document it reads in real time.
+            store.save(snapshot("a", 2, aggregate = type)).assert().isTrue()
+            store.save(snapshot("a", 1, aggregate = type)).assert().isFalse()
+            store.load(ref)?.version.assert().isEqualTo(2)
+            store.saveAll(listOf(snapshot("a", 3, aggregate = type), snapshot("b", 1, aggregate = type)))
+                .assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+            store.load(ref)?.version.assert().isEqualTo(3)
+            store.load(type.ref("tenant", "b"))?.version.assert().isEqualTo(1)
+            ElasticsearchFixture.client.count { it.index(index) }.get().count().assert().isZero()
+        }
 
     private companion object {
         const val ALLOCATION_DELAY = 1_500L

@@ -1,14 +1,14 @@
 epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794439925	5.92	9.13	12.47	55	WindowServer 24, dasd 7, WallpaperAerialsExtension 5		102	0	1.3	
-1794439937	5.90	8.97	12.35	39	WindowServer 20, jstat 3, sysmond 3		548	68	0.0	
-1794439949	6.23	8.93	12.30	28	WindowServer 15, jstat 3, WallpaperAerialsExtension 3		509	73	0.0	
-1794439961	5.87	8.72	12.17	36	WindowServer 17, sysmond 3, WallpaperAerialsExtension 3		577	74	0.0	
-1794439973	6.45	8.76	12.14	38	WindowServer 18, jstat 13, WallpaperAerialsExtension 3		480	74	0.0	
-1794439985	6.22	8.64	12.06	38	WindowServer 17, jstat 12, WallpaperAerialsExtension 4		553	73	0.0	
-1794439997	6.74	8.65	12.00	54	WindowServer 20, jstat 13, WallpaperAerialsExtension 5		533	74	0.0	
-1794440009	7.61	8.76	12.00	51	WindowServer 19, jstat 9, Stats 5		704	73	0.3	
-1794440021	7.20	8.61	11.89	48	WindowServer 20, jstat 10, Stats 5		615	74	0.0	
-1794440033	8.40	8.82	11.93	53	WindowServer 19, jstat 11, Stats 7		794	71	0.0	
-1794440045	8.44	8.80	11.86	50	WindowServer 22, jstat 8, Stats 6		629	73	0.1	
-1794440057	7.74	8.64	11.77	42	WindowServer 22, jstat 8, Stats 3		709	73	0.0	
-1794440069	8.45	8.75	11.77	41	WindowServer 21, jstat 8, Stats 3		763	73	0.0	
+1794467847	5.12	3.82	3.66	75	WindowServer 52, Claude Helper 10, Claude Helper (Renderer) 4		154	0	0.3	
+1794467859	5.97	4.06	3.75	70	WindowServer 40, Claude Helper 10, jstat 6		690	74	0.0	
+1794467871	6.37	4.20	3.81	68	WindowServer 42, Claude Helper 10, Claude Helper (Renderer) 4		694	73	0.0	
+1794467883	9.35	4.93	4.07	64	WindowServer 42, Claude Helper 10, Claude Helper (Renderer) 3		659	74	0.0	
+1794467895	8.07	4.87	4.06	59	WindowServer 42, Claude Helper 10, Claude Helper (Renderer) 4		723	72	0.1	
+1794467907	8.03	4.97	4.11	79	WindowServer 44, Claude Helper 10, dasd 7		940	71	0.0	
+1794467919	9.60	5.44	4.29	90	WindowServer 45, jstat 15, Claude Helper 10		724	73	0.0	
+1794467931	10.17	5.70	4.39	90	WindowServer 43, jstat 16, Claude Helper 10		776	71	0.0	
+1794467943	9.70	5.74	4.42	76	WindowServer 43, Claude Helper 10, jstat 9		731	72	0.1	
+1794467955	11.99	6.47	4.71	71	WindowServer 42, Claude Helper 10, claude 5		800	72	0.0	
+1794467967	14.19	7.14	4.97	79	WindowServer 43, Stats 10, Claude Helper 9		794	72	0.0	
+1794467979	13.58	7.33	5.07	91	WindowServer 43, jstat 16, Claude Helper 10		816	72	82.5	
+1794467991	14.73	7.77	5.25	85	WindowServer 43, jstat 15, Claude Helper 10		785	72	0.4	

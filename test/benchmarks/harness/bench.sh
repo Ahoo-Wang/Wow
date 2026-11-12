@@ -234,11 +234,11 @@ load() {
   ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
-# The launcher of the server distribution $1: benchmark-server or the search server, a baseline's from before
-# test/benchmarks/ (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
+# The launcher of the server distribution $1: benchmark-server, the search or the subscriptions server, a baseline's from
+# before test/benchmarks/ (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
 server_launcher() {
   local name
-  for name in benchmark-server benchmark-search-server e2e-bench-v10 axon-server; do
+  for name in benchmark-server benchmark-search-server benchmark-subscriptions-server e2e-bench-v10 axon-server; do
     if [ -x "$1/bin/$name" ]; then echo "$1/bin/$name"; return; fi
   done
   echo "$1/bin/benchmark-server"
@@ -429,16 +429,6 @@ resume() {
   META="${S_META%%;settleSeconds=*};settleSeconds=$((SECONDS - settle_started));accounts=$ACCOUNTS;session=$S_OUT"
 }
 
-# A reused run's flight recordings: each server's, over the last $1 seconds (its warm-up and measured phase).
-dump_recordings() {
-  [ "$(opt reuse false)" = true ] && [ "${S_JFR:-false}" = true ] || return 0
-  local n
-  for n in $(seq 1 "$NODES"); do
-    "$SERVER_JAVA/bin/jcmd" "${SERVER_PIDS[$((n - 1))]}" JFR.dump filename="$OUT/node-$n.jfr" begin="-${1}s" \
-      >/dev/null 2>&1 || log "no recording of node $n"
-  done
-}
-
 # Starts a session (see the header): the stores and servers stay up for runs with --reuse until `down`.
 up() {
   parse "$@"
@@ -497,44 +487,6 @@ run() {
   log "results in $OUT"
 }
 
-# With --dump-every=<s>, a diagnostic: every <s> seconds while the load runs, each server's platform threads with the
-# locks they hold (jcmd Thread.print -l) and every thread, the virtual ones too (Thread.dump_to_file), and on PostgreSQL
-# its sessions, what each waits on and which pids block it (pg_stat_activity, pg_blocking_pids), into $OUT/dumps.
-# The dumper stops with the load, or when this script is gone.
-DUMPER=""
-POSTGRES_SESSIONS="select now()::time(0) as at, pid, state, wait_event_type, wait_event,
-  round(extract(epoch from now() - xact_start)::numeric, 1) as xact_s,
-  round(extract(epoch from now() - query_start)::numeric, 1) as query_s,
-  pg_blocking_pids(pid) as blocked_by, left(regexp_replace(query, '\s+', ' ', 'g'), 100) as query
-  from pg_stat_activity where datname = 'transfer' and pid <> pg_backend_pid() order by xact_start nulls last"
-start_dumps() {
-  local every; every=$(opt dump-every "")
-  [ -n "$every" ] || return 0
-  mkdir -p "$OUT/dumps"
-  (
-    t=0
-    while kill -0 "$$" 2>/dev/null; do
-      sleep "$every"
-      t=$((t + every))
-      for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
-        "$SERVER_JAVA/bin/jcmd" "$pid" Thread.print -l >"$OUT/dumps/$t-locks-$pid.txt" 2>&1 || true
-        "$SERVER_JAVA/bin/jcmd" "$pid" Thread.dump_to_file -format=text "$OUT/dumps/$t-threads-$pid.txt" >/dev/null 2>&1 || true
-      done
-      case "${CONTAINERS:-}" in
-        *postgres*) postgres_sql "$POSTGRES_SESSIONS" >"$OUT/dumps/$t-postgres.txt" 2>&1 || true ;;
-      esac
-    done
-  ) &
-  DUMPER=$!
-}
-stop_dumps() {
-  if [ -n "$DUMPER" ]; then
-    kill "$DUMPER" 2>/dev/null || true
-    wait "$DUMPER" 2>/dev/null || true
-    DUMPER=""
-  fi
-}
-
 saturate() {
   parse "$@"
   setup
@@ -580,6 +532,10 @@ component() {
     --concurrency="$(opt concurrency 64)" --out="$OUT" 2>&1 | tee "$OUT/component.log" >&2
   log "results in $OUT"
 }
+
+# The diagnostics of a run: its flight recordings and its periodic thread and session dumps.
+# shellcheck source=diagnostics.sh
+. "$HARNESS/diagnostics.sh"
 
 # The measure command and its programs.
 # shellcheck source=measure.sh

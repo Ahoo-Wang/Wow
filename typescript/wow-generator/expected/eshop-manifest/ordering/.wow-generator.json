@@ -2,7 +2,7 @@
   "version": 1,
   "files": {
     "eshop-ordering/client.ts": "1d096463b88d3595ebf1f430c2ef08595830e9103087c216b134d2e18534485b",
-    "eshop-ordering/contract.ts": "ab23051376f8893fccc855f9d48f2aa9d08a62cbf2476165a58e3bdd07281abb",
+    "eshop-ordering/contract.ts": "ab66f49ee99bb842fbe326fc71eef4c6701de34782a5e58aae71d1eaf561254a",
     "eshop-ordering/index.ts": "8a14e2f01080d3f22c5d835991ceafa7169ad1b40cc6a3d72f284531d8c15b25",
     "eshop-ordering/manifest.ts": "9d63f6f48de56b5bd79f172097812bd3fed573e6953b71b0ebfb7652c2e2fcea",
     "eshop-ordering/order/aggregate.ts": "ef2ef8465998575880b67e140b954bef5b84f0770865919e41f21c08189bda05",

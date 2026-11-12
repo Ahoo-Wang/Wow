@@ -83,7 +83,7 @@ import { SourceCapabilities } from './capabilities.js';
 import { Resources } from './resources.js';
 import type { RecordAction } from './actions.js';
 import { reportingStore } from './failure/failures.js';
-import { requireSavable, requireTitle, storable } from './commandChecks.js';
+import { requireTitle, savableState, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
 import { ViewOpening } from './viewOpening.js';
 
@@ -427,8 +427,7 @@ export class ViewEngine {
   /** First save creates, later saves overwrite. Both need a clean draft. */
   async save(runtime: ViewRuntime): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
-    const state = target.getSnapshot();
-    requireSavable(target, target.issuesAt(state.scope));
+    const state = await savableState(target);
 
     if (!state.saved) {
       const input = {
@@ -465,9 +464,8 @@ export class ViewEngine {
     input: SaveAsInput,
   ): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
-    const state = target.getSnapshot();
     // Judged at the scope it is going to, not the one it came from.
-    requireSavable(target, target.issuesAt(input.scope));
+    const state = await savableState(target, input.scope);
     const title = requireTitle(input.title);
     this.guard.requireCreate(target.definition.id, input.scope);
 

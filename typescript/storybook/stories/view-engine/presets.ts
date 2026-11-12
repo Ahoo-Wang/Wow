@@ -28,12 +28,25 @@ export const PRESETS: readonly string[] = BUILT_IN_PRESETS;
 export const ENGINE_PRESET = 'neutral';
 
 /**
- * The preset Storybook opens in (the user's call, 2026-09-25): `porcelain`,
- * put on `<html>` like any other. Only Storybook's; a host that names no
- * preset still gets `ENGINE_PRESET`. A story about the engine's own look
- * pins `globals: { fvePreset: ENGINE_PRESET }`.
+ * The example host themes Storybook loads beside the built-in presets
+ * (`host-theme/<name>.css`, imported by the preview): themes written the
+ * way a host writes its own, on the toolbar after the built-in ones.
+ * `porcelain` was a built-in preset until D94 and is kept as one to copy.
  */
-export const DEFAULT_PRESET = 'porcelain';
+export const EXAMPLE_THEMES: readonly string[] = ['porcelain'];
+
+/**
+ * Every theme a page of themes shows and measures: the built-in presets,
+ * then the example host themes, which are held to the same lines.
+ */
+export const SHOWN_THEMES: readonly string[] = [...PRESETS, ...EXAMPLE_THEMES];
+
+/**
+ * The preset Storybook opens in: the engine's own look, as a host that
+ * names no preset gets it (it was `porcelain` while that shipped, the
+ * user's call of 2026-09-25, until D94 took it out of the package).
+ */
+export const DEFAULT_PRESET = ENGINE_PRESET;
 
 /** The modes a surface is shown in: pinned light, pinned dark, the system's. */
 export const MODES = ['light', 'dark', 'system'] as const;

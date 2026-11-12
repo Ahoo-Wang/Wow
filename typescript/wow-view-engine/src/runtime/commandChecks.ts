@@ -23,10 +23,16 @@ import {
   titleProblem,
   type Issue,
   type ViewConfig,
+  type ViewScope,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { stopsSave } from './dashboardRuntime.js';
-import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
+import { comparePending } from './pending.js';
+import { hasError } from './runtimeStore.js';
+import type {
+  ManagedViewRuntime,
+  ViewRuntimeState,
+} from './viewRuntimeTypes.js';
 import { ViewCommandError } from './write.js';
 
 /**
@@ -76,10 +82,104 @@ export function requireStorable<C extends ViewConfig>(config: C): C {
 }
 
 /** What stops a save of this runtime's kind (`stopsSave`). */
-export function requireSavable(
+function requireSavable(
   runtime: ManagedViewRuntime,
   issues: readonly Issue[],
 ): void {
   if (stopsSave(runtime.kind, issues))
     throw new ViewCommandError(issue('view.config.invalid', []));
+}
+
+/**
+ * The state a save writes from: the draft, **run first** (D94, audit F2).
+ *
+ * A save wrote the draft whatever had run, so a view could be saved with
+ * conditions or a sort its author never saw the rows of, and opened on them
+ * the next time — or on a failure, where the source refuses them. Now a
+ * save writes a draft the source has answered:
+ *
+ * - what waits for apply is applied;
+ * - what was applied and failed is asked again (after a failed apply
+ *   nothing waits any more, and a second press of Save must not write
+ *   what the first refused);
+ * - a query already out is waited for;
+ * - and a draft whose query ends in failure is not saved
+ *   (`view.save.not-applied`): the failure is on the result, where a failed
+ *   apply always is, and the draft stays as it was.
+ *
+ * Left as they are: a board (its panels run on their own, `PanelSync`), and
+ * a draft with an error, which `apply` would not run either and the save's
+ * own check refuses by name. A draft with nothing waiting and an answer on
+ * screen asks the source nothing more.
+ *
+ * **What is written is what was answered.** The draft can change while a
+ * query is out — a condition typed during the wait — and then part of it
+ * waits again: it is run again, until the draft about to be written is the
+ * one the source answered. `APPLY_ROUNDS` times at most; a draft still
+ * moving then is not saved (`view.save.not-applied`), since a save that
+ * chases a draft being edited has no moment to write.
+ *
+ * **A view closed while its save waits** — switched away from, its
+ * workbench unmounted — ends the save, refused (`view.runtime.not-owned`):
+ * no answer is coming for it, and a promise left open would hold its button
+ * busy for good.
+ */
+async function appliedDraft<C extends ViewConfig>(
+  runtime: ManagedViewRuntime<C>,
+): Promise<ViewRuntimeState<C>> {
+  for (let round = 0; ; round += 1) {
+    if (runtime.disposed)
+      throw new ViewCommandError(issue('view.runtime.not-owned', []));
+    const state = runtime.getSnapshot();
+    if (runtime.kind === 'dashboard' || hasError(state.issues)) return state;
+    const waits = comparePending(
+      state.draft,
+      state.applied,
+      state.issues,
+    ).pending;
+    const { status } = state.query;
+    if (!waits && status !== 'error' && status !== 'loading') return state;
+    if (round === APPLY_ROUNDS)
+      throw new ViewCommandError(issue('view.save.not-applied', []));
+    if (waits) runtime.apply();
+    else if (status === 'error') runtime.refresh();
+    const answered = await settled(runtime);
+    if (!runtime.disposed && answered.query.status === 'error')
+      throw new ViewCommandError(issue('view.save.not-applied', []));
+  }
+}
+
+/** How many times a save runs a draft that changed while it was run. */
+const APPLY_ROUNDS = 3;
+
+/** The state once no query is out, or once the runtime is closed. */
+function settled<C extends ViewConfig>(
+  runtime: ManagedViewRuntime<C>,
+): Promise<ViewRuntimeState<C>> {
+  return new Promise(resolve => {
+    const read = () => {
+      const now = runtime.getSnapshot();
+      if (!runtime.disposed && now.query.status === 'loading') return false;
+      resolve(now);
+      return true;
+    };
+    if (read()) return;
+    const stop = runtime.subscribe(() => {
+      if (read()) stop();
+    });
+  });
+}
+
+/**
+ * The state a save or a copy writes from, or the refusal: what waits is run
+ * first (`appliedDraft`), then the config is judged for the audience it is
+ * headed for — the view's own, or the one a copy names.
+ */
+export async function savableState<C extends ViewConfig>(
+  runtime: ManagedViewRuntime<C>,
+  scope?: ViewScope,
+): Promise<ViewRuntimeState<C>> {
+  const state = await appliedDraft(runtime);
+  requireSavable(runtime, runtime.issuesAt(scope ?? state.scope));
+  return state;
 }

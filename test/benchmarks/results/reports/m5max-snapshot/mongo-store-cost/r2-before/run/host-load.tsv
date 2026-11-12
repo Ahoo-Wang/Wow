@@ -1,0 +1,14 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794468773	11.76	11.52	9.06	82	WindowServer 48, Claude Helper 13, sysmond 7		104	0	0.2	
+1794468785	12.74	11.71	9.17	89	WindowServer 44, Claude Helper 15, jstat 6		719	74	0.0	
+1794468797	13.94	12.01	9.30	67	WindowServer 42, Claude Helper 14, Claude Helper (Renderer) 4		748	72	0.0	
+1794468809	17.30	12.82	9.64	72	jstat 15, mdworker_shared 8, mdworker_shared 8		527	75	0.0	
+1794468821	15.50	12.58	9.59	15	jstat 13, AppleCentauriAlpha 0, wifip2pd 0		649	73	0.0	
+1794468833	14.43	12.45	9.57	14	jstat 8, sysmond 4, AppleCentauriAlpha 1		656	73	0.0	
+1794468845	12.19	12.05	9.48	22	jstat 13, sysmond 3, WindowServer 2		535	74	0.0	
+1794468857	10.86	11.77	9.41	26	jstat 15, claude 4, UniversalControl 2		584	72	0.0	
+1794468869	9.78	11.48	9.35	49	jstat 14, WindowServer 7, Claude Helper (Renderer) 6		666	71	0.0	
+1794468881	9.96	11.47	9.37	19	jstat 14, sysmond 4, AppleCentauriAlpha 0		675	73	5.8	
+1794468893	10.38	11.50	9.41	17	jstat 8, Claude Helper (Renderer) 2, UniversalControl 1		618	73	0.0	
+1794468905	11.59	11.72	9.52	13	jstat 10, WindowServer 1, Shadowrocket 1		697	73	0.0	
+1794468917	11.38	11.66	9.53	18	jstat 12, claude 4, AppleCentauriAlpha 1		593	73	0.0	

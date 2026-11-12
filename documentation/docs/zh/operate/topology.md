@@ -61,8 +61,8 @@ flowchart LR
 
 | 端口 | 承载 | 谁访问它 |
 | --- | --- | --- |
-| 公开（`server.port`） | HTTP API：命令、查询、状态读取、Manifest、OpenAPI；Actuator 的健康端点 | 客户端、网关、Ingress |
-| 内部（`wow.internal.port`，默认 9090） | 服务自己的节点之间的集群通道；来自任何服务的等待信号；来自其他服务的同步调用和读 | 只有系统里的节点 |
+| 公开（`server.port`） | HTTP API：命令、查询、状态读取、Manifest、OpenAPI；Actuator 的健康端点 | `networkPolicy.public.from` 放行的对象，默认是网关：客户端和 Ingress 经由网关访问，或者被加进这个列表 |
+| 内部（`wow.internal.port`，默认 9090；chart 按 `ports.internal`（默认 9093）在 Pod 上设置它） | 服务自己的节点之间的集群通道；来自任何服务的等待信号；来自其他服务的同步调用和读 | 只有系统里的节点 |
 
 内部端口是不带 TLS 的 HTTP/2（h2c）。绝不能让平台外部访问到它：不能有公网负载均衡、Ingress 或端口映射指向它，并用网络策略只让平台自己的 Pod 访问它。它不用令牌：发往它的每个请求都在 `Wow-Service` 请求头里声明自己来自哪个服务，网络是它的边界（[保护部署](./security#close-the-internal-port)）。
 
@@ -193,7 +193,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-- **就绪**在以下情况失败：节点尚未运行、它的日志存储、写入需要的某个存储（某个聚合类型的主快照存储）或租约存储不可用、交接宽限期过后它仍没有拥有应得的任何分区，或者它读取的某个主题仍在加入中。
+- **就绪**在以下情况失败：节点尚未运行、它的日志存储、写入需要的某个存储（某个聚合类型自己的快照存储）或租约存储不可用、交接宽限期过后它仍没有拥有应得的任何分区，或者它读取的某个主题仍在加入中。
 - **存活**只在节点卡住时失败：它的存储有响应，但它的调度器或命令没有进展。它从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。
 
 ## 迁移切换时的待机 {#standby-for-a-migrations-cut-over}
