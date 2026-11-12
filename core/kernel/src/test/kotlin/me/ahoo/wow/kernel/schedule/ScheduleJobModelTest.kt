@@ -197,6 +197,42 @@ class ScheduleJobModelTest {
     }
 
     @Test
+    fun `a rule a command carries that never runs is refused, and one the instance stored goes on as it was`() {
+        val never = JobRule(cron = "0 0 0 30 2 *")
+        aggregateSpec(model, id = "invoice", tenantId = "acme") {
+            whenCommand(EnableJob("invoice", never)) {
+                expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) {
+                    message.assert().isEqualTo(
+                        "Job invoice cannot run by $never: \"0 0 0 30 2 *\" in UTC names no time that ever comes.",
+                    )
+                }
+            }
+            whenCommand(EnableJob("invoice", JobRule(cron = "0 0 0 31 4 *"))) {
+                expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID)
+            }
+            whenCommand(EnableJob("invoice", JobRule(cron = "0 0 0 29 2 *"))) { expectEventTypes(JobEnabled::class) }
+            whenCommand(RescheduleJob(never)) {
+                expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) {
+                    message.assert().contains("names no time that ever comes")
+                }
+            }
+            // An unreadable rule's refusal says why too.
+            whenCommand(RescheduleJob(JobRule(timeZone = "Mars/Olympus"))) {
+                expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) {
+                    message.assert().contains("cannot run by").contains("\"Mars/Olympus\" is not a time zone")
+                }
+            }
+        }
+        // An override that never runs, stored before this check: every start's EnableJob, which carries no rule, is a
+        // no-op, as it was. A job's default that never runs is no refusal either: the start warns about it.
+        aggregateSpec(model, id = "nightly", tenantId = Caller.DEFAULT_TENANT) {
+            given(JobEnabled("nightly", never.over(nightly.rule), never))
+            whenCommand(EnableJob("nightly")) { expectUnchanged() }
+        }
+        ScheduleJob("off", ScheduleRule.Cron("0 0 0 30 2 *")).rule.expression.assert().isEqualTo("0 0 0 30 2 *")
+    }
+
+    @Test
     fun `a sharded job has an instance per partition, in that partition`() {
         val refs = (0 until 4).map { ScheduleJobModel.shardRef("billing", "sweep", it, 4) }
         refs.map { Partitioner.partitionOf(it, 4) }.assert().containsExactly(0, 1, 2, 3)

@@ -53,7 +53,8 @@ class CronExpression private constructor(
 ) {
     /**
      * The first time after [after] that this expression names in [zone], or null when it names none within
-     * [MAX_YEARS] years (such as `0 0 0 30 2 *`).
+     * [MAX_YEARS] years (such as `0 0 0 30 2 *`). Those 400 years are a whole cycle of the Gregorian calendar, whose
+     * dates fall on the same weekdays every 400 years: an expression with no time in them has none ever.
      */
     fun next(after: Instant, zone: ZoneId): Instant? {
         var local = searchStart(after, zone)

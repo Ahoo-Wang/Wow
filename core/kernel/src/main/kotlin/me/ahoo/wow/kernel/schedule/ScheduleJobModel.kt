@@ -190,7 +190,10 @@ object ScheduleJobModel {
         val job = jobs[body.job] ?: return invalid("No job ${body.job} in ${command.ref.type.context}.")
         problemOf(job, command.ref, state, body)?.let { return invalid(it) }
         val override = body.rule ?: state.override
-        val rule = ruleOf(job, override) ?: return invalid("Job ${job.name} cannot run by $override.")
+        // A rule the command carries comes in new; the instance's stored override is read as it was stored.
+        val rule = ruleOf(job, override, fires = body.rule != null).getOrElse {
+            return invalid("Job ${job.name} cannot run by $override: ${it.message}")
+        }
         if (state.enabled && state.rule == rule && state.override == override) {
             return Decision.NoOp
         }
@@ -222,7 +225,9 @@ object ScheduleJobModel {
             return invalid("The instance ${command.ref.id} is not enabled: enable it first.")
         }
         val job = jobs[state.job] ?: return invalid("No job ${state.job} in ${command.ref.type.context}.")
-        val rule = ruleOf(job, body.rule) ?: return invalid("Job ${job.name} cannot run by ${body.rule}.")
+        val rule = ruleOf(job, body.rule, fires = body.rule != null).getOrElse {
+            return invalid("Job ${job.name} cannot run by ${body.rule}: ${it.message}")
+        }
         if (state.rule == rule && state.override == body.rule) {
             return Decision.NoOp
         }
@@ -249,7 +254,7 @@ object ScheduleJobModel {
             return Decision.events(JobDisabled())
         }
         val ticked = JobTicked(slot.timer, slot.slot, slot.skipped, slot.due)
-        val rule = ruleOf(job, state.override)
+        val rule = ruleOf(job, state.override, fires = false).getOrNull()
         if (rule == null || rule == state.rule) {
             return Decision.events(ticked)
         }
@@ -271,10 +276,13 @@ object ScheduleJobModel {
 
     private fun versionOf(timer: String): Long = timer.substringAfterLast('@').toLongOrNull() ?: 0
 
-    /** [job]'s default rule under [override], or null when that is not a valid rule. */
-    private fun ruleOf(job: ScheduleJob, override: JobRule?): ScheduleRule.Cron? {
+    /**
+     * [job]'s default rule under [override], or a failure saying why that rule cannot run: unreadable, or, when it
+     * [fires] (a rule a command carries), naming no time that ever comes ([ScheduleSlots.requireFires]).
+     */
+    private fun ruleOf(job: ScheduleJob, override: JobRule?, fires: Boolean): Result<ScheduleRule.Cron> = runCatching {
         val rule = override?.over(job.rule) ?: job.rule
-        return runCatching { ScheduleSlots.validate(rule) }.map { rule }.getOrNull()
+        rule.also { if (fires) ScheduleSlots.requireFires(it) else ScheduleSlots.validate(it) }
     }
 
     private fun invalid(message: String): Decision = Decision.Rejected(
