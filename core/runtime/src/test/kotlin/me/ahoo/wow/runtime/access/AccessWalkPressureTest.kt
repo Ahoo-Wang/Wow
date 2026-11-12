@@ -22,10 +22,12 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
+import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -105,10 +107,31 @@ class AccessWalkPressureTest : AccessWalkingFixtures() {
         // Sensed once in the run's first second: halved.
         walking.share(type).assert().isEqualTo(AccessStampOptions.DEFAULT_WALK_SHARE / 2)
         listOf("d-1", "d-2").forEach { history(log, it).assert().containsExactly(access("sales")) }
-        // The follower's catch-up reads its history directly.
+        // The follower's catch-up reads its history under the gate too (RT-10).
         walking.stampCurrent(model, type.ref("tenant", "d-1"), Cause.CATCH_UP)
-        gate.replayed.assert().containsExactly("d-1", "d-2")
+        gate.replayed.assert().containsExactly("d-1", "d-2", "d-1")
     }
+
+    @Test
+    fun `a catch-up the gate refuses stamps nothing and throws the refusal, backpressure to its subscription`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            unstamped(log, listOf("d-1"), "sales")
+            val gate = Gate(refusals = 1)
+            val walking = gated(log, gate)
+            val ref = type.ref("tenant", "d-1")
+
+            val refused = assertThrows<IllegalStateException> {
+                runBlocking { walking.stampCurrent(model, ref, Cause.CATCH_UP) }
+            }
+            RuntimeFailures.DEFAULT.classify(refused, null).assert().isEqualTo(FailureClass.BACKPRESSURE)
+            history(log, "d-1").assert().containsExactly(null)
+
+            // Let through on its retry: read under the gate, and stamped.
+            walking.stampCurrent(model, ref, Cause.CATCH_UP).assert().isNotNull()
+            gate.replayed.assert().containsExactly("d-1")
+            history(log, "d-1").assert().containsExactly(access("sales"))
+        }
 
     @Test
     fun `a read the gate refuses presses the walk, which reads that aggregate again and goes on`(): Unit = runBlocking {
