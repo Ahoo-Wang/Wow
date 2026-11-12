@@ -33,7 +33,8 @@ internal interface ClickHouseStatements {
      * partitions (`max_partitions_per_insert_block` 0): an imported history replayed from its start mixes commits of
      * many years in one batch, which ClickHouse's default of 100 would refuse with the code it also answers for too
      * many parts, so the Sink would pause and retry the same batch for good. A batch holds at most the Sink's batch
-     * size of rows, so no insert touches more months than that.
+     * size of rows, so no insert touches more months than that. An insert that spans many months writes a part of each
+     * partitioned table for each of them, which merges fold into the parts already there.
      */
     suspend fun insert(table: String, body: ByteArray, token: String)
 

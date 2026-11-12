@@ -140,6 +140,19 @@ class ClickHouseSinkIntegrationTest {
     }
 
     @Test
+    fun `a batch of the Sink's size spread over as many months as rows should be written`(): Unit = runTest {
+        val start = ZonedDateTime.of(1930, 1, 15, 0, 0, 0, 0, ZoneOffset.UTC)
+        val size = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE
+        val records = (1..size).map {
+            recordOf(id = "order-$it", commitTime = start.plusMonths(it.toLong()).toInstant().toEpochMilli())
+        }
+        sinks().sinkOf("shop", "order").write(records)
+        count("shop_order_state_events").assert().isEqualTo(size.toLong())
+        count("shop_order_events").assert().isEqualTo(2L * size)
+        count("shop_order_state FINAL").assert().isEqualTo(size.toLong())
+    }
+
+    @Test
     fun `a replay beyond the deduplication window should be counted once`(): Unit = runTest {
         // Finding A2-10: the tokens only cover the window; a replay in other batches left duplicate history rows.
         val sink = sinks(ClickHouseSinkOptions(database = database, batchSize = 3)).sinkOf("shop", "order")
