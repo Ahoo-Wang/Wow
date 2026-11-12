@@ -30,10 +30,11 @@ import java.util.UUID
 import javax.sql.DataSource
 
 /**
- * An aggregate type whose log is on MongoDB or PostgreSQL and whose only snapshot store is Elasticsearch, at the default
- * `refresh`: its state is stored once, on Elasticsearch. Without a state cache every command loads the state from
- * there by id, with the log's tail from the log's store; a command's default wait ends once Elasticsearch holds its snapshot, so the state
- * read next has it; the snapshot queries read the same index; and a new node goes on from what the index holds.
+ * An aggregate type whose log is on MongoDB or PostgreSQL and whose only snapshot store is Elasticsearch, at the
+ * default `refresh`: its state is stored once, on Elasticsearch. Without a state cache every command loads the state
+ * from there by id, with the log's tail from the log's store; a command's default wait ends once Elasticsearch holds
+ * its snapshot, so the state read next has it; the snapshot queries read the same index; and a new node goes on from
+ * what the index holds.
  */
 class ElasticsearchOwnSnapshotsTest {
     private val prefix = "own" + UUID.randomUUID().toString().take(SUFFIX)

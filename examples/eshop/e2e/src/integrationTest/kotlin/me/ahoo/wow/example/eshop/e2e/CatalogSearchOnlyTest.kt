@@ -29,9 +29,8 @@ import java.util.UUID
 /**
  * The catalog with its products' snapshots on Elasticsearch alone, its `search-only` profile: the products' log is on
  * MongoDB and their state is stored once, in the index their snapshot queries read, its writes searchable when they
- * return (`refresh: wait-for`). A command sent
- * over HTTP with the default wait answers once the index holds it, so the state read by id and the product list read
- * next both have the new price, every time.
+ * return (`refresh: wait-for`). A command sent over HTTP with the default wait answers once the index holds it, so the
+ * state read by id and the product list read next both have the new price, every time.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogSearchOnlyTest {

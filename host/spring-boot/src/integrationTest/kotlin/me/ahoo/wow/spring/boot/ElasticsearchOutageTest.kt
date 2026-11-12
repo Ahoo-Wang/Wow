@@ -170,11 +170,12 @@ class ElasticsearchOutageTest {
     }
 
     companion object {
-        /** A free host port, so that the test's own Elasticsearch keeps its ports once started again. */
-        private fun freePort(): Int = ServerSocket(0).use { it.localPort }
-
+        /**
+         * The test's own Elasticsearch, its HTTP port bound to a fixed host port so that the client's address holds
+         * once the container is started again; the transport port, which nothing here reads, stays Docker's to assign.
+         */
         private val elasticsearch = WowContainers.newElasticsearch().apply {
-            portBindings = listOf("${freePort()}:9200", "${freePort()}:9300")
+            portBindings = listOf("${ServerSocket(0).use { it.localPort }}:9200")
             start()
         }
 
