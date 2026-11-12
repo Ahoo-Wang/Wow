@@ -469,6 +469,17 @@ class OtelObserverTest {
         }
 
     @Test
+    fun `an imported commit's lag should count from when it was written, not from when it occurred`(): Unit =
+        runBlocking {
+            // Created years before in the system it came from, written 500 ms ago.
+            val imported = stream.copyWith(commitTime = 1_000, headers = mapOf(EventStreamRecord.WRITTEN_AT to "9500"))
+            observer.handling(SALES, "Board.onOrder", SALES, imported, emptyMap(), null).observe { }
+            val lag = telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name)
+                .tags(WowMetrics.SUBSCRIPTION_LAG.tagsOf(SALES, "Board.onOrder")).timer()!!
+            lag.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(500.0)
+        }
+
+    @Test
     fun `a handling of a topic should be a consumer span, and a message without a commit time lag nothing`(): Unit =
         runBlocking {
             observer.handling(

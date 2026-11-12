@@ -47,7 +47,7 @@ class NineXExportTest {
     private val nineX: MongoDatabase = NineXMongoStore.example()
     private val database = "wow_v10_export_${nineX.name}"
     private val log = MongoEventLog(NineXMongoStore.client, database, NineXExample.CONTEXT, PARTITIONS)
-    private val converter = StreamConverter(NineXExample.plan)
+    private val converter = StreamConverter(NineXExample.plan) { NineXExample.IMPORTED_AT }
 
     private fun config(): Path {
         Files.writeString(directory.resolve("migration-map.json"), NineXExample.MAP_TEXT)

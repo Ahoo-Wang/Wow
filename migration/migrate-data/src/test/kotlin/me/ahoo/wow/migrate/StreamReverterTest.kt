@@ -34,11 +34,13 @@ class StreamReverterTest {
     private fun MigrationMap.order(change: AggregateMapping.() -> AggregateMapping): MigrationMap =
         copy(aggregates = aggregates.map { if (it.source() == order) it.change() else it })
 
-    private val paid = StreamConverter(plan()).convert(NineXExample.stream("order-stream-v3.json"))
+    private val paid = StreamConverter(
+        plan()
+    ) { NineXExample.IMPORTED_AT }.convert(NineXExample.stream("order-stream-v3.json"))
 
     @Test
     fun `every stream of the 9x example should go back to the 9x stream it was imported from`() {
-        val converter = StreamConverter(plan())
+        val converter = StreamConverter(plan()) { NineXExample.IMPORTED_AT }
         NineXExample.streams().forEach { stream ->
             val record = converter.convert(stream)
             val back = reverter().revert(record)

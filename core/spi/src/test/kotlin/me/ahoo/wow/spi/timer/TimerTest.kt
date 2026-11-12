@@ -117,6 +117,13 @@ class TimerTest {
             4
         )
             .dueAt.assert().isEqualTo(Timers.NOT_EVALUATED)
+        // An import's creation occurred long before it was written: the schedule it sets counts from its writing.
+        val imported = stream.copyWith(headers = mapOf(EventStreamRecord.WRITTEN_AT to "9000"))
+        Timers.of(
+            imported,
+            ScheduleSet("pay", ScheduleRule.After(5), ref, "shop.order.Cancel", commandOf()),
+            4
+        ).dueAt.assert().isEqualTo(9_005)
     }
 }
 

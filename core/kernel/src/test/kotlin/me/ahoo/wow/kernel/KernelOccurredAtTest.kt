@@ -21,15 +21,21 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import java.time.Instant
+import kotlin.time.Duration.Companion.minutes
 
 /** D422: a creation command that declares when it occurred (`@OccurredAt`) creates its aggregate at that time. */
 class KernelOccurredAtTest {
     data class ImportOrder(val source: String, val placedAt: Long?)
     data class PlaceOrder(val source: String)
     data class Ship(val by: String)
+    data class ImportWithDeadline(val source: String, val placedAt: Long)
     data class OrderImported(val source: String, val decidedAt: Long)
     data class OrderPlaced(val source: String)
     data class Shipped(val by: String, val decidedAt: Long)
@@ -45,6 +51,12 @@ class KernelOccurredAtTest {
         ) { _, command -> Decision.events(OrderImported(command.source, now)) }
         occurredAt<ImportOrder> { it.placedAt }
         decide<Ship> { _, command -> Decision.events(Shipped(command.by, now)) }
+        decide<ImportWithDeadline>(Creation.REQUIRED) { _, command ->
+            schedule("pay-timeout", ScheduleRule.after(30.minutes), Ship("timeout"))
+            schedule("nightly", ScheduleRule.cron("0 0 3 * * *"), Ship("nightly"))
+            Decision.events(OrderImported(command.source, now))
+        }
+        occurredAt<ImportWithDeadline> { it.placedAt }
         evolve<OrderImported> { source = it.source }
         evolve<Shipped> { }
     }
@@ -114,6 +126,20 @@ class KernelOccurredAtTest {
         // An aggregate that exists refuses the creation before its time is read.
         (kernel.execute(model, command(ImportOrder("legacy-1", PLACED))) as CommandOutcome.Rejected).rejection.code
             .assert().isEqualTo(FrameworkCodes.AGGREGATE_EXISTS)
+    }
+
+    @Test
+    fun `a declaring creation's schedules count from when it is written, not from when it occurred`() = runTest {
+        val kernel = Kernel(InMemoryEventLog(), clock = { NOW })
+        val imported = kernel.execute(
+            model,
+            command(ImportWithDeadline("legacy-1", PLACED))
+        ) as CommandOutcome.Committed
+        val timers = imported.stream.decoded().filterIsInstance<ScheduleSet>()
+            .associate { it.key to ScheduleSlots.timerOf(imported.stream, it, 4).dueAt }
+        timers.getValue("pay-timeout").assert().isEqualTo(NOW + 30.minutes.inWholeMilliseconds)
+        // The first 03:00 after the write, not every one since the aggregate was created in the other system.
+        timers.getValue("nightly").assert().isEqualTo(Instant.parse("2023-11-15T03:00:00Z").toEpochMilli())
     }
 
     @Test

@@ -86,7 +86,7 @@ internal class TopicEntries(
             val offsets = source.offsets(topic, partition)
             // A record this version cannot decode is passed over: a partition of nothing else starts at its end.
             val commits = source.read(topic, partition, offsets.start, offsets.end)
-                .map { TimedEntry(it.offset + 1, decodedOrNull(it)?.commitTime) }
+                .map { TimedEntry(it.offset + 1, decodedOrNull(it)?.writtenAt) }
             start.firstAt(commits, offsets.end, "partition $partition of $topic")
         }
     }

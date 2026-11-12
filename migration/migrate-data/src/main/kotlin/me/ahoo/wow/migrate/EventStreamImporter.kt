@@ -49,7 +49,7 @@ internal class EventStreamImporter(
     private val clock: () -> Long = System::currentTimeMillis,
     private val progress: (ImportProgress) -> Unit = {},
 ) {
-    private val appends = InstanceAppends(source, logOf, StreamConverter(plan), options)
+    private val appends = InstanceAppends(source, logOf, StreamConverter(plan, clock), options)
 
     /** Imports every instance of [aggregate] not yet imported, and marks its full import complete. */
     suspend fun importAll(aggregate: NineXAggregate): ImportProgress {

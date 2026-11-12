@@ -167,6 +167,29 @@ class SubscriptionStartTest {
     }
 
     @Test
+    fun `an instant should start at an import written after it, whenever the import's commit occurred`(): Unit =
+        runBlocking {
+            appendAt("a", 1, 1)
+            appendAt("b", 1, 2)
+            // Created long before in the system it came from, written at 4 s.
+            log.append(
+                EventStreamRecord(
+                    cart("imported"),
+                    1,
+                    "c-imported",
+                    "r-imported",
+                    "shop.cart.Act",
+                    500L,
+                    listOf(EventRecord("shop.cart.Added", 1, "{}")),
+                    Scope.NONE,
+                    headers = mapOf(EventStreamRecord.WRITTEN_AT to "4000"),
+                ),
+            )
+            appendAt("c", 1, 5)
+            SubscriptionStart.At(second(3)).checkpointIn(log, 0).assert().isEqualTo(2L)
+        }
+
+    @Test
     fun `an instant should start before an entry decided earlier but appended later than one committed after it`():
         Unit = runBlocking {
         val executor = Executor(Kernel(log, clock = clock::get))

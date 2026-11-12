@@ -35,7 +35,7 @@ class EventStreamExporterTest {
     private val target = InMemoryNineXEventTarget(nineX)
     private val checkpoints = InMemoryCheckpointRepository()
     private val reports = mutableListOf<ExportProgress>()
-    private val converter = StreamConverter(NineXExample.plan)
+    private val converter = StreamConverter(NineXExample.plan) { NineXExample.IMPORTED_AT }
 
     private fun exporter(options: ExportOptions = ExportOptions(pageSize = 2), into: NineXEventTarget = target) =
         EventStreamExporter(NineXExample.plan, { log }, into, checkpoints, options, { 1_000L }) { reports += it }
