@@ -65,8 +65,8 @@ import java.util.concurrent.ConcurrentHashMap
  * partial update, which would have Elasticsearch rewrite the `_source` and lose the state's exact numbers.
  *
  * The claimed state revision of each index is a document of the snapshot table index ([ElasticsearchNames.snapshotTables]),
- * keyed by the snapshot index, guarded the same way. Writes become visible to searches as [refresh] says
- * (`wait_for` by default, so a snapshot is queryable once its write returns).
+ * keyed by the snapshot index, guarded the same way. Writes become visible to searches as [refresh] says: within the
+ * index's refresh interval by default, or, with `wait_for`, once the write returns.
  */
 @InternalWowApi
 class ElasticsearchSnapshotStore internal constructor(
@@ -74,7 +74,7 @@ class ElasticsearchSnapshotStore internal constructor(
     private val names: ElasticsearchNames,
     private val context: String,
     private val ddl: Ddl = Ddl.AUTO,
-    private val refresh: Refresh = Refresh.WaitFor,
+    private val refresh: Refresh = Refresh.False,
 ) : SnapshotStore, SnapshotRebuildStore {
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
     override val rebuilds: SnapshotRebuildStore get() = this

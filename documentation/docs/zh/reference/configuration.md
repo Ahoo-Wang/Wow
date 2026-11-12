@@ -151,7 +151,7 @@ The settings of every elasticsearch store; a store's own options override them.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.elasticsearch.index-prefix` | `String` |  | A prefix of every index name of the store (&lt;prefix&gt;_wow_snapshot__&lt;context&gt;__&lt;aggregate&gt;), for a cluster several services or environments share; none when not set. |
-| `wow.elasticsearch.refresh` | `ElasticsearchRefresh` | `wait-for` | When a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval). |
+| `wow.elasticsearch.refresh` | `ElasticsearchRefresh` | `none` | When a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, which only an in-process caller that waits on the store's own snapshot subscription in code can rely on) or immediate (an immediate refresh, for tests). |
 | `wow.elasticsearch.reindex-requests-per-second` | `Integer` | `1000` | How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
 
 ## `wow.executor`
@@ -657,7 +657,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 | `wow.stores.<name>.query.max-concurrent` | `Integer` |  | How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound. |
 | `wow.stores.<name>.query.max-queued` | `Integer` |  | How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. |
 | `wow.stores.<name>.query.max-wait` | `Duration` |  | How long a query beyond the bound waits for a permit, over `wow.query.max-wait`. |
-| `wow.stores.<name>.refresh` | `ElasticsearchRefresh` | `wait-for` | On elasticsearch: when a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval). |
+| `wow.stores.<name>.refresh` | `ElasticsearchRefresh` | `none` | On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, which only an in-process caller that waits on the store's own snapshot subscription in code can rely on) or immediate (an immediate refresh, for tests). |
 | `wow.stores.<name>.reindex-requests-per-second` | `Integer` | `1000` | On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
 | `wow.stores.<name>.sharding` | `MongoSharding` | `auto` | On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard. |
 | `wow.stores.<name>.type` | `String` |  | The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. |

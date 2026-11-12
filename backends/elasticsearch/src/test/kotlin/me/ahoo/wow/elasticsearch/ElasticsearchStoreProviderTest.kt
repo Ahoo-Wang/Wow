@@ -73,7 +73,7 @@ class ElasticsearchStoreProviderTest {
         store.holdsLogs.assert().isFalse()
         store.holdsSnapshots.assert().isTrue()
         store.location.assert().isSameAs(restClient)
-        store.refresh.assert().isEqualTo(Refresh.WaitFor)
+        store.refresh.assert().isEqualTo(Refresh.False)
         store.names.snapshots("ctx", "Order").assert().isEqualTo("prod_a_wow_snapshot__ctx__order")
         store.snapshots("ctx").assert().isNotNull()
         assertThrownBy<UnsupportedOperationException> { store.log("ctx", 4) }
@@ -112,7 +112,7 @@ class ElasticsearchStoreProviderTest {
     fun `the refresh option names a policy`() {
         val refresh = ElasticsearchStoreProvider.REFRESH
         refresh.values.assert().containsExactly("wait-for", "immediate", "none")
-        refresh.default.assert().isEqualTo(ElasticsearchRefresh.WAIT_FOR)
+        refresh.default.assert().isEqualTo(ElasticsearchRefresh.NONE)
         refresh.parse("Wait-For", "refresh").refresh.assert().isEqualTo(Refresh.WaitFor)
         refresh.parse("none", "refresh").refresh.assert().isEqualTo(Refresh.False)
         assertThrownBy<WowConfigurationException> { refresh.parse("wait_for", "refresh") }

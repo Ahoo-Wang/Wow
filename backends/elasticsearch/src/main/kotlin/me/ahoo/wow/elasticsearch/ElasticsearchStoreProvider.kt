@@ -48,8 +48,12 @@ import me.ahoo.wow.spi.timer.TimerStore
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
  *   several services or environments share; none by default;
- * - `refresh`: when a write becomes visible to searches, `wait_for` (the default: a snapshot is queryable once its
- *   write returns), `true` (an immediate refresh, for tests) or `false` (within the index's refresh interval);
+ * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
+ *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
+ *   command's `snapshot` wait is answered by the subscription of its primary snapshot store, never this one's, so
+ *   waiting for a refresh serves only an in-process caller that builds a wait hop on this store's subscription in
+ *   code (`wow.snapshot:<store>`, a name `Wow-Wait` does not admit), and caps that subscription's writes at a batch
+ *   per write lane a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
@@ -120,11 +124,12 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         /** The option of when a write becomes visible to searches. */
         val REFRESH = ProviderOption.enumeration(
             "refresh",
-            "when a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its " +
-                "write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh " +
-                "interval).",
+            "when a write becomes visible to searches: none (the default: within the index's refresh interval; a " +
+                "command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write " +
+                "returns, which only an in-process caller that waits on the store's own snapshot subscription in " +
+                "code can rely on) or immediate (an immediate refresh, for tests).",
             ElasticsearchRefresh::class.java,
-            ElasticsearchRefresh.WAIT_FOR,
+            ElasticsearchRefresh.NONE,
         )
 
         /** The option of how fast an index's documents are indexed again for a field the store's queries map. */
@@ -141,13 +146,17 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 /** When a store's write becomes visible to searches (`refresh`): the Elasticsearch [refresh] policy it writes with. */
 @InternalWowApi
 enum class ElasticsearchRefresh(val refresh: Refresh) {
-    /** Once its write returns, the snapshot is queryable: Elasticsearch refreshes before it answers. */
+    /**
+     * Once its write returns, the snapshot is queryable: Elasticsearch answers after its next refresh. It serves an
+     * in-process caller that builds a wait hop on the store's own snapshot subscription in code; the `Wow-Wait` header
+     * does not admit that subscription's name.
+     */
     WAIT_FOR(Refresh.WaitFor),
 
     /** Each write refreshes its shards at once: for tests. */
     IMMEDIATE(Refresh.True),
 
-    /** Within the index's refresh interval. */
+    /** Within the index's refresh interval: the default. */
     NONE(Refresh.False),
 }
 
@@ -160,7 +169,7 @@ internal class ElasticsearchStore(
     config: StoreConfig,
     val restClient: Rest5Client,
     val names: ElasticsearchNames,
-    val refresh: Refresh = Refresh.WaitFor,
+    val refresh: Refresh = Refresh.False,
     val queryRestClient: Rest5Client? = null,
     /** How many documents a second a mapping's rewrite indexes again (`reindex-requests-per-second`). */
     val rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
