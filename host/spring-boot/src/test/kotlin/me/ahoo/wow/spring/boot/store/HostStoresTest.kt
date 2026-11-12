@@ -186,10 +186,10 @@ class HostStoresTest {
     }
 
     @Test
-    fun `a store that only holds a copy is never a type's own snapshot store, and may be its queries' copy`() {
+    fun `a store that holds snapshots and no log is a type's own snapshot store, the default one or its copy`() {
         val stores = memory("a") + (
             "search" to object : AcmeStore(StoreConfig("search", "search")) {
-                override val primarySnapshots: Boolean = false
+                override val holdsLogs: Boolean = false
             }
             )
         layoutOf(
@@ -200,30 +200,25 @@ class HostStoresTest {
             stores,
             models,
         ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("a", copy = "search"))
-        assertThrows<IllegalStateException> {
-            layoutOf(
-                properties {
-                    log.store = "a"
-                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.store = "search" }
-                },
-                stores,
-                models,
-            )
-        }.message.assert().contains(
-            "The store placement makes search",
-            "Keep the snapshots on a mongo or postgres store",
-            "query search through the aggregate type's query snapshot store",
-        )
+        layoutOf(
+            properties {
+                log.store = "a"
+                aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.store = "search" }
+            },
+            stores,
+            models,
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("search"))
+        layoutOf(
+            properties {
+                log.store = "a"
+                snapshot.store = "search"
+            },
+            stores,
+            models,
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("search"))
         assertThrows<WowConfigurationException> {
-            layoutOf(
-                properties {
-                    log.store = "a"
-                    snapshot.store = "search"
-                },
-                stores,
-                models,
-            )
-        }.key.assert().isEqualTo("wow.snapshot.store")
+            layoutOf(properties { log.store = "search" }, stores, models)
+        }.key.assert().isEqualTo("wow.log.store")
     }
 
     @Test

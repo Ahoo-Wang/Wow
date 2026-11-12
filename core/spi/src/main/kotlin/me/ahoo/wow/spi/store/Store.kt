@@ -81,13 +81,6 @@ abstract class Store(val config: StoreConfig) : AutoCloseable {
     open val holdsSnapshots: Boolean get() = true
 
     /**
-     * Whether the store may be an aggregate type's primary snapshot store, the one its commands load their state from
-     * and its state reads read: one that holds snapshots, unless it only holds a copy beside a primary, as a search
-     * index read in near real time does.
-     */
-    open val primarySnapshots: Boolean get() = holdsSnapshots
-
-    /**
      * The facet of [type] the store has, null when it has none: a capability a backend opts into beyond the ports, read
      * by the module that knows the facet's type. The documented facets are [StorePool], the connections the store
      * draws from, and the query side `me.ahoo.wow.query.store.StoreQueries` (`:query`), the snapshot and `events`

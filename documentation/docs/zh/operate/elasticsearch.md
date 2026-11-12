@@ -1,11 +1,11 @@
 ---
 title: Elasticsearch
-description: 在 Elasticsearch 上保存服务快照的一份副本以供查询，并通过 Sink 检索它的事件，而它的日志和快照仍保存在 PostgreSQL 或 MongoDB 上。
+description: 在 Elasticsearch 上保存服务的快照，作为供查询的副本或聚合唯一的快照存储，并通过 Sink 检索它的事件，而它的日志仍保存在 PostgreSQL 或 MongoDB 上。
 ---
 
 # Elasticsearch
 
-Elasticsearch 从不保存 Wow 日志：每个聚合的日志都保存在 PostgreSQL 或 MongoDB 上，它们是事实的来源。Elasticsearch 得到的是副本：快照，让快照查询在搜索引擎上运行；以及通过 Sink 写入的事件流，让 `events` 模型可以跨聚合检索。两者随时都可以从日志重建。模块是 `wow-elasticsearch`。
+Elasticsearch 从不保存 Wow 日志：每个聚合的日志都保存在 PostgreSQL 或 MongoDB 上，它们是事实的来源。Elasticsearch 得到快照，让快照查询在搜索引擎上运行：聚合自己的快照存储旁的一份副本，或者就是那个存储（[下文](#only-snapshot-store)）。它还得到通过 Sink 写入的事件流，让 `events` 模型可以跨聚合检索。两者随时都可以从日志重建。模块是 `wow-elasticsearch`。
 
 ## `elasticsearch` 类型的存储 {#a-store-of-type-elasticsearch}
 
@@ -39,7 +39,7 @@ wow:
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`none`（在索引的刷新间隔内）、`wait-for`（写入返回时）或 `immediate` | `none` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；从不是 Elasticsearch | `wow.snapshot.store`，否则为日志的存储 |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；也可以是 Elasticsearch（[下文](#only-snapshot-store)） | `wow.snapshot.store`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储；不是它自己的存储时，这个存储就为这些查询保存一份它的快照副本 | 它自己的快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
@@ -96,11 +96,34 @@ curl -X POST "$ELASTICSEARCH_URL/_update_by_query/<node>:<id>/_rethrottle?reques
 
 每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
 
+## 作聚合唯一的快照存储 {#only-snapshot-store}
+
+聚合类型自己的快照存储可以是 Elasticsearch 存储，它的日志仍在 MongoDB 或 PostgreSQL 上。这时它的状态只存一份，就在它的快照查询读取的索引里：
+
+<!-- sample: fragment -->
+
+```yaml
+wow:
+  stores:
+    main: { type: mongo }
+    search: { type: elasticsearch }
+  log:
+    store: main
+  aggregates:
+    "[shop.order]":
+      snapshot:
+        store: search
+```
+
+- **命令按 ID 从它加载。** 命令用实时 get 从索引加载状态，再从日志的存储读日志的尾部。状态读取（`GET …/state`）也这样读这个索引。无论 `refresh` 取什么，写入一返回，按 ID 就能立刻读回。
+- **它的默认等待止于 Elasticsearch。** 索引包含该提交时 `snapshot` 就结束。这个类型的查询读的是同一个索引，所以 `queryable` 是同一个等待。在默认的 `refresh: none` 下，检索要在这之后的一个索引刷新间隔内才看到该提交。提交命令后重载列表的页面可能读不到它，按 ID 读取则不会。
+- **`refresh: wait-for` 为这个存储上各类型的每条命令补上这个空隙。** 每次写入都等到检索看得到才返回，所以每条按默认等待的命令都可能晚至多一个刷新间隔才得到应答。这个存储的订阅也像副本那样，每个刷新间隔每条写入通道至多写一批（[上文](#reading-your-own-write)）。超过这个上限它就会落后，未命中状态缓存的命令要重放更长的一段日志尾部。
+
 ## 存储组合 {#store-combinations}
 
-每个聚合类型各自选择存储：日志和快照在 PostgreSQL 或 MongoDB 上（`wow.log.store`、`wow.snapshot.store`，以及聚合的 `log.store` 和 `snapshot.store`），快照的副本和事件检索在 Elasticsearch 上，如上面的示例所设。由此有两点：
+每个聚合类型各自选择存储：日志在 PostgreSQL 或 MongoDB 上，快照在那里或在 Elasticsearch 上（`wow.log.store`、`wow.snapshot.store`，以及聚合的 `log.store` 和 `snapshot.store`），快照的副本和事件检索在 Elasticsearch 上，如上面的示例所设。由此有两点：
 
-- **命令和状态读取留在聚合自己的存储上。** 命令从聚合的快照存储和其后的日志加载状态，状态读取（`GET …/state`）读取这个存储，所以两者都不必等待 Elasticsearch 的刷新。每个快照存储由它自己的一个订阅从日志写入，无论它保存某个类型自己的快照还是一份副本：默认快照存储（`wow.snapshot.store`，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`。它只保留收到的最高版本，所以副本只会落后，并且可以重建。宿主拒绝把 Elasticsearch 作为聚合的快照存储，并指出相应的配置项：改把它作为聚合的查询快照存储。
+- **命令和状态读取留在聚合自己的存储上。** 命令从聚合的快照存储和其后的日志加载状态，状态读取（`GET …/state`）按 ID 读取这个存储，所以两者都不必等待 Elasticsearch 的刷新。每个快照存储由它自己的一个订阅从日志写入，无论它保存某个类型自己的快照还是一份副本：默认快照存储（`wow.snapshot.store`，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`。它只保留收到的最高版本，所以副本只会落后，并且可以重建。宿主只拒绝把 Elasticsearch 作为日志存储，并指出相应的配置项。
 - **事件查询跟随 Sink。** 聚合的 `query.events.store` 指向该存储后，它的 `events` 查询读取 Elasticsearch，因此看到的是 Sink 已写入的内容：提交在提交后不久才可检索，而不是立即可检索。它的快照可以留在日志的存储上，两项设置相互独立。
 
 ## 重建 {#rebuild}
