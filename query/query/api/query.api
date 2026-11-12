@@ -897,7 +897,7 @@ public final class me/ahoo/wow/query/policy/ReadAuthorizer$Companion {
 	public final fun allOf (Ljava/util/List;)Lme/ahoo/wow/query/policy/ReadAuthorizer;
 }
 
-public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/api/read/TenantQueryApi {
+public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/spi/read/TenantQueryApi {
 	public static final field Companion Lme/ahoo/wow/query/read/InProcessQueryApi$Companion;
 	public static final field DEFAULT_LIST_SIZE I
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;

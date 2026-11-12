@@ -29,13 +29,13 @@ import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.read.TenantQueryApi
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 

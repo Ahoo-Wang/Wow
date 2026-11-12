@@ -16,7 +16,7 @@ package me.ahoo.wow.runtime.reservation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -58,9 +58,11 @@ class ReservationSubscription(
     /** Told of each key a committed fact lost ([ObservedEvent.ReservationLost]). */
     private val observer: Observer = Observer.NONE,
 ) {
-    /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
+    /**
+     * The subscription to register: named [SystemSubscriptions.RESERVATION], of every aggregate type of the context.
+     */
     val subscription: Subscription = Subscription.builtIn(
-        Hop.RESERVATION_SUBSCRIPTION,
+        SystemSubscriptions.RESERVATION,
         SubscriptionFilter(context),
         FunctionKind.SYSTEM,
         ::apply,

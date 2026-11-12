@@ -151,7 +151,7 @@ class DerivedIdentityTest {
             ) as ExecutionSagaContext
             order.forEach { key ->
                 if (key.startsWith("-")) {
-                    context.cancel(key.drop(1), target)
+                    context.cancelSchedule(key.drop(1), target)
                 } else {
                     context.schedule(key, ScheduleRule.after(1.hours), CommandRequest.to(target, Charge()))
                 }

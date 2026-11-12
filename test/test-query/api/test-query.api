@@ -1,4 +1,4 @@
-public final class me/ahoo/wow/test/query/MemoryQueries : me/ahoo/wow/api/read/TenantQueryApi {
+public final class me/ahoo/wow/test/query/MemoryQueries : me/ahoo/wow/spi/read/TenantQueryApi {
 	public static final field Companion Lme/ahoo/wow/test/query/MemoryQueries$Companion;
 	public static final fun of ()Lme/ahoo/wow/test/query/MemoryQueries;
 	public static final fun of (Ljava/lang/ClassLoader;)Lme/ahoo/wow/test/query/MemoryQueries;

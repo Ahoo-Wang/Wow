@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.NODE_SERVICE
 import me.ahoo.wow.runtime.node.PlacedStores
@@ -51,7 +52,7 @@ class NodeHealthTest : NodeHealthFixtures() {
             node.gateway.execute(deposit("a-1"))
             val snapshotsOf = { health: ComponentHealth ->
                 health.component(NodeHealth.SUBSCRIPTIONS)!!.components.single()
-                    .component(me.ahoo.wow.api.result.Hop.SNAPSHOT_SUBSCRIPTION)!!
+                    .component(SystemSubscriptions.SNAPSHOT)!!
             }
             eventually {
                 health.sample()

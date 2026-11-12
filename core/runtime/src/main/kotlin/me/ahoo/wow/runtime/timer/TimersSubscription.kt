@@ -18,11 +18,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -66,9 +66,9 @@ class TimersSubscription(
         require(partitions >= 1) { "A log has at least one partition." }
     }
 
-    /** The subscription to register: named [Hop.TIMERS_SUBSCRIPTION], of every aggregate type of the context. */
+    /** The subscription to register: named [SystemSubscriptions.TIMERS], of every aggregate type of the context. */
     val subscription: Subscription = Subscription.builtIn(
-        Hop.TIMERS_SUBSCRIPTION,
+        SystemSubscriptions.TIMERS,
         SubscriptionFilter(context),
         FunctionKind.SYSTEM,
         ::write,

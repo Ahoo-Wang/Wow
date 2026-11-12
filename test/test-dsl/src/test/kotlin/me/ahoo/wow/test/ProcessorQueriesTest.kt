@@ -23,11 +23,11 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.spi.read.TenantQueryApi
 import org.junit.jupiter.api.Test
 
 /** A saga's handlers read through their context's queries (decision D259), which a test serves with a fake. */

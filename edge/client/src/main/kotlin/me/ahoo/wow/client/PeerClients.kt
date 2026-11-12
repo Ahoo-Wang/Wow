@@ -28,11 +28,11 @@ import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.read.TenantQueryApi
 import tools.jackson.databind.node.ObjectNode
 
 /**

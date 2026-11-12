@@ -84,8 +84,9 @@ interface DecideScope {
 
     /**
      * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name; false
-     * when another aggregate holds it. The key is unique among the aggregates of this aggregate's type, within its
-     * tenant ([ReservationTenancy.TENANT]): another tenant, or an aggregate of another type, may hold the same key
+     * when another aggregate holds it. The key is unique among the aggregates of this aggregate's type, as [tenancy]
+     * says: within its tenant by default ([ReservationTenancy.TENANT]), where another tenant may hold the same key, or
+     * across the type's tenants ([ReservationTenancy.SYSTEM]). An aggregate of another type may hold the same key
      * (a type's reservations live with its log). A key unique across types, such as an e-mail address
      * that users and organizations share, is modelled as an aggregate of its own that holds the keys, which the other
      * aggregates claim through it.
@@ -99,16 +100,15 @@ interface DecideScope {
      * It is a `suspend` function, so a Java decide function cannot call it (a blocking bridge is
      * planned for 10.x): a decide function that reserves keys is written in Kotlin.
      */
-    suspend fun reserve(namespace: String, key: String): Boolean
+    suspend fun reserve(
+        namespace: String,
+        key: String,
+        tenancy: ReservationTenancy = ReservationTenancy.TENANT,
+    ): Boolean
 
     /**
-     * Reserves [key] in [namespace] for this command's aggregate as [reserve] does, unique among the aggregates
-     * [tenancy] says: [ReservationTenancy.SYSTEM] makes it unique across the type's tenants.
-     */
-    suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean
-
-    /**
-     * Releases [key] in [namespace], which this command's aggregate holds, once the events are appended:
+     * Releases [key] in [namespace], which this command's aggregate holds as [tenancy] reserved it, once the events
+     * are appended:
      * another aggregate may then reserve it. The release commits with the events: it is recorded with them and
      * applied again after a crash, as a confirmation is; nothing is released when they are not
      * appended, or by a decision that appends no event. A key the aggregate does not hold stays as it is.
@@ -116,10 +116,7 @@ interface DecideScope {
      * Deleting an aggregate releases none of its keys, so a restored aggregate still holds them: its delete command
      * releases the keys it should give up.
      */
-    fun release(namespace: String, key: String)
-
-    /** Releases [key] in [namespace] as [release] does, the key reserved with [tenancy]. */
-    fun release(namespace: String, key: String, tenancy: ReservationTenancy)
+    fun release(namespace: String, key: String, tenancy: ReservationTenancy = ReservationTenancy.TENANT)
 
     /**
      * Schedules [command] to be sent to [target], this aggregate by default, as [rule] says: at an

@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -30,7 +31,7 @@ class WaitPlanTest {
         val command = Command("c-1", "r-1", ref, "body")
         command.wait.assert().isEqualTo(WaitPlan.DEFAULT)
         command.wait.isDefault.assert().isTrue()
-        command.wait.hops.assert().containsExactly(Hop(Stage.HANDLED, null, Hop.SNAPSHOT_SUBSCRIPTION))
+        command.wait.hops.assert().containsExactly(Hop(Stage.HANDLED, null, SystemSubscriptions.SNAPSHOT))
         command.wait.timeout.assert().isEqualTo(10.seconds)
         WaitPlan.COMMITTED.hops.assert().containsExactly(Hop.committed())
         WaitPlan.ACCEPTED.hops.assert().containsExactly(Hop.accepted())
