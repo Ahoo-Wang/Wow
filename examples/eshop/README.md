@@ -203,7 +203,7 @@ Every server has two more:
 
 Each server's image is built from its Gradle distribution with `deploy/eshop-<context>/Dockerfile`.
 
-With the `kafka` profile, each service creates the topics it owns when they are missing: its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, set `wow.ddl: validate` (or `wow.kafka.ddl` alone) and create the topics beforehand ([Deployment](https://wow.ahoo.me/operate/kafka)):
+With the `kafka` profile, each service creates the topics it owns when they are missing: its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic when its sagas send commands to another context (the inventory's send none), and its state topics. A service that reads another's topic waits until that service has created it. In production, set `wow.ddl: validate` (or `wow.kafka.ddl` alone) and create the topics beforehand ([Deployment](https://wow.ahoo.me/operate/kafka)):
 
 ```bash
 ./gradlew :eshop-inventory-server:run --args='--spring.profiles.active=kafka'

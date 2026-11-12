@@ -18,7 +18,7 @@ The HTTP port is `8085`, the internal port `9095`. The build's generated values 
 3. Create the Kafka topics the service owns (`WOW_KAFKA_DDL=validate`): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions:
 
    ```bash
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-payment.commands --partitions 64
+   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-payment.commands --partitions 64 --replication-factor 3 --config min.insync.replicas=2
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-payment.receipts --partitions 64
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-payment.payment.state --partitions 64
    ```

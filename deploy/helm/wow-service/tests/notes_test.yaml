@@ -1,0 +1,31 @@
+suite: the notes
+templates:
+  - templates/NOTES.txt
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: says nothing of the monitor when the meters are on a port of their own
+    set:
+      metrics.serviceMonitor.enabled: true
+    asserts:
+      - notMatchRegexRaw:
+          pattern: The monitor scrapes the HTTP port
+
+  - it: warns that a monitor on the HTTP port admits its scraper to the API, with the policies on
+    set:
+      metrics.port: 8080
+      metrics.path: /actuator/prometheus
+      metrics.podMonitor.enabled: true
+    asserts:
+      - matchRegexRaw:
+          pattern: "The monitor scrapes the HTTP port: its scraper is admitted only through networkPolicy.public.from"
+
+  - it: says nothing of the monitor without the policies
+    set:
+      metrics.port: 8080
+      metrics.podMonitor.enabled: true
+      networkPolicy.enabled: false
+    asserts:
+      - notMatchRegexRaw:
+          pattern: The monitor scrapes the HTTP port

@@ -61,8 +61,8 @@ Each node listens on two ports:
 
 | Port | Serves | Who reaches it |
 | --- | --- | --- |
-| Public (`server.port`) | The HTTP API: commands, queries, state reads, the Manifest, OpenAPI; Actuator's health endpoint | Clients, gateways, ingresses |
-| Internal (`wow.internal.port`, 9090 by default) | The cluster channel between the service's own nodes; wait signals from any service; synchronous calls and reads from other services | Nodes of the system only |
+| Public (`server.port`) | The HTTP API: commands, queries, state reads, the Manifest, OpenAPI; Actuator's health endpoint | What `networkPolicy.public.from` admits, the gateway by default: clients and ingresses go through it, or are added there |
+| Internal (`wow.internal.port`, 9090 by default; the chart sets it on the pod from `ports.internal`, 9093 by default) | The cluster channel between the service's own nodes; wait signals from any service; synchronous calls and reads from other services | Nodes of the system only |
 
 The internal port is HTTP/2 without TLS (h2c). It must never be reachable from outside the platform: no public load balancer, ingress or port mapping points at it, and a network policy lets only the platform's own pods reach it. It takes no token: every request to it names the service it comes from in the `Wow-Service` header, and the network is its boundary ([Secure a deployment](./security#close-the-internal-port)).
 

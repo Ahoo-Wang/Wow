@@ -10,7 +10,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 ## 检查清单 {#checklist}
 
 - 只有网关能访问公开端口。
-- 平台之外永远访问不到内部端口、Kafka 和存储：像 `deploy/` 里那样，用网络策略只让平台自己的 Pod 访问它们。
+- 平台之外永远访问不到内部端口、Kafka 和存储：用网络策略只让平台自己的 Pod 访问它们。`deploy/` 里的网络策略覆盖 MongoDB 和 migrate-data（`deploy/mongodb/networkpolicy.yaml`、`deploy/migrate-data/networkpolicy.yaml`），chart 为每个服务生成它自己的；Kafka 和其他存储的网络策略由平台自己提供。
 - 网关自己写转发头，并去掉客户端发来的 `CoSec-Identity`；它从不把客户端发来的传下去。
 - 调用方解析器认证发往公开端口的每个请求；CoSec 提供了一个。
 - 第一个请求到达之前，CoSec 的文档已经发布到一个以 `maxmemory-policy noeviction` 运行的 Redis。
