@@ -78,9 +78,11 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
  *   10 seconds), not the 1 second of earlier releases, which covered the owner's tail before falling back.
  * - [maxInFlightPerPeer]: the forwards one peer may have outstanding; one more runs locally instead.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
- * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating
- *   and leaves the members until the reconcile ends, so the others take the partitions it cannot run.
- * Well above what a hand-off takes: the drain, then the stop of each runtime; longer than [drainTimeout] at least.
+ * - [reconcileTimeout]: how long one reconcile may go without finishing a step for one partition (an acquisition, a
+ *   hand-off) before the node takes itself as stuck: it fences the group, leaving the members until the reconcile
+ *   moves again and giving up its leases, so the others take the partitions it cannot run. Well above what one step
+ *   takes: a hand-off's drain, then the stop of each runtime; longer than [drainTimeout], and longer than [leaseTtl],
+ *   so a fence never comes before the node would take an unrenewed lease as lost.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -126,6 +128,13 @@ class ClusterOptions @InternalWowApi constructor(
             "The reconcile timeout $reconcileTimeout must be longer than the drain timeout $drainTimeout: a " +
                 "hand-off waits up to the drain timeout, and a node reconciling longer takes itself as stuck and " +
                 "leaves the members."
+        }
+        // A stuck reconcile gives up the node's leases: not before an unrenewed one would be taken as lost.
+        require(reconcileTimeout > leaseTtl) {
+            "The reconcile timeout $reconcileTimeout must be longer than the lease TTL $leaseTtl: a node whose " +
+                "reconcile finishes no step for the reconcile timeout gives up its leases, which must not come " +
+                "sooner than a lease left unrenewed expires. Raise the reconcile timeout above $leaseTtl, or lower " +
+                "the lease TTL below $reconcileTimeout."
         }
     }
 

@@ -281,6 +281,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             groups = logGroups.drop(1).map { it.subscriptions },
             partitionChanged = { partition -> states.invalidate(partition, partitions) },
             membership = membershipOf(backends.leases),
+            observer = observer,
         )
     }
 

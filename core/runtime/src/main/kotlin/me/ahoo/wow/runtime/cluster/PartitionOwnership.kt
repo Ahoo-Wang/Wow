@@ -34,6 +34,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
@@ -51,11 +53,23 @@ import kotlin.time.TimeSource
  * - **Membership** is the node's in its service ([ServiceMembership]), shared by all its groups: one
  *   record listing the groups it takes part in, heartbeated every [ClusterOptions.heartbeatInterval], and one read of
  *   the members per interval, which this group's reconcile and routes reuse. The group's members are those listing
- *   it. A reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a partition,
- *   takes the group off the node's record until the reconcile ends, so the others take the partitions it cannot run
- *   instead of handing them back to it. One still running after `wow.health.liveness.stall-timeout` fails the node's
- *   liveness, so its orchestrator restarts it: such a reconcile waits on a call that never returns, which only a
- *   restart ends.
+ *   it.
+ * - **A stuck reconcile fences the group.** A reconcile that finishes no step for one partition (an acquisition, a
+ *   hand-off, a drop) for [ClusterOptions.reconcileTimeout], stuck stopping or starting one, is stuck: a long reconcile
+ *   that keeps finishing steps is not. The node then takes the group off its record, so the others take the
+ *   partitions it cannot run instead of handing them back to it, and gives up its leases in this order: every
+ *   partition stops taking commands at once, so a command for it is forwarded to the next owner; each one's commands
+ *   in flight end, or [ClusterOptions.drainTimeout] passes; only then is its lease left unrenewed, without a release,
+ *   to expire within [ClusterOptions.leaseTtl]. So there is never a holder here and an acquirer elsewhere at once. A
+ *   lease the stuck reconcile still takes is never renewed, and the partitions' timers are stopped, each stop bounded
+ *   by the drain timeout. The intake and the subscriptions are left running: the intake's commands meet the closed
+ *   partitions and are forwarded, and a subscription's stop is what such a reconcile is usually stuck on. Their
+ *   effects can repeat beside the new owner's until the reconcile moves again, as those of a lease lost while a
+ *   reconcile is busy can. Once it does, the node is a member again, and its next reconcile stops the partitions it
+ *   gave up and takes its share back. Each fence and recovery is observed ([ObservedEvent.OwnershipFenced],
+ *   [ObservedEvent.OwnershipRecovered]) and logged. A reconcile still running after
+ *   `wow.health.liveness.stall-timeout` fails the node's liveness, so its orchestrator restarts it: such a reconcile
+ *   waits on a call that never returns, which only a restart ends.
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
@@ -139,6 +153,8 @@ class PartitionOwnership internal constructor(
      * record and one read of the members per node, whatever the number of groups. One of its own when not given.
      */
     membership: ServiceMembership? = null,
+    /** Told when a stuck reconcile fences the group, and when it recovers. */
+    private val observer: Observer = Observer.NONE,
 ) {
     /**
      * With a fixed [address] where the internal constructor takes a supplier of it, and none of the parts only a node
@@ -207,6 +223,8 @@ class PartitionOwnership internal constructor(
         gates = held
         runs = PartitionRuns(
             group, node, leases, options, timeSource, unrenewedLimit, held, runtimes, intake, timers, partitionChanged,
+            progressed = { stepped = timeSource.markNow() },
+            fenced = { fenced },
         )
     }
 
@@ -225,9 +243,19 @@ class PartitionOwnership internal constructor(
     @Volatile
     private var reconciling: TimeMark? = null
 
-    /** Whether the node left the members because a reconcile is stuck. */
+    /** When the reconcile running now last finished a step for one partition, or started; null between reconciles. */
     @Volatile
-    private var stuck = false
+    private var stepped: TimeMark? = null
+
+    /**
+     * When a stuck reconcile fenced the group: the node left the members and gives up its leases; null while it is
+     * not fenced.
+     */
+    @Volatile
+    private var fencedAt: TimeMark? = null
+
+    /** Whether the group is fenced: no lease is renewed once its commands in flight end. */
+    private val fenced: Boolean get() = fencedAt != null
 
     /**
      * Whether the node stepped out of the group for good ([stepOut]): it neither joins, reconciles nor renews any
@@ -512,6 +540,7 @@ class PartitionOwnership internal constructor(
             return@withLock
         }
         reconciling = timeSource.markNow()
+        stepped = reconciling
         try {
             renewals.loseOverdue()
             runs.dropLost()
@@ -527,34 +556,76 @@ class PartitionOwnership internal constructor(
             }
         } finally {
             reconciling = null
+            stepped = null
         }
     }
 
     /**
-     * Leaves the group's members while the reconcile running now outlasts [ClusterOptions.reconcileTimeout]: the node
-     * then cannot take or stop partitions, so it stops claiming its share by HRW, and takes part again once the
-     * reconcile ends. The membership heartbeats the change at once.
+     * Fences the group while the reconcile running now has finished no step for [ClusterOptions.reconcileTimeout]: the
+     * node then cannot take or stop partitions, so it stops claiming its share by HRW and gives up its leases (see the
+     * class description), and takes part again once the reconcile moves. The membership heartbeats the change at once.
      */
     private suspend fun checkStuck() {
-        val started = reconciling
-        if (started != null && started.elapsedNow() > options.reconcileTimeout) {
-            if (!stuck) {
-                logger.error {
-                    "$node has been reconciling $group for more than ${options.reconcileTimeout}; it leaves the " +
-                        "members until the reconcile ends, so the others take the partitions it cannot run. A " +
-                        "reconcile still running after wow.health.liveness.stall-timeout fails the node's " +
-                        "liveness, so its orchestrator restarts it."
-                }
-                membership.stuck(group.name, true)
-                stuck = true
+        val last = stepped
+        val stalled = last?.elapsedNow()
+        if (stalled != null && stalled > options.reconcileTimeout) {
+            if (!fenced) {
+                fence(stalled)
             }
             return
         }
-        if (stuck) {
-            membership.stuck(group.name, false)
-            stuck = false
-            logger.warn { "$node reconciles $group again and is back among its members." }
+        val since = fencedAt ?: return
+        membership.stuck(group.name, false)
+        fencedAt = null
+        val fencedFor = since.elapsedNow()
+        logger.warn {
+            "$node finished a step of its reconcile of $group again after $fencedFor fenced; it is back among the " +
+                "members, and its next reconcile stops the partitions it gave up and takes its share back."
         }
+        observer.observed(ObservedEvent.OwnershipRecovered(group.name, fencedFor.inWholeMilliseconds))
+        wakeReconcile.trySend(Unit)
+    }
+
+    /**
+     * Fences the group, its reconcile having finished no step for [stalled]: out of the members, every partition closed
+     * at once, and each lease left unrenewed once its partition's commands in flight end or the drain timeout passes.
+     */
+    private suspend fun fence(stalled: Duration) {
+        fencedAt = timeSource.markNow()
+        logger.warn {
+            "$node has finished no step of its reconcile of $group for $stalled; it leaves the members and gives up " +
+                "its leases: its partitions take no command from now on, and each lease expires within " +
+                "${options.leaseTtl} once its commands in flight end, for the others to take. Its subscriptions keep " +
+                "running until the reconcile moves again; one still running after wow.health.liveness.stall-timeout " +
+                "fails the node's liveness, so its orchestrator restarts it."
+        }
+        observer.observed(ObservedEvent.OwnershipFenced(group.name, stalled.inWholeMilliseconds))
+        val upkeep = running?.upkeep
+        gates.forEach { (partition, gate) ->
+            gate.accepting = false
+            val release: suspend () -> Unit = {
+                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
+                    "$node gives up the lease of partition $partition of $group with commands still in flight."
+                }
+                gate.lost = true
+            }
+            val stopTimers: suspend () -> Unit = {
+                withTimeoutOrNull(options.drainTimeout) {
+                    timers.forEach { runner ->
+                        quietly("stop the timers of partition $partition", TIMERS_LATER) {
+                            runner.stopPartition(partition)
+                        }
+                    }
+                }
+            }
+            if (upkeep == null) {
+                gate.lost = true
+            } else {
+                upkeep.launch { release() }
+                upkeep.launch { stopTimers() }
+            }
+        }
+        membership.stuck(group.name, true)
     }
 
     private suspend fun every(interval: Duration, action: String, block: suspend () -> Unit) {
@@ -586,6 +657,9 @@ class PartitionOwnership internal constructor(
 
         /** What follows a stop that failed while a failed start is undone. */
         const val START_UNDONE = "the start is undone all the same"
+
+        /** What follows a stop of a fenced partition's timers that failed. */
+        const val TIMERS_LATER = "the next reconcile stops them"
     }
 }
 

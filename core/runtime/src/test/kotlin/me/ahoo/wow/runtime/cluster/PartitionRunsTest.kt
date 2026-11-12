@@ -48,7 +48,8 @@ class PartitionRunsTest {
         listOf(runtime),
         intake,
         emptyList(),
-    ) { changed += it }
+        partitionChanged = { changed += it },
+    )
 
     @Test
     fun `a partition no gate holds is not handed off`(): Unit = runBlocking {
@@ -71,6 +72,36 @@ class PartitionRunsTest {
             changed.assert().containsExactly(0)
             gates.assert().isEmpty()
         }
+
+    @Test
+    fun `a lease taken while the ownership is fenced is lost at once, never renewed nor opened`(): Unit = runBlocking {
+        val steps = CopyOnWriteArrayList<Int>()
+        val fenced = PartitionRuns(
+            GROUP,
+            NODE,
+            leases,
+            options,
+            time,
+            options.leaseTtl - options.renewInterval,
+            gates,
+            listOf(runtime),
+            intake,
+            emptyList(),
+            partitionChanged = { changed += it },
+            progressed = { steps += 0 },
+            fenced = { true },
+        )
+        fenced.acquire(0, null)
+        val gate = gates.getValue(0)
+        gate.lost.assert().isTrue()
+        gate.open.assert().isFalse()
+        // The acquisition is a step of the reconcile all the same.
+        steps.assert().hasSize(1)
+        // Once the reconcile moves again, it is dropped as any lost partition.
+        fenced.dropLost()
+        gates.assert().isEmpty()
+        steps.assert().hasSize(2)
+    }
 
     @Test
     fun `a start cancelled from within is stopped, released and forgotten, then the cancellation goes on up`(): Unit =
@@ -100,7 +131,8 @@ class PartitionRunsTest {
                 listOf(runtime),
                 intake,
                 listOf(first, second),
-            ) { changed += it }
+                partitionChanged = { changed += it },
+            )
             timed.acquire(0, null)
             coVerify { intake.startPartition(0, any()) }
             coVerify { first.startPartition(0) }

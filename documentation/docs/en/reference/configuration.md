@@ -97,7 +97,7 @@ How the nodes of a service share the partitions of each context's log, and forwa
 | `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more runs here instead. |
 | `wow.cluster.member-ttl` | `Duration` | `PT10S` | How long a node stays a member of the cluster after its last heartbeat. |
 | `wow.cluster.reconcile-interval` | `Duration` | `PT1S` | How often a node compares the partitions it holds with those it should hold; a change of the members it notices reconciles at once. |
-| `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after `wow.health.liveness.stall-timeout` fails the node's liveness. |
+| `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may go without finishing a step for a partition before the node takes itself as stuck: it leaves the members and gives up its leases until the reconcile moves again, so the other nodes take the partitions it cannot run. Longer than `drain-timeout` and than `lease-ttl`, or the node does not start. One still running after `wow.health.liveness.stall-timeout` fails the node's liveness. |
 | `wow.cluster.renew-interval` | `Duration` | `PT3S` | How often a node renews its leases; less than half of `lease-ttl`, or every lease is lost between rounds. |
 | `wow.cluster.route-refresh-interval` | `Duration` | `PT1S` | How often the route table is read from the leases and members; a failed forward refreshes it at once. |
 
