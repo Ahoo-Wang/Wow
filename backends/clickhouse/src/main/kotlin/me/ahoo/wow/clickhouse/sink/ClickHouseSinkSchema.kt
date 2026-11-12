@@ -301,9 +301,9 @@ class ClickHouseSinkSchema(
 
         /**
          * The codec of each stored column the Sink creates, by name, in place of ClickHouse's LZ4: ZSTD(1), one level
-         * for every one, and the delta first for the version and the commit time, which grow along the sorting key. A codec is not part of a column's type (`system.columns.type`), so
-         * the Sink neither validates it nor changes an existing table's: such a table keeps its codecs until its
-         * operator changes them.
+         * for every one, and the delta first for the version and the commit time, which grow along the sorting key.
+         * A codec is not part of a column's type (`system.columns.type`), so the Sink neither validates it nor
+         * changes an existing table's: such a table keeps its codecs until its operator changes them.
          */
         private val CODECS: Map<String, String> = buildMap {
             listOf(
