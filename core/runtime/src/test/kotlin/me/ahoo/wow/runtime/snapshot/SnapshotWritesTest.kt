@@ -81,6 +81,121 @@ class SnapshotWritesTest {
 
     private val store = Store()
 
+    /** Holds each call until the test releases it, by its index, or [releaseAll] opens it for good. */
+    private class Held(private val delegate: SnapshotStore = InMemorySnapshotStore()) : SnapshotStore by delegate {
+        class Call(val ids: List<String>) {
+            val gate = CompletableDeferred<Unit>()
+        }
+
+        val calls = CopyOnWriteArrayList<Call>()
+
+        @Volatile
+        private var open = false
+
+        override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+            val call = Call(snapshots.map { "${it.ref.id}@${it.version}" }).also { calls += it }
+            if (!open) call.gate.await()
+            return delegate.saveAll(snapshots)
+        }
+
+        fun release(index: Int) {
+            calls[index].gate.complete(Unit)
+        }
+
+        fun releaseAll() {
+            open = true
+            calls.forEach { it.gate.complete(Unit) }
+        }
+
+        val written: List<List<String>> get() = calls.map { it.ids }
+    }
+
+    @Test
+    fun `a leader ending while another gathers leaves no backlog behind a single write`(): Unit = runBlocking {
+        val held = Held()
+        val writes = SnapshotWrites(held, maxBatch = 2, committers = 2)
+        val a = async { writes.save(snapshot("a")) }
+        eventually { held.calls.size == 1 }
+        // b leads the second write and gathers while c to f arrive, and a's write ends meanwhile, its place given up.
+        val b = async { writes.save(snapshot("b")) }
+        val rest = listOf("c", "d", "e", "f").map { id -> async { writes.save(snapshot(id)) } }
+        held.release(0)
+        // b's batch holds two; the saves it left get the second write at once, though no save arrives.
+        eventually { held.calls.size == 3 }
+        held.written.assert().containsExactly(listOf("a@1"), listOf("b@1", "c@1"), listOf("d@1", "e@1"))
+        writes.waiting.assert().isEqualTo(1)
+        held.releaseAll()
+        (listOf(a, b) + rest).awaitAll().assert().containsOnly(true)
+        held.written.last().assert().containsExactly("f@1")
+    }
+
+    @Test
+    fun `a save handed the lead and cancelled before its first take hands it on`(): Unit = runBlocking {
+        val held = Held()
+        val writes = SnapshotWrites(held, maxBatch = 8, committers = 2)
+        val a = async { writes.save(snapshot("a")) }
+        eventually { held.calls.size == 1 }
+        val b = async { writes.save(snapshot("b")) }
+        eventually { held.calls.size == 2 }
+        // Two writes run: c and d wait.
+        val c = async { writes.save(snapshot("c")) }
+        val d = async { writes.save(snapshot("d")) }
+        eventually { writes.waiting == 2 }
+        // a's write ends and hands its place to c, which is cancelled before it takes a batch: d leads then.
+        held.release(0)
+        yield()
+        c.cancel()
+        eventually { held.calls.size == 3 }
+        held.written.last().assert().containsExactly("d@1")
+        held.releaseAll()
+        listOf(a, b, d).awaitAll().assert().containsOnly(true)
+        held.load(type.ref("t", "c")).assert().isNull()
+        // No place is lost: a save arriving now leads and is written.
+        writes.save(snapshot("e")).assert().isTrue()
+    }
+
+    @Test
+    fun `a leader cancelled at its yield while a second write runs hands its place to the save waiting`(): Unit =
+        runBlocking {
+            val held = Held()
+            val writes = SnapshotWrites(held, maxBatch = 8, committers = 2)
+            val a = async { writes.save(snapshot("a")) }
+            eventually { held.calls.size == 1 }
+            // x leads the second write and gathers; y waits for it; x is cancelled before it takes its batch.
+            val x = async { writes.save(snapshot("x")) }
+            val y = async { writes.save(snapshot("y")) }
+            yield()
+            x.cancel()
+            eventually { held.calls.size == 2 }
+            held.written.last().assert().containsExactly("y@1")
+            held.releaseAll()
+            listOf(a, y).awaitAll().assert().containsOnly(true)
+            held.load(type.ref("t", "x")).assert().isNull()
+            writes.save(snapshot("z")).assert().isTrue()
+        }
+
+    @Test
+    fun `an earlier version landing after a later one in another call ends refused, not failed`(): Unit =
+        runBlocking {
+            val held = Held()
+            val writes = SnapshotWrites(held, maxBatch = 8, committers = 2)
+            // Two versions of one aggregate in two calls at once, which the subscription never sends (see SnapshotWrites).
+            val later = async { writes.save(snapshot("a", 2)) }
+            eventually { held.calls.size == 1 }
+            val earlier = async { writes.save(snapshot("a", 1)) }
+            eventually { held.calls.size == 2 }
+            held.release(0)
+            later.await().assert().isTrue()
+            held.release(1)
+            earlier.await().assert().isFalse()
+            held.load(type.ref("t", "a"))!!.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `fewer than one committer is refused`() {
+        assertThrows<IllegalArgumentException> { SnapshotWrites(store, 8, committers = 0) }
+    }
+
     @Test
     fun `a save with no write running is written at once, alone`(): Unit = runBlocking {
         val writes = SnapshotWrites(store, 8)

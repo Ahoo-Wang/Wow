@@ -128,6 +128,7 @@ internal class SnapshotWrites(
                             gathered = true
                             gathering = false
                         }
+                        startWaiting()
                     }
                 }
                 write(taken)
@@ -160,6 +161,23 @@ internal class SnapshotWrites(
             }
         }
         return taken
+    }
+
+    /**
+     * Called under the monitor, after a take: while no leader gathers and fewer than [committers] lead, the oldest save
+     * still waiting leads the next write and gathers. So the saves a take left behind (more than [maxBatch] waiting,
+     * or arrived while another leader gathered) get a write of their own at once, never sitting behind a single write
+     * until it ends.
+     */
+    private fun startWaiting() {
+        if (gathering || leaders >= committers) {
+            return
+        }
+        val next = queue.firstOrNull { !it.leads } ?: return
+        leaders++
+        next.leads = true
+        gathering = true
+        next.lead.complete(Unit)
     }
 
     /**
