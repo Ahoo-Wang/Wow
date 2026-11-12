@@ -29,6 +29,7 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -160,6 +161,14 @@ class RecordValuesTest {
             .isEqualTo(LogEntry.of(LogPosition(0, 1), stream(), byteArrayOf(1)))
             .hasSameHashCodeAs(LogEntry.of(LogPosition(0, 1), stream(), byteArrayOf(1)))
         LogEntry.of(LogPosition(0, 1), stream()).copyWith(stream = stream(2)).stream.assert().isEqualTo(stream(2))
+        valueSemantics({ Append.of(stream()) }, Append.of(stream(), TransportCodec.encode(Transport.of())))
+        // An append's transport too is compared by its bytes, and shown as their text.
+        Append.of(stream(), byteArrayOf(1)).assert().isEqualTo(Append.of(stream(), byteArrayOf(1)))
+            .hasSameHashCodeAs(Append.of(stream(), byteArrayOf(1)))
+        Append.of(
+            stream(),
+            "{}".toByteArray()
+        ).toString().assert().isEqualTo("Append(stream=${stream()}, transport={})")
         valueSemantics({ Transport.of(wait, listOf(key), mapOf("traceparent" to "t"), listOf(key)) }, Transport.of())
         valueSemantics({ AppendOutcome.Committed.of(LogPosition(0, 1)) }, AppendOutcome.Committed.of(LogPosition(0, 2)))
         valueSemantics({ AppendOutcome.AlreadyCommitted.of(stream()) }, AppendOutcome.AlreadyCommitted.of(stream(2)))

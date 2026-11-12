@@ -28,6 +28,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
@@ -91,7 +92,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val log = PostgresEventLog(connections(PostgresFixture.dataSource, lent, failing = 2, lost), context, 1)
             val order = AggregateType(context, "order")
             // Three chunks: the first commits, the second gets no connection, the third is not tried.
-            val streams = (0..2 * STATEMENT_STREAMS).map { stream(order.ref("tenant", "a$it"), 1) to null }
+            val streams = (0..2 * STATEMENT_STREAMS).map { Append.of(stream(order.ref("tenant", "a$it"), 1)) }
             val outcomes = log.appendAll(streams)
             outcomes.take(STATEMENT_STREAMS).assert().isEqualTo((1L..STATEMENT_STREAMS).map { committed(it) })
             outcomes.drop(STATEMENT_STREAMS).forEach { (it as AppendOutcome.Unknown).cause.assert().isSameAs(lost) }
@@ -105,7 +106,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
         val log = log(context) { sql -> deadlock().takeIf { sql.startsWith(GROUP_STATEMENT) } }
         val order = AggregateType(context, "order")
         val streams = listOf(stream(order.ref("tenant", "a"), 1), stream(order.ref("tenant", "b"), 1))
-        val outcomes = log.appendAll(streams.map { it to null })
+        val outcomes = log.appendAll(streams.map { Append.of(it) })
         outcomes.assert().isEqualTo(listOf(committed(1), committed(2)))
     }
 
@@ -117,7 +118,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                 PSQLException("An I/O error occurred while sending to the backend.", PSQLState.CONNECTION_FAILURE)
             val log = log(context) { sql -> lost.takeIf { sql.startsWith(GROUP_STATEMENT) } }
             val order = AggregateType(context, "order")
-            val outcomes = log.appendAll((1..3).map { stream(order.ref("tenant", "a$it"), 1) to null })
+            val outcomes = log.appendAll((1..3).map { Append.of(stream(order.ref("tenant", "a$it"), 1)) })
             outcomes.forEach { (it as AppendOutcome.Unknown).cause.assert().isSameAs(lost) }
             log.head(0).assert().isNull()
         }
@@ -136,7 +137,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             }
             val order = AggregateType(context, "order")
             val first = stream(order.ref("tenant", "a"), 1)
-            val outcomes = log.appendAll(listOf(first to null, stream(first.ref, 2) to null))
+            val outcomes = log.appendAll(listOf(Append.of(first), Append.of(stream(first.ref, 2))))
             outcomes[0].assert().isEqualTo(AppendOutcome.Unknown(closed))
             outcomes[1].assert().isEqualTo(notAppendedAfter(first, outcomes[0]))
             log.head(0).assert().isNull()
@@ -157,7 +158,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val second = stream(firsts.last().ref, 2)
             val next = stream(order.ref("tenant", "b"), 1)
             prepared.clear()
-            val outcomes = log.appendAll((firsts + second + next).map { it to null })
+            val outcomes = log.appendAll((firsts + second + next).map { Append.of(it) })
             outcomes.assert().isEqualTo((1L..STATEMENT_STREAMS + 2L).map { committed(it) })
             // Each stream of a group statement binds one `?::boolean`: the statements hold 1,001 streams, then 1.
             val groups = prepared.filter { it.startsWith(GROUP_STATEMENT) }
@@ -189,14 +190,14 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
         log.append(stream("warm", 1, aggregate = cart))
         val mark = counted.begin()
         val group = (1..GROUP).flatMap {
-            listOf(stream("o$it", 1, aggregate = order) to null, stream("c$it", 1, aggregate = cart) to null)
+            listOf(Append.of(stream("o$it", 1, aggregate = order)), Append.of(stream("c$it", 1, aggregate = cart)))
         }
         log.appendAll(group).map { (it as AppendOutcome.Committed).position.sequence }
             .assert().isEqualTo((3L..GROUP * 2L + 2).toList())
         counted.since(mark).size.assert().isEqualTo(1)
         val withConflict = counted.begin()
         val outcomes = log.appendAll(
-            listOf(stream("o1", 2, aggregate = order) to null, stream("o2", 3, aggregate = order) to null),
+            listOf(Append.of(stream("o1", 2, aggregate = order)), Append.of(stream("o2", 3, aggregate = order))),
         )
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(1))
         counted.since(withConflict).size.assert().isEqualTo(2)
@@ -210,7 +211,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val log = PostgresEventLog(failingGroups(PostgresFixture.dataSource, lost), context, 1)
                 .also { it.createSchema() }
             val order = AggregateType(context, "order")
-            val outcomes = log.appendAll((1..3).map { stream("a$it", 1, aggregate = order) to null })
+            val outcomes = log.appendAll((1..3).map { Append.of(stream("a$it", 1, aggregate = order)) })
             outcomes.forEach { (it as AppendOutcome.Unknown).cause.assert().isSameAs(lost) }
             log.head(0).assert().isNull()
         }
@@ -235,7 +236,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                     )
                 }
                 val group = async(Dispatchers.IO) {
-                    log.appendAll(listOf("first", "taken", "last").map { stream(it, 1, aggregate = order) to null })
+                    log.appendAll(listOf("first", "taken", "last").map { Append.of(stream(it, 1, aggregate = order)) })
                 }
                 // The group read the versions before the rival committed, and queues on the counter row.
                 withTimeout(TAIL_TIMEOUT_MS) {
@@ -273,11 +274,11 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                     val known = refs.associateWith { 0 }.toMutableMap()
                     while (known.values.any { it < VERSIONS }) {
                         val due = refs.filter { known.getValue(it) < VERSIONS }.shuffled()
-                        val appends = due.map { stream(it.id, known.getValue(it) + 1, aggregate = it.type) to null }
+                        val appends = due.map { Append.of(stream(it.id, known.getValue(it) + 1, aggregate = it.type)) }
                         val outcomes = if (grouped) {
                             log.appendAll(appends)
                         } else {
-                            appends.take(1).map { (stream) -> log.append(stream) }
+                            appends.take(1).map { log.append(it.stream) }
                         }
                         due.zip(outcomes).forEach { (ref, outcome) ->
                             known[ref] = when (outcome) {
@@ -316,16 +317,16 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val ids = idsByPartition(order, ACROSS)
             val mark = counted.begin()
             val group = (0 until ACROSS).flatMap { partition -> ids[partition].take(2) }
-                .map { stream(it, 1, aggregate = order) to null }
+                .map { Append.of(stream(it, 1, aggregate = order)) }
             val outcomes = log.appendAll(group)
             counted.since(mark).size.assert().isEqualTo(1)
             outcomes.assert().allMatch { it is AppendOutcome.Committed }
             outcomes.map { (it as AppendOutcome.Committed).position.partition }.assert()
-                .isEqualTo(group.map { (stream) -> Partitioner.partitionOf(stream.ref, ACROSS) })
+                .isEqualTo(group.map { Partitioner.partitionOf(it.stream.ref, ACROSS) })
             // A request committed in partition 0 repeated there: that partition's group answers it, the others commit.
-            val repeated = stream(ids[0][2], 1, requestId = group.first().first.requestId, aggregate = order)
+            val repeated = stream(ids[0][2], 1, requestId = group.first().stream.requestId, aggregate = order)
             val again = log.appendAll(
-                listOf(repeated to null) + (1 until ACROSS).map { stream(ids[it][2], 1, aggregate = order) to null },
+                listOf(Append.of(repeated)) + (1 until ACROSS).map { Append.of(stream(ids[it][2], 1, aggregate = order)) },
             )
             again.first().assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
             again.drop(1).assert().allMatch { it is AppendOutcome.Committed }
@@ -342,7 +343,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val group = (0 until ACROSS).map { partition ->
                 // A NUL PostgreSQL refuses in a text column, in partition 1's stream.
                 val commandType = if (partition == 1) "$context.order.Act\u0000" else "$context.order.Act"
-                stream(ids[partition][0], 1, commandType = commandType, aggregate = order) to null
+                Append.of(stream(ids[partition][0], 1, commandType = commandType, aggregate = order))
             }
             val outcomes = log.appendAll(group)
             outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
@@ -361,7 +362,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val ids = idsByPartition(order, ACROSS)
             // Partition 2's aggregate has no stream yet: its version 2 conflicts, the other partitions commit.
             val group = (0 until ACROSS).map { partition ->
-                stream(ids[partition][0], if (partition == 2) 2 else 1, aggregate = order) to null
+                Append.of(stream(ids[partition][0], if (partition == 2) 2 else 1, aggregate = order))
             }
             val outcomes = log.appendAll(group)
             outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(0))
@@ -370,7 +371,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             // A group holds the streams of this log's context alone.
             val elsewhere = stream("x", 1, aggregate = AggregateType(PostgresFixture.newContext(), "order"))
             assertThrownBy<IllegalArgumentException> {
-                runBlocking { log.appendAll(group.take(1) + (elsewhere to null)) }
+                runBlocking { log.appendAll(group.take(1) + (Append.of(elsewhere))) }
             }
         }
 
@@ -385,7 +386,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val next = IntArray(ACROSS)
             val groups = (0 until GROUPS).map { round ->
                 (0 until ACROSS).shuffled(java.util.Random(round.toLong())).take(ACROSS - 1).map { partition ->
-                    stream(ids[partition][next[partition]++], 1, aggregate = order) to null
+                    Append.of(stream(ids[partition][next[partition]++], 1, aggregate = order))
                 }
             }
             val outcomes = coroutineScope {
@@ -421,7 +422,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                         val group = types.let { if (partition == 0) it else it.reversed() }.flatMap { type ->
                             ordered.mapIndexed { index, request ->
                                 val id = inPartition[partition].getValue(type)[round * REQUESTS + index]
-                                stream(id, 1, requestId = request, aggregate = type) to null
+                                Append.of(stream(id, 1, requestId = request, aggregate = type))
                             }
                         }
                         launch(Dispatchers.IO) { outcomes += log.appendAll(group) }
@@ -452,7 +453,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
             val log = PostgresEventLog(unreachable, context, PARTITIONS)
             runCatching { log.append(stream("a", 2, aggregate = type)) }.exceptionOrNull()
                 .assert().isInstanceOf(StorageUnavailableException::class.java)
-            val group = listOf(stream("b", 1, aggregate = type) to null, stream("c", 1, aggregate = type) to null)
+            val group = listOf(Append.of(stream("b", 1, aggregate = type)), Append.of(stream("c", 1, aggregate = type)))
             runCatching { log.appendAll(group) }.exceptionOrNull()
                 .assert().isInstanceOf(StorageUnavailableException::class.java)
             healthy.read(type.ref("tenant", "a")).toList().size.assert().isEqualTo(1)

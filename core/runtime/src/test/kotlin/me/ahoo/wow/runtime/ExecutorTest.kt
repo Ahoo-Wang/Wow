@@ -33,9 +33,9 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -266,7 +266,7 @@ class ExecutorTest {
     private class BatchLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         val batches = CopyOnWriteArrayList<Int>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
             batches += streams.size
             return delegate.appendAll(streams)
         }

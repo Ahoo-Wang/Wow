@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -203,7 +204,7 @@ class PartitionSequenceThroughputSpike {
                         while (batch.size < maxBatch) {
                             batch += queue.tryReceive().getOrNull() ?: break
                         }
-                        val outcomes = log.appendAll(batch.map { it.first to null })
+                        val outcomes = log.appendAll(batch.map { Append.of(it.first) })
                         batch.zip(outcomes).forEach { (pending, outcome) -> pending.second.complete(outcome) }
                     }
                 }

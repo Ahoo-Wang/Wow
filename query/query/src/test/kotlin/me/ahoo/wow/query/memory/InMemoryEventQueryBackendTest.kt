@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventStreamRecord
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -26,8 +27,8 @@ class InMemoryEventQueryBackendTest : EventQueryBackendSpec() {
     private val storage = InMemoryEventQueryStorage({ type -> streams.filter { it.ref.type == type } })
 
     /** The memory backend reads streams, which hold no transport: it is left out. */
-    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
-        this.streams += streams.map { it.first }
+    override suspend fun store(streams: List<Append>) {
+        this.streams += streams.map { it.stream }
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(type)

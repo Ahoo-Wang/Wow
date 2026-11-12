@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -161,7 +162,7 @@ internal class Batching(
             log.appendAll(
                 batch.mapIndexed { at, member ->
                     val transport = member.attempt.transport(observations[at].trace, member.stream.rejection != null)
-                    member.stream to transport?.let(TransportCodec::encode)
+                    Append.of(member.stream, transport?.let(TransportCodec::encode))
                 }
             )
         } catch (

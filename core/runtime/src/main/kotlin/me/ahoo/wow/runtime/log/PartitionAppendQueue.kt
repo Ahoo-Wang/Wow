@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -176,15 +177,15 @@ class PartitionAppendQueue(
     val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-        return await(listOf(enqueue(listOf(stream to transport)))).single().single()
+        return await(listOf(enqueue(listOf(Append.of(stream, transport))))).single().single()
     }
 
     /**
      * Queues the streams on their partitions' lanes, each aggregate's as one unit, grouped with what other callers
      * queued, and awaits them all.
      */
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-        val units = streams.indices.groupBy { streams[it].first.ref }.values.toList()
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+        val units = streams.indices.groupBy { streams[it].stream.ref }.values.toList()
         val queued = ArrayList<Pending>(units.size)
         try {
             units.forEach { unit -> queued += enqueue(unit.map { streams[it] }) }
@@ -203,7 +204,7 @@ class PartitionAppendQueue(
     }
 
     /** Queues [streams], one aggregate's, as one unit on its partition's lane, waiting for room when it is full. */
-    private suspend fun enqueue(streams: List<Pair<EventStreamRecord, ByteArray?>>): Pending {
+    private suspend fun enqueue(streams: List<Append>): Pending {
         val pending = Pending(streams, waiting)
         val lane = lanes[Partitioner.partitionOf(pending.ref, log.partitions)]
         check(!closed) { "The append queue is closed." }
@@ -312,10 +313,10 @@ class PartitionAppendQueue(
      * its cancelled caller, never both.
      */
     private class Pending(
-        val streams: List<Pair<EventStreamRecord, ByteArray?>>,
+        val streams: List<Append>,
         private val waiting: AtomicInteger,
     ) {
-        val ref: AggregateRef = streams.first().first.ref
+        val ref: AggregateRef = streams.first().stream.ref
         val outcome = CompletableDeferred<List<AppendOutcome>>()
         private val state = AtomicInteger(QUEUED)
 

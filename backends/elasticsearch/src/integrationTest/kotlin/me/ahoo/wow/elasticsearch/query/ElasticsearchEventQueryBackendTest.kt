@@ -30,6 +30,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventStreamFields
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.state.StateEventPayload
@@ -44,18 +45,19 @@ import tools.jackson.databind.node.ObjectNode
 class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
     private val queries = ElasticsearchEventQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
 
-    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
+    override suspend fun store(streams: List<Append>) {
         val sink = ElasticsearchEventSinks.of(ElasticsearchFixture.store()).sinkOf(type.context, type.name)
         sink.prepare()
         QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
             .compile(QuerySchemaContext(type, QueryModel.EVENTS), binding(type).storage)
             .schema()
-        val (stamped, unstamped) = streams.partition { (stream) -> stream.access != null }
-        sink.write(stamped.map { (stream, transport) -> recordOf(stream, transport) })
+        val (stamped, unstamped) = streams.partition { it.stream.access != null }
+        sink.write(stamped.map { recordOf(it.stream, it.transport) })
         // A stream not stamped stands for a document indexed before the index learned the access attributes.
         val index = ElasticsearchFixture.names.events(type.context, type.name)
-        unstamped.forEach { (stream, transport) ->
-            val document = ElasticsearchEventDocuments.document(recordOf(stream, transport))
+        unstamped.forEach { entry ->
+            val stream = entry.stream
+            val document = ElasticsearchEventDocuments.document(recordOf(stream, entry.transport))
             document.remove(EventStreamFields.ACCESS)
             document.remove(ElasticsearchEventIndex.ACCESS_VERSION)
             ElasticsearchFixture.client.index<ObjectNode> {

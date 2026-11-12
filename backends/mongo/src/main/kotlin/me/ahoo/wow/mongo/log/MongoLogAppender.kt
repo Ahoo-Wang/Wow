@@ -41,6 +41,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REQUEST_KEY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.positionId
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -104,12 +105,14 @@ internal class MongoLogAppender(
      * are not appended once one did not commit ([EventLog.appendAll]). The sequences no stream took get their
      * placeholders with one write per collection.
      */
-    fun appendGroup(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+    fun appendGroup(streams: List<Append>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
         val members = ArrayList<Member>(streams.size)
-        streams.forEachIndexed { index, (stream, transport) ->
+        streams.forEachIndexed { index, entry ->
+            val stream = entry.stream
+            val transport = entry.transport
             failed[stream.ref]?.let {
                 outcomes[index] = it
                 return@forEachIndexed
@@ -147,7 +150,8 @@ internal class MongoLogAppender(
         var written = outcomes.any { it.mayHaveCommitted() }
         var stopped: MongoException? = null
         return outcomes.mapIndexed { index, outcome ->
-            val (stream, transport) = streams[index]
+            val stream = streams[index].stream
+            val transport = streams[index].transport
             failed[stream.ref]?.let { return@mapIndexed it }
             val settled = outcome ?: stopped?.let { AppendOutcome.Unknown(it) } ?: try {
                 appendNow(stream, transport)

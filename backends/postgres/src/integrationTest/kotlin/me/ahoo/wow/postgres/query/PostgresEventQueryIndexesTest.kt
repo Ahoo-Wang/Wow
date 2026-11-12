@@ -43,6 +43,7 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
@@ -99,7 +100,7 @@ class PostgresEventQueryIndexesTest {
         runBlocking {
             val log = PostgresFixture.log(PARTITIONS, type.context, listOf(type.name))
             for (chunk in (0 until ROWS).chunked(BATCH)) {
-                log.appendAll(chunk.map { stream(it) to null })
+                log.appendAll(chunk.map { Append.of(stream(it)) })
             }
             val table = PostgresEventLogTables(type.context).aggregate(type.name).log
             val binding = PostgresEventQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!

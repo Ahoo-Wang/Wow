@@ -46,6 +46,7 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -227,8 +228,8 @@ abstract class NodeHealthFixtures {
             }
         }
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
-            streams.map { (stream, transport) -> append(stream, transport) }
+        override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
+            streams.map { append(it.stream, it.transport) }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int) = kotlinx.coroutines.flow.flow {
             check()

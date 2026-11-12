@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalk.Companion.IMPORTING
 import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -93,7 +94,7 @@ internal class InstanceAppends(
             }
         }
         val outcomes = stats.timed(stats.append) {
-            logOf(plan.target.context).appendAll(records.flatten().map { it to null })
+            logOf(plan.target.context).appendAll(records.flatten().map { Append.of(it) })
         }
         claimImport(plan.target)
         var at = 0

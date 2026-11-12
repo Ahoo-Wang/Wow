@@ -50,6 +50,7 @@ import me.ahoo.wow.query.tck.EventQueryBackendSpec.Companion.OTHER_TENANT
 import me.ahoo.wow.query.tck.EventQueryBackendSpec.Companion.T0
 import me.ahoo.wow.query.tck.EventQueryBackendSpec.Companion.TENANT
 import me.ahoo.wow.query.tck.EventQueryBackendSpec.Companion.key
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
@@ -78,7 +79,7 @@ abstract class EventQueryFixtures internal constructor() {
      * bytes beside it, null for none: a log stores them apart from the facts, and a Sink is handed
      * them decoded with its record.
      */
-    protected abstract suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>)
+    protected abstract suspend fun store(streams: List<Append>)
 
     /** The events query backend of [type], with its storage adapter. */
     protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
@@ -162,7 +163,7 @@ abstract class EventQueryFixtures internal constructor() {
         streams: List<EventStreamRecord> = streams(),
         transported: (Int) -> Boolean = { false },
     ): Fixture {
-        store(streams.mapIndexed { index, stream -> stream to TRANSPORT.takeIf { transported(index) } })
+        store(streams.mapIndexed { index, stream -> Append.of(stream, TRANSPORT.takeIf { transported(index) }) })
         val binding = binding(type)
         val provider = QueryModelCompiler.of(events = schemas).compile(context, binding.storage)
         return Fixture(binding.backend, provider.schema())

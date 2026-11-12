@@ -86,15 +86,16 @@ interface EventLog {
      * after it that were not tried, are [AppendOutcome.Unknown], so that a caller never answers a committed stream as
      * one that wrote nothing.
      */
-    suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+    suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         var written = false
         var stopped: Exception? = null
-        return streams.map { (stream, transport) ->
+        return streams.map { next ->
+            val stream = next.stream
             failed[stream.ref]?.let { return@map it }
             stopped?.let { return@map AppendOutcome.Unknown(it) }
             val outcome = try {
-                append(stream, transport)
+                append(stream, next.transport)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (

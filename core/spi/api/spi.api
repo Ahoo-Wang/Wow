@@ -432,6 +432,23 @@ public final class me/ahoo/wow/spi/log/AggregateTail$Companion {
 	public final fun of (Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/spi/log/AggregateTail;
 }
 
+public final class me/ahoo/wow/spi/log/Append {
+	public static final field Companion Lme/ahoo/wow/spi/log/Append$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getStream ()Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun getTransport ()[B
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/Append;
+	public static final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;[B)Lme/ahoo/wow/spi/log/Append;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/Append$Companion {
+	public final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/Append;
+	public final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;[B)Lme/ahoo/wow/spi/log/Append;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/log/Append$Companion;Lme/ahoo/wow/spi/log/EventStreamRecord;[BILjava/lang/Object;)Lme/ahoo/wow/spi/log/Append;
+}
+
 public abstract interface class me/ahoo/wow/spi/log/AppendOutcome {
 }
 

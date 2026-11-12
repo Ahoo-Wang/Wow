@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -167,7 +168,7 @@ class PostgresAggregateReadsTest : PostgresLogFixtures() {
         val long = type.ref("tenant", "long")
         val count = 2 * VersionPages.SIZE + 3
         for (versions in (1..count).chunked(GROUP_OF_STREAMS)) {
-            log.appendAll(versions.map { stream(long, it) to null })
+            log.appendAll(versions.map { Append.of(stream(long, it)) })
         }
         val short = type.ref("tenant", "short")
         for (version in 1..SHORT) {

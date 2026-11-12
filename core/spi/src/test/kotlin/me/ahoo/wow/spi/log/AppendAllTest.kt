@@ -28,16 +28,18 @@ import java.io.IOException
 class AppendAllTest {
     private val type = AggregateType("ctx", "agg")
 
-    private fun stream(id: String, version: Int = 1): Pair<EventStreamRecord, ByteArray?> = EventStreamRecord.of(
-        type.ref("tenant", id),
-        version,
-        "command-$id-$version",
-        "request-$id-$version",
-        "ctx.agg.Act",
-        0L,
-        listOf(EventRecord.of("ctx.agg.Acted", 1, "{}")),
-        Scope.NONE,
-    ) to null
+    private fun stream(id: String, version: Int = 1): Append = Append.of(
+        EventStreamRecord.of(
+            type.ref("tenant", id),
+            version,
+            "command-$id-$version",
+            "request-$id-$version",
+            "ctx.agg.Act",
+            0L,
+            listOf(EventRecord.of("ctx.agg.Acted", 1, "{}")),
+            Scope.NONE,
+        )
+    )
 
     @Test
     fun `a failure while nothing of the call may be written is thrown, a conflict before it included`() {
@@ -59,7 +61,7 @@ class AppendAllTest {
             (outcomes[1] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
             (outcomes[2] as AppendOutcome.Unknown).cause.assert().isSameAs(lost)
             // The aggregate whose stream is unknown does not go on: its next stream is not appended.
-            outcomes[3].assert().isEqualTo(notAppendedAfter(stream("b").first, outcomes[1]))
+            outcomes[3].assert().isEqualTo(notAppendedAfter(stream("b").stream, outcomes[1]))
             log.appended.assert().containsExactly("a", "b")
         }
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.observation.ObservedEvent
 import org.junit.jupiter.api.Test
@@ -204,7 +205,7 @@ class HandoffGapTest : HandoffLogFixtures() {
         seen.take(1)
         gated.arm()
         // A group held in flight, then answered with a duplicate and a commit, while another node leaves a gap.
-        val group = async(Dispatchers.Default) { log.appendAll(listOf(stream to null, next(refs[1]) to null)) }
+        val group = async(Dispatchers.Default) { log.appendAll(listOf(Append.of(stream), Append.of(next(refs[1])))) }
         gated.entered.await()
         store.append(next(refs[2]))
         log.append(next(refs[3]))
