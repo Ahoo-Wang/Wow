@@ -75,11 +75,10 @@ internal class PartitionRuns(
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = PartitionGate(asked, unrenewedLimit)
-        if (fenced()) {
-            // Taken by a reconcile the node is fenced against: never renewed, so it expires for the others.
-            gate.lost = true
-        }
+        // Put before the fence is asked: a fence that falls after the put sees the gate when it walks the gates, and
+        // one that fell before is seen here. Either way the gate is lost, never renewed, and expires for the others.
         gates[partition] = gate
+        closeIfFenced(gate)
         try {
             // Another node may have committed to the partition's aggregates since this one last cached them.
             partitionChanged(partition)
@@ -95,11 +94,22 @@ internal class PartitionRuns(
             return@withContext
         }
         gate.started()
+        // A fence may have fallen while the partition started, its walk closing a gate this start then opened: asked
+        // again once the gate is open, and closed at once.
+        closeIfFenced(gate)
         if (gate.lost) {
             // Lost while it started: the next reconcile stops it, as any partition whose lease was lost.
             logger.warn { "$node lost the lease of partition $partition of $group while starting it." }
         } else {
             logger.info { "$node acquired partition $partition of $group." }
+        }
+    }
+
+    /** Closes [gate] for good when the ownership is fenced: it takes no command, and its lease is not renewed. */
+    private fun closeIfFenced(gate: PartitionGate) {
+        if (fenced()) {
+            gate.lost = true
+            gate.accepting = false
         }
     }
 

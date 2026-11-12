@@ -34,7 +34,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
-import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -66,10 +65,9 @@ import kotlin.time.TimeSource
  *   partitions and are forwarded, and a subscription's stop is what such a reconcile is usually stuck on. Their
  *   effects can repeat beside the new owner's until the reconcile moves again, as those of a lease lost while a
  *   reconcile is busy can. Once it does, the node is a member again, and its next reconcile stops the partitions it
- *   gave up and takes its share back. Each fence and recovery is observed ([ObservedEvent.OwnershipFenced],
- *   [ObservedEvent.OwnershipRecovered]) and logged. A reconcile still running after
- *   `wow.health.liveness.stall-timeout` fails the node's liveness, so its orchestrator restarts it: such a reconcile
- *   waits on a call that never returns, which only a restart ends.
+ *   gave up and takes its share back. Each fence and recovery is observed and logged ([GroupFence]). A reconcile
+ *   still running after `wow.health.liveness.stall-timeout` fails the node's liveness, so its orchestrator restarts
+ *   it: such a reconcile waits on a call that never returns, which only a restart ends.
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
@@ -223,12 +221,17 @@ class PartitionOwnership internal constructor(
         gates = held
         runs = PartitionRuns(
             group, node, leases, options, timeSource, unrenewedLimit, held, runtimes, intake, timers, partitionChanged,
-            progressed = { stepped = timeSource.markNow() },
-            fenced = { fenced },
+            progressed = { fence.stepFinished() },
+            fenced = { fence.fenced },
         )
     }
 
     private val wakeRefresh = Channel<Unit>(Channel.CONFLATED)
+
+    /** The fence of the group while a reconcile is stuck: it reads [gates] and flips a gate's own fields only. */
+    private val fence = GroupFence(
+        group, node, options, timeSource, gates, this.membership, timers, observer,
+    ) { wakeReconcile.trySend(Unit) }
 
     /** The renewals and the fencing of the leases held: they read [gates] and flip a gate's own fields only. */
     private val renewals =
@@ -242,20 +245,6 @@ class PartitionOwnership internal constructor(
     /** When the reconcile running now started; null between reconciles. */
     @Volatile
     private var reconciling: TimeMark? = null
-
-    /** When the reconcile running now last finished a step for one partition, or started; null between reconciles. */
-    @Volatile
-    private var stepped: TimeMark? = null
-
-    /**
-     * When a stuck reconcile fenced the group: the node left the members and gives up its leases; null while it is
-     * not fenced.
-     */
-    @Volatile
-    private var fencedAt: TimeMark? = null
-
-    /** Whether the group is fenced: no lease is renewed once its commands in flight end. */
-    private val fenced: Boolean get() = fencedAt != null
 
     /**
      * Whether the node stepped out of the group for good ([stepOut]): it neither joins, reconciles nor renews any
@@ -366,7 +355,9 @@ class PartitionOwnership internal constructor(
             release?.cancel()
             own?.complete()
         }
-        run.membership.launch { every(options.heartbeatInterval, "check the reconcile") { checkStuck() } }
+        run.membership.launch {
+            every(options.heartbeatInterval, "check the reconcile") { fence.check(running?.upkeep) }
+        }
         run.membership.launch {
             while (true) {
                 quietly("reconcile") { reconcile() }
@@ -540,7 +531,7 @@ class PartitionOwnership internal constructor(
             return@withLock
         }
         reconciling = timeSource.markNow()
-        stepped = reconciling
+        fence.reconcileStarted()
         try {
             renewals.loseOverdue()
             runs.dropLost()
@@ -556,76 +547,8 @@ class PartitionOwnership internal constructor(
             }
         } finally {
             reconciling = null
-            stepped = null
+            fence.reconcileEnded()
         }
-    }
-
-    /**
-     * Fences the group while the reconcile running now has finished no step for [ClusterOptions.reconcileTimeout]: the
-     * node then cannot take or stop partitions, so it stops claiming its share by HRW and gives up its leases (see the
-     * class description), and takes part again once the reconcile moves. The membership heartbeats the change at once.
-     */
-    private suspend fun checkStuck() {
-        val last = stepped
-        val stalled = last?.elapsedNow()
-        if (stalled != null && stalled > options.reconcileTimeout) {
-            if (!fenced) {
-                fence(stalled)
-            }
-            return
-        }
-        val since = fencedAt ?: return
-        membership.stuck(group.name, false)
-        fencedAt = null
-        val fencedFor = since.elapsedNow()
-        logger.warn {
-            "$node finished a step of its reconcile of $group again after $fencedFor fenced; it is back among the " +
-                "members, and its next reconcile stops the partitions it gave up and takes its share back."
-        }
-        observer.observed(ObservedEvent.OwnershipRecovered(group.name, fencedFor.inWholeMilliseconds))
-        wakeReconcile.trySend(Unit)
-    }
-
-    /**
-     * Fences the group, its reconcile having finished no step for [stalled]: out of the members, every partition closed
-     * at once, and each lease left unrenewed once its partition's commands in flight end or the drain timeout passes.
-     */
-    private suspend fun fence(stalled: Duration) {
-        fencedAt = timeSource.markNow()
-        logger.warn {
-            "$node has finished no step of its reconcile of $group for $stalled; it leaves the members and gives up " +
-                "its leases: its partitions take no command from now on, and each lease expires within " +
-                "${options.leaseTtl} once its commands in flight end, for the others to take. Its subscriptions keep " +
-                "running until the reconcile moves again; one still running after wow.health.liveness.stall-timeout " +
-                "fails the node's liveness, so its orchestrator restarts it."
-        }
-        observer.observed(ObservedEvent.OwnershipFenced(group.name, stalled.inWholeMilliseconds))
-        val upkeep = running?.upkeep
-        gates.forEach { (partition, gate) ->
-            gate.accepting = false
-            val release: suspend () -> Unit = {
-                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
-                    "$node gives up the lease of partition $partition of $group with commands still in flight."
-                }
-                gate.lost = true
-            }
-            val stopTimers: suspend () -> Unit = {
-                withTimeoutOrNull(options.drainTimeout) {
-                    timers.forEach { runner ->
-                        quietly("stop the timers of partition $partition", TIMERS_LATER) {
-                            runner.stopPartition(partition)
-                        }
-                    }
-                }
-            }
-            if (upkeep == null) {
-                gate.lost = true
-            } else {
-                upkeep.launch { release() }
-                upkeep.launch { stopTimers() }
-            }
-        }
-        membership.stuck(group.name, true)
     }
 
     private suspend fun every(interval: Duration, action: String, block: suspend () -> Unit) {
@@ -657,9 +580,6 @@ class PartitionOwnership internal constructor(
 
         /** What follows a stop that failed while a failed start is undone. */
         const val START_UNDONE = "the start is undone all the same"
-
-        /** What follows a stop of a fenced partition's timers that failed. */
-        const val TIMERS_LATER = "the next reconcile stops them"
     }
 }
 

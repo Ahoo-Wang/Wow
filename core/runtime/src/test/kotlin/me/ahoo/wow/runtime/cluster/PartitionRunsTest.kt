@@ -104,6 +104,33 @@ class PartitionRunsTest {
     }
 
     @Test
+    fun `a fence that falls while a partition starts is asked again once its gate opens, which closes it`(): Unit =
+        runBlocking {
+            var fencedNow = false
+            // No walk of the gates here: the start alone must see the fence that fell while it ran.
+            coEvery { runtime.startPartition(0, any()) } answers { fencedNow = true }
+            val runs = PartitionRuns(
+                GROUP,
+                NODE,
+                leases,
+                options,
+                time,
+                options.leaseTtl - options.renewInterval,
+                gates,
+                listOf(runtime),
+                intake,
+                emptyList(),
+                partitionChanged = { changed += it },
+                fenced = { fencedNow },
+            )
+            runs.acquire(0, null)
+            val gate = gates.getValue(0)
+            gate.starting.assert().isFalse()
+            gate.lost.assert().isTrue()
+            gate.open.assert().isFalse()
+        }
+
+    @Test
     fun `a start cancelled from within is stopped, released and forgotten, then the cancellation goes on up`(): Unit =
         runBlocking {
             // #5879: the cancellation was rethrown before the failed start's way out, and its gate stayed, never open.
