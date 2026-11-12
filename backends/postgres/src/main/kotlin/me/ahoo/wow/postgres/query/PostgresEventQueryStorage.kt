@@ -30,6 +30,7 @@ import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
@@ -181,11 +182,11 @@ internal object PostgresEventQueryLayout {
                 .put("tenantId", row.getString("operator_tenant_id"))
                 .put("actedElsewhere", row.getBoolean("operator_acted_elsewhere"))
         }
-        val access = row.getString("access")
+        val access = PostgresLogAccessColumn.of(row.getString("access"))
         if (access == null) {
             putNull(EventStreamFields.ACCESS)
         } else {
-            set(EventStreamFields.ACCESS, PostgresLogAccessColumn.node(access))
+            set(EventStreamFields.ACCESS, AccessValues.json(access))
         }
         if (projection.keepsEvents()) {
             val events = putArray(EventStreamFields.EVENTS)

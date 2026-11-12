@@ -14,7 +14,6 @@
 package me.ahoo.wow.postgres
 
 import me.ahoo.wow.spi.access.AccessValues
-import tools.jackson.databind.node.ObjectNode
 
 /**
  * A log stream's access attributes as the log's `access` column holds them: the built-in owner and space are left out
@@ -31,11 +30,8 @@ internal object PostgresLogAccessColumn {
     /** The attributes the column's [text] holds, the built-in ones put back; null for a stream not stamped. */
     fun of(text: String?): Map<String, Any?>? = AccessValues.parse(text)?.let(::restored)
 
-    /** The attributes the column's [text] holds as a JSON object, the built-in ones put back. */
-    fun node(text: String): ObjectNode = AccessValues.json(checkNotNull(of(text)))
-
     private fun restored(access: Map<String, Any?>): Map<String, Any?> {
-        if (BUILT_IN.all { it in access }) return access
+        if (AccessValues.OWNER in access && AccessValues.SPACE in access) return access
         return LinkedHashMap<String, Any?>((access.size + BUILT_IN.size) * 2).apply {
             BUILT_IN.forEach { put(it, access[it]) }
             access.forEach { (name, value) -> if (name !in BUILT_IN) put(name, value) }

@@ -107,7 +107,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
         listOf(bare, declared).forEach { appended ->
             log.readEntries(appended.ref, 1, 1).toList().single().stream.assertSameAs(appended)
         }
-        tailed.first().access?.keys.assert().containsExactly("owner", "space")
+        tailed.first().access.toString().assert().isEqualTo("{owner=null, space=null}")
         tailed.first().causation.assert().isNull()
     }
 
