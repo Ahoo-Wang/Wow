@@ -65,6 +65,13 @@ internal class PeerAdmission(
         val peer = peers.resolve(type, aggregate, request.command)
             ?: return facts.refuse(FrameworkCodes.COMMAND_UNHANDLED, "$type has no command ${request.command}.")
         facts.function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, peer.name.substringAfterLast('.'))
+        if (peer.builtIn) {
+            return facts.refuse(
+                FrameworkCodes.COMMAND_UNHANDLED,
+                "${peer.name} is a command of ${type.context}'s built-in aggregates, which this node does not relay " +
+                    "to a peer: send it to ${type.context}'s service.",
+            )
+        }
         val commandType = peer.commandType ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "The class of ${peer.name} is not on the class path: depend on the api module of ${type.context}, whose " +

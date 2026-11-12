@@ -22,8 +22,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
+import me.ahoo.wow.spi.read.TenantQueryApi
 
 /** A generated view, as an api module holds one: of the aggregate `shop.order`. */
 @StateView("shop.order")

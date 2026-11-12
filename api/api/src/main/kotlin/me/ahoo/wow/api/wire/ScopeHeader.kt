@@ -28,6 +28,9 @@ import me.ahoo.wow.api.query.CrossTenant
  * A member that is not one of them, one without a value, a value that is not a string or a token (or, for a query's
  * `tenant`, an inner list of them), a member with parameters, and a dictionary without members are malformed. As
  * RFC 8941 says, a member given twice takes its last value.
+ *
+ * It is public as the one parser of a public header: a gateway in front of a node, or a host of its own, reads
+ * `Wow-Scope` exactly as Wow does.
  */
 object ScopeHeader {
     const val TENANT: String = "tenant"

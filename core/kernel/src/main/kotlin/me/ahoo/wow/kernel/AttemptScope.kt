@@ -114,9 +114,6 @@ internal class AttemptScope(
         }
     }
 
-    override suspend fun reserve(namespace: String, key: String): Boolean =
-        reserve(namespace, key, ReservationTenancy.TENANT)
-
     override suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean {
         val store = reservations ?: throw Misuse.State("Reserving a key needs a kernel with a ReservationStore.")
         val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
@@ -141,8 +138,6 @@ internal class AttemptScope(
         afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
         return true
     }
-
-    override fun release(namespace: String, key: String) = release(namespace, key, ReservationTenancy.TENANT)
 
     override fun release(namespace: String, key: String, tenancy: ReservationTenancy) {
         val store = reservations ?: throw Misuse.State("Releasing a key needs a kernel with a ReservationStore.")

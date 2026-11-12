@@ -18,6 +18,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.manifest.ContextName
 
 /** What checking a wait plan gives: a [WaitChain], or [WaitChain.Invalid]. */
@@ -60,7 +61,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
             unknownContexts: UnknownContexts = UnknownContexts.REJECT,
         ): CheckedPlan {
             val context = type.context
-            val snapshots = directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, type)
+            val snapshots = directory.covers(SystemSubscriptions.SNAPSHOT, type)
             if (plan.isDefault && !snapshots) {
                 return WaitChain(listOf(Hop.committed(context)))
             }

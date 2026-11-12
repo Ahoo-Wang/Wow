@@ -136,7 +136,7 @@ class StateEventTest {
                 recorded += "schedule $key $rule ${request.command}"
             }
 
-            override fun cancel(key: String, target: AggregateRef) {
+            override fun cancelSchedule(key: String, target: AggregateRef) {
                 recorded += "cancel $key $target"
             }
 
@@ -147,7 +147,7 @@ class StateEventTest {
         listOf(project, react, saga).map { it.executionId }.distinct().assert().containsExactly(execution)
         saga.ids.next(ref.type).assert().isEqualTo("${ref.type}-id")
         saga.schedule("remind", ScheduleRule.after(1.minutes), CommandRequest.to(ref, "Remind"))
-        saga.cancel("remind", ref)
+        saga.cancelSchedule("remind", ref)
         saga.recorded.assert().containsExactly(
             "schedule remind ${ScheduleRule.After(60_000)} Remind",
             "cancel remind $ref"

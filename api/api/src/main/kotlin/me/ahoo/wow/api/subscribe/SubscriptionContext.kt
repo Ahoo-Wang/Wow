@@ -171,8 +171,8 @@ interface SagaContext : SubscriptionContext {
      * returned request is, so handling the commit again derives the same request. The handler declares the class of
      * the command in its `@Sends(schedules)`. The target must exist: otherwise
      * it rejects the command, which the saga's `@OnRejected` handler for [SetSchedule] gets.
-     * [key] names the schedule among the target's: setting it again replaces it, and [cancel] cancels it. An `after`
-     * rule counts from the commit that sets it on the target.
+     * [key] names the schedule among the target's: setting it again replaces it, and [cancelSchedule] cancels it. An
+     * `after` rule counts from the commit that sets it on the target.
      */
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>)
 
@@ -180,7 +180,7 @@ interface SagaContext : SubscriptionContext {
      * Cancels the schedule [key] of [target]: the execution derives the system command `wow.schedule.CancelSchedule` to it,
      * after the commands the handler returns; see [schedule].
      */
-    fun cancel(key: String, target: AggregateRef)
+    fun cancelSchedule(key: String, target: AggregateRef)
 
     /**
      * Sends [request], to an aggregate of another bounded context, through that context's HTTP command gateway and

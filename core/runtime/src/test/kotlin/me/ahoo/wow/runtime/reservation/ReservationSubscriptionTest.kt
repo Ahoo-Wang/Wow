@@ -21,7 +21,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
@@ -310,7 +310,7 @@ class ReservationSubscriptionTest {
         confirmedBy("ahoo", "u-2").assert().isTrue()
         confirmedBy("kept", "u-3").assert().isTrue()
         ledger.isParked(
-            SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+            SubscriptionId(model.type.context, SystemSubscriptions.RESERVATION),
             user("u-1")
         ).assert().isFalse()
     }
@@ -379,7 +379,7 @@ class ReservationSubscriptionTest {
         find("ahoo")!!.owner.assert().isEqualTo(user("someone-else"))
         lost.toList().assert().isEqualTo(listOf("shop"))
         ledger.isParked(
-            SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+            SubscriptionId(model.type.context, SystemSubscriptions.RESERVATION),
             user("u-1")
         ).assert().isFalse()
     }
@@ -393,17 +393,17 @@ class ReservationSubscriptionTest {
             register("u-1", "ahoo")
             eventually {
                 ledger.isParked(
-                    SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+                    SubscriptionId(model.type.context, SystemSubscriptions.RESERVATION),
                     user("u-1")
                 )
             }
             find("ahoo")!!.confirmed.assert().isFalse()
 
             store.failing = false
-            runtime.retry(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
+            runtime.retry(SystemSubscriptions.RESERVATION, user("u-1")).assert().isTrue()
             confirmedBy("ahoo", "u-1").assert().isTrue()
             ledger.isParked(
-                SubscriptionId(model.type.context, Hop.RESERVATION_SUBSCRIPTION),
+                SubscriptionId(model.type.context, SystemSubscriptions.RESERVATION),
                 user("u-1")
             ).assert().isFalse()
         }

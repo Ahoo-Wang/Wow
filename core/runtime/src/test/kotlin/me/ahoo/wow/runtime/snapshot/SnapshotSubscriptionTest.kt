@@ -22,6 +22,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -97,7 +98,7 @@ class SnapshotSubscriptionTest : SnapshotSubscriptionFixtures() {
         // A new checkpoint replays the partition from the beginning.
         val replay = runtime(InMemoryCheckpointStore())
         replay.start(setOf(0))
-        eventually { replay.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, third) }
+        eventually { replay.hasHandled(SystemSubscriptions.SNAPSHOT, third) }
         store.saves.size.assert().isEqualTo(saved)
         store.load(ref("a"))!!.version.assert().isEqualTo(3)
         // No state was rebuilt from the log.
@@ -128,7 +129,7 @@ class SnapshotSubscriptionTest : SnapshotSubscriptionFixtures() {
         // as the base of the aggregate's next commit.
         val replay = runtime(InMemoryCheckpointStore())
         replay.start(setOf(0))
-        eventually { replay.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, third.stream) }
+        eventually { replay.hasHandled(SystemSubscriptions.SNAPSHOT, third.stream) }
         store.saves.size.assert().isEqualTo(saved)
         snapshots.views.size.assert().isEqualTo(1)
         store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":3}""")
@@ -171,7 +172,7 @@ class SnapshotSubscriptionTest : SnapshotSubscriptionFixtures() {
         running.start(setOf(0))
         // The subscription rebuilds the state instead; version 2 fails to serialize there too, so the aggregate
         // parks: from version 2, or from 1 when both entries ran as one batch. Nothing past version 1 is written.
-        val snapshot = SubscriptionId(ref.type.context, Hop.SNAPSHOT_SUBSCRIPTION)
+        val snapshot = SubscriptionId(ref.type.context, SystemSubscriptions.SNAPSHOT)
         eventually { ledger.isParked(snapshot, ref) }
         (ledger.parked(snapshot, ref)!!.fromVersion in 1..2).assert().isTrue()
         (store.load(ref)?.version ?: 1).assert().isEqualTo(1)
@@ -179,9 +180,9 @@ class SnapshotSubscriptionTest : SnapshotSubscriptionFixtures() {
 
     @Test
     fun `a snapshot subscription names the aggregate types it snapshots, all of its context`() {
-        runtime.covers(Hop.SNAPSHOT_SUBSCRIPTION, counter.type).assert().isTrue()
-        runtime.covers(Hop.SNAPSHOT_SUBSCRIPTION, note.type).assert().isFalse()
-        snapshots.subscription.name.assert().isEqualTo(Hop.SNAPSHOT_SUBSCRIPTION)
+        runtime.covers(SystemSubscriptions.SNAPSHOT, counter.type).assert().isTrue()
+        runtime.covers(SystemSubscriptions.SNAPSHOT, note.type).assert().isFalse()
+        snapshots.subscription.name.assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
         assertThrows<IllegalArgumentException> {
             SnapshotSubscription("other", listOf(counter), store, kernel, log)
         }

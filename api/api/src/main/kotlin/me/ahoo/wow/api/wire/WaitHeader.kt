@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import java.time.format.DateTimeParseException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -91,7 +92,7 @@ object WaitHeader {
     fun formatHop(hop: Hop): String {
         val context = hop.context
         return when {
-            hop.stage == Stage.HANDLED && hop.subscription == Hop.SNAPSHOT_SUBSCRIPTION ->
+            hop.stage == Stage.HANDLED && hop.subscription == SystemSubscriptions.SNAPSHOT ->
                 if (context == null) "snapshot" else "snapshot($context)"
 
             hop.stage == Stage.HANDLED ->

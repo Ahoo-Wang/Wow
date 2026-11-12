@@ -21,13 +21,13 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -77,7 +77,7 @@ class TimersSubscriptionTest {
 
     @Test
     fun `the subscription is the built-in timers one, and takes streams that only schedule`() {
-        timers.subscription.name.assert().isEqualTo(Hop.TIMERS_SUBSCRIPTION)
+        timers.subscription.name.assert().isEqualTo(SystemSubscriptions.TIMERS)
         timers.subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         val onlySchedules = stream(1, put("pay", ScheduleRule.At(5)))
         timers.subscription.takes(onlySchedules).assert().isTrue()

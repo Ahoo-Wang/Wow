@@ -1035,6 +1035,10 @@ public abstract interface class me/ahoo/wow/spi/peer/PeerTargets : java/lang/Aut
 	public fun unreachable (Ljava/lang/String;Ljava/lang/String;)V
 }
 
+public abstract interface class me/ahoo/wow/spi/read/TenantQueryApi : me/ahoo/wow/api/read/NodeQueryApi {
+	public abstract fun tenant (Ljava/lang/String;)Lme/ahoo/wow/api/read/SubscriptionQueries;
+}
+
 public abstract interface class me/ahoo/wow/spi/reservation/ConfirmOutcome {
 }
 

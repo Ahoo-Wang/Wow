@@ -16,15 +16,13 @@ package me.ahoo.wow.runtime.command
 import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -103,13 +101,20 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     }
 
     /**
-     * The full type name of [command], as the contracts give its class; a system command by its system name: a
-     * lifecycle one or a schedule's `wow.schedule.SetSchedule` or `CancelSchedule`, which every aggregate decides, or
-     * a ledger's `wow.ledger.*`, which the target's intake runs.
+     * The full type name of [command], as the contracts give its class; a system command a saga sends by its system
+     * name ([SystemCommandGroups.SENT_BY_A_SAGA]): a lifecycle one or a schedule's `wow.schedule.SetSchedule` or
+     * `CancelSchedule`, which every aggregate decides, or a ledger's `wow.ledger.*`, which the target's intake runs. A
+     * job or rebuild command is none a saga sends, and fails the send saying so.
      */
     fun typeOf(command: Command<*>): String {
         val type = command.body.javaClass
-        (Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: Ledger.nameOf(type))?.let { return it }
+        SystemCommandGroups.SENT_BY_A_SAGA.nameOf(type)?.let { return it }
+        SystemCommandGroups.ALL.nameOf(type)?.let { name ->
+            error(
+                "$name is a command of ${command.ref.type.context}'s built-in aggregates, which a saga does not send: " +
+                    "its service takes it from its own routes.",
+            )
+        }
         // A class several aggregates decide is named on the aggregate it is sent to.
         contracts.commands.commandTypeOf(command.ref.type.toString(), type)?.let { return it }
         val named = checkNotNull(contracts.commandTypeOf(Manifest.schemaRef(type.name))) {
