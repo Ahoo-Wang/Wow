@@ -13,12 +13,13 @@
 #
 # bench.sh's raw-driver ceiling (`measure --program=raw`), sourced by bench.sh: its helpers and settings are in scope.
 
-# The store alone doing what Wow asks of it per command (beta.4's evaluation, §3): on fresh containers, RawStoreBench on
-# the install's class path runs the benchmark's domain on the store for a few thousand commands, then each write shape
-# with the driver alone on clones of Wow's tables (test/benchmarks/README.md), and writes raw.json to --out. The store's
-# container is named to it, so it reads its CPU from the container's cgroup. Every option the harness does not know
-# (--shapes, --variants, --connections, --seconds, --warm-up, --log-batch, --snapshot-batch, --aggregates,
-# --templates) goes to it. Exit 3 when the install has no RawStoreBench, a baseline older than it.
+# The store alone doing what Wow asks of it: on fresh containers, RawStoreBench on the
+# install's class path runs the benchmark's domain on the store for a few thousand commands, reading the store's WAL or
+# journal bytes per command around it, then each case with the driver alone on clones of Wow's tables
+# (test/benchmarks/README.md), and writes raw.json to --out, its calibration first. The store's container is named to
+# it, so it reads its CPU from the container's cgroup. Every option the harness does not know (--cases,
+# --connections, --seconds, --warm-up, --log-batch, --snapshot-batch, --batches, --aggregates, --templates,
+# --p2-share) goes to it. Exit 3 when the install has no RawStoreBench, a baseline older than it.
 measure_raw() {
   check_java
   BACKEND=$(opt backend postgres)

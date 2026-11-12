@@ -19,27 +19,11 @@ import org.junit.jupiter.api.assertThrows
 
 class RawRunTest {
     @Test
-    fun `a flush's snapshots are one statement merged, else groups of the statement's size`() {
-        snapshotGroups(10, 4, merged = false).assert().containsExactly(4, 4, 2)
-        snapshotGroups(10, 4, merged = true).assert().containsExactly(10)
-        snapshotGroups(3, 4, merged = false).assert().containsExactly(3)
-        assertThrows<IllegalArgumentException> { snapshotGroups(0, 4, merged = false) }
-    }
-
-    @Test
-    fun `the shapes say what each writes and how it commits`() {
-        Shape.of("today").apply {
-            writesSnapshots.assert().isTrue()
-            mergesSnapshots.assert().isFalse()
-            oneTransaction.assert().isFalse()
-        }
-        Shape.of("in-transaction-merged").apply {
-            mergesSnapshots.assert().isTrue()
-            oneTransaction.assert().isTrue()
-        }
-        Shape.LOG_ONLY.writesSnapshots.assert().isFalse()
-        Shape.POINT_READ.writesSnapshots.assert().isFalse()
-        assertThrows<IllegalStateException> { Shape.of("bulk") }
+    fun `a flush's units are groups of the statement's size`() {
+        groupsOf(10, 4).assert().containsExactly(4, 4, 2)
+        groupsOf(14, 9).assert().containsExactly(9, 5)
+        groupsOf(3, 4).assert().containsExactly(3)
+        assertThrows<IllegalArgumentException> { groupsOf(0, 4) }
     }
 
     @Test
@@ -58,48 +42,75 @@ class RawRunTest {
     @Test
     fun `each worker owns its own aggregates, taken in turn, their versions its own`() {
         val first = Aggregates(10, 0, 3)
-        val second = Aggregates(10, 1, 3)
-        val ids = List(4) { first.next().id }
-        ids.assert().containsExactly("raw-0", "raw-3", "raw-6", "raw-9")
-        List(3) { second.next().id }.assert().containsExactly("raw-1", "raw-4", "raw-7")
-        first.next().apply { version++ }.version.assert().isEqualTo(2)
+        List(4) { first.next().id }.assert().containsExactly("raw-0", "raw-3", "raw-6", "raw-9")
+        Aggregates(10, 1, 3).take(2).map { it.id to it.version }.assert().containsExactly("raw-1" to 2, "raw-4" to 2)
         assertThrows<IllegalArgumentException> { Aggregates(2, 5, 6) }
     }
 
     @Test
-    fun `the settings default to the L1 shape, each store's variants, and refuse too few aggregates`() {
+    fun `the calibration passes within ten percent of Wow's own, and fails without either side`() {
+        RawCalibration("walBytes", wow = 1300.0, raw = 1350.0).apply {
+            passed.assert().isTrue()
+            ratio!!.assert().isCloseTo(1.038, org.assertj.core.data.Offset.offset(0.001))
+        }
+        RawCalibration("walBytes", wow = 1300.0, raw = 1500.0).passed.assert().isFalse()
+        RawCalibration("journalBytes", wow = null, raw = 900.0).apply {
+            passed.assert().isFalse()
+            ratio.assert().isNull()
+        }
+    }
+
+    @Test
+    fun `the settings default to each store's L1 shape and refuse too few aggregates`() {
         RawSettings.of(emptyMap(), "postgres").apply {
-            variants.assert().containsExactly("100", "80")
             logBatch.assert().isEqualTo(10)
             snapshotBatch.assert().isEqualTo(4)
-            connections.assert().containsExactly(1, 4, 16, 64, 256)
-            variantsOf(Shape.LOG_ONLY).assert().containsExactly("100")
-            variantsOf(Shape.TODAY).assert().containsExactly("100", "80")
+            batches.assert().containsExactly(4, 10, 25)
+            connections.assert().containsExactly(16, 64, 256)
+            keeps("m1-4-state").assert().isTrue()
         }
-        RawSettings.of(emptyMap(), "mongo").variants.assert().containsExactly("pipeline", "set")
+        RawSettings.of(mapOf("cases" to "m0,m1"), "mongo").apply {
+            logBatch.assert().isEqualTo(14)
+            snapshotBatch.assert().isEqualTo(9)
+            keeps("m1-25-state-4k").assert().isTrue()
+            keeps("m3-4-state").assert().isFalse()
+        }
         assertThrows<IllegalArgumentException> {
             RawSettings.of(mapOf("aggregates" to "100", "connections" to "64"), "postgres")
         }
     }
 
     @Test
-    fun `raw json holds the settings and each step per command`() {
+    fun `raw json leads with the calibration, then the settings, the store and each step per unit`() {
         val step = RawStep(
-            shape = "today",
-            variant = "fillfactor-100",
+            case = RawCase("wow-today", "command", 10, "today: the calibration"),
             connections = 4,
+            rate = null,
             seconds = 2.0,
-            commands = 1000,
+            units = 1000,
             flushes = 100,
             failures = 0,
             p50FlushMs = 1.5,
             p99FlushMs = 9.0,
-            storeCpuMsPerCommand = null,
-            store = mapOf("walBytes" to 1300.0),
+            storeCpuMsPerUnit = null,
+            perUnit = mapOf("walBytes" to 1300.0),
+            ratios = mapOf("hotShare" to 0.75),
         )
-        step.commandsPerSecond.assert().isEqualTo(500.0)
-        val json = rawJson(mapOf("backend" to "postgres"), listOf(step))
-        json.assert().startsWith("{\"schema\":\"wow-e2e-bench/raw/1\",\"backend\":\"postgres\",\"steps\":[")
-        json.assert().contains("\"commandsPerSecond\":500.0", "\"storeCpuMsPerCommand\":null", "\"walBytes\":1300.0")
+        step.unitsPerSecond.assert().isEqualTo(500.0)
+        val json = rawJson(
+            RawCalibration("walBytes", 1290.0, 1300.0),
+            mapOf("backend" to "postgres"),
+            mapOf("server_version" to "17.6", "synchronous_commit" to "on"),
+            listOf(step),
+        )
+        json.assert().startsWith("{\"schema\":\"wow-e2e-bench/raw/1\",\"calibration\":{\"metric\":\"walBytes\"")
+        json.assert().contains(
+            "\"passed\":true",
+            "\"store\":{\"server_version\":\"17.6\",\"synchronous_commit\":\"on\"}",
+            "\"case\":\"wow-today\"",
+            "\"unitsPerSecond\":500.0",
+            "\"storeCpuMsPerUnit\":null",
+            "\"hotShare\":0.75",
+        )
     }
 }

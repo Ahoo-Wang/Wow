@@ -125,7 +125,15 @@ class ComponentRun(
         String(CharArray(NOTE_BYTES) { ALPHABET[random.nextInt(ALPHABET.length)] })
     }
 
-    fun run(client: CommandClient, counter: StoreCounter): Map<String, Any?> = runBlocking(Dispatchers.Default) {
+    /**
+     * Opens the accounts, sends the warm-up and then the measured operations; [onMeasure] is told when the measured
+     * phase starts (true) and when it has ended (false), for a caller that reads the store around it (RawStoreBench).
+     */
+    fun run(
+        client: CommandClient,
+        counter: StoreCounter,
+        onMeasure: (Boolean) -> Unit = {},
+    ): Map<String, Any?> = runBlocking(Dispatchers.Default) {
         val seedStarted = System.nanoTime()
         loop(accounts) { index ->
             val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
@@ -144,6 +152,7 @@ class ComponentRun(
         val allocatedBefore = memory.totalThreadAllocatedBytes
         val latencies = LongArray(ops)
         val failures = ConcurrentHashMap<String, LongAdder>()
+        onMeasure(true)
         val started = System.nanoTime()
         loop(ops) { index ->
             val sent = System.nanoTime()
@@ -154,6 +163,7 @@ class ComponentRun(
             failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
         }
         val seconds = (System.nanoTime() - started) / NANOS_PER_SECOND
+        onMeasure(false)
         val allocated = memory.totalThreadAllocatedBytes - allocatedBefore
         val trips = counter.snapshot()
         latencies.sort()

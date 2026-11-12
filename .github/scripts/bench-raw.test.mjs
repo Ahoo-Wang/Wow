@@ -8,33 +8,57 @@ import { test } from 'node:test';
 import { SUITES } from './bench.mjs';
 import {
   RAW,
+  calibrationText,
   rawAnomalies,
   rawArgs,
   rawTable,
   renderRaw,
+  settingsText,
 } from './bench-raw.mjs';
 
+const CALIBRATED = {
+  metric: 'walBytes',
+  wowPerCommand: 1290,
+  rawPerCommand: 1310,
+  ratio: 1.0155,
+  tolerance: 0.1,
+  passed: true,
+};
+
 const STEP = {
-  shape: 'today',
-  variant: 'fillfactor-100',
-  connections: 16,
+  case: 'snapshot-4-async-ff100',
+  unit: 'row',
+  prices: 'P0: today',
+  connections: 64,
+  rate: null,
   seconds: 20,
-  commands: 52000,
-  flushes: 5200,
+  units: 52000,
+  flushes: 13000,
   failures: 0,
-  commandsPerSecond: 2600,
+  unitsPerSecond: 2600,
   p50FlushMs: 3.2,
   p99FlushMs: 11.5,
-  storeCpuMsPerCommand: 0.512,
-  perCommand: {
-    walBytes: 1288.4,
-    walSyncs: 0.31,
-    walSyncMs: 0.22,
-    commits: 0.34,
+  storeCpuMsPerUnit: 0.0512,
+  perUnit: { walBytes: 640.4, walSyncs: 0.01, walFpi: 0.02, commits: 0.25 },
+  ratios: { hotShare: 0.75 },
+};
+
+const RUN = {
+  name: 'head',
+  status: 'ok',
+  raw: {
+    backend: 'postgres',
+    calibration: CALIBRATED,
+    logBatch: 10,
+    snapshotBatch: 4,
+    batches: [4, 10, 25],
+    aggregates: 100000,
+    store: { server_version: '17.6', synchronous_commit: 'on', fsync: 'on' },
+    steps: [STEP],
   },
 };
 
-test('the raw suites are measure suites of the raw program on the head, bench.mjs unchanged', () => {
+test('the raw suites are measure suites of the raw program on the head', () => {
   for (const [name, backend] of [
     ['raw-pg', 'postgres'],
     ['raw-mongo', 'mongo'],
@@ -50,62 +74,105 @@ test('the raw suites are measure suites of the raw program on the head, bench.mj
   }
 });
 
-test("a raw run passes the program's settings, the head's install and the server's CPUs", () => {
-  const args = rawArgs(
-    { backend: 'postgres', install: 'head' },
-    { head: '/install/head' },
-    { server: '0-2' },
-    '/out/head',
+test("a raw run passes the program's timing, the head's install and the server's CPUs", () => {
+  assert.deepEqual(
+    rawArgs(
+      { backend: 'postgres', install: 'head' },
+      { head: '/install/head' },
+      { server: '0-2' },
+      '/out/head',
+    ),
+    [
+      'measure',
+      '--program=raw',
+      '--backend=postgres',
+      '--install=/install/head',
+      `--connections=${RAW.connections}`,
+      `--warm-up=${RAW.warmUp}`,
+      `--seconds=${RAW.seconds}`,
+      '--server-cpus=0-2',
+      '--out=/out/head',
+    ],
   );
-  assert.deepEqual(args, [
-    'measure',
-    '--program=raw',
-    '--backend=postgres',
-    '--install=/install/head',
-    `--connections=${RAW.connections}`,
-    `--warm-up=${RAW.warmUp}`,
-    `--seconds=${RAW.seconds}`,
-    `--log-batch=${RAW.logBatch}`,
-    `--snapshot-batch=${RAW.snapshotBatch}`,
-    '--server-cpus=0-2',
-    '--out=/out/head',
-  ]);
 });
 
-test("a PostgreSQL step's row is what it did and each command's WAL, syncs and commits", () => {
-  const [head, , row] = rawTable({
-    raw: { backend: 'postgres', steps: [STEP] },
+test('the calibration says whether the clone writes what Wow writes, and an uncalibrated run is read for nothing', () => {
+  assert.match(
+    calibrationText(RUN.raw),
+    /^Calibrated: the clone's walBytes per command is 1310 against Wow's own 1290 \(1\.016, within ±10%\)\.$/,
+  );
+  assert.match(
+    calibrationText({
+      calibration: {
+        ...CALIBRATED,
+        rawPerCommand: 1500,
+        ratio: 1.163,
+        passed: false,
+      },
+    }),
+    /^\*\*Uncalibrated: .*outside ±10%\)\. No case of this run is read\.\*\*$/,
+  );
+  assert.match(
+    calibrationText({
+      calibration: {
+        metric: 'journalBytes',
+        wowPerCommand: null,
+        rawPerCommand: 900,
+        ratio: null,
+        tolerance: 0.1,
+        passed: false,
+      },
+    }),
+    /could not be read on both sides \(Wow none, clone 900\)/,
+  );
+  assert.match(calibrationText({}), /recorded no calibration/);
+});
+
+test('the store and the batch shape a ceiling is quoted with', () => {
+  assert.equal(
+    settingsText(RUN.raw),
+    'Store: server_version 17.6, synchronous_commit on, fsync on. Batches: 10 commands a flush, their snapshots 4 a statement or call; cases at 4, 10, 25 a statement or call; 100000 aggregates.',
+  );
+});
+
+test("a PostgreSQL step's row is per unit, its HOT share beside it, a paced step's rate named", () => {
+  const [head, , row, paced] = rawTable({
+    raw: {
+      ...RUN.raw,
+      steps: [STEP, { ...STEP, case: 'p2-combined', rate: 1200 }],
+    },
   });
-  assert.match(head, /WAL bytes\/command/);
+  assert.match(head, /WAL bytes\/unit .* HOT share/);
   assert.equal(
     row,
-    '| today | fillfactor-100 | 16 | 2600 | 3.20 / 11.50 ms | 0.512 | 1288 | 0.310 | 0.220 | 0.340 | 0 |',
+    '| snapshot-4-async-ff100 | P0: today | row | 64 | closed loop | 2600 | 3.20 / 11.50 ms | 51.2 | 640 | 0.010 | 0.020 | 0.250 | 75% | 0 |',
   );
+  assert.match(paced, /^\| p2-combined \| .* \| 1200\/s \|/);
 });
 
-test("a MongoDB step's row is the journal's and the operations', and an unread CPU says so", () => {
+test("a MongoDB step's row is mongod's CPU, the write latency, the journal and the oplog per update", () => {
   const step = {
     ...STEP,
-    variant: 'pipeline',
-    storeCpuMsPerCommand: null,
-    perCommand: {
-      journalSyncs: 0.12,
-      journalSyncMs: 0.07,
-      inserts: 0.1,
-      updates: 0.25,
-    },
+    case: 'm1-10-state',
+    prices: 'B: M1',
+    unit: 'update',
+    storeCpuMsPerUnit: null,
+    perUnit: { journalBytes: 512.2, oplogBytes: 300.6, journalSyncs: 0.004 },
+    ratios: { snapshotWriteMicros: 41.25 },
   };
-  const [head, , row] = rawTable({ raw: { backend: 'mongo', steps: [step] } });
-  assert.match(head, /Journal syncs\/command/);
-  assert.match(
+  const [head, , row] = rawTable({
+    raw: { backend: 'mongo', steps: [step] },
+  });
+  assert.match(head, /mongod CPU µs\/unit \| Write latency µs/);
+  assert.equal(
     row,
-    /\| not recorded \| 0\.120 \| 0\.070 \| 0\.100 \| 0\.250 \| 0 \|$/,
+    '| m1-10-state | B: M1 | update | 64 | 2600 | 3.20 / 11.50 ms | not recorded | 41.3 | 512 | 301 | 0.004 | 0 |',
   );
 });
 
-test('a failed run and failed flushes are anomalies, and the summary lists each run', () => {
+test('a failed run, an uncalibrated one and failed flushes are anomalies; the summary leads each run with its calibration', () => {
   const suite = {
-    name: 'raw-pg',
+    name: 'raw-mongo',
     runner: {
       cpu: 'AMD EPYC 7763',
       cores: 4,
@@ -116,16 +183,24 @@ test('a failed run and failed flushes are anomalies, and the summary lists each 
       {
         name: 'head',
         status: 'ok',
-        raw: { backend: 'postgres', steps: [{ ...STEP, failures: 3 }] },
+        raw: {
+          ...RUN.raw,
+          backend: 'mongo',
+          calibration: { ...CALIBRATED, passed: false, ratio: 1.3 },
+          steps: [{ ...STEP, failures: 3 }],
+        },
       },
       { name: 'other', status: 'failed' },
     ],
   };
-  const kinds = rawAnomalies(suite).map(row => row.kind);
-  assert.deepEqual(kinds, ['failed flushes', 'run failed']);
-  const summary = renderRaw(suite, SUITES['raw-pg']);
-  assert.match(summary, /^## raw-pg@100k/);
+  assert.deepEqual(
+    rawAnomalies(suite).map(row => row.kind),
+    ['uncalibrated', 'failed flushes', 'run failed'],
+  );
+  const summary = renderRaw(suite, SUITES['raw-mongo']);
+  assert.match(summary, /^## raw-mongo@100k/);
   assert.match(summary, /Eclipse Adoptium 25\.0\.5\+8-LTS/);
-  assert.match(summary, /### head/);
+  assert.match(summary, /### head\n\n\*\*Uncalibrated:/);
+  assert.match(summary, /`c-transaction` is a multi-document transaction/);
   assert.match(summary, /\*\*1 run\(s\) failed\*\*/);
 });

@@ -24,21 +24,20 @@ import java.io.File
 import kotlin.system.exitProcess
 
 /**
- * The raw-driver ceiling (beta.4's evaluation, §3): what the store alone does with the durable writes Wow asks of it
- * for a command, and with the variants of them that price a candidate before any kernel work.
+ * The raw-driver ceiling: what the store alone does with the durable writes Wow asks of it,
+ * per command, row or update, in today's shape and in the shapes that price a candidate (MongoDB's update shapes M0–M3; PostgreSQL's P0–P2),
+ * before any kernel work.
  *
- * First the benchmark's domain runs in this JVM on the store (ComponentRun, as the L1 benchmark does) for `--templates`
- * accounts and as many deposits, so Wow creates its tables and writes real rows. Then, with the driver alone, each of
- * `--shapes` (Shape) and each of `--variants` (PostgreSQL: the snapshot table's fillfactor; MongoDB: the snapshot
- * update as a pipeline or a plain `$set`) runs on fresh clones of Wow's tables over `--connections`, `--warm-up` seconds
- * unmeasured and `--seconds` measured each, `--log-batch` commands a flush in one append (about 10 in the L1 counts) and
- * their snapshots `--snapshot-batch` a statement (about 4), over `--aggregates` aggregates whose snapshots exist.
+ * First the benchmark's domain runs in this JVM on the store (ComponentRun, as the L1 benchmark does): `--templates`
+ * accounts and four deposits each, so Wow creates its tables and writes real rows, and its WAL (PostgreSQL) or journal
+ * (MongoDB) bytes per command are read around it. Then, with the driver alone, each case runs on fresh clones of Wow's
+ * tables over `--connections`, `--warm-up` seconds unmeasured and `--seconds` measured, over `--aggregates` aggregates
+ * whose snapshots exist; on PostgreSQL P2's two cases run again at `--p2-share` of the split's throughput, so they
+ * compare at one rate. `--cases` keeps the cases whose name starts with one of its prefixes.
  *
- * Each step gives the commands a second, the flush's p50 and p99, the store container's CPU per command
- * (`--container`'s cgroup), and the store's own counters per command: PostgreSQL's WAL bytes, records, full-page images,
- * syncs and their time and commits; MongoDB's journal syncs, their time, writes and bytes and its inserts and updates.
- * The `today` shape is the check: its WAL per command should be Wow's (about 1.3 KB on PostgreSQL in the L3 runs).
- * `raw.json` goes to `--out`.
+ * The calibration leads raw.json: the `wow-today` case's bytes per command against Wow's own, within 10%. A run that
+ * fails it or cannot take it says so first, and none of its cases is read. raw.json goes to `--out`, with the store's
+ * version and durability settings and the run's batch parameters.
  *
  * Run it on the install's class path with main class `RawStoreBenchKt`; bench.sh's `measure --program=raw` does.
  */
@@ -50,82 +49,106 @@ fun main(args: Array<String>) {
     val backend = options["backend"] ?: "postgres"
     val settings = RawSettings.of(options, backend)
     val out = File(options["out"] ?: ".").apply { mkdirs() }
-    seed(backend, settings.templates, options)
-    val steps = when (backend) {
+    val result = when (backend) {
         "postgres" -> postgres(settings, options)
         "mongo" -> mongo(settings, options)
         else -> error("Unknown backend $backend: postgres or mongo.")
     }
-    val json = rawJson(settings.toMap() + ("backend" to backend), steps)
+    val json = rawJson(result.calibration, settings.toMap() + ("backend" to backend), result.store, result.steps)
     File(out, "raw.json").writeText(json + "\n")
     println(json)
     exitProcess(0)
 }
 
-/** A raw run's settings, from its options. */
+/** A raw run's result: its calibration, its store's version and settings, and its steps. */
+class RawResult(val calibration: RawCalibration, val store: Map<String, Any?>, val steps: List<RawStep>)
+
+/** A raw run's settings, from its options; each store's defaults are its share of Wow's batches in the L1 counts. */
 data class RawSettings(
-    val shapes: List<Shape>,
-    val variants: List<String>,
     val connections: List<Int>,
     val warmUpSeconds: Int,
     val seconds: Int,
     val logBatch: Int,
     val snapshotBatch: Int,
+    val batches: List<Int>,
     val aggregates: Int,
     val templates: Int,
+    val p2Share: Double,
+    val cases: List<String>,
     val container: String?,
 ) {
+    val timing: Pair<Int, Int> get() = warmUpSeconds to seconds
+
     fun toMap(): Map<String, Any?> = mapOf(
-        "shapes" to shapes.map { it.key },
-        "variants" to variants,
         "connections" to connections,
         "warmUpSeconds" to warmUpSeconds,
         "seconds" to seconds,
         "logBatch" to logBatch,
         "snapshotBatch" to snapshotBatch,
+        "batches" to batches,
         "aggregates" to aggregates,
         "templates" to templates,
+        "p2Share" to p2Share,
+        "cases" to cases,
         "container" to container,
     )
 
-    /** The variants a [shape] runs: all of them when it writes snapshots, else the first. */
-    fun variantsOf(shape: Shape): List<String> = if (shape.writesSnapshots) variants else variants.take(1)
+    /** Whether [name] is one of the cases this run keeps. */
+    fun keeps(name: String): Boolean = cases.isEmpty() || cases.any { name.startsWith(it) }
 
     companion object {
         fun of(options: Map<String, String>, backend: String): RawSettings {
             fun list(key: String, default: String) = (options[key] ?: default).split(',').map { it.trim() }
                 .filter { it.isNotEmpty() }
             fun int(key: String, default: Int) = options[key]?.toInt() ?: default
+            val mongo = backend == "mongo"
             val settings = RawSettings(
-                shapes = list("shapes", Shape.entries.joinToString(",") { it.key }).map(Shape::of),
-                variants = list("variants", if (backend == "mongo") "pipeline,set" else "100,80"),
-                connections = list("connections", "1,4,16,64,256").map { it.toInt() },
+                connections = list("connections", "16,64,256").map { it.toInt() },
                 warmUpSeconds = int("warm-up", DEFAULT_WARM_UP),
                 seconds = int("seconds", DEFAULT_SECONDS),
-                logBatch = int("log-batch", DEFAULT_LOG_BATCH),
-                snapshotBatch = int("snapshot-batch", DEFAULT_SNAPSHOT_BATCH),
+                logBatch = int("log-batch", if (mongo) MONGO_LOG_BATCH else PG_LOG_BATCH),
+                snapshotBatch = int("snapshot-batch", if (mongo) MONGO_SNAPSHOT_BATCH else PG_SNAPSHOT_BATCH),
+                batches = list("batches", "4,10,25").map { it.toInt() },
                 aggregates = int("aggregates", DEFAULT_AGGREGATES),
                 templates = int("templates", DEFAULT_TEMPLATES),
+                p2Share = options["p2-share"]?.toDouble() ?: DEFAULT_P2_SHARE,
+                cases = list("cases", ""),
                 container = options["container"],
             )
             require(settings.connections.all { it >= 1 } && settings.logBatch >= 1 && settings.snapshotBatch >= 1)
-            require(settings.connections.max() * settings.logBatch <= settings.aggregates) {
-                "Each connection's flush needs ${settings.logBatch} aggregates of its own: raise --aggregates."
+            val widest = maxOf(settings.logBatch, settings.batches.max())
+            require(settings.connections.max() * widest <= settings.aggregates) {
+                "Each connection's flush needs $widest aggregates of its own: raise --aggregates."
             }
             return settings
         }
 
         private const val DEFAULT_WARM_UP = 5
         private const val DEFAULT_SECONDS = 20
-        private const val DEFAULT_LOG_BATCH = 10
-        private const val DEFAULT_SNAPSHOT_BATCH = 4
+        private const val PG_LOG_BATCH = 10
+        private const val PG_SNAPSHOT_BATCH = 4
+        private const val MONGO_LOG_BATCH = 14
+        private const val MONGO_SNAPSHOT_BATCH = 9
         private const val DEFAULT_AGGREGATES = 100_000
         private const val DEFAULT_TEMPLATES = 2_000
+        private const val DEFAULT_P2_SHARE = 0.5
     }
 }
 
-/** Wow's own tables and rows: the domain on the store for [templates] accounts and as many deposits. */
-private fun seed(backend: String, templates: Int, options: Map<String, String>) {
+/**
+ * Wow's own run on the store: after a [checkpoint], the domain opens [templates] accounts and deposits into each once
+ * unmeasured, so every page it measures has been written since the checkpoint, as the clone's warm-up does; then four
+ * deposits each, measured, at L1's concurrency (so Wow's appends and snapshot flushes take the shape the clone's
+ * batches copy). Around those, with a moment for their snapshots to land, the store's [counters] are read: each one's
+ * growth per deposit.
+ */
+private fun seed(
+    backend: String,
+    templates: Int,
+    options: Map<String, String>,
+    counters: () -> Map<String, Double>,
+    checkpoint: () -> Unit,
+): Map<String, Double> {
     val context = SpringApplicationBuilder(TransferServer::class.java, ComponentCounters::class.java)
         .web(WebApplicationType.NONE)
         .profiles(backend)
@@ -135,86 +158,140 @@ private fun seed(backend: String, templates: Int, options: Map<String, String>) 
                 .map { "--${it.key}=${it.value}" }
                 .toTypedArray(),
         )
-    try {
-        ComponentRun(
-            scenario = "E1",
-            accounts = templates,
-            ops = templates,
-            warmUpOps = 0,
-            concurrency = SEED_CONCURRENCY
-        )
-            .run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java))
+    var before: Map<String, Double> = emptyMap()
+    var after: Map<String, Double> = emptyMap()
+    val ops = templates * DEPOSITS
+    checkpoint()
+    val run = ComponentRun(
+        scenario = "E1",
+        accounts = templates,
+        ops = ops,
+        warmUpOps = templates,
+        concurrency = SEED_CONCURRENCY,
+    )
+    val component = try {
+        run.run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java)) { starting ->
+            // The warm-up's snapshots are written behind its commits: let them land before the measured deposits.
+            Thread.sleep(SETTLE_MILLIS)
+            if (starting) {
+                before = counters()
+            } else {
+                after = counters()
+            }
+        }
     } finally {
         context.close()
     }
+    // Wow's own statements per deposit, by statement (ComponentRun's count), beside the store's counters.
+    val statements = (component["storeRoundTripsByCommand"] as Map<*, *>?).orEmpty()
+        .mapNotNull { (key, value) -> (value as? Number)?.let { "statements: $key" to it.toDouble() } }
+    return after.mapValues { (key, value) -> (value - (before[key] ?: value)) / ops } + statements
 }
 
-private fun postgres(settings: RawSettings, options: Map<String, String>): List<RawStep> {
+private fun postgres(settings: RawSettings, options: Map<String, String>): RawResult {
     val raw = RawPostgres(
         url = options["spring.datasource.url"] ?: "jdbc:postgresql://localhost:5432/transfer",
         user = options["spring.datasource.username"] ?: "postgres",
         password = options["spring.datasource.password"] ?: "postgres",
         partitions = options["wow.log.partitions"]?.toInt() ?: PARTITIONS,
     )
+    val wow = seed("postgres", settings.templates, options, { raw.counters() + raw.tables() }, raw::checkpoint)
     raw.loadTemplates(settings.templates)
     val cpu = ContainerCpu(settings.container)
-    return settings.shapes.flatMap { shape ->
-        settings.variantsOf(shape).flatMap { variant ->
-            settings.connections.map { connections ->
-                raw.prepare(variant.toInt(), settings.aggregates)
-                runStep(
-                    shape.key,
-                    "fillfactor-$variant",
-                    connections,
-                    settings.warmUpSeconds,
-                    settings.seconds,
-                    cpu,
-                    raw::counters
-                ) { index ->
-                    raw.worker(
-                        shape,
-                        Aggregates(settings.aggregates, index, connections),
-                        settings.logBatch,
-                        settings.snapshotBatch
-                    )
-                }.also { println("raw ${it.shape} ${it.variant} ${it.connections}: ${it.commandsPerSecond}/s") }
-            }
+    val cases = raw.cases(
+        settings.logBatch,
+        settings.snapshotBatch,
+        settings.batches
+    ).filter { settings.keeps(it.case.name) }
+    fun step(case: RawPostgres.Case, connections: Int, rate: Double?): RawStep = runStep(
+        case = case.case,
+        connections = connections,
+        rate = rate,
+        timing = settings.timing,
+        cpu = cpu,
+        counters = raw::counters,
+        ratios = raw::ratios,
+    ) { index ->
+        val connection = raw.connect()
+        val owned = Aggregates(settings.aggregates, index, connections)
+        object : RawWorker {
+            override fun flush(): Int = case.flush(connection, owned)
+            override fun close() = connection.close()
+        }
+    }.also(::print)
+    val steps = cases.flatMap { case ->
+        raw.prepare(case.fillfactor, settings.aggregates)
+        settings.connections.map { step(case, it, null) }
+    }.toMutableList()
+    // P2 at one rate: both cases at a share of the split's throughput at the most connections.
+    val split = steps.lastOrNull { it.case.name == RawPostgres.P2_SEPARATE }
+    if (split != null) {
+        val rate = split.unitsPerSecond * settings.p2Share
+        for (case in cases.filter { it.case.name == RawPostgres.P2_SEPARATE || it.case.name == RawPostgres.P2_COMBINED }) {
+            raw.prepare(case.fillfactor, settings.aggregates)
+            steps += step(case, split.connections, rate)
         }
     }
+    return RawResult(calibrationOf(WAL_BYTES, wow, steps, RawPostgres.WOW_TODAY), raw.settings(), steps)
 }
 
-private fun mongo(settings: RawSettings, options: Map<String, String>): List<RawStep> =
+private fun mongo(settings: RawSettings, options: Map<String, String>): RawResult =
     RawMongo(
         uri = options["spring.mongodb.uri"] ?: "mongodb://localhost:27017/?replicaSet=rs0",
         databaseName = options["wow.mongo.database"] ?: "transfer",
     ).use { raw ->
+        val wow = seed("mongo", settings.templates, options, { raw.counters() + raw.tables() }) {}
         raw.loadTemplates(settings.templates)
         val cpu = ContainerCpu(settings.container)
-        settings.shapes.flatMap { shape ->
-            settings.variantsOf(shape).flatMap { variant ->
-                settings.connections.map { connections ->
-                    raw.prepare(settings.aggregates)
-                    runStep(
-                        shape.key,
-                        variant,
-                        connections,
-                        settings.warmUpSeconds,
-                        settings.seconds,
-                        cpu,
-                        raw::counters
-                    ) { index ->
-                        raw.worker(
-                            shape,
-                            RawMongo.Variant.of(variant),
-                            Aggregates(settings.aggregates, index, connections),
-                            settings.logBatch,
-                            settings.snapshotBatch
-                        )
-                    }.also { println("raw ${it.shape} ${it.variant} ${it.connections}: ${it.commandsPerSecond}/s") }
-                }
+        val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
+            .filter { settings.keeps(it.case.name) }
+        val steps = cases.flatMap { case ->
+            raw.prepare(settings.aggregates, case.bigState)
+            settings.connections.map { connections ->
+                runStep(
+                    case = case.case,
+                    connections = connections,
+                    rate = null,
+                    timing = settings.timing,
+                    cpu = cpu,
+                    counters = raw::counters,
+                    ratios = raw::ratios,
+                ) { index ->
+                    val session = raw.session(case.case)
+                    val owned = Aggregates(settings.aggregates, index, connections)
+                    object : RawWorker {
+                        override fun flush(): Int = case.flush(session, owned)
+                        override fun close() {
+                            session?.close()
+                        }
+                    }
+                }.also(::print)
             }
         }
+        RawResult(calibrationOf(JOURNAL_BYTES, wow, steps, RawMongo.WOW_TODAY), raw.settings(), steps)
     }
 
-private const val SEED_CONCURRENCY = 16
+/**
+ * The calibration: [metric] per command of Wow's own run ([wow], every counter's) against [today]'s step at the median
+ * of its throughput over the connections, every counter of both beside it.
+ */
+private fun calibrationOf(
+    metric: String,
+    wow: Map<String, Double>,
+    steps: List<RawStep>,
+    today: String
+): RawCalibration {
+    val todays = steps.filter { it.case.name == today && it.rate == null }.sortedBy { it.unitsPerSecond }
+    val raw = todays.getOrNull(todays.size / 2)?.perUnit.orEmpty()
+    return RawCalibration(metric, wow[metric], raw[metric], wow, raw)
+}
+
+private fun print(step: RawStep) =
+    println("raw ${step.case.name} at ${step.connections}: ${step.unitsPerSecond} ${step.case.unit}s/s")
+
+private const val SEED_CONCURRENCY = 64
+private const val DEPOSITS = 4
+private const val SETTLE_MILLIS = 2_000L
 private const val PARTITIONS = 64
+private const val WAL_BYTES = "walBytes"
+private const val JOURNAL_BYTES = "journalBytes"
