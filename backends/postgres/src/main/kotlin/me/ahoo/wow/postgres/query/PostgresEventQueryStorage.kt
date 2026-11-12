@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.PostgresEventLogTables
+import me.ahoo.wow.postgres.PostgresLogAccessColumn
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -184,7 +185,7 @@ internal object PostgresEventQueryLayout {
         if (access == null) {
             putNull(EventStreamFields.ACCESS)
         } else {
-            set(EventStreamFields.ACCESS, WowJson.mapper.readTree(access))
+            set(EventStreamFields.ACCESS, PostgresLogAccessColumn.node(access))
         }
         if (projection.keepsEvents()) {
             val events = putArray(EventStreamFields.EVENTS)

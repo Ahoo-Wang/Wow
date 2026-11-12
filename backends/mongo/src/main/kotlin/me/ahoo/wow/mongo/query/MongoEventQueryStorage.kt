@@ -110,7 +110,12 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     /** The streams of a log collection, not its placeholders, which have no version. */
     override val scope: Bson = Filters.exists("version")
 
-    private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.ACCESS)
+    private val ABSENT_AS_NULL = setOf(
+        EventStreamFields.OWNER_ID,
+        EventStreamFields.SPACE_ID,
+        EventStreamFields.OPERATOR,
+        EventStreamFields.ACCESS,
+    )
     private const val PAYLOAD = "payload"
     private val EVENTS = QueryPathSegment.Property(EventStreamFields.EVENTS)
     private val BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(EventFields.BODY))
@@ -172,8 +177,8 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     override fun record(document: Document): ObjectNode = nodes.objectNode().apply {
         PHYSICAL.forEach { (logical, physical) ->
             if (!document.containsKey(physical)) {
-                // A stream of an anonymous caller stores no operator, one not stamped no access attributes; one
-                // without a scope stores null.
+                // A stream of an anonymous caller stores no operator, one not stamped no access attributes, one
+                // without an owner or a space neither.
                 if (logical in ABSENT_AS_NULL && document.containsKey("tenant_id")) putNull(logical)
                 return@forEach
             }

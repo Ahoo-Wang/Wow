@@ -17,7 +17,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -60,7 +59,7 @@ internal class PostgresLogRows(private val context: String) {
         } else {
             statement.setBoolean(index++, operator.actedElsewhere)
         }
-        statement.setNullableString(index++, stream.access?.let(AccessValues::text))
+        statement.setNullableString(index++, stream.access?.let(PostgresLogAccessColumn::text))
         stream.accessVersion?.let { statement.setInt(index, it) } ?: statement.setNull(index, Types.INTEGER)
     }
 
@@ -84,7 +83,7 @@ internal class PostgresLogRows(private val context: String) {
         operator = row.getString("operator_id")?.let {
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_acted_elsewhere"))
         },
-        access = AccessValues.parse(row.getString("access")),
+        access = PostgresLogAccessColumn.of(row.getString("access")),
         accessVersion = row.getInt("access_version").takeUnless { row.wasNull() },
     )
 

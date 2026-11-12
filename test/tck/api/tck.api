@@ -208,6 +208,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogReadCases : me/ahoo/wow/tck/lo
 }
 
 public abstract class me/ahoo/wow/tck/log/EventLogRecordCases : me/ahoo/wow/tck/log/EventLogFixtures {
+	public final fun a bare stream reads back the same from the tail and by version ()V
 	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
 	public final fun a stream reads back exactly as appended ()V
 	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V

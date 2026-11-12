@@ -134,6 +134,18 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
     }
 
     @Test
+    fun `a record shows an owner, a space and a built-in attribute without a value as null`() = blocking {
+        val records = given(stampedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
+        val bare = records.getValue("o6@1")
+        bare.path("ownerId").isNull.assert().isTrue()
+        bare.path("spaceId").isNull.assert().isTrue()
+        bare.path("access").path("owner").isNull.assert().isTrue()
+        bare.path("access").path("space").isNull.assert().isTrue()
+        records.getValue("o1@1").path("access").path("space").isNull.assert().isTrue()
+        Unit
+    }
+
+    @Test
     fun `access attributes select streams, a multiple one by any of its values, an unstamped stream by none`() =
         blocking {
             val fixture = given(stampedStreams())

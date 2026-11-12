@@ -95,6 +95,23 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
     }
 
     @Test
+    fun `a bare stream reads back the same from the tail and by version`(): Unit = runBlocking {
+        // A store may leave a field without a value out of what it writes: every read gives it back as null.
+        val log = createLog(partitions = 1)
+        val bare = stream("a", 1, scope = Scope.NONE, access = AccessValues.ofStream(emptyMap(), Scope.NONE))
+        val declared = stream("b", 1, access = linkedMapOf("owner" to null, "space" to null, "region" to null))
+        log.append(bare)
+        log.append(declared)
+        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream }
+        tailed.forEachIndexed { index, read -> read.assertSameAs(listOf(bare, declared)[index]) }
+        listOf(bare, declared).forEach { appended ->
+            log.readEntries(appended.ref, 1, 1).toList().single().stream.assertSameAs(appended)
+        }
+        tailed.first().access?.keys.assert().containsExactly("owner", "space")
+        tailed.first().causation.assert().isNull()
+    }
+
+    @Test
     fun `the access attributes read back as appended, none and not stamped told apart`(): Unit = runBlocking {
         val log = createLog()
         val stamped = stream(
