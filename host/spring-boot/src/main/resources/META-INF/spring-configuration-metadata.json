@@ -549,6 +549,12 @@
     "description" : "A prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a cluster several services or environments share; none when not set.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider"
   }, {
+    "name" : "wow.elasticsearch.operation-timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an answer: a server that stops answering fails the request instead of holding it; the client's own response timeout still applies when shorter.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : "PT30S"
+  }, {
     "name" : "wow.elasticsearch.refresh",
     "type" : "me.ahoo.wow.elasticsearch.ElasticsearchRefresh",
     "description" : "When a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests).",
