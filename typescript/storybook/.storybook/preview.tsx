@@ -16,6 +16,8 @@ import type { Decorator, Preview } from '@storybook/react-vite';
 import { DecoratorHelpers } from '@storybook/addon-themes';
 import { useEffect, useMemo } from 'storybook/preview-api';
 import '@ahoo-wang/wow-view-engine/themes.css';
+// An example host theme, loaded as a host loads its own (`EXAMPLE_THEMES`).
+import '../stories/view-engine/host-theme/porcelain.css';
 import './preview.css';
 import './host.css';
 import { DocsPage } from './DocsPage.js';
@@ -23,6 +25,7 @@ import { ThemedDocsContainer } from './ThemedDocsContainer.js';
 import {
   DEFAULT_PRESET,
   ENGINE_PRESET,
+  EXAMPLE_THEMES,
   MODES,
   PRESETS,
 } from '../stories/view-engine/presets.js';
@@ -78,10 +81,10 @@ const withMode: Decorator = (storyFn, context) => {
  * The preset, on a toolbar switch of its own (phase 5, 5D): the presets
  * `themes.css` declares, put on `<html>` as `data-fve-preset` — where a host
  * puts it, so every surface and every popup portalled to `<body>` takes it.
- * Storybook opens in `DEFAULT_PRESET` (`porcelain`); `neutral`, the
- * engine's own look, is no attribute at all, so a story pinned to it — or
- * one that sets an attribute of its own — finds the page as a host with no
- * preset leaves it.
+ * After them, the example host themes (`EXAMPLE_THEMES`), marked as such.
+ * Storybook opens in `DEFAULT_PRESET`, the engine's own look: `neutral` is
+ * no attribute at all, so a story — or one that sets an attribute of its
+ * own — finds the page as a host with no preset leaves it.
  */
 const withPreset: Decorator = (storyFn, context) => {
   const preset = String(context.globals.fvePreset ?? DEFAULT_PRESET);
@@ -274,7 +277,13 @@ const preview: Preview = {
       toolbar: {
         title: 'Preset',
         icon: 'paintbrush',
-        items: PRESETS.map(preset => ({ value: preset, title: preset })),
+        items: [
+          ...PRESETS.map(preset => ({ value: preset, title: preset })),
+          ...EXAMPLE_THEMES.map(theme => ({
+            value: theme,
+            title: `${theme} (example)`,
+          })),
+        ],
         dynamicTitle: true,
       },
     },

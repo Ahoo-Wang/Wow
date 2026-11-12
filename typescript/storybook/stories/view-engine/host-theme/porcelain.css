@@ -12,8 +12,17 @@
  */
 
 /*
- * `porcelain` — a native desktop look: the system type, larger corners,
- * soft shadows and near-neutral greys (ui/theme.md「内置预设」). Inspired by a
+ * `porcelain` — an example host theme: a native desktop look, the system
+ * type, larger corners, soft shadows and near-neutral greys.
+ *
+ * It shipped as a built-in preset until D94 took it out (the stylesheet's
+ * own look had come to stand beside it: cool greys, a blue primary, 6px
+ * controls). It is kept here whole, as a theme a host can copy: a preset of
+ * the host's own is written exactly like this, `--fvp-*` variables under a
+ * `data-fve-preset` name, and whatever a built-in preset does a host's can
+ * (ui/theme.md). The package's tests still hold it to every line they hold
+ * the built-in presets to (`test/fixtures/themeTokens.ts`): the contrast
+ * pairs, the palette's gates, the brand sweep, the state steps. Inspired by a
  * desktop operating system's own appearance and unrelated to it: no name,
  * mark or font of it ships here, and every value is tuned to the package's
  * lines rather than copied.

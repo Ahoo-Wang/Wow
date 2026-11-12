@@ -144,7 +144,6 @@ src/
   themes.css                  — The presets' index: the rules every preset keeps, and one `@import` per preset in the order every list follows; the build (`scripts/themes.mjs`) ships `themes.css` and `themes/<name>.css` from it, the notes taken out
   themes/                     — One file per preset: `--fve-*` values keyed by `data-fve-preset`, the colours always and the optional groups (chart colours, shadows, font stack) whole or not at all, with the notes on each value; only the host's documented contract (`test/themeFiles.test.ts`)
     neutral.css               — The stylesheet's own look: every variable `initial`, a full reset
-    porcelain.css             — Native desktop: system type, 12px corners, soft shadows, focus in the primary colour, its own palette
     contrast.css              — High contrast: text 7:1, edges 4.5:1, its own palette, the chart patterns pinned on
   shadcn-bridge.css           — A host's shadcn tokens as the `--fve-*` values (`input`, `ring`, status and chart colours and shadows excepted, the font stack included), only while no preset is named, an optional entry copied into `dist` as written
   model/                      — Types and constants only; imports nothing

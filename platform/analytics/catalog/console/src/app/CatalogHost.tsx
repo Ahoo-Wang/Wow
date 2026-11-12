@@ -28,7 +28,7 @@ import {
 import { ServedProvider, type Served } from "./served.tsx";
 import { useCaller, useServices, useSettings } from "./services.tsx";
 
-/** Wow's blue, the console's brand over the engine's porcelain preset. */
+/** Wow's blue, the console's brand over the engine's default look. */
 const BRAND = "oklch(0.546 0.245 262.881)";
 
 /**
@@ -144,7 +144,6 @@ export function CatalogHost({ children }: { children: ReactNode }) {
         locale={locale}
         messages={engineMessages(locale)}
         bindings={bindings}
-        preset="porcelain"
         brand={BRAND}
         rememberColorMode="wow-analytics-catalog-console.color-mode"
       >

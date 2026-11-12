@@ -12,11 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import {
-  BUILT_IN_PRESETS,
-  formatMessage,
-  zhCN,
-} from '@ahoo-wang/wow-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
   Negated as DisplayNegated,
@@ -29,6 +25,7 @@ import displayMeta, {
 } from './FilterPanel.stories.js';
 import { colorsSettled, measureTextContrast } from './contrast.js';
 import { nextFrame } from './panelEdges.js';
+import { SHOWN_THEMES } from './presets.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
 import { FilterOperator, QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
@@ -846,13 +843,12 @@ async function hovered(button: HTMLElement): Promise<{
  * 每套内置预设一个故事，各自明暗两遍：悬停前后画的一样、字对底 ≥4.5:1；没选中的日子悬停照常变底
  * ——也证明这里的悬停是真的 `:hover`。
  */
-const aSelectedDayKeepsItsColours = (
-  preset: (typeof BUILT_IN_PRESETS)[number],
-): Story => ({
+const aSelectedDayKeepsItsColours = (preset: string): Story => ({
   ...DisplayWithTime,
   play: async ({ canvasElement }) => {
-    // The three stories below are every built-in preset.
-    await expect([...BUILT_IN_PRESETS].sort()).toEqual([
+    // The three stories below are every theme shown: the built-in presets
+    // and the example host theme.
+    await expect([...SHOWN_THEMES].sort()).toEqual([
       'contrast',
       'neutral',
       'porcelain',
@@ -927,7 +923,7 @@ export const ASelectedDayKeepsItsColoursInContrast: Story =
  * nobody chose still hovers — the witness that the `:hover` is real.
  */
 async function keepsItsColours(
-  name: (typeof BUILT_IN_PRESETS)[number],
+  name: string,
   days: readonly (readonly [string, HTMLElement])[],
 ): Promise<void> {
   const mouse = globalThis.storybookRealMouse!;

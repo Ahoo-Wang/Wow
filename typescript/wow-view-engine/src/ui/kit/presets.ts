@@ -19,8 +19,6 @@
  * `test/themeFiles.test.ts` holds to the stylesheet's.
  *
  * - `neutral` — the stylesheet's own look, and the default.
- * - `porcelain` — a native desktop look: the system type, larger corners,
- *   soft shadows, near-neutral greys.
  * - `contrast` — high contrast: text at 7:1, edges at 4.5:1, chart
  *   patterns on.
  *
@@ -30,7 +28,7 @@
  * There are no display names: the engine draws no picker, and a host that
  * does names them in its own words.
  */
-export const BUILT_IN_PRESETS = ['neutral', 'porcelain', 'contrast'] as const;
+export const BUILT_IN_PRESETS = ['neutral', 'contrast'] as const;
 
 /** The name of a preset the package ships. */
 export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];

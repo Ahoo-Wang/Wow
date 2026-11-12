@@ -16,7 +16,7 @@ import { expect, waitFor } from 'storybook/test';
 import { Field, FieldDescription, FieldLabel } from '@/ui/components/field';
 import { Textarea } from '@/ui/components/textarea';
 import { isPending, PENDING } from '@/ui/theme/pairs';
-import { PRESETS } from './presets.js';
+import { SHOWN_THEMES } from './presets.js';
 import {
   ContrastMatrix,
   MEASURED_MODES,
@@ -62,7 +62,7 @@ function MatrixPage() {
         </FieldDescription>
       </Field>
       <ContrastMatrix
-        presets={custom ? [...PRESETS, CUSTOM_PRESET] : PRESETS}
+        presets={custom ? [...SHOWN_THEMES, CUSTOM_PRESET] : SHOWN_THEMES}
         css={
           custom
             ? `:where([data-fve-preset='${CUSTOM_PRESET}']) { ${custom} }`
@@ -70,7 +70,7 @@ function MatrixPage() {
         }
       />
       <PaletteGates
-        presets={custom ? [...PRESETS, CUSTOM_PRESET] : PRESETS}
+        presets={custom ? [...SHOWN_THEMES, CUSTOM_PRESET] : SHOWN_THEMES}
         css={
           custom
             ? `:where([data-fve-preset='${CUSTOM_PRESET}']) { ${custom} }`
@@ -87,11 +87,11 @@ const description = `**能力 · 主题与预设**
 
 - **主题一览**（下一组）：每套预设一个故事，亮、暗各一条带，每条带里三种视图——记录视图（表格、钉住的单号列、状态徽章、一行选中、一个获焦的复选框）、分析视图（两组柱与图例）、仪表盘（筛选条上一个有值的筛选、带走势与涨跌的指标卡、瀑布图）。这些块也是截图基线（\`typescript/storybook/README.md\`「截图基线」）。
 - **逐套预设**（再下一组）：每套一个故事，是整张运营日报嵌在宿主外壳里。
-- **品牌色**：品牌色不是一套预设，任何一套都接受 \`--fve-brand\`；同一个颜色挂在 \`neutral\`、\`porcelain\`、\`contrast\` 上，派生出的颜色与每一对的对比度都在那一页量。
+- **品牌色**：品牌色不是一套预设，任何一套都接受 \`--fve-brand\`；同一个颜色挂在两套内置预设与示例主题 \`porcelain\` 上，派生出的颜色与每一对的对比度都在那一页量。
 - **对比度矩阵**：每套预设 × 每种明暗 × 每一对 token，在真浏览器里量级联后的颜色：字 ≥4.5:1，控件边与焦点 ≥3:1。「跟随系统」解析成亮或暗之一，所以量这两种。在输入框里粘贴自己的 \`--fve-*\`，它们作为一套预设当场一起量。矩阵下面的「图表八色」再量色板的三道门（docs/design/ui/theme.md「质量门」）：相邻色在正常视觉与三种色觉模拟下的间距、暗色每色对卡片 ≥3:1（亮色列出例外）、每色都有一种墨色 ≥4.5:1；粘贴的 \`--fve-chart-*\` 同样一起量。
 - **强制颜色与打印**（「强制颜色与打印/回归」）：Windows 对比度主题下焦点、复选框与选中行仍看得见；打印时读预设的亮色一半、没有阴影、图表开花纹。
 - **工具栏**：「Preset」切换 \`<html>\` 上的 \`data-fve-preset\`，明暗开关多了「system」，「Density」与「Change colors」切换密度与涨跌约定。一览与矩阵的面都钉住了预设与明暗，不受工具栏影响；其余故事都跟着工具栏走。
-- **预设从哪来**：读自包导出的 \`BUILT_IN_PRESETS\`（包自己的测试守着它与 \`themes.css\` 一致），包里多一套，工具栏、一览与矩阵就都多一套。`;
+- **量的是哪几套**：包导出的 \`BUILT_IN_PRESETS\`（包自己的测试守着它与 \`themes.css\` 一致），再加仓库里的示例宿主主题（\`presets.ts\` 的 \`SHOWN_THEMES\`）；包里或示例里多一套，工具栏、一览与矩阵就都多一套。`;
 
 const meta = {
   title: 'View Engine/能力/主题与预设',
@@ -109,7 +109,7 @@ type Story = StoryObj<typeof meta>;
  * 每套预设 × 每种明暗 × 每一对 token 的对比度，量出来。
  *
  * 字 ≥4.5:1（WCAG 1.4.3），控件边与焦点 ≥3:1（1.4.11）；不达标的一格标「不足」。
- * 预设读自 `BUILT_IN_PRESETS`：包里多一套，这里就多量一套。这一页给人看；
+ * 量的是 `SHOWN_THEMES`：内置预设与示例宿主主题，哪边多一套，这里就多量一套。这一页给人看；
  * 断言在下面每套预设一个的故事里——四套一起量，在夜间任务的 Firefox 上要 17 秒，
  * 超过了 15 秒（2026-10-01）。
  */
@@ -133,8 +133,9 @@ const contrastOf = (preset: string): Story => ({
     </div>
   ),
   play: async ({ canvasElement }) => {
-    // The three stories below are every built-in preset.
-    await expect([...PRESETS].sort()).toEqual([
+    // The three stories below are every theme shown: the two built-in
+    // presets and the example host theme.
+    await expect([...SHOWN_THEMES].sort()).toEqual([
       'contrast',
       'neutral',
       'porcelain',

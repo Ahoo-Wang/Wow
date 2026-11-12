@@ -48,7 +48,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
       locale="zh-CN"
       messages={MESSAGES}
       bindings={bindings}
-      preset="porcelain"
+      preset="contrast"
       rememberColorMode="orders-app.color-mode"
     >
       {children}
