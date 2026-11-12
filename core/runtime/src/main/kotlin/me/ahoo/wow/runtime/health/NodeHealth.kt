@@ -264,27 +264,27 @@ class NodeHealth(
             "lastDriverTickMillis" to driverTickAge?.inWholeMilliseconds,
             "lastProgressMillis" to progressAge.inWholeMilliseconds,
         )
-        // A start counts its reconciles alone, each by how long it has finished no step.
-        val starting = node.state == ServiceNode.State.STARTING
-        if (!starting && (node.state != ServiceNode.State.RUNNING || !isRunning)) {
-            return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+        if (node.state != ServiceNode.State.RUNNING || !isRunning) {
+            return notRunningLiveness(node.state, ownerships(), options.stallTimeout, details)
         }
         val stall = options.stallTimeout
         val stalls = mutableListOf<String>()
-        if (!starting && tickAge != null && tickAge >= stall) {
+        if (tickAge != null && tickAge >= stall) {
             stalls += STALLED_DISPATCHER
         }
-        if (!starting && driverTickAge != null && driverTickAge >= stall) {
+        if (driverTickAge != null && driverTickAge >= stall) {
             stalls += STALLED_DRIVERS
         }
-        val reconciling = longest { if (starting) it.stalledFor else it.reconcilingFor }
+        val reconciling = ownerships().mapNotNull { ownership ->
+            ownership.reconcilingFor?.takeIf { it >= stall }?.let { ownership.group.name to it }
+        }.maxByOrNull { it.second }
         if (reconciling != null) {
             stalls += STALLED_RECONCILE
             details["group"] = reconciling.first
-            details[if (starting) "stalledMillis" else "reconcilingMillis"] = reconciling.second.inWholeMilliseconds
+            details["reconcilingMillis"] = reconciling.second.inWholeMilliseconds
         }
         val storesAnswer = stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
-        if (!starting && inFlight > 0 && progressAge >= stall && storesAnswer) {
+        if (inFlight > 0 && progressAge >= stall && storesAnswer) {
             stalls += STALLED_KERNEL
         }
         if (stalls.isEmpty()) {
@@ -294,11 +294,6 @@ class NodeHealth(
         details["stalls"] = stalls
         return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
     }
-
-    /** The group whose [of] is the longest at or past the stall timeout, with it; null when none is. */
-    private fun longest(of: (PartitionOwnership) -> Duration?): Pair<String, Duration>? = ownerships().mapNotNull { o ->
-        of(o)?.takeIf { it >= options.stallTimeout }?.let { o.group.name to it }
-    }.maxByOrNull { it.second }
 
     private fun nodeState(): ComponentHealth {
         val fatal = node.fatals.first

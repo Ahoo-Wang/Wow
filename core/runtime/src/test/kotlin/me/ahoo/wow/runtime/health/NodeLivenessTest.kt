@@ -24,12 +24,15 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.ExecutorOptions
+import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -71,7 +74,7 @@ class NodeLivenessTest : NodeHealthFixtures() {
     }
 
     @Test
-    fun `a start whose reconcile finishes no step for the stall timeout should fail the liveness, naming its group`(): Unit =
+    fun `a stuck start fails the liveness past the stall timeout, and is fenced past the reconcile timeout`(): Unit =
         runBlocking {
             // Every acquisition waits on a call that never returns: the start's first reconcile finishes no step.
             val released = CompletableDeferred<Unit>()
@@ -81,7 +84,11 @@ class NodeLivenessTest : NodeHealthFixtures() {
                     return leases.acquire(group, partition, owner, ttl)
                 }
             }
-            val node = node(backends = backendsOn(hung))
+            val options = ServiceNodeOptions(
+                cluster = fastOptions(drainTimeout = 1.seconds, reconcileTimeout = 2.seconds),
+                subscription = testOptions(),
+            )
+            val node = node(options = options, backends = backendsOn(hung))
             val health = health(node, HealthOptions(stallTimeout = 500.milliseconds))
             val starting = launch { node.start() }
             try {
@@ -94,6 +101,10 @@ class NodeLivenessTest : NodeHealthFixtures() {
                 liveness.details["stalls"].assert().isEqualTo(listOf(NodeHealth.STALLED_RECONCILE))
                 liveness.details["group"].assert().isEqualTo(node.context(BANK).ownership.group.name)
                 ((liveness.details["stalledMillis"] as Long) >= 500).assert().isTrue()
+                // Past the reconcile timeout the fence falls on the start's group too, and the readiness says so.
+                fun group() = health.readiness().component(NodeHealth.OWNERSHIP)!!.components.single()
+                group().details.containsKey("fenced").assert().isFalse()
+                eventually(timeout = 10.seconds) { group().details["fenced"] == true }
             } finally {
                 released.complete(Unit)
                 starting.join()
