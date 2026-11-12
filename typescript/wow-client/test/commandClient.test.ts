@@ -442,7 +442,7 @@ describe('CommandClient', () => {
   it('sends a generated request id when the options name none, and a failure carries it', async () => {
     // Review A3-16: a client that lost the answer retries with the same id.
     const UUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     let answer: () => Response | Promise<Response> = () =>
       jsonResponse(result());
     const { requests } = stubFetch(() => answer());
@@ -496,7 +496,7 @@ describe('CommandClient', () => {
 
   it('generates request ids without randomUUID, as an insecure page has none', () => {
     const UUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     expect(newRequestId()).toMatch(UUID);
     const crypto = globalThis.crypto;
     vi.stubGlobal('crypto', {

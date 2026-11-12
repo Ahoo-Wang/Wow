@@ -136,7 +136,7 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `formatWaitPlan` | function | A wait plan as the `Wow-Wait` header spells it: its hops, in order, separated by `>`; the inverse of `parseWaitPlan`. | — |
 | `formatWaitTimeout` | function | A wait timeout as the `Wow-Wait-Timeout` header spells it: milliseconds as `<n>s` when whole seconds, else `<n>ms`. | — |
 | `isProblem` | function | Whether `value` reads as a problem: an object with a numeric `status`. | — |
-| `newRequestId` | function | A new request id (`Wow-Request-Id`): a random UUID. | — |
+| `newRequestId` | function | A new request id (`Wow-Request-Id`): a UUIDv7 (RFC 9562), the Unix milliseconds it was made in, then random bits. | — |
 | `parseHop` | function | The hop one part of a `Wow-Wait` value spells; see `parseWaitPlan`. | — |
 | `parseJson` | function | `text` read as `JSON.parse` reads it, but each number `marks` marks comes back as its exact text, a string. | — |
 | `parseRetryAfter` | function | The milliseconds of a `Retry-After` header: delay seconds or an HTTP date. | — |
