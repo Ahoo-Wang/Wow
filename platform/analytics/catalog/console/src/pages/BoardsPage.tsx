@@ -47,6 +47,9 @@ export default function BoardsPage() {
             definitionId={BOARDS}
             instanceId={params.get(VIEW_PARAM)}
             onInstanceChange={onInstanceChange}
+            // The list is this page's navigation: it opens beside the view, where
+            // the engine's own default folds it (D94).
+            defaultSidebarOpen
             landmark="region"
           />
         </div>

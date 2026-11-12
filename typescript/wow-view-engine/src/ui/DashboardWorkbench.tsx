@@ -134,8 +134,8 @@ export interface DashboardWorkbenchProps {
   /**
    * The sidebar this workbench opens on. It is view state and nothing else —
    * never saved, never asked about by the leave guard — so a host sets where
-   * it starts and the shell owns it from there. Left out, a column narrower
-   * than `md` opens folded and a wider one opens with the list beside it.
+   * it starts and the shell owns it from there. Left out, the list starts
+   * folded, one press away; `true` opens the workbench with it beside the view.
    */
   defaultSidebarOpen?: boolean;
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */

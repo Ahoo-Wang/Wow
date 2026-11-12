@@ -57,7 +57,7 @@ const EXPECTED: Record<
 
 const densityStory = (density: Density, preset?: string): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, density, preset },
+  args: { ...DisplayWithData.args, density, preset, listed: true },
   play: async ({ canvasElement }) => {
     await within(canvasElement).findByRole('table');
     const surface = canvasElement.querySelector<HTMLElement>(
@@ -124,6 +124,7 @@ export const HostLengthsOverDensity: Story = {
     ...DisplayWithData.args,
     density: 'compact',
     preset: 'porcelain',
+    listed: true,
     tokens: {
       '--fve-table-header-height': '48px',
       '--fve-table-cell-padding-inline': '14px',

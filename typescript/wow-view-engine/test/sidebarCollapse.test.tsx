@@ -92,7 +92,7 @@ function engineWith(
   });
 }
 
-/** The workbench, opened on a view and settled. */
+/** The workbench with its list out, opened on a view and settled. */
 async function open(engine: ViewEngine, instanceId: string | null = 'mine') {
   const user = userEvent.setup();
   render(
@@ -100,6 +100,7 @@ async function open(engine: ViewEngine, instanceId: string | null = 'mine') {
       engine={engine}
       definitionId="orders"
       instanceId={instanceId}
+      defaultSidebarOpen
     />,
   );
   await screen.findByRole('table');
@@ -111,7 +112,7 @@ const switcher = () => screen.queryByRole('button', { name: SWITCH });
 const chooser = () => screen.queryByRole('button', { name: CHOOSE });
 
 describe('collapsing the sidebar', () => {
-  it('opens with the list beside the result, and a way to fold it away', async () => {
+  it('puts the list beside the result when the host says so, and a way to fold it away', async () => {
     await open(engineWith());
 
     expect(sidebar()).not.toBeNull();
@@ -262,15 +263,10 @@ describe('collapsing the sidebar', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('starts folded when the host says so', async () => {
+  it('starts folded when the host says nothing', async () => {
     const engine = engineWith();
     render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="mine"
-        defaultSidebarOpen={false}
-      />,
+      <DataWorkbench engine={engine} definitionId="orders" instanceId="mine" />,
     );
     await screen.findByRole('table');
 
@@ -293,11 +289,11 @@ describe('collapsing the sidebar', () => {
     await screen.findByRole('table');
     expect(changed).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: COLLAPSE }));
-    expect(changed).toHaveBeenCalledTimes(1);
-    expect(changed).toHaveBeenCalledWith(false);
     await user.click(screen.getByRole('button', { name: EXPAND }));
-    expect(changed).toHaveBeenLastCalledWith(true);
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(changed).toHaveBeenCalledWith(true);
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
+    expect(changed).toHaveBeenLastCalledWith(false);
   });
 
   it('gives the result the width the list was taking', async () => {

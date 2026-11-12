@@ -62,6 +62,7 @@ describe('a DataWorkbench a host routes', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        defaultSidebarOpen
         {...props}
         {...overrides}
       />

@@ -158,6 +158,8 @@ function StoreWorkbench() {
             engine={engine}
             definitionId="orders"
             instanceId={service.shared}
+            // What the store keeps is read off the view list, so it is open.
+            defaultSidebarOpen
             messages={HOST_LANGUAGE.messages}
             locale={HOST_LANGUAGE.locale}
           />

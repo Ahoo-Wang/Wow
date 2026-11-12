@@ -237,6 +237,7 @@ describe('every icon-only button says its name on hover', () => {
           engine={engineWith([orders, archived], pagedSource())}
           definitionId="orders"
           instanceId="orders-1"
+          defaultSidebarOpen
         />
       </ViewSurface>,
     );

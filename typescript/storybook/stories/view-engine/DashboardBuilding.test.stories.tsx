@@ -26,6 +26,7 @@ import displayMeta, {
 import { aggregateCalls } from './fixtures.js';
 import { chartsDrawn } from './chartDom.js';
 import { dragHandleOnto } from './pointerDrag.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { converter, formatRgb, parse } from 'culori';
 
 const toRgb = converter('rgb');
@@ -1030,9 +1031,7 @@ export const OverrideToPieAndReset: Story = {
     dialog = await look();
     await userEvent.click(within(dialog).getByRole('radio', { name: '饼图' }));
     await userEvent.click(
-      within(dialog).getByRole('button', {
-        name: zhCN['label.dialog.cancel'],
-      }),
+      within(dialog).getByRole('button', { name: zhCN['label.dialog.cancel'] }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await expect(canvas.queryByText('此处改为饼图')).toBeNull();
@@ -1074,6 +1073,7 @@ export const TabsRunOnlyTheTabShown: Story = {
     // this one again — on 状态.
     await userEvent.click(within(tabs).getByRole('tab', { name: '状态' }));
     await canvas.findByRole('heading', { level: 3, name: '按状态看金额' });
+    await showViewList(canvasElement, zhCN['label.dashboard.expand-sidebar']);
     await userEvent.click(await canvas.findByText('异常概览'));
     await waitFor(() => expect(canvas.queryByRole('tablist')).toBeNull());
     await userEvent.click(await canvas.findByText('出库概览'));

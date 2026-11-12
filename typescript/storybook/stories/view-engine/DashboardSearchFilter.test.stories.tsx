@@ -180,6 +180,10 @@ export const AddSearchWiresTheLists: Story = {
       ),
     );
     await expect(badgeOn(canvasElement, '待出库明细')).toBeNull();
+    // As a note, not a warning: the panel was left off on purpose (D94).
+    await expect(
+      canvasElement.querySelector('[data-slot="panel-not-reached"]'),
+    ).toHaveAttribute('data-tone', 'neutral');
   },
 };
 

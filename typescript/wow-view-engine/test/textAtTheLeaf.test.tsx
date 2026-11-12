@@ -287,10 +287,10 @@ describe('no key reaches an editor or a popup (D2)', () => {
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', instance)}
+          defaultSidebarOpen
         />
       </ViewHost>,
     );
-    return engine;
   }
 
   it('the filter fold, its field picker and a condition’s options', async () => {

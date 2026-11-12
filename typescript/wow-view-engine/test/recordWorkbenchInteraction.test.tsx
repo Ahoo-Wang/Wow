@@ -51,15 +51,20 @@ import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 afterEach(cleanup);
 
 describe('DataWorkbench interaction', () => {
-  async function open(source: ViewSource = testSource()) {
-    const harness = setup(source);
+  /** The workbench on its saved view, the view list beside it. */
+  const mount = (engine: ViewEngine) =>
     render(
       <DataWorkbench
-        engine={harness.engine}
+        engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        defaultSidebarOpen
       />,
     );
+
+  async function open(source: ViewSource = testSource()) {
+    const harness = setup(source);
+    mount(harness.engine);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     // Every saved view opens with its conditions folded away; the tests
     // below are about what is inside the fold.
@@ -290,13 +295,7 @@ describe('DataWorkbench interaction', () => {
       paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
     });
     const harness = setup(source);
-    render(
-      <DataWorkbench
-        engine={harness.engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    mount(harness.engine);
     // The empty title, as it is drawn: the live region says the same
     // sentence out loud, which is two nodes holding this text on purpose.
     await screen.findByText(defaultMessages['label.record.empty'], {
@@ -787,7 +786,7 @@ describe('the record workbench layout', () => {
 
   it('asks before a switch that would lose an unsaved draft', async () => {
     const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
-    workbench([mine, other]);
+    workbench([mine, other], { defaultSidebarOpen: true });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     // An edit the toolbar can make, so there is a draft worth keeping.
@@ -825,7 +824,7 @@ describe('the record workbench layout', () => {
   /** Nothing to lose, nothing to ask: a guard that always fires is ignored. */
   it('switches straight over when there is nothing to lose', async () => {
     const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
-    workbench([mine, other]);
+    workbench([mine, other], { defaultSidebarOpen: true });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     fireEvent.click(screen.getByRole('button', { name: 'Other' }));

@@ -12,6 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { showViewList } from './recordWorkbenchTest.js';
 import displayMeta, {
   EventStreamConsole as DisplayEventStreamConsole,
 } from './TradeOrderEventConsole.stories.js';
@@ -51,6 +52,7 @@ export const EventStreamConsole: Story = {
   ...DisplayEventStreamConsole,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', { name: new RegExp(`^${title}`) });
     const streams = () => readColumn(canvas.getByRole('table'), '事件流 ID');

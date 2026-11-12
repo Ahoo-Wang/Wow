@@ -170,6 +170,46 @@ const BLEED = 8;
  */
 export const LABEL_ROOM_SHRINK = 0.7;
 
+/** The widest caption, at the size a label is written: a step under text. */
+const widestLabel = (
+  captions: readonly string[],
+  measure: (text: string) => number,
+  text: Pick<ChartTheme['text'], 'size' | 'labelSize'>,
+) =>
+  Math.max(
+    0,
+    ...captions.map(caption =>
+      caption ? (measure(caption) * text.labelSize) / text.size : 0,
+    ),
+  );
+
+/** From the pie's edge to the end of a label: the leader, then the words. */
+const labelRoom = (widest: number) =>
+  LEADER.first + LEADER.second + LEADER.gap + BLEED + widest;
+
+/**
+ * How wide a pie's plot grows beside its legend: the circle at its full
+ * size and, either side, the room its widest label takes — or a square,
+ * where that is wider, since the circle is sized by the shorter side. A
+ * multiple of the height stood in for this (1.3) and was right near 300px
+ * tall alone: the circle grows with the height and a label does not, so in
+ * a 634px plot the legend stood 140px from the shares it names (D94; the
+ * view list folded gives an analysis that room by default).
+ */
+export function pieHug(
+  captions: readonly string[],
+  height: number,
+  measure: (text: string) => number,
+  text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
+): number {
+  const widest = widestLabel(captions, measure, text);
+  // Never narrower than it is tall: the circle is sized by the shorter side.
+  return Math.max(
+    height,
+    OUTER * height + 2 * (widest === 0 ? BLEED : labelRoom(widest)),
+  );
+}
+
 /**
  * What the plot's size changes about a pie: whether its labels are written,
  * and how big it is to make room for them (audit P0-6).
@@ -196,14 +236,8 @@ export function pieFit(
   text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
 ): EChartsCoreOption {
   const full = (OUTER * Math.min(width, height)) / 2;
-  const widest = Math.max(
-    0,
-    ...captions.map(caption =>
-      caption ? (measure(caption) * text.labelSize) / text.size : 0,
-    ),
-  );
-  const fits =
-    width / 2 - LEADER.first - LEADER.second - LEADER.gap - BLEED - widest;
+  const widest = widestLabel(captions, measure, text);
+  const fits = width / 2 - labelRoom(widest);
   const labelled = widest === 0 || fits >= full * LABEL_ROOM_SHRINK;
   const outer = labelled ? Math.min(full, fits) : full;
   return {

@@ -29,7 +29,7 @@
  * `display: contents` element.
  */
 export const STALE =
-  'fve:data-[stale]:opacity-60 fve:data-[stale]:transition-opacity';
+  'fve:data-[stale]:opacity-70 fve:data-[stale]:transition-opacity';
 
 /**
  * The fade's attribute and `aria-busy`, for an element that holds the rows

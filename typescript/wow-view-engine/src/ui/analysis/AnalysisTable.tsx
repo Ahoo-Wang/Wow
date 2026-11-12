@@ -506,8 +506,8 @@ export function AnalysisTable({
                         where the row is medium, as the record view's summary
                         rows name their scope — but in the row's own ink
                         rather than their `--_fve-quiet-foreground`: this result
-                        fades to 60% while a changed question is about to run
-                        (`data-stale`), and quiet ink faded measured 2.73:1.
+                        fades while a changed question is about to run
+                        (`data-stale`), and quiet ink faded is under 4.5:1.
                         Text, so it adds no Tab stop to a table with no
                         action to take. */}
                     <span

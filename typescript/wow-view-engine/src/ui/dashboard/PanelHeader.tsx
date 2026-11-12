@@ -37,6 +37,18 @@ import type {
  * board is built, the reorder handle in the one-column reading, the title — or the
  * field it is renamed in — and the 「⋯」 menu; the badges on a line under it.
  */
+/**
+ * A panel's menu at rest on a board that is read: out of sight where a
+ * pointer can hover, and back under the pointer on the panel
+ * (`group/panel`, the card), under the keyboard and while its menu is open.
+ * It is never hidden from the keyboard or a screen reader, and a screen
+ * with no hover shows it always. Every data panel carries it — 「刷新这个面
+ * 板」 is always on offer — so drawn at rest it was a mark on every card
+ * that said nothing about the card (2026-11 audit).
+ */
+const MENU_RESTS =
+  'fve:transition-opacity fve:[@media(hover:hover)]:opacity-0 fve:group-hover/panel:opacity-100 fve:focus-within:opacity-100 fve:has-[[aria-expanded=true]]:opacity-100';
+
 export function PanelHeader({
   panel,
   name,
@@ -68,6 +80,9 @@ export function PanelHeader({
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   const heading = panel.panel.kind === 'heading';
   const menu = commands && hasMenu(commands) ? commands : undefined;
+  // Built, a panel is arranged (`arrange`) or, on a narrow screen, put in
+  // order (`order`): the two say the board is being worked on.
+  const building = Boolean(arrange ?? order);
   // A title turned off is read, not seen; the row it stood in goes with it
   // when nothing else stands there.
   const bare =
@@ -134,7 +149,18 @@ export function PanelHeader({
           menu is on every panel a reader sees, and a header grown by
           it would take its height from a metric card's two rows. */}
         {menu && (
-          <span className="fve:-my-1 fve:ml-auto fve:flex fve:shrink-0">
+          <span
+            // Read, a board is its panels' data: the menu shows when the
+            // pointer is on the panel, when the keyboard is on the menu and
+            // while it is open, and stays a Tab stop throughout. Always on
+            // a screen with no hover, and while the board is built, where
+            // it is how a panel is worked on.
+            data-rests={building ? undefined : ''}
+            className={cn(
+              'fve:-my-1 fve:ml-auto fve:flex fve:shrink-0',
+              !building && MENU_RESTS,
+            )}
+          >
             <PanelMenu
               name={name}
               commands={menu}

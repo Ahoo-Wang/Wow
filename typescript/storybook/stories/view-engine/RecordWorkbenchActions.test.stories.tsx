@@ -114,6 +114,7 @@ export const WithActions: Story = {
  */
 export const BulkOutcomeOutlivesTheSelection: Story = {
   ...DisplayWithActions,
+  args: { ...DisplayWithActions.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');

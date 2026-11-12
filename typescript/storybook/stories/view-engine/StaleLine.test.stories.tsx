@@ -32,7 +32,7 @@ function Stale({ stale }: { stale: boolean }) {
       <div
         data-testid="rows"
         data-stale={stale || undefined}
-        className="fve:transition-opacity fve:data-[stale]:opacity-60"
+        className="fve:transition-opacity fve:data-[stale]:opacity-70"
         style={{ height: 120 }}
       />
     </ViewSurface>

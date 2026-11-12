@@ -156,9 +156,7 @@ export const WithData: Story = {
     });
     await expect(band).toHaveAttribute('aria-expanded', 'false');
     await expect(
-      canvas.getByRole('region', {
-        name: zhCN['label.applied.title'],
-      }),
+      canvas.getByRole('region', { name: zhCN['label.applied.title'] }),
     ).toHaveTextContent('待出库');
 
     // Paging is under the rows it pages, not in the toolbar, and it counts
@@ -195,9 +193,7 @@ export const WithData: Story = {
     // title bar and the result, with the one way out of it.
     await userEvent.click(band);
     await expect(
-      await canvas.findByRole('button', {
-        name: zhCN['label.filter.apply'],
-      }),
+      await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
     ).toBeVisible();
     await expect(slots(canvasElement)).toEqual([
       'view-header',
@@ -260,9 +256,7 @@ export const Loading: Story = {
     // beside a live Next page.
     await expect(table.querySelector('thead')).toBeNull();
     await expect(
-      canvas.queryByRole('checkbox', {
-        name: zhCN['label.record.select-all'],
-      }),
+      canvas.queryByRole('checkbox', { name: zhCN['label.record.select-all'] }),
     ).toBeNull();
     await expect(
       canvasElement.querySelector('[data-slot=record-pagination]'),
@@ -277,6 +271,7 @@ export const Loading: Story = {
 
 export const QueryFailed: Story = {
   ...DisplayQueryFailed,
+  args: { ...DisplayQueryFailed.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // One line, saying the failure itself rather than that there was one.
@@ -422,6 +417,7 @@ export const NeedsFixing: Story = {
  */
 export const Opening: Story = {
   ...DisplayOpening,
+  args: { ...DisplayOpening.args, listed: true },
   play: async ({ canvasElement }) => {
     const shape = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
@@ -472,6 +468,7 @@ export const Opening: Story = {
  */
 export const NewView: Story = {
   ...DisplayNoViews,
+  args: { ...DisplayNoViews.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The sentence names both rooms — the sidebar's line and the work

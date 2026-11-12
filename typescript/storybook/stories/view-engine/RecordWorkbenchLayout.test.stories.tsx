@@ -208,6 +208,7 @@ export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
  */
 export const FooterStaysAtTheBottom: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   decorators: [
     Story => (
       <div data-testid="host-frame" style={{ display: 'grid', height: 640 }}>
@@ -556,9 +557,7 @@ export const FillTheScreenInTransformedHost: Story = {
     await expect(hostBox.height).toBeLessThan(window.innerHeight);
 
     await userEvent.click(
-      canvas.getByRole('button', {
-        name: zhCN['label.workbench.expand-view'],
-      }),
+      canvas.getByRole('button', { name: zhCN['label.workbench.expand-view'] }),
     );
     await waitFor(() =>
       expect(surface).toHaveAttribute('data-view-expanded', 'true'),

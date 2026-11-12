@@ -20,6 +20,7 @@ import {
   drawnSlices,
   pieCaptions,
   pieFit,
+  pieHug,
   pieOption,
   type PieContext,
 } from '../src/ui/charts/pieOption.js';
@@ -223,6 +224,33 @@ describe('formatShare: a part of a whole, one decimal always', () => {
     expect(formatShare(30 / 1_831_229, 'en')).toBe('<0.1%');
     // …and the rest of such a whole as short of all of it.
     expect(formatShare(1 - 114 / 1_831_229, 'en')).toBe('>99.9%');
+  });
+});
+
+describe('pieHug: the plot is the circle and its labels’ room', () => {
+  const measure = (text: string) => text.length * 7;
+  const captions = ['47.7%', '28.3%', '23.9%', ''];
+  // Leader (8 + 8 + 5), the library's margin (8) and the words, at 11px.
+  const room = 29 + (5 * 7 * 11) / 12;
+
+  it.each([300, 634, 900])(
+    'leaves a label’s room either side at %ipx tall, or a square’s',
+    height => {
+      const width = pieHug(captions, height, measure);
+      // 0.14 of the height is what a square leaves beside the circle.
+      expect((width - 0.72 * height) / 2).toBeCloseTo(
+        Math.max(room, 0.14 * height),
+      );
+      // In that plot the pie is whole and labelled.
+      const series = (pieFit(captions, width, height, measure, false) as Loose)
+        .series[0];
+      expect(series.radius[1]).toBeCloseTo((0.72 * height) / 2);
+      expect(series.label.show).toBe(true);
+    },
+  );
+
+  it('is a square where no label is written', () => {
+    expect(pieHug(['', ''], 400, measure)).toBe(400);
   });
 });
 

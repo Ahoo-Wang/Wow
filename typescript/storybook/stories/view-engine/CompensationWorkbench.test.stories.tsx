@@ -41,6 +41,7 @@ import {
 import { HOST_LANGUAGE } from './fixtures.js';
 import { readColumn, readTotal } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
@@ -219,6 +220,7 @@ export const RowCommandsAndDetail: Story = {
   name: '行命令、结果条与详情',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     // The definition is admitted: every system view lists — the records and
     // the analyses in one list — and the first opens. Asked of the list
     // itself: the totals row can name a button 「全部 · …」 too (D51).

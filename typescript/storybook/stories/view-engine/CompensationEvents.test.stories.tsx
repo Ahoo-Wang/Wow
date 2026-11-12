@@ -27,6 +27,7 @@ import {
 import { HOST_LANGUAGE } from './fixtures.js';
 import { readColumn } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
@@ -94,6 +95,7 @@ export const EventStreams: Story = {
   name: '事件流',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', { name: new RegExp(`^${title}`) });
 

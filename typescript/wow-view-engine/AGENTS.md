@@ -893,7 +893,7 @@ src/
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area, or an embed, when the chosen view cannot be opened; a lock where the reader has no access
       useEditorFold.ts        — The editor's fold, per opening; `filled`
-      useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses; `useNarrowSurface`, whether there is room for a column beside the view at all
+      useSidebarFold.ts       — The sidebar's fold: folded until a host or a press opens it (D94); `useNarrowSurface`, whether there is room for a column beside the view at all
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
       ConflictConfirm.tsx     — The same choice, put once more with both configs on the table
       EditorBand.tsx          — The fold a view's editor lives in

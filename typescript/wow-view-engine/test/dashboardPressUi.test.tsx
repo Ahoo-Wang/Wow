@@ -476,12 +476,14 @@ describe('在工作台中打开 an analysis the board owns', () => {
 });
 
 describe('a view nobody saved, opened in the workbench', () => {
-  it('opens once per object handed to it', async () => {
-    const store = new MemoryViewStore({ instances: views });
-    const engine = new ViewEngine({
+  const engineOf = () =>
+    new ViewEngine({
       resources: resourcesOf([ordersDefinition()], () => testSource()),
-      store,
+      store: new MemoryViewStore({ instances: views }),
     });
+
+  it('opens once per object handed to it', async () => {
+    const engine = engineOf();
     const unsaved: ViewNavigation = {
       kind: 'unsaved',
       definitionId: 'orders',
@@ -489,13 +491,10 @@ describe('a view nobody saved, opened in the workbench', () => {
       config: recordConfig(),
       scopeFilter: null,
     };
-    const { rerender } = render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        handOver={unsaved}
-      />,
+    const draw = () => (
+      <DataWorkbench engine={engine} definitionId="orders" handOver={unsaved} />
     );
+    const { rerender } = render(draw());
     await screen.findByRole('heading', {
       level: 2,
       name: /Orders · Warehouse is CN/,
@@ -504,21 +503,12 @@ describe('a view nobody saved, opened in the workbench', () => {
     // folded, as it does for a view opened from another's group.
     expect(folded()).toBe(true);
     const held = engine.openRuntimes().length;
-    rerender(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        handOver={unsaved}
-      />,
-    );
+    rerender(draw());
     expect(engine.openRuntimes().length).toBe(held);
   });
 
   it('calls it by its subject once the group it was named by is taken off', async () => {
-    const engine = new ViewEngine({
-      resources: resourcesOf([ordersDefinition()], () => testSource()),
-      store: new MemoryViewStore({ instances: views }),
-    });
+    const engine = engineOf();
     const group: FilterNode[] = [
       { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
     ];
@@ -548,11 +538,7 @@ describe('a view nobody saved, opened in the workbench', () => {
   });
 
   it('opens an analysis handed to it folded too, and a new view unfolded', async () => {
-    const store = new MemoryViewStore({ instances: views });
-    const engine = new ViewEngine({
-      resources: resourcesOf([ordersDefinition()], () => testSource()),
-      store,
-    });
+    const engine = engineOf();
     const { unmount } = render(
       <DataWorkbench
         engine={engine}
@@ -572,7 +558,13 @@ describe('a view nobody saved, opened in the workbench', () => {
 
     // What it is set apart from: a view made from nothing opens unfolded.
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+      />,
+    );
     await user.click(await screen.findByRole('button', { name: 'New view' }));
     await user.click(
       await screen.findByRole('menuitem', { name: /Record view/ }),

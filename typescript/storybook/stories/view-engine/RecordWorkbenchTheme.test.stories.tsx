@@ -89,6 +89,7 @@ const sizeOf = (node: Element) => getComputedStyle(node).fontSize;
  */
 export const TypeScaleIsThreeRungs: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -107,9 +108,7 @@ export const TypeScaleIsThreeRungs: Story = {
     const badge = canvasElement.querySelector<HTMLElement>(
       '[data-slot="badge"]',
     )!;
-    const pagination = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="record-pagination"]',
-    )!;
+    const pagination = paginationBar(canvasElement);
     for (const node of [head, badge, pagination])
       await expect(sizeOf(node)).toBe('13px');
 
@@ -198,6 +197,7 @@ const POPUP_KINDS: readonly {
  */
 export const PopupsOverRaisedHostLayer: Story = {
   ...DisplayPopupsOverRaisedHostLayer,
+  args: { ...DisplayPopupsOverRaisedHostLayer.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -851,7 +851,7 @@ export const WarningCalloutInDarkTheme: Story = calloutTone(
  */
 const deleteActionContrast = (theme: 'light' | 'dark'): Story => ({
   ...DisplayManageViews,
-  args: { ...DisplayManageViews.args, colorMode: theme },
+  args: { ...DisplayManageViews.args, colorMode: theme, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>

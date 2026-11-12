@@ -160,14 +160,12 @@ interface EChartProps {
    */
   legendEntries?: readonly LegendEntry[];
   /**
-   * The widest the plot grows beside a legend on its right, as a multiple
-   * of its height; the two are then centred in the frame together. A pie is
-   * a circle: in a wide frame the plot took all the width the legend left,
-   * the pie stood in its middle and the legend at the far edge, a hand's
-   * width from the slices it names (2026-09-23 audit). Left out, the plot
-   * takes all the room there is.
+   * The widest the plot grows beside a legend on its right, from its height
+   * and the type; the two are then centred in the frame. A pie is a circle:
+   * taking all the width the legend left, it stood a hand's width from the
+   * legend naming its slices (2026-09-23 audit). Left out: all the room.
    */
-  hug?: number;
+  hug?: (tall: number, text: ChartTheme['text']) => number;
   /**
    * The plot's own height, for a family whose drawing is sized by what it
    * holds rather than by the frame's width — a funnel, by its stages. The
@@ -375,7 +373,9 @@ export function EChart({
   const placed: LegendPlace | undefined =
     beside && narrow ? 'bottom' : legend?.at;
   const hugged = hug !== undefined && placed === 'right' && tall > 0;
-  const hugWidth = hugged ? Math.round(tall * (hug ?? 1)) : undefined;
+  const hugWidth = hugged
+    ? Math.round(hug(tall, theme?.text ?? CHART_FALLBACK.text))
+    : undefined;
   const legendNode =
     legend && placed
       ? typeof legend.node === 'function'

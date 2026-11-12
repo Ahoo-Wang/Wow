@@ -35,7 +35,11 @@ import {
   type FieldKind,
   type ViewInstance,
 } from '../src/index.js';
-import { DashboardWorkbench, zhCN } from '../src/ui/index.js';
+import {
+  DashboardWorkbench,
+  zhCN,
+  type DashboardWorkbenchProps,
+} from '../src/ui/index.js';
 import {
   INSTANT,
   ZONE,
@@ -85,6 +89,18 @@ describe('DashboardWorkbench', () => {
       store,
     });
     return { engine, source, store };
+  }
+
+  /** The workbench with its board list out, for a test that looks in it. */
+  function listed(engine: ViewEngine, props: Partial<DashboardWorkbenchProps>) {
+    return render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        defaultSidebarOpen
+        {...props}
+      />,
+    );
   }
 
   it('opens a dashboard, shows its panels and its filter bar', async () => {
@@ -301,13 +317,7 @@ describe('DashboardWorkbench', () => {
       store,
     });
 
-    render(
-      <DashboardWorkbench
-        engine={engine}
-        definitionId="overview"
-        instanceId="overview-1"
-      />,
-    );
+    listed(engine, { instanceId: 'overview-1' });
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Operations' }).ariaCurrent,
@@ -483,13 +493,7 @@ describe('DashboardWorkbench', () => {
   it('saves a copy from the title bar and opens it', async () => {
     const { engine, store } = setup();
 
-    render(
-      <DashboardWorkbench
-        engine={engine}
-        definitionId="overview"
-        instanceId="overview-1"
-      />,
-    );
+    listed(engine, { instanceId: 'overview-1' });
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
     // A board read has nothing to save in place: the title bar's one save
@@ -659,17 +663,13 @@ describe('DashboardWorkbench', () => {
   it("takes the host's wording, for its own alerts and everything inside", async () => {
     const { engine } = setup();
 
-    render(
-      <DashboardWorkbench
-        engine={engine}
-        definitionId="overview"
-        instanceId="missing"
-        messages={{
-          'label.dashboard.unopenable': '打不开这个仪表盘',
-          'label.dashboard.group.personal': '仅自己',
-        }}
-      />,
-    );
+    listed(engine, {
+      instanceId: 'missing',
+      messages: {
+        'label.dashboard.unopenable': '打不开这个仪表盘',
+        'label.dashboard.group.personal': '仅自己',
+      },
+    });
 
     expect(await screen.findByText('打不开这个仪表盘')).toBeDefined();
     // The sidebar is named by the definition rather than by the catalogue;
@@ -831,14 +831,7 @@ describe('DashboardWorkbench', () => {
   it('names the board in its chrome: the list, its fold, the switcher, the save menu (Q34)', async () => {
     const { engine } = setup();
 
-    render(
-      <DashboardWorkbench
-        engine={engine}
-        definitionId="overview"
-        instanceId="overview-1"
-        messages={zhCN}
-      />,
-    );
+    listed(engine, { instanceId: 'overview-1', messages: zhCN });
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
     expect(screen.getByRole('button', { name: '收起仪表盘列表' })).toBeTruthy();
@@ -935,14 +928,7 @@ describe('DashboardWorkbench', () => {
       new ViewStoreError('FORBIDDEN', 'not yours'),
     );
 
-    render(
-      <DashboardWorkbench
-        engine={engine}
-        definitionId="overview"
-        instanceId="overview-1"
-        messages={zhCN}
-      />,
-    );
+    listed(engine, { instanceId: 'overview-1', messages: zhCN });
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
     expect(

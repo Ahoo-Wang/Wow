@@ -232,7 +232,7 @@ describe('opening a view', () => {
   }
 
   it('draws the title bar and the framed result the view will have', async () => {
-    const shape = await skeleton();
+    const shape = await skeleton({ defaultSidebarOpen: true });
 
     expect(shape.getAttribute('aria-busy')).toBe('true');
     // Said once, by a live region of its own: `aria-busy` on a live region
@@ -502,7 +502,7 @@ describe('the sidebar as a host sets it', () => {
     const user = userEvent.setup();
     render(
       <StrictMode>
-        <Shell engine={engineWith()} />
+        <Shell engine={engineWith()} defaultSidebarOpen />
       </StrictMode>,
     );
     await screen.findByText('rows');
@@ -528,7 +528,7 @@ describe('the sidebar as a host sets it', () => {
   });
 
   it('holds the state itself when the host only wants to be told', async () => {
-    const user = await open();
+    const user = await open({ defaultSidebarOpen: true });
 
     await user.click(screen.getByRole('button', { name: COLLAPSE }));
     // No `onSidebarOpenChange` given, and it still folds: the state is the
@@ -552,19 +552,18 @@ class ResizeSpy {
 }
 
 /**
- * What the shell decides for itself when the host says nothing.
+ * What the shell decides for itself when the host says nothing (D94).
  *
- * Below `md` the list is not beside the view but stacked over it, so a
- * column that narrow opens folded — and it is the surface's own width that
- * answers, not the viewport's, because a 360px panel on a wide page is the
- * same phone-shaped column.
+ * The list starts folded at every width: the view is what a reader came
+ * for, and the collapsed row unfolds the list in one press. No width
+ * answers for the fold any more, on arrival or as the room changes.
  */
 describe('the sidebar the shell decides', () => {
   /**
    * The width the surface reports for the rest of this test.
    *
-   * jsdom lays nothing out and answers 0 to every measurement, so the one
-   * number this rule reads is the one thing a test here has to supply. It is
+   * jsdom lays nothing out and answers 0 to every measurement, so a test
+   * that says the fold holds at some width has to supply that width. It is
    * put on the prototype because the surface is not in the document until
    * `render` has run, and taken off again by `restoreAllMocks`.
    */
@@ -600,8 +599,8 @@ describe('the sidebar the shell decides', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('opens folded in a column narrower than md', async () => {
-    laidOutAt(375);
+  it.each([375, 1280])('opens folded in a %ipx column', async width => {
+    laidOutAt(width);
     await open();
 
     expect(block('view-sidebar')).toBeNull();
@@ -609,30 +608,22 @@ describe('the sidebar the shell decides', () => {
     expect(screen.getByRole('button', { name: EXPAND })).toBeDefined();
   });
 
-  it('opens with the list beside the view from md up', async () => {
-    laidOutAt(1024);
+  it('opens folded where nothing was laid out at all', async () => {
+    // jsdom's own answer, and a detached or unlaid-out host's: a width of 0.
     await open();
 
-    expect(block('view-sidebar')).not.toBeNull();
-  });
-
-  it('takes a width of zero as no answer rather than as narrow', async () => {
-    // jsdom's own answer, and a detached or unlaid-out host's: nothing at
-    // all. Nothing is not a reason to fold a list away.
-    await open();
-
-    expect(block('view-sidebar')).not.toBeNull();
+    expect(block('view-sidebar')).toBeNull();
   });
 
   it('obeys a host that said so, however narrow the column', async () => {
     laidOutAt(375);
     await open({ defaultSidebarOpen: true });
 
-    // The host knows something about its page that a measurement does not.
+    // The host knows something about its page that a default does not.
     expect(block('view-sidebar')).not.toBeNull();
   });
 
-  it('takes no focus when it folds itself on arrival', async () => {
+  it('takes no focus when it opens folded', async () => {
     laidOutAt(375);
     await open();
 
@@ -642,43 +633,30 @@ describe('the sidebar the shell decides', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('tells a host that mirrors the fold, even when it folded itself', async () => {
+  it('tells a host nothing about the fold it arrived with', async () => {
     laidOutAt(375);
     const changed = vi.fn();
     await open({ onSidebarOpenChange: changed });
 
-    // A notification and not a decision: the host asked to be told whenever
-    // this changes, and this is a change.
-    expect(changed).toHaveBeenCalledExactlyOnceWith(false);
+    // The fold it opens with is where it starts, not a change.
+    expect(changed).not.toHaveBeenCalled();
   });
 
-  it('follows the width both ways, not only on arrival', async () => {
+  it('leaves an open list open as the width changes', async () => {
     const rect = laidOutAt(1280);
     const resize = watchingSurface();
     const changed = vi.fn();
-    await open({ onSidebarOpenChange: changed });
-    expect(block('view-sidebar')).not.toBeNull();
+    await open({ defaultSidebarOpen: true, onSidebarOpenChange: changed });
 
-    // A window dragged narrow is the same phone-shaped column as one that
-    // opened narrow: the list was beside the view and now would be stacked
-    // on top of it, eating 235px above the first row.
+    // A window dragged narrow and back: the host asked for the list, and no
+    // measurement takes it away or reports a change nobody made.
     rect.mockReturnValue({ width: 608 } as DOMRect);
     resize();
-    expect(block('view-sidebar')).toBeNull();
-
-    // And back, because the room it was folded for is there again.
+    expect(block('view-sidebar')).not.toBeNull();
     rect.mockReturnValue({ width: 1280 } as DOMRect);
     resize();
     expect(block('view-sidebar')).not.toBeNull();
-
-    rect.mockReturnValue({ width: 608 } as DOMRect);
-    resize();
-    expect(block('view-sidebar')).toBeNull();
-
-    // The host mirroring the fold hears every one of those, and nothing in
-    // between: a change is reported once, when it happens.
-    expect(changed.mock.calls).toEqual([[false], [true], [false]]);
-    // Nothing was pressed, so the keyboard stayed where the user left it.
+    expect(changed).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(document.body);
   });
 
@@ -687,24 +665,23 @@ describe('the sidebar the shell decides', () => {
     const resize = watchingSurface();
     const user = await open();
 
-    await user.click(screen.getByRole('button', { name: COLLAPSE }));
-    expect(block('view-sidebar')).toBeNull();
+    await user.click(screen.getByRole('button', { name: EXPAND }));
+    expect(block('view-sidebar')).not.toBeNull();
 
-    // Narrow and wide again. The measurement agreed with the press on the
-    // way down and would disagree on the way back up — and it is the press
-    // that stands: undoing what the user explicitly asked for, under their
-    // hands, on every drag of the window, is worse than a list that is
-    // folded in a column with room for it.
+    // Narrow and wide again: it is the press that stands, on every drag of
+    // the window.
+    rect.mockReturnValue({ width: 608 } as DOMRect);
+    resize();
+    rect.mockReturnValue({ width: 1280 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).not.toBeNull();
+
+    // The same the other way: a list folded away again stays away.
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
     rect.mockReturnValue({ width: 608 } as DOMRect);
     resize();
     rect.mockReturnValue({ width: 1280 } as DOMRect);
     resize();
     expect(block('view-sidebar')).toBeNull();
-
-    // The same the other way: a list called back in a narrow column stays.
-    await user.click(screen.getByRole('button', { name: EXPAND }));
-    rect.mockReturnValue({ width: 608 } as DOMRect);
-    resize();
-    expect(block('view-sidebar')).not.toBeNull();
   });
 });

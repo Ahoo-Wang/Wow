@@ -79,6 +79,7 @@ describe('a list cut at RuntimeLimits.listedViews (R2-26)', () => {
         engine={engineOver(shared(3), 2)}
         definitionId="orders"
         instanceId="ours-0"
+        defaultSidebarOpen
       />,
     );
     await screen.findAllByRole('row');
@@ -97,6 +98,7 @@ describe('a list cut at RuntimeLimits.listedViews (R2-26)', () => {
         engine={engineOver(shared(1), 2)}
         definitionId="orders"
         instanceId="ours-0"
+        defaultSidebarOpen
       />,
     );
     await screen.findAllByRole('row');

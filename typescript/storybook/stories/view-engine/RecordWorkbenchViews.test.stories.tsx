@@ -54,6 +54,8 @@ const meta = {
   // display meta's — and with it the full-screen host application the
   // workbench is meant to be exercised in.
   parameters: { ...displayMeta.parameters },
+  // The manager is behind the list's gear, and the list opens folded (D94).
+  args: { ...displayMeta.args, listed: true },
 };
 
 export default meta;
@@ -72,9 +74,7 @@ export const ManageViews: Story = {
     await canvas.findByRole('table');
 
     await userEvent.click(
-      canvas.getByRole('button', {
-        name: zhCN['label.manage.open'],
-      }),
+      canvas.getByRole('button', { name: zhCN['label.manage.open'] }),
     );
     // The dialog portals out of the canvas, so it is found on the document.
     await within(document.body).findByRole('dialog');
@@ -718,9 +718,7 @@ export const DefaultViewWearsTheStar: Story = {
     ).toBeNull();
 
     await userEvent.click(
-      canvas.getByRole('button', {
-        name: zhCN['label.manage.open'],
-      }),
+      canvas.getByRole('button', { name: zhCN['label.manage.open'] }),
     );
     const dialog = await within(document.body).findByRole('dialog');
     const managed = [

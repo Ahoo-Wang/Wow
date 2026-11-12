@@ -242,6 +242,7 @@ function RecordWorkbenchDemo({
   english = false,
   keepStore = false,
   collapsed = false,
+  listed,
   transformedHost = false,
   scaledHost = false,
   raisedHost = false,
@@ -299,8 +300,10 @@ function RecordWorkbenchDemo({
   english?: boolean;
   /** Publishes the store on `tableSettingsStore`, for a play to read. */
   keepStore?: boolean;
-  /** Opens with the view list folded away, as a narrow page would. */
+  /** Says the view list is folded, where leaving it out only lets it be. */
   collapsed?: boolean;
+  /** Opens with the view list beside the view, for a play that reads it. */
+  listed?: boolean;
   /**
    * Puts the workbench inside a host container that owns its own containing
    * block, the way an animated panel or a GPU-hinted grid shell does.
@@ -505,11 +508,8 @@ function RecordWorkbenchDemo({
             preset={preset}
             density={density}
             tokens={tokens}
-            // Left to the shell everywhere but the one story that is *about*
-            // the fold: a column narrower than `md` opens folded on its own
-            // now, so the narrow host proves that rule rather than being
-            // handed the answer.
-            defaultSidebarOpen={collapsed ? false : undefined}
+            // Left out unless a story asks: the list is folded then (D94).
+            defaultSidebarOpen={collapsed ? false : listed}
             record={{
               slots: breakable
                 ? breakableActions
@@ -989,7 +989,7 @@ export const ExportFailed: Story = {
 };
 
 /**
- * 侧栏收起后的样子：标题栏最左边是展开按钮、定义标题与视图切换下拉，结果拿回
+ * 侧栏收起的样子，也是默认的样子（D94）：标题栏最左边是展开按钮、定义标题与视图切换下拉，结果拿回
  * 侧栏占掉的那点宽度。下拉按受众分组、当前项打勾、系统视图带标签，末尾是「管理
  * 视图」——和侧栏齿轮开的是同一个对话框。切换照样先过离开守卫。
  */
@@ -1120,8 +1120,8 @@ export const PopupsOverRaisedHostLayer: Story = {
 
 /**
  * 窄栏里的标题栏：一根 375px 宽的柱子——手机、分屏、宿主的侧边面板都是这个
- * 宽度——装一个名字长得放不下的视图。侧栏没人交代过收起，是外壳自己量出来
- * 的：窄于 `md` 的一栏里，列表不在视图旁边而是堆在它上面（D12／L1）。
+ * 宽度——装一个名字长得放不下的视图。侧栏没人交代过，所以是收起的：宿主不说
+ * 展开，任何宽度下列表都收在标题栏里，一按就回来（D94）。
  *
  * 标题栏读作两组：左边「这是哪个视图」（种类、受众、名字、保存命令），右边
  * 「我在怎么看它」（筛选带的开合、铺满屏幕、宿主自己的按钮）。窄到两组并排
@@ -1191,7 +1191,7 @@ export const SaveRefused: Story = { args: { writeOutcome: 'rejected' } };
 /**
  * 没打开的那一行也会撞上别人：**管理器行内的结局**。
  *
- * 从侧栏齿轮打开「管理视图」，给任意一行按铅笔改个名、按 ✓ 确认。改名同样撞上
+ * 从切换器菜单（或展开的侧栏的齿轮）打开「管理视图」，给一行按铅笔改名、按 ✓ 确认。改名同样撞上
  * 先落的那份配置，于是冲突画在**它自己那一行下面**——一行小字加两个小按钮，而
  * 不是把整张列表推下去：下面那些行还是真的，一条横幅把它们挤走就是用一个问题
  * 报告另一个问题。

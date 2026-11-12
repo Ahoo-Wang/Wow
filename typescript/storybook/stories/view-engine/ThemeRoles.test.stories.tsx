@@ -40,6 +40,7 @@ import { converter, parse } from 'culori';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
+import { settled, showViewList } from './recordWorkbenchTest.js';
 import { matchScreenshot } from './screenshot.js';
 import { measureFocusMark } from './contrast.js';
 import { underMedia } from './media.js';
@@ -91,18 +92,6 @@ const shadowColors = (value: string): string[] =>
 /** An element's painted background colour, as `rgbOf` writes it. */
 const groundOf = (element: Element) =>
   rgbOf(getComputedStyle(element).backgroundColor);
-
-/**
- * Resolves once a transitioning value has stopped changing: two reads 50ms
- * apart that agree (the vendored controls carry `transition-all`).
- */
-async function settled(read: () => string): Promise<void> {
-  await waitFor(async () => {
-    const before = read();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    if (read() !== before) throw new Error('The value is still moving.');
-  });
-}
 
 /**
  * Presses Tab until the element has focus, so `:focus-visible` holds — Tab
@@ -610,6 +599,8 @@ export const DialogScrim: Story = {
   args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     await parts(canvasElement);
+    // The manager is behind the list's gear, and the list opens folded.
+    await showViewList(canvasElement);
     await userEvent.click(
       canvasElement.querySelector<HTMLElement>(
         `[aria-label="${zhCN['label.manage.open']}"]`,

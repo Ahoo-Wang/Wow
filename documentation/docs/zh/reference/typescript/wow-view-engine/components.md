@@ -40,7 +40,7 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 | `onNavigate` | 回到交出视图的那个仪表盘的路：有了它，工作台在标题栏下画「返回〈仪表盘〉」。缺省用 `ViewHost` 的路由 |
 | `expandable` | 是否提供铺满屏幕，缺省开 |
 | `landmark` | 工作列是什么地标：缺省 `main`；页面已经有自己的 `<main>` 时写 `region` |
-| `defaultSidebarOpen`、`onSidebarOpenChange` | 侧栏起始状态：视图状态，不保存、离开确认也不问。缺省窄于 `md` 时折叠 |
+| `defaultSidebarOpen`、`onSidebarOpenChange` | 侧栏起始状态：视图状态，不保存、离开确认也不问。缺省收起，按一下展开；给 `true` 则从展开开始 |
 | `colorMode`、`density`、`preset`、`tokens` | 这个界面及其弹层的明暗、密度、固定的预设、宿主自己的 `--fve-*` |
 | `onRenderFailure` | 某个边界接住渲染失败时告诉宿主；那部分照常原地显示可恢复的错误状态 |
 
