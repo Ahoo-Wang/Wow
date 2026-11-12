@@ -36,8 +36,8 @@ fun interface SnapshotTailReader {
     /**
      * [ref]'s snapshot and the tail after it with the request keys before it, as [EventLog.readTail] reads them from
      * the snapshot's version, as one statement sees them; with no snapshot, every stream of [ref] and no earlier
-     * keys. A failure is thrown. The kernel cancels the read at its deadline: the store then ends it and releases what
-     * it holds, its connection among them.
+     * keys. A failure is thrown. The kernel cancels the read at its deadline, and the read ends for it at once; the
+     * store releases what it holds then, or at its own operation timeout at the latest.
      */
     suspend fun readWithSnapshot(ref: AggregateRef, earlier: Int): SnapshotTail
 }

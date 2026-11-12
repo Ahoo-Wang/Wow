@@ -66,8 +66,9 @@ interface SnapshotStore {
     }
 
     /**
-     * The snapshot of [ref], or null when there is none. The kernel cancels a cache-miss load at its deadline: the
-     * store then ends the read and releases what it holds, its connection among them.
+     * The snapshot of [ref], or null when there is none. The kernel cancels a cache-miss load at its deadline, and the
+     * load ends for it at once; the store releases what the read holds then, or at its own operation timeout at the
+     * latest (a store whose client cannot cancel a request safely before it is written).
      */
     suspend fun load(ref: AggregateRef): SnapshotRecord?
 

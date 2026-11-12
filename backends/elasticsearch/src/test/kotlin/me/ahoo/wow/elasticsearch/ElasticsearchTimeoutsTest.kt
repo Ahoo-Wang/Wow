@@ -19,8 +19,10 @@ import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -117,25 +119,28 @@ class ElasticsearchTimeoutsTest {
     }
 
     @Test
-    fun `a caller giving up should cancel the request`() {
+    fun `a caller giving up should end its wait alone, the request left to its deadline`() {
         val held = HeldClient()
-        send(held, 1.seconds).cancel(true)
-        held.sent.isCancelled.assert().isTrue()
+        val answered = send(held, 200.milliseconds)
+        answered.cancel(true)
+        // Not cancelled by the caller: a request cancelled before its bytes are written is retried by HttpClient 5.
+        held.sent.isCancelled.assert().isFalse()
+        // Its deadline still aborts it.
+        val started = TimeSource.Monotonic.markNow()
+        while (!held.sent.isCancelled) {
+            check(started.elapsedNow() < 2.seconds) { "The deadline did not cancel the request." }
+            Thread.sleep(10)
+        }
     }
 
     @Test
-    fun `a deadline that comes after the caller gave up should change nothing`() {
-        // The caller cancels first; the client cannot cancel its request any more, so its deadline still comes.
-        val held = object : HeldClient() {
-            override val sent = object : CompletableFuture<TransportHttpClient.Response>() {
-                override fun cancel(mayInterruptIfRunning: Boolean): Boolean = false
-            }
-        }
-        val answered = send(held, 50.milliseconds)
+    fun `an answer after the caller gave up should be released`() {
+        val held = HeldClient()
+        val answered = send(held, 1.seconds)
         answered.cancel(true)
-        Thread.sleep(200)
-        answered.isCancelled.assert().isTrue()
-        held.sent.isDone.assert().isFalse()
+        val response = mockk<TransportHttpClient.Response>(relaxed = true)
+        held.sent.complete(response)
+        verify(exactly = 1) { response.close() }
     }
 
     @Test
@@ -158,12 +163,16 @@ class ElasticsearchTimeoutsTest {
     @Test
     fun `a store's request to a server that accepts and never answers should fail within its operation timeout`() {
         ServerSocket(0).use { server ->
-            // Accepts, then holds every connection without a byte: a paused server. Records when the client lets go.
+            // Accepts, then holds every connection without a byte: a paused server. Records when the request reached it
+            // and when the client lets go.
+            val requested = CompletableFuture<TimeSource.Monotonic.ValueTimeMark>()
             val released = CompletableFuture<Unit>()
             thread(isDaemon = true) {
                 server.accept().use { socket ->
+                    val input = socket.getInputStream()
+                    if (input.read() >= 0) requested.complete(TimeSource.Monotonic.markNow())
                     // The client's end of the connection: closed (end of stream) or reset (aborted).
-                    runCatching { socket.getInputStream().readAllBytes() }
+                    runCatching { input.readAllBytes() }
                     released.complete(Unit)
                 }
             }
@@ -178,9 +187,9 @@ class ElasticsearchTimeoutsTest {
                         resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
                     ),
                 ) as ElasticsearchStore
-                val started = TimeSource.Monotonic.markNow()
                 assertThrownBy<StorageUnavailableException> { runBlocking { store.probe() } }
-                started.elapsedNow().assert().isLessThan(3.seconds)
+                // Within its bound of the request reaching the server, whatever a cold client took to send it.
+                requested.get(LONG_SECONDS, TimeUnit.SECONDS).elapsedNow().assert().isLessThan(3.seconds)
                 // The exchange is aborted: the connection is closed, not left to the client's pool to wait on.
                 released.get(5, TimeUnit.SECONDS)
             }
@@ -188,35 +197,44 @@ class ElasticsearchTimeoutsTest {
     }
 
     @Test
-    fun `a load its caller gives up on should close its connection then, not at the operation timeout`() {
+    fun `a load its caller gives up on should keep its connection until the operation timeout aborts it`() {
         ServerSocket(0).use { server ->
-            // Accepts, then holds every connection without a byte: a paused server. Records when the client lets go.
+            // Accepts, reads the request's first bytes, then holds the connection without answering: a paused server.
+            val requested = CompletableFuture<Unit>()
             val released = CompletableFuture<Unit>()
             thread(isDaemon = true) {
                 server.accept().use { socket ->
-                    runCatching { socket.getInputStream().readAllBytes() }
+                    val input = socket.getInputStream()
+                    if (input.read() >= 0) requested.complete(Unit)
+                    // The client's end of the connection: closed (end of stream) or reset (aborted).
+                    runCatching { input.readAllBytes() }
                     released.complete(Unit)
                 }
             }
-            // The store's bound is the default 30 seconds; the kernel gives the load up at its own deadline.
             val restClient = Rest5Client.builder(HttpHost.create("http://127.0.0.1:${server.localPort}")).build()
             restClient.use {
                 val store = ElasticsearchStoreProvider().open(
                     StoreConfig.of(
                         name = "search",
                         type = ElasticsearchStoreProvider.TYPE,
+                        options = mapOf(ElasticsearchStoreProvider.OPERATION_TIMEOUT.key to "PT2S"),
                         resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
                     ),
                 ) as ElasticsearchStore
                 val ref = AggregateType("ctx", "order").ref("tenant", "o-1")
-                val started = TimeSource.Monotonic.markNow()
-                val loaded = runBlocking {
-                    withTimeoutOrNull(300.milliseconds) { store.snapshots("ctx").load(ref) }
+                runBlocking {
+                    val load = async(Dispatchers.Default) { store.snapshots("ctx").load(ref) }
+                    // The kernel gives the load up once its request is on the wire.
+                    requested.get(LONG_SECONDS, TimeUnit.SECONDS)
+                    val gaveUp = TimeSource.Monotonic.markNow()
+                    load.cancelAndJoin()
+                    // The caller's wait has ended; the request's connection is still open, under its deadline.
+                    Thread.sleep(500)
+                    released.isDone.assert().isFalse()
+                    // The store's operation timeout aborts it, closing its connection.
+                    released.get(LONG_SECONDS, TimeUnit.SECONDS)
+                    gaveUp.elapsedNow().assert().isLessThan(LONG_SECONDS.seconds)
                 }
-                loaded.assert().isNull()
-                // The coroutine's cancellation cancels the transport's future, which aborts the exchange.
-                released.get(2, TimeUnit.SECONDS)
-                started.elapsedNow().assert().isLessThan(3.seconds)
             }
         }
     }
@@ -225,5 +243,9 @@ class ElasticsearchTimeoutsTest {
     fun `the operation timeout should be 30 seconds when not set`() {
         ElasticsearchStoreProvider.OPERATION_TIMEOUT.default.assert().isEqualTo(30.seconds)
         ElasticsearchStoreProvider().options.assert().contains(ElasticsearchStoreProvider.OPERATION_TIMEOUT)
+    }
+
+    private companion object {
+        const val LONG_SECONDS = 10L
     }
 }
