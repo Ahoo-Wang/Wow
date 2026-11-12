@@ -278,12 +278,24 @@ class SnapshotMaintenance(
         return skips.retry(ref) { rebuild(model, ref) { recordOf(model, ref) } }
     }
 
-    /** Whether every target of [ref] was rewritten in place, none left for the node of another revision. */
+    /**
+     * Whether every target of [ref] was rewritten in place, none left for the node of another revision. The snapshot is
+     * read and replayed once, by the first target that writes it, and that one record is written to every target.
+     */
     private suspend fun rebuild(
         model: AggregateModel<*>,
         ref: AggregateRef,
         recordOf: suspend () -> SnapshotRecord?,
     ): Boolean {
+        var read = false
+        var record: SnapshotRecord? = null
+        val once: suspend () -> SnapshotRecord? = {
+            if (!read) {
+                record = recordOf()
+                read = true
+            }
+            record
+        }
         var here = true
         targets.placementOf(ref.type).targets.forEach { name ->
             val store = storeOf(name)
@@ -295,11 +307,11 @@ class SnapshotMaintenance(
             }
             val table = rebuilds.table(ref.type)
             if (table == null || table.revision == model.stateRevision) {
-                recordOf()?.let { rebuilds.rewrite(it) }
+                once()?.let { rebuilds.rewrite(it) }
             } else {
                 here = false
                 if (!rebuilds.markStale(ref)) {
-                    recordOf()?.let { store.save(it) }
+                    once()?.let { store.save(it) }
                 }
                 rebuilds.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
             }

@@ -260,8 +260,8 @@ class JobTicked @InternalWowApi constructor(val timer: String, val slot: Long, v
 /**
  * What an [me.ahoo.wow.api.annotation.OnSchedule] handler receives: the [tenantId] of the instance
  * (the default tenant for a [JobScope.SYSTEM] or a [JobScope.SHARDED] job), the [job], the [slot] that was due at [due]
- * (epoch milliseconds), how many slots before it were [skipped] (coalesced), and, for a [JobScope.SHARDED] job, the
- * log [partition] whose aggregates this tick is for.
+ * (epoch milliseconds), how many slots before it were [skipped] (coalesced, none by default), and, for a
+ * [JobScope.SHARDED] job, the log [partition] whose aggregates this tick is for. A slot counts from 1.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -270,9 +270,15 @@ class ScheduleTick @InternalWowApi constructor(
     val job: String,
     val slot: Long,
     val skipped: Long = 0,
-    val due: Long = 0,
+    val due: Long,
     val partition: Int? = null,
 ) {
+    init {
+        require(slot >= 1) { "A tick's slot counts from 1, not $slot." }
+        require(due >= 0) { "A tick is due at an epoch millisecond, not $due." }
+        require(skipped >= 0) { "A tick skips no slot or some, not $skipped." }
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || other is ScheduleTick && valueFields() == other.valueFields()
 
@@ -284,15 +290,17 @@ class ScheduleTick @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(tenantId, job, slot, skipped, due, partition)
 
     companion object {
-        /** A ScheduleTick of the given fields; parameters added later come last, with a default. */
+        /**
+         * A ScheduleTick of the given fields; parameters added later come last, with a default. No Java overloads:
+         * with [due] given and [skipped] left out, one would take a `long` where it took [skipped] before.
+         */
         @JvmStatic
-        @JvmOverloads
         fun of(
             tenantId: String,
             job: String,
             slot: Long,
             skipped: Long = 0,
-            due: Long = 0,
+            due: Long,
             partition: Int? = null,
         ): ScheduleTick = ScheduleTick(tenantId, job, slot, skipped, due, partition)
     }

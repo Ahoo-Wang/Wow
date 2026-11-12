@@ -39,6 +39,13 @@ function files(directory: string): Map<string, string> {
   );
 }
 
+/*
+ * Each case runs wow-generator once, in a process of its own: about 1 s on a
+ * CI runner, and 5 to 8 s on a loaded one, past vitest's 5 s default. Its own
+ * bound, with room; the package's other tests keep the default.
+ */
+const GENERATE_TIMEOUT = 30_000;
+
 describe("the generated clients", () => {
   const output = mkdtempSync(join(tmpdir(), "wow-eshop-web-generated-"));
   afterAll(() => rmSync(output, { recursive: true, force: true }));
@@ -53,5 +60,6 @@ describe("the generated clients", () => {
       for (const [path, content] of expected)
         expect(actual.get(path), path).toBe(content);
     },
+    GENERATE_TIMEOUT,
   );
 });

@@ -254,12 +254,17 @@ class AccessWalking(
      * Stamps the whole history of [ref], of [model], with the attributes of its current state, as of its last version,
      * in its log and its other stores ([target]), and rewrites its snapshot; null when its log keeps no stamps or
      * holds none of it.
+     *
+     * Its history is read under the replay gate, as the walk's is (RT-10): a stamping subscription's catch-up, one
+     * whole history per aggregate an import's tail or an older node left unstamped, takes the log store's query
+     * bulkhead, not the appends' connections. A refusal of the gate is thrown, the follower's to classify: the
+     * store's [StorageBusyException][me.ahoo.wow.spi.StorageBusyException] as its cause is backpressure, retried.
      */
     suspend fun stampCurrent(
         model: AggregateModel<*>,
         ref: AggregateRef,
         cause: ObservedEvent.AccessStamped.Cause,
-    ): Stamped? = stampCurrent(model, ref, cause, walked = false) { log -> log.read(ref).toList() }
+    ): Stamped? = stampCurrent(model, ref, cause, walked = false) { log -> gate.replay(ref) { log.read(ref).toList() } }
 
     /**
      * [stampCurrent], reading [ref]'s whole history from its log with [history]; a failure of its replay [walked] is

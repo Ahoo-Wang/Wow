@@ -66,9 +66,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * `updateOne` of the whole entry whose filter carries the revision it read. No collation is set: MongoDB then
  * compares strings by their UTF-8 bytes, which is code point order, so [list] pages in the order the contract asks for.
  *
- * Besides the key index, [DUE_INDEX] on (service, subscription, partition, next attempt) answers [due], and
- * [TENANT_INDEX] on (service, subscription, tenant, then the key) answers a tenant's [list] in its order, a
- * subscription being its context and name.
+ * Besides the key index, [DUE_INDEX] is on (service, subscription, partition, next attempt), and [TENANT_INDEX] on
+ * (service, subscription, tenant, then the key) answers a tenant's [list] in its order, a subscription being its
+ * context and name. [due] reads by the key index ([LEDGER_KEY], a hint): a page of what is due comes in the key's
+ * order, and the due index would have each page read and sort every due entry of the partitions again, a round's
+ * cost growing with the square of what is due. By the key, a round reads each of the subscription's entries once.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -90,7 +92,7 @@ class MongoFailureLedger(
 
     /**
      * Claims the collection's format ([MongoFormat]) and creates its indexes when missing: the key index, which also
-     * serves [list]'s order and [count], [DUE_INDEX] and [TENANT_INDEX].
+     * serves [list]'s order, [due] and [count], [DUE_INDEX] and [TENANT_INDEX].
      */
     fun createSchema() {
         MongoFormat.claim(database, collection, FORMAT, ddl)
@@ -207,7 +209,7 @@ class MongoFailureLedger(
             Filters.`in`(PARTITION, partitions),
             Filters.or(Filters.eq(NEXT_ATTEMPT_AT, null), Filters.lte(NEXT_ATTEMPT_AT, now)),
         )
-        return page(subscription, after, limit, due)
+        return page(subscription, after, limit, due, index = LEDGER_KEY)
     }
 
     override suspend fun count(subscription: SubscriptionId, max: Int): Int {
@@ -217,12 +219,16 @@ class MongoFailureLedger(
         }
     }
 
-    /** Up to [limit] of [subscription]'s entries after [after] that [conditions] admit, in the ledger's order. */
+    /**
+     * Up to [limit] of [subscription]'s entries after [after] that [conditions] admit, in the ledger's order, read by
+     * [index] when given, else by the index the server plans.
+     */
     private suspend fun page(
         subscription: SubscriptionId,
         after: AggregateRef?,
         limit: Int,
         conditions: List<Bson>,
+        index: String? = null,
     ): List<ParkedAggregate> {
         require(limit >= 1) { "A page holds at least one entry." }
         val filter = Filters.and(
@@ -232,6 +238,7 @@ class MongoFailureLedger(
         )
         return dispatcher.mongo {
             ledger.find(filter)
+                .let { found -> index?.let(found::hintString) ?: found }
                 .sort(Sorts.ascending(CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID))
                 .limit(limit)
                 .map { entryOf(it) }

@@ -155,11 +155,11 @@ class ScheduleSpecDslTest {
                 expectCommands(IssueInvoices("acme", 3, 1))
                 expectDeterministic()
             }
-            whenTick(ScheduleTick(Caller.DEFAULT_TENANT, "sweep", slot = 1, partition = 0)) {
+            whenTick(ScheduleTick(Caller.DEFAULT_TENANT, "sweep", slot = 1, due = 42, partition = 0)) {
                 expectCommands(Sweep(0, 1))
             }
             ticks.size.assert().isEqualTo(2)
-            assertThrownBy<IllegalArgumentException> { whenTick(ScheduleTick("acme", "unknown", 1)) {} }
+            assertThrownBy<IllegalArgumentException> { whenTick(ScheduleTick("acme", "unknown", 1, due = 42)) {} }
             assertThrownBy<IllegalArgumentException> { enable("unknown") }
         }
     }
@@ -222,7 +222,7 @@ class ScheduleSpecDslTest {
     fun `a schedule specification as a tree of tests`() = scheduleSpecTests(handlers) {
         enable("invoice", tenantId = "acme")
         advanceTime(31.days) { expectCommandTypes(IssueInvoices::class) }
-        whenTick(ScheduleTick("acme", "invoice", 2)) { expectCommandCount(1) }
+        whenTick(ScheduleTick("acme", "invoice", 2, due = 42)) { expectCommandCount(1) }
     }
 
     private fun queries(limit: Int): NodeQueryApi {

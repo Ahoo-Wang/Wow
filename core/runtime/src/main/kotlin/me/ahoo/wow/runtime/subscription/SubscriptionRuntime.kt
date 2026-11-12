@@ -160,6 +160,9 @@ class SubscriptionRuntime internal constructor(
     @Volatile
     private var running: Running? = null
 
+    /** How far the subscriptions have come: the running workers', else the saved checkpoints. */
+    private val progressOf = SubscriptionProgress(group, source, checkpoints, ledger, directory) { running?.workers }
+
     /** Whether the first start told of the checkpoints no subscription of the group has. */
     private var orphansTold = false
 
@@ -459,41 +462,12 @@ class SubscriptionRuntime internal constructor(
         return filter.context == type.context && (filter.aggregates.isEmpty() || type.name in filter.aggregates)
     }
 
-    /**
-     * Whether [subscription] is past [stream] for good: its progress in the stream's partition (the
-     * running worker's watermark, else the saved checkpoint) is at or past the stream's position, and the stream's
-     * aggregate is not parked.
-     */
-    override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean {
-        val id = directory[subscription]?.takeIf { it.filter.context == stream.ref.type.context }?.id ?: return false
-        val position = source.positionOf(stream.ref, stream.version) ?: return false
-        val progress = running?.workers?.get(subscription to position.partition)?.watermark
-            ?: checkpoints.load(group, subscription, position.partition)
-            ?: 0L
-        return progress >= position.sequence && !ledger.isParked(id, stream.ref)
-    }
+    /** Whether [subscription] is past [stream] for good ([SubscriptionProgress.hasHandled]). */
+    override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean =
+        progressOf.hasHandled(subscription, stream)
 
-    /**
-     * How far [subscription] has come over all [partitions] of its source: the sum, over each partition, of its
-     * progress there. In a partition this node runs, the worker's [SubscriptionWorker.progress], which grows the
-     * moment an entry completes, even above an entry still running; in the others, the saved checkpoint (else 0),
-     * which another node moves forward. The sum changes when the subscription completed an entry: the snapshot
-     * subscription's is the validator of the cached counts, so a count after a write this node
-     * completed sees the write. Null when [subscription] is not registered.
-     */
-    suspend fun progress(subscription: String, partitions: Int): Long? {
-        if (!directory.containsKey(subscription)) {
-            return null
-        }
-        val workers = running?.workers
-        var total = 0L
-        for (partition in 0 until partitions) {
-            total += workers?.get(subscription to partition)?.progress
-                ?: checkpoints.load(group, subscription, partition)
-                ?: 0L
-        }
-        return total
-    }
+    /** How far [subscription] has come over all [partitions] of its source ([SubscriptionProgress.progress]). */
+    suspend fun progress(subscription: String, partitions: Int): Long? = progressOf.progress(subscription, partitions)
 
     /** The checkpoints saved in the group: of each subscription of its name that has read its stream. */
     internal suspend fun saved(): List<Checkpoint> = checkpoints.list(group)
@@ -502,14 +476,8 @@ class SubscriptionRuntime internal constructor(
     internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> =
         orphanCheckpoints.orphans(saved, maxParked)
 
-    /**
-     * Where each subscription stands in each partition this runtime runs on this node: its watermark,
-     * the sequence up to which every entry is complete. Against the source's head it is how far a subscription, a
-     * rebuild under a new name among them, has come. Empty while the runtime is stopped.
-     */
-    fun positions(): List<SubscriptionPosition> = running?.workers?.values?.map {
-        SubscriptionPosition(it.subscription.name, it.partition, it.watermark)
-    }.orEmpty()
+    /** Where each subscription stands in each partition this runtime runs here ([SubscriptionProgress.positions]). */
+    fun positions(): List<SubscriptionPosition> = progressOf.positions()
 
     /**
      * The partitions this runtime's subscriptions have paused on a systemic failure, each a
