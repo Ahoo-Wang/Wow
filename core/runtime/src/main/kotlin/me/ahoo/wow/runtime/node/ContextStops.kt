@@ -16,12 +16,16 @@ package me.ahoo.wow.runtime.node
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.supervisorScope
 
 /*
  * How a node stops what it holds of each of its contexts: each context's stop runs to its end whatever another one's
  * does, and the first failure is thrown once all ended, the others suppressed in it, as the node's stop steps go on
- * past a failed one. A cancellation of the caller is no failure: it cancels them all and is thrown as it is.
+ * past a failed one. A cancellation of the caller is no failure: it cancels them all and is thrown as it is. A
+ * cancellation one stop throws while the caller is still active, such as a cancelled start it awaited or a timeout that
+ * escaped it, is that stop's failure, kept as any other.
  */
 
 /** Runs [stops] at once, each to its end; then throws the first failure, the others suppressed. */
@@ -40,7 +44,9 @@ private suspend fun failureOf(stop: suspend () -> Unit): Exception? = try {
     stop()
     null
 } catch (cancelled: CancellationException) {
-    throw cancelled
+    // Thrown again when the caller is cancelled; otherwise the stop's own failure.
+    currentCoroutineContext().ensureActive()
+    cancelled
 } catch (failure: Exception) {
     failure
 }

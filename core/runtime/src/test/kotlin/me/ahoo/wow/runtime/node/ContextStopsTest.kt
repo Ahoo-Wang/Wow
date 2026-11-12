@@ -14,7 +14,10 @@
 package me.ahoo.wow.runtime.node
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -59,12 +62,42 @@ class ContextStopsTest {
     }
 
     @Test
-    fun `a cancellation should be thrown as it is, ending the stops in turn`(): Unit = runBlocking {
-        val cancelled = CancellationException("cancelled")
+    fun `a cancellation a stop at once throws, its caller active, should be its failure, thrown after the others`(): Unit =
+        runBlocking {
+            // As a cancelled start it awaited, or a timeout that escaped it, would throw: the node is not cancelled.
+            val cancelled = CancellationException("a")
 
-        val thrown = runCatching { stopInTurn(stop("a", cancelled), stop("b")) }.exceptionOrNull()
+            val thrown = runCatching { stopEach(listOf(stop("a", cancelled), stop("b"), stop("c"))) }.exceptionOrNull()
 
-        thrown.assert().isSameAs(cancelled)
+            thrown.assert().isSameAs(cancelled)
+            ended.assert().containsExactlyInAnyOrder("b", "c")
+        }
+
+    @Test
+    fun `a cancellation a stop in turn throws, its caller active, should be its failure, thrown after the others`(): Unit =
+        runBlocking {
+            val cancelled = CancellationException("a")
+
+            val thrown = runCatching { stopInTurn(stop("a", cancelled), stop("b")) }.exceptionOrNull()
+
+            thrown.assert().isSameAs(cancelled)
+            ended.assert().containsExactly("b")
+        }
+
+    @Test
+    fun `a cancellation of the caller should be thrown as it is, ending the stops in turn`(): Unit = runBlocking {
+        val stopping = launch {
+            stopInTurn(
+                {
+                    currentCoroutineContext().cancel()
+                    delay(10)
+                },
+                { ended += "b" },
+            )
+        }
+        stopping.join()
+
+        stopping.isCancelled.assert().isTrue()
         ended.assert().isEmpty()
     }
 
