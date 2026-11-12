@@ -33,7 +33,6 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 import kotlin.random.Random
 
@@ -94,7 +93,6 @@ internal class SubscriptionWorker(
     val subscription: Subscription,
     val partition: Int,
     private val source: EntrySource,
-    private val checkpoints: CheckpointStore,
     private val ledger: FailureLedger,
     private val options: SubscriptionOptions,
     private val clock: Clock,
@@ -198,7 +196,7 @@ internal class SubscriptionWorker(
     }
 
     /** Where the worker's watermark is stored, and up to where it was. */
-    val saves = CheckpointSaves(group, subscription, partition, checkpoints, checkpoint) { watermark }
+    val saves = CheckpointSaves(subscription, partition, checkpoint) { watermark }
 
     /** Set by [abandon] under the monitor: the lanes are cancelled, so a retry would never run. */
     private var abandoned = false

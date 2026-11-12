@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -40,7 +41,7 @@ internal class Decisions(private val blocking: CoroutineContext) {
         val decided = when (decision) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            is Decision.Rejected -> return decision
+            is Decision.Rejected -> return decision.also { rejectedWith(model, body, it.events) }
         }
         declared(model, body, decided, decider.produces, "decide function")
         val afters = model.afterFunctions(body.javaClass)
@@ -73,6 +74,24 @@ internal class Decisions(private val blocking: CoroutineContext) {
             undeclared.javaClass,
             "${model.type}'s $function of ${commandClass.simpleName} produced ${undeclared.javaClass.simpleName}, " +
                 "which it does not declare: neither its return type nor its produces lists it.",
+        )
+    }
+
+    /**
+     * [events], those a rejection of [command] carries; an [UndeclaredEventException] when one is a lifecycle event.
+     * A rejection's events record the refused attempt: a lifecycle event among them would delete, restore or transfer
+     * the aggregate on a command the aggregate refused, which only a decision of events may do.
+     */
+    private fun rejectedWith(model: AggregateModel<*>, command: Any, events: List<Any>) {
+        val lifecycle = events.firstOrNull { it.javaClass in LIFECYCLE_EVENTS } ?: return
+        val commandClass = command.javaClass
+        throw UndeclaredEventException(
+            model.type,
+            commandClass,
+            lifecycle.javaClass,
+            "${model.type}'s decide function of ${commandClass.simpleName} rejected it with " +
+                "${lifecycle.javaClass.simpleName}: a rejection's events are the aggregate's own, never a lifecycle " +
+                "event, which only a decision of events commits.",
         )
     }
 
@@ -110,5 +129,9 @@ internal class Decisions(private val blocking: CoroutineContext) {
         } else {
             after.after(scope, state, body)
         }
+    }
+
+    private companion object {
+        val LIFECYCLE_EVENTS: Set<Class<*>> = Lifecycle.EVENTS.values.toSet()
     }
 }

@@ -175,6 +175,21 @@ internal class PostgresDifferentialQueryTest : PostgresDifferentialFixtures() {
                 ElementMatchFilter(QueryField("parts"), EqualFilter(QueryField("name"), "nut")),
             ),
             "element nor" to ElementMatchFilter(field("lines"), NorFilter(listOf(EqualFilter(QueryField("sku"), "A")))),
+            "element matches side by side" to AndFilter(
+                listOf(
+                    ElementMatchFilter(field("lines"), EqualFilter(QueryField("sku"), "B")),
+                    ElementMatchFilter(field("lines"), GreaterThanOrEqualFilter(QUANTITY.child(), 3)),
+                ),
+            ),
+            "nested element match beside an array range" to OrFilter(
+                listOf(
+                    ElementMatchFilter(
+                        field("lines"),
+                        ElementMatchFilter(QueryField("parts"), EqualFilter(QueryField("name"), "nut")),
+                    ),
+                    BetweenFilter(SCORES, 3, 6),
+                ),
+            ),
             "expression" to ExpressionFilter(
                 AggregationExpression.Binary(
                     AggregationExpressionOperator.DIVIDE,

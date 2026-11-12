@@ -24,6 +24,7 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ContextQueries
+import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
@@ -82,6 +83,8 @@ internal class SagaReceipts(
     private val caller: CommandCaller? = null,
     /** The contexts of the node, which a handler derives its commands to rather than call. */
     private val served: Set<String> = setOfNotNull(context.takeIf { it.isNotEmpty() }),
+    /** The node's codec, which writes the commands the handlers schedule. */
+    private val codec: EventCodec = EventCodec(),
 ) : ReceiptHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
@@ -99,7 +102,7 @@ internal class SagaReceipts(
     override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val calls = SagaCalls(caller, served, commandTypes, wait = null)
-        val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls)
+        val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls, codec)
         val executed = derived.execute(handle(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
         executed.rejected.parking()?.let { throw it }
         return calls.called + executed.executed
@@ -119,7 +122,7 @@ internal class SagaReceipts(
         val handler = sagas[committed.executionId.subscription]?.committedHandlerOf(command) ?: return null
         val next = DerivedCommands.waitOf(wait, context, handler.name)
         val calls = SagaCalls(caller, served, commandTypes, next)
-        val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries, calls)
+        val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries, calls, codec)
         val commands = try {
             handle(handler.blocking) { handler.invoke(committed, sagaContext) }
         } catch (rejected: CallRejectedHandlingException) {

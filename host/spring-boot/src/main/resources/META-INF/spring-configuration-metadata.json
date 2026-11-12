@@ -445,7 +445,7 @@
   }, {
     "name" : "wow.cluster.lease-parallelism",
     "type" : "java.lang.Integer",
-    "description" : "The most lease acquisitions a node runs at a time.",
+    "description" : "The most lease calls a node runs at a time for one lease group: its acquisitions and the releases its hand-offs end with, one bound for both.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.ClusterProperties",
     "defaultValue" : 16
   }, {

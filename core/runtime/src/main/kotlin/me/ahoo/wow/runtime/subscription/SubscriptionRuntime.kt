@@ -259,23 +259,13 @@ class SubscriptionRuntime internal constructor(
      * partitions its first reconcile starts this way ([me.ahoo.wow.runtime.cluster.PartitionOwnership.start]): the
      * backlog the first of them would read at once, a history migrate-data imported say, would slow down the starts of
      * the others.
+     *
+     * A stop of [partition] under way ([stopPartition]) ends first: the node never reads a partition twice.
      */
     suspend fun startPartition(partition: Int, reads: Job? = null) {
         requirePartition(partition)
         val begun = CompletableDeferred<Unit>()
-        val claimed = lifecycle.withLock {
-            val current = checkNotNull(running) { "Subscription group $group is not running." }
-            when {
-                current.partitions.containsKey(partition) -> null
-                current.starting.putIfAbsent(partition, begun) != null -> null
-                else -> current to subscriptions.values.toList()
-            }
-        }
-        if (claimed == null) {
-            running?.starting?.get(partition)?.join()
-            return
-        }
-        val (run, named) = claimed
+        val (run, named) = claim(partition, begun) ?: return
         try {
             val starts = workerStarts.startsIn(run.parked, run.joined, named, partition)
             lifecycle.withLock {
@@ -300,20 +290,62 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
+     * Claims the start of [partition] for [begun]: the run and the subscriptions to start, or null when the partition
+     * is read already or a start of it running is done. A stop of it under way is waited for, then asked again.
+     */
+    private suspend fun claim(partition: Int, begun: CompletableDeferred<Unit>): Pair<Running, List<Subscription>>? {
+        while (true) {
+            val stopping = lifecycle.withLock {
+                val current = checkNotNull(running) { "Subscription group $group is not running." }
+                current.stopping[partition] ?: when {
+                    current.partitions.containsKey(partition) -> return null
+                    current.starting.putIfAbsent(partition, begun) != null -> null
+                    else -> return current to subscriptions.values.toList()
+                }
+            }
+            if (stopping == null) {
+                running?.starting?.get(partition)?.join()
+                return null
+            }
+            stopping.join()
+        }
+    }
+
+    /**
      * Stops reading [partition] as [stop] does for all of them: waits at most [SubscriptionOptions.stopTimeout] for
      * its entries in flight and saves its checkpoints, so the node can hand the partition off. The
-     * other partitions keep running. Nothing happens when it is not read; a start of it running is waited for first.
+     * other partitions keep running. Nothing happens when it is not read; a start of it running is waited for first,
+     * a stop of it under way waited for instead.
+     *
+     * The lifecycle mutex is held only to take the partition out of the run: its drain and its save run outside it,
+     * so the partitions a hand-off stops together drain together (RT-14), and a start of the partition waits for them.
      */
     suspend fun stopPartition(partition: Int) {
         running?.starting?.get(partition)?.join()
-        lifecycle.withLock {
-            val run = running ?: return@withLock
-            val part = run.partitions.remove(partition) ?: return@withLock
-            try {
-                halt(listOf(part))
-            } finally {
-                part.workers.forEach { run.workers.remove(it.subscription.name to partition) }
+        val ended = CompletableDeferred<Unit>()
+        var other: Job? = null
+        val claimed = lifecycle.withLock {
+            val run = running ?: return
+            val part = run.partitions.remove(partition)
+            if (part == null) {
+                other = run.stopping[partition]
+                null
+            } else {
+                run.stopping[partition] = ended
+                run to part
             }
+        }
+        if (claimed == null) {
+            other?.join()
+            return
+        }
+        val (run, part) = claimed
+        try {
+            halt(listOf(part))
+        } finally {
+            part.workers.forEach { run.workers.remove(it.subscription.name to partition) }
+            run.stopping.remove(partition, ended)
+            ended.complete(Unit)
         }
     }
 
@@ -347,6 +379,7 @@ class SubscriptionRuntime internal constructor(
     /**
      * Stops reading, waits at most [SubscriptionOptions.stopTimeout] for the entries in flight, abandons the rest,
      * and saves every checkpoint. An abandoned entry is above the saved checkpoint and is handled after a restart.
+     * The partitions stopping on their own ([stopPartition]) end before the run does: no checkpoint is saved after it.
      */
     suspend fun stop(): Unit = lifecycle.withLock {
         val run = running ?: return@withLock
@@ -354,18 +387,36 @@ class SubscriptionRuntime internal constructor(
         try {
             halt(run.partitions.values.toList())
         } finally {
-            run.root.cancelAndJoin()
+            try {
+                run.stopping.values.forEach { it.join() }
+            } finally {
+                run.root.cancelAndJoin()
+            }
         }
     }
 
-    /** Stops reading [parts], drains them within the stop timeout, abandons the rest and saves their checkpoints. */
+    /**
+     * Stops reading [parts], drains them within the stop timeout, abandons the rest and saves their checkpoints, in one
+     * call of the store a partition, each tried whatever the others' came to; the first failure is thrown.
+     */
+    @Suppress("TooGenericExceptionCaught") // Kept, and thrown once every partition's save was tried.
     private suspend fun halt(parts: List<PartitionRun>) {
         parts.forEach { it.readersJob.cancelAndJoin() }
         val workers = parts.flatMap { it.workers }
         withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.awaitDrained() } }
         parts.forEach { it.lanesJob.cancelAndJoin() }
         workers.forEach { it.abandon() }
-        workers.forEach { it.saves.flush() }
+        var failure: Exception? = null
+        for (part in parts) {
+            try {
+                save(part.workers)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failed: Exception) {
+                failure = failure ?: failed
+            }
+        }
+        failure?.let { throw it }
     }
 
     /**
@@ -490,7 +541,6 @@ class SubscriptionRuntime internal constructor(
             subscription = subscription,
             partition = partition,
             source = source,
-            checkpoints = checkpoints,
             ledger = ledger,
             options = options,
             clock = clock,
@@ -515,21 +565,24 @@ class SubscriptionRuntime internal constructor(
      */
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.
     private suspend fun flushQuietly(workers: Collection<SubscriptionWorker>) {
-        val due = workers.mapNotNull { worker -> worker.saves.unsaved()?.let { worker to it } }
-        if (due.isEmpty()) {
-            return
-        }
         try {
-            checkpoints.saveAll(group, due.map { it.second })
-            due.forEach { (worker, checkpoint) -> worker.saves.saved(checkpoint) }
+            save(workers)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
             // The watermarks stay ahead of the stored checkpoints until a save succeeds.
             logger.warn(failure) {
-                "Failed to save the checkpoints of ${due.size} subscription partitions of group $group; " +
-                    "retrying on the next tick."
+                "Failed to save the checkpoints of the subscription partitions of group $group; retrying on the next tick."
             }
+        }
+    }
+
+    /** Saves the checkpoints of [workers] that moved since their last save, in one call of the store. */
+    private suspend fun save(workers: Collection<SubscriptionWorker>) {
+        val due = workers.mapNotNull { worker -> worker.saves.unsaved()?.let { worker to it } }
+        if (due.isNotEmpty()) {
+            checkpoints.saveAll(group, due.map { it.second })
+            due.forEach { (worker, checkpoint) -> worker.saves.saved(checkpoint) }
         }
     }
 }

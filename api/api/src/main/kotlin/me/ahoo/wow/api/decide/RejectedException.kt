@@ -25,7 +25,8 @@ class RejectedException @JvmOverloads constructor(
     val rejection: Rejection,
     /**
      * The events the rejection carries, ordinary events of the aggregate that it sources and that are appended with
-     * the rejection: an audit of the attempt, a counter of refusals. Empty: nothing is appended.
+     * the rejection: an audit of the attempt, a counter of refusals, never a lifecycle event (the command fails instead).
+     * Empty: nothing is appended.
      */
     val events: List<Any> = emptyList(),
 ) : RuntimeException(rejection.message) {

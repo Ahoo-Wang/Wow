@@ -253,8 +253,6 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 	public final fun isEmpty ()Z
 	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;D)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;DLjava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun over (Lme/ahoo/wow/kernel/HandlerRetry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public fun toString ()Ljava/lang/String;
 }
@@ -262,8 +260,6 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;D)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;DLjava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;DILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;DLjava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 }

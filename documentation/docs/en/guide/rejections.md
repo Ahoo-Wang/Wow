@@ -93,7 +93,7 @@ fun onCommand(command: Unlock): Unlocked =
     }
 ```
 
-- **They are the aggregate's events.** The aggregate sources them with its sourcing functions, and they are committed with the rejection in one stream, at the next version, as any decision's events: projections, sagas and the state read them. An event the aggregate has no sourcing function for fails the command, and nothing is written. There is no list of a rejection's events to declare: they are among the aggregate's events.
+- **They are the aggregate's events.** The aggregate sources them with its sourcing functions, and they are committed with the rejection in one stream, at the next version, as any decision's events: projections, sagas and the state read them. An event the aggregate has no sourcing function for fails the command, and nothing is written. There is no list of a rejection's events to declare: they are among the aggregate's events. A lifecycle event is never one of them: a rejection that carries `AggregateDeleted`, or any other, fails the command (`wow.command.undeclared-event`) and writes nothing, since only a decision of events changes the aggregate's lifecycle.
 - **The caller still gets the rejection**, with its code and status. The result's `version` is the one the events reached. A rejection without events writes nothing, and its `version` is the one the decision saw.
 - **What the refused decision set up is undone.** Its schedules are not committed, and its reservations are released, with the other compensations registered by `onAppendFailure`, as for a rejection without events.
 - **A retry is answered with the same rejection.** Sending the command again with the same request id answers the rejection the stream recorded, as a duplicate, at the same version.

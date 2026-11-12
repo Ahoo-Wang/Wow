@@ -18,8 +18,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 /**
  * A command's handling produced an event its function does not declare: a decide function or an after hook of the
  * model of [type] produced [event] for [command], outside the events its return type yields or its `produces` lists, or
- * a lifecycle command's decide function another lifecycle event than its own. A bug in the model, not an outcome of the
- * command: the command fails (`wow.command.undeclared-event`) and commits nothing.
+ * a lifecycle command's decide function another lifecycle event than its own, or a decide function rejected it with a
+ * lifecycle event. A bug in the model, not an outcome of the command: the command fails
+ * (`wow.command.undeclared-event`) and commits nothing.
  */
 class UndeclaredEventException(
     val type: AggregateType,

@@ -118,7 +118,8 @@ fun rejectionContextOf(
 
 /**
  * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
- * ref go to the aggregate type [commandTypes] assigns their class, and whose calls go through [calls].
+ * ref go to the aggregate type [commandTypes] assigns their class, whose calls go through [calls], and
+ * whose scheduled commands [codec] writes, the node's.
  */
 @InternalWowApi
 fun rejectionContextOf(
@@ -128,6 +129,7 @@ fun rejectionContextOf(
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
     calls: CommandCalls = CommandCalls.NONE,
+    codec: EventCodec = EventCodec(),
 ): SagaContext = ExecutionReceiptContext(
     // The receipt comes back to the saga's own context, which its execution names.
     ExecutionId(rejected.executionId.context, handler.name, rejected.executionId.ref, rejected.executionId.version),
@@ -139,6 +141,7 @@ fun rejectionContextOf(
     rejected.headers,
     commandTypes,
     queries,
+    codec = codec,
     calls = calls,
     sends = handler.sends,
 )

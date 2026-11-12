@@ -32,7 +32,7 @@ sealed interface CommandOutcome {
      * answered with at the version [stream] reached, and [results] are empty.
      */
     @InternalWowApi
-    class Committed(
+    data class Committed(
         val stream: EventStreamRecord,
         val position: LogPosition,
         val state: Any,
@@ -43,45 +43,15 @@ sealed interface CommandOutcome {
         val first: FirstCommit? = null,
         /** The rejection whose events [stream] commits; null for a commit of the command's events. */
         val rejection: Rejection? = null,
-    ) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is Committed && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String =
-            "Committed(stream=$stream, position=$position, state=$state, results=$results, deleted=$deleted, " +
-                "schedules=$schedules, first=$first, rejection=$rejection)"
-
-        private fun valueFields(): List<Any?> =
-            listOf(stream, position, state, results, deleted, schedules, first, rejection)
-    }
+    ) : CommandOutcome
 
     /** The same command was already committed as [stream]: it was not decided again. */
     @InternalWowApi
-    class AlreadyCommitted(val stream: EventStreamRecord) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is AlreadyCommitted && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String = "AlreadyCommitted(stream=$stream)"
-
-        private fun valueFields(): List<Any?> = listOf(stream)
-    }
+    data class AlreadyCommitted(val stream: EventStreamRecord) : CommandOutcome
 
     /** The command was accepted and changed nothing; the aggregate stays at [version]. */
     @InternalWowApi
-    class Unchanged(val version: Int) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is Unchanged && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String = "Unchanged(version=$version)"
-
-        private fun valueFields(): List<Any?> = listOf(version)
-    }
+    data class Unchanged(val version: Int) : CommandOutcome
 
     /**
      * The command was refused and nothing was written: [version] is the aggregate's version the decision saw, null
@@ -91,46 +61,18 @@ sealed interface CommandOutcome {
      * does not exist; 0 otherwise. The node warns about them, and the test DSL fails the command's specification.
      */
     @InternalWowApi
-    class Rejected(
+    data class Rejected(
         val rejection: Rejection,
         val version: Int? = null,
         val duplicate: Boolean = false,
         val droppedEvents: Int = 0,
-    ) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is Rejected && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String =
-            "Rejected(rejection=$rejection, version=$version, duplicate=$duplicate, droppedEvents=$droppedEvents)"
-
-        private fun valueFields(): List<Any?> = listOf(rejection, version, duplicate, droppedEvents)
-    }
+    ) : CommandOutcome
 
     /** Concurrent writers kept winning the version slot for [attempts] attempts. */
     @InternalWowApi
-    class Contended(val attempts: Int) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is Contended && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String = "Contended(attempts=$attempts)"
-
-        private fun valueFields(): List<Any?> = listOf(attempts)
-    }
+    data class Contended(val attempts: Int) : CommandOutcome
 
     /** Whether the command committed could not be established. */
     @InternalWowApi
-    class Unknown(val cause: Throwable) : CommandOutcome {
-        override fun equals(other: Any?): Boolean =
-            this === other || other is Unknown && valueFields() == other.valueFields()
-
-        override fun hashCode(): Int = valueFields().hashCode()
-
-        override fun toString(): String = "Unknown(cause=$cause)"
-
-        private fun valueFields(): List<Any?> = listOf(cause)
-    }
+    data class Unknown(val cause: Throwable) : CommandOutcome
 }
