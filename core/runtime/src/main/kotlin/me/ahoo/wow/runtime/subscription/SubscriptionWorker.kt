@@ -166,7 +166,8 @@ internal class SubscriptionWorker(
     private val runs = if (subscription.runsTogether) LaneRuns(subscription, source, handling, hops, Ops()) else null
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
-    private val queued = AggregateLanes<Item>(this, lanes, ::handle, ::stopped)
+    private val queued =
+        AggregateLanes<Item>("${subscription.name} partition $partition", this, lanes, ::handle, ::stopped)
 
     /** What the worker writes to the ledger: a park, and a retry's repark or resolution. */
     private val writes = ParkWrites(
@@ -293,11 +294,13 @@ internal class SubscriptionWorker(
         is Item.Skip -> runSkip(ref, item)
     }
 
-    /** [item] met [error]: its lane stops, still active, so the aggregate's later entries queue behind it unhandled. */
-    private fun stopped(item: Item, error: VirtualMachineError) {
+    /** [failure] escaped [item]: its lane ends ([AggregateLanes]), a fatal error recorded with its partition. */
+    private fun stopped(item: Item, failure: Throwable) {
         // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
-        (item as? Item.Action)?.result?.completeExceptionally(error)
-        fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", error, partition)
+        (item as? Item.Action)?.result?.completeExceptionally(failure)
+        if (failure is VirtualMachineError) {
+            fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", failure, partition)
+        }
     }
 
     private suspend fun runLive(item: Item.Live) {

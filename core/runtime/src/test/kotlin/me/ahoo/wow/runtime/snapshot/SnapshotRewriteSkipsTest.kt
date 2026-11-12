@@ -59,13 +59,19 @@ class SnapshotRewriteSkipsTest {
         var total = 0
     }
 
-    /** The counter at [revision]; [poisoned], an amount of [POISON] no longer replays, as after a broken upgrade. */
-    private fun model(revision: Int, poisoned: Boolean = false): AggregateModel<Counter> =
+    /**
+     * The counter at [revision]; [poisoned], an amount of [POISON] no longer replays, as after a broken upgrade, failing
+     * with an `Error` of the application's code when [error], an exception otherwise.
+     */
+    private fun model(revision: Int, poisoned: Boolean = false, error: Boolean = false): AggregateModel<Counter> =
         aggregate<Counter>(CONTEXT, "counter") {
             stateRevision(revision)
             initial { Counter() }
             decide<Add>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
             evolve<Added> {
+                if (poisoned && error && it.amount == POISON) {
+                    throw NotImplementedError("No amount is $POISON any more.")
+                }
                 check(!poisoned || it.amount != POISON) { "No amount is $POISON any more." }
                 total += it.amount
             }
@@ -155,6 +161,24 @@ class SnapshotRewriteSkipsTest {
             ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay").contains("$POISON")
             skipped().map { it.type to it.work }.assert().containsExactly(type to Work.SNAPSHOT_REWRITE)
         }
+
+    @Test
+    fun `a snapshot whose replay meets an error of the application's code should be parked as one that does not replay`():
+        Unit = runBlocking {
+        val store = InMemorySnapshotStore()
+        val (a, b, c) = stored(store)
+        val maintenance = maintenance(model(2, poisoned = true, error = true), store)
+        maintenance.prepare()
+        store.mark(type, 2, backfilled = true)
+
+        maintenance.maintain()
+
+        store.load(a)!!.stateRevision.assert().isEqualTo(2)
+        store.load(c)!!.stateRevision.assert().isEqualTo(2)
+        store.load(b)!!.stateRevision.assert().isEqualTo(1)
+        store.table(type)!!.rebuilding.assert().isFalse()
+        ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay").contains("$POISON")
+    }
 
     @Test
     fun `a rewrite a retry may change should stop the run, parking nothing and leaving the table rebuilding`(): Unit =

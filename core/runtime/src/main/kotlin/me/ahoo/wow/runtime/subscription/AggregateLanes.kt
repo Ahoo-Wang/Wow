@@ -13,21 +13,25 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.runtime.health.launchWorker
 
 /**
- * The lanes of one [SubscriptionWorker]: one an aggregate with items queued, drained in [scope] one item after another,
- * in their order, until the lane is empty; the aggregate's next item opens a new lane. Each item is run by [handle];
- * one that meets a [VirtualMachineError] is told to [stopped], and the error is thrown on, the lane stopping there.
- * Every section runs under [monitor], the worker's.
+ * The lanes of one [SubscriptionWorker], [name]d: one an aggregate with items queued, drained in [scope] one item after
+ * another, in their order, until the lane is empty; the aggregate's next item opens a new lane. Each item is run by
+ * [handle], which handles its own failures. Whatever escapes it, but the scope's stop, is told to [stopped] and ends the
+ * lane as a loop of the node ends ([launchWorker]): the node's liveness is `DOWN`, or the node fatal for a fatal error.
+ * The lane stays active, so the aggregate's later entries wait behind the one it did not settle rather than run past
+ * it, until a restart reads the partition again from its checkpoint. Every section runs under [monitor], the worker's.
  */
 internal class AggregateLanes<I : Any>(
+    private val name: String,
     private val monitor: Any,
     private val scope: CoroutineScope,
     private val handle: suspend (ref: AggregateRef, lane: Lane<I>, item: I) -> Unit,
-    private val stopped: (item: I, error: VirtualMachineError) -> Unit,
+    private val stopped: (item: I, failure: Throwable) -> Unit,
 ) {
     private val active = HashMap<AggregateRef, Lane<I>>()
 
@@ -40,7 +44,7 @@ internal class AggregateLanes<I : Any>(
     fun enqueue(ref: AggregateRef, item: I, first: Boolean) {
         val lane = active[ref] ?: Lane<I>().also {
             active[ref] = it
-            scope.launch { drain(ref, it) }
+            scope.launchWorker("lane of $ref in $name") { next(ref, it) }
         }
         if (first) lane.items.addFirst(item) else lane.items.addLast(item)
     }
@@ -48,20 +52,23 @@ internal class AggregateLanes<I : Any>(
     /** Called under the monitor: forgets every lane, returning the items still queued in them. */
     fun clear(): List<I> = active.values.flatMap { it.items }.also { active.clear() }
 
-    private suspend fun drain(ref: AggregateRef, lane: Lane<I>) {
-        while (true) {
-            val item = synchronized(monitor) {
-                lane.items.removeFirstOrNull() ?: run {
-                    active.remove(ref)
-                    null
-                }
-            } ?: return
-            try {
-                handle(ref, lane, item)
-            } catch (error: VirtualMachineError) {
-                stopped(item, error)
-                throw error
+    /** Runs the next item of [ref]'s [lane]: false once the lane is empty, and forgotten. */
+    @Suppress("TooGenericExceptionCaught") // Whatever escaped the item ends the lane, its action answered first.
+    private suspend fun next(ref: AggregateRef, lane: Lane<I>): Boolean {
+        val item = synchronized(monitor) {
+            lane.items.removeFirstOrNull() ?: run {
+                active.remove(ref)
+                null
             }
+        } ?: return false
+        try {
+            handle(ref, lane, item)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            stopped(item, failure)
+            throw failure
         }
+        return true
     }
 }
