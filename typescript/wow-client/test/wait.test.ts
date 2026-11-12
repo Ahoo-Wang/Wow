@@ -62,9 +62,14 @@ describe('wait plans', () => {
       'queryable(eshop-catalog)',
     );
     expect(
-      parseWaitPlan('committed > queryable(eshop-catalog) > handled(wow.queryable)')
-        .hops,
-    ).toEqual([wait.committed(), wait.queryable('eshop-catalog'), wait.queryable()]);
+      parseWaitPlan(
+        'committed > queryable(eshop-catalog) > handled(wow.queryable)',
+      ).hops,
+    ).toEqual([
+      wait.committed(),
+      wait.queryable('eshop-catalog'),
+      wait.queryable(),
+    ]);
     expect(wait.queryable().subscription).toBe(QUERYABLE_SUBSCRIPTION);
   });
 

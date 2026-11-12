@@ -99,7 +99,9 @@ export type Stage = (typeof Stage)[keyof typeof Stage];
  * One hop of a wait chain: a stage, in a context (the
  * command's own when absent), of a subscription when the stage is
  * `handled`. The snapshot is the subscription named `wow.snapshot`
- * (`SNAPSHOT_SUBSCRIPTION`), which a `Wow-Wait` header writes `snapshot`.
+ * (`SNAPSHOT_SUBSCRIPTION`), which a `Wow-Wait` header writes `snapshot`;
+ * the store the snapshot queries read is `wow.queryable`
+ * (`QUERYABLE_SUBSCRIPTION`), written `queryable`.
  */
 export interface Hop {
   /**

@@ -103,7 +103,7 @@ may create its aggregate leaves `id` out and goes by the route without one. As w
 ends with (the server's default plan when there is none), and `stream` one
 `CommandResult` per hop. `wait` is a `WaitPlan`, as Kotlin's:
 `WaitPlan.ACCEPTED`, `COMMITTED`, `SNAPSHOT`, or `WaitPlan.of(...hops)` of the
-`wait` hops (`accepted`, `committed`, `snapshot`, or a subscription's
+`wait` hops (`accepted`, `committed`, `snapshot`, `queryable`, or a subscription's
 `handled`, also across a saga's derived commands), `.within(ms)` its timeout;
 `timeout` is in milliseconds and overrides it. `parseWaitPlan` and
 `formatWaitPlan` read and write the `Wow-Wait` header. `targetTenant` and `targetScope`

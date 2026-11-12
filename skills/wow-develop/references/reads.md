@@ -93,7 +93,7 @@ The body of a query names its operation in `kind`; relative-time operators witho
 
 ## HTTP headers and problems
 
-- Headers: `Wow-Wait` (`accepted`, `committed`, `snapshot`, `handled([ctx/]sub)`, chained with `>`; default `snapshot`), `Wow-Wait-Timeout`, `Wow-Request-Id`, `If-Match`, `Accept: text/event-stream`, `Wow-Scope`, `Wow-Space`.
+- Headers: `Wow-Wait` (`accepted`, `committed`, `snapshot`, `queryable` (the store the snapshot queries read holds the commit), `handled([ctx/]sub)`, chained with `>`; default `snapshot`), `Wow-Wait-Timeout`, `Wow-Request-Id`, `If-Match`, `Accept: text/event-stream`, `Wow-Scope`, `Wow-Space`.
 - Errors are RFC 9457 problems (`application/problem+json`, `type` `urn:wow:error:<code>`), with `code`, `status`, `detail`, and `violations` for a refused query or command body. A domain rejection's status is the `@ErrorCode`'s, overridable per code with `wow.http.errors.[<code>].status`. The application's own routes answer problems too (`wow.http.global-errors.enabled`).
 
 ## The Manifest is the contract
