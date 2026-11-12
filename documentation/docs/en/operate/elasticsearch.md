@@ -126,7 +126,7 @@ wow:
   - its state reads answer that snapshot, else the log replayed, and the lists show that snapshot or nothing.
 
   Fix the state or the mapping, then retry the parked entries.
-- **A PostgreSQL log loses its fast paths.** It reads a snapshot with its tail in one round trip, and covers a snapshot write in the commit's transaction, only when both are on PostgreSQL. A MongoDB log has neither, so it loses nothing.
+- **A PostgreSQL log loses its fast paths.** Only when a type's log, snapshots and checkpoints are on one PostgreSQL store does a command read the snapshot with the log's tail in one round trip. Only then do the snapshot subscription's writes commit without waiting for their own WAL flush, since the checkpoints saved after them cover them. A MongoDB log has neither, so it loses nothing.
 ## Store combinations
 
 Each aggregate type picks its stores: its log on PostgreSQL or MongoDB, its snapshots there or on Elasticsearch (`wow.log.store`, `wow.snapshot.store`, and the aggregate's `log.store` and `snapshot.store`), a copy of its snapshots and its events search on Elasticsearch, as the sample above sets them. Two consequences:

@@ -126,7 +126,7 @@ wow:
   - 它的状态读取应答那个快照，没有时应答重放的日志，列表显示那个快照或者没有它。
 
   修正状态或映射后，重试停放的条目。
-- **PostgreSQL 日志会失去它的快路径。** 只有两者都在 PostgreSQL 上时，它才能在一次往返中读快照及其尾部，并在提交的事务中写快照。MongoDB 日志两者都没有，所以什么也不失去。
+- **PostgreSQL 日志会失去它的快路径。** 只有类型的日志、快照和检查点都在同一个 PostgreSQL 存储上时，命令才能在一次往返中读出快照及其后的日志尾部。也只有这时，快照订阅的写入才不必等待自己的 WAL 刷盘就提交，因为其后保存的检查点覆盖了它们。MongoDB 日志两者都没有，所以什么也不失去。
 ## 存储组合 {#store-combinations}
 
 每个聚合类型各自选择存储：日志在 PostgreSQL 或 MongoDB 上，快照在那里或在 Elasticsearch 上（`wow.log.store`、`wow.snapshot.store`，以及聚合的 `log.store` 和 `snapshot.store`），快照的副本和事件检索在 Elasticsearch 上，如上面的示例所设。由此有两点：
