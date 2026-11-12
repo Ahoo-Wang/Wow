@@ -1,0 +1,25 @@
+# The drill's platform before the services: the stores, the broker, the gateway's Redis, the telemetry, and the
+# NetworkPolicies that close them to everything but the platform's pods, in the drill's namespace. What must come after
+# something else is applied on its own, in this order (README.md, "The platform"): the jobs (kafka/kafka-topics.yaml,
+# elasticsearch/elasticsearch-users.yaml) once their store answers; the gateway's documents, then gateway/gateway.yaml;
+# ingress/ingress.yaml once Traefik is installed; observability/instrumentation.yaml once the operator's CRDs exist; and
+# probes.yaml with the drill's version in its image.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wow-rc-drill
+resources:
+  - mongodb
+  - kafka/kafka.yaml
+  - elasticsearch/elasticsearch.yaml
+  - clickhouse/clickhouse.yaml
+  - gateway/redis.yaml
+  - networkpolicies.yaml
+  - observability/collector.yaml
+  - observability/prometheus.yaml
+  - observability/kube-state-metrics.yaml
+configMapGenerator:
+  - name: prometheus-rules
+    files:
+      - observability/alerts.yaml
+    options:
+      disableNameSuffixHash: true

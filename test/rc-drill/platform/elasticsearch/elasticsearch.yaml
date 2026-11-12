@@ -1,0 +1,161 @@
+# Elasticsearch for the catalog's search (its search profile: a copy of the products' snapshots and events), three
+# master-eligible data nodes, one per zone, with security on: users and passwords (elasticsearch-users.yaml), and TLS
+# between the nodes, signed by the drill's own CA. The HTTP port is plain behind the cluster's NetworkPolicy, as the
+# other stores are, so the services' clients need no trust store; a deployment that leaves the cluster's network puts
+# TLS on it too. The image is the one .github/ga-e2e/ pins.
+#
+# The secrets are the drill's (README.md, "Secrets"):
+#   elasticsearch-certs        ca.crt, tls.crt, tls.key: the nodes' transport certificate and its CA
+#   elasticsearch-credentials  password (the elastic superuser's), eshop-catalog (the catalog's user)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  serviceName: elasticsearch-headless
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elasticsearch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elasticsearch
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        fsGroup: 1000
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: elasticsearch
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:9.2.6@sha256:e5673d86bb6a41ed543329ec094fc93d5ef749d32cc87a4150a15d520ad9c670
+          env:
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: cluster.name
+              value: wow-rc-drill
+            - name: discovery.seed_hosts
+              value: elasticsearch-headless
+            # The first start's election only; a node that joined an elected cluster ignores it.
+            - name: cluster.initial_master_nodes
+              value: elasticsearch-0,elasticsearch-1,elasticsearch-2
+            - name: xpack.security.enabled
+              value: "true"
+            - name: xpack.security.http.ssl.enabled
+              value: "false"
+            - name: xpack.security.transport.ssl.enabled
+              value: "true"
+            # The CA's signature is checked, not the host name: the drill's certificate is one for every node.
+            - name: xpack.security.transport.ssl.verification_mode
+              value: certificate
+            - name: xpack.security.transport.ssl.key
+              value: certs/tls.key
+            - name: xpack.security.transport.ssl.certificate
+              value: certs/tls.crt
+            - name: xpack.security.transport.ssl.certificate_authorities
+              value: certs/ca.crt
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: password
+            # No mmap, so the kind nodes' vm.max_map_count does not matter.
+            - name: node.store.allow_mmap
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: -Xms768m -Xmx768m
+          ports:
+            - name: http
+              containerPort: 9200
+            - name: transport
+              containerPort: 9300
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fsS -u "elastic:${ELASTIC_PASSWORD}" "http://localhost:9200/_cluster/health?local=true" >/dev/null
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+            - name: certs
+              mountPath: /usr/share/elasticsearch/config/certs
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1536Mi
+            limits:
+              memory: 1536Mi
+      volumes:
+        - name: certs
+          secret:
+            secretName: elasticsearch-certs
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+# The address the catalog's values name (SPRING_ELASTICSEARCH_URIS).
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  selector:
+    app.kubernetes.io/name: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+---
+# The nodes' own names, for discovery; published before a node is ready, since the cluster must form first.
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-headless
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+    - name: transport
+      port: 9300
+      targetPort: transport
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: elasticsearch
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elasticsearch
