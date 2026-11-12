@@ -60,9 +60,9 @@ import kotlin.time.Duration
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
  *   index lacks, so that the documents written before it are found by it too; 1,000 by default, `-1` for no limit;
- * - `operation-timeout`: how long each of its requests, writes, loads and queries alike, may wait for an answer
- *   ([ElasticsearchTimeouts.OPERATION], 30 seconds, when not set), so that a server that stops answering fails them
- *   instead of holding them; the client's own response timeout still applies when it is shorter.
+ * - `operation-timeout`: how long the caller of each of its requests, writes, loads and queries alike, waits for an
+ *   answer ([ElasticsearchTimeouts.OPERATION], 30 seconds, when not set), so that a server that stops answering fails
+ *   its callers instead of holding them; the request and its connection are the client's ([BoundedHttpClient]).
  *
  * Found by `ServiceLoader`. It is never `available`: Elasticsearch holds no log, so `wow.backend=auto` never takes it.
  */
@@ -150,9 +150,10 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         /** The option bounding each of the store's requests. */
         val OPERATION_TIMEOUT = ProviderOption.duration(
             "operation-timeout",
-            "how long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an " +
-                "answer: a server that stops answering fails the request instead of holding it; the client's own " +
-                "response timeout still applies when shorter.",
+            "how long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, " +
+                "waits for an answer: a server that stops answering fails the caller instead of holding it. The " +
+                "request and its connection are the client's, freed when the server answers or at the client's own " +
+                "response timeout.",
             ElasticsearchTimeouts.OPERATION,
         )
     }

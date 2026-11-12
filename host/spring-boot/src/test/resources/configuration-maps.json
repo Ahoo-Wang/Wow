@@ -157,7 +157,7 @@
   }, {
     "name" : "wow.stores.<name>.operation-timeout",
     "type" : "java.time.Duration",
-    "description" : "On elasticsearch: how long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an answer: a server that stops answering fails the request instead of holding it; the client's own response timeout still applies when shorter. On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
+    "description" : "On elasticsearch: how long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout. On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "PT30S"
   }, {

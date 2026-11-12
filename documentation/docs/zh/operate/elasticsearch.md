@@ -39,7 +39,7 @@ wow:
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`none`（在索引的刷新间隔内）、`wait-for`（写入返回时）或 `immediate` | `none` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
-| `wow.stores.<name>.operation-timeout` | 它的每个请求最多等待应答多久（[见下文](#a-server-that-stops-answering)） | `wow.elasticsearch.operation-timeout`，`30s` |
+| `wow.stores.<name>.operation-timeout` | 它的每个请求的调用方最多等待应答多久（[见下文](#a-server-that-stops-answering)） | `wow.elasticsearch.operation-timeout`，`30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；也可以是 Elasticsearch（[下文](#only-snapshot-store)） | `wow.snapshot.store`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储；不是它自己的存储时，这个存储就为这些查询保存一份它的快照副本 | 它自己的快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
@@ -48,7 +48,36 @@ wow:
 
 ### 服务器不再应答 {#a-server-that-stops-answering}
 
-存储的每个请求，无论写入、加载还是查询，最多等待 `operation-timeout` 得到应答，与 MongoDB 或 PostgreSQL 存储的调用一样。服务器不再应答时（被暂停，或连接已断开），请求以暂时性错误失败，而不是一直等下去：它的交换被中止，连接被关闭，腾出它在客户端连接池中的位置。加载失败的命令重放它的日志，写入失败的快照订阅暂停它的分区并重试。这个上限是存储自己的：`Rest5Client` 自己的超时更短时照样生效；用库的默认值构建、没有响应超时的客户端，也同样受这个上限约束。
+存储的每个请求，无论写入、加载还是查询，其调用方最多等待 `operation-timeout` 得到应答，与 MongoDB 或 PostgreSQL 存储的调用一样：超过它，调用方以暂时性错误失败。加载失败的命令重放它的日志，写入失败的快照订阅暂停它的分区并重试。
+
+这个上限约束的是调用方，而不是连接。存储不取消任何请求：HttpClient 5 会保留交换被取消的复用连接，并且会在一条新连接上重新执行在字节写出前被取消的请求，而那条连接没有任何东西会释放。请求在应用的 `Rest5Client` 中继续运行，它的连接在服务器应答或重置连接时释放，或者在客户端自己的响应超时时释放。服务器被暂停期间，客户端的连接池可能被占满：之后的请求等待连接，它们的调用方仍在上限处失败；服务器恢复应答后，这些连接随之归还。
+
+连接被占用多久，由客户端决定：
+
+- **Spring Boot 的客户端**（`spring.elasticsearch.*`）没有响应超时。`spring.elasticsearch.socket-timeout`（默认 30 秒）不会结束连接池复用的连接上的交换，所以被暂停的服务器会一直占着它的连接，直到它应答。用一个 `Rest5ClientBuilderCustomizer` bean 设置响应超时：
+
+<!-- sample: fragment -->
+
+```kotlin
+import co.elastic.clients.transport.rest5_client.low_level.Rest5ClientBuilder
+import org.apache.hc.client5.http.config.RequestConfig
+import org.apache.hc.core5.util.Timeout
+import org.springframework.boot.elasticsearch.autoconfigure.Rest5ClientBuilderCustomizer
+import org.springframework.context.annotation.Bean
+
+@Bean
+fun elasticsearchResponseTimeout(): Rest5ClientBuilderCustomizer = object : Rest5ClientBuilderCustomizer {
+    override fun customize(builder: Rest5ClientBuilder) = Unit
+
+    override fun customize(builder: RequestConfig.Builder) {
+        builder.setResponseTimeout(Timeout.ofSeconds(30))
+    }
+}
+```
+
+- **手工构建的客户端**在它的 `Rest5Client.builder` 上用 `setRequestConfigCallback { it.setResponseTimeout(Timeout.ofSeconds(30)) }` 设置。
+
+在客户端的响应超时内没有应答的请求会失败，它的连接被关闭，并且不会被重新执行。响应超时约束客户端的每个请求，所以要设得比存储最长的请求更长，例如一次检索或事件索引的访问属性写入。
 
 ## 快照查询 {#snapshot-queries}
 
@@ -123,7 +152,7 @@ wow:
 - **命令按 ID 从它加载。** 命令用实时 get 从索引加载状态，再从日志的存储读日志的尾部。状态读取（`GET …/state`）也这样读这个索引。无论 `refresh` 取什么，写入一返回，按 ID 就能立刻读回。
 - **它的默认等待止于 Elasticsearch。** 索引包含该提交时 `snapshot` 就结束。这个类型的查询读的是同一个索引，所以 `queryable` 是同一个等待。在默认的 `refresh: none` 下，检索要在这之后的一个索引刷新间隔内才看到该提交。提交命令后重载列表的页面可能读不到它，按 ID 读取则不会：刚创建的商品立刻列出时可能不在列表里，而按 ID 读它的状态已经有了。
 - **`refresh: wait-for` 为这个存储上各类型的每条命令补上这个空隙。** 每次写入都等到检索看得到才返回，所以每条按默认等待的命令都可能晚至多一个刷新间隔才得到应答。这个存储的订阅也像副本那样，每个刷新间隔每条写入通道至多写一批（[上文](#reading-your-own-write)）。超过这个上限它就会落后，未命中状态缓存的命令要重放更长的一段日志尾部。
-- **宕机时节点退出服务。** 类型自己的快照存储不论什么类型都在命令的路径上。它持续失败达 `wow.health.stores.down-after` 后，节点即未就绪。仍到达节点的命令照样提交，加载时重放日志，但默认等待会超时（`504 wow.wait.timeout`，结果为已提交）。加载最多等待 `wow.snapshot.load-timeout`（默认 2 秒）取得快照：完全不应答的存储（被暂停，或连接已断开）让每条命令多花这么久外加一次重放，命令随即交还它在节点上限中的名额。加载的请求则一直开着，直到存储的 `operation-timeout` 将其中止并关闭连接：HTTP 客户端会在另一条连接上重新执行在字节写出前被取消的请求，而那条连接没有任何东西会释放。状态读取应答 `503 wow.storage.unavailable`。每次失败的加载都计入 `wow.store.fallbacks`（`snapshot-load`，原因为 `failed`，在超时时放弃的为 `timed-out`），只有第一次记为 warning 日志。这个存储的订阅暂停，Elasticsearch 恢复后再追上。命令不能依赖 Elasticsearch 的类型，把快照留在日志的数据库上，另在 Elasticsearch 上加一份副本，它宕机时只是检索停下（[选择存储](./choosing-storage#elasticsearch-is-never-the-log)）。
+- **宕机时节点退出服务。** 类型自己的快照存储不论什么类型都在命令的路径上。它持续失败达 `wow.health.stores.down-after` 后，节点即未就绪。仍到达节点的命令照样提交，加载时重放日志，但默认等待会超时（`504 wow.wait.timeout`，结果为已提交）。加载最多等待 `wow.snapshot.load-timeout`（默认 2 秒）取得快照：完全不应答的存储（被暂停，或连接已断开）让每条命令多花这么久外加一次重放，命令随即交还它在节点上限中的名额。加载的请求在客户端中继续运行，直到服务器应答，或客户端自己的响应超时将其结束（[服务器不再应答](#a-server-that-stops-answering)）。状态读取应答 `503 wow.storage.unavailable`。每次失败的加载都计入 `wow.store.fallbacks`（`snapshot-load`，原因为 `failed`，在超时时放弃的为 `timed-out`），只有第一次记为 warning 日志。这个存储的订阅暂停，Elasticsearch 恢复后再追上。命令不能依赖 Elasticsearch 的类型，把快照留在日志的数据库上，另在 Elasticsearch 上加一份副本，它宕机时只是检索停下（[选择存储](./choosing-storage#elasticsearch-is-never-the-log)）。
 
 - **索引拒绝的状态会让它的聚合停放。** 状态的映射没有动态字段，所以新字段或其他类型的值只是不被索引。索引仍然拒绝的文档会让这个聚合在该存储的订阅中立即停放，每种存储对它永远存不下的快照都这样处理（[停放的聚合](./replay#parked-aggregates)）。对 Elasticsearch，是映射里是值的地方出现对象或反过来，或访问属性超过索引的字段上限；对 MongoDB，是超过 16 MiB 文档上限或 BSON 存不下的状态；对 PostgreSQL，是它作为数据拒绝的值。Elasticsearch 是这个聚合唯一的快照存储，所以此后它不再有更新的快照：
   - 它的命令照样提交，默认等待以失败结束（`wow.subscription.parked`）；

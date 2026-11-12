@@ -28,12 +28,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How long a store's calls to Elasticsearch may wait for an answer, as MongoDB's and PostgreSQL's stores bound theirs
- * (`operation-timeout`): without one, a request to a server that stopped answering waits for as long as the
- * application's `Rest5Client` lets it, which by default is forever, and a command's snapshot load, a snapshot
- * subscription's write and a query with it. Every request a store sends has [OPERATION] unless the store sets another
- * (`wow.stores.<name>.operation-timeout`) or the client's own response timeout is shorter: the store's bound is
- * the store's alone and adds to the client's settings, never replaces them.
+ * How long a store's callers wait for Elasticsearch's answer, as MongoDB's and PostgreSQL's stores bound their calls
+ * (`operation-timeout`): without it, a caller of a server that stopped answering waits for as long as the application's
+ * `Rest5Client` lets its request run, and a command's snapshot load, a snapshot subscription's write and a query with it.
+ * Every request a store sends has [OPERATION] unless the store sets another (`wow.stores.<name>.operation-timeout`) or
+ * the client's own timeouts end it first. The bound is the caller's wait: the request and its connection are the
+ * client's ([BoundedHttpClient]).
  */
 @InternalWowApi
 object ElasticsearchTimeouts {
@@ -49,14 +49,15 @@ internal class BoundedTransport(restClient: Rest5Client, mapper: JsonpMapper, ti
     ElasticsearchTransportBase(BoundedHttpClient(Rest5ClientHttpClient(restClient), timeout), null, mapper)
 
 /**
- * [delegate], each request it sends answered within [timeout]: one that has no answer by then fails as a
- * [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`), and is cancelled,
- * which aborts its exchange and closes its connection, freeing its place in the client's pool. An answer that comes
- * after it is released at once. The store's calls are all asynchronous; a synchronous one is the client's own.
+ * [delegate], each request's caller answered within [timeout]: a request that has no answer by then fails for its
+ * caller as a [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`). A caller
+ * that gives up first ends its own wait, and its request runs on the same way. The bound is the caller's wait, not the
+ * connection's: the request runs on, and its connection is freed when the server answers or resets it, or at the
+ * client's own timeout; an answer that comes after its caller is gone is released at once.
  *
- * A caller that gives up, a cancelled coroutine, ends its own wait and nothing else: the request stays under its
- * deadline. HttpClient 5's retry re-runs a request cancelled before its bytes are written, on a new connection that
- * nothing then releases, so only the deadline, long after the request was written, cancels it.
+ * Nothing is cancelled. HttpClient 5 keeps a reused connection whose exchange is cancelled, so a cancel frees nothing
+ * in the usual case, and it re-runs a request cancelled before its bytes are written, on a new connection that nothing
+ * then releases. The store's calls are all asynchronous; a synchronous one is the client's own.
  */
 internal class BoundedHttpClient(private val delegate: TransportHttpClient, private val timeout: Duration) :
     TransportHttpClient {
@@ -86,7 +87,6 @@ internal class BoundedHttpClient(private val delegate: TransportHttpClient, priv
                 answered.completeExceptionally(
                     SocketTimeoutException("Elasticsearch gave no answer to $endpointId within $timeout."),
                 )
-                sent.cancel(true)
             },
             timeout.inWholeMilliseconds,
             TimeUnit.MILLISECONDS,
