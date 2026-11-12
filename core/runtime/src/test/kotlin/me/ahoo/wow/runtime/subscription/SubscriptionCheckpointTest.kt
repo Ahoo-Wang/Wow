@@ -96,6 +96,71 @@ class SubscriptionCheckpointTest {
         }
 
     @Test
+    fun `the progress reads the checkpoints of the partitions run elsewhere in one call of the store`(): Unit =
+        runBlocking {
+            // RT-15: a node that runs a third of 64 partitions, as on three nodes; a count query asks for this.
+            val counted = ReadCounting(checkpoints)
+            checkpoints.save("group", "progress", 40, 7)
+            checkpoints.save("group", "progress", 63, 5)
+            checkpoints.save("group", "other", 41, 100)
+            val runtime = SubscriptionRuntime(
+                "group",
+                InMemoryEventLog(partitions = 64),
+                counted,
+                ledger,
+                listOf(Subscription("progress", SubscriptionFilter("shop")) {}),
+                testOptions(checkpointInterval = 1.hours),
+            )
+            runtime.start((0 until 21).toSet())
+            try {
+                counted.reset()
+                runtime.progress("progress", 64).assert().isEqualTo(12L)
+                counted.loads.get().assert().isZero()
+                counted.lists.get().assert().isEqualTo(1)
+            } finally {
+                runtime.stop()
+            }
+        }
+
+    @Test
+    fun `the progress reads no checkpoint when every partition runs here`(): Unit = runBlocking {
+        val counted = ReadCounting(checkpoints)
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            counted,
+            ledger,
+            listOf(Subscription("progress", SubscriptionFilter("shop")) {}),
+            testOptions(checkpointInterval = 1.hours),
+        )
+        runtime.start(setOf(0))
+        try {
+            counted.reset()
+            runtime.progress("progress", 1).assert().isEqualTo(0L)
+            (counted.loads.get() + counted.lists.get()).assert().isZero()
+        } finally {
+            runtime.stop()
+        }
+    }
+
+    /** [delegate], counting its reads of checkpoints. */
+    private class ReadCounting(private val delegate: CheckpointStore) : CheckpointStore by delegate {
+        val loads = AtomicInteger()
+        val lists = AtomicInteger()
+
+        fun reset() {
+            loads.set(0)
+            lists.set(0)
+        }
+
+        override suspend fun load(group: String, subscription: String, partition: Int): Long? =
+            delegate.load(group, subscription, partition).also { loads.incrementAndGet() }
+
+        override suspend fun list(group: String): List<Checkpoint> =
+            delegate.list(group).also { lists.incrementAndGet() }
+    }
+
+    @Test
     fun `the progress counts the entries complete above one still running`(): Unit = runBlocking {
         val gate = CompletableDeferred<Unit>()
         val handled = Handled()

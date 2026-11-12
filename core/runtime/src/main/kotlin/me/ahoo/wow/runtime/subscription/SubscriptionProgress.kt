@@ -51,19 +51,23 @@ internal class SubscriptionProgress(
      * which another node moves forward. The sum changes when the subscription completed an entry: the snapshot
      * subscription's is the validator of the cached counts, so a count after a write this node
      * completed sees the write. Null when [subscription] is not registered.
+     *
+     * The checkpoints of the partitions not run here are read in one call of the store, the group's list, not one
+     * call each (RT-15): a count query asks this before it may use a cached count. None is read when every partition
+     * runs here.
      */
     suspend fun progress(subscription: String, partitions: Int): Long? {
         if (!directory.containsKey(subscription)) {
             return null
         }
         val workers = workers()
-        var total = 0L
-        for (partition in 0 until partitions) {
-            total += workers?.get(subscription to partition)?.progress
-                ?: checkpoints.load(group, subscription, partition)
-                ?: 0L
+        val here = (0 until partitions).map { workers?.get(subscription to it)?.progress }
+        val saved = if (here.any { it == null }) {
+            checkpoints.list(group).filter { it.subscription == subscription }.associate { it.partition to it.position }
+        } else {
+            emptyMap()
         }
-        return total
+        return here.withIndex().sumOf { (partition, progress) -> progress ?: saved[partition] ?: 0L }
     }
 
     /**
