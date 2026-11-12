@@ -73,6 +73,16 @@ class NodeFatals(
     /** How many fatal errors the node met. */
     val count: Int get() = recorded.get()
 
+    /** The first of the node's loops that ended ([ended]); null while none has. */
+    @Volatile
+    internal var endedLoop: EndedLoop? = null
+        private set
+
+    private val endedLoops = AtomicInteger()
+
+    /** How many of the node's loops ended. */
+    internal val endedCount: Int get() = endedLoops.get()
+
     /** Calls [listener], once, with the node's first fatal error, at once when it met one already. */
     fun listen(listener: (NodeFatal) -> Unit) {
         listeners += listener
@@ -143,7 +153,24 @@ class NodeFatals(
      * node the scope runs. Nothing for [NONE].
      */
     fun contextOf(component: ObservedEvent.Fatal.Component, name: String): CoroutineContext =
-        if (keeps) handler + NodeLoop(component, name) else EmptyCoroutineContext
+        if (keeps) handler + NodeLoop(this, component, name) else EmptyCoroutineContext
+
+    /** Records that [loop], [component]'s work on [name], ended with [error] (see `NodeLoops.kt`): logged at ERROR. */
+    private fun loopEnded(component: ObservedEvent.Fatal.Component, name: String, loop: String, error: Throwable) {
+        val ended = EndedLoop(component, name, loop, error.javaClass.name, clock.millis())
+        synchronized(this) {
+            if (endedLoop == null) {
+                endedLoop = ended
+            }
+        }
+        endedLoops.incrementAndGet()
+        quietly {
+            logger.error(error) {
+                "The loop $loop of ${where(component, name, null)} on node $node ended, and nothing restarts it: the " +
+                    "node's liveness is DOWN until the process ends."
+            }
+        }
+    }
 
     private fun tell(listener: (NodeFatal) -> Unit, fatal: NodeFatal) = quietly { listener(fatal) }
 
@@ -160,8 +187,9 @@ class NodeFatals(
     private fun where(component: ObservedEvent.Fatal.Component, name: String, partition: Int?): String =
         "${component.value} $name" + (partition?.let { " partition $it" } ?: "")
 
-    /** The part of the node a coroutine scope runs, which [handler] records a fatal error as. */
+    /** The part of the node a coroutine scope runs, which [handler] records a fatal error as, and [fatals] its own. */
     private class NodeLoop(
+        val fatals: NodeFatals,
         val component: ObservedEvent.Fatal.Component,
         val name: String,
     ) : AbstractCoroutineContextElement(NodeLoop) {
@@ -179,6 +207,20 @@ class NodeFatals(
          */
         @JvmStatic
         fun isFatal(error: Throwable): Boolean = error is VirtualMachineError && error !is StackOverflowError
+
+        /**
+         * Records that [loop], run in a coroutine of [context], ended with [error], which escaped its round while its
+         * scope ran: as a fatal error when it is one, else as the loop's end (see `NodeLoops.kt`), by the [NodeFatals]
+         * of the scope ([contextOf]); logged at ERROR where the scope has none.
+         */
+        internal fun ended(context: CoroutineContext, loop: String, error: Throwable) {
+            val part = context[NodeLoop]
+            when {
+                part == null -> logger.error(error) { "The loop $loop ended, and nothing restarts it." }
+                error is VirtualMachineError && isFatal(error) -> part.fatals.record(part.component, part.name, error)
+                else -> part.fatals.loopEnded(part.component, part.name, loop, error)
+            }
+        }
         private val logger = KotlinLogging.logger {}
     }
 }

@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
@@ -81,7 +82,7 @@ import kotlin.time.Duration.Companion.seconds
  * ([ServiceNode.fatals]: an error of the JVM its own work met, out of memory say; [NodeFatals.isFatal]) until the
  * process ends, whatever the node's state, with that error under `fatal` (the part of the node, what it ran, the
  * partition, the error's class, when) and the count of them under `fatalErrors`: nothing in the process recovers from
- * it. Otherwise
+ * it. Then `DOWN` for good once one of its loops ended ([endedLiveness]), the first named under `ended`. Otherwise
  * `DOWN` only when the node runs and, for [HealthOptions.stallTimeout], one of these holds:
  *
  * - `dispatcher`: its dispatcher has not ticked;
@@ -110,7 +111,7 @@ class NodeHealth(
     /** The node's one sampler, which its gauges read too; its owner starts and closes it. */
     private val sampler: NodeSampler,
     val options: HealthOptions = HealthOptions(),
-    private val context: CoroutineContext = Dispatchers.Default,
+    private val context: CoroutineContext = Dispatchers.Default + node.fatals.contextOf(Component.NODE, "health"),
     /** Where the backends run their blocking driver calls: [VirtualThreads.dispatcher], which every backend shares. */
     private val drivers: CoroutineContext = VirtualThreads.dispatcher,
     private val nanos: () -> Long = System::nanoTime,
@@ -165,18 +166,14 @@ class NodeHealth(
         lastDriverTick = lastTick
         val root = SupervisorJob()
         val scope = CoroutineScope(context + root)
-        scope.launch {
-            while (true) {
-                lastTick = nanos()
-                delay(tick)
-            }
+        scope.launchLoop("dispatcher tick") {
+            lastTick = nanos()
+            delay(tick)
         }
         // On the drivers alone, so a stalled dispatcher does not stop it, nor stalled drivers the dispatcher's.
-        scope.launch(drivers) {
-            while (true) {
-                lastDriverTick = nanos()
-                delay(tick)
-            }
+        (scope + drivers).launchLoop("drivers tick") {
+            lastDriverTick = nanos()
+            delay(tick)
         }
         running = root
     }
@@ -238,7 +235,7 @@ class NodeHealth(
     }
 
     /** Whether the process is stuck or fatal (see the class description): `DOWN` only then. */
-    fun liveness(): ComponentHealth = fatalLiveness() ?: stallLiveness()
+    fun liveness(): ComponentHealth = fatalLiveness() ?: endedLiveness(node, clock.millis()) ?: stallLiveness()
 
     /** `DOWN` with the node's first fatal error, for good; null while it has met none. */
     private fun fatalLiveness(): ComponentHealth? = node.fatals.first?.let { fatal ->

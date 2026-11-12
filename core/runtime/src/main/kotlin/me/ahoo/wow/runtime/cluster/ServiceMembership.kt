@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
@@ -98,12 +99,8 @@ class ServiceMembership(
         }
         if (running == null) {
             running = CoroutineScope(context + SupervisorJob()).launch {
-                launch { every(options.heartbeatInterval, "heartbeat") { lock.withLock { heartbeat() } } }
-                launch {
-                    every(minOf(options.reconcileInterval, options.routeRefreshInterval), "read the members") {
-                        refresh()
-                    }
-                }
+                every(options.heartbeatInterval, "heartbeat") { lock.withLock { heartbeat() } }
+                every(minOf(options.reconcileInterval, options.routeRefreshInterval), "read the members") { refresh() }
             }
         }
     }
@@ -183,8 +180,8 @@ class ServiceMembership(
         listed = groups
     }
 
-    private suspend fun every(interval: kotlin.time.Duration, action: String, block: suspend () -> Unit) {
-        while (true) {
+    private fun CoroutineScope.every(interval: kotlin.time.Duration, action: String, block: suspend () -> Unit) =
+        launchLoop(action) {
             delay(interval)
             try {
                 block()
@@ -194,7 +191,6 @@ class ServiceMembership(
                 logger.warn(failure) { "$node failed to $action in $service; retrying on the next round." }
             }
         }
-    }
 
     private companion object {
         val logger = KotlinLogging.logger {}

@@ -20,10 +20,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.health.StoreActivity
+import me.ahoo.wow.runtime.health.launchLoop
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -46,7 +47,8 @@ class NodeSampler(
     val interval: Duration = DEFAULT_INTERVAL,
     val maxParked: Int = DEFAULT_MAX_PARKED,
     readTimeout: Duration = DEFAULT_READ_TIMEOUT,
-    private val context: CoroutineContext = Dispatchers.Default,
+    /** Where it samples: by default with the node's handler, so its loop's end is the node's ([launchLoop]). */
+    private val context: CoroutineContext = Dispatchers.Default + node.fatals.contextOf(Component.NODE, "sampler"),
     private val nanos: () -> Long = System::nanoTime,
 ) : AutoCloseable {
     init {
@@ -77,11 +79,9 @@ class NodeSampler(
         if (running != null) {
             return
         }
-        running = CoroutineScope(context + SupervisorJob()).launch {
-            while (true) {
-                sample()
-                delay(interval)
-            }
+        running = CoroutineScope(context + SupervisorJob()).launchLoop("sampler") {
+            sample()
+            delay(interval)
         }
     }
 

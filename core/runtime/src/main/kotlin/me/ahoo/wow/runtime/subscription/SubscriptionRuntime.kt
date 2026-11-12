@@ -22,7 +22,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -33,6 +32,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -216,17 +216,13 @@ class SubscriptionRuntime internal constructor(
                 root.cancel()
             }
         }
-        run.scope.launch {
-            while (true) {
-                delay(options.checkpointInterval)
-                flushQuietly(run.workers.values)
-            }
+        run.scope.launchLoop("checkpoints") {
+            delay(options.checkpointInterval)
+            flushQuietly(run.workers.values)
         }
-        run.scope.launch {
-            while (true) {
-                delay(options.parked.scanInterval)
-                scanQuietly(run)
-            }
+        run.scope.launchLoop("parked scan") {
+            delay(options.parked.scanInterval)
+            scanQuietly(run)
         }
         running = run
     }
