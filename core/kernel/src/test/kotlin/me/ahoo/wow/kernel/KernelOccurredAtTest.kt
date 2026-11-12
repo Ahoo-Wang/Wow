@@ -117,6 +117,26 @@ class KernelOccurredAtTest {
     }
 
     @Test
+    fun `a batch decides a declaring creation alone, at its time, and its next command at the clock's`() = runTest {
+        val log = InMemoryEventLog()
+        val kernel = Kernel(log, clock = { NOW }, options = KernelOptions(recentRequests = 256))
+        val first = kernel.executeBatch(
+            model,
+            listOf(QueuedCommand(command(ImportOrder("legacy-1", PLACED))), QueuedCommand(command(Ship("courier")))),
+        )
+        val imported = (first[0] as BatchOutcome.Done).outcome as CommandOutcome.Committed
+        imported.stream.commitTime.assert().isEqualTo(PLACED)
+        imported.stream.headers[EventStreamRecord.WRITTEN_AT].assert().isEqualTo(NOW.toString())
+        // Decided alone, the creation ends the batch: the next command runs on its own.
+        first[1].assert().isEqualTo(BatchOutcome.Again)
+        val again = kernel.executeBatch(model, listOf(QueuedCommand(command(Ship("courier")))))
+        val shipped = (again.single() as BatchOutcome.Done).outcome as CommandOutcome.Committed
+        shipped.stream.commitTime.assert().isEqualTo(NOW)
+        shipped.stream.headers.assert().doesNotContainKey(EventStreamRecord.WRITTEN_AT)
+        log.read(ref).toList().map { it.commitTime }.assert().containsExactly(PLACED, NOW)
+    }
+
+    @Test
     fun `only a command that creates its aggregate declares when it occurred, read once`() {
         assertThrownBy<IllegalArgumentException> {
             aggregate<OrderState>("shop", "order") {
