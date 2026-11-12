@@ -49,7 +49,6 @@ import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -75,6 +74,7 @@ import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.spi.json.query.decode
 import me.ahoo.wow.spi.json.query.toEventStream
 import me.ahoo.wow.spi.json.query.toSnapshot
+import me.ahoo.wow.spi.read.TenantQueryApi
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 

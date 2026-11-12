@@ -80,7 +80,7 @@ class SagaSendsTest {
     private suspend fun SagaContext.sendEach(event: Any) {
         schedule("remind", ScheduleRule.after(1.hours), CommandRequest.to(cart.ref("t", "alice"), Remove("mug")))
         call(CommandRequest.to(stock.ref("t", "mug"), Reserve(1)))
-        cancel("stale", cart.ref("t", "alice"))
+        cancelSchedule("stale", cart.ref("t", "alice"))
         check(event.toString().isNotEmpty())
     }
 

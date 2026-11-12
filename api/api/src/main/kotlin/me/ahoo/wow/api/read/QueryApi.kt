@@ -18,7 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -69,24 +68,6 @@ interface NodeQueryApi : QueryApi {
      * reads the caller hides a row. They keep the in-process budget unless [TrustedQueries.unbounded] drops it.
      */
     fun trusted(): TrustedQueries
-}
-
-/**
- * A [NodeQueryApi] that builds the reads of a subscription handler itself ([tenant]), which the node asks of every
- * [QueryApi] it hands its handlers: a provider's side of the read API, not an entry point of an application, which
- * reads as a caller ([of]) or as trusted code ([trusted]).
- *
- * The node's own API implements it, pinning the tenant of the commit as trusted code, and so does a test's
- * [QueryApi] that must read as the node does (`:test-query`'s memory queries). Any other [QueryApi], a test's fake
- * say, serves a handler as a caller of the commit's tenant with no owner, space or subject, the rest [trusted].
- */
-@WowSpi
-interface TenantQueryApi : NodeQueryApi {
-    /**
-     * The queries of a subscription handler of a commit of [tenantId], which its context hands it: they read in
-     * [tenantId] alone, and answer [SubscriptionQueries.tenantId] with it.
-     */
-    fun tenant(tenantId: String): SubscriptionQueries
 }
 
 /**
@@ -322,12 +303,10 @@ inline fun <reified G : Any> RowQueries<*>.aggregate(query: AggregationQuery): F
 /**
  * A state read that asked for at least [minVersion] of [ref] (read your writes) while the
  * aggregate stayed at [version] (0 when it has no commit) through the read's wait: the command whose version was asked
- * for has not committed yet. The HTTP state route answers it `409` [CODE] with the version, and `Retry-After`.
+ * for has not committed yet. The HTTP state route answers it `409`
+ * [me.ahoo.wow.api.result.FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED] with the version, and `Retry-After`, and the
+ * HTTP client reads that problem back as this exception. It is not a [me.ahoo.wow.api.problem.WowProblemException]:
+ * it carries the [ref] and both versions, which a reader acts on, and each boundary maps it to the problem once.
  */
 class MinVersionNotReachedException(val ref: AggregateRef, val minVersion: Int, val version: Int) :
-    RuntimeException("$ref is at version $version, not yet at $minVersion.") {
-    companion object {
-        /** The problem code of this failure, as the framework's error catalog names it. */
-        const val CODE: String = "wow.query.min-version-not-reached"
-    }
-}
+    RuntimeException("$ref is at version $version, not yet at $minVersion.")

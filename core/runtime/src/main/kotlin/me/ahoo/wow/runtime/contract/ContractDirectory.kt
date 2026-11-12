@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandIndex
@@ -157,13 +157,13 @@ class ContractDirectory(
 
     /**
      * The kind of [subscription] of [context], as the context's Manifest lists it, or the built-in snapshot
-     * subscription ([Hop.SNAPSHOT_SUBSCRIPTION]) of a context with an aggregate that keeps snapshots. A saga's
+     * subscription ([SystemSubscriptions.SNAPSHOT]) of a context with an aggregate that keeps snapshots. A saga's
      * `@OnRejected` handler is not a wait's hop: its rejection ended the wait; an `@OnCommitted` handler is a saga's
      * hop, which the receipts of the commands it answers signal.
      */
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
-        if (subscription == Hop.SNAPSHOT_SUBSCRIPTION) {
+        if (subscription == SystemSubscriptions.SNAPSHOT) {
             return FunctionKind.SYSTEM.takeIf { owned.aggregates.any { it.snapshot.enabled } }
         }
         val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
@@ -179,7 +179,7 @@ class ContractDirectory(
      * keeps snapshots; another one when it reads its own context and names no aggregates or [type]'s.
      */
     override fun covers(subscription: String, type: AggregateType): Boolean {
-        if (subscription == Hop.SNAPSHOT_SUBSCRIPTION) {
+        if (subscription == SystemSubscriptions.SNAPSHOT) {
             return aggregateOf(type)?.snapshot?.enabled == true
         }
         if (kindOf(type.context, subscription) == null) {

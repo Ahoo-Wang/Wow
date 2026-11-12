@@ -19,9 +19,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -387,8 +387,8 @@ class LedgerKeyAcrossContextsTest {
         )
         val node = node("node-1", SubscriptionBindings(emptyMap()), bare, fastScans)
         node.start()
-        val stockSnapshot = SubscriptionId(STOCK, Hop.SNAPSHOT_SUBSCRIPTION)
-        val salesSnapshot = SubscriptionId(SALES, Hop.SNAPSHOT_SUBSCRIPTION)
+        val stockSnapshot = SubscriptionId(STOCK, SystemSubscriptions.SNAPSHOT)
+        val salesSnapshot = SubscriptionId(SALES, SystemSubscriptions.SNAPSHOT)
         node.parked.subscriptions.assert().contains(stockSnapshot, salesSnapshot)
         val item = ITEM.ref(TENANT, "i-1")
         node.send(STOCK, item, Reserve(1))

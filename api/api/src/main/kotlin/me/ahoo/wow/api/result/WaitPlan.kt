@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.result
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.api.wire.WireNames
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -75,9 +76,9 @@ class Hop @InternalWowApi constructor(
      * `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets the context apart.
      */
     override fun toString(): String {
-        val keyword = if (subscription == SNAPSHOT_SUBSCRIPTION) "snapshot" else WireNames.of(stage)
+        val keyword = if (subscription == SystemSubscriptions.SNAPSHOT) "snapshot" else WireNames.of(stage)
         val argument = when {
-            subscription == null || subscription == SNAPSHOT_SUBSCRIPTION -> context
+            subscription == null || subscription == SystemSubscriptions.SNAPSHOT -> context
             context == null -> subscription
             else -> "$context/$subscription"
         }
@@ -100,18 +101,6 @@ class Hop @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(stage, context, subscription)
 
     companion object {
-        /**
-         * The name of the built-in subscription that writes snapshots. Every built-in subscription's name starts with
-         * `wow.`, a prefix the compiler reserves, so no application subscription takes one.
-         */
-        const val SNAPSHOT_SUBSCRIPTION: String = "wow.snapshot"
-
-        /** The name of the built-in subscription that confirms reservations. */
-        const val RESERVATION_SUBSCRIPTION: String = "wow.reservation"
-
-        /** The name of the built-in subscription that writes the timers of scheduled commands. */
-        const val TIMERS_SUBSCRIPTION: String = "wow.timers"
-
         /** [Stage.ACCEPTED] in [context]. */
         @JvmStatic
         @JvmOverloads
@@ -130,7 +119,7 @@ class Hop @InternalWowApi constructor(
         /** [Stage.HANDLED] by the snapshot subscription: the snapshot holds the commit. */
         @JvmStatic
         @JvmOverloads
-        fun snapshot(context: String? = null): Hop = handled(SNAPSHOT_SUBSCRIPTION, context)
+        fun snapshot(context: String? = null): Hop = handled(SystemSubscriptions.SNAPSHOT, context)
     }
 }
 

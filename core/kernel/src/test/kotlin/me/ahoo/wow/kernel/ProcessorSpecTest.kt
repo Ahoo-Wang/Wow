@@ -85,7 +85,7 @@ class ProcessorSpecTest {
 
         fun onCancelled(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> {
             if (event.events.none { it is OrderCancelled }) return emptyList()
-            context.cancel("remind", event.ref)
+            context.cancelSchedule("remind", event.ref)
             return listOf(CommandRequest.to(STOCK, Release(event.ref.id)))
         }
 

@@ -58,7 +58,6 @@ import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.error.QueryError
-import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
@@ -432,7 +431,6 @@ class InProcessQueryApiTest {
             carts.state("missing", 1).assert().isNull()
             carts.state(cart.ref("acme", "a"), 3)!!.state.assert().isEqualTo(CartState(7))
             misuse { carts.state("a", 0) }
-            MinVersionNotReachedException.CODE.assert().isEqualTo(QueryErrors.MIN_VERSION_NOT_REACHED)
         }
 
     @Test

@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventRecord
@@ -51,8 +51,8 @@ class SnapshotTargetsTest {
         targets.placementOf(order).assert().isEqualTo(SnapshotPlacement(listOf(SnapshotTargets.DEFAULT_STORE)))
         targets.primary.assert().isSameAs(a)
         targets.primaryOf(order).assert().isSameAs(a)
-        targets.subscriptionOf(SnapshotTargets.DEFAULT_STORE).assert().isEqualTo(Hop.SNAPSHOT_SUBSCRIPTION)
-        targets.primarySubscriptionOf(order).assert().isEqualTo(Hop.SNAPSHOT_SUBSCRIPTION)
+        targets.subscriptionOf(SnapshotTargets.DEFAULT_STORE).assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
+        targets.primarySubscriptionOf(order).assert().isEqualTo(SystemSubscriptions.SNAPSHOT)
         targets.storesOf(listOf(order, cart)).assert()
             .isEqualTo(mapOf(SnapshotTargets.DEFAULT_STORE to setOf(order, cart)))
         targets.storesOf(emptyList()).assert().isEmpty()
@@ -127,18 +127,19 @@ class SnapshotTargetsTest {
             mapOf(order to SnapshotPlacement(listOf("a", "b"), primary = "b")),
         )
         val hops = SnapshotHops(runtime, "shop", targets, setOf(order))
-        hops.kindOf("shop", Hop.SNAPSHOT_SUBSCRIPTION).assert().isEqualTo(FunctionKind.SYSTEM)
-        hops.kindOf("other", Hop.SNAPSHOT_SUBSCRIPTION).assert().isNull()
+        hops.kindOf("shop", SystemSubscriptions.SNAPSHOT).assert().isEqualTo(FunctionKind.SYSTEM)
+        hops.kindOf("other", SystemSubscriptions.SNAPSHOT).assert().isNull()
         hops.kindOf("shop", "projector").assert().isEqualTo(FunctionKind.PROJECT)
-        SnapshotHops(runtime, "shop", targets, emptySet()).kindOf("shop", Hop.SNAPSHOT_SUBSCRIPTION).assert().isNull()
-        hops.covers(Hop.SNAPSHOT_SUBSCRIPTION, order).assert().isTrue()
-        hops.covers(Hop.SNAPSHOT_SUBSCRIPTION, cart).assert().isFalse()
-        hops.covers(Hop.SNAPSHOT_SUBSCRIPTION, AggregateType("other", "x")).assert().isFalse()
+        SnapshotHops(runtime, "shop", targets, emptySet()).kindOf("shop", SystemSubscriptions.SNAPSHOT)
+            .assert().isNull()
+        hops.covers(SystemSubscriptions.SNAPSHOT, order).assert().isTrue()
+        hops.covers(SystemSubscriptions.SNAPSHOT, cart).assert().isFalse()
+        hops.covers(SystemSubscriptions.SNAPSHOT, AggregateType("other", "x")).assert().isFalse()
         hops.covers("projector", cart).assert().isTrue()
-        hops.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, stream(order)).assert().isTrue()
-        hops.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, stream(cart)).assert().isTrue()
+        hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(order)).assert().isTrue()
+        hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(cart)).assert().isTrue()
         hops.hasHandled("projector", stream(order)).assert().isTrue()
-        handled.assert().containsExactly("wow.snapshot:b", Hop.SNAPSHOT_SUBSCRIPTION, "projector")
+        handled.assert().containsExactly("wow.snapshot:b", SystemSubscriptions.SNAPSHOT, "projector")
     }
 
     private fun stream(type: AggregateType) = EventStreamRecord(

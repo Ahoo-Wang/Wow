@@ -17,8 +17,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FirstCommit
@@ -53,7 +53,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   handling, and so its wait signal and checkpoint, ends only once the write that covers it is durable, and a
  *   snapshot the store fails parks only its own aggregate.
  * - **The state**: read as every state consumer of the context reads it ([EntryDecoder.stateEvents]),
- *   as the reader [Hop.SNAPSHOT_SUBSCRIPTION] of the context's shared [views]: the view taken when the stream
+ *   as the reader [SystemSubscriptions.SNAPSHOT] of the context's shared [views]: the view taken when the stream
  *   committed on this node; without one (a replay, an ownership change, a command run on another node) the stored
  *   snapshot or a nearer view evolved with the log's tail up to the stream ([Kernel.stateAt]), else the log replayed.
  * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's, its deleted mark and
@@ -87,7 +87,7 @@ class SnapshotSubscription(
     views: SharedStates? = null,
     capacity: Int = SharedStateOptions.DEFAULT_CAPACITY,
     /** The subscription's name, and its reader's: `wow.snapshot` unless it writes another target than the default. */
-    val name: String = Hop.SNAPSHOT_SUBSCRIPTION,
+    val name: String = SystemSubscriptions.SNAPSHOT,
     /** Whether the subscription answers the `snapshot` hop of an aggregate of a type: it writes the primary target. */
     answers: (AggregateType) -> Boolean = { true },
     /** Whether the subscription still writes the snapshots of a type: a backfill stops once its target caught up. */
@@ -124,7 +124,7 @@ class SnapshotSubscription(
         SubscriptionFilter(context, this.models.keys.mapTo(LinkedHashSet()) { it.name }),
         FunctionKind.SYSTEM,
         EntryDecoder.stateEvents(reader, decodeEvents = false),
-        answers = { type -> Hop.SNAPSHOT_SUBSCRIPTION.takeIf { answers(type) } },
+        answers = { type -> SystemSubscriptions.SNAPSHOT.takeIf { answers(type) } },
         handler = ::write,
     )
 

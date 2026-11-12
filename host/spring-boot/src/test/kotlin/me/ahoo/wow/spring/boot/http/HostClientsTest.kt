@@ -29,7 +29,6 @@ import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
@@ -52,6 +51,7 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.read.TenantQueryApi
 import me.ahoo.wow.spring.boot.Account
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.Deposit
