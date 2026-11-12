@@ -32,6 +32,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 用 DSL 类的构造器构建查询，`ListQueryDsl().apply { … }.build()` | 用入口函数 `listQuery { … }`（以及 `pagedQuery`、`singleQuery`、`cursorQuery`、`countQuery`、`aggregation`、`filter`、`projection`、`sort`、`pagination`）：DSL 类的构造器和 `build()` 是 internal 的。写在 DSL 类上的扩展函数 `fun ListQueryDsl.mine()` 仍然可用 |
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
 | 不写 `size` 的 `CursorQuery`，一页 `CursorQuery.DEFAULT_SIZE`（10）条 | 不写 `size` 取入口的默认列表大小（`default-list-size`，100），至多 `max-page-size`（100）；`DEFAULT_SIZE` 已删除，要保持每页 10 条就写 `size = 10` |
+| 自定义的 `MaskStrategy`，`mask(value: String)` | `mask(value: SensitiveValue)`：原始字符串是 `value.value`，旁边是字段声明的 `level`；lambda 写法读 `it.value` |
 | 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
 | 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `wow.query.too-many-groups`（400）失败 |
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |

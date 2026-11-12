@@ -218,7 +218,7 @@ export const GROUNDS: readonly Ground[] = [
       ...STATUS,
       ...BADGES,
       // A waterfall's steps, and a checked box or a drop target.
-      ...marks('rise', 'fall', 'primary'),
+      ...marks('rise-fill', 'fall-fill', 'primary'),
       ...EDGES,
     ],
   },
@@ -246,7 +246,7 @@ export const GROUNDS: readonly Ground[] = [
       // A failed part's callout: its description in `destructive/90`.
       { ink: 'destructive', kind: 'text', alpha: 0.9 },
       ...BADGES,
-      ...marks('rise', 'fall', 'primary'),
+      ...marks('rise-fill', 'fall-fill', 'primary'),
       ...EDGES,
     ],
   },
@@ -279,7 +279,7 @@ export const GROUNDS: readonly Ground[] = [
       ...MAP_EDGE,
       ...STATUS,
       ...BADGES,
-      ...marks('rise', 'fall', 'primary'),
+      ...marks('rise-fill', 'fall-fill', 'primary'),
       ...EDGES,
     ],
   },

@@ -27,6 +27,8 @@ import me.ahoo.wow.query.error.QueryRequestException
  * Both kinds are answered as `wow.query.invalid`, each violation carrying its code. Server faults (a
  * result that breaks integrity, a storage that failed or timed out) are not violations: they are
  * [me.ahoo.wow.query.error.QueryExecutionException]s.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface QueryViolation {
     val message: String
@@ -45,7 +47,11 @@ sealed interface QueryViolation {
     val kind: Kind
         get() = Kind.MODEL
 
-    /** Which error a violation renders as. */
+    /**
+     * Which error a violation renders as.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Kind {
         /** The request asks for more than its entry allows: a [QueryRequestException]. */
         REQUEST,

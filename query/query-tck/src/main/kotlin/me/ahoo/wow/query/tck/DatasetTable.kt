@@ -19,6 +19,8 @@ class DatasetColumn @InternalWowApi constructor(val name: String, val type: Type
     /**
      * A date column stores instants and is declared with the `TEMPORAL_DATE` semantic (a string at the query
      * interface). A backend whose arrays cannot be null stores a null string array as an empty array.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
      */
     enum class Type { STRING, INTEGER, DECIMAL, DATE, STRING_ARRAY }
 

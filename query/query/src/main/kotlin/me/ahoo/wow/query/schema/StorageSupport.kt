@@ -18,7 +18,11 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 
-/** How a storage supports a query feature: natively, through the core after the storage, or not at all. */
+/**
+ * How a storage supports a query feature: natively, through the core after the storage, or not at all.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class SupportMode {
     /** The backend computes it natively. */
     NATIVE,
@@ -154,7 +158,11 @@ class AggregationSupport @InternalWowApi constructor(
     }
 }
 
-/** How a storage's presence operators see a stored `null` and an empty array. */
+/**
+ * How a storage's presence operators see a stored `null` and an empty array.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class AbsentValues {
     /** Distinct from a missing field: `EXISTS` matches them and `IS_EMPTY` matches only an empty array. */
     DISTINCT,

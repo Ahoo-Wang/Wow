@@ -72,7 +72,11 @@ class QueryScope @InternalWowApi constructor(
 private fun FilterExpression.and(other: FilterExpression): FilterExpression =
     if (other === MatchAllFilter) this else appendFilter(other)
 
-/** Where a query came from; its [QueryCaller] states it. */
+/**
+ * Where a query came from; its [QueryCaller] states it.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class QueryEntry {
     /** Stated by the HTTP edge for every query route; HTTP budgets and gates apply. */
     HTTP,
