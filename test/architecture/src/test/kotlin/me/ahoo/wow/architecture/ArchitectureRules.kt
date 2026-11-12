@@ -168,6 +168,7 @@ object ArchitectureRules {
         WowProject("lease-spike", "test/lease-spike"),
         WowProject("benchmark-server", "test/benchmarks/server"),
         WowProject("benchmark-search-server", "test/benchmarks/search-server"),
+        WowProject("benchmark-subscriptions-server", "test/benchmarks/subscriptions-server"),
         WowProject("migration-rehearsal", "test/migration-rehearsal"),
         WowProject("spi-consumer", "test/spi-consumer"),
     )
