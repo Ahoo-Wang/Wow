@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.ExactJson
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
+import org.bson.BsonDocument
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
@@ -173,35 +174,37 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `a batch of one aggregate type is one bulk write, stale marks included`(): Unit = runBlocking {
-        val context = MongoLogFixture.newContext()
-        val store = MongoSnapshotStore(CountedMongo.client, MongoLogFixture.DATABASE, context)
-            .also { it.createCollection("aggregate") }
-        val type = AggregateType(context, "aggregate")
-        val name = collection(context)
-        fun of(id: String, version: Int) = snapshot(id, version).copyWith(ref = type.ref("tenant", id))
-        val batch = (1..BATCH).map { of("s$it", 1) }
-        val (first, sent) = CountedMongo.commandsOf { runBlocking { store.saveAll(batch) } }
-        first.forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
-        sent.assert().containsExactly(CountedMongo.Sent("update", name))
-        // A stale mark up to the saved version is cleared in the same write; one above it stays.
-        store.markStale(batch[0].ref).assert().isTrue()
-        store.save(of("above", 1).copyWith(stateRevision = 2)).assert().isTrue()
-        store.save(of("above", 5)).assert().isFalse()
-        val (second, marked) = CountedMongo.commandsOf {
-            runBlocking { store.saveAll(listOf(of("s1", 2), of("above", 3).copyWith(stateRevision = 2))) }
+    fun `a batch of one aggregate type is one bulk write, a marked or refused snapshot saved again alone`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val store = MongoSnapshotStore(CountedMongo.client, MongoLogFixture.DATABASE, context)
+                .also { it.createCollection("aggregate") }
+            val type = AggregateType(context, "aggregate")
+            val name = collection(context)
+            fun of(id: String, version: Int) = snapshot(id, version).copyWith(ref = type.ref("tenant", id))
+            val batch = (1..BATCH).map { of("s$it", 1) }
+            val (first, sent) = CountedMongo.commandsOf { runBlocking { store.saveAll(batch) } }
+            first.forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+            sent.assert().containsExactly(CountedMongo.Sent("update", name))
+            // A marked document matches no update of the batch: its snapshot is saved alone, which writes over the mark
+            // and clears one up to its version with a second write; one above it stays, without one.
+            store.markStale(batch[0].ref).assert().isTrue()
+            store.save(of("above", 1).copyWith(stateRevision = 2)).assert().isTrue()
+            store.save(of("above", 5)).assert().isFalse()
+            val (second, marked) = CountedMongo.commandsOf {
+                runBlocking { store.saveAll(listOf(of("s1", 2), of("above", 3).copyWith(stateRevision = 2))) }
+            }
+            second.assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+            marked.map { it.name }.assert().containsExactly("update", "findAndModify", "update", "findAndModify")
+            store.pending(type, 2, limit = 10).assert().contains(type.ref("tenant", "above"))
+            store.pending(type, 1, limit = 10).assert().doesNotContain(batch[0].ref)
+            // A refused one meets the key and is saved again alone.
+            val (third, refused) = CountedMongo.commandsOf {
+                runBlocking { store.saveAll(listOf(of("s2", 1), of("s3", 2))) }
+            }
+            third.assert().containsExactly(SnapshotSaveOutcome.Refused, SnapshotSaveOutcome.Written)
+            refused.map { it.name }.assert().containsExactly("update", "findAndModify", "findAndModify", "update")
         }
-        second.assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
-        marked.assert().containsExactly(CountedMongo.Sent("update", name))
-        store.pending(type, 2, limit = 10).assert().contains(type.ref("tenant", "above"))
-        store.pending(type, 1, limit = 10).assert().doesNotContain(batch[0].ref)
-        // A refused one meets the key and is saved again alone.
-        val (third, refused) = CountedMongo.commandsOf {
-            runBlocking { store.saveAll(listOf(of("s2", 1), of("s3", 2))) }
-        }
-        third.assert().containsExactly(SnapshotSaveOutcome.Refused, SnapshotSaveOutcome.Written)
-        refused.map { it.name }.assert().containsExactly("update", "findAndModify", "findAndModify", "update")
-    }
 
     @Test
     fun `a batch's snapshot whose state cannot be BSON fails alone`(): Unit = runBlocking {
@@ -264,6 +267,38 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         (outcomes[1] as SnapshotSaveOutcome.Failed).cause.assert().isInstanceOf(MongoWriteException::class.java)
         store.load(saved.ref)?.version.assert().isEqualTo(1)
         store.load(refused.ref).assert().isNull()
+    }
+
+    @Test
+    fun `a batch writes the same document as a save, field for field, inserted and updated`(): Unit = runBlocking {
+        val single = MongoLogFixture.newContext()
+        val batch = MongoLogFixture.newContext()
+        val saving = store(single)
+        val batching = store(batch)
+        fun of(context: String, version: Int) =
+            snapshot("a", version).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        saving.save(of(single, 1)).assert().isTrue()
+        batching.saveAll(listOf(of(batch, 1))).single().assert().isEqualTo(SnapshotSaveOutcome.Written)
+        stored(single).assertSameFieldsAs(stored(batch))
+        // One update for both: the fields in the same order too, which no reader depends on.
+        stored(single).keys.toList().assert().isEqualTo(stored(batch).keys.toList())
+        saving.save(of(single, 2)).assert().isTrue()
+        batching.saveAll(listOf(of(batch, 2))).single().assert().isEqualTo(SnapshotSaveOutcome.Written)
+        stored(single).assertSameFieldsAs(stored(batch))
+        stored(single).keys.toList().assert().isEqualTo(stored(batch).keys.toList())
+    }
+
+    /** The one snapshot document of [context]'s collection, as stored. */
+    private fun stored(context: String): BsonDocument = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+        .getCollection(collection(context), BsonDocument::class.java).find().toList().single()
+
+    /** The same fields as [other], of the same BSON types and values. */
+    private fun BsonDocument.assertSameFieldsAs(other: BsonDocument) {
+        keys.sorted().assert().isEqualTo(other.keys.sorted())
+        entries.forEach { (field, value) ->
+            value.bsonType.assert().describedAs(field).isEqualTo(other.getValue(field).bsonType)
+            value.assert().describedAs(field).isEqualTo(other.getValue(field))
+        }
     }
 
     @Test
