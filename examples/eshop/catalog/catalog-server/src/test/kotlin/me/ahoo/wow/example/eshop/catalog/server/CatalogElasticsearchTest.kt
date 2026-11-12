@@ -16,26 +16,31 @@ package me.ahoo.wow.example.eshop.catalog.server
 import co.elastic.clients.transport.rest5_client.low_level.Request
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import me.ahoo.test.asserts.assert
+import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.convert.ApplicationConversionService
+import org.springframework.boot.elasticsearch.autoconfigure.Rest5ClientBuilderCustomizer
+import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource
-import org.springframework.core.env.StandardEnvironment
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
-import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import org.apache.hc.core5.util.Timeout as ResponseTimeout
 
 /**
- * The catalog's Elasticsearch client with the catalog's [CatalogElasticsearch], its customizer applied as Spring Boot
- * applies every `Rest5ClientBuilderCustomizer` bean (ElasticsearchRestClientConfigurations: the builder's request config
- * callback): a request the server never answers fails at the response timeout, its connection freed.
+ * The catalog's Elasticsearch client with the catalog's [CatalogElasticsearch], its bean made in a context that reads the
+ * key as a Spring Boot application does (Boot's conversion service, which `SpringApplication` gives the bean factory),
+ * and applied as Spring Boot applies every `Rest5ClientBuilderCustomizer` bean (ElasticsearchRestClientConfigurations:
+ * the builder's request config callback): a request the server never answers fails at the response timeout, its
+ * connection freed.
  */
 class CatalogElasticsearchTest {
     /** A server that takes every connection and never answers it, as a paused Elasticsearch does. */
@@ -54,16 +59,25 @@ class CatalogElasticsearchTest {
         held.forEach(Socket::close)
     }
 
-    private fun environment(vararg properties: Pair<String, Any>) = StandardEnvironment().apply {
-        propertySources.addFirst(MapPropertySource("test", properties.toMap()))
-    }
+    /** The catalog's customizer, from a context with [properties]. */
+    private fun customizer(vararg properties: Pair<String, Any>): Rest5ClientBuilderCustomizer =
+        AnnotationConfigApplicationContext().use { context ->
+            context.environment.propertySources.addFirst(MapPropertySource("test", properties.toMap()))
+            context.beanFactory.conversionService = ApplicationConversionService.getSharedInstance()
+            context.register(CatalogElasticsearch::class.java)
+            context.refresh()
+            context.getBean(Rest5ClientBuilderCustomizer::class.java)
+        }
+
+    /** The response timeout of the request config [customizer] builds. */
+    private fun responseTimeout(customizer: Rest5ClientBuilderCustomizer): ResponseTimeout =
+        RequestConfig.custom().also(customizer::customize).build().responseTimeout
 
     // Bounded: without the response timeout, the request would wait for the held server for ever.
     @Test
     @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
     fun `a request the server never answers should fail at the response timeout`() {
-        val customizer = CatalogElasticsearch()
-            .elasticsearchResponseTimeout(environment(CatalogElasticsearch.RESPONSE_TIMEOUT to "200ms"))
+        val customizer = customizer(CatalogElasticsearch.RESPONSE_TIMEOUT to "200ms")
         Rest5Client.builder(HttpHost("http", "127.0.0.1", server.localPort))
             .setRequestConfigCallback(customizer::customize)
             .build().use { client ->
@@ -75,9 +89,9 @@ class CatalogElasticsearchTest {
     }
 
     @Test
-    fun `the response timeout should be the store's operation timeout unless set`() {
-        CatalogElasticsearch.responseTimeout(environment()).assert().isEqualTo(Duration.ofSeconds(30))
-        CatalogElasticsearch.responseTimeout(environment(CatalogElasticsearch.RESPONSE_TIMEOUT to "45s"))
-            .assert().isEqualTo(Duration.ofSeconds(45))
+    fun `the response timeout should be the store's operation timeout unless the key sets another`() {
+        responseTimeout(customizer()).assert().isEqualTo(ResponseTimeout.ofSeconds(30))
+        responseTimeout(customizer(CatalogElasticsearch.RESPONSE_TIMEOUT to "45s"))
+            .assert().isEqualTo(ResponseTimeout.ofSeconds(45))
     }
 }
