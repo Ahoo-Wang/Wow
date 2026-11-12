@@ -16,6 +16,11 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
+/**
+ * A derived metric's expression: computed from the group's other metrics, or over the groups as a window.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 sealed interface DerivedExpression {
     class MetricRef @InternalWowApi constructor(val metric: String) : DerivedExpression {
@@ -93,6 +98,8 @@ sealed interface DerivedExpression {
      * A window over the groups of the aggregation: computed from every group the filter selects, after the row-level
      * derived metrics and before HAVING, sort and limit, so neither HAVING nor the limit changes it. [metric] names a
      * non-derived numeric metric declared before the derived metric. A null [metric] value contributes nothing.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
      */
     sealed interface Window : DerivedExpression {
         val metric: String
@@ -241,7 +248,11 @@ sealed interface DerivedExpression {
     }
 }
 
-/** The window functions of [DerivedExpression.Window], as a storage declares and the descriptor lists them. */
+/**
+ * The window functions of [DerivedExpression.Window], as a storage declares and the descriptor lists them.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class WindowFunction {
     TOTAL,
@@ -250,7 +261,11 @@ enum class WindowFunction {
     RANK,
 }
 
-/** What a [DerivedExpression.Running] window computes over its frame. */
+/**
+ * What a [DerivedExpression.Running] window computes over its frame.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class RunningFunction {
     SUM,

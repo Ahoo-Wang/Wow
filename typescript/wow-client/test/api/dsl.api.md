@@ -169,9 +169,9 @@ export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATI
 // @public
 export interface AnalysisDescriptor {
     approximate: (AggregationMetricType | (string & {}))[];
-    dateDiffUnits: DateDiffUnit[];
-    dateParts: AggregationDatePart[];
-    dateUnits: AggregationDateUnit[];
+    dateDiffUnits: (DateDiffUnit | (string & {}))[];
+    dateParts: (AggregationDatePart | (string & {}))[];
+    dateUnits: (AggregationDateUnit | (string & {}))[];
     dense: boolean;
     expressions: boolean;
     firstLastOrderBy?: string;
@@ -179,7 +179,7 @@ export interface AnalysisDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];
     rootGroups?: boolean;
     sort: AnalysisSortDescriptor;
-    windows?: WindowFunction[];
+    windows?: (WindowFunction | (string & {}))[];
 }
 
 // @public
@@ -510,7 +510,7 @@ export interface DynamicFieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
-    kind: QueryValueKind;
+    kind: QueryValueKind | (string & {});
     nullable: boolean;
     pattern: string;
     semantic?: QuerySemanticType;
@@ -619,7 +619,7 @@ export interface FieldDescriptor {
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
-    kind: QueryValueKind;
+    kind: QueryValueKind | (string & {});
     nullable: boolean;
     path: string;
     project: boolean;
@@ -633,7 +633,7 @@ export interface FieldDescriptor {
 
 // @public
 export interface FieldFilterDescriptor {
-    operators: FilterOperator[];
+    operators: (FilterOperator | (string & {}))[];
 }
 
 // @public
@@ -1305,8 +1305,8 @@ export interface QueryViolation {
 export interface RecordDescriptor {
     defaultScope?: DeletionState;
     identity: string;
-    paging: PagingMode[];
-    rootOperators: FilterOperator[];
+    paging: (PagingMode | (string & {}))[];
+    rootOperators: (FilterOperator | (string & {}))[];
     search?: SearchDescriptor;
 }
 
@@ -1351,7 +1351,7 @@ export interface SearchBuilder {
 // @public
 export interface SearchDescriptor {
     fields: string[];
-    modes: SearchMode[];
+    modes: (SearchMode | (string & {}))[];
 }
 
 // @public
@@ -1382,7 +1382,7 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: SensitivityLevel;
+    level: SensitivityLevel | (string & {});
 }
 
 // @public

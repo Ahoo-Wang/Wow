@@ -16,6 +16,11 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
+/**
+ * A value an aggregation computes for each group, named by its alias.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 sealed interface AggregationMetric {
     val alias: String
@@ -245,6 +250,9 @@ sealed interface AggregationMetric {
      * The value of [field] on the earliest ([First]) or latest ([Last]) record of the group by [orderBy], among the
      * records that have both a value and an [orderBy] position; `null` when none has. [orderBy] defaults to the
      * model's event time. Records tied on [orderBy] may yield any one of their values.
+     *
+     * A group's records have an earliest and a latest, [First] and [Last].
+     * No case is added within 10.x, so a `when` over it may name every case.
      */
     sealed interface Edge : AggregationMetric {
         val field: QueryField<*>
@@ -336,6 +344,11 @@ sealed interface AggregationMetric {
     }
 }
 
+/**
+ * The function of a numeric metric over a group's values.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class AggregationFunction {
     SUM,

@@ -36,6 +36,8 @@ internal fun zoneIdOf(id: String): ZoneId = try {
  * A window of time relative to the moment a query runs, such as today or the last seven days. Its days are read in
  * [timeZone]; how the window's bounds are written is the field's: the encoding its schema declares
  * (`@QueryTemporal`), an epoch in its unit or a text in its pattern.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface RelativeTimeFilter : FieldPredicate {
     /**

@@ -17,6 +17,8 @@ package me.ahoo.wow.api.query
  * How a query model's records may be read, as its descriptor lists them (`record.paging`), by wire name
  * (`list`, `paged`, `cursor`): a list of the first records ([ListQuery]), a page by number ([PagedQuery]), or a
  * page after a cursor ([CursorQuery]), which only a model with a unique sort offers.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class PagingMode {
     LIST,

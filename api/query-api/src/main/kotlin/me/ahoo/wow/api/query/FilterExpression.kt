@@ -26,6 +26,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * Two fields are equal when their paths are, whatever they are typed as: the type only checks code at compile time
  * and never reaches the wire, where a field is its path. [T] is invariant, so a `QueryField<String>` takes no `Int`.
  * Fields are built by [QueryField] and [of]; an application does not implement this interface.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface QueryField<T> {
     val path: String
@@ -115,6 +117,11 @@ private class PathField<T>(override val path: String) : QueryField<T> {
     override fun toString(): String = path
 }
 
+/**
+ * The operator of a filter node, its `op` on the wire.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class FilterOperator {
     MATCH_ALL,
     MATCH_NONE,
@@ -174,6 +181,11 @@ enum class FilterOperator {
     EXPRESSION,
 }
 
+/**
+ * Whether a string filter compares case-sensitively.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class StringComparison {
     CASE_SENSITIVE,
     CASE_INSENSITIVE,
@@ -186,6 +198,8 @@ enum class StringComparison {
  * Numeric predicates compare the selected backend's stored or indexed representation, including its precision
  * and quantization. Exact-match capability does not promise arbitrary-precision equality with a source value.
  * Explicit string-comparison contracts remain independent of numeric representation.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {
     val operator: FilterOperator
@@ -200,6 +214,8 @@ sealed interface FilterExpression : RewritableFilter<FilterExpression> {
  * A filter on one [field] the request names: the comparison, string, membership, presence and relative-time
  * predicates, and `ELEMENT_MATCH`, whose field is the collection its predicate applies to. System-field, logical,
  * search and expression filters name no single field and are not field predicates.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface FieldPredicate : FilterExpression {
     val field: QueryField<*>
@@ -398,6 +414,11 @@ class SearchFilter @InternalWowApi constructor(
     }
 }
 
+/**
+ * How a full-text search matches: its terms in any order, or its words as a phrase.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class SearchMode {
     TERMS,
     PHRASE,

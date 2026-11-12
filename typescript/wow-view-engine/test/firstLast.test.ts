@@ -29,6 +29,7 @@ import {
   DerivedExpressionType,
   HavingExpressionType,
   ComparisonOperator,
+  WindowFunction,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -407,6 +408,32 @@ describe('narrowing by the descriptor', () => {
     );
     expect(narrowed.analysis?.fields[1]).toMatchObject({ firstLast: true });
     expect(narrowed.analysis?.firstLastOrderBy).toBe('eventTime');
+  });
+
+  it('takes the windows the source offers that the engine knows, and leaves out one it does not', () => {
+    const newer = narrowDefinition(
+      noElements,
+      described(descriptor => {
+        descriptor.analysis.windows = [
+          'median',
+          WindowFunction.RANK,
+          WindowFunction.TOTAL,
+        ];
+      }),
+      builtinFieldKinds,
+    );
+    expect(newer.definition.analysis?.windows).toEqual([
+      WindowFunction.RANK,
+      WindowFunction.TOTAL,
+    ]);
+    const unknownOnly = narrowDefinition(
+      noElements,
+      described(descriptor => {
+        descriptor.analysis.windows = ['median'];
+      }),
+      builtinFieldKinds,
+    );
+    expect(unknownOnly.definition.analysis).not.toHaveProperty('windows');
   });
 
   it('takes the root groups the source offers, and none from an older one', () => {

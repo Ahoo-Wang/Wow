@@ -21,6 +21,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * FIELD selects the sole non-null numeric value;
  * missing, empty and multi-valued fields do not contribute. Repeated numeric values remain separate values.
  * BINARY computes finite doubles; it does not pair arrays or preserve arbitrary native numeric precision.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 @ExperimentalWowApi
 sealed interface AggregationExpression {
@@ -133,6 +135,8 @@ sealed interface AggregationExpression {
 /**
  * A fixed-length unit of elapsed time. Calendar units (months, years) have no fixed length and depend on a time zone,
  * so they are not offered; a `DAY` is exactly 24 hours.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 @ExperimentalWowApi
 enum class DateDiffUnit(val millis: Long) {
@@ -152,6 +156,11 @@ val AggregationExpression.fields: List<QueryField<*>>
         is AggregationExpression.DateDiff -> listOf(from, to)
     }
 
+/**
+ * The arithmetic of a binary aggregation expression.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class AggregationExpressionOperator {
     ADD,

@@ -35,6 +35,9 @@ class Sort @InternalWowApi constructor(
 ) {
     /**
      * Enumeration of possible sort directions.
+     *
+     * An order is ascending or descending.
+     * No case is added within 10.x, so a `when` over it may name every case.
      */
     enum class Direction {
         /**

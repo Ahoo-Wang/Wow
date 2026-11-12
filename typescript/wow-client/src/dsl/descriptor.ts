@@ -153,7 +153,7 @@ export interface SearchDescriptor {
    * the model would match that field. For an element, the modes every
    * listed field accepts.
    */
-  modes: SearchMode[];
+  modes: (SearchMode | (string & {}))[];
   /**
    * The fields a `SEARCH` may name, by full logical path; never one that is
    * not comparable. For the record, only record-level fields, never one
@@ -168,7 +168,7 @@ export interface RecordDescriptor {
   /** The logical path of the field that identifies a record. */
   identity: string;
   /** The ways the model can be read page by page. */
-  paging: PagingMode[];
+  paging: (PagingMode | (string & {}))[];
   /** The deletion scope a query without one gets; absent when the model has none. */
   defaultScope?: DeletionState;
   /**
@@ -176,7 +176,7 @@ export interface RecordDescriptor {
    * as `ID` or `TENANT_ID`, and `EXPRESSION`, whose expression names its
    * fields, where the server allows expensive operators.
    */
-  rootOperators: FilterOperator[];
+  rootOperators: (FilterOperator | (string & {}))[];
   /** Model-wide full-text search; absent when the model offers none. */
   search?: SearchDescriptor;
 }
@@ -274,11 +274,11 @@ export interface AnalysisDescriptor {
    */
   dense: boolean;
   /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
-  dateUnits: AggregationDateUnit[];
+  dateUnits: (AggregationDateUnit | (string & {}))[];
   /** The calendar parts a `DATE_PART` group may group by. */
-  dateParts: AggregationDatePart[];
+  dateParts: (AggregationDatePart | (string & {}))[];
   /** The units a `DATE_DIFF` may measure in; empty when `expressions` is `false`. */
-  dateDiffUnits: DateDiffUnit[];
+  dateDiffUnits: (DateDiffUnit | (string & {}))[];
   /**
    * The field `FIRST` and `LAST` order by when they name no `orderBy`, at
    * the record level: the model's event time. Absent when the model has no
@@ -292,7 +292,7 @@ export interface AnalysisDescriptor {
    * when expensive operators are off. Absent from servers before Wow 9.9,
    * which compute no windows.
    */
-  windows?: WindowFunction[];
+  windows?: (WindowFunction | (string & {}))[];
   /**
    * Whether a group of a query that expands elements may name a field of the
    * root record (`scope: 'root'`); `false` when expensive operators are off.

@@ -214,9 +214,9 @@ interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATION_FIEL
 // @public
 interface AnalysisDescriptor {
     approximate: (AggregationMetricType | (string & {}))[];
-    dateDiffUnits: DateDiffUnit[];
-    dateParts: AggregationDatePart[];
-    dateUnits: AggregationDateUnit[];
+    dateDiffUnits: (DateDiffUnit | (string & {}))[];
+    dateParts: (AggregationDatePart | (string & {}))[];
+    dateUnits: (AggregationDateUnit | (string & {}))[];
     dense: boolean;
     expressions: boolean;
     firstLastOrderBy?: string;
@@ -224,7 +224,7 @@ interface AnalysisDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];
     rootGroups?: boolean;
     sort: AnalysisSortDescriptor;
-    windows?: WindowFunction[];
+    windows?: (WindowFunction | (string & {}))[];
 }
 
 // @public
@@ -734,7 +734,7 @@ interface DynamicFieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
-    kind: QueryValueKind;
+    kind: QueryValueKind | (string & {});
     nullable: boolean;
     pattern: string;
     semantic?: QuerySemanticType;
@@ -904,7 +904,7 @@ interface FieldDescriptor {
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
-    kind: QueryValueKind;
+    kind: QueryValueKind | (string & {});
     nullable: boolean;
     path: string;
     project: boolean;
@@ -918,7 +918,7 @@ interface FieldDescriptor {
 
 // @public
 interface FieldFilterDescriptor {
-    operators: FilterOperator[];
+    operators: (FilterOperator | (string & {}))[];
 }
 
 // @public
@@ -1664,8 +1664,8 @@ export function readProblem(response: Response): Promise<Problem>;
 interface RecordDescriptor {
     defaultScope?: DeletionState;
     identity: string;
-    paging: PagingMode[];
-    rootOperators: FilterOperator[];
+    paging: (PagingMode | (string & {}))[];
+    rootOperators: (FilterOperator | (string & {}))[];
     search?: SearchDescriptor;
 }
 
@@ -1814,7 +1814,7 @@ export interface Scope {
 // @public
 interface SearchDescriptor {
     fields: string[];
-    modes: SearchMode[];
+    modes: (SearchMode | (string & {}))[];
 }
 
 // @public
@@ -1834,7 +1834,7 @@ enum SearchMode {
 // @public
 interface SensitivityDescriptor {
     comparable: boolean;
-    level: SensitivityLevel;
+    level: SensitivityLevel | (string & {});
 }
 
 // @public

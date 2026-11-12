@@ -18,6 +18,9 @@ package me.ahoo.wow.api.query
  *
  * This enum is used to filter and categorize entities based on their deletion status,
  * allowing queries to target active, deleted, or all entities regardless of deletion state.
+ *
+ * A record is deleted or not, and [ALL] is both.
+ * No case is added within 10.x, so a `when` over it may name every case.
  */
 enum class DeletionState {
     /**

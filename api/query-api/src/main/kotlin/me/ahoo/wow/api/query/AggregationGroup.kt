@@ -16,6 +16,12 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
+/**
+ * A dimension an aggregation groups its records by: a field's terms, a numeric histogram, a date histogram or a
+ * date part.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 sealed interface AggregationGroup {
     /** The grouped field; `null` only for a TERMS or HISTOGRAM group whose input is an expression. */
@@ -268,7 +274,11 @@ val AggregationGroup.inputExpression: AggregationExpression?
         is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> null
     }
 
-/** A calendar part of an instant, with its fixed integer domain `[min, max]`. */
+/**
+ * A calendar part of an instant, with its fixed integer domain `[min, max]`.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class AggregationDatePart(val min: Int, val max: Int) {
     /** ISO weekday: 1 is Monday, 7 is Sunday. */
@@ -289,6 +299,11 @@ enum class AggregationDatePart(val min: Int, val max: Int) {
         get() = min..max
 }
 
+/**
+ * The calendar unit a date histogram buckets by.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class AggregationDateUnit {
     YEAR,
@@ -301,7 +316,11 @@ enum class AggregationDateUnit {
     SECOND,
 }
 
-/** Where a group reads its field when the query expands elements; see [AggregationGroup.scope]. */
+/**
+ * Where a group reads its field when the query expands elements; see [AggregationGroup.scope].
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 enum class AggregationGroupScope {
     /** The innermost element: the field is relative to its container. The meaning of an absent scope. */
