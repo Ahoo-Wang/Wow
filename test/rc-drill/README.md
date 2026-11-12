@@ -2,7 +2,12 @@
 
 Before the release candidate, the eShop and Wow's platform services are deployed as a user deploys them: from a release's published artifacts, on a cluster of several nodes in three zones, with the stores replicated and authenticated, behind an ingress and the CoSec gateway, with a metrics pipeline and the documented alerts. Then the drill drives the end-to-end suite through the ingress, while it upgrades, kills, stops, scales and drains. This folder holds that deployment's shape. The script that runs the steps comes with it.
 
-The drill runs once, on one machine, after 10.0.0-beta.3 is released: it installs 10.0.0-beta.2 from its published chart and images, then upgrades to beta.3 under load (step 4). There is no dress rehearsal before it (the owner's decision), so what can be proven without a cluster is proven before (`tools`, `artifacts`, `compare`, the eShop's build against the published Wow, the renders), and the first run is the first on a cluster. It runs in a window when nothing else uses the machine's Docker or Gradle.
+The drill runs twice, on one machine, both after 10.0.0-beta.3 is released, each about five hours in a window when nothing else uses the machine's Docker or Gradle. Each installs 10.0.0-beta.2 from its published chart and images, then upgrades to beta.3 under load (step 4).
+
+1. **The rehearsal.** The platform and the drill's cluster test (`RcDrillTest`) run on a cluster for the first time, and may stop on things that are not Wow's: the drill's own files and scripts, the platform's pieces. What it finds is fixed by commits before the second run.
+2. **The run that counts.** Its report is the drill's result. The report lists what the rehearsal found and what was changed for it, so the result is read with its history.
+
+There is no run on beta.2. What can be proven without a cluster is proven before the rehearsal: `tools`, `artifacts`, `compare`, the eShop's build against the published Wow, and the renders.
 
 ## What the machine needs
 
@@ -119,7 +124,7 @@ None is committed. The drill generates each for the run (random values, hex), cr
 DRILL_KUBECTL=/opt/homebrew/bin/kubectl DRILL_EVIDENCE=build/rc-drill/beta.3 DRILL_UPGRADE=rolling test/rc-drill/drill.sh run 10.0.0-beta.3 10.0.0-beta.2
 ```
 
-The first run goes one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.3`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
+Both runs go one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.3`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
 
 With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:
