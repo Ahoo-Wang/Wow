@@ -92,7 +92,10 @@ class GroupFenceTest {
             fence.check(backgroundScope)
             fence.fenced.assert().isFalse()
             coVerify(exactly = 1) { membership.stuck(GROUP.name, false) }
-            events.filterIsInstance<ObservedEvent.OwnershipRecovered>().single().fencedMillis.assert().isEqualTo(5_000L)
+            events.assert().containsExactly(
+                ObservedEvent.OwnershipFenced(GROUP.name, 61_000),
+                ObservedEvent.OwnershipRecovered(GROUP.name, 5_000),
+            )
             woken.assert().isEqualTo(1)
         }
 

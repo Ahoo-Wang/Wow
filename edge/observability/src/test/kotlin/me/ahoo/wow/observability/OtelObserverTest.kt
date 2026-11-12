@@ -176,6 +176,8 @@ class OtelObserverTest {
         observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.EVICTED))
         observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.STALE))
         observer.observed(ObservedEvent.ReservationLost(SALES))
+        observer.observed(ObservedEvent.OwnershipFenced("sales-service/sales", 61_000))
+        observer.observed(ObservedEvent.OwnershipRecovered("sales-service/sales", 5_000))
         observer.observed(
             ObservedEvent.StoreFellBack(
                 SALES,
@@ -194,6 +196,11 @@ class OtelObserverTest {
         ).counter().count().assert().isEqualTo(1.0)
         meters.get(WowMetrics.RESERVATION_LOSSES.name)
             .tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
+        listOf(WowMetrics.FENCED_KIND, WowMetrics.RECOVERED_KIND).forEach { kind ->
+            meters.get(WowMetrics.FENCE_NOTICES.name)
+                .tags(WowMetrics.GROUP, "sales-service/sales", WowMetrics.KIND, kind).counter().count()
+                .assert().isEqualTo(1.0)
+        }
         meters.get(WowMetrics.STATE_CACHE_LOOKUPS.name).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss")
             .counter().count().assert().isEqualTo(1.0)
         // An eviction is not a lookup: it counts on its own.
