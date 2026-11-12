@@ -112,7 +112,7 @@ None is committed. The drill generates each for the run (random values, hex), cr
 
 ## Running it
 
-`drill.sh` runs the steps, one command per step, or all of them in order:
+`drill.sh` runs the steps, one command per step, or all of them in order. It dispatches; the steps are in `lib/` by what they are: `common.sh` (the settings, the helpers, the evidence), `platform.sh`, `release.sh` (artifacts, build, install, upgrade), `faults.sh` and `verdict.sh`.
 
 ```bash
 DRILL_EVIDENCE=build/rc-drill/beta.2 test/rc-drill/drill.sh run 10.0.0-beta.2
