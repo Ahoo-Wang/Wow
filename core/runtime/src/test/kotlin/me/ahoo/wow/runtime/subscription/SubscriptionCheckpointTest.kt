@@ -15,11 +15,15 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
@@ -121,6 +125,29 @@ class SubscriptionCheckpointTest {
                 runtime.stop()
             }
         }
+
+    @Test
+    fun `a stream is handled once the progress in its partition is past it, the worker's here, else the checkpoint`():
+        Unit = runBlocking {
+        val handled = Handled()
+        val runtime = runtime(Subscription("handled", SubscriptionFilter("shop")) { handled.record(it) })
+        appender.append("order")
+        val stream = log.read(cart("order")).toList().single()
+        // Not read yet, so no checkpoint: not handled.
+        runtime.hasHandled("handled", stream).assert().isFalse()
+
+        runtime.start(setOf(0))
+        eventually { runtime.hasHandled("handled", stream) }
+        // Neither a subscription the runtime does not have, nor one of another context's streams.
+        runtime.hasHandled("unknown", stream).assert().isFalse()
+        val desk = AggregateType("office", "desk").ref("t", "order")
+        val other = EventStreamRecord(desk, 1, "c-d", "r-d", "desk.Act", 0L, stream.events, Scope.NONE)
+        runtime.hasHandled("handled", other).assert().isFalse()
+
+        runtime.stop()
+        // Stopped: the checkpoint it saved says so.
+        runtime.hasHandled("handled", stream).assert().isTrue()
+    }
 
     @Test
     fun `the progress reads no checkpoint when every partition runs here`(): Unit = runBlocking {
