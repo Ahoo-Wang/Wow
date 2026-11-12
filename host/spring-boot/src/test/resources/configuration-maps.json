@@ -150,7 +150,7 @@
   }, {
     "name" : "wow.stores.<name>.refresh",
     "type" : "me.ahoo.wow.elasticsearch.ElasticsearchRefresh",
-    "description" : "On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, for a wait on the store's own subscription, wow.snapshot:<store>) or immediate (an immediate refresh, for tests).",
+    "description" : "On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval; a command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write returns, which only an in-process caller that waits on the store's own snapshot subscription in code can rely on) or immediate (an immediate refresh, for tests).",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "none"
   }, {
