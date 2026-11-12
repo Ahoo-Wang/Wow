@@ -1,0 +1,158 @@
+# The drill's replica set: deploy/mongodb as a user starts from it, with what its README says to add before it holds
+# data you keep. Authentication: a keyfile for the members, a root user, and a user of its own per service. Then one
+# member per zone (Operate › MongoDB: three failure domains), and the image pinned by digest. Sizes stay deploy/'s.
+#
+# The secrets are the drill's, generated for each run and never committed (README.md, "Secrets"):
+#   mongodb-auth   keyfile, username, password: the members' keyfile and the root user
+#   mongodb-users  one password per service user (init-users.js), and drill-reader's
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../deploy/mongodb
+  - shell.yaml
+images:
+  - name: mongo
+    newTag: 7.0@sha256:c53852c00c23ca9f23fc39690350ffa9a80e3642fe8f96879726d8da0abe80a7
+configMapGenerator:
+  - name: mongodb-init-users
+    files:
+      - init-users.js
+    options:
+      disableNameSuffixHash: true
+patches:
+  - target:
+      kind: StatefulSet
+      name: mongodb
+    # The image's entrypoint creates the root user from MONGO_INITDB_ROOT_* on a member's first start, in a mongod it
+    # runs without --replSet and --keyFile for that; the members then start with the keyfile, which also turns on
+    # authorization. mongod refuses a keyfile that others can read, and a secret's volume is root's: the init
+    # container copies it to a volume of mongod's own (uid 999), readable by it alone. The probes' ping needs no user.
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/keyfile/keyfile"]
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-auth
+                key: username
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-auth
+                key: password
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value:
+          name: keyfile
+          mountPath: /keyfile
+          readOnly: true
+      - op: add
+        path: /spec/template/spec/initContainers
+        value:
+          - name: keyfile
+            image: mongo:7.0
+            command: ["sh", "-c", "cp /keyfile-secret/keyfile /keyfile/keyfile && chown 999:999 /keyfile/keyfile && chmod 400 /keyfile/keyfile"]
+            volumeMounts:
+              - name: keyfile-secret
+                mountPath: /keyfile-secret
+                readOnly: true
+              - name: keyfile
+                mountPath: /keyfile
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: keyfile-secret
+            secret:
+              secretName: mongodb-auth
+              items:
+                - key: keyfile
+                  path: keyfile
+          - name: keyfile
+            emptyDir:
+              medium: Memory
+      # One member per zone, required: a zone lost takes one member, and the majority stays.
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: mongodb
+  - target:
+      kind: Job
+      name: mongodb-init
+    # The initiation as root, then the services' users (init-users.js), once a primary is elected.
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/command
+        value: ["sh", "-c"]
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value:
+          - |
+            set -eu
+            root="mongodb://${ROOT_USERNAME}:${ROOT_PASSWORD}@"
+            mongosh "${root}mongodb-0.mongodb:27017/admin?directConnection=true" --quiet --eval '
+              try {
+                rs.status();
+                print("already initiated");
+              } catch (e) {
+                rs.initiate({_id: "rs0", members: [
+                  {_id: 0, host: "mongodb-0.mongodb:27017"},
+                  {_id: 1, host: "mongodb-1.mongodb:27017"},
+                  {_id: 2, host: "mongodb-2.mongodb:27017"}]});
+              }
+              let tries = 0;
+              while (!rs.status().members.some(m => m.stateStr === "PRIMARY")) {
+                if (++tries > 120) throw new Error("no primary elected");
+                sleep(1000);
+              }'
+            mongosh "${root}mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017/admin?replicaSet=rs0" \
+              --quiet --file /init/init-users.js
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom
+        value:
+          - secretRef:
+              name: mongodb-users
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-auth
+                key: username
+          - name: ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-auth
+                key: password
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: init
+            mountPath: /init
+            readOnly: true
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: init
+            configMap:
+              name: mongodb-init-users
+  - target:
+      kind: NetworkPolicy
+      name: mongodb
+    # The drill's shell reaches the members, as the services do (shell.yaml).
+    patch: |-
+      - op: add
+        path: /spec/ingress/0/from/-
+        value:
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongo-shell

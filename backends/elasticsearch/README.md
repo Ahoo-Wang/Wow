@@ -1,6 +1,6 @@
 # wow-elasticsearch
 
-Elasticsearch for Wow: the snapshot store and its queries, and event search through a Sink. Elasticsearch never holds a log: the log of every aggregate stays on PostgreSQL or MongoDB, with its primary snapshots, and Elasticsearch gets copies of the snapshots and of the event streams.
+Elasticsearch for Wow: the snapshot store and its queries, and event search through a Sink. Elasticsearch never holds a log: the log of every aggregate stays on PostgreSQL or MongoDB. Elasticsearch holds an aggregate type's snapshots, as a copy its snapshot queries read beside its own snapshot store or as that store itself, and copies of the event streams.
 
 ## Stores
 
@@ -18,13 +18,14 @@ wow:
     store: main
   aggregates:
     "[shop.order]":
-      snapshot:
-        stores: [main, search] # the first, which the commands load from, is never Elasticsearch
       query:
         snapshot:
-          store: search # the order's snapshot queries read the copy in Elasticsearch
+          store: search # the order's snapshot queries read a copy in Elasticsearch, its own snapshots on main
         events:
           store: search # the order's events queries read the Sink's index, not the log
+    "[shop.invoice]":
+      snapshot:
+        store: search # the invoice's only snapshot store: its commands load from it, by id
 ```
 
 | Key | Values | Default |
@@ -32,17 +33,17 @@ wow:
 | `wow.stores.<name>.client` | the `Rest5Client` bean of the store | the only `Rest5Client` |
 | `wow.stores.<name>.query-client` | a second `Rest5Client` bean, a pool of the queries' own | the store's `client` |
 | `wow.stores.<name>.index-prefix` | prefix of every index name | none |
-| `wow.stores.<name>.refresh` | `wait-for`, `immediate`, `none`: when a snapshot write is searchable | `wait-for` |
+| `wow.stores.<name>.refresh` | `none`, `wait-for`, `immediate`: when a snapshot write is searchable; a read by id sees it once it returns | `none` |
 | `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices and the state and event body fields | `wow.ddl` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | an aggregate's snapshot stores; the first, its primary, is never Elasticsearch | the log's store |
-| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | the store an aggregate's snapshot queries read | its primary snapshot store |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | an aggregate's own snapshot store, which its commands load from; Elasticsearch too | `wow.snapshot.store`, else the log's store |
+| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | the store an aggregate's snapshot queries read; another store than its own keeps a copy | its own snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | the store an aggregate's `events` queries read | its log store |
 
 The queries of a store run under its query bulkhead: unless `wow.stores.<name>.query.max-concurrent` says otherwise, a quarter of the per-route connections of the writes' pool (at least 2), or the whole pool of a `query-client`.
 
 ## Event search
 
-The event search Sink (`ElasticsearchEventSinks`, `spi.sink.Sink`) writes each commit as one document of `[<prefix>_]wow_events__<context>__<aggregate>`: the `events` model's record, its system fields under their names and its events as the `nested` array `events`, each `{name, revision, body}` as committed. A document's id is the commit's identity (tenant, aggregate id, version), so a commit written again changes nothing. Each Sink runs as a sink subscription, `elasticsearch-sink.<aggregate>`, from `PublishedSinks`; the Spring Boot host does not start them by itself yet. The body fields are mapped from the Manifest's event schemas when an aggregate's `events` schema is first loaded; a field two events declare with different types is not mapped.
+The event search Sink (`ElasticsearchEventSinks`, `spi.sink.Sink`) writes each commit as one document of `[<prefix>_]wow_events__<context>__<aggregate>`: the `events` model's record, its system fields under their names and its events as the `nested` array `events`, each `{name, revision, body}` as committed. A document's id is the commit's identity (tenant, aggregate id, version), so a commit written again changes nothing. Each Sink runs as a sink subscription, `wow.elasticsearch-sink.<aggregate>`, from `PublishedSinks`; the Spring Boot host starts one for each aggregate whose `query.events.store` names an Elasticsearch store. The body fields are mapped from the Manifest's event schemas when an aggregate's `events` schema is first loaded; a field two events declare with different types is not mapped.
 
 An aggregate whose `query.events.store` names the Elasticsearch store has its `events` queries served from that index: event conditions are `nested` queries, `expand("events")` aggregations are `nested` aggregations, and a query that names no aggregate runs on the index rather than scanning the log. The index shows what the Sink wrote: a commit is searchable once the Sink's subscription has written it and the index refreshed (1 s by default).
 

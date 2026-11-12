@@ -36,15 +36,17 @@ fun execute(vararg command: String, timeoutSeconds: Long = 30): String? = try {
  *   elsewhere), its garbage collector and heap from `jstat -gc`, one sampling process per JVM, and the bytes it
  *   allocated ([Allocations]), so the results give bytes per operation beside CPU;
  * - each container ([containers]): its CPU and memory from one `docker stats` stream;
- * - the stores' operation counters: MongoDB's `serverStatus().opcounters` ([mongoContainer]) and PostgreSQL's
- *   `pg_stat_database` of [postgresDatabase] with `pg_stat_wal` ([postgresContainer]), each from one session that
- *   prints them every second, and the end offsets of every Kafka topic ([kafkaContainer]).
+ * - the stores' operation counters: MongoDB's `serverStatus().opcounters` with its journal's syncs
+ *   ([mongoContainer]) and PostgreSQL's `pg_stat_database` of [postgresDatabase] with `pg_stat_wal`
+ *   ([postgresContainer]), each from one session that prints them every second, and the end offsets of every Kafka
+ *   topic ([kafkaContainer]).
  *
  * Nothing starts inside the measured phase (B.O-2): [prepare], at the warm-up, starts every sampling process, opens
  * the allocation connections and reads the Kafka offsets once (`kafka-get-offsets` is a JVM of its own); [start] and
  * [stop] only read what is already running, and [complete], after the drain, reads the Kafka offsets again. The
  * stores' counters at the phase's edges are the samples nearest to them; PostgreSQL's also give a per-second series of
- * commits and WAL writes and flushes (B.O-3). The samplers are a few percent of a core; the results say what they were.
+ * commits and WAL writes and flushes (B.O-3), and MongoDB's one of its writes and journal syncs. The samplers are a few
+ * percent of a core; the results say what they were.
  */
 class Resources(
     private val processes: Map<String, Long>,
@@ -181,6 +183,9 @@ class Resources(
             "stores" to stores(window),
             "postgresSeries" to synchronized(postgresSamples) {
                 Samples.perSecond(postgresSamples.toList(), window, POSTGRES_SERIES)
+            },
+            "mongoSeries" to synchronized(mongoSamples) {
+                Samples.perSecond(mongoSamples.toList(), window, MONGO_SERIES)
             },
             // The disks' writes and flushes a second (Linux): what an fsync of the stores waited on.
             "diskSeries" to synchronized(diskSamples) {
@@ -374,11 +379,32 @@ class Resources(
         private val HEAP_CAPACITY = listOf("S0C", "S1C", "EC", "OC")
         private val GC_COUNTERS = listOf("YGC", "YGCT", "FGC", "FGCT", "CGC", "CGCT", "GCT")
 
-        /** MongoDB's operation counters once a second, as `<epoch> <insert> <query> ...`. */
-        private val MONGO_COLUMNS = listOf("epoch", "insert", "query", "update", "delete", "getmore", "command")
+        /**
+         * MongoDB's operation counters and its journal once a second, as `<epoch> <insert> <query> ...`: WiredTiger's
+         * log syncs, their time in microseconds and its log writes, and the transactions it committed, so a run gives
+         * a journal sync's mean time, as `pg_stat_wal` gives PostgreSQL's WAL sync.
+         */
+        private val MONGO_COLUMNS = listOf(
+            "epoch", "insert", "query", "update", "delete", "getmore", "command",
+            "log_sync", "log_sync_time_us", "log_write", "transactions_committed",
+        )
         private const val MONGO_LOOP =
-            "while (true) { const o = db.serverStatus().opcounters; " +
-                "print([Date.now() / 1000, o.insert, o.query, o.update, o.delete, o.getmore, o.command].join(' ')); sleep(1000); }"
+            "while (true) { const s = db.serverStatus(), o = s.opcounters, l = s.wiredTiger.log, " +
+                "t = s.wiredTiger.transaction; " +
+                "print([Date.now() / 1000, o.insert, o.query, o.update, o.delete, o.getmore, o.command, " +
+                "l['log sync operations'], l['log sync time duration (usecs)'], l['log write operations'], " +
+                "t['transactions committed']].join(' ')); sleep(1000); }"
+
+        /** The per-second series kept of MongoDB's samples: its writes and commands, and its journal's syncs. */
+        private val MONGO_SERIES = listOf(
+            "insert",
+            "update",
+            "command",
+            "log_sync",
+            "log_sync_time_us",
+            "log_write",
+            "transactions_committed",
+        )
 
         /** PostgreSQL's database counters and WAL statistics (`track_wal_io_timing` gives the times), once a second. */
         private val POSTGRES_COLUMNS = listOf(

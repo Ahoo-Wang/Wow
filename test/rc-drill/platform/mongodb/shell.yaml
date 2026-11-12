@@ -1,0 +1,26 @@
+# The drill's MongoDB shell, as the GA end-to-end run's (.github/ga-e2e/backends/mongodb/shell.yaml): the verdict execs
+# mongosh here, as drill-reader, to read the stores, and the store faults step the primary down or stop a member from
+# outside it. Not in a member, whose memory limit has no room for a Node.js process beside mongod.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mongo-shell
+  labels:
+    app.kubernetes.io/name: mongo-shell
+spec:
+  containers:
+    - name: shell
+      image: mongo:7.0
+      command: ["sleep", "infinity"]
+      env:
+        - name: DRILL_READER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-users
+              key: DRILL_READER
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 512Mi

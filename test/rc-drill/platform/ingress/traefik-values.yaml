@@ -1,0 +1,29 @@
+# Traefik, the drill's ingress controller (versions.env: TRAEFIK_CHART_VERSION), in its own namespace, traefik, which
+# the gateway's NetworkPolicy admits. Two replicas on the workers, reached on every node's ports 30080 (HTTP) and 30443
+# (HTTPS), which kind.yaml maps to the machine's 127.0.0.1. It serves the Ingress resources of the drill's namespace
+# alone (ingress.yaml): the gateway is its one backend.
+deployment:
+  replicas: 2
+service:
+  type: NodePort
+ports:
+  web:
+    nodePort: 30080
+  # TLS on, the chart's default (ports.websecure.http.tls), with the Ingress's certificate.
+  websecure:
+    nodePort: 30443
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+providers:
+  kubernetesIngress:
+    enabled: true
+    namespaces: [wow-rc-drill]
+  kubernetesCRD:
+    enabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi

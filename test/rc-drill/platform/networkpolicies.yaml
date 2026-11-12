@@ -1,0 +1,103 @@
+# The stores and the broker reached by the platform's own pods only (Operate › Security): deploy/ closes MongoDB this
+# way (deploy/mongodb/networkpolicy.yaml); the drill closes Kafka, Elasticsearch, ClickHouse and Redis the same way, in
+# the namespace the drill runs in. The services' pods carry app.kubernetes.io/part-of eshop or wow-platform (their
+# values' partOf); each store's own members and its setup job are admitted beside them.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+        - podSelector:
+            matchLabels:
+              job-name: kafka-topics
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values: [eshop, wow-platform]
+      ports:
+        - port: 9092
+          protocol: TCP
+        - port: 9093
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elasticsearch
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: elasticsearch
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: elasticsearch
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: elasticsearch-users
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values: [eshop, wow-platform]
+      ports:
+        - port: 9200
+          protocol: TCP
+        - port: 9300
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clickhouse
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values: [eshop, wow-platform]
+      ports:
+        - port: 8123
+          protocol: TCP
+---
+# The gateway's store: the gateway's pods alone. Its documents are published through a port-forward (README.md, "The
+# gateway"), which reaches the pod without crossing its NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: cosec-gateway
+      ports:
+        - port: 6379
+          protocol: TCP

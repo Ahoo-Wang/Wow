@@ -1,0 +1,23 @@
+# The Java agent the operator injects into the Wow pods of the drill's namespace (their values' podAnnotations): the
+# agent's version is the one the GA end-to-end run checks by SHA-256 (.github/ga-e2e/cluster.sh, 2.32.0). The services'
+# values already point it at the collector over OTLP and bridge Micrometer's global registry, Wow's meters among them;
+# what the operator adds is the agent itself and the pod's resource attributes (k8s.pod.name, ...). Applied once the
+# operator's CRDs exist.
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: wow
+spec:
+  exporter:
+    endpoint: http://otel-collector:4318
+  propagators:
+    - tracecontext
+    - baggage
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0@sha256:9dad1c6e3e2ecee48fc164a19bcfde703510bee972c8cb421689fde89b5f89e9
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
