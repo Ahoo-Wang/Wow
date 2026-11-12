@@ -75,7 +75,7 @@ Over the measured phase, beside the load:
 
 - every server JVM: CPU time and RSS from `ps` each second; heap and collections from one `jstat -gc -t <pid> 1000` per JVM (heap used max and average, the deltas of `YGC`, `YGCT`, `FGC`, `FGCT`, `CGC`, `CGCT`, `GCT`); `--jfr` adds a flight recording per server; the bytes it allocated (`totalThreadAllocatedBytes` of its `ThreadMXBean`, read over the Attach API at start and at stop, `Allocations.kt`), which the report divides by the run's operations as Alloc/op beside CPU ms/op;
 - every container: CPU and memory from one `docker stats` stream;
-- the stores: MongoDB's `serverStatus().opcounters`, PostgreSQL's `pg_stat_database` of `transfer`, and the end offsets of every Kafka topic, before and after, and their difference.
+- the stores: MongoDB's `serverStatus().opcounters` with its journal's syncs and their time (`wiredTiger.log`), PostgreSQL's `pg_stat_database` of `transfer` with `pg_stat_wal` (`track_wal_io_timing` gives the WAL's write and sync times), and the end offsets of every Kafka topic, before and after, and their difference; each store's counters also once a second over the phase (`postgresSeries`, `mongoSeries`).
 
 ## Running it
 
