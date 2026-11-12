@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import me.ahoo.wow.runtime.health.launchWorker
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -80,7 +81,7 @@ internal class PartitionRunner(
         joined += current
         readers.launch { open() }
         behind.forEach(::catchUp)
-        readers.launch {
+        readers.launchWorker("shared tail of partition $partition") {
             opened.await()
             retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
                 source.tail(partition, head.takeIf { it > 0 }).collect { entry ->
@@ -99,6 +100,8 @@ internal class PartitionRunner(
                     }
                 }
             }
+            // The tail ended: the partition's reads end with it.
+            false
         }
     }
 
@@ -157,7 +160,7 @@ internal class PartitionRunner(
     }
 
     private fun catchUp(worker: SubscriptionWorker) {
-        readers.launch {
+        readers.launchWorker("catch-up of ${worker.subscription.name} in partition $partition") {
             opened.await()
             // Joins without reading when the worker is not behind.
             retryForever(
@@ -173,6 +176,7 @@ internal class PartitionRunner(
                         .collect()
                 }
             }
+            false
         }
     }
 

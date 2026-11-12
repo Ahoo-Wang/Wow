@@ -30,6 +30,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.health.launchLoop
+import me.ahoo.wow.runtime.health.launchWorker
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.observation.Observer
@@ -329,12 +331,14 @@ class PartitionOwnership internal constructor(
         val run = Running(root, CoroutineScope(context + root))
         running = run
         // Before the first acquisition: the leases acquired first must not wait for the last one to be renewed.
-        run.renewals = run.upkeep.launch {
-            while (!steppedOut.get()) {
-                val started = timeSource.markNow()
-                quietly("renew leases") { renewals.renew() }
-                delay(options.renewInterval - started.elapsedNow())
+        run.renewals = run.upkeep.launchWorker("lease renewals") {
+            if (steppedOut.get()) {
+                return@launchWorker false
             }
+            val started = timeSource.markNow()
+            quietly("renew leases") { renewals.renew() }
+            delay(options.renewInterval - started.elapsedNow())
+            true
         }
         membership.join(group.name) { if (running != null) peerRoutes.membersRead() }
         // A step-out that ran meanwhile saw no running ownership to leave: this start leaves, and fails.
@@ -352,26 +356,20 @@ class PartitionOwnership internal constructor(
             }
         }
         // Watched from the first reconcile on (RT-12): one stuck in a start fences the group as any other does.
-        run.membership.launch {
-            every(options.heartbeatInterval, "check the reconcile") { fence.check(running?.upkeep) }
-        }
+        run.membership.every(options.heartbeatInterval, "check the reconcile") { fence.check(running?.upkeep) }
         try {
             reconcile(reads ?: own)
         } finally {
             release?.cancel()
             own?.complete()
         }
-        run.membership.launch {
-            while (true) {
-                quietly("reconcile") { reconcile() }
-                withTimeoutOrNull(options.reconcileInterval) { wakeReconcile.receive() }
-            }
+        run.membership.launchLoop("reconcile") {
+            quietly("reconcile") { reconcile() }
+            withTimeoutOrNull(options.reconcileInterval) { wakeReconcile.receive() }
         }
-        run.upkeep.launch {
-            while (true) {
-                withTimeoutOrNull(options.routeRefreshInterval) { wakeRefresh.receive() }
-                quietly("refresh routes") { refreshRoutes() }
-            }
+        run.upkeep.launchLoop("route refresh") {
+            withTimeoutOrNull(options.routeRefreshInterval) { wakeRefresh.receive() }
+            quietly("refresh routes") { refreshRoutes() }
         }
     }
 
@@ -554,12 +552,11 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    private suspend fun every(interval: Duration, action: String, block: suspend () -> Unit) {
-        while (true) {
+    private fun CoroutineScope.every(interval: Duration, action: String, block: suspend () -> Unit) =
+        launchLoop(action) {
             delay(interval)
             quietly(action, block = block)
         }
-    }
 
     /** [block], [action] of this node in [group]; a failure is logged with what follows it, [then], and not thrown. */
     private suspend fun quietly(action: String, then: String = NEXT_ROUND, block: suspend () -> Unit) =

@@ -20,8 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -37,6 +35,7 @@ import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
@@ -261,24 +260,20 @@ class LedgerPublisher internal constructor(
     fun start() {
         check(loop == null) { "The ledger of $service is published already." }
         available?.let { ask ->
-            gate = CoroutineScope(context).launch {
-                while (isActive) {
-                    refresh(ask)
-                    delay(availability)
-                }
+            gate = CoroutineScope(context).launchLoop("ops availability of $service") {
+                refresh(ask)
+                delay(availability)
             }
         }
-        loop = CoroutineScope(context).launch {
-            while (isActive) {
-                try {
-                    scan()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-                    logger.warn(failure) { "Failed to scan the ledger of $service for ${options.context}." }
-                }
-                delay(options.interval)
+        loop = CoroutineScope(context).launchLoop("ledger scan of $service") {
+            try {
+                scan()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                logger.warn(failure) { "Failed to scan the ledger of $service for ${options.context}." }
             }
+            delay(options.interval)
         }
     }
 

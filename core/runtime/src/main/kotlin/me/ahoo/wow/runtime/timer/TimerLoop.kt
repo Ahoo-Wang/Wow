@@ -21,13 +21,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArraySet
@@ -82,7 +81,8 @@ class TimerLoop(
     internal suspend fun register(runner: TimerRunner) = lifecycle.withLock {
         runners += runner
         if (running == null) {
-            running = scope.launch { run() }
+            var polled: TimeMark? = null
+            running = scope.launchLoop(TIMERS) { polled = round(polled) }
         }
         wakeUp()
     }
@@ -104,19 +104,22 @@ class TimerLoop(
         root.cancel()
     }
 
-    private suspend fun run() {
-        var polled: TimeMark? = null
-        while (scope.isActive) {
-            runners.forEach { it.flush() }
-            if (polled == null || polled.elapsedNow() >= options.pollInterval) {
-                poll()
-                polled = TimeSource.Monotonic.markNow()
-            }
-            val now = clock.millis()
-            val untilNext = runners.minOfOrNull { it.dispatch(now) } ?: Duration.INFINITE
-            val untilPoll = options.pollInterval - polled.elapsedNow()
-            withTimeoutOrNull(minOf(untilPoll, untilNext).coerceAtLeast(TICK)) { wake.receive() }
+    /**
+     * One round: flushes, polls once [polledAt] is a poll interval past, dispatches what is due, then waits for the next
+     * due timer, the next poll or a wake-up; returns when it last polled.
+     */
+    private suspend fun round(polledAt: TimeMark?): TimeMark {
+        runners.forEach { it.flush() }
+        var polled = polledAt
+        if (polled == null || polled.elapsedNow() >= options.pollInterval) {
+            poll()
+            polled = TimeSource.Monotonic.markNow()
         }
+        val now = clock.millis()
+        val untilNext = runners.minOfOrNull { it.dispatch(now) } ?: Duration.INFINITE
+        val untilPoll = options.pollInterval - polled.elapsedNow()
+        withTimeoutOrNull(minOf(untilPoll, untilNext).coerceAtLeast(TICK)) { wake.receive() }
+        return polled
     }
 
     /** One query per runner that owns partitions: its timers due within the lookahead. */

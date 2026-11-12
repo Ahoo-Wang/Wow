@@ -37,6 +37,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.PausedPartition
@@ -253,7 +254,7 @@ class TopicSubscriptions internal constructor(
             deferred.complete(run)
             logger.info { "$node reads topic $topic (${partitions.size} partitions) for ${subscriptions.size} subscriptions." }
             if (partitionRefresh.isFinite()) {
-                refresh()
+                launchLoop("partition refresh of $topic") { refresh() }
             }
         }
     }
@@ -318,34 +319,33 @@ class TopicSubscriptions internal constructor(
     }
 
     /**
-     * Reads the topic's partitions every [partitionRefresh], and joins again over them when there are more: the held
-     * ones are handed off, then the group joined over all of them, retrying as [start] does until it succeeds.
+     * One round of the partitions' refresh: reads the topic's partitions after [partitionRefresh], and joins again over
+     * them when there are more: the held ones are handed off, then the group joined over all of them, retrying as
+     * [start] does until it succeeds.
      */
     @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
     private suspend fun refresh() {
-        while (true) {
-            delay(partitionRefresh)
-            val current = checkNotNull(running)
-            val count = try {
-                source.partitions(topic).size
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                logger.warn(
-                    failure
-                ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefresh." }
-                continue
+        delay(partitionRefresh)
+        val current = checkNotNull(running)
+        val count = try {
+            source.partitions(topic).size
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(
+                failure
+            ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefresh." }
+            return
+        }
+        if (count > current.partitions) {
+            // Not cancelled half-way: the held partitions are handed off with their checkpoints saved.
+            state = JoinState.JOINING
+            withContext(NonCancellable) {
+                current.ownership.stop()
+                running = null
             }
-            if (count > current.partitions) {
-                // Not cancelled half-way: the held partitions are handed off with their checkpoints saved.
-                state = JoinState.JOINING
-                withContext(NonCancellable) {
-                    current.ownership.stop()
-                    running = null
-                }
-                join(count)
-                logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
-            }
+            join(count)
+            logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
         }
     }
 

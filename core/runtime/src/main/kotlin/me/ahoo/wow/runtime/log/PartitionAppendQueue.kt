@@ -24,11 +24,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.health.launchWorker
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -140,9 +140,13 @@ class PartitionAppendQueue(
     private val handed = Channel<Handed>(Channel.UNLIMITED)
 
     // Before the lanes' workers, which hand their groups to it.
-    private val mergers: List<Job> = if (merging) List(options.mergers) { scope.launch { merge() } } else emptyList()
+    private val mergers: List<Job> =
+        if (merging) List(options.mergers) { scope.launchWorker("append merger") { merge() } } else emptyList()
 
-    private val workers: List<Job> = lanes.map { lane -> scope.launch { drain(lane) } }
+    private val workers: List<Job> = lanes.mapIndexed { partition, lane ->
+        val queued = ArrayDeque<Pending>()
+        scope.launchWorker("append lane $partition") { drain(lane, queued) }
+    }
 
     /** A lane's group, handed to the mergers: done once committed. */
     private class Handed(val batch: List<Pending>) {
@@ -150,22 +154,21 @@ class PartitionAppendQueue(
     }
 
     /**
-     * Commits the lanes' groups: the first handed, and those handed meanwhile, up to [AppendQueueOptions.mergeMax]
-     * streams, with one call; each lane then takes its next group.
+     * Commits a group of the lanes' groups: the first handed, and those handed meanwhile, up to
+     * [AppendQueueOptions.mergeMax] streams, with one call; each lane then takes its next group. False once closed.
      */
-    private suspend fun merge() {
-        while (true) {
-            val first = handed.receiveCatching().getOrNull() ?: return
-            val group = arrayListOf(first)
-            var streams = first.batch.sumOf { it.streams.size }
-            while (streams < options.mergeMax) {
-                val next = handed.tryReceive().getOrNull() ?: break
-                group += next
-                streams += next.batch.sumOf { it.streams.size }
-            }
-            commit(group.flatMap { it.batch })
-            group.forEach { it.done.complete(Unit) }
+    private suspend fun merge(): Boolean {
+        val first = handed.receiveCatching().getOrNull() ?: return false
+        val group = arrayListOf(first)
+        var streams = first.batch.sumOf { it.streams.size }
+        while (streams < options.mergeMax) {
+            val next = handed.tryReceive().getOrNull() ?: break
+            group += next
+            streams += next.batch.sumOf { it.streams.size }
         }
+        commit(group.flatMap { it.batch })
+        group.forEach { it.done.complete(Unit) }
+        return true
     }
 
     private val waiting = AtomicInteger()
@@ -239,27 +242,26 @@ class PartitionAppendQueue(
         root.cancel()
     }
 
-    private suspend fun drain(lane: Channel<Pending>) {
-        val queued = ArrayDeque<Pending>()
-        while (true) {
-            if (queued.isEmpty()) {
-                queued.addLast(lane.receiveCatching().getOrNull() ?: return)
-            }
-            while (queued.size < options.maxBatch) {
-                queued.addLast(lane.tryReceive().getOrNull() ?: break)
-            }
-            val batch = take(queued)
-            if (batch.isNotEmpty()) {
-                if (merging) {
-                    // One group of the partition in flight: its next waits, so the partition's order holds.
-                    val handing = Handed(batch)
-                    handed.send(handing)
-                    handing.done.await()
-                } else {
-                    commit(batch)
-                }
+    /** Commits one batch of [lane], [queued] holding what it read and did not take yet; false once the lane closed. */
+    private suspend fun drain(lane: Channel<Pending>, queued: ArrayDeque<Pending>): Boolean {
+        if (queued.isEmpty()) {
+            queued.addLast(lane.receiveCatching().getOrNull() ?: return false)
+        }
+        while (queued.size < options.maxBatch) {
+            queued.addLast(lane.tryReceive().getOrNull() ?: break)
+        }
+        val batch = take(queued)
+        if (batch.isNotEmpty()) {
+            if (merging) {
+                // One group of the partition in flight: its next waits, so the partition's order holds.
+                val handing = Handed(batch)
+                handed.send(handing)
+                handing.done.await()
+            } else {
+                commit(batch)
             }
         }
+        return true
     }
 
     /**

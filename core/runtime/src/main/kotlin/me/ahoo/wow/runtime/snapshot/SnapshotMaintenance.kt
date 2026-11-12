@@ -19,8 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -29,6 +27,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.replaying
 import me.ahoo.wow.runtime.state.ReplayGate
@@ -188,19 +187,17 @@ class SnapshotMaintenance(
 
     /** Runs [maintain] every interval in [scope], the first one an interval after [prepare], until [stop]. */
     fun start(scope: CoroutineScope) {
-        loop = scope.launch {
-            while (isActive) {
-                delay(options.interval)
-                try {
-                    maintain()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") // A run that fails is logged; the next one tries again.
-                    failure: Exception,
-                ) {
-                    logger.warn(failure) { "The snapshot maintenance of $context failed; it runs again." }
-                }
+        loop = scope.launchLoop("snapshot maintenance of $context") {
+            delay(options.interval)
+            try {
+                maintain()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // A run that fails is logged; the next one tries again.
+                failure: Exception,
+            ) {
+                logger.warn(failure) { "The snapshot maintenance of $context failed; it runs again." }
             }
         }
     }

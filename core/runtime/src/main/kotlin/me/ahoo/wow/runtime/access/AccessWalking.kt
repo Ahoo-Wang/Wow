@@ -19,14 +19,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.health.launchLoop
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.replaying
 import me.ahoo.wow.runtime.state.ReplayGate
@@ -180,22 +179,20 @@ class AccessWalking(
      * ([covers]).
      */
     fun start(scope: CoroutineScope) {
-        loop = scope.launch {
-            while (isActive) {
-                val walking = try {
-                    maintain()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") // A run that fails is logged; the next one tries again.
-                    failure: Exception,
-                ) {
-                    logger.warn(failure) { "The access walks of $context failed; they run again." }
-                    false
-                }
-                if (!walking) {
-                    delay(options.interval)
-                }
+        loop = scope.launchLoop("access walks of $context") {
+            val walking = try {
+                maintain()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // A run that fails is logged; the next one tries again.
+                failure: Exception,
+            ) {
+                logger.warn(failure) { "The access walks of $context failed; they run again." }
+                false
+            }
+            if (!walking) {
+                delay(options.interval)
             }
         }
     }
