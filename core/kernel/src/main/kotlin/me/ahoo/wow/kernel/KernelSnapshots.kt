@@ -81,15 +81,21 @@ internal class SnapshotTailReads(
 /**
  * [store] as a cache-miss load reads it with the log ([SnapshotTailReads]): a snapshot that fails to load is none, a
  * snapshot being only a cache, so a failing store costs a full replay and only the log's failure fails the command.
- * Cancellation still propagates. Each failure is counted with [ObservedEvent.StoreFellBack], and the first is logged
- * as a warning, the later ones at debug level: a store that is down fails every load.
+ * Cancellation still propagates. Each failure is counted with [ObservedEvent.StoreFellBack], and the first of each
+ * outage is logged as a warning, the later ones at debug level: a store that is down fails every load. A load that
+ * succeeds ends the outage, so the next failure, a later outage's first, is a warning again.
  */
 internal class TolerantSnapshots(private val store: SnapshotStore, private val observer: Observer) :
     SnapshotStore by store {
+    /** Whether this outage's first failure was logged; cleared by a load that succeeds. */
     private val failedLogged = AtomicBoolean()
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = try {
-        store.load(ref)
+        store.load(ref).also {
+            if (failedLogged.get()) {
+                failedLogged.set(false)
+            }
+        }
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (
@@ -106,7 +112,7 @@ internal class TolerantSnapshots(private val store: SnapshotStore, private val o
         if (failedLogged.compareAndSet(false, true)) {
             logger.warn(failure) {
                 "Loading the snapshot of $ref failed; replaying its log. Later failures are counted " +
-                    "(wow.store.fallbacks), and logged at debug level."
+                    "(wow.store.fallbacks), and logged at debug level until a load succeeds."
             }
         } else {
             logger.debug(failure) { "Loading the snapshot of $ref failed; replaying its log." }
