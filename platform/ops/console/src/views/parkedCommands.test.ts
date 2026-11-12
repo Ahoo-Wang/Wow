@@ -93,6 +93,17 @@ describe("the operator's commands", () => {
     expect(sent[1].body).toEqual({ reason: "done", failedAt: 1760000000000 });
   });
 
+  it("name the parking a mark and a retry spec act on", async () => {
+    const sent = service(OK);
+    await commands().markRecoverable(ID, "unrecoverable", "1760000000000");
+    await commands().applyRetrySpec(ID, { maxRetries: 5 }, "1760000000000");
+    expect(sent[0].body).toEqual({
+      recoverable: "unrecoverable",
+      failedAt: 1760000000000,
+    });
+    expect(sent[1].body).toEqual({ maxRetries: 5, failedAt: 1760000000000 });
+  });
+
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
     await commands().markRecoverable(ID, "unrecoverable");

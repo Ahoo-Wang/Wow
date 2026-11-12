@@ -100,7 +100,7 @@ class Parked(private val state: ParkedState) {
 
     /**
      * Refuses an action on the parking at [failedAt], the one the operator saw, when the entry now records
-     * another: a retry or a skip acts on the parking the operator looked at, or not at all.
+     * another: a retry, a skip, a mark or a retry spec acts on the parking the operator looked at, or not at all.
      */
     private fun rejectStale(failedAt: Long?) {
         if (failedAt != null && failedAt != state.failedAt) {
@@ -114,6 +114,7 @@ class Parked(private val state: ParkedState) {
 
     fun onCommand(command: MarkRecoverable): MarkRecoverableRequested {
         rejectResolved()
+        rejectStale(command.failedAt)
         val recoverable = command.recoverable
         if (recoverable !in RECOVERABLES) {
             reject(
@@ -121,13 +122,14 @@ class Parked(private val state: ParkedState) {
                 "Not a recoverable: '${command.recoverable}'; one of ${RECOVERABLES.joinToString()}."
             )
         }
-        return MarkRecoverableRequested(recoverable)
+        return MarkRecoverableRequested(recoverable, state.failedAt)
     }
 
     /** Its count and durations are the command's input, checked at admission (`ApplyRetrySpec`'s constraints). */
     fun onCommand(command: ApplyRetrySpec): ApplyRetrySpecRequested {
         rejectResolved()
-        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.claimTtl)
+        rejectStale(command.failedAt)
+        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.claimTtl, state.failedAt)
     }
 
     /** Refuses an operator's action on a resolved entry. */

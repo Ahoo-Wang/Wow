@@ -31,8 +31,16 @@ import { OpsClient, opsWait, type ApplyRetrySpec } from "@/generated/index.ts";
 export interface ParkedCommands {
   retry(id: string, reason?: string, failedAt?: string): Promise<unknown>;
   skip(id: string, reason?: string, failedAt?: string): Promise<unknown>;
-  markRecoverable(id: string, recoverable: string): Promise<unknown>;
-  applyRetrySpec(id: string, spec: ApplyRetrySpec): Promise<unknown>;
+  markRecoverable(
+    id: string,
+    recoverable: string,
+    failedAt?: string,
+  ): Promise<unknown>;
+  applyRetrySpec(
+    id: string,
+    spec: ApplyRetrySpec,
+    failedAt?: string,
+  ): Promise<unknown>;
 }
 
 /** Each command waits for the snapshot of the entry (`Wow-Wait`). */
@@ -45,16 +53,20 @@ function reasonOf(reason: string | undefined): { reason?: string } {
 }
 
 /**
- * The retry or skip of the parking the operator saw (`failedAt`): one parked
- * again since is refused as stale (`ops.parked.stale`, `wow.ledger.stale`).
+ * The parking the operator saw (`failedAt`), which every action names: one
+ * parked again since refuses it as stale (`ops.parked.stale`,
+ * `wow.ledger.stale`).
  */
+function parkingOf(failedAt: string | undefined): { failedAt?: string } {
+  return failedAt === undefined ? {} : { failedAt };
+}
+
+/** The retry or skip of the parking the operator saw. */
 function actionOf(
   reason: string | undefined,
   failedAt: string | undefined,
 ): { reason?: string; failedAt?: string } {
-  return failedAt === undefined
-    ? reasonOf(reason)
-    : { ...reasonOf(reason), failedAt };
+  return { ...reasonOf(reason), ...parkingOf(failedAt) };
 }
 
 /** The actions over the ops service's generated client. */
@@ -65,9 +77,14 @@ export function parkedCommands(fetcher: Fetcher): ParkedCommands {
       client.retry(id, actionOf(reason, failedAt), OPTIONS),
     skip: (id, reason, failedAt) =>
       client.skip(id, actionOf(reason, failedAt), OPTIONS),
-    markRecoverable: (id, recoverable) =>
-      client.markRecoverable(id, { recoverable }, OPTIONS),
-    applyRetrySpec: (id, spec) => client.applyRetrySpec(id, spec, OPTIONS),
+    markRecoverable: (id, recoverable, failedAt) =>
+      client.markRecoverable(
+        id,
+        { recoverable, ...parkingOf(failedAt) },
+        OPTIONS,
+      ),
+    applyRetrySpec: (id, spec, failedAt) =>
+      client.applyRetrySpec(id, { ...spec, ...parkingOf(failedAt) }, OPTIONS),
   };
 }
 

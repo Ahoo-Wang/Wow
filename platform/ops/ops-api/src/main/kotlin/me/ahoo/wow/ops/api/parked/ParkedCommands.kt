@@ -68,20 +68,23 @@ data class Skip(val reason: String? = null, val failedAt: Long? = null)
 
 /**
  * Marks the entry [recoverable] (`wow.ledger.MarkParkedRecoverable`, 9.x `MarkRecoverable`): `recoverable`, `unrecoverable`
- * or `unknown`; an unrecoverable entry is not retried automatically.
+ * or `unknown`; an unrecoverable entry is not retried automatically. The parking at [failedAt], as for [Retry]: left
+ * out, it marks whichever parking the entry holds, one the caller may not have seen; the console always sends it.
  */
 @Summary("Mark a parked entry recoverable or not")
-data class MarkRecoverable(val recoverable: String)
+data class MarkRecoverable(val recoverable: String, val failedAt: Long? = null)
 
 /**
  * Applies a retry spec to the entry (`wow.ledger.ApplyParkedRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
  * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl] (`PT3M` or
  * `3m`). A member left out keeps the value the entry is retried by now. The host refuses a negative count and a
- * duration Kotlin cannot read at admission (`wow.command.invalid`, each under its member's path).
+ * duration Kotlin cannot read at admission (`wow.command.invalid`, each under its member's path). The parking at
+ * [failedAt], as for [MarkRecoverable].
  */
 @Summary("Apply a retry spec to a parked entry")
 data class ApplyRetrySpec(
     @field:PositiveOrZero val maxRetries: Int? = null,
     @field:RetryDuration val initialBackoff: String? = null,
     @field:RetryDuration val claimTtl: String? = null,
+    val failedAt: Long? = null,
 )
