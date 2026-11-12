@@ -270,8 +270,9 @@ internal object MongoMatchCompiler {
         if (!keyed || scope != ROOT || admitted.model != QueryModel.EVENTS) return null
         val attribute = field.resolve(admitted, scope).removePrefix(MongoEventLog.ACCESS + ".")
             .takeIf { it == AccessValues.OWNER || it == AccessValues.SPACE } ?: return null
-        val tenants = (admitted.query as? FilterCapable<*>)?.filter?.let(::requiredTenants) ?: return null
-        val strings = values.map { it.operandValue() as? String ?: return null }
+        // Every admitted query has a filter, and admission typed the operands as the attribute's strings.
+        val tenants = requiredTenants((admitted.query as FilterCapable<*>).filter) ?: return null
+        val strings = values.map { it.operandValue() as String }
         val keys = tenants.flatMap { tenant -> strings.map { MongoAccess.key(tenant, it) } }.distinct()
         val path = MongoEventLog.ACCESS_KEY + "." + attribute
         return keys.singleOrNull()?.let { Filters.eq(path, it) } ?: Filters.`in`(path, keys)

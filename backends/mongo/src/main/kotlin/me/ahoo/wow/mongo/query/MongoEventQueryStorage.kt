@@ -188,7 +188,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                     }
                 }
                 EventStreamFields.OPERATOR, EventStreamFields.ACCESS ->
-                    set(logical, storedObject(logical, document.get(physical, Document::class.java)))
+                    set(logical, storedObject(logical, document.get(physical, Document::class.java)!!))
                 else -> set(logical, ExactBson.node(document[physical]))
             }
         }
@@ -197,17 +197,15 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     /**
      * The record's operator or access attributes of their stored sub-document [stored]: the operator as
      * `{id, tenantId, actedElsewhere}`; the attributes with the built-in ones a stream leaves out without a value put
-     * back as null ([MongoAccess.restored]); JSON null when the document holds none.
+     * back as null ([MongoAccess.restored]).
      */
-    private fun storedObject(logical: String, stored: Document?): JsonNode = when {
-        stored == null -> nodes.nullNode()
-        logical == EventStreamFields.ACCESS -> ExactBson.node(MongoAccess.restored(stored))
-        else -> MongoOperators.of(stored)?.let { operator ->
-            nodes.objectNode()
-                .put(MongoOperators.ID, operator.id)
-                .put(MongoOperators.TENANT_ID, operator.tenantId)
-                .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
-        } ?: nodes.nullNode()
+    private fun storedObject(logical: String, stored: Document): JsonNode {
+        if (logical == EventStreamFields.ACCESS) return ExactBson.node(MongoAccess.restored(stored))
+        val operator = MongoOperators.of(stored)!!
+        return nodes.objectNode()
+            .put(MongoOperators.ID, operator.id)
+            .put(MongoOperators.TENANT_ID, operator.tenantId)
+            .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
     }
 }
 

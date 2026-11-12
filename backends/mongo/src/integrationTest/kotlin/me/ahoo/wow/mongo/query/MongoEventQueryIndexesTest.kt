@@ -136,16 +136,18 @@ class MongoEventQueryIndexesTest {
                 listOf("access_key.space"),
             )
             indexes.filter { it.sparse }.map { it.name }.assert().containsExactly("access_owner", "access_space")
-            // A collection an earlier version wrote keeps the built-ins' indexes under the same names.
+            // A collection an earlier version wrote keeps the owner's index of other keys under the same name; one of
+            // the space's key that is not sparse, and one of the region's keys without its partial filter, differ too.
             val partial = Document("version", Document("\$exists", true))
-            listOf("owner", "space").forEach {
-                val options = IndexOptions().name("access_$it").partialFilterExpression(partial)
-                collection().createIndex(Document("tenant_id", 1).append("access.$it", 1), options)
-            }
+            val earlier = IndexOptions().name("access_owner").partialFilterExpression(partial)
+            collection().createIndex(Document("tenant_id", 1).append("access.owner", 1), earlier)
+            collection().createIndex(Document("access_key.space", 1), IndexOptions().name("access_space"))
+            val region = Document("tenant_id", 1).append("access.region", 1)
+            collection().createIndex(region, IndexOptions().name("access_region"))
             val ensured = { _: MongoQueryIndex -> log.createCollection(type.name) }
             val invalid = MongoQueryIndexReport(
-                missing = listOf("access_region", "access_teams"),
-                invalid = listOf("access_owner", "access_space"),
+                missing = listOf("access_teams"),
+                invalid = listOf("access_region", "access_owner", "access_space"),
             )
             MongoQueryIndexes.manage(database, Ddl.VALIDATE, indexes, ensured).assert().isEqualTo(invalid)
             MongoQueryIndexes.manage(database, Ddl.AUTO, indexes, ensured).created.assert()

@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.spi.Ddl
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoQueryIndexesTest {
@@ -71,6 +72,10 @@ class MongoQueryIndexesTest {
         refuses(QueryIndexDeclaration("ix", listOf("state.name")), QueryIndexDeclaration("ix", listOf("state.status")))
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("", listOf("state.name")) }
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("ix", emptyList()) }
+        // A sparse index has no partial filter.
+        assertThrownBy<IllegalArgumentException> {
+            MongoQueryIndex("shop", "order", "ix", listOf("access_key.owner"), partial = Document(), sparse = true)
+        }
     }
 
     @Test
