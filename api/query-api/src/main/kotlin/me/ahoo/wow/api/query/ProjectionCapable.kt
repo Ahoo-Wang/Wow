@@ -19,9 +19,12 @@ package me.ahoo.wow.api.query
  * This interface extends [RewritableProjection] and provides access to the projection
  * settings that control which fields are included or excluded from query results.
  *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
+ *
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
-interface ProjectionCapable<Q : RewritableProjection<Q>> : RewritableProjection<Q> {
+sealed interface ProjectionCapable<Q : RewritableProjection<Q>> : RewritableProjection<Q> {
     /**
      * The projection settings that control which fields are included in or excluded from the query results.
      */

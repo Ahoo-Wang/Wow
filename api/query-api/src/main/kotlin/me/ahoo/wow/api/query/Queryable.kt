@@ -207,9 +207,12 @@ fun Projection.isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
  * This interface combines condition filtering, field projection, and sorting capabilities
  * to provide a complete query interface for retrieving and filtering data.
  *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
+ *
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
-interface Queryable<Q : Queryable<Q>> :
+sealed interface Queryable<Q : Queryable<Q>> :
     FilterCapable<Q>,
     ProjectionCapable<Q>,
     SortCapable

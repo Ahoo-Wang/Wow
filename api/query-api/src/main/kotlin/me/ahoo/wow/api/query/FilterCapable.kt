@@ -13,7 +13,15 @@
 
 package me.ahoo.wow.api.query
 
-interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
+/**
+ * A query with a condition, its [filter]; a condition appended to it narrows that one.
+ *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
+ *
+ * @param Q The type of the query object that implements this interface, enabling method chaining.
+ */
+sealed interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
     val filter: FilterExpression
 
     override fun appendFilter(append: FilterExpression): Q = withFilter(filter.appendFilter(append))
