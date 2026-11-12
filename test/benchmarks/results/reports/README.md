@@ -13,7 +13,18 @@ Before GA the tree keeps the latest report of each kind on each environment (dec
 
 ## Headline figures
 
-The documentation's [Performance](../../../../documentation/docs/en/operate/performance.md) page quotes a snapshot's headline figures from `<report>/headline.json`, which the tool that computes them writes beside the report: `report`, `environment`, `commit`, `date`, `jdk`, and `figures`, each `{ store, nodes, scenario, keys, peak?, sustainable? }` with a figure `{ value, clients?, p99Ms? }` (`store` is `postgres` or `mongo`; `keys` is `uniform`, `zipf` or `hot`). `pnpm docs:reference` writes the page's table from them, and the documentation checks fail while the page is not what they give ([`docs-performance.mjs`](../../../../.github/scripts/docs-performance.mjs)). A report without the file is not quoted. A new report that replaces one updates its file in the same pull request, and the page with it.
+The documentation's [Performance](../../../../documentation/docs/en/operate/performance.md) page quotes the reports' figures from `<report>/headline.json` (schema `wow-headline/1`), which [`bench-headline.mjs`](../../../../.github/scripts/bench-headline.mjs) writes from the report's own data, so that no figure reaches a page by hand:
+
+- **Actions reports:** each suite's `suite.json`, through `bench.mjs`'s own views:
+  - a capacity suite's sustainable rates;
+  - the cliff, cold-cache and cluster runs;
+  - every L3 round of the head as a unit cost at its rate, the node's, the store's and Kafka's CPU apart;
+  - a comparison's Wow-over-Axon ranges with their A/A spread and verdict, and each session's storage and startup.
+- **The M5 Max snapshot:** its `summary.json`, which `scripts/summarize.py --json` writes from the same values as its `SUMMARY.md`.
+
+Each figure carries its build (`commit`), the runner's CPU model (`cpu`), its run when the report names one (`run`), and the file it comes from (`source`). None is computed across two reports, so none across two builds.
+
+`pnpm docs:reference` writes the headlines and the pages' tables together. The documentation checks fail while either is not what the data gives ([`docs-performance.mjs`](../../../../.github/scripts/docs-performance.mjs)). A report that replaces another changes its data, and its headline and the pages with it, in the same pull request.
 
 ## History
 

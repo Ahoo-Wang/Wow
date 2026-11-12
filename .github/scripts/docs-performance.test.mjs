@@ -14,32 +14,94 @@ import {
   HEADLINES,
   PAGES,
   checkedHeadline,
+  cpuName,
   performanceBlock,
   performancePages,
   withBlock,
 } from './docs-performance.mjs';
 
+const FROM = {
+  commit: 'd9b0781205',
+  cpu: 'Apple M5 Max, 18 cores, 64 GB',
+  jdk: '25.0.5+8',
+  source: 'm5max-snapshot/1-S-postgres/e1-sweep',
+};
+
 const HEADLINE = {
+  schema: 'wow-headline/1',
   report: 'm5max-snapshot',
-  environment: 'Apple M5 Max, one host',
-  commit: 'a7c372ad3e',
-  date: '2026-11-11',
-  jdk: '25',
+  environment: 'm5max',
   figures: [
     {
+      id: 'sweep.postgres.1.e1-sweep',
+      kind: 'sweep',
       store: 'postgres',
       nodes: 1,
       scenario: 'E1',
       keys: 'uniform',
-      peak: { value: 33938.5, clients: 4096 },
-      sustainable: { value: 21373.1, clients: 1024, p99Ms: 113.2 },
+      value: 37713.6,
+      clients: 4096,
+      lowerBound: true,
+      sustainable: { value: 23030.1, clients: 1024, p99Ms: 74.8 },
+      ...FROM,
     },
     {
+      id: 'sweep.mongo.3.e3-sweep',
+      kind: 'sweep',
       store: 'mongo',
       nodes: 3,
       scenario: 'E3',
       keys: 'hot',
-      sustainable: { value: 485.5, p99Ms: 161.8 },
+      value: 5380.1,
+      clients: 1024,
+      lowerBound: false,
+      sustainable: null,
+      ...FROM,
+    },
+    // Neither a fixed run nor the steps measured past a sweep is a row.
+    {
+      id: 'sweep.mongo.3.e1-c1024',
+      kind: 'sweep',
+      single: true,
+      store: 'mongo',
+      ...FROM,
+    },
+    {
+      id: 'sweep.postgres.1.e1-top',
+      kind: 'sweep',
+      store: 'postgres',
+      ...FROM,
+    },
+  ],
+};
+
+const ACTIONS = {
+  schema: 'wow-headline/1',
+  report: 'actions-snapshot',
+  environment: 'actions',
+  figures: [
+    {
+      id: 'sustainable.postgres.E1',
+      kind: 'sustainable',
+      store: 'postgres',
+      nodes: 1,
+      scenario: 'E1',
+      keys: 'uniform',
+      value: 2609.8,
+      p99Ms: 160.8,
+      saturation: 4912.5,
+      commit: 'd8284109df',
+      cpu: 'AMD EPYC 9V45 96-Core Processor',
+      jdk: '25.0.5+8',
+      source: 'actions-snapshot/l4/sustainable-pg.100k/suite.json',
+    },
+    {
+      id: 'unit.postgres.e1-pg-uniform.100k.r1-head',
+      kind: 'unit',
+      commit: 'a7c372ad3e',
+      cpu: 'AMD EPYC 7763 64-Core Processor',
+      jdk: '25.0.5+8',
+      source: 'actions-snapshot/l3/e1-pg-uniform.100k/suite.json',
     },
   ],
 };
@@ -52,7 +114,7 @@ test('without a headline the block says the reports hold the figures, in each lo
   assert.match(performanceBlock('zh', []), /尚无报告在此引用其数字/);
 });
 
-test('a headline is a table of its figures, under its report, commit, date and JDK', () => {
+test('a headline is a table of its figures, under its environment, report and builds, each row with its CPU and build', () => {
   const block = performanceBlock('en', [HEADLINE]);
   assert.match(
     block,
@@ -60,42 +122,79 @@ test('a headline is a table of its figures, under its report, commit, date and J
   );
   assert.match(
     block,
-    /\*\*Apple M5 Max, one host\*\*: \[m5max-snapshot\]\(https:\/\/github\.com\/Ahoo-Wang\/Wow\/blob\/main\/test\/benchmarks\/results\/reports\/m5max-snapshot\.md\), at `a7c372ad3e`, measured on 2026-11-11, JDK 25\./,
+    /\*\*Apple M5 Max, 18 cores, 64 GB, one host\*\*: \[m5max-snapshot\]\(https:\/\/github\.com\/Ahoo-Wang\/Wow\/blob\/main\/test\/benchmarks\/results\/reports\/m5max-snapshot\.md\), build `d9b0781205`\./,
   );
   assert.ok(
     block.includes(
-      '| PostgreSQL | one | E1 | uniform | 33,938.5/s, at 4,096 clients | 21,373.1/s, at 1,024 clients, p99 113.2 ms |',
+      '| PostgreSQL | one | E1 | uniform | ≥ 37,713.6/s, at 4,096 clients | 23,030.1/s, at 1,024 clients, p99 74.8 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |',
     ),
   );
   assert.ok(
     block.includes(
-      '| MongoDB | 3 | E3 | one hot account | – | 485.5/s, open loop, p99 161.8 ms |',
+      '| MongoDB | 3 | E3 | one hot account | 5,380.1/s, at 1,024 clients | – | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |',
     ),
+  );
+  assert.equal(
+    block
+      .split('\n')
+      .filter(
+        line =>
+          line.startsWith('| ') &&
+          !line.startsWith('| Store') &&
+          !line.startsWith('| ---'),
+      ).length,
+    2,
   );
   assert.ok(
     performanceBlock('zh', [HEADLINE]).includes(
-      '| MongoDB | 3 | E3 | 单个热点账户 | – | 485.5/s, 开环, p99 161.8 ms |',
+      '| MongoDB | 3 | E3 | 单个热点账户 | 5,380.1/s，1,024 个客户端 | – | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |',
     ),
   );
 });
 
+test("an Actions headline is its sustainable rates beside the closed-loop saturation, named by the runner's CPU", () => {
+  const block = performanceBlock('en', [ACTIONS]);
+  assert.ok(
+    block.includes(
+      '| PostgreSQL | one | E1 | uniform | 4,912.5/s, closed loop | 2,609.8/s, open loop, p99 160.8 ms | EPYC 9V45, JDK 25.0.5+8, `d8284109df` |',
+    ),
+  );
+  // A unit cost is no row of this table.
+  assert.ok(!block.includes('a7c372ad3e'));
+  assert.match(block, /build `d8284109df`\./);
+});
+
+test("the CPU names are a reader's", () => {
+  assert.equal(cpuName('AMD EPYC 7763 64-Core Processor'), 'EPYC 7763');
+  assert.equal(cpuName('Apple M5 Max, 18 cores, 64 GB'), 'Apple M5 Max');
+});
+
 test('a headline that lacks a field the table needs is refused, naming it', () => {
   assert.throws(
-    () => checkedHeadline({ ...HEADLINE, commit: undefined }, 'h.json'),
-    /h\.json lacks commit/,
+    () => checkedHeadline({ ...HEADLINE, environment: undefined }, 'h.json'),
+    /h\.json lacks environment/,
   );
   assert.throws(
     () =>
       checkedHeadline(
         {
           ...HEADLINE,
-          figures: [
-            { store: 'redis', nodes: 1, scenario: 'E1', keys: 'uniform' },
-          ],
+          figures: [{ id: 'x', kind: 'sweep', commit: 'c', cpu: 'p' }],
         },
         'h.json',
       ),
-    /figure 1 lacks a known store \(postgres, mongo\), peak or sustainable/,
+    /figure 1 lacks jdk, source/,
+  );
+  assert.throws(
+    () =>
+      checkedHeadline(
+        {
+          ...HEADLINE,
+          figures: [{ ...HEADLINE.figures[0], store: 'redis' }],
+        },
+        'h.json',
+      ),
+    /sweep\.postgres\.1\.e1-sweep lacks a known store \(postgres, mongo\)/,
   );
 });
 
@@ -115,17 +214,111 @@ test('the block replaces what is between the markers and nothing else', () => {
   );
 });
 
-test('the pages take the headlines present in the tree, in the page’s order', () => {
+test("the pages take the headlines of the reports present in the tree, from their data, in the page's order", () => {
   const root = mkdtempSync(join(tmpdir(), 'docs-performance-'));
   for (const path of Object.values(PAGES)) {
     mkdirSync(join(root, dirname(path)), { recursive: true });
     writeFileSync(join(root, path), `# Page\n\n${BEGIN}\n${END}\n`);
   }
-  const headline = join(root, HEADLINES[1]);
-  mkdirSync(dirname(headline), { recursive: true });
-  writeFileSync(headline, JSON.stringify(HEADLINE));
+  const report = join(root, dirname(HEADLINES[1]));
+  mkdirSync(report, { recursive: true });
+  writeFileSync(
+    join(report, 'environment.txt'),
+    'commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36\n',
+  );
+  writeFileSync(
+    join(report, 'summary.json'),
+    JSON.stringify({
+      measurements: {
+        '1-S-postgres/e1-sweep': {
+          kind: 'sweep',
+          scenario: 'E1',
+          keys: 'uniform',
+          nodes: 1,
+          backend: 'postgres',
+          peak: { throughput: 37713.6, clients: 4096, lowerBound: true },
+          sustainable: null,
+          steps: [],
+        },
+      },
+    }),
+  );
   const pages = performancePages(root);
-  assert.deepEqual(Object.keys(pages), Object.values(PAGES));
+  assert.deepEqual(Object.keys(pages), [HEADLINES[1], ...Object.values(PAGES)]);
+  assert.match(pages[HEADLINES[1]], /"schema": "wow-headline\/1"/);
   assert.ok(pages[PAGES.en].includes('[m5max-snapshot]'));
+  assert.ok(pages[PAGES.en].includes('≥ 37,713.6/s, at 4,096 clients'));
   assert.ok(!pages[PAGES.en].includes('actions-snapshot'));
+});
+
+test('a report with no row the table quotes is left out of the block', () => {
+  const empty = { ...HEADLINE, figures: [] };
+  assert.match(
+    performanceBlock('en', [empty]),
+    /No report quotes its figures here yet/,
+  );
+});
+
+test('the block says once that the figures are measured again on 10.0.0-beta.3, in each locale', () => {
+  assert.match(
+    performanceBlock('en', [HEADLINE]),
+    /each is measured again on 10\.0\.0-beta\.3\./,
+  );
+  assert.match(
+    performanceBlock('zh', [HEADLINE]),
+    /都将在 10\.0\.0-beta\.3 上重测。/,
+  );
+});
+
+test('a row measured on a JDK other than 25 says so, and one whose run recorded none says that', () => {
+  const on = jdk => ({
+    ...HEADLINE,
+    figures: [{ ...HEADLINE.figures[0], jdk }],
+  });
+  assert.ok(
+    performanceBlock('en', [on('21.0.9+10')]).includes(
+      'Apple M5 Max, JDK 21.0.9+10 (not JDK 25), `d9b0781205` |',
+    ),
+  );
+  assert.ok(
+    performanceBlock('zh', [on('21.0.9+10')]).includes(
+      'JDK 21.0.9+10（不是 JDK 25）',
+    ),
+  );
+  assert.ok(
+    performanceBlock('en', [on('not recorded')]).includes(
+      'Apple M5 Max, JDK not recorded, `d9b0781205` |',
+    ),
+  );
+});
+
+test("a cluster's rows are a table of their own, led by what they show, in each locale", () => {
+  const block = performanceBlock('en', [HEADLINE]);
+  const lead = block.indexOf('Three nodes on this one host:');
+  assert.ok(lead > 0);
+  assert.match(
+    block,
+    /not what it gains\. Scaling across separate machines has not been measured\./,
+  );
+  // The single node's row comes before the lead, the three nodes' after it.
+  assert.ok(block.indexOf('| PostgreSQL | one | E1 |') < lead);
+  assert.ok(block.indexOf('| MongoDB | 3 | E3 |') > lead);
+  assert.equal(block.split('| Store |').length - 1, 2);
+  assert.match(
+    performanceBlock('zh', [HEADLINE]),
+    /三个节点在同一台主机上：.*跨多台机器的扩展尚未测量。/,
+  );
+});
+
+test('the block links the scenarios to the page section that says what each one is', () => {
+  assert.ok(
+    performanceBlock('en', [HEADLINE]).includes(
+      '[What was measured](#what-was-measured)',
+    ),
+  );
+  assert.ok(
+    performanceBlock('zh', [HEADLINE]).includes(
+      '[测了什么](#what-was-measured)',
+    ),
+  );
 });
