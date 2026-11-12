@@ -16,6 +16,7 @@ import type {
   FieldDefinition,
   FieldGroupDefinition,
   FilterMode,
+  FilterNode,
   FilterTree,
   Issue,
   ViewConfig,
@@ -30,7 +31,9 @@ import {
   isSimpleTree,
   nodeAt,
   sameFilterNode,
+  sameFilterTree,
   unmarkedErrors,
+  walkFilter,
   type FilterPath,
   type FilterSummaryItem,
   isFilterGroup,
@@ -173,8 +176,18 @@ export interface FilterEditorController extends FilterTreeController {
    * to "nothing said" (`clearValue`) in the draft and in what is in force,
    * and only that is applied — an edit still waiting elsewhere in the draft
    * goes on waiting. It used to apply the whole draft: a ✕ that also ran a
-   * condition the reader had not yet decided on. The paths are the applied
-   * summary's, which the draft shares until its tree is restructured.
+   * condition the reader had not yet decided on.
+   *
+   * The paths are the applied summary's: they address what is in force. The
+   * draft may have another shape by now — a condition added ahead, one
+   * taken out, a group made — so the condition is found there **by what it
+   * says** (`draftPathOf`): at the same path where the draft still holds
+   * the same condition, else wherever the draft holds one equal to it. Where
+   * the draft holds none — the reader has since rewritten that very
+   * condition, or taken it out — the draft is left exactly as it is: what
+   * they wrote is an edit of theirs still waiting, and the ✕ took out of
+   * force the condition its badge named. No other condition of the draft
+   * is ever touched.
    */
   unset(paths: readonly FilterPath[]): void;
   /**
@@ -272,6 +285,25 @@ function fixedScope(
   if (runtime?.kind !== 'dashboard' || !state) return undefined;
   const fixed: unknown = (state.applied as { fixed?: unknown }).fixed;
   return isFilterGroup(fixed) ? fixed : undefined;
+}
+
+/**
+ * Where the draft holds the condition that is in force at `path`: there, if
+ * the draft still says the same at that path; else the first place it says
+ * the same; `null` where it says it nowhere. See `unset`.
+ */
+function draftPathOf(
+  draft: FilterTree,
+  named: FilterNode | null,
+  path: FilterPath,
+): FilterPath | null {
+  if (!named) return null;
+  const there = nodeAt(draft, path);
+  if (there && sameFilterTree(there, named)) return path;
+  for (const visit of walkFilter(draft))
+    if (visit.path.length > 0 && sameFilterTree(visit.node, named))
+      return filterIndexes(visit.path);
+  return null;
 }
 
 /**
@@ -480,10 +512,13 @@ export function useFilterEditor(
           current: () => inForce!,
           onChange: next => (inForce = next),
         });
-        for (const path of paths) {
-          base.clearValue(path);
+        const named = paths.map(path => nodeAt(inForce!, path));
+        paths.forEach((path, at) => {
+          const draft = ownFilter(runtime.getSnapshot().draft);
+          const mine = draft && draftPathOf(draft, named[at], path);
+          if (mine) base.clearValue(mine);
           applied.clearValue(path);
-        }
+        });
         runtime.apply({ filter: inForce });
       },
       [runtime, base, fields, kinds],

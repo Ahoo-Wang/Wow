@@ -45,6 +45,8 @@ afterEach(cleanup);
 
 const PAID = { field: 'status', operator: FilterOperator.EQ, value: 'PAID' };
 const SAVED_FILTER: FilterTree = { op: 'and', children: [PAID] };
+const OVER_TEN = { field: 'amount', operator: FilterOperator.GT, value: 10 };
+const IN_CN = { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' };
 const BY_AMOUNT = [{ field: 'amount', direction: SortDirection.DESC }];
 
 const SAVED: ViewInstance = {
@@ -56,7 +58,7 @@ const SAVED: ViewInstance = {
   config: recordConfig({ filter: SAVED_FILTER }),
 };
 
-async function opened() {
+async function opened(filter: FilterTree = SAVED_FILTER) {
   const base = ordersDefinition();
   const definition = ordersDefinition({
     fields: [
@@ -67,7 +69,9 @@ async function opened() {
   const source = testSource();
   const engine = new ViewEngine({
     resources: resourcesOf([definition], () => source),
-    store: new MemoryViewStore({ instances: [SAVED] }),
+    store: new MemoryViewStore({
+      instances: [{ ...SAVED, config: recordConfig({ filter }) }],
+    }),
     environment: testEnvironment().environment,
   });
   const runtime = (await engine.open('mine')) as RecordViewRuntime;
@@ -176,5 +180,71 @@ describe('the ✕ on a condition in force', () => {
     expect(state.applied.sort).toEqual(sortInForce);
     expect(state.draft.sort).toEqual(BY_AMOUNT);
     expect(asked(source)).toBe(before + 1);
+  });
+
+  /** The fields of a tree's conditions that still say something, in order. */
+  const saying = (tree: FilterTree) =>
+    tree.children.flatMap(node =>
+      'field' in node &&
+      [PAID, OVER_TEN, IN_CN].some(
+        said => said.field === node.field && said.value === node.value,
+      )
+        ? [node.field]
+        : [],
+    );
+
+  it('finds its condition in a draft with one added ahead, and leaves the added one alone', async () => {
+    const { runtime } = await opened({ op: 'and', children: [PAID, OVER_TEN] });
+    const { result } = renderHook(() => useFilterEditor(runtime));
+
+    // Waiting in the draft: a condition put ahead of the two in force.
+    act(() =>
+      runtime.edit({
+        filter: { op: 'and', children: [IN_CN, PAID, OVER_TEN] },
+      }),
+    );
+    // The badge of the first condition in force: its path there is [0],
+    // which in the draft is the condition that was added.
+    act(() => result.current.unset([[0]]));
+
+    const state = runtime.getSnapshot();
+    expect(saying(state.applied.filter)).toEqual(['amount']);
+    // The added condition still says what the reader wrote, still waiting;
+    // the one the badge named has left the draft too.
+    expect(state.draft.filter.children[0]).toEqual(IN_CN);
+    expect(saying(state.draft.filter)).toEqual(['warehouse', 'amount']);
+  });
+
+  it('finds its condition in a draft with one taken out ahead of it', async () => {
+    const { runtime } = await opened({ op: 'and', children: [PAID, OVER_TEN] });
+    const { result } = renderHook(() => useFilterEditor(runtime));
+
+    // Waiting in the draft: the first condition taken out.
+    act(() => runtime.edit({ filter: { op: 'and', children: [OVER_TEN] } }));
+    // The badge of the second condition in force, at [1] there and at [0]
+    // in the draft.
+    act(() => result.current.unset([[1]]));
+
+    const state = runtime.getSnapshot();
+    // In force, only what the badge named is gone: the first condition is
+    // still in force, its removal still waiting.
+    expect(saying(state.applied.filter)).toEqual(['status']);
+    expect(state.draft.filter.children).toHaveLength(1);
+    expect(saying(state.draft.filter)).toEqual([]);
+  });
+
+  it('leaves the draft alone where the reader has rewritten that condition', async () => {
+    const { runtime } = await opened({ op: 'and', children: [PAID, OVER_TEN] });
+    const { result } = renderHook(() => useFilterEditor(runtime));
+    const rewritten = { ...PAID, value: 'SHIPPED' };
+    const waiting: FilterTree = { op: 'and', children: [rewritten, OVER_TEN] };
+
+    act(() => runtime.edit({ filter: waiting }));
+    act(() => result.current.unset([[0]]));
+
+    const state = runtime.getSnapshot();
+    expect(saying(state.applied.filter)).toEqual(['amount']);
+    // What the reader wrote in its place is theirs, and still waits.
+    expect(state.draft.filter).toEqual(waiting);
   });
 });

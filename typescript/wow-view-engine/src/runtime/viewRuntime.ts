@@ -308,9 +308,9 @@ export class DataViewRuntime<
   }
 
   apply(only?: { filter: FilterTree }): void {
+    if (this.disposed) return;
     const next = only ? { ...this.state.applied, ...only } : this.state.draft;
-    const issues = only ? this.admit(next) : this.state.issues;
-    if (this.disposed || hasError(issues)) return;
+    if (hasError(only ? this.admit(next) : this.state.issues)) return;
     this.appliedAdmitted = true;
     this.autoTimer.stop();
     // A config the rows on screen already answer lands with no fetch
