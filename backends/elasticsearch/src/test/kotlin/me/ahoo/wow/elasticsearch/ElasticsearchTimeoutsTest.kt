@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.transport.TransportOptions
 import co.elastic.clients.transport.http.TransportHttpClient
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
@@ -27,6 +28,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.IOException
 import java.net.ServerSocket
 import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
@@ -107,7 +109,7 @@ class ElasticsearchTimeoutsTest {
     fun `a failure should be the request's`() {
         val held = HeldClient()
         val answered = send(held, 1.seconds)
-        held.sent.completeExceptionally(java.io.IOException("refused"))
+        held.sent.completeExceptionally(IOException("refused"))
         assertThrows<ExecutionException> { answered.get(1, TimeUnit.SECONDS) }.cause!!.message
             .assert().isEqualTo("refused")
     }
@@ -138,7 +140,7 @@ class ElasticsearchTimeoutsTest {
     fun `a synchronous request and the close should be the client's own`() {
         val response = mockk<TransportHttpClient.Response>(relaxed = true)
         val delegate = mockk<TransportHttpClient>(relaxed = true) {
-            io.mockk.every { performRequest("get", null, request, null) } returns response
+            every { performRequest("get", null, request, null) } returns response
         }
         val client = BoundedHttpClient(delegate, 1.seconds)
         client.performRequest("get", null, request, null).assert().isSameAs(response)

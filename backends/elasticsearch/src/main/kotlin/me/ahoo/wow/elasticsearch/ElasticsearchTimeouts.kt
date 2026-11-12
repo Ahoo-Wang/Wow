@@ -51,7 +51,7 @@ internal class BoundedTransport(restClient: Rest5Client, mapper: JsonpMapper, ti
 /**
  * [delegate], each request it sends answered within [timeout]: one that has no answer by then fails as a
  * [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`), and is cancelled,
- * which aborts its exchange and gives its connection back to the client's pool. An answer that comes after it is
+ * which aborts its exchange and closes its connection, freeing its place in the client's pool. An answer that comes after it is
  * released at once. The store's calls are all asynchronous; a synchronous one is the client's own.
  */
 internal class BoundedHttpClient(private val delegate: TransportHttpClient, private val timeout: Duration) :

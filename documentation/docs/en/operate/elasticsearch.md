@@ -48,7 +48,7 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ### A server that stops answering {#a-server-that-stops-answering}
 
-Each request of the store, a write, a load or a query, waits at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do. A server that stops answering, paused or behind a lost connection, fails the request as a transient error instead of holding it: its exchange is aborted and its connection goes back to the client's pool. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries. The bound is the store's own: the `Rest5Client`'s timeouts still apply when they are shorter, and a client built with the library's defaults, which has no response timeout, is bounded all the same.
+Each request of the store, a write, a load or a query, waits at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do. A server that stops answering, paused or behind a lost connection, fails the request as a transient error instead of holding it: its exchange is aborted and its connection closed, freeing its place in the client's pool. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries. The bound is the store's own: the `Rest5Client`'s timeouts still apply when they are shorter, and a client built with the library's defaults, which has no response timeout, is bounded all the same.
 
 ## Snapshot queries
 
