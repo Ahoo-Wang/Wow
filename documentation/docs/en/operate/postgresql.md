@@ -89,6 +89,26 @@ A query's transaction gives its own budget instead and opens read-only. The appe
 
 **The schema step.** The stores read the catalog before they create anything, so a current schema takes no table lock. A statement that must run waits at most 5 seconds for a lock and is tried up to 5 times in all, backing off from half a second; then the start fails, naming the table and the sessions that hold it. Nodes that start together run one table's steps one at a time.
 
+**Snapshot saves and `fillfactor`.** A snapshot save rewrites its aggregate's row. PostgreSQL keeps that update out of the indexes (a HOT update) only when no indexed column changes and the row's page has room for the new version.
+
+- **A declared index on a `state` field** (`@QueryIndex`) indexes `state`, which every save changes, so every save of that aggregate is a full update, at any `fillfactor`.
+- **Without one,** a table whose states fit a page several times keeps room on each page for a new version with:
+
+  ```sql
+  ALTER TABLE wow_snapshot__<context>__<aggregate> SET (fillfactor = 80);
+  ```
+
+  A page then keeps a fifth of its 8 kB, so 80 suits states up to about 1.6 kB.
+
+Measured on 20,000 snapshots of about 1.2 kB with 100,000 saves:
+
+| `fillfactor` | HOT saves | Heap |
+| --- | --- | --- |
+| 100 (the default) | 75% | 24 MB at load, 46 MB after the saves |
+| 80 | 100% | 37% larger at load, unchanged by the saves |
+
+The setting applies to pages written after it; `VACUUM FULL` rewrites the existing ones, under an exclusive lock. Wow sets no `fillfactor` of its own.
+
 ## Size the pools
 
 Each node holds a few connections for its appends, its subscriptions, its timers and its leases, and more for its queries. The appends wait whenever the pool is exhausted, so give the queries a pool of their own:
