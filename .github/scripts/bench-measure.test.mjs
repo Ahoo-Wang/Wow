@@ -246,6 +246,35 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
   assert.equal(WALK.shares.length, 3);
 });
 
+test("the codec reads suite times the dataset's queries with its _state under LZ4 and under the Sink's codecs, ABBA", () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeMeasureBench(dir);
+  const suite = runSuite('access-dataset-ch-codecs', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    out: join(dir, 'results', 'access-dataset-ch-codecs'),
+  });
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.status]),
+    [
+      ['1-lz4', 'ok'],
+      ['1-codecs', 'ok'],
+      ['2-codecs', 'ok'],
+      ['2-lz4', 'ok'],
+    ],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  // Only the LZ4 arm strips the codecs; both run under the dataset policy.
+  assert.deepEqual(
+    calls.map(call => call.includes('--codecs=lz4')),
+    [true, false, false, true],
+  );
+  for (const call of calls) assert.match(call, /"benchmark.access":"dataset"/);
+});
+
 test('the access-dataset suite times each dataset query of both arms, ABBA, and judges them by the A/A band', () => {
   assert.deepEqual(suitesOf('access-dataset'), ['access-dataset-ch']);
   assert.deepEqual(

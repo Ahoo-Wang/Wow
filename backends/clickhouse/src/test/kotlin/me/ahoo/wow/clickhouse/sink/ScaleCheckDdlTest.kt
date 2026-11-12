@@ -28,11 +28,8 @@ import java.io.File
 class ScaleCheckDdlTest {
     @Test
     fun `the scale check's _state should be the Sink's, without the history and the flat columns`() {
-        val file = File(checkNotNull(System.getProperty(PROPERTY)) { "The build sets $PROPERTY." })
         // Split as the harness splits it (measure.sh: read -d ';'), its comment and blank lines dropped.
-        val statements = file.readText().split(';').map { statement ->
-            statement.lines().filterNot { it.startsWith("--") || it.isBlank() }.joinToString("\n")
-        }.filter { it.isNotEmpty() }
+        val statements = statementsOf(PROPERTY)
         val schema = ClickHouseSinkSchema(
             AggregateType("transfer", "account"),
             "default",
@@ -43,7 +40,28 @@ class ScaleCheckDdlTest {
         statements.first().assert().isEqualTo(schema.ddl.single())
     }
 
+    @Test
+    fun `the codec check's _state_events should be the Sink's`() {
+        val schema = ClickHouseSinkSchema(
+            AggregateType("transfer", "account"),
+            "default",
+            AggregateSinkOptions(),
+            emptyList(),
+            accessColumns = AccessColumns.of(emptyList()),
+        )
+        statementsOf(CODEC_PROPERTY).single().assert().isEqualTo(schema.ddl.first())
+    }
+
+    /** The statements of the file [property] names, split as the harness splits them, comments and blank lines dropped. */
+    private fun statementsOf(property: String): List<String> {
+        val file = File(checkNotNull(System.getProperty(property)) { "The build sets $property." })
+        return file.readText().split(';').map { statement ->
+            statement.lines().filterNot { it.startsWith("--") || it.isBlank() }.joinToString("\n")
+        }.filter { it.isNotEmpty() }
+    }
+
     private companion object {
         const val PROPERTY = "wow-test.clickhouse.scale-check-sql"
+        const val CODEC_PROPERTY = "wow-test.clickhouse.codec-check-sql"
     }
 }

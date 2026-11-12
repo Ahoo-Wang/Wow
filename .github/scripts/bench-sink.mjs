@@ -12,6 +12,7 @@ import {
   num,
   quantile,
   readJsonIfThere,
+  roundOrder,
 } from './bench-common.mjs';
 
 // bench.sh's sink programs, of D412 and D413 (d412-d413-design.md): `clickhouse-insert`, what computed columns cost a
@@ -36,6 +37,12 @@ export const INSERT = {
 };
 
 /**
+ * clickhouse-insert's codec arms (CH-6, D421): the Sink's `_state_events` without codecs (LZ4) and with the Sink's;
+ * and the bar the Sink's codecs are read against, a share of the insert's rows a second against LZ4.
+ */
+export const CODEC = { arms: ['lz4', 'wow'], bar: 0.1 };
+
+/**
  * sink's settings: E1's rate a second and its seconds, and the scenarios: the commits spread over many aggregates,
  * over a few hot ones, and over many with half of them to one; and a backlog, the spread commits written first
  * without the sink and drained by it after (bench.sh --backlog, a rebuild of the warehouse or a catch-up).
@@ -57,6 +64,13 @@ export const SINK = {
   ],
 };
 
+/**
+ * The ceiling's backlog (CH-6, D421 ④): E1 at `rate` a second for `seconds` with the sink off, then drained by a node
+ * with it, the base's build against the head's, `rounds` rounds ABBA. Its rate is the backlog's commits over the time
+ * from the sink's first insert to its last, so the node's start is not in it.
+ */
+export const CEILING = { rate: 1000, seconds: 120, accounts: 1000, rounds: 2 };
+
 /** The sink's tables of the benchmark's account, in the order the tables show them. */
 const SINK_TABLES = [
   'transfer_account_state_events',
@@ -68,7 +82,7 @@ const SINK_TABLES = [
  * The `sink` group's suites, on [arm]: the head's build on PostgreSQL. A `sink` suite's `sink` is bench.sh's --sink:
  * the head's benchmark server with the ClickHouse sink, or the search server with the Elasticsearch one.
  */
-export function sinkSuites(arm) {
+export function sinkSuites(arm, base) {
   return {
     'ch-insert': {
       group: 'sink',
@@ -76,7 +90,7 @@ export function sinkSuites(arm) {
       measure: 'clickhouse-insert',
       arms: [arm],
       answers:
-        "What computed columns cost a ClickHouse insert (D412): N = 5, 20 and 50 columns read from a state's JSON text, each by its own JSONExtract or all by one into a tuple, inserted into the table and through a materialized view into its TO table, as the sink fills `_state`; and whether a skip index is used under FINAL, and still reads the newest row. The per-column or tuple choice is read against D412's bound.",
+        "What computed columns cost a ClickHouse insert (D412): N = 5, 20 and 50 columns read from a state's JSON text, each by its own JSONExtract or all by one into a tuple, inserted into the table and through a materialized view into its TO table, as the sink fills `_state`; and whether a skip index is used under FINAL, and still reads the newest row. The per-column or tuple choice is read against D412's bound. And what the Sink's codecs cost (CH-6): its `_state_events` without codecs and with them, each filled with the same commits, then merged.",
     },
     'sink-ch': {
       group: 'sink',
@@ -86,6 +100,16 @@ export function sinkSuites(arm) {
       arms: [arm],
       answers:
         "The ClickHouse sink's parts and inserts (D413's before): one node, E1 deposits at a fixed rate over many accounts, a few hot ones, and many with one hot; then the parts each of the sink's tables got (system.part_log) and the inserts the sink sent (system.query_log). And a backlog: the spread deposits written with the sink off, then drained by a node with it (a rebuild of the warehouse, a catch-up), with the time it took.",
+    },
+    'sink-ch-ceiling': {
+      group: 'codecs',
+      kind: 'measure',
+      measure: 'sink',
+      sink: 'clickhouse',
+      ceiling: true,
+      arms: [base, arm],
+      answers:
+        "The ClickHouse sink's own ceiling, the base's build against the head's (CH-6, D421 ④): a backlog of E1 deposits at 1,000 a second for 120 s written with the sink off, then drained by a node with it, two rounds ABBA; the commits a second from the sink's first insert to its last.",
     },
     'sink-es': {
       group: 'sink',
@@ -101,6 +125,20 @@ export function sinkSuites(arm) {
 
 /** The `bench.sh measure` options of each run of [definition], a suite of one of SINK_PROGRAMS. */
 function runsOf(definition) {
+  if (definition.ceiling) {
+    return [
+      {
+        name: 'ceiling',
+        args: [
+          `--accounts=${CEILING.accounts}`,
+          `--rate=${CEILING.rate}`,
+          `--seconds=${CEILING.seconds}`,
+          '--distribution=uniform',
+          '--backlog=true',
+        ],
+      },
+    ];
+  }
   if (definition.measure === 'clickhouse-insert') {
     return [
       {
@@ -132,29 +170,46 @@ function runsOf(definition) {
   }));
 }
 
-/** Runs a suite of one of SINK_PROGRAMS into [suite], once a run, on its one arm, as runMeasure runs the others. */
+/**
+ * Runs a suite of one of SINK_PROGRAMS into [suite], as runMeasure runs the others: once a run on its one arm, or for a
+ * ceiling suite CEILING.rounds rounds of its arms, ABBA, each arm on its build ([installs]).
+ */
 export function runSink(
   definition,
   suite,
-  { benchPath, out, cpuset, arms, save },
+  { benchPath, out, cpuset, arms, installs = {}, save },
 ) {
-  const [arm] = arms;
   const read = definition.measure === 'sink' ? readSink : readInsert;
-  for (const spec of runsOf(definition)) {
-    const dir = join(out, spec.name);
+  const plan = definition.ceiling
+    ? Array.from({ length: CEILING.rounds }, (_, round) =>
+        roundOrder(arms, round).map(arm => ({ arm, round })),
+      ).flat()
+    : [{ arm: arms[0] }];
+  for (const { arm, round } of plan) {
+    for (const spec of runsOf(definition)) {
+      runOne(arm, spec, round);
+    }
+  }
+
+  function runOne(arm, spec, round) {
+    const name = round === undefined ? spec.name : `${round + 1}-${arm.id}`;
+    const dir = join(out, name);
     const status = bench(
       benchPath,
       [
         'measure',
         `--program=${definition.measure}`,
         `--backend=${arm.backend}`,
+        ...(installs[arm.install]
+          ? [`--install=${installs[arm.install]}`]
+          : []),
         ...spec.args,
         ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
         `--out=${dir}`,
       ],
       arm.props,
     );
-    const run = { name: spec.name, arm: arm.id, status: 'failed' };
+    const run = { name, arm: arm.id, status: 'failed' };
     const measured = status === 0 ? read(dir) : undefined;
     if (measured) {
       run.status = 'ok';
@@ -203,7 +258,54 @@ export function readInsert(dir) {
     repeats: manifest.repeats,
     arms,
     skip: readJsonIfThere(join(dir, 'skip.json')),
+    codecs: readCodecs(dir),
   };
+}
+
+/**
+ * The codec arms of [dir] (CODEC.arms), from codec.jsonl and codec-merge.jsonl: per arm, the median CPU (user and all)
+ * µs a row and rows a second of its inserts, and its merge's CPU µs a row, duration and the parts' bytes after it;
+ * undefined when either file is missing.
+ */
+function readCodecs(dir) {
+  const inserts = join(dir, 'codec.jsonl');
+  const merges = join(dir, 'codec-merge.jsonl');
+  if (!existsSync(inserts) || !existsSync(merges)) return undefined;
+  const lines = file =>
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
+  const merged = new Map(lines(merges).map(merge => [merge.arm, merge]));
+  const groups = new Map();
+  for (const insert of lines(inserts)) {
+    groups.set(insert.arm, [...(groups.get(insert.arm) ?? []), insert]);
+  }
+  return CODEC.arms
+    .filter(arm => groups.has(arm))
+    .map(arm => {
+      const list = groups.get(arm);
+      const median = values => quantile(values, 0.5);
+      const perRow = field =>
+        median(list.map(it => Number(it[field]) / Number(it.rows)));
+      const merge = merged.get(arm);
+      return {
+        arm,
+        inserts: list.length,
+        userMicrosPerRow: perRow('userMicros'),
+        cpuMicrosPerRow: perRow('cpuMicros'),
+        rowsPerSecond: median(
+          list.map(it => Number(it.rows) / (Number(it.durationMs) / 1000)),
+        ),
+        merge: merge && {
+          partsBefore: Number(merge.partsBefore),
+          userMicrosPerRow: Number(merge.userMicros) / Number(merge.rows),
+          durationMs: Number(merge.durationMs),
+          compressedBytes: Number(merge.compressedBytes),
+          uncompressedBytes: Number(merge.uncompressedBytes),
+        },
+      };
+    });
 }
 
 /**
@@ -224,6 +326,9 @@ export function readSink(dir) {
   );
   // The query log counts the rows its materialized views wrote too: an insert's commits are the base table's rows.
   const commits = parts[SINK_TABLES[0]]?.rows ?? 0;
+  // A backlog's drain, from the sink's first insert to its last: the commits it wrote a second, the node's start out.
+  const windowMs =
+    Number(sink.inserts?.lastMs ?? 0) - Number(sink.inserts?.firstMs ?? 0);
   return {
     sink: 'clickhouse',
     accounts: sink.accounts,
@@ -233,6 +338,10 @@ export function readSink(dir) {
     commitsPerInsert: inserts > 0 ? commits / inserts : null,
     parts,
     drainMs: drainOf(sink),
+    commitsPerSecond:
+      sink.backlog === true && windowMs > 0
+        ? commits / (windowMs / 1000)
+        : null,
   };
 }
 
@@ -312,7 +421,42 @@ export function insertTables(suite) {
       }
     }
   }
-  return [...lines, '', ...verdicts, '', ...skipLines(measured.skip)];
+  return [
+    ...lines,
+    '',
+    ...verdicts,
+    '',
+    ...skipLines(measured.skip),
+    '',
+    ...codecLines(measured.codecs),
+  ];
+}
+
+/**
+ * The codec arms (CH-6): per arm, the insert's CPU (user) a row and rows a second, the merge's CPU a row and duration,
+ * the bytes after it; then the Sink's codecs against LZ4, read against CODEC.bar.
+ */
+function codecLines(codecs) {
+  if (!codecs?.length) return ['No codec result.'];
+  const lines = [
+    "The Sink's `_state_events` of the same commits: without codecs (LZ4) and with the Sink's; the inserts' median, then one OPTIMIZE FINAL of the arm's parts.",
+    '',
+    '| Arm | Insert CPU a row | Insert rows/s | Merge CPU a row | Merge | Compressed | Ratio |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...codecs.map(
+      it =>
+        `| ${it.arm} | ${micros(it.userMicrosPerRow)} | ${num(it.rowsPerSecond, 0)} | ${micros(it.merge?.userMicrosPerRow)} | ${it.merge ? `${num(it.merge.durationMs, 0)} ms` : '-'} | ${it.merge ? `${num(it.merge.compressedBytes, 0)} B` : '-'} | ${it.merge ? `×${num(it.merge.uncompressedBytes / it.merge.compressedBytes, 2)}` : '-'} |`,
+    ),
+  ];
+  const lz4 = codecs.find(it => it.arm === 'lz4');
+  const wow = codecs.find(it => it.arm === 'wow');
+  if (!lz4 || !wow) return lines;
+  const fall = 1 - wow.rowsPerSecond / lz4.rowsPerSecond;
+  return [
+    ...lines,
+    '',
+    `- The Sink's codecs: ${num(fall * 100, 1)}% fewer rows a second than LZ4, ${fall > CODEC.bar ? `**over** the ${num(CODEC.bar * 100, 0)}% bar` : `within the ${num(CODEC.bar * 100, 0)}% bar`}; the bytes ${num((1 - wow.merge?.compressedBytes / lz4.merge?.compressedBytes) * 100, 1)}% fewer.`,
+  ];
 }
 
 /** The skip index under FINAL: per setting, the count against the right one, the rows read, and whether the plan uses it. */
@@ -331,8 +475,9 @@ function skipLines(skip) {
 }
 
 /** sink's table: the ClickHouse sink's, or the Elasticsearch sink's when [sink] is `elasticsearch`. */
-export function sinkTables(suite, sink = 'clickhouse') {
+export function sinkTables(suite, sink = 'clickhouse', ceiling = false) {
   if (sink === 'elasticsearch') return elasticsearchSinkTable(suite);
+  if (ceiling) return ceilingTable(suite);
   const lines = [
     '| Scenario | Accounts | Commits | Written | Inserts | Commits an insert | Parts (state_events, state, events) | Rows a part (state_events, state, events) | Drain |',
     '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |',
@@ -421,6 +566,54 @@ export function sinkAnomalies(suite) {
   return rows;
 }
 
+/**
+ * The ceiling suite's table: each run's backlog and the commits a second the sink drained it at; then each arm's
+ * median, and the head's against the base's (the first arm's), read against CODEC.bar.
+ */
+function ceilingTable(suite) {
+  const lines = [
+    '| Run | Commits | Written | Inserts | Commits an insert | Drain (start to written) | Commits a second (first insert to last) |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+  ];
+  const byArm = new Map();
+  for (const run of suite.runs) {
+    if (run.status !== 'ok') {
+      lines.push(`| ${run.name} | ${run.status} | | | | | |`);
+      continue;
+    }
+    const measured = run.measure;
+    lines.push(
+      `| ${run.name} | ${num(measured.expected, 0)} | ${num(measured.written, 0)} | ${num(measured.inserts, 0)} | ${measured.commitsPerInsert === null ? '-' : num(measured.commitsPerInsert, 1)} | ${drain(measured.drainMs ?? null)} | ${measured.commitsPerSecond === null ? '-' : num(measured.commitsPerSecond, 0)} |`,
+    );
+    if (measured.commitsPerSecond !== null) {
+      byArm.set(run.arm, [
+        ...(byArm.get(run.arm) ?? []),
+        measured.commitsPerSecond,
+      ]);
+    }
+  }
+  const medians = [...byArm].map(([arm, rates]) => [
+    arm,
+    quantile(rates, 0.5),
+    rates,
+  ]);
+  lines.push(
+    '',
+    ...medians.map(
+      ([arm, median, rates]) =>
+        `- ${arm}: ${num(median, 0)} commits a second, the median of ${rates.map(it => num(it, 0)).join(', ')}.`,
+    ),
+  );
+  if (medians.length === 2) {
+    const [[base, of], [head, at]] = medians;
+    const change = at / of - 1;
+    lines.push(
+      `- ${head} against ${base}: ${change < 0 ? '' : '+'}${num(change * 100, 1)}%, ${-change > CODEC.bar ? `**over** the ${num(CODEC.bar * 100, 0)}% bar` : `within the ${num(CODEC.bar * 100, 0)}% bar`}.`,
+    );
+  }
+  return lines;
+}
+
 /** The Markdown summary of a suite of one of SINK_PROGRAMS, [definition] its SUITES entry. */
 export function renderSink(suite, definition) {
   const lines = [
@@ -431,7 +624,7 @@ export function renderSink(suite, definition) {
     `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`,
     '',
     ...(suite.program === 'sink'
-      ? sinkTables(suite, definition?.sink)
+      ? sinkTables(suite, definition?.sink, definition?.ceiling === true)
       : insertTables(suite)),
     '',
   ];

@@ -96,28 +96,28 @@ ORDER BY (`database`, `table`, fingerprint);
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
-    `command_id` String,
-    `request_id` String,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
     `deleted` Bool,
-    `access` String,
-    `correlation_id` String,
-    `causation_id` String,
-    `headers` Map(String, String),
-    `operator_id` String,
-    `operator_tenant_id` String,
+    `access` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1)),
+    `headers` Map(String, String) CODEC(ZSTD(1)),
+    `operator_id` String CODEC(ZSTD(1)),
+    `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
-    `state` String,
-    `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `state` String CODEC(ZSTD(1)),
+    `state_fingerprint` String CODEC(ZSTD(1)),
+    `state_numbers` Map(String, String) CODEC(ZSTD(1))
 )
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
@@ -127,26 +127,26 @@ COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
-    `command_id` String,
-    `request_id` String,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
     `deleted` Bool,
-    `access` String,
-    `correlation_id` String,
-    `causation_id` String,
-    `operator_id` String,
-    `operator_tenant_id` String,
+    `access` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1)),
+    `operator_id` String CODEC(ZSTD(1)),
+    `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `state` String,
-    `state_fingerprint` String,
-    `state_numbers` Map(String, String),
+    `state` String CODEC(ZSTD(1)),
+    `state_fingerprint` String CODEC(ZSTD(1)),
+    `state_numbers` Map(String, String) CODEC(ZSTD(1)),
     `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
     `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
@@ -166,22 +166,22 @@ COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String,
-    `command_id` String,
-    `request_id` String,
+    `payload` String CODEC(ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
-    `correlation_id` String,
-    `causation_id` String
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1))
 )
 ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(commit_time)
@@ -269,6 +269,8 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 
 Every table and view the sink keeps says the format of the sink's tables in its comment, `wow-sink-format:1`. A table or view the sink expects is the sink's when it exists, has the columns above and says that format; otherwise the sink refuses to write, naming each one and what is wrong with it (`<table> is not of format 1`, `<table> has the columns …`). `auto` creates what is missing with the comment, and leaves a table that exists as it is: one of another format is refused, as one of other columns is. The tables hold nothing the log does not: drop them, and resetting the sink's subscription fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)). `none` checks nothing.
 
+The sink neither checks nor changes a column's codec, so a table an earlier version created keeps the codecs it was created with. To give it the codecs above, run `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)` for each column, which applies to the parts written and merged from then on, or drop the sink's tables and reset its subscription so that it fills them again.
+
 During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with in its comment, after the format (`wow-sink-format:1 wow-sink-flat:<fingerprint>,…`), and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
 
 ### When the state schema changes
@@ -305,28 +307,28 @@ The sink inserts into and reads its tables by the names above, so those names ar
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER '{cluster}'
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
-    `command_id` String,
-    `request_id` String,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
     `deleted` Bool,
-    `access` String,
-    `correlation_id` String,
-    `causation_id` String,
-    `headers` Map(String, String),
-    `operator_id` String,
-    `operator_tenant_id` String,
+    `access` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1)),
+    `headers` Map(String, String) CODEC(ZSTD(1)),
+    `operator_id` String CODEC(ZSTD(1)),
+    `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
-    `state` String,
-    `state_fingerprint` String,
-    `state_numbers` Map(String, String)
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `state` String CODEC(ZSTD(1)),
+    `state_fingerprint` String CODEC(ZSTD(1)),
+    `state_numbers` Map(String, String) CODEC(ZSTD(1))
 )
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)
@@ -337,26 +339,26 @@ COMMENT 'wow-sink-format:1';
 -- _state has the columns of _state_events but the events and the headers, and computes the flat ones.
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
-    `command_id` String,
-    `request_id` String,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
     `deleted` Bool,
-    `access` String,
-    `correlation_id` String,
-    `causation_id` String,
-    `operator_id` String,
-    `operator_tenant_id` String,
+    `access` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1)),
+    `operator_id` String CODEC(ZSTD(1)),
+    `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `state` String,
-    `state_fingerprint` String,
-    `state_numbers` Map(String, String),
+    `state` String CODEC(ZSTD(1)),
+    `state_fingerprint` String CODEC(ZSTD(1)),
+    `state_numbers` Map(String, String) CODEC(ZSTD(1)),
     `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
     `access_space` Nullable(String) MATERIALIZED JSONExtract(access, 'space', 'Nullable(String)') COMMENT 'wow:d04ee76ae254029d',
     `status` String MATERIALIZED JSONExtractString(state, 'status') COMMENT 'wow:7770d215250c3cc1',
@@ -376,22 +378,22 @@ COMMENT 'wow-sink-format:1';
 
 CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{cluster}'
 (
-    `id` String,
-    `tenant_id` String,
+    `id` String CODEC(ZSTD(1)),
+    `tenant_id` String CODEC(ZSTD(1)),
     `aggregate_id` String,
-    `version` UInt32,
+    `version` UInt32 CODEC(Delta, ZSTD(1)),
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String,
-    `command_id` String,
-    `request_id` String,
+    `payload` String CODEC(ZSTD(1)),
+    `command_id` String CODEC(ZSTD(1)),
+    `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
-    `commit_time` DateTime64(3, 'UTC'),
-    `owner_id` String,
-    `space_id` String,
-    `correlation_id` String,
-    `causation_id` String
+    `commit_time` DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+    `owner_id` String CODEC(ZSTD(1)),
+    `space_id` String CODEC(ZSTD(1)),
+    `correlation_id` String CODEC(ZSTD(1)),
+    `causation_id` String CODEC(ZSTD(1))
 )
 ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
 PARTITION BY toYYYYMM(commit_time)

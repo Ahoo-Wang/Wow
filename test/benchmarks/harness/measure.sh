@@ -79,9 +79,14 @@ measure_dataset() {
   pin_containers "$BACKEND"
   clickhouse_up
   log "seeding ClickHouse"
-  local statement
+  # --codecs=lz4 creates the tables without the Sink's codecs, ClickHouse's LZ4 (CH-6's reads); the default keeps them.
+  local statement codecs
+  codecs=$(opt codecs sink)
   while IFS= read -r -d ';' statement; do
     statement=$(printf '%s\n' "$statement" | grep -v '^--' | sed '/^[[:space:]]*$/d')
+    if [ "$codecs" = lz4 ]; then
+      statement=$(printf '%s' "$statement" | perl -pe 's/ CODEC\((?:[^()]|\([^()]*\))*\)//g')
+    fi
     if [ -n "$statement" ]; then clickhouse "$statement" >/dev/null; fi
   done <"$HARNESS/measure/dataset-access.sql"
   cp "$HARNESS/measure/transfer.account_rows.json" "$OUT/config/wow/dataset/"
@@ -243,6 +248,82 @@ measure_clickhouse_insert() {
       done
     done
   done
+  # CH-6's codecs (D421): the Sink's `_state_events` as it creates it (measure/clickhouse-codecs.sql, held to the Sink's
+  # DDL by ScaleCheckDdlTest), against the same table without its codecs (LZ4, ClickHouse's default). Each arm takes --rows commits of the Sink's shape (a state of about 1 KB, random ids,
+  # headers, one event, 20 tenants, ten versions an aggregate over two months) in the Sink's blocks, --repeats times,
+  # timed by the query log; then once more as parts merges stay off, merged by one OPTIMIZE FINAL, whose query log
+  # gives the merge's CPU, and the parts' bytes after it. codec.jsonl holds the inserts, codec-merge.jsonl the merges.
+  local wow
+  wow=$(grep -v '^--' "$HARNESS/measure/clickhouse-codecs.sql" | tr -d ';')
+  local -a codec_arms=(lz4 wow)
+  local arm ddl
+  for arm in "${codec_arms[@]}"; do
+    case "$arm" in
+      lz4) ddl=$(printf '%s' "$wow" | perl -pe 's/ CODEC\((?:[^()]|\([^()]*\))*\)//g') ;;
+      *) ddl=$wow ;;
+    esac
+    clickhouse "$(printf '%s' "$ddl" | sed "s/\`transfer_account_state_events\`/\`codec_$arm\`/")" >/dev/null
+  done
+  clickhouse "CREATE TABLE codec_source AS codec_lz4 ENGINE = MergeTree ORDER BY tuple()" >/dev/null
+  clickhouse "INSERT INTO codec_source
+    SELECT concat(aid, '@', toString(v)), tenant, aid, v, generateUUIDv4()::String, generateUUIDv4()::String,
+      ['transfer.account.Deposit', 'transfer.account.Withdraw', 'transfer.account.Prepare', 'transfer.account.Entry',
+        'transfer.account.Confirm'][1 + v % 5],
+      toDateTime64('2026-09-01 00:00:00', 3, 'UTC') + toIntervalMillisecond(n * 25000 + rand() % 1000),
+      concat('user-', toString(a % 2000)), if(a % 3 = 0, concat('space-', toString(a % 40)), ''), false,
+      if(a % 4 = 0, '', concat('{\"owner\":\"user-', toString(a % 2000), '\"}')),
+      generateUUIDv4()::String, generateUUIDv4()::String, map('wow.client', 'web', 'trace_id', hex(rand64())),
+      concat('user-', toString(a % 2000)), tenant, false,
+      [tuple(['deposited', 'withdrawn', 'prepared', 'entered', 'confirmed'][1 + v % 5], 0,
+        concat('{\"accountId\":\"', aid, '\",\"amount\":', toString(rand() % 100000 / 100), ',\"note\":\"',
+          randomPrintableASCII(40), '\"}'))],
+      concat('{\"id\":\"', aid, '\",\"owner\":{\"id\":\"user-', toString(a % 2000), '\",\"name\":\"Owner ',
+        toString(a % 2000), '\",\"phone\":\"138', toString(10000000 + a), '\"},\"status\":\"',
+        ['OPEN', 'FROZEN', 'ACTIVE', 'CLOSED'][1 + v % 4], '\",\"address\":{\"city\":\"',
+        ['Shanghai', 'Beijing', 'Shenzhen', 'Hangzhou'][1 + a % 4], '\",\"street\":\"', randomPrintableASCII(30),
+        '\"},\"entries\":[', arrayStringConcat(arrayMap(i -> concat('{\"sku\":\"sku-', toString((a + i) % 500),
+          '\",\"qty\":', toString(1 + i % 5), ',\"price\":', toString(((a * 7 + i) % 9000) / 100), '}'),
+          range(1 + a % 8)), ','), '],\"balance\":', toString((a % 100000) / 100), ',\"version\":', toString(v), '}'),
+      'fp-account-1', map('balance', toString((a % 100000) / 100))
+    FROM (SELECT number AS n, intDiv(number, 10) AS a, 1 + number % 10 AS v,
+      concat('acc', leftPad(toString(intDiv(number, 10)), 6, '0')) AS aid,
+      concat('tenant-', toString(intDiv(number, 10) % 20)) AS tenant FROM numbers($rows))" >/dev/null
+  for arm in "${codec_arms[@]}"; do
+    table="codec_$arm"
+    for repeat in $(seq 1 "$repeats"); do
+      clickhouse "TRUNCATE TABLE $table" >/dev/null
+      local id="codec-$arm-$repeat"
+      curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/?query_id=$id" \
+        --data-binary "INSERT INTO $table SELECT * FROM codec_source SETTINGS $settings" >/dev/null
+      clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+      clickhouse "SELECT '$arm' AS arm, $repeat AS repeat, $rows AS rows, written_rows AS writtenRows,
+          query_duration_ms AS durationMs, ProfileEvents['UserTimeMicroseconds'] AS userMicros,
+          ProfileEvents['OSCPUVirtualTimeMicroseconds'] AS cpuMicros
+        FROM system.query_log WHERE query_id = '$id' AND type = 'QueryFinish'
+        FORMAT JSONEachRow" >>"$OUT/codec.jsonl"
+    done
+    # The merge: merges stay off the parts (no part is under one byte), and OPTIMIZE FINAL, which is not bound by
+    # that, merges each month's parts in its own thread, so its query log holds the merge's CPU.
+    clickhouse "TRUNCATE TABLE $table" >/dev/null
+    clickhouse "ALTER TABLE $table MODIFY SETTING max_bytes_to_merge_at_max_space_in_pool = 1" >/dev/null
+    clickhouse "INSERT INTO $table SELECT * FROM codec_source SETTINGS $settings" >/dev/null
+    local before
+    before=$(clickhouse "SELECT count() FROM system.parts WHERE database = currentDatabase() AND table = '$table' AND active")
+    curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/?query_id=codec-$arm-merge" \
+      --data-binary "OPTIMIZE TABLE $table FINAL" >/dev/null
+    clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+    clickhouse "SELECT '$arm' AS arm, $rows AS rows, $(echo "$before" | tr -d '\n') AS partsBefore,
+        (SELECT count() FROM system.parts WHERE database = currentDatabase() AND table = '$table' AND active) AS partsAfter,
+        q.query_duration_ms AS durationMs, q.ProfileEvents['UserTimeMicroseconds'] AS userMicros,
+        q.ProfileEvents['OSCPUVirtualTimeMicroseconds'] AS cpuMicros, q.ProfileEvents['MergedRows'] AS mergedRows,
+        (SELECT sum(data_compressed_bytes) FROM system.parts
+          WHERE database = currentDatabase() AND table = '$table' AND active) AS compressedBytes,
+        (SELECT sum(data_uncompressed_bytes) FROM system.parts
+          WHERE database = currentDatabase() AND table = '$table' AND active) AS uncompressedBytes
+      FROM system.query_log AS q WHERE q.query_id = 'codec-$arm-merge' AND q.type = 'QueryFinish'
+      FORMAT JSONEachRow" >>"$OUT/codec-merge.jsonl"
+    log "inserted and merged the codec arm $arm: $repeats times"
+  done
   # A _state of 1,000,000 aggregates over 100 tenants, half of each tenant's with a newer row in a part merges stay off,
   # and a set index on status. Ids sort as they were inserted, a status holds runs of 2,000 of them and granules are 128
   # rows, so the index can pass over granules. A newer row moves its aggregate to the next status: the right count reads
@@ -395,7 +476,9 @@ measure_sink() {
         WHERE event_type = 'NewPart' AND table IN ($SINK_TABLES)
           AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
         GROUP BY table ORDER BY table FORMAT JSONEachRow" | jq -s .)
-    inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows FROM system.query_log
+    inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows,
+        toUnixTimestamp64Milli(min(event_time_microseconds - toIntervalMillisecond(query_duration_ms))) AS firstMs,
+        toUnixTimestamp64Milli(max(event_time_microseconds)) AS lastMs FROM system.query_log
         WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
           AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
         FORMAT JSONEachRow" | jq -s '.[0]')

@@ -25,7 +25,16 @@ import { INSERT, readInsert, readSink, SINK } from './bench-sink.mjs';
  * (--sink=elasticsearch) the deposits' commits 4 to a _bulk, an _update_by_query a 100 and 2 other requests, but none
  * counted in the scenario [uncounted] names.
  */
-function fakeSinkBench(dir, { wrongFinal = false, unwritten, uncounted } = {}) {
+function fakeSinkBench(
+  dir,
+  {
+    wrongFinal = false,
+    unwritten,
+    uncounted,
+    slowCodecs = false,
+    slowHead = false,
+  } = {},
+) {
   const path = join(dir, 'bench.sh');
   writeFileSync(
     path,
@@ -49,6 +58,17 @@ if (opt('program') === 'clickhouse-insert') {
     { useSkipIndexesIfFinal: 1, count: 230, readRows: 8192, explain: '{"explain":"Skip Name: status_set"}' },
   ] }));
   fs.writeFileSync(out + '/measure.json', JSON.stringify({ measure: 'clickhouse-insert', rows, block: Number(opt('block')), repeats: Number(opt('repeats')), server: '24.8.14.39' }));
+  // The codec arms: an insert of a second for LZ4, 1.05 s (or 1.25 s, slowCodecs) for the Sink's codecs;
+  // a merge of 2 µs a row and LZ4's bytes ×1, the Sink's ×0.6.
+  const codecs = { lz4: [1000, 1, 100], wow: [${slowCodecs ? 1250 : 1050}, 1.2, 60] };
+  const codecLines = [];
+  const mergeLines = [];
+  for (const [arm, [durationMs, micros, bytes]] of Object.entries(codecs)) {
+    for (const repeat of [1, 2]) codecLines.push(JSON.stringify({ arm, repeat, rows, writtenRows: String(rows), durationMs: String(durationMs), userMicros: String(micros * rows), cpuMicros: String(micros * rows) }));
+    mergeLines.push(JSON.stringify({ arm, rows, partsBefore: 200, partsAfter: '2', durationMs: '400', userMicros: String(2 * rows), cpuMicros: String(2 * rows), mergedRows: String(rows), compressedBytes: String(bytes * 1000), uncompressedBytes: '500000' }));
+  }
+  fs.writeFileSync(out + '/codec.jsonl', codecLines.join('\\n') + '\\n');
+  fs.writeFileSync(out + '/codec-merge.jsonl', mergeLines.join('\\n') + '\\n');
 } else {
   const name = out.split('/').pop();
   const expected = Number(opt('rate')) * Number(opt('seconds')) + Number(opt('accounts'));
@@ -68,7 +88,9 @@ if (opt('program') === 'clickhouse-insert') {
       { table: 'transfer_account_state', parts: String(expected / 10), rows: String(expected) },
       { table: 'transfer_account_state_events', parts: String(expected / 10), rows: String(expected) },
     ],
-    inserts: { inserts: String(expected / 10), writtenRows: String(expected) } }));
+    // The sink's inserts over 10 s on the base's build (--install), 10.5 s (12.5 s, slowHead) on the head's.
+    inserts: { inserts: String(expected / 10), writtenRows: String(expected), firstMs: '1000',
+      lastMs: String(1000 + (opt('install') ? 10000 : ${slowHead ? 12500 : 10500})) } }));
   fs.writeFileSync(out + '/measure.json', JSON.stringify({ measure: 'sink', sink: 'clickhouse', accounts: Number(opt('accounts')) }));
 }
 `,
@@ -84,6 +106,62 @@ const options = (dir, benchPath, name) => ({
   repeats: 1,
   fraction: 0.8,
   out: join(dir, 'results', name),
+});
+
+test("the codecs group is the reads under the Sink's codecs and the sink's ceiling, base against head", () => {
+  assert.deepEqual(suitesOf('codecs'), [
+    'access-dataset-ch-codecs',
+    'sink-ch-ceiling',
+  ]);
+  assert.deepEqual(
+    SUITES['access-dataset-ch-codecs'].arms.map(arm => [arm.id, arm.args]),
+    [
+      ['lz4', ['--codecs=lz4']],
+      ['codecs', undefined],
+    ],
+  );
+  assert.deepEqual(
+    SUITES['sink-ch-ceiling'].arms.map(arm => [arm.install, arm.backend]),
+    [
+      ['base', 'postgres'],
+      ['head', 'postgres'],
+    ],
+  );
+});
+
+test("the sink's ceiling drains a backlog on each build, ABBA, and reads the head against the bar", () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite('sink-ch-ceiling', {
+    ...options(dir, fakeSinkBench(dir), 'sink-ch-ceiling'),
+    installs: { base: '/base/install' },
+  });
+  assert.deepEqual(
+    suite.runs.map(run => run.name),
+    ['1-base', '1-head', '2-head', '2-base'],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').split('\n');
+  assert.equal(
+    calls.filter(call => call.includes('--install=/base/install')).length,
+    2,
+  );
+  assert.ok(calls.every(call => !call || call.includes('--backlog=true')));
+  // 121,000 commits over 10 s on the base's build and 10.5 s on the head's.
+  assert.equal(suite.runs[0].measure.commitsPerSecond, 12100);
+  const text = renderSuite(suite);
+  assert.match(text, /- base: 12,?100 commits a second/);
+  assert.match(text, /- head against base: -4\.8%, within the 10% bar\./);
+});
+
+test("a sink's ceiling down by more than the bar says so", () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite('sink-ch-ceiling', {
+    ...options(dir, fakeSinkBench(dir, { slowHead: true }), 'sink-ch-ceiling'),
+    installs: { base: '/base/install' },
+  });
+  assert.match(
+    renderSuite(suite),
+    /- head against base: -20\.0%, \*\*over\*\* the 10% bar\./,
+  );
 });
 
 test('the sink group is the insert experiment and the two sinks, on the head on PostgreSQL', () => {
@@ -135,6 +213,46 @@ test('the insert experiment runs once, and reads each arm per row against the tu
   assert.match(text, /\| 0 \| 200 \| yes \| 49152 \| no \|/);
   assert.match(text, /\| 1 \| 230 \| \*\*no\*\* \| 8192 \| yes \|/);
   assert.deepEqual(anomalies(suite), []);
+});
+
+test('the insert experiment reads the codec arms, and the Sink codecs against LZ4 and the bar', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite(
+    'ch-insert',
+    options(dir, fakeSinkBench(dir), 'ch-insert'),
+  );
+  const { codecs } = suite.runs[0].measure;
+  assert.deepEqual(
+    codecs.map(it => it.arm),
+    ['lz4', 'wow'],
+  );
+  const wow = codecs[1];
+  assert.equal(wow.inserts, 2);
+  assert.equal(wow.userMicrosPerRow, 1.2);
+  assert.equal(Math.round(wow.rowsPerSecond), Math.round(INSERT.rows / 1.05));
+  assert.equal(wow.merge.userMicrosPerRow, 2);
+  assert.equal(wow.merge.compressedBytes, 60000);
+  const text = renderSuite(suite);
+  assert.match(
+    text,
+    /\| wow \| 1\.20 µs \| .* \| 2\.00 µs \| 400 ms \| 60,?000 B \| ×8\.33 \|/,
+  );
+  assert.match(
+    text,
+    /- The Sink's codecs: 4\.8% fewer rows a second than LZ4, within the 10% bar; the bytes 40\.0% fewer\./,
+  );
+});
+
+test('Sink codecs that cost the insert more than the bar say so', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite(
+    'ch-insert',
+    options(dir, fakeSinkBench(dir, { slowCodecs: true }), 'ch-insert'),
+  );
+  assert.match(
+    renderSuite(suite),
+    /- The Sink's codecs: 20\.0% fewer rows a second than LZ4, \*\*over\*\* the 10% bar;/,
+  );
 });
 
 test('a plain FINAL that miscounts is an anomaly of the insert experiment', () => {
