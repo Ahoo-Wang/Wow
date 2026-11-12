@@ -24,7 +24,7 @@ import java.net.URLClassLoader
 
 /** Decision D119, D419: `@DependencyName` on a dependency parameter names the dependency it takes. */
 @OptIn(ExperimentalCompilerApi::class)
-class DependencyQualifierTest {
+class DependencyNameTest {
     private val options = mapOf(
         ModelSymbolProcessorProvider.CONTEXT_OPTION to "bank",
         ModelSymbolProcessorProvider.MODULE_OPTION to "bank-domain",
@@ -53,7 +53,7 @@ class DependencyQualifierTest {
                 plain: Rate,
             ): Converted = Converted(primary.of(command.amount) * 100 + backup.of(command.amount) * 10 + plain.of(0))
 
-            // The same qualifier, and no qualifier, are the dependencies the command function takes.
+            // The same name, and no name, are the dependencies the command function takes.
             fun afterCommand(command: Convert, @DependencyName("backup") again: Rate, unqualified: Rate): List<Converted> =
                 emptyList()
         }
@@ -65,7 +65,7 @@ class DependencyQualifierTest {
         """.trimIndent(),
     )
 
-    /** Loads the module's provider as a host would, with two qualified rates and an unqualified one. */
+    /** Loads the module's provider as a host would, with two named rates and an unnamed one. */
     private val scenario = SourceFile.kotlin(
         "Scenario.kt",
         """
@@ -96,7 +96,7 @@ class DependencyQualifierTest {
         compilation.workingDir.walkTopDown().first { it.isFile && it.name == name }
 
     @Test
-    fun `a qualified parameter should be its own dependency, found by its qualifier`() {
+    fun `a named parameter should be its own dependency, found by its name`() {
         val (compilation, result) = compileModel("generate", options, wallet, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         // The factory defaults to the module's context, and the aggregate's names are an object beside it.
@@ -122,7 +122,7 @@ class DependencyQualifierTest {
     }
 
     @Test
-    fun `a qualifier should name a dependency parameter only, and not be blank`() {
+    fun `a dependency name should name a dependency parameter only, and not be blank`() {
         val misplaced = SourceFile.kotlin(
             "Misplaced.kt",
             """

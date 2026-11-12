@@ -285,14 +285,14 @@ internal object SubscriptionSource {
 
     /**
      * The lookup of [dependency] in the `dependencies` of a generated function that builds [building] with it: by its
-     * class and qualifier; a parameterized one by its full type too, naming the parameter, and cast to its type.
+     * class and its `@DependencyName`; a parameterized one by its full type too, naming the parameter, and cast to its type.
      */
     fun lookup(dependency: Dependency, building: String): String {
-        val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
+        val dependencyName = dependency.dependencyName?.let { "\"${escape(it)}\"" } ?: "null"
         val raw = "${dependency.erasure}::class.javaObjectType"
         val lookup = when (val fullType = dependency.fullType) {
-            null -> "dependencies.get($raw, $qualifier, \"${escape(building)}\")"
-            else -> "dependencies.get($raw, $fullType, $qualifier, \"${escape(building)}\", " +
+            null -> "dependencies.get($raw, $dependencyName, \"${escape(building)}\")"
+            else -> "dependencies.get($raw, $fullType, $dependencyName, \"${escape(building)}\", " +
                 "\"${escape(dependency.name)}\")"
         }
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"

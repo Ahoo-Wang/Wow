@@ -356,13 +356,14 @@ internal object SubscriptionResolver {
         problems: MutableList<String>,
     ): List<Dependency> = constructorOf(processor)?.parameters.orEmpty().mapIndexed { index, parameter ->
         val type = parameter.type.resolve()
-        val qualifier = parameter.dependencyName(problems)
-        if (qualifier != null && qualifier.isBlank()) {
-            problems += "processor $className's parameter ${parameter.name?.asString()} has a blank " +
+        val dependencyName = parameter.dependencyName(problems)
+        if (dependencyName != null && dependencyName.isBlank()) {
+            // A constructor's parameter always has a name.
+            problems += "processor $className's parameter ${parameter.name!!.asString()} has a blank " +
                 "@DependencyName: it names the dependency"
         }
         val name = parameter.name?.asString() ?: "dependency$index"
-        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
+        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), dependencyName, type.javaTypeOf())
     }
 
     private fun handler(

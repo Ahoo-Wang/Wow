@@ -272,7 +272,7 @@ class AnnotationArgumentsTest {
         // Jackson's names: the state's query fields.
         generated(compilation, "CartStateProperties.kt")!!.readText().assert()
             .contains("\"state.tag\"").doesNotContain("\"state.label\"", "\"state.note\"", "\"state.hidden\"")
-        // The qualifier names the dependency of the aggregate's model and of the processor's handlers.
+        // The dependency name names the dependency of the aggregate's model and of the processor's handlers.
         generated(compilation, "ShopDomainModelProvider.kt")!!.readText().assert()
             .contains("dependencies.get(sample.Audit::class.javaObjectType, \"audit\", \"the Cart model\")")
         generated(compilation, "CartBoardSubscriptions.kt")!!.readText().assert()

@@ -85,7 +85,7 @@ class GenericBeanDependenciesTest {
             dependencies.get(Cache::class.java, payments, null, "PaymentSaga", "payments").view.assert()
                 .isEqualTo("payment")
             dependencies.find(Types.parameterized(Cache::class.java, Rows::class.java), null).assert().isNull()
-            // A qualifier still wins, and names a bean of the full type only.
+            // A name still wins, and names a bean of the full type only.
             dependencies.find(orders, "orders").assert().isSameAs(context.getBean("orders"))
             dependencies.find(orders, "payments").assert().isNull()
             // A plain class, as before.

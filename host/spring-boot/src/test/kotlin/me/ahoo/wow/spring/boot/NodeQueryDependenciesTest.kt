@@ -35,7 +35,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * A model's read API (review PA-6): a `QueryApi` or `NodeQueryApi` parameter without a qualifier is the node's own,
+ * A model's read API (review PA-6): a `QueryApi` or `NodeQueryApi` parameter without a name is the node's own,
  * deferred, since the node's API is built from the models; another one is taken by its name. Without the node's
  * API, the parameter has no dependency, and the start fails as for any other.
  */
@@ -103,7 +103,7 @@ class NodeQueryDependenciesTest {
                 commands.wait(request).assert().isSameAs(result)
                 commands.stream(request).toList().assert().containsExactly(result)
             }
-            // A qualifier names the bean itself.
+            // A name picks the bean itself.
             dependencies.find(QueryApi::class.java, "peer").assert().isSameAs(context.getBean("peer"))
         }
     }

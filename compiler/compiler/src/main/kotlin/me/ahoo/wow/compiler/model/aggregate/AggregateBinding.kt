@@ -90,7 +90,7 @@ internal data class AggregateBinding(
 
 /**
  * A parameter [name] of a generated factory (a model's, a processor's handlers'): a domain service of [type], found by
- * its class [erasure] and, when the parameter has a `@DependencyName`, by that name, its [qualifier]. A parameterized
+ * its class [erasure] and, when the parameter has a `@DependencyName`, by that name, its [dependencyName]. A parameterized
  * [type] is found by its full type too: [fullType] is the Kotlin expression that builds it ([javaTypeOf]), null for a
  * plain class.
  */
@@ -98,7 +98,7 @@ internal class Dependency(
     val name: String,
     val type: String,
     val erasure: String,
-    val qualifier: String?,
+    val dependencyName: String?,
     val fullType: String? = null,
 )
 
