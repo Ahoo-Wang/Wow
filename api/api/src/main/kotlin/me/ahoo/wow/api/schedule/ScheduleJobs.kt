@@ -290,9 +290,11 @@ class ScheduleTick @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(tenantId, job, slot, skipped, due, partition)
 
     companion object {
-        /** A ScheduleTick of the given fields; parameters added later come last, with a default. */
+        /**
+         * A ScheduleTick of the given fields; parameters added later come last, with a default. No Java overloads:
+         * with [due] given and [skipped] left out, one would take a `long` where it took [skipped] before.
+         */
         @JvmStatic
-        @JvmOverloads
         fun of(
             tenantId: String,
             job: String,
