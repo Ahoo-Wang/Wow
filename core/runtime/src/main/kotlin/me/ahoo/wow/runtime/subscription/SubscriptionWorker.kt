@@ -115,6 +115,9 @@ internal class SubscriptionWorker(
 ) {
     private val permits = Semaphore(options.maxInFlight)
 
+    /** The parked entries' runs this worker has in hand, apart from its live entries' [permits] ([ParkedRetries]). */
+    internal val retryPermits = Semaphore(options.maxInFlight)
+
     /** The waits whose next hop is this subscription: whether an entry's is, and its signal once done with. */
     private val hops = WaitHops(subscription, signals, clock)
 

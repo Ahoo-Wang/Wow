@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -105,8 +106,18 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     fun decodeEvents(model: AggregateModel<*>, records: List<EventRecord>): List<Any> =
         records.mapNotNull { decodeUnlessRetired(model, it) }
 
-    /** [command] as JSON: the body of a scheduled command, read back by its type when it is due. */
-    fun commandText(command: Any): String = mapper.writeValueAsString(command)
+    /**
+     * [command] as the JSON object a schedule stores and its timer sends when it is due, read back by its type then.
+     * It is read from the text this codec writes, so its numbers are exactly as written. A command written as anything
+     * but an object is refused.
+     */
+    fun commandBody(command: Any): ObjectNode {
+        val body = mapper.readTree(mapper.writeValueAsString(command))
+        require(body is ObjectNode) {
+            "A scheduled command is written as a JSON object; ${command.javaClass.name} is written as ${body.nodeType}."
+        }
+        return body
+    }
 
     /** [state] as text, to tell whether something changed it, and as a snapshot holds it; its length is measured. */
     fun stateText(state: Any): String {

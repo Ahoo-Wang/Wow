@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import kotlin.coroutines.CoroutineContext
 
@@ -357,7 +358,7 @@ class Kernel(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
-        noinline encode: (AggregateRef, Any) -> Pair<String, String>,
+        noinline encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
     ): AttemptScope = scopes.openDue(command, loaded, wait, encode) ?: openLate(command, loaded, wait, encode)
 
     /**
@@ -368,7 +369,7 @@ class Kernel(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
-        encode: (AggregateRef, Any) -> Pair<String, String>,
+        encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
     ): AttemptScope {
         val due = checkNotNull(command.schedule) { "Only a scheduled command is opened late." }.due
         return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()))

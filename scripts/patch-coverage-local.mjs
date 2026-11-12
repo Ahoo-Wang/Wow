@@ -49,7 +49,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** The Gradle init script: a `patchCoverageReport` task on each project, writing its XML and its source roots. */
@@ -89,8 +89,14 @@ gradle.projectsEvaluated {
                     csv.required.set(false)
                     xml.outputLocation.set(project.file("$out/$name.xml"))
                 }
-                val roots = main.allSource.srcDirs
-                doLast { project.file("$out/$name.roots").writeText(roots.joinToString("\\n") { it.absolutePath }) }
+                // The roots are an output of the task, so a report restored from the build cache restores them too,
+                // and an input, so a changed source layout is no cache hit. Relative to the root project, so a cached
+                // report another checkout of the repository built names this checkout's roots.
+                val roots = main.allSource.srcDirs.map { it.relativeTo(rootProject.rootDir).invariantSeparatorsPath }
+                val rootsFile = project.file("$out/$name.roots")
+                inputs.property("patchCoverageRoots", roots)
+                outputs.file(rootsFile)
+                doLast { rootsFile.writeText(roots.joinToString("\\n")) }
             }
         }
     }
@@ -99,6 +105,13 @@ gradle.projectsEvaluated {
 
 const run = (command, args, options = {}) =>
   execFileSync(command, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...options }).trim();
+
+/** The source roots a report's roots file lists, relative to [repository] (or absolute), as absolute paths. */
+export const readRoots = (text, repository) =>
+  text
+    .split('\n')
+    .filter(Boolean)
+    .map(root => resolve(repository, root));
 
 /** [xml], each source file moved into a package named by its source root's repository path and its package path. */
 export function nameByRepositoryPath(xml, roots, repository, isFile = existsSync) {
@@ -197,7 +210,7 @@ async function measure(options, work) {
   const allRoots = [];
   let unmatched = 0;
   for (const report of readdirSync(out).filter(name => name.endsWith('.xml'))) {
-    const roots = readFileSync(join(out, report.replace(/\.xml$/, '.roots')), 'utf8').split('\n').filter(Boolean);
+    const roots = readRoots(readFileSync(join(out, report.replace(/\.xml$/, '.roots')), 'utf8'), repository);
     allRoots.push(...roots);
     const named = nameByRepositoryPath(readFileSync(join(out, report), 'utf8'), roots, repository);
     unmatched += named.unmatched;

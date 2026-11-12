@@ -255,6 +255,56 @@ class StuckReconcileTest {
         }
 
     @Test
+    fun `a first reconcile stuck starting its partitions fences the starting node, so the other runs them all`(): Unit =
+        runTest(timeout = 1.minutes) {
+            val store = InMemoryLeaseStore(virtualClock())
+            val hanging = HangingStarts(InMemoryFailureLedger()).apply { hanging = true }
+            val runtime = SubscriptionRuntime(
+                GROUP.name,
+                InMemoryEventLog(PARTITIONS),
+                InMemoryCheckpointStore(),
+                hanging,
+                listOf(Subscription("projector", SubscriptionFilter(GROUP.context)) {}),
+                context = StandardTestDispatcher(testScheduler),
+            )
+            val starting = ownership(STUCK, store, runtime)
+            val other = ownership(OTHER, store)
+            try {
+                // Alone, the node's first reconcile takes every lease, and every start hangs: no step finishes.
+                val start = backgroundScope.launch { starting.start() }
+                delay(5.seconds)
+                store.owners(GROUP.name).map { it.owner }.toSet().assert().containsExactly(STUCK)
+                other.start()
+
+                // Watched from its first reconcile: fenced, out of the members, its leases left to expire.
+                val options = ClusterOptions()
+                delay(options.reconcileTimeout + options.heartbeatInterval + options.drainTimeout + options.leaseTtl)
+                starting.fenced.assert().isTrue()
+                (starting.stalledFor!! > options.reconcileTimeout).assert().isTrue()
+                store.members(GROUP.service).filter { GROUP.name in it.groups }.map { it.node }.assert()
+                    .containsExactly(OTHER)
+                delay(10.seconds)
+                (0 until PARTITIONS).forEach { other.accepts(it).assert().describedAs("partition $it").isTrue() }
+                (0 until PARTITIONS).forEach { starting.accepts(it).assert().isFalse() }
+                // The start waits on the hung calls rather than failing on its own.
+                start.isActive.assert().isTrue()
+                events.map { it.second }.filterIsInstance<ObservedEvent.OwnershipFenced>().single()
+
+                // Once the starts end, the start completes, and the node is a member again and takes its share back.
+                hanging.release.complete(Unit)
+                start.join()
+                delay(30.seconds)
+                store.members(GROUP.service).filter { GROUP.name in it.groups }.map { it.node }.assert()
+                    .containsExactlyInAnyOrder(OTHER, STUCK)
+                starting.owned.assert().isNotEmpty()
+            } finally {
+                hanging.release.complete(Unit)
+                starting.stop()
+                other.stop()
+            }
+        }
+
+    @Test
     fun `the reconcile timeout is positive`() {
         assertThrows<IllegalArgumentException> { ClusterOptions(reconcileTimeout = Duration.ZERO) }
     }
@@ -321,6 +371,26 @@ class StuckReconcileTest {
         ): List<ParkedAggregate> {
             if (slow) {
                 delay(pause)
+            }
+            return delegate.due(subscription, partitions, now, after, limit)
+        }
+    }
+
+    /** A partition's start reads its parked aggregates, which never answer while [hanging], until [release]. */
+    private class HangingStarts(private val delegate: FailureLedger) : FailureLedger by delegate {
+        @Volatile
+        var hanging = false
+        val release = CompletableDeferred<Unit>()
+
+        override suspend fun due(
+            subscription: SubscriptionId,
+            partitions: Collection<Int>,
+            now: Long,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<ParkedAggregate> {
+            if (hanging) {
+                release.await()
             }
             return delegate.due(subscription, partitions, now, after, limit)
         }

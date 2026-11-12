@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -36,10 +37,15 @@ import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.minutes
@@ -59,6 +65,7 @@ class KernelScheduleTest {
     data class Report(val expression: String)
     data class CancelOrder(val reason: String)
     data class Notify(val text: String)
+    data class Charge(val amount: BigDecimal, val rate: Double, val count: Long, val note: String)
     data class Placed(val at: Long)
     data object Paid
 
@@ -151,12 +158,33 @@ class KernelScheduleTest {
                 rule = ScheduleRule.After(30.minutes.inWholeMilliseconds),
                 target = ref,
                 commandType = "test.order.CancelOrder",
-                command = """{"reason":"unpaid"}""",
+                command = commandOf("reason" to "unpaid"),
             ),
         )
         committed.schedules.assert().isEqualTo(mapOf("pay-timeout" to ScheduleRule.After(1_800_000)))
         streams().single().assert().isEqualTo(committed.stream)
+        // The stored event, byte for byte: the scheduled command is an object, not JSON in a string.
+        committed.stream.events.last().payload.assert().isEqualTo(
+            """{"key":"pay-timeout","rule":{"type":"after","millis":1800000},""" +
+                """"target":{"type":{"context":"test","name":"order"},"tenantId":"t","id":"o-1"},""" +
+                """"commandType":"test.order.CancelOrder","command":{"reason":"unpaid"}}""",
+        )
     }
+
+    @Test
+    fun `a scheduled command keeps its numbers exactly, and its timer sends the text the command is written as`(): Unit =
+        runTest {
+            val stream = (send(Place()) as CommandOutcome.Committed).stream
+            val charge = Charge(BigDecimal("2.50"), 0.1, 9_007_199_254_740_993, "été \"x\"")
+            val body = codec.commandBody(charge)
+            body.get("amount").decimalValue().assert().isEqualTo(BigDecimal("2.50"))
+            val set = ScheduleSet("charge", ScheduleRule.After(1), ref, "test.order.Charge", body)
+            val stored = WowJson.mapper.readValue(WowJson.mapper.writeValueAsString(set), ScheduleSet::class.java)
+            stored.assert().isEqualTo(set)
+            Timers.of(stream, stored, 4).body.assert().isEqualTo(WowJson.mapper.writeValueAsString(charge))
+            // A command is written as an object; one written as anything else cannot be scheduled.
+            assertThrownBy<IllegalArgumentException> { codec.commandBody("text") }
+        }
 
     @Test
     fun `a rejected command commits neither events nor schedules`(): Unit = runTest {
@@ -187,7 +215,7 @@ class KernelScheduleTest {
                 ScheduleRule.At(NOW + 5),
                 shipment.ref("t", "s-1"),
                 "test.shipment.Notify",
-                """{"text":"paid"}""",
+                commandOf("text" to "paid"),
             ),
         )
         paid.schedules.assert().isEqualTo(mapOf("remind" to ScheduleRule.At(NOW + 5)))
@@ -200,7 +228,13 @@ class KernelScheduleTest {
         reminded.stream.version.assert().isEqualTo(2)
         // `gone` was set and cancelled in the decision, and was not held before: nothing to cancel.
         reminded.stream.decoded().assert().containsExactly(
-            ScheduleSet("remind", ScheduleRule.At(NOW + 101), ref, "test.order.CancelOrder", """{"reason":"second"}"""),
+            ScheduleSet(
+                "remind",
+                ScheduleRule.At(NOW + 101),
+                ref,
+                "test.order.CancelOrder",
+                commandOf("reason" to "second")
+            ),
         )
         // The state is as it was: the next command decides on it.
         (send(Pay()) as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
@@ -244,7 +278,7 @@ class KernelScheduleTest {
     @Test
     fun `every aggregate decides the system commands of a saga's schedules`(): Unit = runTest {
         send(Place())
-        val set = SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.order.CancelOrder", """{"reason":"ping"}""")
+        val set = SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.order.CancelOrder", commandOf("reason" to "ping"))
         val committed = send(set) as CommandOutcome.Committed
         committed.stream.commandType.assert().isEqualTo(Schedules.SET_SCHEDULE)
         committed.stream.decoded().assert()
@@ -261,25 +295,25 @@ class KernelScheduleTest {
     fun `a saga's schedule of a command type its target does not decide is rejected when it is set`(): Unit = runTest {
         // Review X-7: a wrong name is found when the schedule is set, not when it fires months later.
         send(Place())
-        val wrong = send(SetSchedule("ping", ScheduleRule.cron("0 0 3 * * *"), "test.order.CancelOrdr", "{}"))
+        val wrong = send(SetSchedule("ping", ScheduleRule.cron("0 0 3 * * *"), "test.order.CancelOrdr", commandOf()))
         val rejection = (wrong as CommandOutcome.Rejected).rejection
         rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         rejection.message.assert().contains("test.order.CancelOrdr").contains("ping")
         // Another aggregate's command is not this one's either.
-        send(SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.shipment.Notify", "{}"))
+        send(SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.shipment.Notify", commandOf()))
             .assert().isInstanceOf(CommandOutcome.Rejected::class.java)
         send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
         // A former name, a lifecycle command and a schedule system command are the aggregate's own.
         val types = listOf("test.order.Abort", Lifecycle.DELETE_AGGREGATE, Schedules.CANCEL_SCHEDULE)
         types.forEachIndexed { index, type ->
-            send(SetSchedule("ok-$index", ScheduleRule.At(NOW + 9), type, "{}"))
+            send(SetSchedule("ok-$index", ScheduleRule.At(NOW + 9), type, commandOf()))
                 .assert().isInstanceOf(CommandOutcome.Committed::class.java)
         }
     }
 
     @Test
     fun `a schedule's system command to an aggregate that does not exist is rejected`(): Unit = runTest {
-        val outcome = send(SetSchedule("ping", ScheduleRule.At(NOW), "test.order.CancelOrder", "{}"))
+        val outcome = send(SetSchedule("ping", ScheduleRule.At(NOW), "test.order.CancelOrder", commandOf()))
         (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
@@ -422,3 +456,6 @@ class KernelScheduleTest {
         const val NOW = 1_700_000_000_000L
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }
