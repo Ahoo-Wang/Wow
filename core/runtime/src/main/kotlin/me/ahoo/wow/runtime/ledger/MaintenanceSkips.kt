@@ -228,11 +228,17 @@ class MaintenanceSkips(
 class UnreplayableHistoryException(val ref: AggregateRef, cause: Throwable) :
     RuntimeException("The history of $ref did not replay: ${cause.message}", cause)
 
-/** Runs [replay], a replay of [ref]'s history with no store, any failure of it an [UnreplayableHistoryException]. */
+/**
+ * Runs [replay], a replay of [ref]'s history with no store, any failure of it an [UnreplayableHistoryException]: but a
+ * cancellation, the node stopping mid-replay, which is not the aggregate's data and is thrown as it is, so the work
+ * stops and parks nothing.
+ */
 @InternalWowApi
-@Suppress("TooGenericExceptionCaught") // Whatever a replay throws, it is the aggregate's data that failed.
+@Suppress("TooGenericExceptionCaught") // Whatever else a replay throws, it is the aggregate's data that failed.
 inline fun <T> replaying(ref: AggregateRef, replay: () -> T): T = try {
     replay()
+} catch (cancelled: CancellationException) {
+    throw cancelled
 } catch (failure: Exception) {
     throw UnreplayableHistoryException(ref, failure)
 }

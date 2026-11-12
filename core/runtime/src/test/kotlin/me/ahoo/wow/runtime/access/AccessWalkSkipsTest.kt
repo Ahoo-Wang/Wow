@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.access
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -57,6 +58,7 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
         decide<Move>(Creation.ALLOWED) { _, command -> Decision.events(Moved(command.department)) }
         evolve<Moved> {
             check(it.department != POISON) { "No department is $POISON any more." }
+            if (it.department == STOPPING) throw CancellationException("The node stops mid-replay.")
             department = it.department
         }
         access(department) { it.department }
@@ -141,6 +143,19 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
     }
 
     @Test
+    fun `a replay cancelled mid-way should stop the walk and park nothing`() {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("b"), "finance", STOPPING)
+        val walking = walkingOf(log, read = false)
+
+        assertThrows<CancellationException> { runBlocking { walking.maintain() } }
+
+        walking.walks().getValue(type).completed.assert().isFalse()
+        runBlocking { ledger.count(parked, 10) }.assert().isZero()
+        skipped().assert().isEmpty()
+    }
+
+    @Test
     fun `a stamp refused for the aggregate's own data should be parked, and the walk should go on`() {
         val log = Faulty(InMemoryEventLog())
         unstamped(log.log, listOf("a", "b", "c"), "finance")
@@ -206,6 +221,7 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
 
     private companion object {
         const val POISON = "poison"
+        const val STOPPING = "stopping"
         const val MAX_RUNS = 4
     }
 }
