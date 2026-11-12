@@ -42,7 +42,8 @@ log "building ${servers[*]} of $src against Wow $version from Maven Central"
 
 checked=0
 for server in "${servers[@]}"; do
-  lib=$(find "$src/examples/eshop" -type d -path "*/$server/build/install/$server/lib" | head -1)
+  # A server's module is examples/eshop/<context>/<context>-server; its distribution is named after the project.
+  lib=$(find "$src/examples/eshop" -type d -path "*/build/install/$server/lib" | head -1)
   [ -n "$lib" ] || { log "no distribution of $server"; exit 1; }
   values="${lib%/build/install/*}/build/wow/helm/values.yaml"
   [ -f "$values" ] || { log "no generated values for $server: $values"; exit 1; }

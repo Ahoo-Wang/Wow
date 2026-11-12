@@ -16,7 +16,7 @@
 // (me.ahoo.wow:wow-spring-boot, ...), and the root build substitutes each with the project that publishes it (D363 ⑤).
 // For the eShop's projects alone, this adds a later rule that sends every me.ahoo.wow module back to the version the
 // release published, from Maven Central: their classpaths, the BOM they import and the compiler the Wow Gradle plugin
-// adds are the published ones. The last rule that names a target wins, so it is added once each project's own build
+// adds are the published ones, and so is the platform of third-party versions the root build adds to every classpath. The last rule that names a target wins, so it is added once each project's own build
 // script has run. Everything else in the build is as the release's.
 //
 //   ./gradlew -I test/rc-drill/published-wow.init.gradle.kts -Prc-drill.wow-version=<version> <tasks>
@@ -40,6 +40,14 @@ allprojects {
                         val platform = category != null &&
                             "${selector.attributes.getAttribute(category as Attribute<Any>)}" == "platform"
                         useTarget(if (platform) platform(module(coordinates)) else module(coordinates), "the published Wow")
+                    } else if (selector is ProjectComponentSelector && selector.projectPath == ":wow-dependencies") {
+                        // The root build adds its platform of third-party versions to every classpath it resolves, as
+                        // a project, not by its coordinates: the published one takes its place, as the published BOM
+                        // imports it.
+                        useTarget(
+                            platform(module("me.ahoo.wow:wow-dependencies:$publishedVersion")),
+                            "the published Wow's third-party versions",
+                        )
                     }
                 }
             }
