@@ -504,18 +504,21 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     /**
      * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions and
-     * the access schemas.
+     * the access schemas: each context's and each topic's stop runs to its end whatever another one's does, and the
+     * first failure is thrown once all ended ([stopEach]).
      */
-    private suspend fun handOff() = coroutineScope {
-        ledgerPublisher?.stop()
-        contexts.values.forEach { context ->
-            launch {
-                context.ownership.stop()
-                context.snapshotMaintenance?.stop()
-                context.accessWalking?.stop()
+    private suspend fun handOff() {
+        val contextStops = contexts.values.map { context ->
+            suspend {
+                stopInTurn(
+                    { context.ownership.stop() },
+                    { context.snapshotMaintenance?.stop() },
+                    { context.accessWalking?.stop() },
+                )
             }
         }
-        topicSubscriptions.values.forEach { launch { it.stop() } }
+        val topicStops = topicSubscriptions.values.map { topics -> suspend { topics.stop() } }
+        stopInTurn({ ledgerPublisher?.stop() }, { stopEach(contextStops + topicStops) })
     }
 
     private companion object {
