@@ -39,6 +39,7 @@ class SensitiveTest {
         val value = SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL)
         value.value.assert().isEqualTo("13800138000")
         value.level.assert().isEqualTo(SensitivityLevel.CONFIDENTIAL)
+        value.equals(value).assert().isTrue()
         value.assert().isEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL))
         value.hashCode().assert().isEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL).hashCode())
         value.assert().isNotEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.DISPLAY))
