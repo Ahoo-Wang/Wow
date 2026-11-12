@@ -50,10 +50,10 @@ internal class BoundedTransport(restClient: Rest5Client, mapper: JsonpMapper, ti
 
 /**
  * [delegate], each request's caller answered within [timeout]: a request that has no answer by then fails for its
- * caller as a [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`), and the
- * same when its caller gives up first. The bound is the caller's wait, not the connection's: the request runs on, and
- * its connection is freed when the server answers or resets it, or at the client's own timeout; an answer that comes
- * after the caller's failure is released at once.
+ * caller as a [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`). A caller
+ * that gives up first ends its own wait, and its request runs on the same way. The bound is the caller's wait, not the
+ * connection's: the request runs on, and its connection is freed when the server answers or resets it, or at the
+ * client's own timeout; an answer that comes after its caller is gone is released at once.
  *
  * Nothing is cancelled. HttpClient 5 keeps a reused connection whose exchange is cancelled, so a cancel frees nothing
  * in the usual case, and it re-runs a request cancelled before its bytes are written, on a new connection that nothing

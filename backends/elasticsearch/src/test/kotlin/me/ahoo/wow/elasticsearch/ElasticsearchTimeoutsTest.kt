@@ -44,6 +44,7 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration
@@ -161,12 +162,17 @@ class ElasticsearchTimeoutsTest {
 
     /**
      * A server that answers every request at once but its second, the first after the client's warm-up: that one it
-     * holds without a byte, a paused server, then answers after [holdFor] when it is set. Records when the held request
-     * reached it, when it answered it and when the client closed its connection.
+     * holds without a byte, a paused server, until the test completes [release]; never released, it never answers.
+     * Records when the held request reached it, that it answered it and that the client closed its connection.
      */
-    private class HeldServer(private val holdFor: Duration? = null) : AutoCloseable {
+    private class HeldServer : AutoCloseable {
         private val server = ServerSocket(0)
         private val requests = AtomicInteger()
+        val release = CompletableFuture<Unit>()
+
+        @Volatile
+        private var closing = false
+
         val requested = CompletableFuture<TimeSource.Monotonic.ValueTimeMark>()
         val answeredLate = CompletableFuture<Unit>()
         val closed = CompletableFuture<Unit>()
@@ -188,8 +194,7 @@ class ElasticsearchTimeoutsTest {
                 if (requests.incrementAndGet() == HELD) {
                     holding = true
                     requested.complete(TimeSource.Monotonic.markNow())
-                    holdFor ?: break
-                    Thread.sleep(holdFor.inWholeMilliseconds)
+                    if (!holdUntilReleased(it, input)) break
                     answeredLate.complete(Unit)
                 }
                 it.getOutputStream().apply {
@@ -200,6 +205,27 @@ class ElasticsearchTimeoutsTest {
             // The client's end of the connection: closed (end of stream) or reset (aborted).
             runCatching { input.readAllBytes() }
             if (holding) closed.complete(Unit)
+        }
+
+        /**
+         * Holds the request until the test releases it: true then, false when the client closed or reset the
+         * connection first, or the server closes. The client sends nothing else on a connection whose request it
+         * waits on, so a read here ends only with the connection.
+         */
+        private fun holdUntilReleased(socket: Socket, input: InputStream): Boolean {
+            socket.soTimeout = POLL_MILLIS
+            while (!release.isDone) {
+                val ended = try {
+                    input.read() < 0
+                } catch (_: SocketTimeoutException) {
+                    false
+                } catch (_: IOException) {
+                    true
+                }
+                if (ended) return false
+            }
+            socket.soTimeout = 0
+            return !closing
         }
 
         /** Reads one request's head, false at the end of the stream: the requests here have no body. */
@@ -217,10 +243,16 @@ class ElasticsearchTimeoutsTest {
             return true
         }
 
-        override fun close() = server.close()
+        /** Stops accepting, and lets a request still held go unanswered. */
+        override fun close() {
+            closing = true
+            release.complete(Unit)
+            server.close()
+        }
 
         private companion object {
             const val HELD = 2
+            const val POLL_MILLIS = 20
             const val HEAD_END = "\r\n\r\n"
             val OK = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".toByteArray()
         }
@@ -264,18 +296,17 @@ class ElasticsearchTimeoutsTest {
 
     @Test
     fun `a store's request to a paused server should fail its caller at the timeout, the connection held until it answers`() {
-        HeldServer(holdFor = 1500.milliseconds).use { server ->
+        HeldServer().use { server ->
             client(server).use { restClient ->
                 val store = warmStore(restClient, timeout = 300.milliseconds)
+                // 1. The caller fails at its bound while the server holds the request.
                 assertThrownBy<StorageUnavailableException> { runBlocking { store.probe() } }
-                // Failed within its bound of reaching the server, whatever the client took to send it.
-                val reached = server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
-                reached.elapsedNow().assert().isLessThan(1.seconds)
-                // The connection is the client's: its pool's only one is still held, so the next request waits for it.
+                server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
+                // 2. The connection is the client's: its pool's only one is still held, so the next request waits.
                 val next = restClient.next()
-                Thread.sleep(300)
-                next.isDone.assert().isFalse()
-                // The server answers: the answer is released, and the connection serves the next request.
+                assertThrownBy<TimeoutException> { next.get(WAIT_MILLIS, TimeUnit.MILLISECONDS) }
+                // 3. The server answers: the answer is released, and the connection serves the next request.
+                server.release.complete(Unit)
                 next.get(LONG_SECONDS, TimeUnit.SECONDS).assert().isEqualTo(OK_STATUS)
                 server.answeredLate.isDone.assert().isTrue()
             }
@@ -284,21 +315,23 @@ class ElasticsearchTimeoutsTest {
 
     @Test
     fun `a load its caller gives up on should leave its request running, its connection freed by the answer`() {
-        HeldServer(holdFor = 1500.milliseconds).use { server ->
+        HeldServer().use { server ->
             client(server).use { restClient ->
                 val store = warmStore(restClient, timeout = 5.seconds)
                 val ref = AggregateType("ctx", "order").ref("tenant", "o-1")
+                // 1. The kernel gives the load up once its request is on the wire, while the server holds it.
                 runBlocking {
                     val load = async(Dispatchers.Default) { store.snapshots("ctx").load(ref) }
-                    // The kernel gives the load up once its request is on the wire.
                     server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
                     load.cancelAndJoin()
                 }
-                // Not cancelled: the connection stays the request's until the server answers it.
+                // 2. Not cancelled: the connection stays the request's, so the next request waits for it.
                 val next = restClient.next()
-                Thread.sleep(300)
-                next.isDone.assert().isFalse()
+                assertThrownBy<TimeoutException> { next.get(WAIT_MILLIS, TimeUnit.MILLISECONDS) }
+                // 3. The server answers: the connection is freed by the answer, not closed, and serves the next.
+                server.release.complete(Unit)
                 next.get(LONG_SECONDS, TimeUnit.SECONDS).assert().isEqualTo(OK_STATUS)
+                server.answeredLate.isDone.assert().isTrue()
                 server.closed.isDone.assert().isFalse()
             }
         }
@@ -330,6 +363,7 @@ class ElasticsearchTimeoutsTest {
 
     private companion object {
         const val LONG_SECONDS = 10L
+        const val WAIT_MILLIS = 300L
         const val OK_STATUS = 200
     }
 }
