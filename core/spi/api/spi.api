@@ -824,6 +824,16 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$OffsetGap : me/ahoo
 	public final fun getTopic ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$OwnershipFenced : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getStalledMillis ()J
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$OwnershipRecovered : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getFencedMillis ()J
+	public final fun getGroup ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionPaused : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getGroup ()Ljava/lang/String;
 	public final fun getPartition ()I

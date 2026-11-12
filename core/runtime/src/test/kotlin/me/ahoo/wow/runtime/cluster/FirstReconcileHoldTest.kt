@@ -118,7 +118,7 @@ class FirstReconcileHoldTest {
         runBlocking {
             backlog()
             val stuck = CompletableDeferred<Unit>()
-            val options = fastOptions(drainTimeout = 200.milliseconds, reconcileTimeout = 1.seconds)
+            val options = fastOptions(drainTimeout = 200.milliseconds, reconcileTimeout = 2.seconds)
             val ownership = ownership(StuckLedger(InMemoryFailureLedger(), STUCK, stuck), options)
             val starting = launch { ownership.start() }
             try {

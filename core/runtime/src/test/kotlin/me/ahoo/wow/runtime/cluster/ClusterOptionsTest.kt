@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.cluster
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -43,6 +44,24 @@ class ClusterOptionsTest {
         )
         ClusterOptions(drainTimeout = 30.seconds, reconcileTimeout = 31.seconds).reconcileTimeout
             .assert().isEqualTo(31.seconds)
+    }
+
+    @Test
+    fun `the reconcile timeout should be longer than the lease TTL, so a fence never comes before a lease is lost`() {
+        fun options(reconcileTimeout: Duration) = ClusterOptions(
+            leaseTtl = 20.seconds,
+            renewInterval = 3.seconds,
+            drainTimeout = 5.seconds,
+            reconcileTimeout = reconcileTimeout,
+        )
+        assertThrows<IllegalArgumentException> { options(20.seconds) }.message.assert().isEqualTo(
+            "The reconcile timeout 20s must be longer than the lease TTL 20s: a node whose reconcile finishes no " +
+                "step for the reconcile timeout gives up its leases, which must not come sooner than a lease left " +
+                "unrenewed expires. Raise the reconcile timeout above 20s, or lower the lease TTL below 20s."
+        )
+        options(21.seconds).reconcileTimeout.assert().isEqualTo(21.seconds)
+        // The defaults hold it.
+        (ClusterOptions().reconcileTimeout > ClusterOptions().leaseTtl).assert().isTrue()
     }
 
     @Test

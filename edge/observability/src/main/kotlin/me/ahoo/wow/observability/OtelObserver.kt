@@ -141,6 +141,10 @@ class OtelObserver(
             is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
             is ObservedEvent.StateRebuilt -> stateRebuilt(event)
             is ObservedEvent.ReservationLost -> reservationLost(event.context)
+            is ObservedEvent.OwnershipFenced ->
+                cached.counter(WowMetrics.FENCE_NOTICES, event.group, WowMetrics.FENCED_KIND).increment()
+            is ObservedEvent.OwnershipRecovered ->
+                cached.counter(WowMetrics.FENCE_NOTICES, event.group, WowMetrics.RECOVERED_KIND).increment()
             is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability.value, event.reason.value)
             is ObservedEvent.AccessStamped -> accessStamped(event)
             is ObservedEvent.AccessWalked ->
