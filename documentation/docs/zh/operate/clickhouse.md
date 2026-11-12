@@ -215,6 +215,8 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 | `_events` | `ReplacingMergeTree` | `commit_time` 所在的月 | `(tenant_id, aggregate_id, version, sequence)` |
 | `wow_catalog` | `ReplacingMergeTree(written_at)` | 无 | `(database, table, fingerprint)` |
 
+导入的历史保留它原来的提交时间，所以它的提交落在各自发生的月份里，Sink 的一次插入可能跨越其中许多个月：它的插入设置 `max_partitions_per_insert_block = 0`，所以一批数据永远不会因为涉及的月份数量而被拒绝。
+
 聚合的每张表都带 `SETTINGS non_replicated_deduplication_window = N`，N 即 `wow.clickhouse.sink.deduplication-window`。`...history.ttl` 会给 `_state_events` 和 `_events` 加上 `TTL toDateTime(commit_time) + toIntervalSecond(<秒数>)`。不保留历史时只有 `_state` 和 `_state_flat`。
 
 **`_state_events` 与 `_state`**，每次提交一行；`_state` 有除 `headers` 与 `events` 之外的每一列：
