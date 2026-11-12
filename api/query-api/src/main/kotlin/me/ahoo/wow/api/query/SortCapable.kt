@@ -18,8 +18,11 @@ package me.ahoo.wow.api.query
  *
  * This interface provides access to sorting criteria that determine the order
  * in which query results are returned.
+ *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
  */
-interface SortCapable {
+sealed interface SortCapable {
     /**
      * The list of sort criteria to apply to the query results.
      * Each sort criterion specifies a field and direction (ascending/descending).

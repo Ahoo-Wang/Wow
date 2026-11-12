@@ -19,9 +19,12 @@ package me.ahoo.wow.api.query
  * This interface provides methods to replace projections in existing queries,
  * enabling fluent projection building and modification.
  *
+ * Sealed: the queries of this package implement it, a user's class does not. Cases may be added in a minor release,
+ * so a `when` over it keeps an `else` branch.
+ *
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
-interface RewritableProjection<Q : RewritableProjection<Q>> {
+sealed interface RewritableProjection<Q : RewritableProjection<Q>> {
     /**
      * Creates a new query with the specified projection.
      *
