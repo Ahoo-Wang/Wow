@@ -24,7 +24,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
@@ -123,50 +122,42 @@ abstract class DatasetDateBucketCases internal constructor() : DatasetAggregatio
     }
 
     @Test
-    fun `a minute bucket right after Monrovia's 1972 change starts at its local minute`() = blocking {
-        Assumptions.assumeFalse(MONROVIA_CHANGE_DAY in semanticDivergences) {
-            "Known divergence from the bucket rule: $MONROVIA_CHANGE_DAY."
+    fun `a minute bucket right after Monrovia's 1972 change starts at its local minute`() {
+        standard(MONROVIA_CHANGE_DAY, semanticDivergences, BUCKET_RULE) {
+            // 00:45:10 UTC, the offset UTC since 00:44:30: its own minute.
+            zonedBuckets(AggregationDateUnit.MINUTE, "Africa/Monrovia", "m3").assert()
+                .containsExactly("1972-01-07T00:45:00Z" to 1L)
         }
-        // 00:45:10 UTC, the offset UTC since 00:44:30: its own minute.
-        zonedBuckets(AggregationDateUnit.MINUTE, "Africa/Monrovia", "m3").assert()
-            .containsExactly("1972-01-07T00:45:00Z" to 1L)
-        Unit
     }
 
     @Test
-    fun `an hour whose local start a change skipped begins at the transition`() = blocking {
-        Assumptions.assumeFalse(SnapshotDateBucketCases.GAP_START in semanticDivergences) {
-            "Known divergence from the bucket rule: ${SnapshotDateBucketCases.GAP_START}."
+    fun `an hour whose local start a change skipped begins at the transition`() {
+        standard(SnapshotDateBucketCases.GAP_START, semanticDivergences, BUCKET_RULE) {
+            // Africa/Monrovia skipped local 00:00 to 00:44:30 on 1972-01-07: the 00:00 hour begins at the transition.
+            zonedBuckets(AggregationDateUnit.HOUR, "Africa/Monrovia", "g1", "g2").assert()
+                .containsExactly("1972-01-06T23:44:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
         }
-        // Africa/Monrovia skipped local 00:00 to 00:44:30 on 1972-01-07: the 00:00 hour begins at the transition.
-        zonedBuckets(AggregationDateUnit.HOUR, "Africa/Monrovia", "g1", "g2").assert()
-            .containsExactly("1972-01-06T23:44:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
-        Unit
     }
 
     @Test
-    fun `a minute whose local start a change skipped begins at the transition, not after its records`() = blocking {
-        Assumptions.assumeFalse(SnapshotDateBucketCases.GAP_MID_UNIT in semanticDivergences) {
-            "Known divergence from the bucket rule: ${SnapshotDateBucketCases.GAP_MID_UNIT}."
+    fun `a minute whose local start a change skipped begins at the transition, not after its records`() {
+        standard(SnapshotDateBucketCases.GAP_MID_UNIT, semanticDivergences, BUCKET_RULE) {
+            // 00:44:45 UTC is in the local minute 00:44, of which only 00:44:30 on happened.
+            zonedBuckets(AggregationDateUnit.MINUTE, "Africa/Monrovia", "g3", "g4").assert()
+                .containsExactly("1972-01-07T00:43:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
         }
-        // 00:44:45 UTC is in the local minute 00:44, of which only 00:44:30 on happened.
-        zonedBuckets(AggregationDateUnit.MINUTE, "Africa/Monrovia", "g3", "g4").assert()
-            .containsExactly("1972-01-07T00:43:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
-        Unit
     }
 
     @Test
-    fun `an hourly bucket on the day of an offset change before 1970 starts at its local hour`() = blocking {
-        Assumptions.assumeFalse(BEFORE_1970_PARTIAL_CHANGE in semanticDivergences) {
-            "Known divergence from the bucket rule: $BEFORE_1970_PARTIAL_CHANGE."
+    fun `an hourly bucket on the day of an offset change before 1970 starts at its local hour`() {
+        standard(BEFORE_1970_PARTIAL_CHANGE, semanticDivergences, BUCKET_RULE) {
+            // Asia/Shanghai, 1901-01-01: local mean time +08:05:43 became +08:00, repeating 23:54:17 to midnight; p1 and
+            // p2 are in the 23:00 hour that began at +08:05:43, p3 in the 00:00 hour at +08:00.
+            zonedBuckets(AggregationDateUnit.HOUR, "Asia/Shanghai", "p1", "p2", "p3").assert().containsExactly(
+                "1900-12-31T14:54:17Z" to 2L,
+                "1900-12-31T16:00:00Z" to 1L,
+            )
         }
-        // Asia/Shanghai, 1901-01-01: local mean time +08:05:43 became +08:00, repeating 23:54:17 to midnight; p1 and
-        // p2 are in the 23:00 hour that began at +08:05:43, p3 in the 00:00 hour at +08:00.
-        zonedBuckets(AggregationDateUnit.HOUR, "Asia/Shanghai", "p1", "p2", "p3").assert().containsExactly(
-            "1900-12-31T14:54:17Z" to 2L,
-            "1900-12-31T16:00:00Z" to 1L,
-        )
-        Unit
     }
 
     companion object {

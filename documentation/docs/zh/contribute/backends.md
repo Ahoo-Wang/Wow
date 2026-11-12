@@ -209,7 +209,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 - **存储拒绝什么。** `refused` 返回一个后端的存储无法保存的流，比如 PostgreSQL `jsonb` 字符串中的 NUL，spec 期望它的追加被拒绝（`AppendOutcome.Rejected`），并且在 `appendAll` 中只有它单独失败；没有它时，spec 跳过这个测试。
 - **查询后端的存储。** 绑定的存储事实（`StorageSupport`）说明存储对哪些特性是原生支持、部分支持还是不支持，声明为 `NONE` 的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` spec 读取的事实有 keyset 分页、无界流、`having`、展开元素后在记录根上的分组，以及去重计数。
 - **查询后端的字段。** 字段的绑定说明存储能对它做什么（`QueryCapability`），字段没有绑定某项能力时，spec 跳过这项能力的测试：`Skipped: the storage binds no AGGREGATE_TEMPORAL to state.createdAt (…)`。对排序或 `terms` 分组，spec 不跳过：它期望准入以 `unsupported-capability` 拒绝查询，这正是调用方会得到的回答。
-- **已知差异。** 与过滤语义之间的差异按用例 ID 列在 `semanticDivergences` 中，它的测试以 `Known divergence from the canonical semantics: <id>.` 跳过，而不是隐藏起来。
+- **已知差异。** 与过滤语义或日期分桶规则之间的差异按用例 ID 列在 `semanticDivergences` 中。该用例照样运行：仍有差异时，它以 `Known divergence from the canonical semantics: <id>.`（或 `the bucket rule`）报告为跳过，而不是隐藏起来；一旦符合标准，它就以 `[<id>] is declared as a divergence, but it meets the standard: remove it from the list.` 失败，所以任何列表都不会留着过时的条目。
 
 ### 从 9.x 的 TCK 迁来 {#from-9x}
 

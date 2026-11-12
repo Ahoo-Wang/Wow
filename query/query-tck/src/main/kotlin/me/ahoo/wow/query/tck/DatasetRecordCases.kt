@@ -48,7 +48,6 @@ import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC_FIELDS
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
@@ -65,20 +64,19 @@ abstract class DatasetRecordCases internal constructor() : DatasetQueryFixtures(
         val semantic = blocking { target(SEMANTIC) }
         return FilterSemantics.CASES.map { case ->
             DynamicTest.dynamicTest(case.id) {
-                Assumptions.assumeFalse(case.id in semanticDivergences) {
-                    "Known divergence from the canonical semantics: ${case.id}."
+                standard(case.id, semanticDivergences, CANONICAL_SEMANTICS) {
+                    val probes = checkNotNull(SemanticProbe.ALL[case.shape])
+                    val byId = probes.associateBy(QueryBackendSpec::probeId)
+                    val filter = AndFilter(
+                        listOf(
+                            IdsFilter(probes.map(QueryBackendSpec::probeId)),
+                            case.filter(QueryField(SEMANTIC_FIELDS.getValue(case.shape))),
+                        ),
+                    )
+                    semantic.list(ListQuery(filter, limit = MAX_LIST))
+                        .map { checkNotNull(byId[it.path(ID).stringValue()]) { "Unexpected record [$it]." }.name }
+                        .toSet().assert().describedAs(case.id).isEqualTo(case.matches)
                 }
-                val probes = checkNotNull(SemanticProbe.ALL[case.shape])
-                val byId = probes.associateBy(QueryBackendSpec::probeId)
-                val filter = AndFilter(
-                    listOf(
-                        IdsFilter(probes.map(QueryBackendSpec::probeId)),
-                        case.filter(QueryField(SEMANTIC_FIELDS.getValue(case.shape))),
-                    ),
-                )
-                blocking { semantic.list(ListQuery(filter, limit = MAX_LIST)) }
-                    .map { checkNotNull(byId[it.path(ID).stringValue()]) { "Unexpected record [$it]." }.name }
-                    .toSet().assert().describedAs(case.id).isEqualTo(case.matches)
             }
         }
     }

@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.schema.QueryCapability
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
@@ -127,34 +126,30 @@ abstract class SnapshotDateBucketCases internal constructor() : SnapshotAggregat
     }
 
     @Test
-    fun `an hour whose local start a change skipped begins at the transition`() = blocking {
-        Assumptions.assumeFalse(GAP_START in semanticDivergences) {
-            "Known divergence from the bucket rule: $GAP_START."
+    fun `an hour whose local start a change skipped begins at the transition`() {
+        standard(GAP_START, semanticDivergences, BUCKET_RULE) {
+            // Africa/Monrovia, 1972-01-07T00:44:30Z: -00:44:30 became UTC, skipping local 00:00 to 00:44:30, so the 00:00
+            // hour begins at the transition; 23:30 -00:44:30 is in the hour before.
+            createdAtBuckets(
+                listOf("1972-01-07T00:14:30Z", "1972-01-07T00:50:00Z"),
+                AggregationDateUnit.HOUR,
+                "Africa/Monrovia"
+            )
+                .assert().containsExactly("1972-01-06T23:44:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
         }
-        // Africa/Monrovia, 1972-01-07T00:44:30Z: -00:44:30 became UTC, skipping local 00:00 to 00:44:30, so the 00:00
-        // hour begins at the transition; 23:30 -00:44:30 is in the hour before.
-        createdAtBuckets(
-            listOf("1972-01-07T00:14:30Z", "1972-01-07T00:50:00Z"),
-            AggregationDateUnit.HOUR,
-            "Africa/Monrovia"
-        )
-            .assert().containsExactly("1972-01-06T23:44:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
-        Unit
     }
 
     @Test
-    fun `a minute whose local start a change skipped begins at the transition, not after its records`() = blocking {
-        Assumptions.assumeFalse(GAP_MID_UNIT in semanticDivergences) {
-            "Known divergence from the bucket rule: $GAP_MID_UNIT."
+    fun `a minute whose local start a change skipped begins at the transition, not after its records`() {
+        standard(GAP_MID_UNIT, semanticDivergences, BUCKET_RULE) {
+            // Monrovia again: 00:44:45 UTC is in the local minute 00:44, of which only 00:44:30 on happened.
+            createdAtBuckets(
+                listOf("1972-01-07T00:43:50Z", "1972-01-07T00:44:45Z"),
+                AggregationDateUnit.MINUTE,
+                "Africa/Monrovia"
+            )
+                .assert().containsExactly("1972-01-07T00:43:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
         }
-        // Monrovia again: 00:44:45 UTC is in the local minute 00:44, of which only 00:44:30 on happened.
-        createdAtBuckets(
-            listOf("1972-01-07T00:43:50Z", "1972-01-07T00:44:45Z"),
-            AggregationDateUnit.MINUTE,
-            "Africa/Monrovia"
-        )
-            .assert().containsExactly("1972-01-07T00:43:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
-        Unit
     }
 
     companion object {
