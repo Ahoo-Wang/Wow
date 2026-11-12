@@ -3769,7 +3769,9 @@ export interface ViewRouteState {
 
 // @public
 export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
-    apply(): void;
+    apply(only?: {
+        filter: FilterTree;
+    }): void;
     // (undocumented)
     readonly definition: DefinitionFor<C>;
     // (undocumented)

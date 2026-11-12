@@ -79,7 +79,8 @@ outline: deep
 | MongoDB 事件存储 | 保留 | 一等的日志后端；另一个是 PostgreSQL。 |
 | Redis 事件存储与快照存储 | 放弃 | 数据工具只读取 9.x 的 MongoDB 存储：先在 9.x 中把 Redis 数据迁到 MongoDB。 |
 | Elasticsearch 事件存储 | 放弃 | Elasticsearch 接收快照和事件流的副本用于检索，从不保存日志。迁移之前先把 9.x 数据迁到 MongoDB。 |
-| MongoDB 与 Elasticsearch 快照存储 | 保留 | 还有 PostgreSQL。 |
+| MongoDB 快照存储 | 保留 | 还有 PostgreSQL。 |
+| Elasticsearch 快照存储 | 替代 | 类型的快照保存在数据库上，PostgreSQL 或 MongoDB，Elasticsearch 保存它们的副本供查询使用（`query.snapshot.store`）。提交命令后重新加载列表的页面等待 `queryable`，副本设 `refresh: wait-for`（[读到自己的写入](../operate/elasticsearch#reading-your-own-write)）。 |
 | 快照策略（每 n 个版本） | 替代 | 每个版本都写快照，按聚合批量写入。 |
 | 为聚合关闭快照 | 保留 | V10 新增。 |
 | 按聚合的存储（`storage-routing`） | 保留 | 命名的存储，按聚合为日志和快照选择。 |
