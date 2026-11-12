@@ -97,6 +97,15 @@ protected final class me/ahoo/wow/tck/ledger/FailureLedgerContextsSpec$Companion
 	public final fun getSPEC ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 }
 
+public abstract class me/ahoo/wow/tck/ledger/FailureLedgerParkingSpec {
+	public fun <init> ()V
+	public final fun a request should be cleared by a park or repark of another failure time, and kept by a re-home ()V
+	public final fun a skip asked of a parking a repark replaced should be refused in the ledger's write ()V
+	public final fun a skip racing a repark should never be left on the parking the repark made ()V
+	public final fun an operator's mark, retry spec or request should apply only to the parking it names ()V
+	protected abstract fun createLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
+}
+
 public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public static final field CONCURRENT_PARKS I
 	public static final field CONTEXT Ljava/lang/String;
@@ -124,7 +133,7 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun every amendment is classified, as conditional on a revision read or as an unconditional write ()V
 	public final fun every stored change of an entry gives it the next revision ()V
 	public final fun parking an aggregate again keeps the earliest from version ()V
-	public final fun parking from an earlier version and reparking keep the retry state ()V
+	public final fun parking from an earlier version and reparking keep the retry state, but the request of another parking ()V
 	public final fun reparking an aggregate that is not parked writes nothing ()V
 	public final fun reparking replaces a parked entry, later or earlier, with its partition and reason ()V
 	public final fun resolving removes the entry, after which the aggregate may be parked anew ()V
