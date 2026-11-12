@@ -15,6 +15,12 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 
+/**
+ * How an expression filter or a HAVING condition compares a computed value with its operand.
+ *
+ * The six comparisons are every comparison of two values.
+ * No case is added within 10.x, so a `when` over it may name every case.
+ */
 @ExperimentalWowApi
 enum class ComparisonOperator {
     EQ,

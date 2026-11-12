@@ -16,6 +16,11 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
+/**
+ * A condition on an aggregation's groups, read after their metrics are computed.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 sealed interface HavingExpression {
     class Condition @InternalWowApi constructor(

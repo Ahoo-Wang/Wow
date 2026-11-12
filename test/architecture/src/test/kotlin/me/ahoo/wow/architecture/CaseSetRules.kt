@@ -48,9 +48,7 @@ object CaseSetRules {
      * Each part removes its line when it lands, so the list ends empty; an entry whose module has no type without a
      * sentence any more is stale and fails the rule.
      */
-    val PENDING: Map<String, String> = mapOf(
-        "api/query-api" to "the query protocol's types",
-    )
+    val PENDING: Map<String, String> = emptyMap()
 
     private val DECLARATION = Regex("""^(\s*)((?:[a-z]+ )*)(class|interface|object)(?: (\w+))?""")
     private val CASE_SET = Regex("""\b(?:enum|sealed)\b""")

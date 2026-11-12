@@ -17,6 +17,8 @@ package me.ahoo.wow.api.query
  * The structure of a query field's value, as a query model's descriptor writes it (`kind`), by wire name: `scalar`
  * (a string, a number, a boolean or a time), `object`, `array`, `union` (more than one of these), `null` (only
  * ever null), or `unknown` (not described). Schema declarations and storage metadata share it.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class QueryValueKind {
     UNKNOWN,
