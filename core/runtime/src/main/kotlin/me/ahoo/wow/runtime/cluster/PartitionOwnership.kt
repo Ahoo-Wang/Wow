@@ -276,6 +276,12 @@ class PartitionOwnership internal constructor(
     /** How long the reconcile running now has run; null between reconciles. */
     internal val reconcilingFor: Duration? get() = reconciling?.elapsedNow()
 
+    /** How long the reconcile running now has finished no step ([GroupFence]); null between reconciles. */
+    internal val stalledFor: Duration? get() = fence.stalledFor
+
+    /** Whether a stuck reconcile fenced the group ([GroupFence]). */
+    internal val fenced: Boolean get() = fence.fenced
+
     /** The partitions HRW gave this node on the last reconcile. */
     @Volatile
     var target: Set<Int> = emptySet()
@@ -347,14 +353,15 @@ class PartitionOwnership internal constructor(
                 held.complete()
             }
         }
+        // Watched from the first reconcile on (RT-12): one stuck in a start fences the group as any other does.
+        run.membership.launch {
+            every(options.heartbeatInterval, "check the reconcile") { fence.check(running?.upkeep) }
+        }
         try {
             reconcile(reads ?: own)
         } finally {
             release?.cancel()
             own?.complete()
-        }
-        run.membership.launch {
-            every(options.heartbeatInterval, "check the reconcile") { fence.check(running?.upkeep) }
         }
         run.membership.launch {
             while (true) {

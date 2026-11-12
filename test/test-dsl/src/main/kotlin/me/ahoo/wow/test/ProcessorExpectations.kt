@@ -23,7 +23,6 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlingRejectedException
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.reflect.KClass
 
@@ -216,7 +215,7 @@ class ProcessorExpectations internal constructor(
         val set = schedules.firstOrNull { (it.body as? SetSchedule)?.key == key && (target == null || it.ref == target) }
             ?: throw AssertionError("Expected a schedule $key but got ${describe(schedules)}.")
         val body = set.body as SetSchedule
-        val scheduled = CODEC.decodeTree(WowJson.mapper.readTree(body.command), command.javaClass)
+        val scheduled = CODEC.decodeTree(body.command, command.javaClass)
         val differences = StructuralDiff.of(command, scheduled, "command") +
             (rule?.let { StructuralDiff.of(it, body.rule, "rule") }.orEmpty())
         if (differences.isNotEmpty()) {

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.naming.Escapes.typeText
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 
@@ -298,7 +299,7 @@ object Timers {
      * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says
      * counted from the commit; a rule the runtime evaluates (cron) is [NOT_EVALUATED] here, and the runtime gives it
      * its first slot before it writes it. Its causation is the commit (`ref@version`) in the chain of the command that
-     * committed it.
+     * committed it. Its body is the text of the event's command object, as [WowJson] writes it.
      */
     @JvmStatic
     fun of(stream: EventStreamRecord, set: ScheduleSet, partitions: Int): Timer = Timer(
@@ -311,7 +312,7 @@ object Timers {
         dueAt = set.rule.firstDue(stream.commitTime) ?: NOT_EVALUATED,
         target = set.target,
         commandType = set.commandType,
-        body = set.command,
+        body = WowJson.mapper.writeValueAsString(set.command),
         causation = Causation(stream.causation?.correlationId ?: stream.commandId, "${stream.ref}@${stream.version}"),
         headers = stream.headers - ScheduleContext.HEADERS,
         operator = stream.operator,

@@ -26,6 +26,8 @@ import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 
 /** How a schedule steps through its slots (decision D198): first due, next slot, coalesced or caught up. */
@@ -103,13 +105,17 @@ class ScheduleSlotsTest {
             events = listOf(EventRecord("billing.account.Opened", 1, "{}")),
             scope = Scope.NONE,
         )
-        val cron = ScheduleSlots.timerOf(stream, ScheduleSet("k", monthly, ref, "billing.account.Invoice", "{}"), 4)
+        val cron = ScheduleSlots.timerOf(
+            stream,
+            ScheduleSet("k", monthly, ref, "billing.account.Invoice", commandOf()),
+            4
+        )
         cron.dueAt.assert().isEqualTo(at("2026-02-01T00:00:00Z"))
         cron.slotDueAt.assert().isEqualTo(cron.dueAt)
         cron.slot.assert().isEqualTo(1L)
         val once = ScheduleSlots.timerOf(
             stream,
-            ScheduleSet("k", ScheduleRule.After(10), ref, "billing.account.Invoice", "{}"),
+            ScheduleSet("k", ScheduleRule.After(10), ref, "billing.account.Invoice", commandOf()),
             4,
         )
         once.dueAt.assert().isEqualTo(commit + 10)
@@ -225,3 +231,6 @@ class ScheduleSlotsTest {
         ScheduleSlots.zoneOf(monthly).id.assert().isEqualTo("UTC")
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }

@@ -59,6 +59,8 @@ import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -301,7 +303,7 @@ class ScheduledCommandsTest {
             val node = node("node-1", TimedBackends()).also { it.start() }
             node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
             val placed = node.streams("o-1")
-            val set = SetSchedule("nightly", ScheduleRule.cron("0 0 3 * * *"), "shop.order.CancelOrdr", "{}")
+            val set = SetSchedule("nightly", ScheduleRule.cron("0 0 3 * * *"), "shop.order.CancelOrdr", commandOf())
             val result = node.send("o-1", set)
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
@@ -452,3 +454,6 @@ class ScheduledCommandsTest {
         const val STOCK_COMMANDS = PREFIX + "wow.stock.commands"
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }

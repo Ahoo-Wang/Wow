@@ -25,7 +25,6 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.RejectionCodes
-import me.ahoo.wow.spi.json.WowJson
 import kotlin.reflect.KClass
 
 /**
@@ -271,7 +270,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
         val schedules = scheduleEvents()
         val set = schedules.filterIsInstance<ScheduleSet>().firstOrNull { it.key == key }
             ?: throw AssertionError("Expected a schedule $key but got $schedules.")
-        val scheduled = codec.decodeTree(WowJson.mapper.readTree(set.command), command.javaClass)
+        val scheduled = codec.decodeTree(set.command, command.javaClass)
         if (scheduled != command) {
             throw AssertionError("Expected $key to send $command but it sends $scheduled.")
         }

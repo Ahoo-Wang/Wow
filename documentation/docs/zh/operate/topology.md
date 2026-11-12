@@ -53,6 +53,8 @@ flowchart LR
 
 隔离会以 `WARN` 记录日志，写明上下文和多久没有完成任何一步，并由 `wow.cluster.fence.notices`（`wow.kind=fenced`）计数，恢复也一样（`recovered`），所以运维会先于存活检查看到它。一次很长但一直在完成步骤的调和（比如从一个慢存储接手很多分区）不算卡住。`wow.cluster.reconcile-timeout` 必须长于 `wow.cluster.lease-ttl` 和 `wow.cluster.drain-timeout`，否则节点不启动。
 
+节点从启动时的第一次调和起就受监视。第一次调和没有完成任何一步的启动同样会被隔离，所以其他节点会接手它声称的那一份。启动本身会等待：它卡住的调用无法取消。就绪检查保持 `DOWN`，和任何未运行的节点一样，其 `ownership` 详情把该组标记为 `fenced`。调和在 `wow.health.liveness.stall-timeout`（3 分钟）内没有完成任何一步时，节点的存活检查也会变为 `DOWN`，详情为 `stalled: reconcile` 和该组，于是编排器会重启它。失败的存储调用不算卡住：启动会带着存储的错误失败。
+
 ## 两个端口 {#two-ports}
 
 每个节点监听两个端口：

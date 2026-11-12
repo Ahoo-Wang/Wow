@@ -26,6 +26,8 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 
 /** A timer of decision D198: its rule as Wow's JSON writes it, its slots, and how it is made from `wow.schedule.ScheduleSet`. */
 class TimerTest {
@@ -103,9 +105,20 @@ class TimerTest {
             listOf(EventRecord("wow.schedule.ScheduleSet", 1, "{}")),
             Scope.NONE,
         )
-        Timers.of(stream, ScheduleSet("pay", ScheduleRule.After(5), ref, "shop.order.Cancel", "{}"), 4).dueAt.assert()
+        Timers.of(
+            stream,
+            ScheduleSet("pay", ScheduleRule.After(5), ref, "shop.order.Cancel", commandOf()),
+            4
+        ).dueAt.assert()
             .isEqualTo(1_005)
-        Timers.of(stream, ScheduleSet("cron", ScheduleRule.cron("0 0 9 * * *"), ref, "shop.order.Cancel", "{}"), 4)
+        Timers.of(
+            stream,
+            ScheduleSet("cron", ScheduleRule.cron("0 0 9 * * *"), ref, "shop.order.Cancel", commandOf()),
+            4
+        )
             .dueAt.assert().isEqualTo(Timers.NOT_EVALUATED)
     }
 }
+
+private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
+    JsonNodeFactory.instance.objectNode().apply { fields.forEach { (name, value) -> put(name, value) } }

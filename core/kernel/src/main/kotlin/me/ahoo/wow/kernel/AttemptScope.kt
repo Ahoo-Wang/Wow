@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.wait.WaitContext
+import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
 import kotlin.time.Duration
 
@@ -48,8 +49,8 @@ internal class AttemptScope(
     private val reservationTtl: Duration,
     private val wait: WaitContext?,
     private val observer: Observer,
-    /** The type name and JSON of a command scheduled for a target. */
-    private val encode: (AggregateRef, Any) -> Pair<String, String>,
+    /** The type name and JSON object of a command scheduled for a target. */
+    private val encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
 ) : DecideScope, KernelLifecycle.MetadataScope {
     private var compensations: MutableList<suspend () -> Unit>? = null
     private var afterAppendActions: MutableList<suspend () -> Unit>? = null
@@ -246,7 +247,7 @@ internal class AttemptScopes(
     private val codec: EventCodec,
 ) {
     /** How the attempts of a command of [model] store the commands they schedule: one for all of the command's attempts. */
-    fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, String> =
+    fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, ObjectNode> =
         { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
 
     /** An attempt of [command] on [loaded], at [now] (this kernel's time unless given), with [wait] and [encode]. */
@@ -254,7 +255,7 @@ internal class AttemptScopes(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
-        encode: (AggregateRef, Any) -> Pair<String, String>,
+        encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
         now: Long = clock(),
     ): AttemptScope =
         AttemptScope(command, ids, now, loaded, reservations, options.reservationTtl, wait, observer, encode)
@@ -268,7 +269,7 @@ internal class AttemptScopes(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
-        encode: (AggregateRef, Any) -> Pair<String, String>,
+        encode: (AggregateRef, Any) -> Pair<String, ObjectNode>,
     ): AttemptScope? {
         val now = clock()
         val schedule = command.schedule
@@ -276,11 +277,11 @@ internal class AttemptScopes(
     }
 
     /**
-     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
+     * The type name and JSON object of [body], a command [model]'s aggregate schedules for [target]: the
      * model names its own commands, [commandTypes] those of other aggregate types. A body that holds its aggregate's
      * id (`@AggregateId`) names [target]'s.
      */
-    private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
+    private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, ObjectNode> {
         val own = target.type == model.type
         val type = if (own) {
             model.commandType(body.javaClass).name
@@ -296,7 +297,7 @@ internal class AttemptScopes(
                 "${model.type} schedules ${body.javaClass.name} for $target, but its body names the aggregate $inBody.",
             )
         }
-        return type to codec.commandText(body)
+        return type to codec.commandBody(body)
     }
 }
 

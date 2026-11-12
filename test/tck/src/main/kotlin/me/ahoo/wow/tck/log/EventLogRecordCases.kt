@@ -133,7 +133,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
             1,
             """{"key":"pay-timeout","rule":{"type":"after","millis":600000},"target":{"type":{"context":"other",""" +
                 """"name":"order"},"tenantId":"tenant","id":"o-1"},"commandType":"other.order.CancelOrder",""" +
-                """"command":"{\"reason\":\"unpaid ü\",\"amount\":2.50}"}""",
+                """"command":{"reason":"unpaid ü","amount":2.50}}""",
         )
         val cancelled = EventRecord("wow.schedule.ScheduleCancelled", 1, """{"key":"remind"}""")
         val withEvents = stream("a", 1).let { it.copyWith(events = it.events + set + cancelled) }
