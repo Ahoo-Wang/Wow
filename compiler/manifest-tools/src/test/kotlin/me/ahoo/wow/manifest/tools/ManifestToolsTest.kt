@@ -16,6 +16,7 @@ package me.ahoo.wow.manifest.tools
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -30,6 +31,8 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.spi.SystemCommandGroups
+import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -515,6 +518,21 @@ class ManifestToolsTest {
         )
         ManifestTools.undecidedCommands(shop, emptyList()).assert().isEmpty()
         ManifestTools.undecidedCommands(silent, emptyList()).assert().isEmpty()
+    }
+
+    @Test
+    fun `a derived system command should not be reported undecided, whichever group it is of`() {
+        // Each is decided by the framework somewhere: every aggregate's kernel, a built-in aggregate, or an intake.
+        val system = SystemCommandGroups.ALL.classes.map { Manifest.schemaRef(it.name) }.toTypedArray()
+        ManifestTools.undecidedCommands(deriving("shop", *system), emptyList()).assert().isEmpty()
+        val derived = deriving(
+            "shop",
+            Manifest.schemaRef(SetSchedule::class.java.name),
+            Manifest.schemaRef(RebuildSnapshot::class.java.name),
+        )
+        ManifestTools.undecidedCommands(derived, emptyList()).assert().isEmpty()
+        ManifestTools.undecidedCommands(deriving("shop", Manifest.schemaRef("shop.aggregate.Nowhere")), emptyList())
+            .assert().containsExactly("shop/CartSaga.onEvent derives shop.aggregate.Nowhere")
     }
 
     class CreateCart(val id: String)

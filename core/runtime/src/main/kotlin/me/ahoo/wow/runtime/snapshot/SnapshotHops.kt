@@ -15,7 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventStreamRecord
 
@@ -31,14 +31,14 @@ internal class SnapshotHops(
     private val types: Set<AggregateType>,
 ) : SubscriptionDirectory by runtime {
     override fun kindOf(context: String, subscription: String): FunctionKind? =
-        if (subscription == Hop.SNAPSHOT_SUBSCRIPTION && context == this.context) {
+        if (subscription == SystemSubscriptions.SNAPSHOT && context == this.context) {
             FunctionKind.SYSTEM.takeIf { types.isNotEmpty() }
         } else {
             runtime.kindOf(context, subscription)
         }
 
     override fun covers(subscription: String, type: AggregateType): Boolean =
-        if (subscription == Hop.SNAPSHOT_SUBSCRIPTION && type.context == context) {
+        if (subscription == SystemSubscriptions.SNAPSHOT && type.context == context) {
             type in types
         } else {
             runtime.covers(subscription, type)
@@ -46,7 +46,7 @@ internal class SnapshotHops(
 
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean {
         val type = stream.ref.type
-        if (subscription == Hop.SNAPSHOT_SUBSCRIPTION && type in types) {
+        if (subscription == SystemSubscriptions.SNAPSHOT && type in types) {
             return runtime.hasHandled(targets.primarySubscriptionOf(type), stream)
         }
         return runtime.hasHandled(subscription, stream)

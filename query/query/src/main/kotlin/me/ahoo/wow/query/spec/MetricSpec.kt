@@ -56,6 +56,8 @@ enum class MetricResult {
  * Its constants are public: a storage names the metric types it orders one TERMS group by itself
  * ([AggregationSupport.termsTopN][me.ahoo.wow.query.schema.AggregationSupport.termsTopN]). What each one reads and
  * costs is the core's.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class MetricSpec(
     @property:InternalWowApi

@@ -218,7 +218,11 @@ abstract class AccessFilterSpec {
         }
     }
 
-    /** The attributes of the matrix's documents. */
+    /**
+     * The attributes of the matrix's documents.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Level { LOW, HIGH }
 
     class Document

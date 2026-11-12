@@ -27,6 +27,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.naming.TypeNames
 import me.ahoo.wow.api.read.EventStream
+import me.ahoo.wow.spi.SystemCommandGroups
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
 inline fun <reified S : Any> aggregate(
@@ -479,8 +480,11 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     private companion object {
-        /** The commands the kernel decides for every model, which an after hook runs after only when it names them. */
-        val SYSTEM_COMMANDS: Set<Class<*>> = KernelLifecycle.COMMANDS + KernelLifecycle.SCHEDULE_COMMANDS
+        /**
+         * The commands the kernel decides for every model ([SystemCommandGroups.DECIDED_BY_EVERY_AGGREGATE]), which an
+         * after hook runs after only when it names them.
+         */
+        val SYSTEM_COMMANDS: Set<Class<*>> = SystemCommandGroups.DECIDED_BY_EVERY_AGGREGATE.classes
     }
 }
 

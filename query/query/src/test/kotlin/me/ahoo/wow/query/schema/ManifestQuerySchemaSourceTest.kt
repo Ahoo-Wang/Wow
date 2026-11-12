@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.manifest.AccessAttributeManifest
@@ -270,7 +271,7 @@ class ManifestQuerySchemaSourceTest {
             schema.value("state.address.street").maskRule?.level.assert().isEqualTo(SensitivityLevel.CONFIDENTIAL)
             val email = checkNotNull(schema.value("state.email").maskRule)
             email.mask.assert().isEqualTo(QueryMask.Strategy(REDACT))
-            email.compiled.mask("a@b.c").assert().isEqualTo("[redacted]")
+            email.compiled.mask(SensitiveValue.of("a@b.c", SensitivityLevel.DISPLAY)).assert().isEqualTo("[redacted]")
             schema.maskedFields.assert().contains(
                 "state.address.street",
                 "state.backupPhone",

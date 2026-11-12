@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.QueryText
 import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.manifest.AggregateManifest
@@ -49,7 +50,7 @@ class QueryKeywordsTest {
     value class PhoneNumber(val value: String)
 
     object Redact : MaskStrategy {
-        override fun mask(value: String): String = "***"
+        override fun mask(value: SensitiveValue): String = "***"
     }
 
     /** An annotation class that declares a sensitivity wherever it is used. */
@@ -439,7 +440,7 @@ class QueryKeywordsTest {
     data class NegativeKeep(@field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepSuffix = -1)) val value: String)
 
     class PrivateStrategy private constructor() : MaskStrategy {
-        override fun mask(value: String): String = value
+        override fun mask(value: SensitiveValue): String = value.value
     }
 
     data class NotInstantiable(
@@ -448,7 +449,7 @@ class QueryKeywordsTest {
     )
 
     class PublicStrategy : MaskStrategy {
-        override fun mask(value: String): String = value
+        override fun mask(value: SensitiveValue): String = value.value
     }
 
     data class Instantiable(

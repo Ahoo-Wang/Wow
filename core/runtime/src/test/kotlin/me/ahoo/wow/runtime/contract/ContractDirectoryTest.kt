@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -155,11 +156,11 @@ class ContractDirectoryTest {
 
     @Test
     fun `the snapshot subscription should be known where an aggregate keeps snapshots`() {
-        directory.kindOf("inventory", Hop.SNAPSHOT_SUBSCRIPTION).assert().isEqualTo(FunctionKind.SYSTEM)
-        directory.kindOf("payment", Hop.SNAPSHOT_SUBSCRIPTION).assert().isNull()
-        directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, AggregateType("inventory", "stock")).assert().isTrue()
-        directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, AggregateType("inventory", "bin")).assert().isFalse()
-        directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, AggregateType("inventory", "missing")).assert().isFalse()
+        directory.kindOf("inventory", SystemSubscriptions.SNAPSHOT).assert().isEqualTo(FunctionKind.SYSTEM)
+        directory.kindOf("payment", SystemSubscriptions.SNAPSHOT).assert().isNull()
+        directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "stock")).assert().isTrue()
+        directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "bin")).assert().isFalse()
+        directory.covers(SystemSubscriptions.SNAPSHOT, AggregateType("inventory", "missing")).assert().isFalse()
     }
 
     @Test

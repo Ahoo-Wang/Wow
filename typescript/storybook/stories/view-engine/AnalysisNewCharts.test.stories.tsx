@@ -13,7 +13,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import { formatRgb, parse } from 'culori';
+import { converter, formatRgb, parse } from 'culori';
 import displayMeta, {
   BarChart as DisplayBarChart,
   HeatmapChart as DisplayHeatmapChart,
@@ -74,6 +74,23 @@ async function visualize(canvasElement: HTMLElement) {
 const tokenOf = (element: Element, name: string) =>
   formatRgb(parse(getComputedStyle(element).getPropertyValue(name).trim())!);
 
+/**
+ * A token the browser has to work out — a fill derived from its ink is a
+ * relative colour, which a custom property hands back unevaluated — as a
+ * hidden element under the chart is painted in it.
+ */
+const paintedOf = (element: Element, name: string) => {
+  const probe = document.createElement('i');
+  probe.hidden = true;
+  probe.style.backgroundColor = `var(${name})`;
+  element.append(probe);
+  const painted = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return parse(painted)!;
+};
+
+const toOklch = converter('oklch');
+
 /** The chart's reading table, row by row. */
 const readingOf = (canvas: HTMLElement) =>
   [
@@ -96,11 +113,11 @@ const drillMenu = () =>
  * 瀑布图（D33 Q55）：从柱状图经图型网格换过去，四个仓库是四步，最后一根是合计。
  *
  * 每一步是那个仓库的金额的总和（柱状图画的那个指标，换图型时带过来），从 0 逐步
- * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用 `--_fve-rise`（默认约定下是成功色）、合计用色板第一档，都对卡片过 3:1；
+ * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用 `--_fve-rise-fill`（上升的填色：默认约定下是成功色的色相，明度是画标记的那一档，不是写字的墨色）、合计用色板第一档，都对卡片过 3:1；
  * 每一步的数带「+」写在条外。按下一步弹出追问菜单，标题是这个仓库。亮暗两套各跑一遍。
  *
  * 宿主在 `<html>` 上写 `data-fve-change-colors="red-up"`（主题 T1，themes.md 2.6）时，
- * 升是红色：同一张图的增步画成 `--destructive`，符号「+」照旧——颜色不是唯一的线索。
+ * 升是红色：同一张图的增步画成 `--destructive` 的色相，符号「+」照旧——颜色不是唯一的线索。
  */
 const waterfallSteps = (
   theme: 'light' | 'dark',
@@ -133,12 +150,26 @@ const waterfallSteps = (
     // Four steps and the total; the base they float on is air.
     const marks = drawnMarks(frame);
     await expect(marks).toHaveLength(5);
-    const rise = tokenOf(frame, '--_fve-rise');
-    await expect(rise).toBe(
+    // A step is filled with the rise's fill, not the ink its words are in:
+    // the hue of the convention's colour, at a mark's lightness.
+    const ink = paintedOf(frame, '--_fve-rise');
+    await expect(formatRgb(ink)).toBe(
       tokenOf(frame, convention === 'red-up' ? '--destructive' : '--success'),
     );
+    const fill = paintedOf(frame, '--_fve-rise-fill');
+    const rise = formatRgb(fill);
+    await expect(rise).not.toBe(formatRgb(ink));
+    await expect(
+      Math.abs((toOklch(fill).h ?? 0) - (toOklch(ink).h ?? 0)),
+    ).toBeLessThan(1);
+    await expect(toOklch(fill).l).toBeCloseTo(
+      theme === 'dark' ? 0.62 : 0.55,
+      2,
+    );
     const first = tokenOf(frame, '--chart-1');
-    const fills = marks.map(mark => mark.getAttribute('fill'));
+    const fills = marks.map(mark =>
+      formatRgb(parse(mark.getAttribute('fill')!)!),
+    );
     await expect(fills.slice(0, 4)).toEqual([rise, rise, rise, rise]);
     await expect(fills[4]).toBe(first);
     for (const mark of marks) {

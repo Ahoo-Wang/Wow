@@ -113,7 +113,11 @@ interface QueryBackend {
     fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode>
 }
 
-/** Which records [QueryBackend.page] returns. */
+/**
+ * Which records [QueryBackend.page] returns.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 sealed interface PageWindow {
     /**
      * Records `offset until offset + limit` in sort order; [withTotal] also asks for the number of matches. A
@@ -180,7 +184,11 @@ sealed interface PageWindow {
     }
 }
 
-/** Which groups [QueryBackend.aggregate] returns. */
+/**
+ * Which groups [QueryBackend.aggregate] returns.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 sealed interface GroupWindow {
     /** The first [limit] groups in the query's effective sort order. */
     class First @InternalWowApi constructor(val limit: Int) : GroupWindow {

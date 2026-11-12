@@ -36,17 +36,14 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.json.WowEnums
-import me.ahoo.wow.spi.snapshot.RebuildSnapshot
-import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
@@ -496,9 +493,8 @@ internal class SchemaIntrospector(
         const val DESCRIPTION = "description"
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
 
-        /** The body classes of the system commands, by their full names. */
-        val SYSTEM_BODIES: Map<String, Class<*>> = Lifecycle.COMMANDS + ScheduleJobs.COMMANDS +
-            mapOf(SnapshotRebuilds.REBUILD_SNAPSHOT to RebuildSnapshot::class.java)
+        /** The body classes of the system commands a fragment may list, by their full names. */
+        val SYSTEM_BODIES: Map<String, Class<*>> = SystemCommandGroups.LISTED_BY_A_CONTRACT.commands
 
         private fun kotlinProperty(field: FieldScope) =
             if (field.declaringType.erasedType.isAnnotationPresent(Metadata::class.java)) {

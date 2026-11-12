@@ -31,6 +31,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.AggregateManifest
@@ -49,6 +50,7 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.manifest.tools.SchemaIntrospectorFixtures.defOf
 import me.ahoo.wow.manifest.tools.SchemaIntrospectorFixtures.moneySchema
 import me.ahoo.wow.manifest.tools.SchemaIntrospectorFixtures.stateFragment
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -299,6 +301,15 @@ class SchemaIntrospectorTest {
     @Test
     fun `the Manifest should name the snapshot rebuild as the operator's command is named`() {
         SystemCommands.REBUILD_SNAPSHOT.assert().isEqualTo(SnapshotRebuilds.REBUILD_SNAPSHOT)
+    }
+
+    @Test
+    fun `the Manifest should list the system commands a contract lists, the job group but the timer's tick`() {
+        // :manifest sees no :spi, so its names are pinned to the registry here.
+        SystemCommands.JOBS.toSet().assert()
+            .isEqualTo(SystemCommandGroups.Group.JOB.commands.keys - ScheduleJobs.TICK_JOB)
+        (Lifecycle.COMMANDS.keys + SystemCommands.REBUILD_SNAPSHOT + SystemCommands.JOBS).assert()
+            .isEqualTo(SystemCommandGroups.LISTED_BY_A_CONTRACT.names - ScheduleJobs.TICK_JOB)
     }
 
     @Test

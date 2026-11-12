@@ -22,6 +22,8 @@ import me.ahoo.wow.api.query.annotation.SensitivityLevel
  * How query results mask a sensitive value, as the Manifest's `x-wow-mask` states it (`@Sensitive.mask`): the
  * built-in mask that keeps [Keep.prefix] leading and [Keep.suffix] trailing code points, or a custom [Strategy] named
  * by its binary class name.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface QueryMask {
     class Keep @InternalWowApi constructor(val prefix: Int = 0, val suffix: Int = 0) : QueryMask {

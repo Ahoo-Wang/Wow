@@ -63,7 +63,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 ## Schedule from a saga
 
-A saga records the schedule in its `SagaContext`, from any of its handlers: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancel(key, target)` cancels it. The runtime sends both after the commands the handler returns, in the order the handler called them, as the system commands `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule`. The target must exist; otherwise it rejects the `wow.schedule.SetSchedule`, which the saga's `@OnRejected` handler of `SetSchedule` gets. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`: scheduling a class it does not declare fails the handling for good, and the aggregate parks at once ([Write a Saga](./sagas#schedule-a-command)).
+A saga records the schedule in its `SagaContext`, from any of its handlers: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancelSchedule(key, target)` cancels it. The runtime sends both after the commands the handler returns, in the order the handler called them, as the system commands `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule`. The target must exist; otherwise it rejects the `wow.schedule.SetSchedule`, which the saga's `@OnRejected` handler of `SetSchedule` gets. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`: scheduling a class it does not declare fails the handling for good, and the aggregate parks at once ([Write a Saga](./sagas#schedule-a-command)).
 
 ## How a scheduled command is delivered
 

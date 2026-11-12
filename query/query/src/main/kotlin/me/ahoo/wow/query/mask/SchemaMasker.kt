@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.MaskRule
@@ -157,7 +158,7 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
 
     @Suppress("TooGenericExceptionCaught")
     private fun MaskRule.apply(value: String): String = try {
-        val masked: String? = compiled.mask(value)
+        val masked: String? = compiled.mask(SensitiveValue(value, level))
         masked ?: fail("Mask strategy returned null.")
     } catch (error: Exception) {
         throw QueryExecutionException("Mask strategy execution failed.", error)

@@ -93,7 +93,7 @@ fun onOrderSubmitted(
 
   @OnEvent
   fun onOrderStockConfirmed(event: StateTypedEvent<OrderState, OrderStockConfirmed>, context: SagaContext) {
-      context.cancel(STOCK_DEADLINE, event.ref)
+      context.cancelSchedule(STOCK_DEADLINE, event.ref)
   }
   ```
 
@@ -181,7 +181,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## 定时命令 {#schedule-a-command}
 
-`context.schedule(key, rule, request)` 要求请求的目标在 `key` 下为自己定时它的命令；`context.cancel(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。Saga 的任何处理函数都可以定时，`@OnSchedule` 任务的处理函数也可以。处理函数要在 `@Sends(schedules = [...])` 里声明被定时命令的类，Manifest 按完整类型名列出它们。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
+`context.schedule(key, rule, request)` 要求请求的目标在 `key` 下为自己定时它的命令；`context.cancelSchedule(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。Saga 的任何处理函数都可以定时，`@OnSchedule` 任务的处理函数也可以。处理函数要在 `@Sends(schedules = [...])` 里声明被定时命令的类，Manifest 按完整类型名列出它们。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
 
 ## 从哪里开始 {#where-it-starts}
 

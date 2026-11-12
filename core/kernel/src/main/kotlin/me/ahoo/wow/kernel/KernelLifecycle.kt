@@ -35,6 +35,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /**
@@ -49,10 +50,10 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  */
 internal object KernelLifecycle {
     /** Every lifecycle command, enabled on a model unless it says otherwise. */
-    val COMMANDS: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
+    val COMMANDS: Set<Class<*>> = SystemCommandGroups.Group.LIFECYCLE.commands.values.toSet()
 
     /** The schedule system commands, which every model decides. */
-    val SCHEDULE_COMMANDS: Set<Class<*>> = Schedules.COMMANDS.values.toSet()
+    val SCHEDULE_COMMANDS: Set<Class<*>> = SystemCommandGroups.Group.SCHEDULE.commands.values.toSet()
 
     /**
      * The stored names of the lifecycle events Wow no longer has, which every model retires ([AggregateModel.isRetired]):
@@ -69,7 +70,7 @@ internal object KernelLifecycle {
         commandType: Class<*>,
         decides: (String) -> Boolean,
     ): DecideFunction<S> {
-        require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
+        require(commandType in SystemCommandGroups.DECIDED_BY_EVERY_AGGREGATE) {
             "${commandType.name} is not a lifecycle command."
         }
         return DecideFunction.Sync(Creation.NONE) { _, body ->
@@ -78,18 +79,26 @@ internal object KernelLifecycle {
     }
 
     /**
-     * The system name of [type], a lifecycle, schedule, job or snapshot rebuild command or event (the jobs' only the
-     * built-in job aggregate takes; the rebuild's only the built-in rebuild aggregate),
-     * or null when it is none of them.
+     * The system name of [type], a command a model of the framework decides
+     * ([SystemCommandGroups.DECIDED_BY_A_SYSTEM_MODEL]: the jobs' only the built-in job aggregate takes, the rebuild's
+     * only the built-in rebuild aggregate) or one of their groups' events, or null when it is none of them.
      */
     fun systemNameOf(type: Class<*>): String? =
-        Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: ScheduleJobs.nameOf(type) ?: SnapshotRebuilds.nameOf(type)
+        SystemCommandGroups.DECIDED_BY_A_SYSTEM_MODEL.nameOf(type) ?: SYSTEM_EVENT_NAMES[type]
 
-    /** Whether [name] is in the system namespace, which only the lifecycle, schedule, job and rebuild types take. */
+    /**
+     * Whether [name] is in the system namespace, which only the commands a model of the framework decides
+     * ([SystemCommandGroups.DECIDED_BY_A_SYSTEM_MODEL]) and their groups' events take, the retired lifecycle ones too.
+     */
     fun isSystemName(name: String): Boolean =
-        name.startsWith("${Lifecycle.NAMESPACE}.") || name in Schedules.COMMANDS || name in Schedules.EVENTS ||
-            name in ScheduleJobs.COMMANDS || name in ScheduleJobs.EVENTS ||
-            name in SnapshotRebuilds.COMMANDS || name in SnapshotRebuilds.EVENTS
+        name.startsWith("${Lifecycle.NAMESPACE}.") || name in SystemCommandGroups.DECIDED_BY_A_SYSTEM_MODEL ||
+            name in SYSTEM_EVENTS
+
+    /** The events of the groups of [SystemCommandGroups.DECIDED_BY_A_SYSTEM_MODEL], by their system names. */
+    private val SYSTEM_EVENTS: Map<String, Class<*>> =
+        Lifecycle.EVENTS + Schedules.EVENTS + ScheduleJobs.EVENTS + SnapshotRebuilds.EVENTS
+
+    private val SYSTEM_EVENT_NAMES: Map<Class<*>, String> = SYSTEM_EVENTS.entries.associate { (name, type) -> type to name }
 
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;

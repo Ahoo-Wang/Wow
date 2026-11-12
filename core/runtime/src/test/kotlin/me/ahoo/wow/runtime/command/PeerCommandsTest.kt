@@ -33,6 +33,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.AdmissionLimits
 import me.ahoo.wow.runtime.admission.Authorization
@@ -53,6 +54,8 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.snapshot.RebuildSnapshot
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.wait.Origin
@@ -406,6 +409,41 @@ class PeerCommandsTest {
                 "The class of stock.item.Recount is not on the class path: depend on the api module of stock, whose " +
                     "jar carries its contract and its commands.",
             )
+            topics.messages(COMMANDS).assert().isEmpty()
+        }
+
+    @Test
+    fun `a peer's rebuild, a command of its built-in aggregates, should be refused before it is sent, saying why`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val contract = stockManifest().copyWith(
+                contexts = stockManifest().contexts.map { context ->
+                    context.copyWith(
+                        aggregates = context.aggregates.map {
+                            it.copyWith(commands = it.commands + SystemCommands.rebuild(STOCK, it.name))
+                        },
+                    )
+                },
+            )
+            val sales = salesNode(stockContract = contract).also { it.start() }
+            val body = CommandBody.Value(RebuildSnapshot(listOf("i-1")))
+            // Under the aggregate whose contract lists it: recognised as the contract's, and not relayed.
+            val listed = sales.gateway.execute(
+                ServerCommandRequest.builder(STOCK, "item", SnapshotRebuilds.REBUILD_SNAPSHOT, body)
+                    .caller(clerk).wait(WaitPlan.ACCEPTED).build(),
+            )
+            listed.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            listed.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+            listed.error!!.message.assert().isEqualTo(
+                "${SnapshotRebuilds.REBUILD_SNAPSHOT} is a command of stock's built-in aggregates, which this node " +
+                    "does not relay to a peer: send it to stock's service.",
+            )
+            // Under the built-in aggregate the routes address: no contract aggregate, so none is served here.
+            val builtIn = sales.gateway.execute(
+                ServerCommandRequest.builder(STOCK, SnapshotRebuilds.AGGREGATE, SnapshotRebuilds.REBUILD_SNAPSHOT, body)
+                    .caller(clerk).aggregateId("item").wait(WaitPlan.ACCEPTED).build(),
+            )
+            builtIn.error!!.message.assert().isEqualTo("No aggregate stock.snapshot is served here.")
             topics.messages(COMMANDS).assert().isEmpty()
         }
 

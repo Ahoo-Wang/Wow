@@ -34,6 +34,12 @@ interface QuerySemanticType {
     data object Unknown : QuerySemanticType
 }
 
+/**
+ * A temporal semantic type: how a field stores an instant or a date (`TEMPORAL_DATE`, `TEMPORAL_EPOCH`,
+ * `TEMPORAL_FORMATTED`).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 @ExperimentalWowApi
 sealed interface Temporal : QuerySemanticType {
     data object Date : Temporal

@@ -610,10 +610,10 @@ public abstract interface class me/ahoo/wow/api/decide/DecideScope {
 	public fun reject (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Void;
 	public fun reject (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;)Ljava/lang/Void;
 	public static synthetic fun reject$default (Lme/ahoo/wow/api/decide/DecideScope;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Ljava/lang/Void;
-	public abstract fun release (Ljava/lang/String;Ljava/lang/String;)V
 	public abstract fun release (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;)V
-	public abstract fun reserve (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun release$default (Lme/ahoo/wow/api/decide/DecideScope;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;ILjava/lang/Object;)V
 	public abstract fun reserve (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun reserve$default (Lme/ahoo/wow/api/decide/DecideScope;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;)V
 	public abstract fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 }
@@ -1044,15 +1044,10 @@ public final class me/ahoo/wow/api/read/EventStream$Companion {
 }
 
 public final class me/ahoo/wow/api/read/MinVersionNotReachedException : java/lang/RuntimeException {
-	public static final field CODE Ljava/lang/String;
-	public static final field Companion Lme/ahoo/wow/api/read/MinVersionNotReachedException$Companion;
 	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;II)V
 	public final fun getMinVersion ()I
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getVersion ()I
-}
-
-public final class me/ahoo/wow/api/read/MinVersionNotReachedException$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/read/ModelQueries : me/ahoo/wow/api/read/RowQueries {
@@ -1153,10 +1148,6 @@ public final class me/ahoo/wow/api/read/StateView$Companion {
 public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ahoo/wow/api/read/Queries {
 	public abstract fun getTenantId ()Ljava/lang/String;
 	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
-}
-
-public abstract interface class me/ahoo/wow/api/read/TenantQueryApi : me/ahoo/wow/api/read/NodeQueryApi {
-	public abstract fun tenant (Ljava/lang/String;)Lme/ahoo/wow/api/read/SubscriptionQueries;
 }
 
 public abstract interface class me/ahoo/wow/api/read/TenantSnapshotQueries : me/ahoo/wow/api/read/SnapshotQueries {
@@ -1309,9 +1300,6 @@ public final class me/ahoo/wow/api/result/FunctionKind : java/lang/Enum {
 
 public final class me/ahoo/wow/api/result/Hop {
 	public static final field Companion Lme/ahoo/wow/api/result/Hop$Companion;
-	public static final field RESERVATION_SUBSCRIPTION Ljava/lang/String;
-	public static final field SNAPSHOT_SUBSCRIPTION Ljava/lang/String;
-	public static final field TIMERS_SUBSCRIPTION Ljava/lang/String;
 	public static final fun accepted ()Lme/ahoo/wow/api/result/Hop;
 	public static final fun accepted (Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
 	public static final fun committed ()Lme/ahoo/wow/api/result/Hop;
@@ -1880,7 +1868,7 @@ public final class me/ahoo/wow/api/subscribe/PublishedEvent$Companion {
 
 public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public abstract fun cancelSchedule (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public abstract fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/client/CommandRequest;)V
 }
@@ -1919,6 +1907,13 @@ public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getInvocationKey ()Ljava/lang/String;
 	public abstract fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
+}
+
+public final class me/ahoo/wow/api/subscribe/SystemSubscriptions {
+	public static final field INSTANCE Lme/ahoo/wow/api/subscribe/SystemSubscriptions;
+	public static final field RESERVATION Ljava/lang/String;
+	public static final field SNAPSHOT Ljava/lang/String;
+	public static final field TIMERS Ljava/lang/String;
 }
 
 public class me/ahoo/wow/api/subscribe/UnrecoverableHandlingException : java/lang/RuntimeException {

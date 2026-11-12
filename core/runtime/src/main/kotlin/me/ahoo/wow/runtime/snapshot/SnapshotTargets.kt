@@ -15,7 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.SystemSubscriptions
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
@@ -96,7 +96,7 @@ class SnapshotTargets(
      * another.
      */
     fun subscriptionOf(store: String): String =
-        if (store == default) Hop.SNAPSHOT_SUBSCRIPTION else "${Hop.SNAPSHOT_SUBSCRIPTION}:$store"
+        if (store == default) SystemSubscriptions.SNAPSHOT else "${SystemSubscriptions.SNAPSHOT}:$store"
 
     /** The subscription of [type]'s primary target: the one whose handling ends a wait's `snapshot` hop. */
     fun primarySubscriptionOf(type: AggregateType): String = subscriptionOf(placementOf(type).primary)

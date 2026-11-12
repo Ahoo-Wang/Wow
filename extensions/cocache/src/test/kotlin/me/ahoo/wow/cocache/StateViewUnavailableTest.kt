@@ -47,10 +47,10 @@ import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewUnavailableException
+import me.ahoo.wow.spi.read.TenantQueryApi
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
