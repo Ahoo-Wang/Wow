@@ -16,6 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -156,6 +157,18 @@ class SchemaMaskerTest {
     }
 
     @Test
+    fun `a custom strategy sees the raw value and the level its field declares`() {
+        val root = obj(
+            "shown" to string(customRule(LevelMaskStrategy, SensitivityLevel.DISPLAY)),
+            "secret" to string(customRule(LevelMaskStrategy, SensitivityLevel.CONFIDENTIAL)),
+        )
+        val node = json("""{"state":{"shown":"abc","secret":"xyz"}}""")
+        SchemaMasker.create(schema(root))!!.mask(node)
+        node.path("state").path("shown").stringValue().assert().isEqualTo("DISPLAY:abc")
+        node.path("state").path("secret").stringValue().assert().isEqualTo("CONFIDENTIAL:xyz")
+    }
+
+    @Test
     fun `custom mask failures are contained while fatal errors propagate`() {
         listOf(NullMaskStrategy, FailingMaskStrategy).forEach { strategy ->
             val masker = SchemaMasker.create(schema(obj("secret" to string(customRule(strategy)))))!!
@@ -261,10 +274,10 @@ class SchemaMaskerTest {
 
     private fun fullMaskRule(): MaskRule = MaskRule(SensitivityLevel.DISPLAY)
 
-    private fun customRule(strategy: MaskStrategy): MaskRule {
+    private fun customRule(strategy: MaskStrategy, level: SensitivityLevel = SensitivityLevel.DISPLAY): MaskRule {
         val name = strategy::class.java.name
         return MaskRule(
-            SensitivityLevel.DISPLAY,
+            level,
             QueryMask.Strategy(name),
             MaskStrategyResolver.of(mapOf(name to strategy)),
         )
@@ -280,22 +293,26 @@ class SchemaMaskerTest {
     }
 }
 
+internal object LevelMaskStrategy : MaskStrategy {
+    override fun mask(value: SensitiveValue): String = "${value.level}:${value.value}"
+}
+
 internal object BracketMaskStrategy : MaskStrategy {
-    override fun mask(value: String): String = "[$value]"
+    override fun mask(value: SensitiveValue): String = "[${value.value}]"
 }
 
 /** Breaks the non-null contract the way a Java strategy could. */
 internal object NullMaskStrategy : MaskStrategy {
-    override fun mask(value: String): String = unsafeNull()
+    override fun mask(value: SensitiveValue): String = unsafeNull()
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> unsafeNull(): T = null as T
 }
 
 internal object FailingMaskStrategy : MaskStrategy {
-    override fun mask(value: String): String = throw IllegalStateException("sensitive")
+    override fun mask(value: SensitiveValue): String = throw IllegalStateException("sensitive")
 }
 
 internal object FatalMaskStrategy : MaskStrategy {
-    override fun mask(value: String): String = throw LinkageError("fatal")
+    override fun mask(value: SensitiveValue): String = throw LinkageError("fatal")
 }
