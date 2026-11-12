@@ -184,6 +184,15 @@ class MongoEventQueryIndexesTest {
                 .contains(MongoAccess.key("t3", "u-7")).contains(MongoAccess.key("t3", "u-8"))
             plan(InFilter(owner, listOf("u-7")), tenants = listOf("t3", "t4")).assert().contains(uses("access_owner"))
                 .contains(MongoAccess.key("t3", "u-7")).contains(MongoAccess.key("t4", "u-7"))
+            // The tenants a query requires: an `OR` that holds anything but tenants requires none, and an `AND` what all
+            // its operands require.
+            val t3 = TenantIdFilter("t3")
+            val mixed = OrFilter(listOf(t3, EqualFilter(single, "R1")))
+            plan(AndFilter(listOf(mixed, EqualFilter(owner, "u-7"))), tenants = null).assert()
+                .doesNotContain(uses("access_owner"))
+            val both = OrFilter(listOf(t3, TenantIdFilter("t4")))
+            plan(AndFilter(listOf(both, t3, EqualFilter(owner, "u-7"))), tenants = null).assert()
+                .contains(MongoAccess.key("t3", "u-7")).doesNotContain(MongoAccess.key("t4", "u-7"))
             // As intended: a query of every tenant has no tenant to scope a key with, and reads the attribute itself;
             // a negation and `isNull` read the attribute too, through another index's tenant range or a scan.
             plan(EqualFilter(owner, "u-7"), tenants = null).assert().doesNotContain(uses("access_owner"))
