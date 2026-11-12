@@ -51,8 +51,9 @@ import me.ahoo.wow.spi.timer.TimerStore
  * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
  *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
  *   command's `snapshot` wait is answered by the subscription of its primary snapshot store, never this one's, so
- *   waiting for a refresh serves only a wait that names this store's subscription, `wow.snapshot:<store>`, and caps
- *   that subscription's writes at a batch per write lane a refresh interval;
+ *   waiting for a refresh serves only an in-process caller that builds a wait hop on this store's subscription in
+ *   code (`wow.snapshot:<store>`, a name `Wow-Wait` does not admit), and caps that subscription's writes at a batch
+ *   per write lane a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an
@@ -125,8 +126,8 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             "refresh",
             "when a write becomes visible to searches: none (the default: within the index's refresh interval; a " +
                 "command's snapshot wait never covers this store), wait-for (a snapshot is queryable once its write " +
-                "returns, for a wait on the store's own subscription, wow.snapshot:<store>) or immediate (an " +
-                "immediate refresh, for tests).",
+                "returns, which only an in-process caller that waits on the store's own snapshot subscription in " +
+                "code can rely on) or immediate (an immediate refresh, for tests).",
             ElasticsearchRefresh::class.java,
             ElasticsearchRefresh.NONE,
         )
@@ -146,8 +147,9 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 @InternalWowApi
 enum class ElasticsearchRefresh(val refresh: Refresh) {
     /**
-     * Once its write returns, the snapshot is queryable: Elasticsearch answers after its next refresh. For a wait that
-     * names the store's own snapshot subscription.
+     * Once its write returns, the snapshot is queryable: Elasticsearch answers after its next refresh. It serves an
+     * in-process caller that builds a wait hop on the store's own snapshot subscription in code; the `Wow-Wait` header
+     * does not admit that subscription's name.
      */
     WAIT_FOR(Refresh.WaitFor),
 
