@@ -1,5 +1,6 @@
 {{- $name := include "wow-service.name" . -}}
-# The public HTTP port, for clients, the gateway and ingresses.
+# The public HTTP port, for what networkPolicy.public.from admits: the gateway by default, which clients and
+# ingresses go through.
 apiVersion: v1
 kind: Service
 metadata:

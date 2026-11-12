@@ -35,7 +35,10 @@
 #                  statements by calls over the measurement, from its settle on (reset before it, as the harness resets
 #                  them only for a profiled session)
 
-export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home}"
+# Every run is on JDK 25, the servers and the load generator alike, whatever JAVA_HOME the calling shell has (this
+# machine's default is JDK 21): as m5max-axon's run-all.sh does.
+JAVA_HOME="$(/usr/libexec/java_home -v 25)"
+export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

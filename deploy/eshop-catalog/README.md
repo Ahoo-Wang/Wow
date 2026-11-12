@@ -1,6 +1,6 @@
 # eShop catalog on Kubernetes
 
-The eShop catalog service (`examples/eshop/catalog`): the products, their brands and categories, and their search, deployed with Wow's chart ([`deploy/helm/wow-service`](../helm/wow-service/README.md)) on MongoDB with two nodes, or on PostgreSQL (`values-postgres.yaml`). Its files follow [eShop ordering](../eshop-ordering/README.md)'s, file for file, and the choices there hold here too. It has no Kafka profile: no other context reads its streams through Kafka.
+The eShop catalog service (`examples/eshop/catalog`): the products, their brands and categories, and their search (its `search` profile, on Elasticsearch, which these files do not set), deployed with Wow's chart ([`deploy/helm/wow-service`](../helm/wow-service/README.md)) on MongoDB with two nodes, or on PostgreSQL (`values-postgres.yaml`). Its files follow [eShop ordering](../eshop-ordering/README.md)'s, file for file, and the choices there hold here too. It has no Kafka profile: no other context reads its streams through Kafka.
 
 The HTTP port is `8081`, the internal port `9091`. The build's generated values name every object after the service, `eshop-catalog-service`: the HTTP service `eshop-catalog-service`, the headless service `eshop-catalog-service-cluster`, whose SRV records the other services look up.
 

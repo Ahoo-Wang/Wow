@@ -26,7 +26,7 @@ The build writes the values it knows from the service's contract (`generateWowHe
 
 3. Put the CoSec gateway in front: it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads (CoSec's gateway mode, `wow.cosec.mode: gateway`), holding no secret.
 
-4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or set `networkPolicy.public.from` to match them, and route `/view-store/**` to the `view-store` service. A gateway whose policies allow paths one by one allows, beside the aggregates' command and query routes, the view store's own reads, which the Manifest lists as its service routes: `GET /view-store/system-views` (the system views, `?definitionId=` for one definition's) and `GET /view-store/views/{id}` (one view by id, personal, shared or system).
+4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or set `networkPolicy.public.from` to match them, and route `/view-store/**` to the `view-store-service` service. A gateway whose policies allow paths one by one allows, beside the aggregates' command and query routes, the view store's own reads, which the Manifest lists as its service routes: `GET /view-store/system-views` (the system views, `?definitionId=` for one definition's) and `GET /view-store/views/{id}` (one view by id, personal, shared or system).
 
 ## Install and check
 

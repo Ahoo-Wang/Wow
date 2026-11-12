@@ -7,4 +7,9 @@ Clients reach its public port through the Service {{ $name }} (port {{ .Values.p
 Its peers find its nodes by the SRV records _internal._tcp.{{ $name }}-cluster.{{ .Release.Namespace }}.svc.
 {{- if .Values.networkPolicy.enabled }}
 Only the pods of networkPolicy.public.from reach the public port; the internal port admits its own nodes{{ with .Values.partOf }}, the pods of {{ . }}{{ end }} and its peers.
+{{- if and (include "wow-service.metricsEnabled" .) (eq (include "wow-service.metricsPort" .) "http") }}
+The monitor scrapes the HTTP port: its scraper is admitted only through networkPolicy.public.from, which admits it to
+the service's API too. Serve the meters on a port of their own (the agent's exporter, metrics.port 9464) to keep it to
+the meters.
+{{- end }}
 {{- end }}
