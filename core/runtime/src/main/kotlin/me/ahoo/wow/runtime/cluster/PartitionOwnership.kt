@@ -26,9 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -194,7 +192,6 @@ class PartitionOwnership internal constructor(
     /** This node's internal address, as the other members reach it. */
     val address: String get() = addressOf()
     private val lifecycle = Mutex()
-    private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconcileLock = Mutex()
 
     /** The gates held: [runs] alone puts, removes and clears them; [renewals] and this ownership only read them. */
@@ -214,6 +211,7 @@ class PartitionOwnership internal constructor(
             group, node, leases, options, timeSource, unrenewedLimit, held, runtimes, intake, timers, partitionChanged,
             progressed = { fence.stepFinished() },
             fenced = { fence.fenced },
+            leaseCalls = LeaseCalls(options.leaseParallelism),
         )
     }
 
@@ -548,7 +546,7 @@ class PartitionOwnership internal constructor(
             runs.handOff(gates.keys.filter { it !in goal })
             val missing = goal.filter { !gates.containsKey(it) }
             coroutineScope {
-                missing.forEach { partition -> launch { acquisitions.withPermit { runs.acquire(partition, reads) } } }
+                missing.forEach { partition -> launch { runs.acquire(partition, reads) } }
             }
         } finally {
             reconciling = null
