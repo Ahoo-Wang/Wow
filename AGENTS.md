@@ -103,7 +103,7 @@ test/test-query/            :test-query     A real in-memory QueryApi for the te
 test/test-spring-boot/      :test-spring-boot  A Wow application started for a test (`wowServer`), its ports and HTTP client
 test/architecture/          :architecture   Module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
-test/benchmarks/            :benchmark-server, :benchmark-search-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)
+test/benchmarks/            :benchmark-server, :benchmark-search-server, :benchmark-subscriptions-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)
 examples/eshop/<context>/    :eshop-<context>-{api,domain,server}: the example, the eShop's five contexts (D159, D204); never published
 examples/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
 ```

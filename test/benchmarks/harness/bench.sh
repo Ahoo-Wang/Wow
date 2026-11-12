@@ -234,11 +234,11 @@ load() {
   ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
-# The launcher of the server distribution $1: benchmark-server or the search server, a baseline's from before
-# test/benchmarks/ (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
+# The launcher of the server distribution $1: benchmark-server, the search or the subscriptions server, a baseline's from
+# before test/benchmarks/ (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
 server_launcher() {
   local name
-  for name in benchmark-server benchmark-search-server e2e-bench-v10 axon-server; do
+  for name in benchmark-server benchmark-search-server benchmark-subscriptions-server e2e-bench-v10 axon-server; do
     if [ -x "$1/bin/$name" ]; then echo "$1/bin/$name"; return; fi
   done
   echo "$1/bin/benchmark-server"
