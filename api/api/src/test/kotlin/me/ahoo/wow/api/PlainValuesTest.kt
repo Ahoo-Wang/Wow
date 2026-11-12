@@ -108,12 +108,12 @@ class PlainValuesTest {
         valueSemantics({ JobEnabled.of("nightly", cron) }, JobEnabled.of("nightly", cron, JobRule.of(), 0))
         valueSemantics({ JobRescheduled.of(cron) }, JobRescheduled.of(cron, JobRule.of()))
         valueSemantics({ JobTicked.of("t", 2, 1, 3) }, JobTicked.of("t", 3, 1, 3))
-        valueSemantics({ ScheduleTick.of("tenant", "nightly", 1, 9) }, ScheduleTick.of("tenant", "nightly", 2, 3, 1, 0))
+        valueSemantics({ ScheduleTick.of("tenant", "nightly", 1, due = 9) }, ScheduleTick.of("tenant", "nightly", 2, 1, 3, 0))
         // A tick says its slot (from 1) and its due time, and skips no slot unless it says so.
-        ScheduleTick.of("tenant", "nightly", 1, 9).skipped.assert().isEqualTo(0L)
-        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 0, 9) }
-        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 1, -1) }
-        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 1, 9, skipped = -1) }
+        ScheduleTick.of("tenant", "nightly", 1, due = 9).skipped.assert().isEqualTo(0L)
+        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 0, due = 9) }
+        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 1, due = -1) }
+        assertThrownBy<IllegalArgumentException> { ScheduleTick.of("tenant", "nightly", 1, skipped = -1, due = 9) }
     }
 
     @Test

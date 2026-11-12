@@ -194,7 +194,7 @@ class ScheduleSpec internal constructor(
         val ticked = events.flatMap { event ->
             val state = event.state
             event.events.filterIsInstance<JobTicked>().map {
-                ScheduleTick(event.ref.tenantId, state.job!!, it.slot, it.due, it.skipped, state.partition)
+                ScheduleTick(event.ref.tenantId, state.job!!, it.slot, it.skipped, it.due, state.partition)
             }
         }
         handed += ticked

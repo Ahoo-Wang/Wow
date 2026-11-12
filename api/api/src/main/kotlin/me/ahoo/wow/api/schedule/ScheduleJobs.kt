@@ -269,8 +269,8 @@ class ScheduleTick @InternalWowApi constructor(
     val tenantId: String,
     val job: String,
     val slot: Long,
-    val due: Long,
     val skipped: Long = 0,
+    val due: Long,
     val partition: Int? = null,
 ) {
     init {
@@ -285,9 +285,9 @@ class ScheduleTick @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ScheduleTick(tenantId=$tenantId, job=$job, slot=$slot, due=$due, skipped=$skipped, partition=$partition)"
+        "ScheduleTick(tenantId=$tenantId, job=$job, slot=$slot, skipped=$skipped, due=$due, partition=$partition)"
 
-    private fun valueFields(): List<Any?> = listOf(tenantId, job, slot, due, skipped, partition)
+    private fun valueFields(): List<Any?> = listOf(tenantId, job, slot, skipped, due, partition)
 
     companion object {
         /** A ScheduleTick of the given fields; parameters added later come last, with a default. */
@@ -297,10 +297,10 @@ class ScheduleTick @InternalWowApi constructor(
             tenantId: String,
             job: String,
             slot: Long,
-            due: Long,
             skipped: Long = 0,
+            due: Long,
             partition: Int? = null,
-        ): ScheduleTick = ScheduleTick(tenantId, job, slot, due, skipped, partition)
+        ): ScheduleTick = ScheduleTick(tenantId, job, slot, skipped, due, partition)
     }
 }
 
