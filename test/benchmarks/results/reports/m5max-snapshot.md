@@ -166,7 +166,8 @@ Every build has fast steps (about 1.8 ms at 4 clients, 2.6–2.9 ms at 16), and 
   - E1 on an EPYC 9V74 and E3 on an EPYC 7763, PostgreSQL, no bus: their peaks and sustainable rates are level, within the A/A spreads.
   - At E1 1,000/s the p50 of both arms shifts within a run: 1.14, 66.05, 7.49 and 2.86 ms for `a7c372ad3e`, 3.04, 9.09, 2.62 and 1.05 ms for `d9b0781205`. Seven of the eight runs are flagged unstable, their second half against their first.
   - E3 at 300/s is steady on both, p50 2.10–2.29 ms.
-  - So Linux shows no difference between the two builds either, and E1's latency at a low rate moves within a run there too. The runner records no flush time, so whether its moves are the store's flush is not measured.
+  - So Linux shows no difference between the two builds either, and E1's latency at a low rate moves within a run there too.
+  - The runner records PostgreSQL's WAL sync time (`wal_sync_time` in each run's `result.json`). E1's p50 follows it across the eight runs, from 1.05 ms at a mean sync of 0.50 ms to 66.05 ms at 2.35 ms, while E3 syncs in 0.16–0.18 ms in all eight. That is a correlation in one run, the same pattern as this machine's two modes, not a cause shown.
 
 ### PostgreSQL's E1 uniform past its peak: a refusal now
 
