@@ -63,6 +63,11 @@ fail() {
 kubectl=${DRILL_KUBECTL:-$(command -v kubectl || true)}
 k() { "$kubectl" --context "kind-$cluster" -n "$namespace" "$@"; }
 
+# The JDK everything the drill launches runs on, 25 (DRILL_JAVA_HOME, else macOS's java_home for it): every Gradle it
+# runs runs on it, and the cluster test's JVM is started on it (-Pwow.test.java). The build still compiles with its 21.
+run_jdk=${DRILL_JAVA_HOME:-$(/usr/libexec/java_home -v "$RUN_JDK" 2>/dev/null || true)}
+[ -z "$run_jdk" ] || export JAVA_HOME="$run_jdk" PATH="$run_jdk/bin:$PATH"
+
 # Runs a step or an operation (a function of this script) in a process of its own, so that errexit holds inside it: a
 # function called where its status is tested (cmd || ...) runs with errexit off, every command after a failing one
 # included, and so does a subshell or a background job of it. The evidence folder goes with it.
@@ -97,8 +102,8 @@ is_eshop() {
 }
 
 # Step 0's first check, before any cluster exists: each tool's path and version into evidence/tools.txt, and a
-# refusal of any that is not the version README.md names (helm, kind, kubectl within one minor of the nodes', the JDK
-# the build runs on). Docker is recorded, not checked: it is OrbStack's.
+# refusal of any that is not the version README.md names (helm, kind, kubectl within one minor of the nodes', both
+# JDKs: the build's 21 and the 25 that runs). Docker is recorded, not checked: it is OrbStack's.
 tools() {
   local out="$evidence/tools.txt" version minor ok=0
   : >"$out"
@@ -116,9 +121,14 @@ tools() {
     *" $minor "*) ;;
     *) log "kubectl is ${version:-missing}, not 1.${KUBECTL_MINORS// /, 1.}: set DRILL_KUBECTL"; ok=1 ;;
   esac
-  version=$(java -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')
-  record java "$(command -v java || echo missing)" "$version"
-  [ "$version" = "$JDK_MAJOR" ] || { log "the JDK is ${version:-missing}, not $JDK_MAJOR"; ok=1; }
+  local jdk home
+  for jdk in "$BUILD_JDK" "$RUN_JDK"; do
+    home=$(/usr/libexec/java_home -v "$jdk" 2>/dev/null || true)
+    [ "$jdk" != "$RUN_JDK" ] || home=${run_jdk:-$home}
+    version=$([ -n "$home" ] && "$home/bin/java" -version 2>&1 | head -1 | sed -E 's/.*version "([0-9]+).*/\1/')
+    record "jdk$jdk" "${home:-missing}" "${version:-} ($([ "$jdk" = "$RUN_JDK" ] && echo runs || echo builds))"
+    [ "$version" = "$jdk" ] || { log "no JDK $jdk: the $([ "$jdk" = "$RUN_JDK" ] && echo one that runs || echo build\'s toolchain)"; ok=1; }
+  done
   record docker "$(command -v docker || echo missing)" "$(docker version --format '{{.Server.Version}}' 2>/dev/null)"
   return "$ok"
 }
