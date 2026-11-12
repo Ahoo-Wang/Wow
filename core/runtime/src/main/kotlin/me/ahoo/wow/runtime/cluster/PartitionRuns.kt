@@ -59,15 +59,19 @@ internal class PartitionRuns(
     private val progressed: () -> Unit = {},
     /** Whether the ownership is fenced: a lease taken now is not renewed. */
     private val fenced: () -> Boolean = { false },
+    /** The bound on the group's lease calls, which the ownership builds: an acquisition runs within it. */
+    private val leaseCalls: LeaseCalls = LeaseCalls(options.leaseParallelism),
 ) {
     /**
      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
-     * [reads] completes, when given.
+     * [reads] completes, when given. Runs within the group's bound on lease calls ([leaseCalls]).
      */
-    suspend fun acquire(partition: Int, reads: Job?) = try {
-        start(partition, reads)
-    } finally {
-        progressed()
+    suspend fun acquire(partition: Int, reads: Job?) = leaseCalls.bounded {
+        try {
+            start(partition, reads)
+        } finally {
+            progressed()
+        }
     }
 
     private suspend fun start(partition: Int, reads: Job?) = withContext(NonCancellable) {
