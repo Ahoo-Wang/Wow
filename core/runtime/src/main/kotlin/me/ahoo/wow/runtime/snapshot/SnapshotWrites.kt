@@ -41,6 +41,13 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   little to share its fixed cost).
  * - **A leader writes its own save**: a save leading is taken by no other leader's batch, so a leader's batch always
  *   holds its own save until it is written.
+ * - **The invariant**, at every instant the monitor is free: a save waits without leading only while the leaders are
+ *   at [committers] or one gathers. Each change of the queue and of the leaders keeps it in one critical section:
+ *   a save that leads or waits, a take (with [startWaiting] after it), a hand-over, and a cancelled leader's put-back
+ *   with its hand-over. So a leader is the oldest save not leading when it gathers, its first batch holds its own
+ *   save, and the only leading save it meets in the queue is its own. The guards that would cope otherwise (a leader's
+ *   later batch, another leader's save skipped by a take, a gatherer met by [startWaiting]) are cheap checks of it,
+ *   not paths the writes rely on.
  * - **Coalesced**: of one aggregate's snapshots in a batch only the highest version is written; the lower ones end as
  *   it does, not written (a version-guarded save of them would change nothing).
  * - **One aggregate in one write at a time**: the subscription handles an aggregate's entries one at a time, and a
@@ -122,6 +129,7 @@ internal class SnapshotWrites(
     private suspend fun lead(own: Write) {
         var taken = emptyList<Write>()
         var gathered = false
+        var handedOn = false
         try {
             yield()
             while (!own.result.isCompleted) {
@@ -138,15 +146,20 @@ internal class SnapshotWrites(
                 write(taken)
             }
         } catch (cancelled: CancellationException) {
+            // One critical section: the saves put back are never seen waiting with a place free and nobody gathering.
             synchronized(this) {
                 // Cancelled at the yield, its own save still heads the queue: handed the lead, it would lead nobody.
                 queue.remove(own)
                 // Cancelled in a write, before it ended any save of its batch: the others go back in front.
                 taken.filter { it !== own }.asReversed().forEach(queue::addFirst)
+                handOver(wasGathering = !gathered)
+                handedOn = true
             }
             throw cancelled
         } finally {
-            synchronized(this) { handOver(wasGathering = !gathered) }
+            if (!handedOn) {
+                synchronized(this) { handOver(wasGathering = !gathered) }
+            }
         }
     }
 
