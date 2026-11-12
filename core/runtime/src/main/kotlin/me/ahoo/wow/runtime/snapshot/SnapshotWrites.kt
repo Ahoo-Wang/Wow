@@ -43,6 +43,10 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   holds its own save until it is written.
  * - **Coalesced**: of one aggregate's snapshots in a batch only the highest version is written; the lower ones end as
  *   it does, not written (a version-guarded save of them would change nothing).
+ * - **One aggregate in one write at a time**: the subscription handles an aggregate's entries one at a time, and a
+ *   save returns only once written, so two versions of one aggregate are never in two writes at once from it. Two
+ *   writers of one store (a backfill beside the store's subscription, two owners during a hand-over) can still meet:
+ *   the version guard then ends the earlier version `Refused` whichever lands first.
  * - **Durable before it returns**: a save returns, or fails, only once the write that covers it did, so the handler
  *   returns, and its entry is signalled and checkpointed, only after its snapshot is in the store.
  * - **Failures stay each lane's**: a snapshot the store failed alone ([SnapshotSaveOutcome.Failed]) fails its own save.
