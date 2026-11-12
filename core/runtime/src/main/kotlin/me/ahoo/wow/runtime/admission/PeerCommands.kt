@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.AggregateManifest
@@ -27,6 +28,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.CommandRelay
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.wait.WaitContext
 /**
  * The commands of peer contexts that the [CommandGateway] admits: the aggregates of a
@@ -80,6 +82,7 @@ class PeerCommands(
                 Creation.ALLOWED -> Creation.ALLOWED
             },
             manifest.idProperty,
+            builtIn = manifest.system && manifest.name in BUILT_IN_COMMANDS,
         )
     }
 
@@ -116,13 +119,26 @@ class PeerCommands(
 private val SYSTEM_COMMANDS: Map<String, Class<*>> = Lifecycle.COMMANDS + Schedules.COMMANDS
 
 /**
+ * The system commands a contract lists for a context's built-in aggregates, its snapshot rebuild and its jobs, which
+ * this node does not relay to a peer: their addressing and authorization are the peer's own routes'.
+ */
+private val BUILT_IN_COMMANDS: Set<String> = SnapshotRebuilds.COMMANDS.keys + ScheduleJobs.COMMANDS.keys
+
+/**
  * A command type of a peer context's contract: its full [name] (`ctx.agg.Command`, or a system command's system name,
  * `wow.lifecycle.TransferOwner`), its class, when on the class path
  * ([type]), whether it creates its aggregate ([creation]), and the property of its body that holds its aggregate's id
  * ([idProperty]; null for one whose request names it).
  */
 @InternalWowApi
-class PeerCommand(val name: String, val type: Class<*>?, val creation: Creation, val idProperty: String? = null) {
+class PeerCommand(
+    val name: String,
+    val type: Class<*>?,
+    val creation: Creation,
+    val idProperty: String? = null,
+    /** Whether it is a command of the peer's built-in aggregates (its rebuild, its jobs), which this node does not relay. */
+    val builtIn: Boolean = false,
+) {
     /** The command type, for authorization and validation; null when its class is not on the class path. */
     val commandType: CommandType? = type?.let { CommandType(name, it) }
 }
