@@ -1,0 +1,151 @@
+# Kafka in KRaft mode, three brokers that are also the three controllers, one per zone: a command topic must survive
+# the loss of a broker, which holds with a replication factor and min.insync.replicas of at least 2 (Operate › Kafka).
+# The topics have 3 and 2: one broker down still takes writes, two down refuse them. The services reach the brokers at
+# kafka:9092 (deploy/'s values), and a client then talks to each broker by its own name (kafka-<n>.kafka-headless).
+# Topics are never created by a read: kafka-topics.yaml creates them, and the services validate them (WOW_KAFKA_DDL).
+# Plaintext and without ACLs, which Operate › Security asks for on the command topics: a gap the drill's report names.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  labels:
+    app.kubernetes.io/name: kafka
+spec:
+  serviceName: kafka-headless
+  replicas: 3
+  # The controllers' quorum needs its voters up together: they start in parallel.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        fsGroup: 1000
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: kafka
+          image: apache/kafka:3.9.1@sha256:4ceccc577f03f51f6af8dbfda55194d0d892f4fa7913ffbded567ce3895622ed
+          # The node id and advertised name come from the pod's ordinal; the image's start script reads the rest from
+          # KAFKA_* variables.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              export KAFKA_NODE_ID="${HOSTNAME##*-}"
+              export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.kafka-headless:9092"
+              exec /etc/kafka/docker/run
+          env:
+            - name: CLUSTER_ID
+              value: V293UmNEcmlsbEthZmthMQ
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 0@kafka-0.kafka-headless:9093,1@kafka-1.kafka-headless:9093,2@kafka-2.kafka-headless:9093
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+            - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_MIN_INSYNC_REPLICAS
+              value: "2"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "2"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "false"
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data/logs
+            - name: KAFKA_HEAP_OPTS
+              value: -Xms768m -Xmx768m
+          ports:
+            - name: kafka
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          readinessProbe:
+            tcpSocket:
+              port: kafka
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1280Mi
+            limits:
+              memory: 1536Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+# The bootstrap address the services' values name (kafka:9092).
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    app.kubernetes.io/name: kafka
+spec:
+  selector:
+    app.kubernetes.io/name: kafka
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: kafka
+---
+# Each broker's own name, which the brokers advertise and the controllers vote by. It publishes a broker before it is
+# ready, since the quorum must form before any broker is.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  labels:
+    app.kubernetes.io/name: kafka
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: kafka
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: kafka
+    - name: controller
+      port: 9093
+      targetPort: controller
+---
+# One broker at a time: a drain never takes two of the three, which would refuse every write (min.insync.replicas 2).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka

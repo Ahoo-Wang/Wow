@@ -22,7 +22,7 @@ V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V1
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.eventsourcing.store.storage`、`wow.eventsourcing.snapshot.storage` | `wow.backend`：PostgreSQL 或 MongoDB，默认由应用的 `DataSource` 或 `MongoClient` 选定；`wow.log.store` 和 `wow.snapshot.stores` 指明 `wow.stores` 中的存储 |
+| `wow.eventsourcing.store.storage`、`wow.eventsourcing.snapshot.storage` | `wow.backend`：PostgreSQL 或 MongoDB，默认由应用的 `DataSource` 或 `MongoClient` 选定；`wow.log.store` 和 `wow.snapshot.store` 指明 `wow.stores` 中的存储，每个聚合类型各一个（聚合的 `log.store` 和 `snapshot.store`），聚合的 `query.snapshot.store` 指明它快照的检索副本。9.x 中 `snapshot.storage` 为 `elasticsearch` 的，快照留在日志所在的数据库，副本放在 Elasticsearch 上（[存储组合](../operate/elasticsearch#store-combinations)） |
 | `wow.eventsourcing.storage-routing.*` | `wow.aggregates.[<context>.<aggregate>]` 为聚合的日志和快照指明的存储，例如 `log.store` |
 | `wow.eventsourcing.snapshot.strategy`、`version-offset` | `wow.snapshot.*`：快照由内置的 `wow.snapshot` 订阅分批写出（`wow.snapshot.write-batch`）；`maintenance-interval` 与 `rebuild.*` 调整它的维护 |
 | `wow.mongo.event-stream-database`、`snapshot-database`、`prepare-database` | `wow.mongo.database`，日志和每个存储共用一个数据库 |

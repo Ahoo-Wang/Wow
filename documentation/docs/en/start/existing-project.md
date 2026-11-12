@@ -36,9 +36,9 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-beta.1"
-        id("me.ahoo.wow.api") version "10.0.0-beta.1"
-        id("me.ahoo.wow.service") version "10.0.0-beta.1"
+        id("me.ahoo.wow") version "10.0.0-beta.2"
+        id("me.ahoo.wow.api") version "10.0.0-beta.2"
+        id("me.ahoo.wow.service") version "10.0.0-beta.2"
     }
 }
 

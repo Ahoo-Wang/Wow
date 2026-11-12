@@ -4528,6 +4528,7 @@ interface FilterEditorController extends FilterTreeController {
     simple: boolean;
     submit(): void;
     unmarked: Issue[];
+    unset(paths: readonly FilterPath[]): void;
 }
 
 // @public (undocumented)
@@ -8999,7 +9000,9 @@ export interface ViewRouteState {
 
 // @public
 interface ViewRuntime<C extends ViewConfig = ViewConfig> {
-    apply(): void;
+    apply(only?: {
+        filter: FilterTree;
+    }): void;
     // (undocumented)
     readonly definition: DefinitionFor<C>;
     // (undocumented)

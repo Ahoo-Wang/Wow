@@ -77,6 +77,7 @@ function stub(
     implied: [],
     clearValue: vi.fn(),
     submit: vi.fn(),
+    unset: vi.fn(),
     ...actions,
   } as unknown as FilterEditorController;
 }
@@ -264,9 +265,8 @@ describe('AppliedBar', () => {
     );
   });
 
-  it('clears the value and re-runs in one go', () => {
-    const clearValue = vi.fn();
-    const submit = vi.fn();
+  it('takes its own condition out of force, in one go', () => {
+    const unset = vi.fn();
     render(
       <AppliedBar
         filter={stub(
@@ -281,7 +281,7 @@ describe('AppliedBar', () => {
               value: { kind: 'text', value: 10 },
             }),
           ],
-          { clearValue, submit },
+          { unset },
         )}
         asked
       />,
@@ -292,9 +292,9 @@ describe('AppliedBar', () => {
     );
 
     // The editor addresses nodes by index; the `children` keys of a summary
-    // path are not part of the address.
-    expect(clearValue).toHaveBeenCalledWith([1, 0]);
-    expect(submit).toHaveBeenCalledTimes(1);
+    // path are not part of the address. One call: the condition, and no
+    // apply of the whole draft beside it.
+    expect(unset.mock.calls).toEqual([[[[1, 0]]]]);
   });
 
   it('freezes its removes with the rest of the view', () => {
@@ -599,8 +599,7 @@ describe('the applied badge in another language', () => {
    * The kernel hands the pair over as one segment, and it reads as the band.
    */
   it('says a segment as the band it is, and its ✕ takes out both bounds', () => {
-    const clearValue = vi.fn();
-    const submit = vi.fn();
+    const unset = vi.fn();
     const segment = (
       from: number,
       to: number,
@@ -639,7 +638,7 @@ describe('the applied badge in another language', () => {
                 numberFormat: undefined,
               }),
             ],
-            { clearValue, submit },
+            { unset },
           )}
           asked
         />
@@ -654,8 +653,7 @@ describe('the applied badge in another language', () => {
     expect(said[2]).toMatch(/^单价 在 2026年9月1日～2026年9月2日$/);
 
     fireEvent.click(screen.getByRole('button', { name: /单价 在 ¥0～500/ }));
-    expect(clearValue.mock.calls).toEqual([[[1]], [[3]]]);
-    expect(submit).toHaveBeenCalledTimes(1);
+    expect(unset.mock.calls).toEqual([[[[1], [3]]]]);
   });
 
   it('says the field, the operator and the option in Chinese', () => {

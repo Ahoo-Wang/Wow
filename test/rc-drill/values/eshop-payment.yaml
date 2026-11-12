@@ -1,0 +1,18 @@
+# The drill's payment, after the values its build generates and deploy/eshop-payment/values.yaml.
+config:
+  # The e2e's settings, not a deployment's (as .github/ga-e2e/services/): the failure ledger reaches ops within the ops
+  # scenario's bound, a fault's parked entries retry before the verdict, and the ops scenario fails the charges by
+  # creating this file in every payment pod (the payment gateway's outage).
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
+  ESHOP_PAYMENT_GATEWAY_OUTAGEFILE: /tmp/gateway.down
+# wow.subscriptions.[eshop-payment.PaymentGatewaySaga.onPaymentRequested].parked.max-retries=0: a failed charge waits
+# for an operator (the ops scenario). A map key with a dash has no environment variable form, so the chart gives it as
+# SPRING_APPLICATION_JSON.
+settings:
+  wow:
+    subscriptions:
+      "[eshop-payment.PaymentGatewaySaga.onPaymentRequested]":
+        parked:
+          max-retries: 0

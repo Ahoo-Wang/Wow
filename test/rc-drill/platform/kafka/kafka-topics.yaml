@@ -1,0 +1,36 @@
+# The topics the eShop and ops own, created by the operator as Operate › Kafka says for WOW_KAFKA_DDL=validate: every
+# topic with a replication factor of 3 and min.insync.replicas 2, so a command accepted on one survives a broker's loss.
+# A command topic has exactly its context's log partitions (WOW_LOG_PARTITIONS, 64 in deploy/); the state and receipts
+# topics take any count. The list is the GA end-to-end run's (.github/ga-e2e/backends/kafka-topics.yaml), which starts
+# every service with validate on it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics
+spec:
+  backoffLimit: 30
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topics
+          image: apache/kafka:3.9.1@sha256:4ceccc577f03f51f6af8dbfda55194d0d892f4fa7913ffbded567ce3895622ed
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              bootstrap=kafka:9092
+              create() {
+                /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$bootstrap" --create --if-not-exists \
+                  --topic "$1" --partitions "$2" --replication-factor 3 --config min.insync.replicas=2
+              }
+              for topic in wow.eshop-basket.commands wow.eshop-ordering.commands wow.eshop-inventory.commands \
+                wow.eshop-payment.commands wow.ops.commands; do
+                create "$topic" 64
+              done
+              for topic in wow.eshop-basket.receipts wow.eshop-ordering.receipts wow.eshop-payment.receipts \
+                wow.eshop-basket.basket.state wow.eshop-ordering.order.state wow.eshop-inventory.stock.state \
+                wow.eshop-payment.payment.state wow.ops.receipts wow.ops.parked.state; do
+                create "$topic" 8
+              done
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$bootstrap" --describe
