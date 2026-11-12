@@ -123,7 +123,8 @@ class PostgresSnapshotSqlCompilerTest {
     @Test
     fun `a literal match escapes the LIKE wildcards`() {
         val statement = list(ContainsFilter(NAME, "50%_off\\", StringComparison.CASE_INSENSITIVE))
-        statement.sql.assert().contains("lower(((jsonb_path_query_first(").contains("COLLATE \"default\") LIKE lower(?) ESCAPE '\\'")
+        statement.sql.assert().contains("lower(((jsonb_path_query_first(")
+            .contains("COLLATE \"default\") LIKE lower(?) ESCAPE '\\'")
         statement.parameters.assert().contains(SqlParameter.Text("%50\\%\\_off\\\\%"))
     }
 

@@ -98,7 +98,7 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
  * index or an object's key, as `#>` reads it), is kept by a constant `strict` jsonpath filter only when it is of the
  * type. A `strict` filter does not unwrap an array, so an array of numbers is not a number. Naming the column twice,
  * as a `CASE` on `jsonb_typeof` would, makes PostgreSQL detoast a stored state twice for every row an unindexed
- * filter or sort reads (PG-9, D421).
+ * filter or sort reads.
  *
  * | Type | Expression |
  * | --- | --- |
