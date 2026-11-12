@@ -56,7 +56,10 @@ const WORDS = {
       `**${environment}**: [${headline.report}](${REPORTS}${headline.report}.md), ${builds.length === 1 ? 'build' : 'builds'} ${builds.map(b => `\`${b}\``).join(', ')}.`,
     head: '| Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |',
     remeasured:
-      'Each figure is from the build, the JDK and the runner its row names, and each is measured again on 10.0.0-beta.3.',
+      'Each figure is from the build, the JDK and the runner its row names, and each is measured again on 10.0.0-beta.3. The scenarios are those of [What was measured](#what-was-measured).',
+    cluster: where =>
+      `Three nodes on ${where}: the nodes, the stores and the load generator divide the same cores, so these rows show what a cluster costs (forwarding between the nodes), not what it gains. Scaling across separate machines has not been measured.`,
+    where: { actions: 'one runner', m5max: 'this one host' },
     jdk: jdk =>
       jdk === NOT_RECORDED
         ? 'JDK not recorded'
@@ -81,7 +84,10 @@ const WORDS = {
       `**${environment}**：[${headline.report}](${REPORTS}${headline.report}.md)，构建 ${builds.map(b => `\`${b}\``).join('、')}。`,
     head: '| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |',
     remeasured:
-      '每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。',
+      '每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。各场景见[测了什么](#what-was-measured)。',
+    cluster: where =>
+      `三个节点在${where}上：节点、存储与负载生成器分用同一组 CPU 核，所以这几行显示的是集群的开销（节点之间的转发），不是它带来的收益。跨多台机器的扩展尚未测量。`,
+    where: { actions: '同一台 runner', m5max: '同一台主机' },
     jdk: jdk =>
       jdk === NOT_RECORDED
         ? '未记录 JDK'
@@ -206,32 +212,47 @@ export function performanceBlock(locale, headlines) {
   const words = WORDS[locale];
   const quoted = headlines.filter(headline => rowsOf(headline).length > 0);
   if (quoted.length === 0) return [words.generated, '', words.none].join('\n');
+  const table = rows => [
+    words.head,
+    '| --- | ---: | --- | --- | --- | --- | --- |',
+    ...rows.map(row => {
+      const cells = [
+        STORES[row.store],
+        words.nodes(row.nodes),
+        row.scenario,
+        words.keys[row.keys] ?? row.keys,
+        cell(words, row.peak),
+        cell(words, row.sustainable),
+        [cpuName(row.cpu), words.jdk(row.jdk), `\`${row.commit}\``].join(
+          words.separator,
+        ),
+      ];
+      return `| ${cells.map(text => String(text).replaceAll('|', '\\|')).join(' | ')} |`;
+    }),
+  ];
   const sections = quoted.map(headline => {
     const rows = rowsOf(headline);
     const builds = [...new Set(rows.map(row => row.commit))].sort();
+    // A cluster's rows go in a table of their own, led by what they show: its nodes share one machine's cores.
+    const single = rows.filter(row => row.nodes === 1);
+    const cluster = rows.filter(row => row.nodes > 1);
     return [
       words.title(
         headline,
         words.environments[headline.environment] ?? headline.environment,
         builds,
       ),
-      '',
-      words.head,
-      '| --- | ---: | --- | --- | --- | --- | --- |',
-      ...rows.map(row => {
-        const cells = [
-          STORES[row.store],
-          words.nodes(row.nodes),
-          row.scenario,
-          words.keys[row.keys] ?? row.keys,
-          cell(words, row.peak),
-          cell(words, row.sustainable),
-          [cpuName(row.cpu), words.jdk(row.jdk), `\`${row.commit}\``].join(
-            words.separator,
-          ),
-        ];
-        return `| ${cells.map(text => String(text).replaceAll('|', '\\|')).join(' | ')} |`;
-      }),
+      ...(single.length > 0 ? ['', ...table(single)] : []),
+      ...(cluster.length > 0
+        ? [
+            '',
+            words.cluster(
+              words.where[headline.environment] ?? headline.environment,
+            ),
+            '',
+            ...table(cluster),
+          ]
+        : []),
     ].join('\n');
   });
   return [

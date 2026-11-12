@@ -291,3 +291,34 @@ test('a row measured on a JDK other than 25 says so, and one whose run recorded 
     ),
   );
 });
+
+test("a cluster's rows are a table of their own, led by what they show, in each locale", () => {
+  const block = performanceBlock('en', [HEADLINE]);
+  const lead = block.indexOf('Three nodes on this one host:');
+  assert.ok(lead > 0);
+  assert.match(
+    block,
+    /not what it gains\. Scaling across separate machines has not been measured\./,
+  );
+  // The single node's row comes before the lead, the three nodes' after it.
+  assert.ok(block.indexOf('| PostgreSQL | one | E1 |') < lead);
+  assert.ok(block.indexOf('| MongoDB | 3 | E3 |') > lead);
+  assert.equal(block.split('| Store |').length - 1, 2);
+  assert.match(
+    performanceBlock('zh', [HEADLINE]),
+    /三个节点在同一台主机上：.*跨多台机器的扩展尚未测量。/,
+  );
+});
+
+test('the block links the scenarios to the page section that says what each one is', () => {
+  assert.ok(
+    performanceBlock('en', [HEADLINE]).includes(
+      '[What was measured](#what-was-measured)',
+    ),
+  );
+  assert.ok(
+    performanceBlock('zh', [HEADLINE]).includes(
+      '[测了什么](#what-was-measured)',
+    ),
+  );
+});

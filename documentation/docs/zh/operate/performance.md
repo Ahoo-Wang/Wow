@@ -34,7 +34,7 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 <!-- performance:begin -->
 <!-- 由 .github/scripts/docs-performance.mjs 依据各报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
 
-每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。
+每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。各场景见[测了什么](#what-was-measured)。
 
 **GitHub Actions，每个套件一台 4 核 runner**：[actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md)，构建 `d8284109df`。
 
@@ -58,6 +58,11 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 | PostgreSQL | 一个 | E1 | 均匀 | ≥ 37,713.6/s，4,096 个客户端 | 23,030.1/s，1,024 个客户端，p99 74.8 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
 | PostgreSQL | 一个 | E1 | Zipf | 17,090.6/s，1,024 个客户端 | 15,386.1/s，256 个客户端，p99 52.2 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
 | PostgreSQL | 一个 | E3 | 均匀 | 7,956.2/s，1,024 个客户端 | 3,687.4/s，64 个客户端，p99 41.7 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
+
+三个节点在同一台主机上：节点、存储与负载生成器分用同一组 CPU 核，所以这几行显示的是集群的开销（节点之间的转发），不是它带来的收益。跨多台机器的扩展尚未测量。
+
+| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |
+| --- | ---: | --- | --- | --- | --- | --- |
 | MongoDB | 3 | E1 | 均匀 | 16,657.2/s，1,024 个客户端 | 16,657.2/s，1,024 个客户端，p99 178.2 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
 | MongoDB | 3 | E3 | 均匀 | 5,380.1/s，1,024 个客户端 | 4,894.1/s，256 个客户端，p99 105 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
 | PostgreSQL | 3 | E1 | 均匀 | 21,114.1/s，1,024 个客户端 | 21,114.1/s，1,024 个客户端，p99 122.9 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
