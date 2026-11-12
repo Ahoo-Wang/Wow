@@ -275,6 +275,7 @@ export function SaveActions({
             saving={state.pending}
             saved={saved}
             writes={saves || first}
+            applies={state.applies && (first || state.dirty)}
           />
         </Button>
 
@@ -383,11 +384,14 @@ function PrimaryFace({
   saving,
   saved,
   writes,
+  applies,
 }: {
   saving: boolean;
   saved: boolean;
   /** True when the button saves in place, false when it copies. */
   writes: boolean;
+  /** Part of the draft waits for apply: the press runs it, then writes. */
+  applies: boolean;
 }) {
   const messages = useViewMessages();
   if (saving)
@@ -412,7 +416,13 @@ function PrimaryFace({
   return writes ? (
     <>
       <SaveIcon data-icon="inline-start" />
-      <Face>{messages.label('label.save.save')}</Face>
+      {/* Said on the button, so the press does no more than it says: a
+          save used to write conditions that had never run (D94). */}
+      <Face>
+        {messages.label(
+          applies ? 'label.save.apply-and-save' : 'label.save.save',
+        )}
+      </Face>
     </>
   ) : (
     <>

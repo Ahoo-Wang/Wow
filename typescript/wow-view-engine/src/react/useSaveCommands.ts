@@ -29,6 +29,7 @@ import { stopsSave } from '../runtime/dashboard/panels.js';
 import { instanceAbilities, mayCreate } from '../runtime/permissions.js';
 import { useViewRuntime } from './useViewRuntime.js';
 import { toIssue } from '../runtime/failure/issues.js';
+import { comparePending } from '../runtime/pending.js';
 import {
   createCommandQueue,
   enqueue,
@@ -121,6 +122,11 @@ export interface SaveCommandState {
    * name the view opened under.
    */
   isNew: boolean;
+  /**
+   * Part of the draft waits for apply, so a save runs it first and writes
+   * only what the source answered (`savableState`): a UI says 「应用并保存」.
+   */
+  applies: boolean;
   /**
    * When the last write of this view landed, by the engine's clock. A UI
    * shows a "Saved" moment from it, so it is a timestamp and not a boolean:
@@ -462,6 +468,10 @@ export function useSaveCommands(
       hasErrors,
       audience: state ? audienceOf(state.scope) : null,
       isNew: state !== null && state.saved === null,
+      applies:
+        state !== null &&
+        runtime?.kind !== 'dashboard' &&
+        comparePending(state.draft, state.applied, state.issues).pending,
       lastSavedAt: own.savedAt,
     },
   };

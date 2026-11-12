@@ -20,6 +20,7 @@
  */
 export const saveMessages = {
   'label.save.save': 'Save',
+  'label.save.apply-and-save': 'Apply and save',
   'label.save.save-as': 'Save as',
   'label.save.revert': 'Revert',
   'label.save.title': 'Title',
