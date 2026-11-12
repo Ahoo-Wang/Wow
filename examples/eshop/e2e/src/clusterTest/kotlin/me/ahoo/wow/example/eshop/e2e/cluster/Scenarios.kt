@@ -20,8 +20,8 @@ import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import java.time.Duration
 
 /**
- * Scenarios of the GA end-to-end run ([GaE2eTest]), out of its file so that other runs can take them, each returning
- * what its report says, failing on what it checks: the catalog filed, the three flows a buyer meets, the boundary's two
+ * The scenarios the GA end-to-end run ([GaE2eTest]) and the rc drill ([RcDrillTest]) both run, each returning what
+ * its report says, failing on what it checks: the catalog filed, the three flows a buyer meets, the boundary's two
  * ports, the partition owner deleted mid-checkout and a parked payment retried from ops.
  */
 class Scenarios(

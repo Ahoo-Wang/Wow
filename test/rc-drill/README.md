@@ -145,15 +145,17 @@ The folder stays on the machine. `drill.sh teardown` deletes the cluster.
   - `generateWowHelmValues`, which writes `build/wow/helm/values.yaml`.
 
   This is what "built from the tag against the published Wow" means: the release's own source and build, with only the Wow it depends on taken from Maven Central. The tag's files cannot hold a switch added after it, so the substitution comes from outside the tag. It runs the release's own build with `published-wow.init.gradle.kts`, so the tag's files stay as they were tagged. The eShop declares Wow by its coordinates, and the root build substitutes each with its project; the init script adds a later rule, for the eShop's projects alone, that sends every `me.ahoo.wow` module back to the published version: their classpaths, the BOM, the compiler the Gradle plugin adds, and the platform of third-party versions the root build adds to every classpath (`:wow-dependencies`). Only the eShop's own projects are resolved as projects. Then it proves where Wow came from: every `wow-*-<version>.jar` in each distribution must have the SHA-1 that Maven Central publishes for it, and no other version of a Wow jar may be there.
-- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`, the drill's next PR). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
-  - `ga.namespace`: the namespace its `kubectl` acts in;
-  - `ga.run`: a prefix for its data, so a second run on the same stores works;
+- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`, its `RcDrillTest`, which runs alone when `ga.scenarios` is set and never in the GA end-to-end run). Its `kubectl` acts in the kind context's namespace, which `cluster` sets. Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
+  - `ga.state`: the drill's record, kept across its runs (the stock received, the checkouts, the numbers answered, the orders shipped), so every run's verdict judges the whole drill so far;
+  - `ga.mongo-user`: the user its reads of MongoDB take, `drill-reader`. Its password is never in a file of the tree: the drill generates it for the run, the secret `mongodb-users` gives it to `mongo-shell`'s environment, and the reads take it from there;
   - `ga.scenarios`: what it runs:
     - `functional`: step 3;
     - `owner-deletion`: step 5's first half;
     - `ops`: step 9;
     - `verdict`: the invariants alone;
-    - `load`: the soak's mix through the gateway, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (each fault window's bound) and `load.started` in its report folder once its first order is answered, so `drill.sh` starts an operation only under load.
+    - `load`: full-chain checkouts by `ga.load.clients` buyers at once (4), a probe measuring every failure, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (the bound of the failures' window) and `load.started` in its report folder once its first checkout is answered, so `drill.sh` starts an operation only under load.
+
+    Every run then checks that no Wow container restarted and every Wow pod is ready, and judges the invariants over the whole drill.
 
 ## Not covered here
 
