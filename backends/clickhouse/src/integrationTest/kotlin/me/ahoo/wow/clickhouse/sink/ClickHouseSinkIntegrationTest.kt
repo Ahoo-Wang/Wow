@@ -27,6 +27,8 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.days
@@ -116,6 +118,25 @@ class ClickHouseSinkIntegrationTest {
         sink.write(records)
         count("shop_order_state_events").assert().isEqualTo(3)
         count("shop_order_events").assert().isEqualTo(6)
+    }
+
+    @Test
+    fun `a batch of commits from more than a hundred months should be written, once though retried`(): Unit = runTest {
+        // An imported history replayed from its start: ClickHouse refuses by default an insert of over 100 partitions.
+        val start = ZonedDateTime.of(2010, 1, 15, 0, 0, 0, 0, ZoneOffset.UTC)
+        val records = (1..MONTHS).map {
+            recordOf(version = it, commitTime = start.plusMonths(it.toLong()).toInstant().toEpochMilli())
+        }
+        val sink = sinks().sinkOf("shop", "order")
+        sink.write(records)
+        sink.write(records)
+        count("shop_order_state_events").assert().isEqualTo(MONTHS.toLong())
+        count("shop_order_events").assert().isEqualTo(2L * MONTHS)
+        count("shop_order_state FINAL").assert().isEqualTo(1)
+        row(
+            "SELECT uniqExact(partition) AS n FROM system.parts " +
+                "WHERE database = '$database' AND table = 'shop_order_state_events' AND active",
+        ).getLong("n").assert().isEqualTo(MONTHS.toLong())
     }
 
     @Test
@@ -321,6 +342,9 @@ class ClickHouseSinkIntegrationTest {
 
     companion object {
         private val databases = AtomicInteger()
+
+        /** More months than ClickHouse's default bound of partitions for one insert, 100. */
+        private const val MONTHS = 101
 
         private val container get() = WowContainers.clickHouse
 

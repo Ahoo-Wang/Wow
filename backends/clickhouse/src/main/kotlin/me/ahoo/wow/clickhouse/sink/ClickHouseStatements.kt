@@ -29,7 +29,11 @@ internal interface ClickHouseStatements {
     /**
      * Inserts the `JSONEachRow` [body] into [table] (quoted, in its database) as one insert deduplicated by [token]
      * (`insert_deduplication_token`), through the materialized views too
-     * (`deduplicate_blocks_in_dependent_materialized_views`).
+     * (`deduplicate_blocks_in_dependent_materialized_views`). The insert may touch any number of the tables' monthly
+     * partitions (`max_partitions_per_insert_block` 0): an imported history replayed from its start mixes commits of
+     * many years in one batch, which ClickHouse's default of 100 would refuse with the code it also answers for too
+     * many parts, so the Sink would pause and retry the same batch for good. A batch holds at most the Sink's batch
+     * size of rows, so no insert touches more months than that.
      */
     suspend fun insert(table: String, body: ByteArray, token: String)
 
@@ -60,6 +64,7 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
         val settings = InsertSettings()
             .setDeduplicationToken(token)
             .serverSetting(DEDUPLICATE_VIEWS, "1")
+            .serverSetting(MAX_PARTITIONS, "0")
         Dispatchers.IO.clickhouse {
             val rows = ByteArrayInputStream(body)
             client.insert(table, rows, ClickHouseFormat.JSONEachRow, settings).awaitResponse().close()
@@ -93,6 +98,7 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
 
     companion object {
         const val DEDUPLICATE_VIEWS: String = "deduplicate_blocks_in_dependent_materialized_views"
+        const val MAX_PARTITIONS: String = "max_partitions_per_insert_block"
         private const val MATERIALIZED = "MATERIALIZED"
     }
 }
