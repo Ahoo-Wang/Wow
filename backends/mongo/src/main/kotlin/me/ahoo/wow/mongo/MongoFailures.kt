@@ -99,7 +99,7 @@ internal object MongoFailures {
      * [write]'s result, [document] thrown as a [StorageRefusedException] when the store can never take it
      * ([refusalOf]): refused for good, so its aggregate is parked at once rather than retried.
      */
-    inline fun <T> refusing(document: String, write: () -> T): T {
+    fun <T> refusing(document: String, write: () -> T): T {
         val failure: RuntimeException = try {
             return write()
         } catch (tooLarge: BsonMaximumSizeExceededException) {
