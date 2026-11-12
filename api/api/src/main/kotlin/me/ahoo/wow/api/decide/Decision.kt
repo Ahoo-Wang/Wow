@@ -31,6 +31,8 @@ import me.ahoo.wow.api.result.FrameworkCodes
  * cannot call [DecideScope.reserve] (a `suspend` function), and a Java saga cannot call
  * [me.ahoo.wow.api.subscribe.SagaContext.call]; the test DSL (`wow-test`) is Kotlin only, so a Java domain's tests
  * are written in Kotlin. A Java facade and a blocking bridge for them are planned for 10.x.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface Decision {
     /**

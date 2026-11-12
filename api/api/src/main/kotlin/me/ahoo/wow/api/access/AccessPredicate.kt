@@ -25,6 +25,8 @@ package me.ahoo.wow.api.access
  *   grants, however the predicate negates it, and SQL, document and in-memory storage agree on it.
  * - **Logic.** [AllOf] holds when each of its predicates does (none: always), [AnyOf] when one does (none: never),
  *   [Not] when its predicate does not, as above; [Allowed] always, [Denied] never.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface AccessPredicate {
     /** Grants: holds for every aggregate (`allowAll()`, `allowIf(true)`). */
@@ -142,6 +144,8 @@ sealed interface AccessPredicate {
 /**
  * How a [AccessPredicate.Comparison] compares an attribute's value with the caller's: [EQUAL], [IN], [STARTS_WITH] and
  * [IS_NULL] a single attribute's value, [CONTAINS], [CONTAINS_ANY] and [IS_EMPTY] a multiple one's.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class AccessOperator(val multiple: Boolean, val compares: Boolean) {
     /** The value is the one given. */

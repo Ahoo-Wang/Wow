@@ -117,7 +117,11 @@ class AccessAttributeManifest @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(name, type, multiple)
 
-    /** The type of an access attribute's values. */
+    /**
+     * The type of an access attribute's values.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Type {
         /** A string; an enum's values are the names its constants are written under. */
         STRING,

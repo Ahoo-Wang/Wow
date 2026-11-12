@@ -36,6 +36,8 @@ import tools.jackson.databind.JsonNode
  * A decide function, in the form its signature has. The kernel calls a [Sync] one directly, with no
  * continuation and no dispatch; only a [Suspending] one runs as a coroutine call, and a [Suspending.blocking] one
  * (`@Blocking`) on the kernel's blocking dispatcher, a virtual thread.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface DecideFunction<S : Any> {
     /** Whether the command may, or must, create the aggregate. */
@@ -76,6 +78,8 @@ sealed interface DecideFunction<S : Any> {
  * run when the command is rejected. A hook the model builder makes runs after a system command (a lifecycle or
  * `wow.schedule` one) only when it names it ([AggregateModelBuilder.after]). Like a decide function it
  * keeps its form; a [Suspending.blocking] one runs on a virtual thread.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 sealed interface AfterFunction<S : Any> {
     val applies: (Class<*>) -> Boolean

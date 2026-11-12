@@ -23,6 +23,8 @@ package me.ahoo.wow.api.access
  * [type] is the class of each value: `String`, `Integer`, `Long`, `Boolean` or an enum class ([isValueType]); the
  * name follows the rule the compiler and the Manifest hold it to (`me.ahoo.wow.manifest.AccessAttributeName` of
  * `:manifest`). Two references are equal when they name the same attribute alike.
+ *
+ * No case is added within 10.x, so a `when` over it may name every case.
  */
 sealed class AccessAttribute<in S : Any, V : Any>(val name: String, val type: Class<V>) {
     /** Whether the attribute holds several values: [Multiple]. */

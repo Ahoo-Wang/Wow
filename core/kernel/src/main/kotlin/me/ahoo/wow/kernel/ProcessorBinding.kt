@@ -351,7 +351,11 @@ class ProcessorBinding<S> private constructor(
     }
 }
 
-/** Where a subscription without a checkpoint in a partition starts. */
+/**
+ * Where a subscription without a checkpoint in a partition starts.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class StartFrom {
     /** From the first entry of the partition: a new projection, or a replay under a new name. */
     BEGINNING,

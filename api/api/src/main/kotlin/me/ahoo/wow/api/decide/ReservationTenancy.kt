@@ -15,6 +15,8 @@ package me.ahoo.wow.api.decide
 
 /**
  * Among which aggregates a reserved key is unique ([DecideScope.reserve]); always among the aggregates of one type.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class ReservationTenancy {
     /** Unique within the aggregate's tenant: two tenants may each hold the key (axiom A6). The default. */

@@ -41,7 +41,11 @@ annotation class OnEvent(
     val aggregates: Array<String> = [],
     val start: Start = Start.DEFAULT,
 ) {
-    /** Where a subscription without a checkpoint starts. */
+    /**
+     * Where a subscription without a checkpoint starts.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Start {
         /** As its kind and source say: see [OnEvent.start]. */
         DEFAULT,

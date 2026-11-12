@@ -52,7 +52,11 @@ annotation class ServiceRoute(
     val errors: Array<String> = [],
 )
 
-/** The HTTP method of a [ServiceRoute]. */
+/**
+ * The HTTP method of a [ServiceRoute].
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class RouteMethod {
     GET,
     POST,
