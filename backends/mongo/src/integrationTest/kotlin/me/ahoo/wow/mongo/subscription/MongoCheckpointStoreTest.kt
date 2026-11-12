@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.subscription
 
+import com.mongodb.ExplainVerbosity
 import com.mongodb.client.model.Filters
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -22,6 +23,8 @@ import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
+import org.bson.Document
+import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 
 class MongoCheckpointStoreTest : CheckpointStoreSpec() {
@@ -70,6 +73,33 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
             .second.assert().containsExactly(CountedMongo.Sent("update", "wow_checkpoint"))
         tick.forEach { counted.load(group, it.subscription, it.partition).assert().isEqualTo(it.position + 10) }
     }
+
+    @Test
+    fun `a subscription's checkpoints are one read of the key's prefix, not of the group's other subscriptions`():
+        Unit = runBlocking {
+        // A count's validator on a group of 20 subscriptions and 64 partitions: one subscription's 64 keys, of 1,280.
+        val group = "prefix-${System.nanoTime()}"
+        store.saveAll(group, (0 until 20).flatMap { s -> (0 until 64).map { Checkpoint.of("s$s", it, 1) } })
+        store.list(group, "s7").size.assert().isEqualTo(64)
+
+        val ofOne = explained(store.subscriptionFilter(group, "s7"))
+        ofOne.toJson().let {
+            it.assert().contains("\"indexName\": \"checkpoint_key\"")
+            it.assert().doesNotContain("COLLSCAN")
+        }
+        val stats = ofOne.get("executionStats", Document::class.java)
+        stats.getInteger("totalKeysExamined").assert().isEqualTo(64)
+        stats.getInteger("totalDocsExamined").assert().isEqualTo(64)
+        stats.getInteger("nReturned").assert().isEqualTo(64)
+        // What a count read before: the whole group's documents.
+        explained(Filters.eq("subscription_group", group)).get("executionStats", Document::class.java)
+            .getInteger("totalDocsExamined").assert().isEqualTo(1_280)
+    }
+
+    /** The executed plan of a find of the checkpoints by [filter]. */
+    private fun explained(filter: Bson): Document =
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection("wow_checkpoint")
+            .find(filter).explain(ExplainVerbosity.EXECUTION_STATS)
 
     private companion object {
         val store by lazy {

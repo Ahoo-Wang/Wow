@@ -81,6 +81,13 @@ class MongoCheckpointStore(
         }.toList()
     }
 
+    /** One read of the key's prefix (group, subscription), the key index's leading fields. */
+    override suspend fun list(group: String, subscription: String): List<Checkpoint> = dispatcher.mongo {
+        checkpoints.find(subscriptionFilter(group, subscription)).map {
+            Checkpoint.of(subscription, it.getInteger(PARTITION), it.getLong(POSITION))
+        }.toList()
+    }
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.mongo {
             val guarded = Filters.and(keyFilter(group, subscription, partition), Filters.lt(POSITION, position))
@@ -122,6 +129,10 @@ class MongoCheckpointStore(
             }
         }
     }
+
+    /** The checkpoints of [subscription] in [group]: the key's prefix. */
+    internal fun subscriptionFilter(group: String, subscription: String): Bson =
+        Filters.and(Filters.eq(GROUP, group), Filters.eq(SUBSCRIPTION, subscription))
 
     private fun keyFilter(group: String, subscription: String, partition: Int): Bson = Filters.and(
         Filters.eq(GROUP, group),

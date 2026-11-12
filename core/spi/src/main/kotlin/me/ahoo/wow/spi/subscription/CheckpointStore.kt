@@ -38,6 +38,15 @@ interface CheckpointStore {
      */
     suspend fun list(group: String): List<Checkpoint>
 
+    /**
+     * The checkpoints of [subscription] in [group], one per partition it has read, in no order: what a subscription's
+     * progress over the partitions run elsewhere reads, the validator of a count query. A backend reads them by the
+     * prefix of its key (group, subscription), so the read does not grow with the group's other subscriptions; this
+     * default filters [list].
+     */
+    suspend fun list(group: String, subscription: String): List<Checkpoint> =
+        list(group).filter { it.subscription == subscription }
+
     /** Moves the checkpoint to [position] if that is ahead of the stored one; otherwise does nothing. */
     suspend fun save(group: String, subscription: String, partition: Int, position: Long)
 

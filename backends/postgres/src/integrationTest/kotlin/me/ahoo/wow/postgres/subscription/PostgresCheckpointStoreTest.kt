@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.CountedDataSource
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
@@ -107,6 +108,43 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
             }.awaitAll()
         }
         keys.map { store.load(group, "order", it) }.assert().allMatch { it == ROUNDS * 2L }
+    }
+
+    @Test
+    fun `a subscription's checkpoints are one read of the key's prefix, not of the group's other subscriptions`():
+        Unit = runBlocking {
+        // A count's validator on a group of 20 subscriptions and 64 partitions: one subscription's 64 rows, of 1,280.
+        val group = "prefix-${System.nanoTime()}"
+        store.saveAll(group, (0 until 20).flatMap { s -> (0 until 64).map { Checkpoint.of("s$s", it, 1) } })
+        store.list(group, "s7").size.assert().isEqualTo(64)
+
+        // The index's node: the key's two leading columns are its condition, and it finds the subscription's rows alone.
+        val ofOne = plan(PostgresCheckpointStore.LIST_OF, group, "s7")
+        val scan = ofOne.findParents("Index Name").single()
+        scan.get("Index Name").asString().assert().isEqualTo("wow_checkpoint_pkey")
+        scan.get("Index Cond").asString().assert().contains("subscription_group").contains("subscription =")
+        scan.get("Actual Rows").asInt().assert().isEqualTo(64)
+        ofOne.findValues("Rows Removed by Filter").plus(ofOne.findValues("Rows Removed by Index Recheck"))
+            .map { it.asInt() }.assert().allMatch { it == 0 }
+        // What a count read before: the whole group's rows.
+        plan(PostgresCheckpointStore.LIST, group).findParents("Index Name").single().get("Actual Rows").asInt()
+            .assert().isEqualTo(1_280)
+    }
+
+    /** The executed plan of [sql] with [parameters]; the tables are small, so a sequential scan is set aside. */
+    private fun plan(sql: String, vararg parameters: String) = PostgresFixture.dataSource.connection.use { connection ->
+        connection.createStatement().use { it.execute("SET enable_seqscan = off") }
+        try {
+            connection.prepareStatement("EXPLAIN (ANALYZE, FORMAT JSON) $sql").use { query ->
+                parameters.forEachIndexed { index, value -> query.setString(index + 1, value) }
+                query.executeQuery().use { rows ->
+                    rows.next()
+                    WowJson.mapper.readTree(rows.getString(1))
+                }
+            }
+        } finally {
+            connection.createStatement().use { it.execute("RESET enable_seqscan") }
+        }
     }
 
     private companion object {

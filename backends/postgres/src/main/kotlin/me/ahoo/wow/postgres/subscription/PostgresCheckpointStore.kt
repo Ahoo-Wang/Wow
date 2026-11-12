@@ -75,6 +75,19 @@ class PostgresCheckpointStore(
         }
     }
 
+    /** One read of the key's prefix (group, subscription), the primary key's leading columns. */
+    override suspend fun list(group: String, subscription: String): List<Checkpoint> = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            connection.prepareStatement(LIST_OF).use { query ->
+                query.setString(1, group)
+                query.setString(2, subscription)
+                query.executeQuery().use { rows ->
+                    buildList { while (rows.next()) add(Checkpoint.of(subscription, rows.getInt(1), rows.getLong(2))) }
+                }
+            }
+        }
+    }
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
@@ -146,6 +159,8 @@ class PostgresCheckpointStore(
         const val LOAD = "SELECT position FROM $TABLE WHERE subscription_group = ? AND subscription = ? AND partition = ?"
 
         const val LIST = "SELECT subscription, partition, position FROM $TABLE WHERE subscription_group = ?"
+
+        const val LIST_OF = "SELECT partition, position FROM $TABLE WHERE subscription_group = ? AND subscription = ?"
 
         val SAVE = rowsSql(1)
 
