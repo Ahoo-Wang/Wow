@@ -5,7 +5,8 @@
 # warm-up, 120 s measured). Around the run the session reads the store itself: mongod's CPU from its container's cgroup
 # (`cpu.stat` `usage_usec`; the container has no CPU limit), `serverStatus()` (`opcounters`, `opLatencies`), and the log's
 # and the snapshot's `$collStats` (`latencyStats`, `storageStats`) and the log's indexes: `store-before.json` and
-# `store-after.json`. Before them, 20 s with no load give mongod's own floor (`idle.json`). store-cost.py divides each
+# `store-after.json`; after the run, the keys of each of the log's indexes and the last document's `access`
+# (`index-check.json`). Before them, 20 s with no load give mongod's own floor (`idle.json`). store-cost.py divides each
 # delta by the log documents the window added, its commits.
 #
 # An arm changes the server's build (--install) and, after `up` and before the run, the log's two access indexes:
@@ -59,6 +60,16 @@ store_stats() {
       {relaxed: true}));"
 }
 
+# After the run, out of its window: the keys each of the log's indexes holds (`validate`), its documents, and the
+# `access` of the last document written, so whether a commit adds an entry to an access index can be read.
+index_check() {
+  mongo_eval "
+    const v = db.$LOG.validate({full: false});
+    const last = db.$LOG.find({version: {\$exists: true}}).sort({\$natural: -1}).limit(1).next();
+    print(EJSON.stringify({documents: v.nrecords, keysPerIndex: v.keysPerIndex, valid: v.valid,
+      lastAccess: last.access === undefined ? '(absent)' : last.access, lastFields: Object.keys(last)}, {relaxed: true}));"
+}
+
 indexes_for() {
   case $1 in
     create) mongo_eval "
@@ -94,6 +105,7 @@ session() {
   measure run "$dir/run" run.log "${C[@]}" --scenario=E1 --distribution=uniform --rate="$RATE" \
     --warm-up="$WARM" --measure="$MEASURE"
   store_stats >"$dir/store-after.json"
+  index_check >"$dir/index-check.json"
   local verdict
   verdict=$(python3 -I "$LIB_DIR/summarize.py" --check "$dir/run" 2>&1) && verdict=ok
   echo "r$round-$arm $verdict" >>"$OUT_ROOT/verdicts.txt"

@@ -7,6 +7,8 @@ the 20 s idle floor scaled to the window), the log's insert time per commit (its
 `insertMany` batch, summed and divided by the commits), the snapshot's update latency per operation, the store's
 inserts and updates per commit, the log's average document and indexes at the end, and the run's p50 and p99 (the
 measured phase's, from result.json) with the load generator's drops. A commit is a log document the window added.
+Where a session has index-check.json, the keys each of the log's indexes holds after the run and the last document's
+`access` are given too.
 Each <a>/<b> names two arms whose ratios are given round by round.
 """
 import json
@@ -40,7 +42,10 @@ def session(d):
     log_us, _ = spent("log")
     snap_us, snap_ops = spent("snapshot")
     result = load(os.path.join(d, "run", "result.json"))["results"]
+    check = os.path.join(d, "index-check.json")
+    keys = load(check) if os.path.exists(check) else None
     return {
+        "check": keys,
         "commits": commits,
         "cpu": (cpu - floor) / commits,
         "idle": idle["usec"] / idle["seconds"] / 1e6,
@@ -77,6 +82,14 @@ def main(root, pairs):
     print("| --- |" + " ---: |" * len(names))
     for name, r in rows.items():
         print(f"| {name} | " + " | ".join(f"{r['indexes'][k]:.1f}" if k in r["indexes"] else "" for k in names) + " |")
+    checked = {n: r["check"] for n, r in rows.items() if r["check"]}
+    if checked:
+        print()
+        print("| Session | Log documents | Keys per index | The last document's `access` |")
+        print("| --- | ---: | --- | --- |")
+        for name, c in checked.items():
+            keys = ", ".join(f"{k} {v:,}" for k, v in sorted(c["keysPerIndex"].items()))
+            print(f"| {name} | {c['documents']:,} | {keys} | `{json.dumps(c['lastAccess'])}` |")
     for pair in pairs:
         x, y = pair.split("/")
         rounds = sorted({n.split("-", 1)[0] for n in rows if n.split("-", 1)[1] in (x, y)})
