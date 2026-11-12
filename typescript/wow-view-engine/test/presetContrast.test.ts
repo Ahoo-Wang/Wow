@@ -53,30 +53,13 @@ describe('the pairs measured', () => {
     mode => {
       const names = contrastPairs(mode).map(({ name }) => name);
       expect(new Set(names).size).toBe(names.length);
-      // `porcelain` fills its controls, so every pair a filled control
-      // paints applies to it.
-      expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(
-        contrastPairs(mode).map(({ name }) => name),
-      );
-      // The selected row's bar and a control's hover fill have a value in
-      // every theme (the primary; the ink at the hover strength), so each
-      // is measured in every theme.
-      for (const preset of PRESET_NAMES) {
-        const names = measure(preset, mode).map(({ name }) => name);
-        expect(names, preset).toContain(
-          'row-selected-mark mark on marked selected row',
-        );
-        expect(names, preset).toContain(
-          'outline-hover-foreground text on hovered outline button',
-        );
-      }
-      // Where a theme leaves the control fill unset, the pairs painted on
-      // it are not painted, and the arithmetic has nothing to measure.
-      expect(measure('neutral', mode).map(({ name }) => name)).toEqual(
-        contrastPairs(mode)
-          .filter(({ requires }) => !requires)
-          .map(({ name }) => name),
-      );
+      // Every token a pair names has a value in every theme, so every
+      // theme is measured on every pair.
+      for (const preset of PRESET_NAMES)
+        expect(
+          measure(preset, mode).map(({ name }) => name),
+          preset,
+        ).toEqual(names);
     },
   );
 

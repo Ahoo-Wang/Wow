@@ -893,16 +893,12 @@ export const PanelChromeInLightTheme: Story = panelChrome('light');
 export const PanelChromeInDarkTheme: Story = panelChrome('dark');
 
 /**
- * A filter chip's edge is its controls' edge — the name, the value and ✕
- * draw none of their own — so it is `--input`, at 3:1 in both themes, the
- * quiet chip (dashed, on the page's ground) included (U-06). On `--border`
- * it measured 1.22:1 on the chip's fill.
- *
- * This is `neutral`'s outlined chip, so it is measured in `neutral`: a
- * preset that fills its chips (`control`, `control-edge`: porcelain's) draws
- * no edge by design (D43) — a chip named by its words needs no boundary to
- * be found — and what it owes instead, its words on the fill, is in the
- * registry's pairs (`control over …`).
+ * A quiet filter chip has no fill, so its dashed edge is its shape: it is
+ * `--input`, at 3:1 in both themes (U-06). A chip with a value is filled
+ * (`control`, D94) and found by its fill and its words, so it owes no
+ * boundary (D43); what it owes, its words on the fill, is in the
+ * registry's pairs (`control over …`). Measured in `neutral`; this board
+ * shows no quiet chip, so that half is not exercised here.
  */
 const chipEdges = (theme: 'light' | 'dark'): Story => ({
   ...DisplayFilters,
@@ -929,10 +925,14 @@ const chipEdges = (theme: 'light' | 'dark'): Story => ({
           `${name}${idle ? ' (idle)' : ''} ${ratio.toFixed(2)}:1 ${JSON.stringify(colors)}`,
       )
       .join('; ');
-    await expect(
-      Math.min(...measured.map(({ ratio }) => ratio)),
-      `${theme} — ${report}`,
-    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+    for (const { idle, ratio, colors } of measured) {
+      const said = `${theme} — ${report}`;
+      if (idle)
+        await expect(ratio, said).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+      // Filled, and a hairline round the fill.
+      else await expect(colors.fill, said).not.toBe(colors.surface);
+      await expect(ratio, said).toBeGreaterThan(1);
+    }
   },
 });
 

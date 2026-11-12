@@ -157,10 +157,11 @@ describe('the reset rule', () => {
       outer: ['porcelain'],
     });
     const porcelain = declared('porcelain', 'light');
-    // porcelain fills its controls and separates its grouped ground; neutral
-    // does neither, so under neutral they are unset and the built-in value.
-    expect(porcelain.get(tokenVariable('control'))).toBeDefined();
-    expect(neutral.get(tokenVariable('control'))).toBeUndefined();
+    // porcelain gives its controls a fill of its own and separates its
+    // grouped ground; neutral gives neither, so under neutral both are the
+    // stylesheet's built-in values again.
+    expect(porcelain.get(tokenVariable('control'))).toMatch(/^oklch\(/);
+    expect(neutral.get(tokenVariable('control'))).toBe('var(--secondary)');
     expect(neutral.get(tokenVariable('canvas'))).toBe('var(--sidebar)');
   });
 

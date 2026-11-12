@@ -261,9 +261,9 @@ export const TOKENS = [
   { name: 'focus-halo', ...role('focus') },
   // The controls: their fill, edge and pressed thumb, their heights, the
   // width of their edge, and a toned badge's wash.
-  { name: 'control', ...role('control') },
-  { name: 'control-edge', ...role('control') },
-  { name: 'control-thumb', ...role('control') },
+  { name: 'control', ...role('control'), fallback: 'secondary' },
+  { name: 'control-edge', ...role('control'), fallback: 'border' },
+  { name: 'control-thumb', ...role('control'), fallback: 'background' },
   { name: 'control-thumb-shadow', ...role('control'), kind: 'shadow' },
   { name: 'control-height', ...measure('control', 'length'), target: true },
   {

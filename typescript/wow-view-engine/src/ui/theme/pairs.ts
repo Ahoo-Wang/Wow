@@ -103,13 +103,6 @@ export interface Ground {
   readonly name: string;
   readonly layers: readonly Layer[];
   readonly pairs: readonly InkSpec[];
-  /**
-   * Painted only where a theme sets this token: a filled control. The
-   * arithmetic measures it then; the browser draws it always, and where the
-   * token is unset the fill is nothing and what it measures is the ground
-   * under it, which another pair measures already.
-   */
-  readonly requires?: string;
 }
 
 const texts = (...inks: string[]): InkSpec[] =>
@@ -423,11 +416,12 @@ export const GROUNDS: readonly Ground[] = [
     layers: one(fill),
     pairs: texts(`${fill}-foreground`),
   })),
-  // A theme that draws its controls filled (`control`, `control-thumb`):
-  // the words a filter chip and a segmented control write on that fill,
-  // and the focus mark that lands on it, over each ground a control stands
-  // on. The pressed thumb against its track is a state, not held to 1.4.11
-  // (the registry's own pressed `muted` is 1.1:1), so only its words are.
+  // A control's fill and its pressed thumb (`control`, `control-thumb`): the
+  // words a filter chip, a segmented control and a toolbar's button write
+  // on that fill, and the focus mark that lands on it, over each ground a
+  // control stands on. A theme that outlines its controls has a transparent
+  // fill, and the pair measures the ground under it. The pressed thumb
+  // against its track is a state, not held to 1.4.11, so only its words are.
   ...(
     [
       ['page', 'background'],
@@ -443,13 +437,11 @@ export const GROUNDS: readonly Ground[] = [
         ...texts('foreground', 'muted-foreground'),
         { ink: 'ring', kind: 'edge' },
       ],
-      requires: 'control',
     },
     {
       name: `control thumb over ${where}`,
       layers: [{ token }, { token: 'control-thumb' }],
       pairs: texts('foreground'),
-      requires: 'control-thumb',
     },
   ]),
 ];
@@ -495,7 +487,6 @@ export interface ContrastPair {
   readonly ink: Layer;
   /** Bottom first; a badge's wash is the last. */
   readonly ground: readonly Layer[];
-  readonly requires?: string;
 }
 
 /**
@@ -507,7 +498,7 @@ export function expandPairs(
   grounds: readonly Ground[],
   mode: 'light' | 'dark',
 ): ContrastPair[] {
-  return grounds.flatMap(({ name: where, layers, pairs, requires }) =>
+  return grounds.flatMap(({ name: where, layers, pairs }) =>
     pairs
       .filter(spec => spec.mode === undefined || spec.mode === mode)
       .map(({ ink, kind, alpha, wash }): ContrastPair => {
@@ -523,7 +514,6 @@ export function expandPairs(
             wash === undefined
               ? layers
               : [...layers, { token: ink, alpha: wash }],
-          ...(requires ? { requires } : {}),
         };
       }),
   );

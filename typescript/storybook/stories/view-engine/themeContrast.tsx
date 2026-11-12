@@ -141,16 +141,6 @@ function measureAll(root: HTMLElement): Measurement[] {
     cell => {
       const ink = cell.querySelector<HTMLElement>('[data-ink]')!;
       const kind = cell.dataset.kind as PairKind;
-      // A pair painted only where a theme sets a token, whose ink is that
-      // token (a selected row's bar, D76): where it is unset the probe draws
-      // no border, as the surface draws no bar, and there is nothing to
-      // measure — the arithmetic leaves it out the same way.
-      if (
-        cell.dataset.requires !== undefined &&
-        kind !== 'text' &&
-        parseFloat(getComputedStyle(ink).borderTopWidth) === 0
-      )
-        return [];
       const measured =
         kind === 'text' ? measureTextContrast(ink) : measureBorderContrast(ink);
       return [
@@ -188,18 +178,11 @@ export function readMatrix(root: Element): Measurement[] {
   }));
 }
 
-/**
- * The rows a drawn matrix left unmeasured, by pair name: only a pair its
- * preset does not paint — one that `requires` a token the preset leaves
- * unset — may be one.
- */
-export function unmeasured(root: Element): {
-  pair: string;
-  requires: string | undefined;
-}[] {
+/** The rows a drawn matrix left unmeasured, by pair name: there are none. */
+export function unmeasured(root: Element): string[] {
   return [
     ...root.querySelectorAll<HTMLElement>('[data-probe]:not([data-ratio])'),
-  ].map(row => ({ pair: row.dataset.probe!, requires: row.dataset.requires }));
+  ].map(row => row.dataset.probe!);
 }
 
 /**
@@ -278,7 +261,6 @@ export function ContrastMatrix({
                     data-preset={preset}
                     data-mode={mode}
                     data-kind={pair.kind}
-                    data-requires={pair.requires}
                     data-line={linesOf(preset)[pair.kind]}
                     data-ratio={found?.ratio}
                     data-colors={found && JSON.stringify(found.colors)}

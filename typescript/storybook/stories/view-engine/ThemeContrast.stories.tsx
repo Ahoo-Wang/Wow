@@ -147,12 +147,10 @@ const contrastOf = (preset: string): Story => ({
       return found;
     });
     const measured = readMatrix(matrix);
-    // Both modes, every pair — and nothing measured twice. A pair the
-    // preset does not paint (it leaves the token it requires unset) is left
-    // unmeasured, as the arithmetic leaves it out.
-    const skipped = unmeasured(matrix);
-    await expect(skipped.filter(({ requires }) => !requires)).toEqual([]);
-    await expect(measured.length + skipped.length).toBe(
+    // Both modes, every pair — none left unmeasured, nothing measured
+    // twice.
+    await expect(unmeasured(matrix)).toEqual([]);
+    await expect(measured.length).toBe(
       MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );
     // A shortfall the registry lists as owed by a retuning batch

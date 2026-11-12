@@ -13,7 +13,7 @@
 
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
 import { DENSITY_LENGTH_DOCS } from './densityDocs.js';
-import { MARK_DOCS, OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
+import { MARK_DOCS, STATE_DOCS } from './stateDocs.js';
 import type { TokenName } from '../src/ui/theme/tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
@@ -331,24 +331,18 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       en: "The rest fill of a control its words or icons name: a filter chip, a segmented control, a toolbar's outline buttons",
       zh: '以文字或图标自明的控件的静止填色：筛选条、分段控件、工具栏上的描边按钮',
     },
-    light: OWN_CONTROL,
-    dark: OWN_CONTROL,
   },
   'control-edge': {
     role: {
       en: "That control's edge (a chip holding a text box keeps `input`)",
       zh: '这类控件的边（装着输入框的筛选条仍用 `input`）',
     },
-    light: OWN_CONTROL,
-    dark: OWN_CONTROL,
   },
   'control-thumb': {
     role: {
       en: "A segmented control's pressed item, the thumb on its track",
       zh: '分段控件按下的那一项，轨道上的滑块',
     },
-    light: { en: 'unset: `muted`', zh: '不设：`muted`' },
-    dark: { en: 'unset: `muted`', zh: '不设：`muted`' },
   },
   'control-thumb-shadow': {
     role: {

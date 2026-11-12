@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { TokenDoc, Words } from './tokenDocs.js';
+import type { TokenDoc } from './tokenDocs.js';
 
 /**
  * The README's words for the roles that mark a state — a highlighted item,
@@ -20,12 +20,6 @@ import type { TokenDoc, Words } from './tokenDocs.js';
  * (ui/theme.md「角色：引擎自己的面」), beside `tokenDocs.ts` so that catalogue
  * stays one screenful of files.
  */
-
-/** A control that keeps its own value, unset: a fill, an edge, a hover. */
-export const OWN_CONTROL: Words = {
-  en: "unset: each control's own",
-  zh: '不设：各控件原样',
-};
 
 /**
  * A link (ui/theme.md「链接：角色跟着面上解析出的 token」): the share of a resolved token a role

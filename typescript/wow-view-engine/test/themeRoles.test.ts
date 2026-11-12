@@ -60,14 +60,9 @@ const LINKS = (TOKENS as readonly TokenEntry[]).filter(entry => entry.link);
 
 /**
  * The roles with no built-in value: unset, the rule that applies each
- * carries what every control was drawn with, because they were never one
- * value (a fill, an edge), or — the outline's width — the registry's
- * `outline-none`.
+ * leaves what was drawn.
  */
 const UNSET = new Set([
-  'control',
-  'control-edge',
-  'control-thumb',
   // No lower bound on a bar's width: as narrow as the plot makes it.
   'chart-bar-min-width',
   // The item's own weight, the registry's edge of each mode, and a chip as
@@ -97,9 +92,9 @@ const BUILT_IN: Readonly<
   'row-selected':
     'color-mix(in oklab, var(--primary) var(--_fve-state-selected), var(--_fve-content))',
   'control-hover':
-    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-control, transparent))',
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-hover), var(--_fve-control))',
   'control-pressed':
-    'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), var(--_fve-control, transparent))',
+    'color-mix(in oklab, var(--foreground) var(--_fve-state-pressed), var(--_fve-control))',
   'card-edge': 'color-mix(in oklab, var(--foreground) 10%, transparent)',
   'card-shadow': '0 0 #0000',
   scrim: {
@@ -116,7 +111,11 @@ const BUILT_IN: Readonly<
   'focus-offset': '2px',
   'focus-style': 'solid',
   'focus-halo': 'transparent',
-  'control-thumb-shadow': '0 0 #0000',
+  // A control's pressed thumb is lifted a hair in light.
+  'control-thumb-shadow': {
+    light: '0 1px 2px 0 oklch(0 0 0deg / 12%)',
+    dark: '0 0 #0000',
+  },
   'control-height': '2rem',
   'control-height-sm': '1.75rem',
   'edge-width': '1px',
