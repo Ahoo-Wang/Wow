@@ -66,8 +66,8 @@ sealed interface Decision {
 
     /**
      * The command is refused for [rejection], with the [events] it carries: ordinary events of the aggregate, each
-     * sourced by it, appended with the rejection in one stream. Without events nothing is appended; a rejection of a
-     * creation appends nothing either.
+     * sourced by it, appended with the rejection in one stream, never a lifecycle event (the command fails instead).
+     * Without events nothing is appended; a rejection of a creation appends nothing either.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */

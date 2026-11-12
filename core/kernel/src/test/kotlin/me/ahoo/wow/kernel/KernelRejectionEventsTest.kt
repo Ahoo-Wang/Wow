@@ -20,6 +20,8 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.reject
+import me.ahoo.wow.api.lifecycle.AggregateDeleted
+import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -34,6 +36,8 @@ class KernelRejectionEventsTest {
     data class UnlockThrowing(val code: String)
     data class Touch(val code: String)
     data class UnlockUnsourced(val code: String)
+    data class Destroy(val code: String)
+    data class Hand(val to: String)
 
     data class SafeOpened(val owner: String)
     data class Unlocked(val code: String)
@@ -72,6 +76,16 @@ class KernelRejectionEventsTest {
         decide<Touch> { _, _ -> Decision.reject("locked", "The safe is locked.") }
         decide<UnlockUnsourced> { _, command ->
             Decision.reject("wrong-code", "Wrong code.", events = listOf(Unsourced(command.code)))
+        }
+        decide<Destroy> { _, command ->
+            Decision.reject(
+                "wrong-code",
+                "Wrong code.",
+                events = listOf(AttemptFailed(command.code), AggregateDeleted())
+            )
+        }
+        decide<Hand> { _, command ->
+            reject("locked", "The safe is locked.", events = listOf(OwnerTransferred(command.to)))
         }
         evolve<SafeOpened> { }
         evolve<Unlocked> { unlocked = true }
@@ -153,6 +167,20 @@ class KernelRejectionEventsTest {
         val (kernel, log) = opened()
         assertThrows<IllegalArgumentException> { kernel.execute(model, command(UnlockUnsourced("1"))) }
             .message.assert().contains("cannot evolve")
+        log.read(ref).toList().size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a rejection with a lifecycle event should fail the command and write nothing, returned or thrown`() = runTest {
+        val (kernel, log) = opened()
+        val deleted = assertThrows<UndeclaredEventException> { kernel.execute(model, command(Destroy("1"))) }
+        deleted.event.assert().isEqualTo(AggregateDeleted::class.java)
+        deleted.message.assert().isEqualTo(
+            "vault.safe's decide function of Destroy rejected it with AggregateDeleted: a rejection's events are the " +
+                "aggregate's own, never a lifecycle event, which only a decision of events commits.",
+        )
+        assertThrows<UndeclaredEventException> { kernel.execute(model, command(Hand("mallory"))) }
+            .event.assert().isEqualTo(OwnerTransferred::class.java)
         log.read(ref).toList().size.assert().isEqualTo(1)
     }
 
