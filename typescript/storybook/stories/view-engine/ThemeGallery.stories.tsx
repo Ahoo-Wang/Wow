@@ -14,11 +14,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
-  BUILT_IN_PRESETS,
   EmbeddedDashboard,
   EmbeddedView,
   zhCN,
-  type BuiltInPreset,
 } from '@ahoo-wang/wow-view-engine/ui';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
@@ -33,7 +31,7 @@ import { RETAIL_DATA_NOTE } from './retail/scene.js';
 import { chartsDrawn } from './chartDom.js';
 import { matchScreenshot } from './screenshot.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
-import { ENGINE_PRESET } from './presets.js';
+import { ENGINE_PRESET, SHOWN_THEMES } from './presets.js';
 
 /** The two modes a band pins; `system` resolves to one of them. */
 const BAND_MODES = ['light', 'dark'] as const;
@@ -179,7 +177,7 @@ const meta = {
   ],
   args: { preset: 'neutral' },
   argTypes: {
-    preset: { control: 'select', options: BUILT_IN_PRESETS },
+    preset: { control: 'select', options: SHOWN_THEMES },
   },
 } satisfies Meta<typeof GalleryPage>;
 
@@ -203,7 +201,7 @@ async function landed(block: Element, kind: Block) {
   ).toBeGreaterThanOrEqual(kind === 'dashboard' ? 2 : 1);
 }
 
-const galleryStory = (preset: BuiltInPreset): Story => ({
+const galleryStory = (preset: string): Story => ({
   name: preset,
   args: { preset },
   play: async ({ canvasElement }) => {
@@ -281,8 +279,11 @@ const galleryStory = (preset: BuiltInPreset): Story => ({
 /** The stylesheet's own look: no preset at all is this one. */
 export const Neutral: Story = galleryStory('neutral');
 
-/** Native desktop: system type, 12px corners, soft shadows. */
-export const Porcelain: Story = galleryStory('porcelain');
-
 /** High contrast, the chart patterns pinned on. */
 export const Contrast: Story = galleryStory('contrast');
+
+/**
+ * The example host theme (`host-theme/porcelain.css`, a built-in preset
+ * until D94): native desktop, system type, 12px corners, soft shadows.
+ */
+export const Porcelain: Story = galleryStory('porcelain');

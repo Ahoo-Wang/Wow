@@ -101,7 +101,7 @@ declare const ORDER_WORDS: Record<'zh-CN' | 'en', Record<string, string>>;
 // src/views/Host.tsx
 import type { ReactNode } from 'react';
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
 import { ViewHost, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 
@@ -125,7 +125,7 @@ export function Host({
       locale={locale}
       messages={MESSAGES[locale]}
       bindings={BINDINGS}
-      preset="porcelain"
+      preset="contrast"
       rememberColorMode="my-app.color-mode"
     >
       {children}

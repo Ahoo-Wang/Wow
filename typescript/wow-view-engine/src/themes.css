@@ -70,5 +70,4 @@
  * files resolve to.
  */
 @import './themes/neutral.css';
-@import './themes/porcelain.css';
 @import './themes/contrast.css';

@@ -14,7 +14,7 @@ A host makes one choice, on `ViewHost` ([Host the engine](./host)):
 | Path                   | For                                                 | Write                                                                                                                                                                                                   |
 | ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The engine follows you | A host with a shadcn theme (Tailwind v4)            | `tokenSource="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))                                                                                                                 |
-| You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="porcelain"` (import its file), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
+| You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="contrast"` (import its file; the default `neutral` needs neither), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
 
 `ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Host the engine](./host); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy](./csp). A patch release never breaks the CSS contract in [What is public](#what-is-public).
 
@@ -53,11 +53,11 @@ Picking a look is one line: import the preset's file and name it on `<html>`.
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 ```
 
 ```html
-<html data-fve-preset="porcelain"></html>
+<html data-fve-preset="contrast"></html>
 ```
 
 Import `themes.css` instead to have every preset and switch at run time. The attribute on `<html>` reaches every view and every popup; to give one view its own, pass `preset` (see [Pinning a preset](#pinning-a-preset)). `/ui` exports `BUILT_IN_PRESETS`, the list of built-in names, for a picker in your own chrome — the engine draws none.
@@ -65,7 +65,6 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 | Preset      | Character                                                                                                                          | Corners          | Chart colours |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |
 | `neutral`   | The default: cool greys, grounds told apart by lightness, an indigo primary                                                        | 6px              | default       |
-| `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own       |
 | `contrast`  | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on  | 4px              | its own       |
 
 Which one fits your brand:
@@ -75,7 +74,7 @@ Which one fits your brand:
 | Your app is a shadcn app with its own theme | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset                                                                                                               |
 | No design system, and you want a ready look | The preset above closest to your product                                                                                                                           |
 | An interface mostly in Chinese              | Any preset, with one line of a Chinese-first `--fve-font-sans` (see [Type](#type)); add `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
-| A macOS / Apple desktop-app feel            | `porcelain`                                                                                                                                                        |
+| A macOS / Apple desktop-app feel | No built-in preset. Copy the example theme `typescript/storybook/stories/view-engine/host-theme/porcelain.css` from the repository as a preset of your own (see [Your own preset](#your-own-preset)) |
 | Only a brand colour                         | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour))                                                              |
 | A full design specification                 | The closest preset, then override the few `--fve-*` that differ on `:root`                                                                                         |
 
@@ -106,7 +105,7 @@ Your own preset is written the same way and selected by the same attribute or pr
 - **`--fvp-*` only, and only what differs.** No `initial`, no copy of the values you keep. A `--fve-*` in a preset block is a host variable: every preset pinned inside that element would lose to it.
 - **Check it.** `wow-view-engine theme-check` holds it to the registry and every contrast pair in your CI (see [Checking a theme](#checking-a-theme)); paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates.
 
-The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, `stories/view-engine/host-theme/acme.css` in the repository: a stylesheet outside the package with a brand colour, a few roles, a linked menu highlight and a palette of its own, held to the same gates in the browser and in the package's tests.
+The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, `stories/view-engine/host-theme/acme.css` in the repository: a stylesheet outside the package with a brand colour, a few roles, a linked menu highlight and a palette of its own, held to the same gates in the browser and in the package's tests. Beside it, `host-theme/porcelain.css` is a whole preset to copy: a native desktop look (system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables) that was a built-in preset until it was removed. Copy the file into your app, import it after `styles.css` and keep `data-fve-preset="porcelain"`, now a name of your own; the package's tests still measure it beside the built-in presets.
 
 ## I have a brand colour
 
@@ -114,7 +113,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 
 ```css
 @import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+@import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 
 :root {
   --fve-brand: #7c3aed;
@@ -123,7 +122,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 ```
 
 ```html
-<html data-fve-preset="porcelain"></html>
+<html data-fve-preset="contrast"></html>
 ```
 
 The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); the focus ring is the primary's colour and follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
@@ -133,7 +132,7 @@ The primary takes your colour's hue, and so do faint tints of the selected item 
 - A `--fve-primary` (or `--fve-accent`, `--fve-sidebar-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand, which wins over the preset's own colour.
 - The bounds are preset variables (`--fvp-brand-l-min`, `--fvp-brand-l-max`, `--fvp-brand-c-max` and the rest of the `brand-*` rows of the token table). You may widen or narrow one as `--fve-brand-l-max` and so on; then its measurement is yours.
 - The first chart colour stays the preset's unless you put `data-fve-brand-chart` on `<html>` (or any ancestor of the view): then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-1`. It is an attribute, like the preset and the density: present is on, absent is off, and a view copies it onto its popups.
-- Roles [linked](#role-links) to the primary or the selected row follow the brand as well: `porcelain`'s menu highlight, and any role you link yourself (the current view and a chosen item, say).
+- Roles [linked](#role-links) to the primary or the selected row follow the brand as well: `contrast`'s menu highlight and its selected row's bar, and any role you link yourself (the current view and a chosen item, say).
 - Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the preset is exactly as it ships.
 
 ## Host overrides
@@ -150,9 +149,9 @@ Every token reads a host variable first: `--fve-<token>` for light and `--fve-da
 }
 ```
 
-They win over the preset you chose and over one pinned on a surface, as [Three layers](#three-layers) says — so they are measured on every preset: this primary is dark enough for `contrast`'s 7:1 as well as the 4.5:1 of the rest, and [`theme-check`](#checking-a-theme) measures yours the same way. For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed rather than setting the variables on a wrapper: a popup is portalled to `<body>`, out from under the wrapper, and `tokens` is written on the surface and on every popup it opens. Its type, `FveToken` from `/ui`, is every host variable of the registry.
+They win over the preset you chose and over one pinned on a surface, as [Three layers](#three-layers) says — so they are measured on every preset: this primary is dark enough for `contrast`'s 7:1 as well as `neutral`'s 4.5:1, and [`theme-check`](#checking-a-theme) measures yours the same way. For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed rather than setting the variables on a wrapper: a popup is portalled to `<body>`, out from under the wrapper, and `tokens` is written on the surface and on every popup it opens. Its type, `FveToken` from `/ui`, is every host variable of the registry.
 
-`primary-fill` is the primary as a fill under words: the primary button, and a menu's highlighted item linked to it. In light it is the primary itself; in dark the primary is light enough to be text on the dark grounds and so too light to carry white words, so the fill is the primary's own hue a step deeper under white words — worked out from your `--fve-dark-primary`, with nothing more to write. One exception: where a preset writes that step as a fixed colour (`porcelain` in dark) it does not follow your primary, so on such a preset set it beside your dark primary, measured under its words like any pair:
+`primary-fill` is the primary as a fill under words: the primary button, and a menu's highlighted item linked to it. In light it is the primary itself; in dark the primary is light enough to be text on the dark grounds and so too light to carry white words, so the fill is the primary's own hue a step deeper under white words — worked out from your `--fve-dark-primary`, with nothing more to write. One exception: where a preset writes that step as a fixed colour (`contrast` in dark, and the example theme `porcelain`) it does not follow your primary, so on such a preset set it beside your dark primary, measured under its words like any pair:
 
 ```css
 :root {
@@ -235,7 +234,7 @@ A colour a preset writes is fixed where the preset is named — usually `<html>`
 }
 ```
 
-With those two, every menu, select and combobox highlights its item with the primary's fill and ink — your brand's, in either mode. `primary-fill` is the primary itself in light and the primary's hue a step deeper in dark; a preset may write that step as a fixed colour (`porcelain`'s dark, which bounds it so a brand colour still follows; with your own `--fve-dark-primary` on it, set `--fve-dark-primary-fill` too, as [Host overrides](#host-overrides) shows). A link is one number for both modes, since its target resolves in each. A role colour you set wins over a link, and a link, yours or a preset's, wins over the preset's own colour; unset, the role is what it was. `porcelain` and `contrast` link their menu highlight, and `contrast` its selected row's bar — which is why they follow a brand colour. No built-in preset links the current view, a chosen item or an outline button's hovered edge; those are a host's to link.
+With those two, every menu, select and combobox highlights its item with the primary's fill and ink — your brand's, in either mode. `primary-fill` is the primary itself in light and the primary's hue a step deeper in dark; a preset may write that step as a fixed colour (`contrast`'s dark and the example theme `porcelain`'s, each of which bounds it so a brand colour still follows; with your own `--fve-dark-primary` on such a preset, set `--fve-dark-primary-fill` too, as [Host overrides](#host-overrides) shows). A link is one number for both modes, since its target resolves in each. A role colour you set wins over a link, and a link, yours or a preset's, wins over the preset's own colour; unset, the role is what it was. `contrast` links its menu highlight and its selected row's bar — which is why they follow a brand colour; the example theme `porcelain` links its menu highlight the same way. No built-in preset links the current view, a chosen item or an outline button's hovered edge; those are a host's to link.
 
 ## The charts' roles
 
@@ -268,7 +267,7 @@ A bar's corner follows `radius`, so a square style's bars are square with no wor
 
 ## Pinning a preset
 
-`preset="porcelain"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one. A pinned preset replaces the outer one whole, and your own `--fve-*` still win inside it.
+`preset="contrast"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one. A pinned preset replaces the outer one whole, and your own `--fve-*` still win inside it.
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -282,7 +281,7 @@ declare const id: string;
   engine={engine}
   instanceId={id}
   colorMode="dark"
-  preset="porcelain"
+  preset="contrast"
 />
 ```
 
@@ -358,7 +357,7 @@ The package ships one command, for a host's CI: it holds your theme to the gates
 
 ```bash
 pnpm exec wow-view-engine theme-check src/theme.css
-pnpm exec wow-view-engine theme-check src/theme.css --preset porcelain --preset contrast
+pnpm exec wow-view-engine theme-check src/theme.css --preset contrast
 ```
 
 It reads your stylesheets (several are put together in the order given) and reports, with the line and column:
