@@ -69,7 +69,10 @@ class ClusterProperties {
     /** How long a hand-off of a partition waits for its commands in flight before it moves on. */
     var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
 
-    /** The most lease acquisitions a node runs at a time. */
+    /**
+     * The most lease calls a node runs at a time for one lease group: its acquisitions and the releases its hand-offs
+     * end with, one bound for both.
+     */
     var leaseParallelism: Int = DEFAULT_CLUSTER.leaseParallelism
 
     /**

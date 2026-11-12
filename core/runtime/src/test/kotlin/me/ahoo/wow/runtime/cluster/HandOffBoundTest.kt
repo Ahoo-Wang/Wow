@@ -58,6 +58,10 @@ class HandOffBoundTest {
         runTest {
             var down = false
             val failing = object : CheckpointStore by InMemoryCheckpointStore() {
+                override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
+                    check(!down || partition != 1) { "The checkpoint store is down." }
+                }
+
                 override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
                     check(!down || checkpoints.none { it.partition == 1 }) { "The checkpoint store is down." }
                 }
