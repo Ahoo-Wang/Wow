@@ -35,6 +35,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
@@ -112,7 +113,9 @@ internal object KernelLifecycle {
         decides: (String) -> Boolean,
     ): Decision = when (body) {
         is SetSchedule -> if (decides(body.commandType)) {
-            Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
+            ScheduleSlots.problemOf(body.key, body.rule)?.let {
+                Decision.Rejected(Rejection(FrameworkCodes.COMMAND_INVALID, it))
+            } ?: Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
         } else {
             Decision.Rejected(
                 Rejection(

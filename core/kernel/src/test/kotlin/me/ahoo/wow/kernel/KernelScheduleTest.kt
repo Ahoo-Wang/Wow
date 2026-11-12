@@ -23,8 +23,10 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -35,8 +37,12 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -62,7 +68,7 @@ class KernelScheduleTest {
     data class Pay(val alsoRemind: Boolean = false)
     data class Remind(val at: Long)
     data class Prepare(val at: Long)
-    data class Report(val expression: String)
+    data class Report(val expression: String, val zone: String = ScheduleRule.UTC)
     data class CancelOrder(val reason: String)
     data class Notify(val text: String)
     data class Charge(val amount: BigDecimal, val rate: Double, val count: Long, val note: String)
@@ -108,7 +114,12 @@ class KernelScheduleTest {
             Decision.NoOp
         }
         decide<Report> { _, body ->
-            schedule("report", ScheduleRule.cron(body.expression), Notify("report"), shipment.ref("t", "s-1"))
+            schedule(
+                "report",
+                ScheduleRule.cron(body.expression, body.zone),
+                Notify("report"),
+                shipment.ref("t", "s-1")
+            )
             Decision.NoOp
         }
         decide<CancelOrder> { state, _ ->
@@ -239,6 +250,62 @@ class KernelScheduleTest {
         // The state is as it was: the next command decides on it.
         (send(Pay()) as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
         send(CancelOrder("late")).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+    }
+
+    /** Cron rules that cannot run, each with its reason: unreadable, in no time zone, naming no time that ever comes. */
+    private val unrunnable = listOf(
+        ScheduleRule.Cron("0 0 9 * *") to "Cron expression \"0 0 9 * *\" has 5 fields",
+        ScheduleRule.Cron("0 0 9 * * *", "Mars/Olympus") to "\"Mars/Olympus\" is not a time zone",
+        ScheduleRule.Cron("0 0 0 30 2 *") to "\"0 0 0 30 2 *\" in UTC names no time that ever comes.",
+    )
+
+    private fun EventStreamRecord.scheduleSets(): Int = events.count { it.name == Schedules.SCHEDULE_SET }
+
+    @Test
+    fun `a decide function's schedule of a cron rule that cannot run fails the command, committing nothing`(): Unit =
+        runTest {
+            send(Place())
+            val before = streams()
+            unrunnable.forEach { (rule, reason) ->
+                val failure = runCatching { send(Report(rule.expression, rule.timeZone)) }.exceptionOrNull()
+                failure.assert().isInstanceOf(Misuse.Argument::class.java)
+                failure!!.message.assert().startsWith("The schedule report cannot run by its rule: ")
+                    .contains(reason).endsWith(ScheduleSlots.FROM_INPUT)
+            }
+            streams().assert().isEqualTo(before)
+            streams().sumOf { it.scheduleSets() }.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a SetSchedule whose cron rule cannot run is rejected as invalid, committing nothing`(): Unit = runTest {
+        send(Place())
+        val before = streams()
+        unrunnable.forEach { (rule, reason) ->
+            val rejected = send(
+                SetSchedule("ping", rule, "test.order.CancelOrder", commandOf())
+            ) as CommandOutcome.Rejected
+            rejected.rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+            rejected.rejection.message.assert().startsWith(
+                "The schedule ping cannot run by its rule: "
+            ).contains(reason)
+        }
+        streams().assert().isEqualTo(before)
+    }
+
+    @Test
+    fun `a saga's schedule of a cron rule that cannot run fails its handling, recording no command`() {
+        val execution = ExecutionId("test", "ReportSaga.onPlaced", ref, 1)
+        val event = StateEvent(ref, 1, "c-1", "r-1", "test.order.Place", NOW, listOf(Placed(NOW)), Any())
+        val context = ExecutionSagaContext(execution, event, IdGenerators.DEFAULT, names)
+        val request = CommandRequest.to(shipment.ref("t", "s-1"), Notify("report"))
+        unrunnable.forEach { (rule, reason) ->
+            assertThrownBy<Misuse.Argument> { context.schedule("report", rule, request) }
+                .hasMessageContaining(reason).hasMessageEndingWith(ScheduleSlots.FROM_INPUT)
+        }
+        context.commandsOf(emptyList()).assert().isEmpty()
+        // A rule that runs is recorded as the system command.
+        context.schedule("report", ScheduleRule.cron("0 0 9 * * MON"), request)
+        context.commandsOf(emptyList()).single().body.assert().isInstanceOf(SetSchedule::class.java)
     }
 
     @Test

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -65,6 +66,7 @@ internal class AttemptScope(
 
     override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
         if (key.isBlank()) throw Misuse.Argument("A schedule needs a key.")
+        ScheduleSlots.problemOf(key, rule)?.let { throw Misuse.Argument("$it ${ScheduleSlots.FROM_INPUT}") }
         val (type, body) = encode(target, command)
         changes().apply {
             remove(key)

@@ -313,6 +313,26 @@ class ScheduledCommandsTest {
         }
 
     @Test
+    fun `a schedule whose cron rule cannot run is rejected when set, and the timers never see it`(): Unit =
+        runBlocking {
+            val node = node("node-1", TimedBackends()).also { it.start() }
+            node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
+            val placed = node.streams("o-1")
+            listOf(
+                ScheduleRule.Cron("0 0 3 * *"),
+                ScheduleRule.Cron("0 0 3 * * *", "Mars/Olympus"),
+                ScheduleRule.Cron("0 0 0 30 2 *"),
+            ).forEach { rule ->
+                val result = node.send("o-1", SetSchedule("nightly", rule, "shop.order.CancelOrder", commandOf()))
+                result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+                result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+                result.error!!.message.assert().startsWith("The schedule nightly cannot run by its rule: ")
+            }
+            node.streams("o-1").assert().isEqualTo(placed)
+            node.timer(order("o-1"), "nightly").assert().isNull()
+        }
+
+    @Test
     fun `a node whose clock is ahead fires early, and the target waits for the due time`(): Unit = runBlocking {
         val ahead = Clock.offset(Clock.systemUTC(), java.time.Duration.ofMillis(AHEAD_MILLIS))
         val node = node("node-1", TimedBackends(), clock = ahead).also { it.start() }

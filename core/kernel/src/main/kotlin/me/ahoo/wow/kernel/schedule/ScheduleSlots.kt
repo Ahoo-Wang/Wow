@@ -60,6 +60,9 @@ object ScheduleSlots {
         }
     )
 
+    /** What a refusal of a schedule's rule set by code says of a rule that came from input. */
+    const val FROM_INPUT: String = "A rule from input is checked by the domain before it is scheduled."
+
     /** How many parsed expressions are cached now. */
     internal val cachedExpressions: Int get() = expressions.size
 
@@ -102,6 +105,22 @@ object ScheduleSlots {
     fun requireFires(rule: ScheduleRule.Cron) {
         validate(rule)
         requireNotNull(next(rule, 0L)) { "\"${rule.expression}\" in ${rule.timeZone} names no time that ever comes." }
+    }
+
+    /**
+     * Why [rule], the rule of the schedule [key], cannot run: a cron rule whose expression or time zone cannot be read,
+     * or that names no time that ever comes ([requireFires]); null when it can. The rule of a schedule that comes in
+     * new is checked by it where it is set, never a rule already stored.
+     */
+    @JvmStatic
+    fun problemOf(key: String, rule: ScheduleRule): String? {
+        if (rule !is ScheduleRule.Cron) return null
+        return try {
+            requireFires(rule)
+            null
+        } catch (invalid: IllegalArgumentException) {
+            "The schedule $key cannot run by its rule: ${invalid.message}"
+        }
     }
 
     /** The first time after [after] (epoch milliseconds) that [rule] names, or null when it names none. */

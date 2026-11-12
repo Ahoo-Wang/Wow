@@ -57,13 +57,13 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 }
 ```
 
-- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。
+- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。表达式或时区读不出来、或者永远不会到来的 cron 规则（`0 0 0 30 2 *`）会让命令失败（`wow.command.failed`），什么都不提交：来自输入的规则由领域在定时之前检查，以便用它自己的错误码拒绝。
 - `scope.cancelSchedule(key)` 取消它。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
 - 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。这个声明只是 Manifest 的内容；内核不会拒绝它没有列出的定时。
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 
-Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancelSchedule(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.SetSchedule` 和 `wow.schedule.CancelSchedule`。目标必须存在；否则它拒绝 `wow.schedule.SetSchedule`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。
+Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancelSchedule(key, target)` 取消它。运行时在处理函数返回的命令之后，按处理函数调用的顺序发送两者，即系统命令 `wow.schedule.SetSchedule` 和 `wow.schedule.CancelSchedule`。目标必须存在；否则它拒绝 `wow.schedule.SetSchedule`，拒绝交给 Saga 处理 `SetSchedule` 的 `@OnRejected` 处理函数。处理函数在 `@Sends(schedules = [...])` 里声明被定时命令的类：定时一个没有声明的类会使这次处理永久失败，聚合立即停放（[编写 Saga](./sagas#schedule-a-command)）。读不出来或永远不会到来的 cron 规则也是如此；收到这样的 `wow.schedule.SetSchedule` 的目标拒绝它（`wow.command.invalid`）。
 
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 
