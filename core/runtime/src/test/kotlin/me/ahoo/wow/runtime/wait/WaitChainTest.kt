@@ -30,6 +30,7 @@ class WaitChainTest {
 
     private val kinds = mapOf(
         "wow.snapshot" to FunctionKind.SYSTEM,
+        "wow.queryable" to FunctionKind.SYSTEM,
         "order.saga" to FunctionKind.SAGA,
         "order.projector" to FunctionKind.PROJECT,
     )
@@ -90,6 +91,13 @@ class WaitChainTest {
             .reason.assert().contains("shop.order has no snapshot subscription")
         WaitChain.of(WaitPlan.of(Hop.committed(), Hop.snapshot()), stock, ordersOnly, 4)
             .assert().isInstanceOf(WaitChain.Invalid::class.java)
+        // So is the store its queries read: there is none either.
+        (WaitChain.of(WaitPlan.of(Hop.queryable()), stock, ordersOnly, 4) as WaitChain.Invalid).reason
+            .assert().isEqualTo(
+                "Hop queryable(shop) waits for a snapshot, but shop.stock has no snapshot subscription."
+            )
+        (WaitChain.of(WaitPlan.of(Hop.queryable()), ORDER, ordersOnly, 4) as WaitChain).hops
+            .assert().containsExactly(Hop.queryable("shop"))
         // The default given a timeout of its own is still the default.
         (WaitChain.of(WaitPlan.DEFAULT.within(1.seconds), stock, ordersOnly, 4) as WaitChain).hops
             .assert().containsExactly(Hop.committed("shop"))

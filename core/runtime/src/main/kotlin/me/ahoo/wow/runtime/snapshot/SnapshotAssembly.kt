@@ -51,7 +51,7 @@ internal class SnapshotAssembly(
     /**
      * The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time and
      * remembering what it wrote of at most [capacity] aggregates, the shared states' own capacity. It answers the
-     * `snapshot` hop of the types it is the own store of, never of those it keeps a copy of.
+     * `snapshot` hop of the types it is the own store of, and the `queryable` hop of those whose queries read it.
      */
     fun subscriptions(views: SharedStates, writeBatch: Int, capacity: Int): List<SnapshotSubscription> =
         stores.map { (store, types) ->
@@ -65,7 +65,9 @@ internal class SnapshotAssembly(
                 views,
                 capacity,
                 name = targets.subscriptionOf(store),
-                answers = { type -> targets.placementOf(type).store == store },
+                answers = { type ->
+                    targets.placementOf(type).let { SnapshotSubscription.hopsOf(it.store == store, it.query == store) }
+                },
                 writeBatch = writeBatch,
             )
         }

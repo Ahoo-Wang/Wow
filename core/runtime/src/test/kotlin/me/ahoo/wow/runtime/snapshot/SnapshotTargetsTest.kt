@@ -142,7 +142,18 @@ class SnapshotTargetsTest {
         hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(order)).assert().isTrue()
         hops.hasHandled(SystemSubscriptions.SNAPSHOT, stream(cart)).assert().isTrue()
         hops.hasHandled("projector", stream(order)).assert().isTrue()
-        handled.assert().containsExactly("wow.snapshot:b", SystemSubscriptions.SNAPSHOT, "projector")
+        // The store order's queries read is its copy, `a`, written by `wow.snapshot`; cart's queries read its own.
+        hops.hasHandled(SystemSubscriptions.QUERYABLE, stream(order)).assert().isTrue()
+        hops.hasHandled(SystemSubscriptions.QUERYABLE, stream(cart)).assert().isTrue()
+        hops.kindOf("shop", SystemSubscriptions.QUERYABLE).assert().isEqualTo(FunctionKind.SYSTEM)
+        hops.covers(SystemSubscriptions.QUERYABLE, order).assert().isTrue()
+        handled.assert().containsExactly(
+            "wow.snapshot:b",
+            SystemSubscriptions.SNAPSHOT,
+            "projector",
+            SystemSubscriptions.SNAPSHOT,
+            SystemSubscriptions.QUERYABLE,
+        )
     }
 
     private fun stream(type: AggregateType) = EventStreamRecord(

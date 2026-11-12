@@ -18,11 +18,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  formatHop,
   formatScope,
   formatWaitPlan,
   formatWaitTimeout,
   type Hop,
   parseWaitPlan,
+  QUERYABLE_SUBSCRIPTION,
   wait,
   WaitPlan,
 } from '../src/index.js';
@@ -52,6 +54,18 @@ describe('wait plans', () => {
       wait.snapshot(),
       wait.handled('snapshot'),
     ]);
+  });
+
+  it('spells the queryable hop, the store the snapshot queries read, as Wow-Wait reads it', () => {
+    expect(formatHop(wait.queryable())).toBe('queryable');
+    expect(formatHop(wait.queryable('eshop-catalog'))).toBe(
+      'queryable(eshop-catalog)',
+    );
+    expect(
+      parseWaitPlan('committed > queryable(eshop-catalog) > handled(wow.queryable)')
+        .hops,
+    ).toEqual([wait.committed(), wait.queryable('eshop-catalog'), wait.queryable()]);
+    expect(wait.queryable().subscription).toBe(QUERYABLE_SUBSCRIPTION);
   });
 
   it('holds Kotlin WaitPlan constants, a default timeout of 10 seconds, and within', () => {

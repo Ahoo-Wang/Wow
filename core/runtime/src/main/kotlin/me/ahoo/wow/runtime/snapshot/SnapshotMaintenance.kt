@@ -492,7 +492,7 @@ class SnapshotMaintenance(
         log,
         codec,
         name = "${targets.subscriptionOf(store)}#${type.name}",
-        answers = { false },
+        answers = { emptySet() },
         active = { (store to it) !in caughtUp },
         writeBatch = options.writeBatch,
         gate = gate,

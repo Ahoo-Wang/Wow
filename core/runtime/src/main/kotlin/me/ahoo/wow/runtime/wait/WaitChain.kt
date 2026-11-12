@@ -67,7 +67,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
             }
             val hops = plan.hops.map { if (it.context == null) it.copyWith(context = context) else it }
             val own = hops.firstOrNull { it.stage == Stage.HANDLED }
-            if (!snapshots && own == Hop.snapshot(context)) {
+            if (!snapshots && waitsForSnapshot(own, context)) {
                 return Invalid("Hop $own waits for a snapshot, but $type has no snapshot subscription.")
             }
             if (hops.size > maxHops) {
@@ -154,5 +154,9 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
             return "Hop $hop follows ${saga.context}/${saga.subscription}, which derives commands of " +
                 "${derived.sorted()} only."
         }
+
+        /** Whether [hop] waits for a snapshot of [context]: its `snapshot`, or the store its queries read. */
+        private fun waitsForSnapshot(hop: Hop?, context: String): Boolean =
+            hop == Hop.snapshot(context) || hop == Hop.queryable(context)
     }
 }

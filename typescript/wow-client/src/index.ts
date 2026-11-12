@@ -116,6 +116,7 @@ export {
   formatWaitTimeout,
   parseHop,
   parseWaitPlan,
+  QUERYABLE_SUBSCRIPTION,
   SNAPSHOT_SUBSCRIPTION,
   wait,
   WaitPlan,

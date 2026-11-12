@@ -51,10 +51,10 @@ import me.ahoo.wow.spi.timer.TimerStore
  *   several services or environments share; none by default;
  * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
  *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
- *   command's `snapshot` wait is answered by the subscription of its own snapshot store, never this one's, so
- *   waiting for a refresh serves only an in-process caller that builds a wait hop on this store's subscription in
- *   code (`wow.snapshot:<store>`, a name `Wow-Wait` does not admit), and caps that subscription's writes at a batch
- *   per write lane a refresh interval;
+ *   command's `snapshot` wait is answered by the subscription of its own snapshot store, never this one's; its
+ *   `queryable` wait, by this store's subscription for a type whose snapshot queries read this store, so with
+ *   `wait_for` a caller that waits `queryable` then sees its commit in a list or a count. Waiting for a refresh caps
+ *   that subscription's writes at a batch per write lane a refresh interval;
  * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
  *   instead of the one the snapshot writes use; the store's `client` by default;
  * - `reindex-requests-per-second`: how many documents a second the store indexes again when its queries map a field an

@@ -20,9 +20,10 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The subscription directory of [context]'s runtime, with its `snapshot` hop answered by the snapshot targets:
- * the hop is the subscription of the primary target of each type of [types], the context's
- * snapshotted ones ([SnapshotTargets.primarySubscriptionOf]), whatever store it writes.
+ * The subscription directory of [context]'s runtime, with its `snapshot` and `queryable` hops answered by the snapshot
+ * targets, for each type of [types], the context's snapshotted ones: `snapshot` by the subscription of the type's own
+ * store ([SnapshotTargets.primarySubscriptionOf]), `queryable` by the one of the store its queries read, its copy's
+ * where it has one ([SnapshotTargets.querySubscriptionOf]).
  */
 internal class SnapshotHops(
     private val runtime: SubscriptionDirectory,
@@ -31,14 +32,14 @@ internal class SnapshotHops(
     private val types: Set<AggregateType>,
 ) : SubscriptionDirectory by runtime {
     override fun kindOf(context: String, subscription: String): FunctionKind? =
-        if (subscription == SystemSubscriptions.SNAPSHOT && context == this.context) {
+        if (snapshotHop(subscription) && context == this.context) {
             FunctionKind.SYSTEM.takeIf { types.isNotEmpty() }
         } else {
             runtime.kindOf(context, subscription)
         }
 
     override fun covers(subscription: String, type: AggregateType): Boolean =
-        if (subscription == SystemSubscriptions.SNAPSHOT && type.context == context) {
+        if (snapshotHop(subscription) && type.context == context) {
             type in types
         } else {
             runtime.covers(subscription, type)
@@ -49,6 +50,12 @@ internal class SnapshotHops(
         if (subscription == SystemSubscriptions.SNAPSHOT && type in types) {
             return runtime.hasHandled(targets.primarySubscriptionOf(type), stream)
         }
+        if (subscription == SystemSubscriptions.QUERYABLE && type in types) {
+            return runtime.hasHandled(targets.querySubscriptionOf(type), stream)
+        }
         return runtime.hasHandled(subscription, stream)
     }
+
+    private fun snapshotHop(subscription: String): Boolean =
+        subscription == SystemSubscriptions.SNAPSHOT || subscription == SystemSubscriptions.QUERYABLE
 }

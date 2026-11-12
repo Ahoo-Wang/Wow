@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -76,6 +76,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `Positioned` | interface | One row of a streamed list, with its position. | — |
 | `Problem` | interface | An RFC 9457 problem as a Wow service writes it: `type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
+| `QUERYABLE_SUBSCRIPTION` | const | The name a `queryable` hop gives the snapshot subscription of the store an aggregate type's snapshot queries read: its copy's where it has one, else its own store's, as `snapshot` is. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
 | `RefusedResult` | interface | A result that may not have succeeded, as a rejection or a problem carries it (`CommandRejectedError.result`, `WowProblemError.result`): a command refused before an aggregate id was decided names none (`CommandRef`). | — |
@@ -130,7 +131,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |
-| `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`. | — |
+| `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot`, `queryable` and `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`, `queryable(ctx)`, `handled(ctx/subscription)`. | — |
 | `formatScope` | function | A target scope as the `Wow-Scope` header spells it, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"`. | — |
 | `formatWaitPlan` | function | A wait plan as the `Wow-Wait` header spells it: its hops, in order, separated by `>`; the inverse of `parseWaitPlan`. | — |
 | `formatWaitTimeout` | function | A wait timeout as the `Wow-Wait-Timeout` header spells it: milliseconds as `<n>s` when whole seconds, else `<n>ms`. | — |
@@ -139,7 +140,7 @@ Every name `@ahoo-wang/wow-client` exports — 134 — with its kind and the fir
 | `parseHop` | function | The hop one part of a `Wow-Wait` value spells; see `parseWaitPlan`. | — |
 | `parseJson` | function | `text` read as `JSON.parse` reads it, but each number `marks` marks comes back as its exact text, a string. | — |
 | `parseRetryAfter` | function | The milliseconds of a `Retry-After` header: delay seconds or an HTTP date. | — |
-| `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of `formatWaitPlan`. | — |
+| `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` or `handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of `formatWaitPlan`. | — |
 | `queryPath` | function | The query route of a model of an aggregate type. | — |
 | `readProblem` | function | The problem a response that did not succeed carries: its body when it is a problem (or a code the `type` names), else one made of its status. | — |
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |

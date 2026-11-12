@@ -71,14 +71,20 @@ class Hop @InternalWowApi constructor(
     }
 
     /**
-     * This hop as the `Wow-Wait` header spells it: `accepted`, `committed`, `snapshot` and
+     * This hop as the `Wow-Wait` header spells it: `accepted`, `committed`, `snapshot`, `queryable` and
      * `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`,
-     * `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets the context apart.
+     * `queryable(ctx)`, `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets
+     * the context apart.
      */
     override fun toString(): String {
-        val keyword = if (subscription == SystemSubscriptions.SNAPSHOT) "snapshot" else WireNames.of(stage)
+        val keyword = when (subscription) {
+            SystemSubscriptions.SNAPSHOT -> "snapshot"
+            SystemSubscriptions.QUERYABLE -> "queryable"
+            else -> WireNames.of(stage)
+        }
         val argument = when {
-            subscription == null || subscription == SystemSubscriptions.SNAPSHOT -> context
+            subscription == null || subscription == SystemSubscriptions.SNAPSHOT ||
+                subscription == SystemSubscriptions.QUERYABLE -> context
             context == null -> subscription
             else -> "$context/$subscription"
         }
@@ -120,6 +126,15 @@ class Hop @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun snapshot(context: String? = null): Hop = handled(SystemSubscriptions.SNAPSHOT, context)
+
+        /**
+         * [Stage.HANDLED] by the snapshot subscription of the store the aggregate type's snapshot queries read: a query
+         * sees the commit. The same as [snapshot] for a type whose queries read its own store, later than it for one
+         * whose queries read a copy ([SystemSubscriptions.QUERYABLE]).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun queryable(context: String? = null): Hop = handled(SystemSubscriptions.QUERYABLE, context)
     }
 }
 

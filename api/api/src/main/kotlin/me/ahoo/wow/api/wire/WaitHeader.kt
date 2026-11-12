@@ -34,13 +34,15 @@ import java.time.Duration as JavaDuration
  * hop  := "accepted" ["(" ctx ")"]
  *       | "committed" ["(" ctx ")"]
  *       | "snapshot" ["(" ctx ")"]
+ *       | "queryable" ["(" ctx ")"]
  *       | "handled(" [ctx "/"] subscription ")"
  * ```
  *
  * Keywords are case-insensitive and white space around the tokens is ignored: `handled(order/payment-saga) >
  * committed(inventory)`. A subscription is named as in the Manifest and may hold dots (`processor.function`), so the
- * context of a `handled` hop is set apart by `/`. `handled(wow.snapshot)` is the same hop as `snapshot`. The timeout is
- * `<n>ms`, `<n>s`, `<n>m` or an ISO-8601 duration (`PT10S`), and positive.
+ * context of a `handled` hop is set apart by `/`. `handled(wow.snapshot)` is the same hop as `snapshot`, and
+ * `handled(wow.queryable)` as `queryable`: the commit is in the store the aggregate type's snapshot queries read. The
+ * timeout is `<n>ms`, `<n>s`, `<n>m` or an ISO-8601 duration (`PT10S`), and positive.
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].
  */
@@ -65,6 +67,7 @@ object WaitHeader {
             "accepted" -> Hop.accepted(argument?.let(::name))
             "committed" -> Hop.committed(argument?.let(::name))
             "snapshot" -> Hop.snapshot(argument?.let(::name))
+            "queryable" -> Hop.queryable(argument?.let(::name))
             "handled" -> handled(requireNotNull(argument) { "A handled hop names its subscription: '$value'." })
             else -> throw IllegalArgumentException("Not a stage: '$keyword'.")
         }
@@ -94,6 +97,9 @@ object WaitHeader {
         return when {
             hop.stage == Stage.HANDLED && hop.subscription == SystemSubscriptions.SNAPSHOT ->
                 if (context == null) "snapshot" else "snapshot($context)"
+
+            hop.stage == Stage.HANDLED && hop.subscription == SystemSubscriptions.QUERYABLE ->
+                if (context == null) "queryable" else "queryable($context)"
 
             hop.stage == Stage.HANDLED ->
                 if (context == null) "handled(${hop.subscription})" else "handled($context/${hop.subscription})"

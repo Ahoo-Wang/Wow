@@ -54,6 +54,8 @@ export const analyticsCatalogWait = {
   committed: (): Hop => wait.committed(AnalyticsCatalogContract.NAME),
   /** Until the snapshot of `analytics-catalog` holds the commit. */
   snapshot: (): Hop => wait.snapshot(AnalyticsCatalogContract.NAME),
+  /** Until the store the snapshot queries of `analytics-catalog` read holds the commit. */
+  queryable: (): Hop => wait.queryable(AnalyticsCatalogContract.NAME),
   /** Until a subscription of `analytics-catalog` handled the commit. */
   handled: (subscription: AnalyticsCatalogSubscription): Hop => wait.handled(subscription, AnalyticsCatalogContract.NAME),
 } as const;
