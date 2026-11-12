@@ -104,8 +104,8 @@ object PostgresQueryIndexes {
      * The indexes of [plan], the access attributes of [aggregate] in [context], on its log table, keyed as the
      * `events` model's SQL compiler reads them ([PostgresEventQueryExpressions]) and each partial on its key holding a
      * value (`WHERE <key> IS NOT NULL`) rather than on the snapshots not deleted: a stream not stamped, or of an
-     * aggregate without an owner or a space, adds nothing to an index, and every comparison an access policy makes
-     * implies the key holds one. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
+     * aggregate without an owner or a space, adds nothing to an index, and every comparison an access policy makes but
+     * `isNull` implies the key holds one: `isNull` reads the table. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
      * and are not read for an order, which for an `events` query ends with the stream key (tenant, aggregate, version).
      */
     fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {

@@ -189,7 +189,7 @@ A predicate compares the aggregate's attributes, through the references of `<Sta
 
 The caller is the one the host resolved for the request ([Authenticate callers](../operate/security#authenticate-callers)). A policy reads `caller.subject`, `caller.app` and `caller.scope`, and its claims by name: `caller.claim("org")` is a claim's first value or null, `caller.claims("departments")` its values or none, and `caller.hasRole("auditor")` whether its `roles` claim holds the role.
 
-**What is missing denies.** A comparison with a claim the caller does not hold, null or no values, holds neither way, and so does a comparison of a value the aggregate does not have. `not` holds only of a value the aggregate has, so neither an absent value nor a missing claim ever grants, however the predicate negates it. Public data is said in the policy: `allowAll()`, or `A.isNull()` within an `anyOf`.
+**What is missing denies.** A comparison with a claim the caller does not hold, null or no values, holds neither way, and so does a comparison of a value the aggregate does not have. `not` holds only of a value the aggregate has, so neither an absent value nor a missing claim ever grants, however the predicate negates it. Public data is said in the policy: `allowAll()`, or `A.isNull()` within an `anyOf`. On PostgreSQL and MongoDB an `isNull` branch reads by no index, so a policy that holds one reads every stream of the tenant: a model with much public data gives it a value of its own, an attribute such as `visibility` of value `public`, which `eq` reads by its index.
 
 A policy of documents that their department reads and changes, shared with some users, owned by one and audited by a role:
 

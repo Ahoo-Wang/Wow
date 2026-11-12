@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
@@ -36,6 +37,7 @@ import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.log.Partitioner
 import org.bson.Document
 import org.bson.conversions.Bson
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
@@ -130,13 +132,17 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         "events" to ARRAY_TYPES,
     )
 
-    /** The log's own fields of a stream: its position, causation, headers and transport bytes. */
+    /**
+     * The log's own fields of a stream: its position, causation, headers, the version and the tenant-scoped keys of its
+     * access attributes, and its transport bytes.
+     */
     override val unread: List<String> = listOf(
         MongoEventLog.PARTITION,
         MongoEventLog.SEQUENCE,
         MongoEventLog.CAUSATION,
         MongoEventLog.HEADERS,
         MongoEventLog.ACCESS_VERSION,
+        MongoEventLog.ACCESS_KEY,
         MongoEventLog.TRANSPORT,
     )
 
@@ -181,18 +187,29 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                             .set(EventFields.BODY, ExactBson.node(event[PAYLOAD]))
                     }
                 }
-                EventStreamFields.OPERATOR -> set(
-                    logical,
-                    MongoOperators.of(document.get(physical, Document::class.java))?.let { operator ->
-                        nodes.objectNode()
-                            .put(MongoOperators.ID, operator.id)
-                            .put(MongoOperators.TENANT_ID, operator.tenantId)
-                            .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
-                    } ?: nodes.nullNode(),
-                )
+                EventStreamFields.OPERATOR, EventStreamFields.ACCESS ->
+                    set(logical, storedObject(logical, document.get(physical, Document::class.java)))
                 else -> set(logical, ExactBson.node(document[physical]))
             }
         }
+    }
+
+    /**
+     * The record's operator or access attributes of their stored sub-document [stored]: the operator as
+     * `{id, tenantId, actedElsewhere}`; the attributes with the built-in ones a stream leaves out without a value put
+     * back as null ([MongoAccess.restored]). JSON null when the document holds the field as null, as one an earlier
+     * version wrote may.
+     */
+    private fun storedObject(logical: String, stored: Document?): JsonNode {
+        if (logical == EventStreamFields.ACCESS) {
+            return stored?.let { ExactBson.node(MongoAccess.restored(it)) } ?: nodes.nullNode()
+        }
+        return MongoOperators.of(stored)?.let { operator ->
+            nodes.objectNode()
+                .put(MongoOperators.ID, operator.id)
+                .put(MongoOperators.TENANT_ID, operator.tenantId)
+                .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
+        } ?: nodes.nullNode()
     }
 }
 

@@ -20,6 +20,7 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_KEY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION
@@ -79,7 +80,13 @@ internal class MongoLogDocuments(private val context: String) {
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         // The access attributes and the version they are of, its own: both absent when not stamped.
         .apply {
-            stream.access?.let { append(ACCESS, Document(it)) }
+            stream.access?.let { access ->
+                append(ACCESS, MongoAccess.log(access))
+                MongoAccess.keys(
+                    stream.ref.tenantId,
+                    access
+                ).takeUnless { it.isEmpty() }?.let { append(ACCESS_KEY, it) }
+            }
             stream.accessVersion?.let { append(ACCESS_VERSION, it) }
         }
         .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
@@ -125,7 +132,7 @@ internal class MongoLogDocuments(private val context: String) {
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
-        access = MongoAccess.of(document.get(ACCESS, Document::class.java)),
+        access = MongoAccess.ofLog(document.get(ACCESS, Document::class.java)),
         accessVersion = document.getInteger(ACCESS_VERSION),
     )
 }

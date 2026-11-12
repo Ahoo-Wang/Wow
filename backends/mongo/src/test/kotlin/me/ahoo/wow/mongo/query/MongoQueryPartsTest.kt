@@ -131,7 +131,7 @@ class MongoQueryPartsTest {
     fun `a stream query leaves out the log's own fields and is given the partitions of the aggregates it pins`() {
         val unread = MongoEventDocuments.unread
         MongoProjections.native(admitted(Projection.ALL), unread = unread).toBsonDocument().toJson().assert().isEqualTo(
-            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "transport": 0, "_id": 0}""",
+            """{"partition": 0, "sequence": 0, "causation": 0, "headers": 0, "access_version": 0, "access_key": 0, "transport": 0, "_id": 0}""",
         )
         MongoProjections.native(admitted(Projection(include = listOf(QueryField("tenantId")))), unread = unread)
             .toBsonDocument().toJson().assert().isEqualTo("""{"tenant_id": 1, "_id": 0}""")
@@ -197,6 +197,22 @@ class MongoQueryPartsTest {
             ),
         )
         projected.toString().assert().isEqualTo("""{"state":{"lines":[{},{"sku":"A"},{}]}}""")
+    }
+
+    @Test
+    fun `an events record reads an operator and access attributes held as null as null`() {
+        // A document an earlier version wrote may hold either field as an explicit null.
+        val document = Document("tenant_id", "t").append("operator", null).append("access", null)
+        val record = MongoEventDocuments.record(document)
+        record.get("operator").isNull.assert().isTrue()
+        record.get("access").isNull.assert().isTrue()
+        val held = Document("tenant_id", "t")
+            .append("operator", Document("id", "u").append("tenantId", "t"))
+            .append("access", Document("region", "east"))
+        MongoEventDocuments.record(held).toString().assert().isEqualTo(
+            """{"tenantId":"t","operator":{"id":"u","tenantId":"t","actedElsewhere":false},""" +
+                """"access":{"owner":null,"space":null,"region":"east"}}""",
+        )
     }
 
     @Test

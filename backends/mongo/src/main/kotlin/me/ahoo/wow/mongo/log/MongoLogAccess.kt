@@ -23,7 +23,9 @@ import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_KEY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_WALK
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
@@ -66,7 +68,7 @@ internal class MongoLogAccess(
         return dispatcher.mongo {
             collections.of(ref.type).log.updateMany(
                 stampFilter(ref, asOf, from, until),
-                Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
+                stamped(ref.tenantId, access, asOf),
             ).matchedCount.toInt()
         }
     }
@@ -84,12 +86,22 @@ internal class MongoLogAccess(
                 val updates = group.map {
                     UpdateManyModel<Document>(
                         stampFilter(it.ref, it.asOf, it.from, it.until),
-                        Updates.combine(Updates.set(ACCESS, Document(it.access)), Updates.set(ACCESS_VERSION, it.asOf)),
+                        stamped(it.ref.tenantId, it.access, it.asOf),
                     )
                 }
                 collections.of(type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).matchedCount
             }
         }
+    }
+
+    /** The update that stamps a stream of [tenantId] with [access] as of [asOf], its tenant-scoped keys with it. */
+    private fun stamped(tenantId: String, access: Map<String, Any?>, asOf: Int): Bson {
+        val keys = MongoAccess.keys(tenantId, access)
+        return Updates.combine(
+            Updates.set(ACCESS, MongoAccess.log(access)),
+            if (keys.isEmpty()) Updates.unset(ACCESS_KEY) else Updates.set(ACCESS_KEY, keys),
+            Updates.set(ACCESS_VERSION, asOf),
+        )
     }
 
     /** The streams of [ref] from [from] until [until] not stamped as of a later version than [asOf]. */

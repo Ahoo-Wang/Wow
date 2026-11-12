@@ -521,6 +521,9 @@ class MongoEventLog(
         const val ACCESS = "access"
         const val ACCESS_VERSION = "access_version"
 
+        /** The tenant-scoped keys of a stream's built-in access attributes ([me.ahoo.wow.mongo.MongoAccess.keys]). */
+        const val ACCESS_KEY = "access_key"
+
         /** A registry document's access walk: `{schema, heads: {partition: head}, cursor, walked, completed}`. */
         const val ACCESS_WALK = "access_walk"
         const val SCHEMA = "schema"
