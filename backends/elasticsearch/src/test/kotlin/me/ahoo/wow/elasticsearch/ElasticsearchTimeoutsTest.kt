@@ -120,6 +120,33 @@ class ElasticsearchTimeoutsTest {
     }
 
     @Test
+    fun `a deadline that comes after the caller gave up should change nothing`() {
+        // The caller cancels first; the client cannot cancel its request any more, so its deadline still comes.
+        val held = object : HeldClient() {
+            override val sent = object : CompletableFuture<TransportHttpClient.Response>() {
+                override fun cancel(mayInterruptIfRunning: Boolean): Boolean = false
+            }
+        }
+        val answered = send(held, 50.milliseconds)
+        answered.cancel(true)
+        Thread.sleep(200)
+        answered.isCancelled.assert().isTrue()
+        held.sent.isDone.assert().isFalse()
+    }
+
+    @Test
+    fun `a synchronous request and the close should be the client's own`() {
+        val response = mockk<TransportHttpClient.Response>(relaxed = true)
+        val delegate = mockk<TransportHttpClient>(relaxed = true) {
+            io.mockk.every { performRequest("get", null, request, null) } returns response
+        }
+        val client = BoundedHttpClient(delegate, 1.seconds)
+        client.performRequest("get", null, request, null).assert().isSameAs(response)
+        client.close()
+        verify { delegate.close() }
+    }
+
+    @Test
     fun `a timeout should be positive`() {
         assertThrownBy<IllegalArgumentException> { BoundedHttpClient(HeldClient(), Duration.ZERO) }
     }
