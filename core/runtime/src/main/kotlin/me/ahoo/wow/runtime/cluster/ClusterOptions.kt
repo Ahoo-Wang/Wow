@@ -60,8 +60,9 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
  * The tuning of partition ownership and the cluster channel on one node (–).
  *
  * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
- *   renewal round renews the held leases with one call, and acquisitions run at most [leaseParallelism]
- *   at a time: a round must stay well inside `leaseTtl − renewInterval`. A lease left unrenewed that long is taken as lost, so
+ *   renewal round renews the held leases with one call, and a lease group's acquisitions and the releases its
+ *   hand-offs end with run at most [leaseParallelism] at a time, one bound for both: a round must stay well inside
+ *   `leaseTtl − renewInterval`. A lease left unrenewed that long is taken as lost, so
  *   [renewInterval] is less than half of [leaseTtl]: otherwise every lease would be lost between two
  *   rounds.
  * - [memberTtl], refreshed every [heartbeatInterval]: how long a node stays a member after its last heartbeat.

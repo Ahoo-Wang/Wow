@@ -242,6 +242,11 @@ class SubscriptionCheckpointTest {
             override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
                 if (!killed) checkpoints.save(group, subscription, partition, position)
             }
+
+            // A stop saves its checkpoints in one call.
+            override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+                if (!killed) this@SubscriptionCheckpointTest.checkpoints.saveAll(group, checkpoints)
+            }
         }
         val first = Handled()
         val killedNode = SubscriptionRuntime(

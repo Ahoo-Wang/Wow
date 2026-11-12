@@ -19,38 +19,26 @@ import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 
 /**
- * Where a [SubscriptionWorker] stores its [watermark], the checkpoint of its [subscription] in [partition] of [group]:
- * at once ([flush], on a stop), or in the runtime's periodic save of all its workers ([unsaved], then [saved]). It
- * remembers the last position stored, starting at the [checkpoint] the worker started from, so it never stores one
- * twice nor a lower one.
+ * Where a [SubscriptionWorker] stores its [watermark], the checkpoint of its [subscription] in [partition]:
+ * in the runtime's saves of its workers, periodic or on a stop ([unsaved], then [saved]). It remembers the last
+ * position stored, starting at the [checkpoint] the worker started from, so it never stores one twice nor a lower one.
  */
 internal class CheckpointSaves(
-    private val group: String,
     private val subscription: Subscription,
     private val partition: Int,
-    private val checkpoints: CheckpointStore,
     checkpoint: Long,
     /** The worker's watermark now. */
     private val watermark: () -> Long,
 ) {
-    private val flushLock = Mutex()
+    private val lock = Mutex()
 
-    /** The last position stored. Written under `flushLock`. */
+    /** The last position stored. Written under `lock`. */
     @Volatile
     private var saved = checkpoint
 
-    /** Saves the watermark if it moved since the last save. */
-    suspend fun flush() = flushLock.withLock {
-        val position = watermark()
-        if (position > saved) {
-            checkpoints.save(group, subscription.name, partition, position)
-            saved = position
-        }
-    }
-
     /**
-     * The watermark when it moved since the last save, else null: what the runtime's periodic save stores, for all
-     * its workers at once ([CheckpointStore.saveAll]), then reports with [saved].
+     * The watermark when it moved since the last save, else null: what the runtime's saves store, periodic or on a
+     * stop, several workers at once ([CheckpointStore.saveAll]), then report with [saved].
      */
     fun unsaved(): Checkpoint? {
         val position = watermark()
@@ -58,7 +46,7 @@ internal class CheckpointSaves(
     }
 
     /** Records that [checkpoint], from [unsaved], is stored. */
-    suspend fun saved(checkpoint: Checkpoint) = flushLock.withLock {
+    suspend fun saved(checkpoint: Checkpoint) = lock.withLock {
         if (checkpoint.position > saved) {
             saved = checkpoint.position
         }

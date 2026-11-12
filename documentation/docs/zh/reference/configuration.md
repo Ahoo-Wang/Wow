@@ -92,7 +92,7 @@ How the nodes of a service share the partitions of each context's log, and forwa
 | `wow.cluster.drain-timeout` | `Duration` | `PT10S` | How long a hand-off of a partition waits for its commands in flight before it moves on. |
 | `wow.cluster.forward-timeout` | `Duration` |  | How long a forward waits for the owner's reply, capped by the command's own deadline: `wow.wait.default-timeout` when not set, so a node whose waits are longer forwards as long. A forward the owner received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so the command never runs twice and a retry with the same request id is safe. |
 | `wow.cluster.heartbeat-interval` | `Duration` | `PT3S` | How often a node sends its heartbeat; less than half of `member-ttl`, so one late heartbeat is harmless. |
-| `wow.cluster.lease-parallelism` | `Integer` | `16` | The most lease acquisitions a node runs at a time. |
+| `wow.cluster.lease-parallelism` | `Integer` | `16` | The most lease calls a node runs at a time for one lease group: its acquisitions and the releases its hand-offs end with, one bound for both. |
 | `wow.cluster.lease-ttl` | `Duration` | `PT10S` | How long a partition stays with a node that stopped renewing its lease. |
 | `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more runs here instead. |
 | `wow.cluster.member-ttl` | `Duration` | `PT10S` | How long a node stays a member of the cluster after its last heartbeat. |

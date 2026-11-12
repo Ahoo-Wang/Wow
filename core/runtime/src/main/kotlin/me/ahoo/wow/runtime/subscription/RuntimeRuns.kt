@@ -39,6 +39,12 @@ internal class Running(
      */
     val starting = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
 
+    /**
+     * The partitions [SubscriptionRuntime.stopPartition] is stopping, outside the mutex, each done once its workers
+     * are gone: a start of the partition, and the run's own stop, wait for it.
+     */
+    val stopping = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
+
     /** The subscriptions that had read the stream when the runtime started ([WorkerStarts.joinedSubscriptions]). */
     var joined: Set<String> = emptySet()
 }
