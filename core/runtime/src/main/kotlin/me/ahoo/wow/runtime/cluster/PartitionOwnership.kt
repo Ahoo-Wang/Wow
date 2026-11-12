@@ -53,21 +53,12 @@ import kotlin.time.TimeSource
  *   record listing the groups it takes part in, heartbeated every [ClusterOptions.heartbeatInterval], and one read of
  *   the members per interval, which this group's reconcile and routes reuse. The group's members are those listing
  *   it.
- * - **A stuck reconcile fences the group.** A reconcile that finishes no step for one partition (an acquisition, a
- *   hand-off, a drop) for [ClusterOptions.reconcileTimeout], stuck stopping or starting one, is stuck: a long reconcile
- *   that keeps finishing steps is not. The node then takes the group off its record, so the others take the
- *   partitions it cannot run instead of handing them back to it, and gives up its leases in this order: every
- *   partition stops taking commands at once, so a command for it is forwarded to the next owner; each one's commands
- *   in flight end, or [ClusterOptions.drainTimeout] passes; only then is its lease left unrenewed, without a release,
- *   to expire within [ClusterOptions.leaseTtl]. So there is never a holder here and an acquirer elsewhere at once. A
- *   lease the stuck reconcile still takes is never renewed, and the partitions' timers are stopped, each stop bounded
- *   by the drain timeout. The intake and the subscriptions are left running: the intake's commands meet the closed
- *   partitions and are forwarded, and a subscription's stop is what such a reconcile is usually stuck on. Their
- *   effects can repeat beside the new owner's until the reconcile moves again, as those of a lease lost while a
- *   reconcile is busy can. Once it does, the node is a member again, and its next reconcile stops the partitions it
- *   gave up and takes its share back. Each fence and recovery is observed and logged ([GroupFence]). A reconcile
- *   still running after `wow.health.liveness.stall-timeout` fails the node's liveness, so its orchestrator restarts
- *   it: such a reconcile waits on a call that never returns, which only a restart ends.
+ * - **A stuck reconcile fences the group** ([GroupFence]): one that finishes no step for one partition for
+ *   [ClusterOptions.reconcileTimeout] (a long one that keeps finishing steps is not stuck). The node leaves the
+ *   members, its partitions stop taking commands at once, and each lease is left to expire once its commands in flight
+ *   end or the drain timeout passes, so there is never a holder here and an acquirer elsewhere at once; its
+ *   subscriptions run on, their effects repeating beside the new owner's, until the reconcile moves again. One still
+ *   running after `wow.health.liveness.stall-timeout` fails the node's liveness, so its orchestrator restarts it.
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
@@ -230,7 +221,14 @@ class PartitionOwnership internal constructor(
 
     /** The fence of the group while a reconcile is stuck: it reads [gates] and flips a gate's own fields only. */
     private val fence = GroupFence(
-        group, node, options, timeSource, gates, this.membership, timers, observer,
+        group,
+        node,
+        options,
+        timeSource,
+        gates,
+        this.membership,
+        timers,
+        observer,
     ) { wakeReconcile.trySend(Unit) }
 
     /** The renewals and the fencing of the leases held: they read [gates] and flip a gate's own fields only. */
