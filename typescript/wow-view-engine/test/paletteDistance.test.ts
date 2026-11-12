@@ -69,9 +69,9 @@ const VISION = {
  */
 const LIGHT_EXCEPTIONS: Record<string, readonly number[]> = {
   neutral: [3, 4, 5],
-  // Yellow, in each palette of its own that keeps one.
   contrast: [],
-  // The example host theme, measured after the built-in ones.
+  // The example host theme, measured after the built-in ones: yellow, in
+  // a palette of its own that keeps one.
   porcelain: [5],
 };
 

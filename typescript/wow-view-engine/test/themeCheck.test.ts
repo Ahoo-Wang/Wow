@@ -58,7 +58,7 @@ const kinds = (findings: readonly Finding[]) => [
 ];
 
 describe('the token rules the build ships', () => {
-  const shipped = createResolver({
+  const rules = createResolver({
     styles: themeSource(STYLES),
     presets: MEASURED_SOURCE,
     registry: REGISTRY,
@@ -79,7 +79,7 @@ describe('the token rules the build ships', () => {
         string
       >[])
         expect(
-          shipped.declared(preset, mode, convention, host, {
+          rules.declared(preset, mode, convention, host, {
             brandChart: true,
           }),
         ).toEqual(
@@ -87,7 +87,7 @@ describe('the token rules the build ships', () => {
             brandChart: true,
           }),
         );
-    expect(shipped.resetVariables()).toEqual(RESOLVER.resetVariables());
+    expect(rules.resetVariables()).toEqual(RESOLVER.resetVariables());
   });
 });
 
@@ -287,7 +287,7 @@ describe('each check fires on what it names', () => {
     expect(REGISTRY.targetFloor).toBe(24);
   });
 
-  it('holds the package’s own presets to the floor', () => {
+  it('holds the built-in presets and the example theme to the floor', () => {
     expect(
       check(MEASURED_SOURCE, [...PRESET_NAMES]).filter(
         ({ check }) => check === 'target',
