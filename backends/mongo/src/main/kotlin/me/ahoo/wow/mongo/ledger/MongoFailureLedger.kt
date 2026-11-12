@@ -151,7 +151,8 @@ class MongoFailureLedger(
             .append(RETRY_AT, kept(RETRY_AT, entry.retryAt))
             .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
             .append(RECOVERABLE, kept(RECOVERABLE, entry.recoverable.name))
-            .append(REQUEST, kept(REQUEST, entry.request?.name))
+            // A request belongs to the parking it was made for: kept while the failure time is.
+            .append(REQUEST, either(literal(entry.request?.name), sameParking(entry.failedAt, "\$$REQUEST")))
             .append(NEXT_ATTEMPT_AT, either(literal(entry.nextAttemptAt), null))
             .append(REVISION, either(0L, Document("\$add", listOf(STORED_REVISION, 1L))))
         conditionalUpsert { upsert ->
@@ -161,17 +162,19 @@ class MongoFailureLedger(
     }
 
     override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = dispatcher.mongo {
-        val update = Updates.combine(
-            Updates.set(PARTITION, entry.partition),
-            Updates.set(FROM_VERSION, entry.fromVersion),
-            Updates.set(REASON, entry.reason),
-            Updates.set(FAILED_AT, entry.failedAt),
-            Updates.set(FROM_POSITION, entry.fromPosition),
-            Updates.set(SKIP_ONLY, entry.skipOnly),
-            UNSCHEDULED,
-            NEXT_REVISION,
-        )
-        ledger.updateOne(inPartition(keyFilter(entry.subscription, entry.ref), from), update).matchedCount > 0
+        // A pipeline, so the request is kept only while the failure time is: one stage reads the entry as stored.
+        val placed = Document()
+            .append(PARTITION, literal(entry.partition))
+            .append(FROM_VERSION, literal(entry.fromVersion))
+            .append(REASON, literal(entry.reason))
+            .append(FAILED_AT, literal(entry.failedAt))
+            .append(FROM_POSITION, literal(entry.fromPosition))
+            .append(SKIP_ONLY, literal(entry.skipOnly))
+            .append(REQUEST, sameParking(entry.failedAt, "\$$REQUEST"))
+            .append(NEXT_ATTEMPT_AT, null)
+            .append(REVISION, Document("\$add", listOf(STORED_REVISION, 1L)))
+        val filter = inPartition(keyFilter(entry.subscription, entry.ref), from)
+        ledger.updateOne(filter, listOf(Document("\$set", placed))).matchedCount > 0
     }
 
     override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
@@ -257,10 +260,11 @@ class MongoFailureLedger(
             is ParkedAmendment.ClaimRetry -> at(key, amendment.revision) to
                 Updates.combine(Updates.inc(RETRIES, 1), Updates.set(RETRY_AT, amendment.at), UNSCHEDULED)
 
-            is ParkedAmendment.MarkRecoverable ->
-                key to Updates.combine(Updates.set(RECOVERABLE, amendment.recoverable.name), UNSCHEDULED)
+            is ParkedAmendment.MarkRecoverable -> ofParking(key, amendment.failedAt) to
+                Updates.combine(Updates.set(RECOVERABLE, amendment.recoverable.name), UNSCHEDULED)
 
-            is ParkedAmendment.Request -> key to Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
+            is ParkedAmendment.Request -> ofParking(key, amendment.failedAt) to
+                Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
             is ParkedAmendment.Schedule -> at(key, amendment.revision) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
             is ParkedAmendment.TakeRequest -> at(key, amendment.revision) to Updates.set(REQUEST, null)
             is ParkedAmendment.Restate -> at(key, amendment.revision) to Updates.combine(
@@ -426,5 +430,13 @@ class MongoFailureLedger(
 
         /** [value] as a pipeline update takes it as it is, never as an expression or a field path. */
         fun literal(value: Any?): Document = Document("\$literal", value)
+
+        /** In a pipeline update, [stored] while the entry stored fails at [failedAt], else null. */
+        fun sameParking(failedAt: Long, stored: String): Document =
+            Document("\$cond", listOf(Document("\$eq", listOf("\$$FAILED_AT", failedAt)), stored, null))
+
+        /** [key], narrowed to the parking an operator's amendment names by its failure time; any parking for null. */
+        fun ofParking(key: Bson, failedAt: Long?): Bson =
+            failedAt?.let { Filters.and(key, Filters.eq(FAILED_AT, it)) } ?: key
     }
 }

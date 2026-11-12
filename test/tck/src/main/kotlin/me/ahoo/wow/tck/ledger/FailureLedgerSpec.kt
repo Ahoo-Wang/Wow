@@ -391,7 +391,8 @@ abstract class FailureLedgerSpec {
     }
 
     @Test
-    fun `parking from an earlier version and reparking keep the retry state`(): Unit = runBlocking {
+    fun `parking from an earlier version and reparking keep the retry state, but the request of another parking`():
+        Unit = runBlocking {
         ledger.park(entry(ref("a"), 5))
         val claimed = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 50))!!
         ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(SPEC))
@@ -405,11 +406,18 @@ abstract class FailureLedgerSpec {
         )
         ledger.parked(subscription, ref("a")).assert().isEqualTo(state)
 
-        // The earlier entry's own retry state is not taken: the parked one keeps its own.
+        // The earlier entry's own retry state is not taken: the parked one keeps its own, but for the request an
+        // operator left for the parking it replaces, which failed at another time (FailureLedgerParkingSpec).
         ledger.park(entry(ref("a"), 2).copyWith(retries = 7, recoverable = Recoverable.UNRECOVERABLE)).assert().isTrue()
         val earlier = entry(ref("a"), 2)
         ledger.parked(subscription, ref("a")).assert().isEqualTo(
-            state.copyWith(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt, revision = 5),
+            state.copyWith(
+                fromVersion = 2,
+                reason = earlier.reason,
+                failedAt = earlier.failedAt,
+                request = null,
+                revision = 5,
+            ),
         )
         val reparked = entry(ref("a"), 4, reason = "failed again").copyWith(fromPosition = 44, retries = 9)
         ledger.repark(reparked).assert().isTrue()
@@ -419,6 +427,7 @@ abstract class FailureLedgerSpec {
                 reason = "failed again",
                 failedAt = reparked.failedAt,
                 fromPosition = 44,
+                request = null,
                 revision = 6,
             ),
         )

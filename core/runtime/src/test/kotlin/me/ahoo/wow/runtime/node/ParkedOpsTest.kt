@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.node
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
@@ -31,7 +32,9 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
@@ -87,6 +90,43 @@ class ParkedOpsTest {
         ops.get(ID, cart("x1")).assert().isNull()
         ops.get(SubscriptionId("shop", "unknown"), cart("x1")).assert().isNull()
         runtime.stop()
+    }
+
+    @Test
+    fun `a skip racing a repark is refused in the ledger's write, never left on the new parking`(): Unit = runBlocking {
+        val inner = InMemoryFailureLedger()
+        var racing: suspend () -> Unit = {}
+        // A retry that failed again parks the aggregate anew between the operator's read and the ledger's write.
+        val racy = object : FailureLedger by inner {
+            override suspend fun amend(
+                subscription: SubscriptionId,
+                ref: AggregateRef,
+                amendment: ParkedAmendment,
+            ): ParkedAggregate? {
+                if (amendment is ParkedAmendment.Request) racing()
+                return inner.amend(subscription, ref, amendment)
+            }
+        }
+        val runtime = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), racy, listOf(subscription), options)
+        val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
+        val ref = cart("x1")
+        inner.park(ParkedAggregate(ID, ref, 0, 1, "broken", FIRST))
+        racing = { inner.repark(ParkedAggregate(ID, ref, 0, 1, "failed again", FIRST + 1)) }
+
+        ops.skip(ID, ref, FIRST).assert().isEqualTo(ParkedOps.Outcome.STALE)
+
+        inner.parked(ID, ref)!!.request.assert().isNull()
+    }
+
+    @Test
+    fun `an operator's change that applied nothing is told stale only when the entry is parked at another time`():
+        Unit = runBlocking {
+        val ref = cart("x1")
+        ops.missed(ID, ref, FIRST).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ledger.park(ParkedAggregate(ID, ref, 0, 1, "broken", FIRST))
+        ops.missed(ID, ref, FIRST + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
+        ops.missed(ID, ref, FIRST).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.missed(ID, ref, null).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
     }
 
     @Test
@@ -226,6 +266,7 @@ class ParkedOpsTest {
     }
 
     private companion object {
+        const val FIRST = 1_700_000_000_000L
         const val NAME = "ops"
         val ID = SubscriptionId("shop", NAME)
         val OTHER = SubscriptionId("shop", "$NAME.other")

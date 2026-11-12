@@ -77,7 +77,8 @@ import kotlin.time.Duration
  *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "claimTtl": "2m"}`, each duration written
  *   as the ops context's `ApplyRetrySpec` and the configuration write one, `500ms`, `1h 30m` or `PT3M`; a member
  *   left out keeps the value the entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering
- *   the entry.
+ *   the entry. Their body's `failedAt`, which the console always sends, names the parking as a retry's does, checked
+ *   in the ledger's own write (409 `wow.ledger.stale` for another); left out, they act on whichever parking is there.
  *
  * An action's `outcome` (`resolved`, `parked` or `requested`) and the entry's `recoverable`, `request` and `status` are
  * written, and `recoverable` read, by their wire names ([WireNames]), as every Wow enumeration on the wire; the
@@ -251,14 +252,7 @@ private class ParkedHandler(
             throw notParked(subscription, ref)
         }
         if (outcome == ParkedOps.Outcome.STALE) {
-            val held = ops.get(subscription, ref)?.entry?.failedAt
-            throw ProblemException(
-                statuses.problemOf(
-                    FrameworkCodes.LEDGER_STALE,
-                    "The entry of $subscription on $ref was parked at $held, not at $failedAt: it was resolved and " +
-                        "parked again since; read it again before acting on it.",
-                ),
-            )
+            throw stale(subscription, ref, failedAt)
         }
         val status = if (outcome == ParkedOps.Outcome.REQUESTED) HttpStatus.ACCEPTED else HttpStatus.OK
         val body = buildMap {
@@ -270,9 +264,30 @@ private class ParkedHandler(
 
     suspend fun markRecoverable(request: ServerRequest): ServerResponse {
         val (subscription, ref) = authorized(request, OpsCommands.MARK_RECOVERABLE)
-        val recoverable = recoverableOf(body(request))
-        val view = ops.markRecoverable(subscription, ref, recoverable) ?: throw notParked(subscription, ref)
+        val body = body(request)
+        val failedAt = failedAtOf(body)
+        val view = ops.markRecoverable(subscription, ref, recoverableOf(body), failedAt)
+            ?: throw missed(subscription, ref, failedAt)
         return ok(viewOf(view))
+    }
+
+    /** Why an operator's change of [ref] naming the parking at [failedAt] changed nothing: stale, or not parked. */
+    private suspend fun missed(subscription: SubscriptionId, ref: AggregateRef, failedAt: Long?): ProblemException =
+        if (ops.missed(subscription, ref, failedAt) == ParkedOps.Outcome.STALE) {
+            stale(subscription, ref, failedAt)
+        } else {
+            notParked(subscription, ref)
+        }
+
+    private suspend fun stale(subscription: SubscriptionId, ref: AggregateRef, failedAt: Long?): ProblemException {
+        val held = ops.get(subscription, ref)?.entry?.failedAt
+        return ProblemException(
+            statuses.problemOf(
+                FrameworkCodes.LEDGER_STALE,
+                "The entry of $subscription on $ref was parked at $held, not at $failedAt: it was resolved and " +
+                    "parked again since; read it again before acting on it.",
+            ),
+        )
     }
 
     private fun recoverableOf(body: JsonNode): Recoverable {
@@ -286,7 +301,9 @@ private class ParkedHandler(
         val (subscription, ref) = authorized(request, OpsCommands.APPLY_RETRY_SPEC)
         val body = body(request)
         val current = ops.get(subscription, ref)?.spec ?: throw notParked(subscription, ref)
-        val view = ops.applyRetrySpec(subscription, ref, specOf(body, current)) ?: throw notParked(subscription, ref)
+        val failedAt = failedAtOf(body)
+        val view = ops.applyRetrySpec(subscription, ref, specOf(body, current), failedAt)
+            ?: throw missed(subscription, ref, failedAt)
         return ok(viewOf(view))
     }
 

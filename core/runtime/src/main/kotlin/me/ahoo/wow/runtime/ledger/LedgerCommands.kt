@@ -116,8 +116,10 @@ internal class LedgerCommands(
                 }
                 settled(subscription, ref, outcome, LedgerResolution.SKIPPED)
             }
-            is MarkParkedRecoverable ->
-                amended(subscription, ref, parked.markRecoverable(subscription, ref, command.recoverable))
+            is MarkParkedRecoverable -> {
+                val view = parked.markRecoverable(subscription, ref, command.recoverable, command.failedAt)
+                return changed(command, command.failedAt, subscription, ref, current, view)
+            }
 
             is ApplyParkedRetrySpec -> {
                 if (current == null) {
@@ -129,9 +131,30 @@ internal class LedgerCommands(
                 } catch (invalid: IllegalArgumentException) {
                     return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Not a retry spec.")
                 }
-                amended(subscription, ref, parked.applyRetrySpec(subscription, ref, spec))
+                val view = parked.applyRetrySpec(subscription, ref, spec, command.failedAt)
+                return changed(command, command.failedAt, subscription, ref, current, view)
             }
         }
+        return null
+    }
+
+    /**
+     * What came of an operator's change by [command] of [subscription]'s [ref], the parking at [failedAt]:
+     * published as [view] when it applied; refused as stale when the entry is parked at another time
+     * ([ParkedOps.missed]); else published as not parked.
+     */
+    private suspend fun changed(
+        command: LedgerCommand,
+        failedAt: Long?,
+        subscription: SubscriptionId,
+        ref: AggregateRef,
+        current: ParkedView?,
+        view: ParkedView?,
+    ): ErrorInfo? {
+        if (view == null && parked.missed(subscription, ref, failedAt) == ParkedOps.Outcome.STALE) {
+            return stale(command, failedAt, current)
+        }
+        amended(subscription, ref, view)
         return null
     }
 

@@ -283,14 +283,18 @@ public abstract interface class me/ahoo/wow/spi/ledger/ParkedAmendment {
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec : me/ahoo/wow/spi/ledger/ParkedAmendment {
 	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
+	public static final fun of (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec$Companion {
 	public final fun of (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
+	public final fun of (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec$Companion;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry : me/ahoo/wow/spi/ledger/ParkedAmendment {
@@ -310,27 +314,35 @@ public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry$Companion {
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable : me/ahoo/wow/spi/ledger/ParkedAmendment {
 	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getRecoverable ()Lme/ahoo/wow/api/ledger/Recoverable;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/ledger/Recoverable;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
+	public static final fun of (Lme/ahoo/wow/api/ledger/Recoverable;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable$Companion {
 	public final fun of (Lme/ahoo/wow/api/ledger/Recoverable;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
+	public final fun of (Lme/ahoo/wow/api/ledger/Recoverable;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable$Companion;Lme/ahoo/wow/api/ledger/Recoverable;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Request : me/ahoo/wow/spi/ledger/ParkedAmendment {
 	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getRequest ()Lme/ahoo/wow/api/ledger/LedgerRequest;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
+	public static final fun of (Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Request$Companion {
 	public final fun of (Lme/ahoo/wow/api/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
+	public final fun of (Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request$Companion;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Restate : me/ahoo/wow/spi/ledger/ParkedAmendment {

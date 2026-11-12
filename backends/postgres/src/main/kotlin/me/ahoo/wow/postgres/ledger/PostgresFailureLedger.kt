@@ -92,8 +92,9 @@ class PostgresFailureLedger(
     override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.repark).use { repark ->
             repark.setPlace(1, entry)
-            repark.setKey(entry.subscription, entry.ref, first = PLACE_COLUMNS + 1)
-            repark.setInt(PLACE_COLUMNS + KEY_COLUMNS + 1, from)
+            repark.setLong(PLACE_COLUMNS + 1, entry.failedAt)
+            repark.setKey(entry.subscription, entry.ref, first = PLACE_COLUMNS + 2)
+            repark.setInt(PLACE_COLUMNS + KEY_COLUMNS + 2, from)
             repark.executeUpdate() > 0
         }
     }
@@ -232,11 +233,13 @@ class PostgresFailureLedger(
         is ParkedAmendment.MarkRecoverable -> tables.markRecoverable to {
             setString(1, amendment.recoverable.name)
             setKey(subscription, ref, first = 2)
+            setNullableLong(KEY_COLUMNS + 2, amendment.failedAt)
         }
 
         is ParkedAmendment.Request -> tables.request to {
             setString(1, amendment.request.name)
             setKey(subscription, ref, first = 2)
+            setNullableLong(KEY_COLUMNS + 2, amendment.failedAt)
         }
 
         is ParkedAmendment.Schedule -> tables.schedule to {

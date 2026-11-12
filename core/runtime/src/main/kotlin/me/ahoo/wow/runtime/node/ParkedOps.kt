@@ -135,7 +135,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             return Outcome.STALE
         }
         val runtime = scope.runner()?.takeIf { it.acts(subscription.name, ref) }
-            ?: return request(scope, subscription, ref, LedgerRequest.RETRY)
+            ?: return request(scope, subscription, ref, LedgerRequest.RETRY, failedAt)
         if (runtime.retry(subscription.name, ref)) {
             return Outcome.RESOLVED
         }
@@ -154,12 +154,13 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             return Outcome.STALE
         }
         val runtime = scope.runner()?.takeIf { it.acts(subscription.name, ref) }
-            ?: return request(scope, subscription, ref, LedgerRequest.SKIP)
+            ?: return request(scope, subscription, ref, LedgerRequest.SKIP, failedAt)
         if (runtime.skip(subscription.name, ref)) {
             return Outcome.RESOLVED
         }
-        // A retry of it runs: the owner (this node) skips it on its next scan, unless the retry resolved it.
-        return request(scope, subscription, ref, LedgerRequest.SKIP)
+        // A retry of it runs: the owner (this node) skips it on its next scan, unless the retry resolved it, or failed
+        // again, which parks it anew and clears this request, made for the parking it replaces.
+        return request(scope, subscription, ref, LedgerRequest.SKIP, failedAt)
     }
 
     /**
@@ -171,29 +172,55 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         return scope.runner()?.runs(subscription.name, ref) == true
     }
 
-    /** Marks [subscription]'s parked [ref] [recoverable]; null when it is not parked. */
+    /**
+     * Marks [subscription]'s parked [ref] [recoverable]: only the parking at [failedAt] ([ParkedAggregate.failedAt],
+     * as the operator saw it), checked in the ledger's write, or whichever is there when null. Null when nothing was
+     * marked: [missed] says whether the aggregate is not parked or parked at another time.
+     */
     suspend fun markRecoverable(
         subscription: SubscriptionId,
         ref: AggregateRef,
-        recoverable: Recoverable
-    ): ParkedView? =
-        amend(subscription, ref, ParkedAmendment.MarkRecoverable(recoverable))
+        recoverable: Recoverable,
+        failedAt: Long? = null,
+    ): ParkedView? = amend(subscription, ref, ParkedAmendment.MarkRecoverable(recoverable, failedAt))
 
-    /** Applies [spec] to [subscription]'s parked [ref], or its subscription's spec again when null. */
-    suspend fun applyRetrySpec(subscription: SubscriptionId, ref: AggregateRef, spec: ParkedRetrySpec?): ParkedView? =
-        amend(subscription, ref, ParkedAmendment.ApplyRetrySpec(spec))
+    /**
+     * Applies [spec] to [subscription]'s parked [ref], or its subscription's spec again when null: only to the parking
+     * at [failedAt], as [markRecoverable] marks one. Null when nothing was applied ([missed]).
+     */
+    suspend fun applyRetrySpec(
+        subscription: SubscriptionId,
+        ref: AggregateRef,
+        spec: ParkedRetrySpec?,
+        failedAt: Long? = null,
+    ): ParkedView? = amend(subscription, ref, ParkedAmendment.ApplyRetrySpec(spec, failedAt))
+
+    /**
+     * Why an operator's change of [subscription]'s [ref] naming the parking at [failedAt] changed nothing:
+     * [Outcome.STALE] when the aggregate is parked at another time, [Outcome.NOT_PARKED] when it is not parked.
+     */
+    suspend fun missed(subscription: SubscriptionId, ref: AggregateRef, failedAt: Long?): Outcome {
+        val held = locate(subscription, ref)?.second ?: return Outcome.NOT_PARKED
+        return if (failedAt != null && held.failedAt != failedAt) Outcome.STALE else Outcome.NOT_PARKED
+    }
 
     private suspend fun amend(subscription: SubscriptionId, ref: AggregateRef, amendment: ParkedAmendment): ParkedView? {
         val (scope, _) = locate(subscription, ref) ?: return null
         return scope.ledger.amend(subscription, ref, amendment)?.let { scope.view(it) }
     }
 
-    private suspend fun request(scope: Scope, subscription: SubscriptionId, ref: AggregateRef, request: LedgerRequest) =
-        if (scope.ledger.amend(subscription, ref, ParkedAmendment.Request(request)) != null) {
-            Outcome.REQUESTED
-        } else {
-            Outcome.NOT_PARKED
-        }
+    /** Leaves [request] for the parking at [failedAt], checked in the ledger's write, or whichever is there when null. */
+    private suspend fun request(
+        scope: Scope,
+        subscription: SubscriptionId,
+        ref: AggregateRef,
+        request: LedgerRequest,
+        failedAt: Long?,
+    ): Outcome = if (scope.ledger.amend(subscription, ref, ParkedAmendment.Request(request, failedAt)) != null) {
+        Outcome.REQUESTED
+    } else {
+        missed(subscription, ref, failedAt)
+    }
 
     /**
      * The scope that holds [subscription]'s entry of [ref], with the entry: among the scopes with the subscription (each
