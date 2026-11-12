@@ -16,7 +16,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { changedPaths, modulePath, nameByRepositoryPath } from './patch-coverage-local.mjs';
+import { changedPaths, modulePath, nameByRepositoryPath, readRoots } from './patch-coverage-local.mjs';
 
 const repository = '/repo';
 const kotlin = join(repository, 'core/kernel/src/main/kotlin');
@@ -87,4 +87,14 @@ test("git status's entries keep the first character of every path, and a rename 
   const porcelain = ' M core/kernel/src/main/kotlin/A.kt\0M  b.kt\0R  new.kt\0old.kt\0A  c.kt\0';
   assert.deepEqual(changedPaths(porcelain), ['core/kernel/src/main/kotlin/A.kt', 'b.kt', 'new.kt', 'c.kt']);
   assert.deepEqual(changedPaths(''), []);
+});
+
+test("a report's source roots are read against the repository, so a cached one names this checkout's", () => {
+  const repository = join('/', 'work', 'checkout');
+  assert.deepEqual(readRoots('core/runtime/src/main/kotlin\ncore/runtime/src/main/java\n', repository), [
+    join(repository, 'core/runtime/src/main/kotlin'),
+    join(repository, 'core/runtime/src/main/java'),
+  ]);
+  // An absolute root stays as it is.
+  assert.deepEqual(readRoots(join('/', 'elsewhere', 'src'), repository), [join('/', 'elsewhere', 'src')]);
 });
