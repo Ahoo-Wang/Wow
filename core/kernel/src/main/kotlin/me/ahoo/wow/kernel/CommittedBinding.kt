@@ -109,7 +109,8 @@ fun committedContextOf(
 
 /**
  * The context an `@OnCommitted` handler gets for [committed], as [committedContextOf] gives it, whose commands without
- * a ref go to the aggregate type [commandTypes] assigns their class, and whose calls go through [calls].
+ * a ref go to the aggregate type [commandTypes] assigns their class, whose calls go through [calls], and
+ * whose scheduled commands [codec] writes, the node's.
  */
 @InternalWowApi
 fun committedContextOf(
@@ -119,6 +120,7 @@ fun committedContextOf(
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
     calls: CommandCalls = CommandCalls.NONE,
+    codec: EventCodec = EventCodec(),
 ): SagaContext = ExecutionReceiptContext(
     // The receipt comes back to the saga's own context, which its execution names.
     ExecutionId(committed.executionId.context, handler.name, committed.executionId.ref, committed.executionId.version),
@@ -130,6 +132,7 @@ fun committedContextOf(
     committed.headers,
     commandTypes,
     queries,
+    codec = codec,
     calls = calls,
     sends = handler.sends,
 )

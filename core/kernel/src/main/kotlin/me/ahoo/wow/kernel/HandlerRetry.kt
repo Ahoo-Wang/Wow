@@ -14,7 +14,6 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.time.Duration
 
@@ -155,32 +154,6 @@ class HandlerRetry @InternalWowApi constructor(
                 unrecoverable = unrecoverable.takeUnless { it.isEmpty() },
                 systemic = systemic.takeUnless { it.isEmpty() },
             ).takeUnless { it.isEmpty }
-        }
-
-        /** The budget [retry] gives; null when it is absent or gives nothing. */
-        @JvmStatic
-        fun of(retry: Retry?): HandlerRetry? = retry?.let {
-            of(
-                it.maxAttempts,
-                it.initialBackoff,
-                it.maxBackoff,
-                it.timeout,
-                it.recoverable.map { type -> type.java },
-                it.unrecoverable.map { type -> type.java },
-                it.multiplier,
-                it.systemic.map { type -> type.java },
-            )
-        }
-
-        /**
-         * The budget of a handler annotated [function] in a processor annotated [processor]: the handler's settings,
-         * each one it does not give being the processor's. Null when neither gives any.
-         */
-        @JvmStatic
-        fun of(function: Retry?, processor: Retry?): HandlerRetry? {
-            val own = of(function)
-            val inherited = of(processor)
-            return own?.over(inherited) ?: inherited
         }
 
         private fun duration(setting: String, text: String): Duration? {

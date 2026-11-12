@@ -320,8 +320,8 @@ internal class SagaDerivation(
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
  * [ExecutionId] is (context, subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
- * schedules by [commandTypes], makes its synchronous calls through [calls] and sends what [sends] declares; every
- * handler reads through [queries].
+ * schedules by [commandTypes] and writes with [codec] (the node's: one per execution would build its caches each time),
+ * makes its synchronous calls through [calls] and sends what [sends] declares; every handler reads through [queries].
  */
 @InternalWowApi
 fun contextOf(
@@ -334,12 +334,13 @@ fun contextOf(
     calls: CommandCalls = CommandCalls.NONE,
     queries: ContextQueries = ContextQueries.NONE,
     sends: SagaSends? = null,
+    codec: EventCodec = EventCodec(),
 ): SubscriptionContext {
     val execution = ExecutionId(context, subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT, FunctionKind.REACT -> ExecutionContext(execution, queries)
         FunctionKind.SAGA ->
-            ExecutionSagaContext(execution, event, ids, commandTypes, EventCodec(), calls, queries, sends)
+            ExecutionSagaContext(execution, event, ids, commandTypes, codec, calls, queries, sends)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }

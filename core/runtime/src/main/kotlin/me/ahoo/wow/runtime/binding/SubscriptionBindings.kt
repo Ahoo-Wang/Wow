@@ -254,6 +254,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         clock = context.coordinator.clock,
         caller = context.caller,
         served = context.served,
+        codec = context.codec,
     )
 
     /**
@@ -334,7 +335,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 context.commandTypes,
                 calls,
                 context.queries,
-                handler.sends
+                handler.sends,
+                context.codec,
             )
 
         /**

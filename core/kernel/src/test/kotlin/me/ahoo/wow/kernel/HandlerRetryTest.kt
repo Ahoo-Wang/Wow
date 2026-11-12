@@ -15,46 +15,13 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /** Roadmap P.3: a handler's own in-process retry budget, from its `@Retry` and its processor's. */
 class HandlerRetryTest {
-    @Retry(maxAttempts = 3, timeout = "2s", maxBackoff = "1m")
-    private class Notifier {
-        @Retry(initialBackoff = "500ms", timeout = "PT10S")
-        fun onShipped() = Unit
-
-        fun onPlaced() = Unit
-    }
-
-    private fun functionRetry(name: String): Retry? =
-        Notifier::class.java.getDeclaredMethod(name).getAnnotation(Retry::class.java)
-
-    private val processorRetry: Retry? = Notifier::class.java.getAnnotation(Retry::class.java)
-
-    @Test
-    fun `a handler's settings override its processor's, setting by setting`() {
-        HandlerRetry.of(functionRetry("onShipped"), processorRetry).assert().isEqualTo(
-            HandlerRetry(
-                maxAttempts = 3,
-                initialBackoff = 500.milliseconds,
-                maxBackoff = 1.minutes,
-                timeout = 10.seconds
-            ),
-        )
-        HandlerRetry.of(functionRetry("onPlaced"), processorRetry).assert()
-            .isEqualTo(HandlerRetry(maxAttempts = 3, maxBackoff = 1.minutes, timeout = 2.seconds))
-        HandlerRetry.of(functionRetry("onShipped"), null).assert()
-            .isEqualTo(HandlerRetry(initialBackoff = 500.milliseconds, timeout = 10.seconds))
-        HandlerRetry.of(null, null).assert().isNull()
-    }
-
     @Test
     fun `an annotation that gives nothing is no budget`() {
         HandlerRetry.of().assert().isNull()
@@ -97,18 +64,23 @@ class HandlerRetryTest {
         ProcessorBinding.project<Any>("View", "other", null) { _, _ -> }.retry.assert().isNull()
     }
 
-    @Retry(unrecoverable = [IllegalArgumentException::class], recoverable = [NumberFormatException::class])
-    private class Classifying {
-        @Retry(recoverable = [IllegalStateException::class])
-        fun own() = Unit
-
-        fun inherited() = Unit
-    }
-
-    private fun classifying(name: String): HandlerRetry? = HandlerRetry.of(
-        Classifying::class.java.getDeclaredMethod(name).getAnnotation(Retry::class.java),
-        Classifying::class.java.getAnnotation(Retry::class.java),
+    // A processor's `@Retry(unrecoverable = [IllegalArgumentException], recoverable = [NumberFormatException])`, and a
+    // handler's own `@Retry(recoverable = [IllegalStateException])`, as the generated binding gives them.
+    private val processor = checkNotNull(
+        HandlerRetry.of(
+            0,
+            "",
+            "",
+            "",
+            listOf(NumberFormatException::class.java),
+            listOf(IllegalArgumentException::class.java),
+        ),
     )
+    private val own = checkNotNull(
+        HandlerRetry.of(0, "", "", "", listOf(IllegalStateException::class.java), emptyList())
+    )
+
+    private fun classifying(name: String): HandlerRetry = if (name == "own") own.over(processor) else processor
 
     @Test
     fun `the exception classes a handler classifies replace its processor's, list by list`() {
@@ -131,7 +103,7 @@ class HandlerRetryTest {
 
     @Test
     fun `the nearer listed class decides, the recoverable one on a tie`() {
-        val retry = checkNotNull(classifying("inherited"))
+        val retry = classifying("inherited")
         // NumberFormatException extends IllegalArgumentException: its own class is nearer.
         retry.classify(NumberFormatException("x")).assert().isEqualTo(FailureClass.RECOVERABLE)
         retry.classify(IllegalArgumentException("x")).assert().isEqualTo(FailureClass.UNRECOVERABLE)
