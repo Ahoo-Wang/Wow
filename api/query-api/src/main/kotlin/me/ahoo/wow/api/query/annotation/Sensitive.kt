@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.annotation
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.reflect.KClass
 
 /**
@@ -88,9 +89,37 @@ annotation class Mask(
     val strategy: KClass<out MaskStrategy> = MaskStrategy::class,
 )
 
-/** Masks one string value of a query result. It must not return `null` and should keep an empty string empty. */
+/**
+ * Masks one string value of a query result ([SensitiveValue]). It must not return `null` and should keep an empty
+ * string empty.
+ */
 fun interface MaskStrategy {
-    fun mask(value: String): String
+    fun mask(value: SensitiveValue): String
+}
+
+/**
+ * A sensitive value as a [MaskStrategy] sees it: the raw [value] of a query result and the [level] its field declares.
+ * Fields may be added in a minor release: construct it with [of]; the constructor is internal to Wow. Masking does not
+ * depend on the caller, every caller seeing the same mask, so no caller is among its fields.
+ *
+ * Its [toString] names the level only, so a logged value never shows the raw one.
+ */
+class SensitiveValue @InternalWowApi constructor(
+    val value: String,
+    val level: SensitivityLevel,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SensitiveValue && value == other.value && level == other.level
+
+    override fun hashCode(): Int = 31 * value.hashCode() + level.hashCode()
+
+    override fun toString(): String = "SensitiveValue(level=$level)"
+
+    companion object {
+        /** A [SensitiveValue] of the given values, for a strategy's own tests. */
+        @JvmStatic
+        fun of(value: String, level: SensitivityLevel): SensitiveValue = SensitiveValue(value, level)
+    }
 }
 
 /** The built-in mask: keeps [keepPrefix] leading and [keepSuffix] trailing code points and masks the rest. */
@@ -99,8 +128,8 @@ class KeepMaskStrategy(private val keepPrefix: Int = 0, private val keepSuffix: 
         require(keepPrefix >= 0 && keepSuffix >= 0) { "Mask keepPrefix and keepSuffix must not be negative." }
     }
 
-    override fun mask(value: String): String {
-        val codePoints = value.codePoints().toArray()
+    override fun mask(value: SensitiveValue): String {
+        val codePoints = value.value.codePoints().toArray()
         val size = codePoints.size
         if (keepPrefix >= size || keepSuffix >= size - keepPrefix) return "*".repeat(size)
         return buildString {

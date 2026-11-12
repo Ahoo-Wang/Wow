@@ -138,9 +138,9 @@ describe('the D41 options say what the library asks', () => {
       {
         ...theme,
         resolve: color =>
-          color === 'var(--_fve-rise)'
+          color === 'var(--_fve-rise-fill)'
             ? 'rgb(1, 1, 1)'
-            : color === 'var(--_fve-fall)'
+            : color === 'var(--_fve-fall-fill)'
               ? 'rgb(2, 2, 2)'
               : theme.resolve(color),
       },

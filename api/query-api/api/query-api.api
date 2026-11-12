@@ -2183,7 +2183,7 @@ public final class me/ahoo/wow/api/query/annotation/KeepMaskStrategy : me/ahoo/w
 	public fun <init> ()V
 	public fun <init> (II)V
 	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun mask (Ljava/lang/String;)Ljava/lang/String;
+	public fun mask (Lme/ahoo/wow/api/query/annotation/SensitiveValue;)Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/Mask : java/lang/annotation/Annotation {
@@ -2193,7 +2193,7 @@ public abstract interface annotation class me/ahoo/wow/api/query/annotation/Mask
 }
 
 public abstract interface class me/ahoo/wow/api/query/annotation/MaskStrategy {
-	public abstract fun mask (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun mask (Lme/ahoo/wow/api/query/annotation/SensitiveValue;)Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryAlias : java/lang/annotation/Annotation {
@@ -2240,6 +2240,20 @@ public abstract interface annotation class me/ahoo/wow/api/query/annotation/Quer
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/Sensitive : java/lang/annotation/Annotation {
 	public abstract fun level ()Lme/ahoo/wow/api/query/annotation/SensitivityLevel;
 	public abstract fun mask ()Lme/ahoo/wow/api/query/annotation/Mask;
+}
+
+public final class me/ahoo/wow/api/query/annotation/SensitiveValue {
+	public static final field Companion Lme/ahoo/wow/api/query/annotation/SensitiveValue$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLevel ()Lme/ahoo/wow/api/query/annotation/SensitivityLevel;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;)Lme/ahoo/wow/api/query/annotation/SensitiveValue;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/annotation/SensitiveValue$Companion {
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;)Lme/ahoo/wow/api/query/annotation/SensitiveValue;
 }
 
 public final class me/ahoo/wow/api/query/annotation/SensitivityLevel : java/lang/Enum {

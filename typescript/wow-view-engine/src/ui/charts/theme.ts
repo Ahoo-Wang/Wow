@@ -421,8 +421,8 @@ export function readChartTheme(element: Element): ChartTheme {
     key: JSON.stringify([
       read,
       ...[
-        '--_fve-rise',
-        '--_fve-fall',
+        '--_fve-rise-fill',
+        '--_fve-fall-fill',
         '--success',
         '--warning',
         '--destructive',

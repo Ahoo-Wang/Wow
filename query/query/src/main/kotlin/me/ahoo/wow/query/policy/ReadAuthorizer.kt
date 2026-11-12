@@ -104,7 +104,11 @@ class ReadAction @InternalWowApi constructor(
     }
 }
 
-/** A read authorizer's answer: [Allowed], or [Denied] with its [Denied.message] and [Denied.code]. */
+/**
+ * A read authorizer's answer: [Allowed], or [Denied] with its [Denied.message] and [Denied.code].
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 sealed interface ReadAuthorization {
     data object Allowed : ReadAuthorization
 

@@ -24,7 +24,12 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** One change to the [QueryDatasets]: a dataset joined, was replaced by a new declaration, or left. */
+/**
+ * One change to the [QueryDatasets]: a dataset joined, was replaced by a new declaration, or left.
+ *
+ * A dataset joins, is replaced or leaves: a change to a set of named entries is one of the three. No case is added
+ * within 10.x, so a `when` over it may name every case.
+ */
 @ExperimentalWowApi
 sealed interface QueryDatasetChange {
     /** The dataset the change leaves in place, or the one it removed. */

@@ -17,6 +17,8 @@ package me.ahoo.wow.query.filter
  * What a query or a read asks: the gateway operations, and the state point reads an entry runs through
  * `me.ahoo.wow.query.engine.ReadFacade`, observed and audited as queries are: [STATE], an
  * aggregate's state (its latest, at a version or as of a time), and [TRACE], its commits.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class QueryType {
     SINGLE,

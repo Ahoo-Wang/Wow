@@ -60,7 +60,7 @@ export function drawnCandles(
  * A candlestick as the library draws it: a body from the open to the close,
  * wicks to the highest and the lowest — the four numbers Wow computed. A
  * candle that closed above its open wears the host's rise colour and one
- * that closed below its fall colour (`--_fve-rise` / `--_fve-fall`, which
+ * that closed below its fall colour (`--_fve-rise-fill` / `--_fve-fall-fill`, which
  * the change convention crosses for a market that reads red as up); the
  * tooltip says the direction in words as well, since red and green are one
  * colour to a colour-blind eye. The value axis is the field's and does not
@@ -74,8 +74,8 @@ export function candlestickOption(
   const { spec, label, column, animate, pickable, highlight, words } = context;
   const candlestick = spec?.candlestick;
   const candles = drawnCandles(data, context);
-  const rise = theme.resolve('var(--_fve-rise)');
-  const fall = theme.resolve('var(--_fve-fall)');
+  const rise = theme.resolve('var(--_fve-rise-fill)');
+  const fall = theme.resolve('var(--_fve-fall-fill)');
   const anyLit = highlight
     ? candles.some(candle => highlight(candle.row))
     : false;
