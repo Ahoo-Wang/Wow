@@ -25,7 +25,9 @@ import com.mongodb.internal.connection.MongoWriteConcernWithResponseException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
+import org.bson.BsonMaximumSizeExceededException
 
 /**
  * Tells a transient failure of MongoDB from a defect: the first is a [StorageUnavailableException], so the runtime
@@ -75,6 +77,40 @@ internal object MongoFailures {
      * [MongoException].
      */
     fun isTooLarge(failure: MongoException): Boolean = failure.code == BSON_OBJECT_TOO_LARGE
+
+    /**
+     * [failure] as the [StorageRefusedException] every backend refuses a value with, when [document] is one the store
+     * can never take, else null: a document beyond the size limit, refused by the driver before it is sent
+     * ([BsonMaximumSizeExceededException], no [MongoException]) or by the server ([isTooLarge]); or one BSON cannot
+     * hold, as [ExactBson] refuses it (an [IllegalArgumentException]). Writing it again fails the same way.
+     */
+    fun refusalOf(document: String, failure: Exception): StorageRefusedException? = when (failure) {
+        is StorageRefusedException -> failure
+        is BsonMaximumSizeExceededException ->
+            StorageRefusedException("MongoDB refused $document: it is beyond the document size limit.", failure)
+        is MongoException -> failure.takeIf(::isTooLarge)?.let {
+            StorageRefusedException("MongoDB refused $document: it is beyond the document size limit.", it)
+        }
+        is IllegalArgumentException -> StorageRefusedException("MongoDB refused $document: $failure", failure)
+        else -> null
+    }
+
+    /**
+     * [write]'s result, [document] thrown as a [StorageRefusedException] when the store can never take it
+     * ([refusalOf]): refused for good, so its aggregate is parked at once rather than retried.
+     */
+    inline fun <T> refusing(document: String, write: () -> T): T {
+        val failure: RuntimeException = try {
+            return write()
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            tooLarge
+        } catch (mongo: MongoException) {
+            mongo
+        } catch (notBson: IllegalArgumentException) {
+            notBson
+        }
+        throw refusalOf(document, failure) ?: failure
+    }
 
     /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
     fun translate(failure: MongoException): RuntimeException =

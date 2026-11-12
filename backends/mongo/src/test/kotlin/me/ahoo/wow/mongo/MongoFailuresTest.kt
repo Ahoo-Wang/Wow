@@ -40,12 +40,14 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.bson.BsonDocument
 import org.bson.BsonInt32
+import org.bson.BsonMaximumSizeExceededException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -111,6 +113,26 @@ class MongoFailuresTest {
         // Finding R2.2-2: the stream can never be stored, so it is refused rather than left unknown.
         MongoFailures.isTooLarge(MongoException(BSON_OBJECT_TOO_LARGE, "BSONObj size is invalid")).assert().isTrue()
         MongoFailures.isTooLarge(MongoException(DUPLICATE_KEY, "E11000 duplicate key error")).assert().isFalse()
+    }
+
+    @Test
+    fun `a document the store can never take should be refused as a value, anything else as it is`() {
+        val tooLarge = MongoException(MongoFailures.BSON_OBJECT_TOO_LARGE, "too large")
+        MongoFailures.refusalOf("the snapshot", tooLarge)!!.cause.assert().isSameAs(tooLarge)
+        val beyond = BsonMaximumSizeExceededException("beyond")
+        MongoFailures.refusalOf("the snapshot", beyond)!!.cause.assert().isSameAs(beyond)
+        val notBson = IllegalArgumentException("holds \\u0000")
+        MongoFailures.refusalOf("the snapshot", notBson)!!.cause.assert().isSameAs(notBson)
+        val refused = StorageRefusedException("refused")
+        MongoFailures.refusalOf("the snapshot", refused).assert().isSameAs(refused)
+        MongoFailures.refusalOf("the snapshot", MongoException(1, "another")).assert().isNull()
+        MongoFailures.refusalOf("the snapshot", IllegalStateException("a defect")).assert().isNull()
+        // A write that throws one is refused; one that throws another failure throws it as it is.
+        assertThrows<StorageRefusedException> { MongoFailures.refusing("the snapshot") { throw beyond } }
+        val other = MongoException(1, "another")
+        assertThrows<MongoException> { MongoFailures.refusing("the snapshot") { throw other } }
+            .assert().isSameAs(other)
+        MongoFailures.refusing("the snapshot") { 1 }.assert().isEqualTo(1)
     }
 
     @Test
