@@ -86,6 +86,24 @@ object ScheduleSlots {
         zoneOf(rule)
     }
 
+    /**
+     * Fails with an [IllegalArgumentException] unless [rule] is valid ([validate]) and names a time that ever comes,
+     * the reason naming its expression and time zone. [next] looks [CronExpression.MAX_YEARS] years ahead, a whole
+     * cycle of the Gregorian calendar, so a rule without a time in them has none ever: `0 0 0 30 2 *` and `0 0 0 31 4 *`
+     * are refused, while `0 0 0 29 2 *` comes every fourth year and a local time a zone's change skips on one day
+     * comes on the others. A rule that comes finds its first time within its own period (at most eight years for 29
+     * February, some microseconds); one that never comes costs a step per day of its months for those 400 years, under
+     * a millisecond (about 0.1 ms for 30 February, 0.4 ms for the 31st of five 30-day months).
+     *
+     * Only for a rule that comes in new: a rule stored with a job's instance keeps running, or never running, as it
+     * did ([validate] alone reads it).
+     */
+    @JvmStatic
+    fun requireFires(rule: ScheduleRule.Cron) {
+        validate(rule)
+        requireNotNull(next(rule, 0L)) { "\"${rule.expression}\" in ${rule.timeZone} names no time that ever comes." }
+    }
+
     /** The first time after [after] (epoch milliseconds) that [rule] names, or null when it names none. */
     @JvmStatic
     fun next(rule: ScheduleRule.Cron, after: Long): Long? = Parsed(rule).next(after)

@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.runtime.schedule
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -41,6 +45,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -108,6 +113,38 @@ class ScheduleJobRuntimeTest {
         JobOptions(cron = "0 0 4 * * *").rule.assert().isEqualTo(JobRule("0 0 4 * * *"))
         ScheduleJobRuntime.startup("shop", listOf(job), mapOf("nightly" to JobOptions(enabled = false)), 1)
             .assert().containsExactly(ref to DisableJob())
+    }
+
+    @Test
+    fun `a job whose rule never runs starts, warned about once with the way to turn it off`() {
+        val logger = LoggerFactory.getLogger(ScheduleJobRuntime::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            val configured = ScheduleJobRuntime.configured(
+                mapOf("shop" to listOf(job, ScheduleJob("audit", ScheduleRule.Cron("0 0 0 30 2 *")))),
+                mapOf("nightly" to JobOptions(cron = "0 0 0 31 4 *")),
+            )
+            configured.getValue(
+                "shop"
+            ).map { it.rule.expression }.assert().containsExactly("0 0 0 31 4 *", "0 0 0 30 2 *")
+            // A job turned off is not warned about.
+            ScheduleJobRuntime.configured(
+                mapOf("shop" to listOf(ScheduleJob("off", ScheduleRule.Cron("0 0 0 30 2 *")))),
+                mapOf("off" to JobOptions(enabled = false)),
+            )
+            val warnings = appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
+            warnings.assert().containsExactly(
+                "The job nightly never runs: its rule \"0 0 0 31 4 *\" in UTC names no time that ever comes. To turn " +
+                    "a job off, set wow.schedules.nightly.enabled=false (a TENANT job: send wow.schedule.DisableJob " +
+                    "to its instances).",
+                "The job audit never runs: its rule \"0 0 0 30 2 *\" in UTC names no time that ever comes. To turn " +
+                    "a job off, set wow.schedules.audit.enabled=false (a TENANT job: send wow.schedule.DisableJob " +
+                    "to its instances).",
+            )
+        } finally {
+            logger.detachAppender(appender)
+        }
     }
 
     @Test

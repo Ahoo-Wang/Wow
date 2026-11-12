@@ -56,6 +56,23 @@ class ScheduleSlotsTest {
     )
 
     @Test
+    fun `a rule that comes in new names a time that ever comes, within the calendar's 400-year cycle`() {
+        // Every fourth year; and a local time the change to summer time skips on one day comes on the others.
+        ScheduleSlots.requireFires(ScheduleRule.Cron("0 0 0 29 2 *"))
+        ScheduleSlots.requireFires(ScheduleRule.Cron("0 30 2 * * *", "America/New_York"))
+        listOf("0 0 0 30 2 *", "0 0 0 31 4 *").forEach { expression ->
+            assertThrownBy<IllegalArgumentException> { ScheduleSlots.requireFires(ScheduleRule.Cron(expression)) }
+                .hasMessage("\"$expression\" in UTC names no time that ever comes.")
+            // Reading it alone accepts it: a stored rule goes on as it was.
+            ScheduleSlots.validate(ScheduleRule.Cron(expression))
+        }
+        // An unreadable rule is refused by both, for its own reason.
+        assertThrownBy<IllegalArgumentException> {
+            ScheduleSlots.requireFires(ScheduleRule.Cron("0 0 0 30 2 *", "Mars/Olympus"))
+        }.hasMessageContaining("Mars/Olympus")
+    }
+
+    @Test
     fun `the parsed expressions cached should be bounded, the least recently used dropped first`() {
         // Review X-11: an expression may come from a command, so each distinct one must not stay forever.
         val kept = ScheduleRule.Cron("0 0 12 * * *")

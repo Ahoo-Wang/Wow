@@ -30,6 +30,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.wait.Settlement
@@ -78,7 +79,9 @@ internal object ScheduleJobRuntime {
 
     /**
      * The jobs of each context of [declared], their defaults overridden by [options] (by job name): a job named twice
-     * in a context, or an option of a job no context has, fails.
+     * in a context, or an option of a job no context has, fails. A job whose rule names no time that ever comes
+     * (`0 0 0 30 2 *`) never runs, as a way of turning it off some configurations use: it is warned about once, with
+     * the way to turn a job off, and starts as it did.
      */
     @JvmStatic
     fun configured(
@@ -102,6 +105,17 @@ internal object ScheduleJobRuntime {
             }.map { job ->
                 val override = options[job.name] ?: return@map job
                 job.copyWith(rule = override.rule.over(job.rule))
+            }.onEach { job -> warnUnlessFires(job, options[job.name]) }
+        }
+    }
+
+    private fun warnUnlessFires(job: ScheduleJob, options: JobOptions?) {
+        if (options?.enabled == false) return
+        runCatching { ScheduleSlots.requireFires(job.rule) }.onFailure {
+            logger.warn {
+                "The job ${job.name} never runs: its rule ${it.message} To turn a job off, set " +
+                    "wow.schedules.${job.name}.enabled=false (a TENANT job: send wow.schedule.DisableJob to its " +
+                    "instances)."
             }
         }
     }
