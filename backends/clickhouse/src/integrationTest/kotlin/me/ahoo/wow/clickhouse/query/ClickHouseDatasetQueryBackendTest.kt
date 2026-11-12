@@ -31,8 +31,6 @@ import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.MONROVIA_CHANGE_DA
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
 import me.ahoo.wow.query.tck.DatasetTable
-import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
-import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
@@ -77,10 +75,8 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
         "array.eq-array",
         // The documented limit: before 1970 the zone's hours keep ClickHouse's truncation (WHOLE_SHIFTS_SINCE).
         BEFORE_1970_PARTIAL_CHANGE,
-        // ClickHouse 24.8's own zone data reads Monrovia's offset for the rest of 1972-01-07 as -00:14:30, not UTC: the
-        // hour and the minute whose local start that change skipped start where that offset puts them.
+        // ClickHouse's own zone data (24.8 and 25.3 alike) does not read Monrovia's offset as UTC for the rest of
+        // 1972-01-07: the minute after that change starts at 00:44:30 UTC, where its local minute starts at 00:45:00.
         MONROVIA_CHANGE_DAY,
-        GAP_START,
-        GAP_MID_UNIT,
     )
 }

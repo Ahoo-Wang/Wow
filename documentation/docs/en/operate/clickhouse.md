@@ -10,6 +10,8 @@ ClickHouse is Wow's warehouse. A sink copies each published aggregate's commits 
 
 ## Connect a service
 
+The server must be ClickHouse 25.3 or later. From 25.3 the server carries a dataset's tenant condition into each merged (`FINAL`) source the dataset joins, so a tenant's query reads that tenant's rows of it; an older server reads the whole source for every query.
+
 Put `wow-clickhouse` on the class path, set `wow.clickhouse.endpoint`, the server's HTTP endpoint, and switch the sink on with `wow.clickhouse.sink.enabled: true`. Writing every event to a warehouse is a cost a service chooses, so the sink is off until that setting says otherwise; neither an endpoint nor a client switches it on. The eShop's ordering service does both in its `clickhouse` profile:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->

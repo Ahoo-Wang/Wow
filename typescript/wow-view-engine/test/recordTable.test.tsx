@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
 import type { SummaryRow } from '../src/record/index.js';
+import type { FieldOption } from '../src/model/index.js';
 import { RecordTable, DataWorkbench, ViewSurface } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
@@ -491,7 +492,7 @@ describe('sorting from the headers', () => {
 /** A status is one of a known set, and reads as one. */
 describe('enum cells', () => {
   const status = (
-    options: { value: string; label: string }[] | undefined,
+    options: FieldOption[] | undefined,
     value: unknown = 'PENDING',
   ) =>
     twoColumnTable({
@@ -508,15 +509,15 @@ describe('enum cells', () => {
       rows: [{ key: 'o-1', data: { status: value } }],
     });
 
-  const PENDING = [{ value: 'PENDING', label: 'Pending' }];
+  const PENDING: FieldOption[] = [
+    { value: 'PENDING', label: 'Pending', tone: 'neutral' },
+  ];
 
   it('wears the option label as a badge', () => {
     const { container } = render(<RecordTable table={status(PENDING)} />);
 
     const badge = container.querySelector('[data-slot="badge"]')!;
     expect(badge.textContent).toBe('Pending');
-    // Neutral until a definition can say otherwise; nothing here guesses
-    // which of a definition's own statuses is good news.
     expect(badge.getAttribute('data-variant')).toBe('secondary');
   });
 
@@ -549,8 +550,7 @@ describe('enum cells', () => {
       <RecordTable
         table={status(
           [
-            { value: 'PENDING', label: 'Open' },
-            // Two codes the definition words the same way.
+            { value: 'PENDING', label: 'Open', tone: 'neutral' },
             { value: 'HELD', label: 'Open' },
           ],
           ['PENDING', 'HELD', 'PENDING'],

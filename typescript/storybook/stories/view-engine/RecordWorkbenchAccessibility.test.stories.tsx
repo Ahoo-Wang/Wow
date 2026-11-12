@@ -185,7 +185,8 @@ export const WidthStepsSayTheWidth: Story = {
     // itself where the column does not sort.
     const cell = headerOf(table, '仓库');
     (cell.querySelector<HTMLElement>('button') ?? cell).focus();
-    const from = Math.round(cell.getBoundingClientRect().width);
+    // A column drawn narrower than the least a width can be starts there (48).
+    const from = Math.max(48, Math.round(cell.getBoundingClientRect().width));
 
     for (let step = 0; step < 3; step += 1)
       await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}');

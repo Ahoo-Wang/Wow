@@ -126,7 +126,7 @@ function idOf(row: RecordRow): string {
 
 /**
  * When the parking the row shows was parked (epoch milliseconds, as Wow's
- * JSON writes a long: a string), which a retry or a skip names.
+ * JSON writes a long: a string), which every action names.
  */
 function failedAtOf(row: RecordRow): string | undefined {
   const failedAt = ((row.data.state ?? {}) as Record<string, unknown>).failedAt;
@@ -252,7 +252,13 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       }),
       done: t.sent,
       run: (row, { recoverable }) =>
-        said(commands.markRecoverable(idOf(row), String(recoverable))),
+        said(
+          commands.markRecoverable(
+            idOf(row),
+            String(recoverable),
+            failedAtOf(row),
+          ),
+        ),
     },
     {
       id: "applyRetrySpec",
@@ -275,7 +281,13 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       confirm: { title: t.applyConfirm, body: t.applyBody },
       done: t.sent,
       run: (row, input) =>
-        said(commands.applyRetrySpec(idOf(row), retrySpecOf(input))),
+        said(
+          commands.applyRetrySpec(
+            idOf(row),
+            retrySpecOf(input),
+            failedAtOf(row),
+          ),
+        ),
     },
   ]);
 }

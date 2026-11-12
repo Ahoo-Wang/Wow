@@ -552,6 +552,10 @@
         "claimTtl" : {
           "type" : [ "string", "null" ]
         },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
         },
@@ -569,6 +573,10 @@
       "properties" : {
         "claimTtl" : {
           "type" : [ "string", "null" ]
+        },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
@@ -623,6 +631,10 @@
     "me.ahoo.wow.ops.api.parked.MarkRecoverable" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "recoverable" : {
           "type" : "string"
         }
@@ -634,6 +646,10 @@
     "me.ahoo.wow.ops.api.parked.MarkRecoverableRequested" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "recoverable" : {
           "type" : "string"
         }

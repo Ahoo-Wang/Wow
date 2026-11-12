@@ -73,7 +73,7 @@ import {
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { OptionSource } from '../runtime/index.js';
 import type { AnalysisViewRuntime } from '../runtime/viewRuntimeTypes.js';
-import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
+import { outOfDate } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewRuntime.js';
 
@@ -508,7 +508,7 @@ export function useAnalysisEditor(
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
     windows: capability?.windows ?? NO_WINDOWS,
-    stale: state ? autoApplyDue(state) || answeringAnew(state) : false,
+    stale: state ? outOfDate(state, runtime?.scopeFilter) : false,
     havingAllowed: capability?.having === true,
     topAllowed:
       capability?.having === true &&

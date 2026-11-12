@@ -129,8 +129,8 @@ describe("the operator's actions", () => {
       initialBackoff: " 2m ",
       claimTtl: "",
     });
-    // Each names the parking the row shows, which the service refuses once
-    // the entry was parked again (`ops.parked.stale`).
+    // Each, the four alike, names the parking the row shows, which the
+    // service refuses once the entry was parked again (`ops.parked.stale`).
     expect(sent.retry).toHaveBeenCalledWith(
       "exhausted",
       "back",
@@ -144,11 +144,13 @@ describe("the operator's actions", () => {
     expect(sent.markRecoverable).toHaveBeenCalledWith(
       "exhausted",
       "unrecoverable",
+      "1760000000000",
     );
-    expect(sent.applyRetrySpec).toHaveBeenCalledWith("exhausted", {
-      maxRetries: 5,
-      initialBackoff: "2m",
-    });
+    expect(sent.applyRetrySpec).toHaveBeenCalledWith(
+      "exhausted",
+      { maxRetries: 5, initialBackoff: "2m" },
+      "1760000000000",
+    );
   });
 
   it("report the service's refusal in its own words", async () => {

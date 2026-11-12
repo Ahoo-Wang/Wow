@@ -505,13 +505,13 @@
     var(--fvp-row-divider, var(--border))
   );
   /*
-   * How much a sortable column's idle mark shows (`table-sort-idle`), 1 by
-   * default. Only where a pointer can hover: a preset may keep it for the
-   * pointer (0), and a touch screen, which has no hover, always shows it.
+   * How much a sortable column's idle mark shows (`table-sort-idle`), 0 by
+   * default: at rest only a sorted column wears a mark (D94). Only where a
+   * pointer can hover; a touch screen, which has no hover, always shows it.
    */
   --_fve-table-sort-idle: var(
     --fve-table-sort-idle,
-    var(--fvp-table-sort-idle, 1)
+    var(--fvp-table-sort-idle, 0)
   );
   --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
   /*

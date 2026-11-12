@@ -129,7 +129,7 @@ src/
     axes.css                  — Which way a change is coloured (`data-fve-change-colors`) and the density step with the lengths it drives
     registry.css              — The registry's table at the density, focus kept clear of its sticky bands, the two small type sizes pinned, an outline badge's edge
     roles.css                 — The roles applied to the vendored components by `data-slot` or the registry's group class (`@layer utilities`)
-    states.css                — The primary button's fill, a control under the pointer, a toolbar's outline button, a segmented control's track, thumb and corners, a title's weight
+    states.css                — The primary button's fill, a control under the pointer, a toolbar's outline button, a segmented control's track, thumb and corners, a title's weight, the line that moves under a result whose answer is on its way (`data-stale`)
     tokens-dark.css           — The dark token block, off paper only
     reset.css                 — `@layer fve-reset`: every preset variable `initial` on whatever names a preset; its list is generated (`theme:docs`)
     base.css                  — The base layer (the default border, the surface's paint and type, a board's ground) and reduced motion
@@ -466,6 +466,7 @@ src/
     useValueCandidates.ts     — A condition's values offered from the data: asked when the list opens, a typed fragment once typing pauses, aborted on change and on close; loading, the source's reason on failure, retry
     useCreateViewEngine.ts    — `useCreateViewEngine`: creates and disposes one engine for a component's lifetime
     useOpenView.ts            — `useOpenView`: opens an instance and owns its runtime — reopened when disposed under it, `retry`, the scope refused (`scopeIssues`)
+    useStale.ts               — `useStale`: whether a view's rows on screen answer an older question than the one on its way, the injected scope included (`outOfDate`), or are another page than the one being read (`RecordRuntime.turningPage`)
     useViewRuntime.ts         — `useViewRuntime`: one runtime's snapshot through `useSyncExternalStore`
     useViewList.ts            — View summaries in the user's order
     useViewManager.ts         — Rename, delete, reorder, default, publish as a system view (D81); outcomes per row
@@ -777,6 +778,7 @@ src/
       kinds.ts                — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
       layout.ts               — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
       messages.ts             — Wording, by key
+      stale.ts                — `STALE`, `staleProps`: how every result says its rows answer an older question than the one on its way — kept and faded, `aria-busy` where nothing inside speaks
       popups.tsx              — The popups this package renders, each a copy of the registry's markup over `popupLayer.ts`
       keptFocus.ts            — `useKeptFocus`: a popup that closes does not take the keyboard back from where the reader went, and hands it back near its opener otherwise (`focus.ts`)
       popupLayer.ts           — What every popup stands on: the surface's theme, type and host variables carried onto the portal (`themedClass`, `useSurfaceType`), the popup layer (`layered`, `POPUP_LAYER`), and the registry's classes copied for each popup and positioner

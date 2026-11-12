@@ -16,12 +16,16 @@ export const ParkedAggregate = {
   textNumbers: {
     state: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, resolvedAt: true, retryAt: true },
     events: {
+      'ops.parked.ApplyRetrySpecRequested': { failedAt: true },
+      'ops.parked.MarkRecoverableRequested': { failedAt: true },
       'ops.parked.ParkedRecorded': { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
       'ops.parked.ParkedResolved': { failedAt: true, resolvedAt: true },
       'ops.parked.RetryRequested': { failedAt: true },
       'ops.parked.SkipRequested': { failedAt: true },
     },
     commands: {
+      ApplyRetrySpec: { failedAt: true },
+      MarkRecoverable: { failedAt: true },
       Retry: { failedAt: true },
       Skip: { failedAt: true },
     },

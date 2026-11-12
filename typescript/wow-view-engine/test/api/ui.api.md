@@ -5908,6 +5908,7 @@ export interface RecordCardsProps {
     renderCell?(cell: RecordCell): React_2.ReactNode;
     rowActions?(row: RecordRow): React_2.ReactNode;
     selectable?: boolean;
+    stale?: boolean;
     // (undocumented)
     table: RecordTableController;
 }
@@ -6085,6 +6086,7 @@ export interface RecordKanbanProps {
     onOpen?(row: RecordRow): void;
     renderCell?(cell: RecordCell): React_2.ReactNode;
     rowActions?(row: RecordRow): React_2.ReactNode;
+    stale?: boolean;
     table: RecordTableController;
 }
 
@@ -6294,6 +6296,7 @@ export interface RecordTableProps {
     rowActions?(row: RecordRow): React_2.ReactNode;
     scrolls?: boolean;
     selectable?: boolean;
+    stale?: boolean;
     // (undocumented)
     table: RecordTableController;
 }

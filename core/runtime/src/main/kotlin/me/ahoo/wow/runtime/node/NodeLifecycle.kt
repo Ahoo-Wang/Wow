@@ -18,7 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -37,6 +39,7 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.store.Store
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -65,6 +68,10 @@ import kotlin.time.TimeSource
  *
  * [listener] hears each [ServiceNode.Step] once it is done. A step that fails is logged and the next ones still run;
  * [stop] then throws the first failure. It logs as the [ServiceNode].
+ *
+ * **A start or an activation that fails**, a cancellation of it included, stops what it had started as [stop] does,
+ * in a scope its cancellation does not reach, and waits for that at most the node's stop bound before it throws: the
+ * node ends STOPPED either way, and past the bound an ERROR names the steps and the lease groups not stopped yet.
  *
  * **A fatal error** ([NodeFatals]: an out of memory or another error of the JVM that the node's own work met) makes the
  * node step out of every lease group at once, in the background: the heap is the whole process's, so nothing in it is
@@ -123,6 +130,13 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     private val lock = Mutex()
 
+    /** The steps the stop under way has reached. */
+    private val reached: MutableSet<ServiceNode.Step> = ConcurrentHashMap.newKeySet()
+
+    /** Runs the stop of a failed start or activation, apart from the caller, whose cancellation it outlives. */
+    private val undoing =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "undo"))
+
     /** Where the node is in its lifecycle. */
     @Volatile
     var state: ServiceNode.State = ServiceNode.State.NEW
@@ -170,12 +184,8 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
                 join()
             }
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
-            // Whatever failed, what started is stopped; the failure is the start's.
-            try {
-                shutdown(joined = true)
-            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
-                failure.addSuppressed(stopping)
-            }
+            // Whatever failed, a cancellation too, what started is stopped; the failure is the start's.
+            undo(failure, "start")
             throw failure
         }
         state = ServiceNode.State.RUNNING
@@ -211,11 +221,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             join()
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             logger.error(failure) { "Node $node of $service failed to activate from standby; stopping." }
-            try {
-                shutdown(joined = true)
-            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
-                failure.addSuppressed(stopping)
-            }
+            undo(failure, "activation")
             throw failure
         }
         work()
@@ -380,6 +386,39 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     }
 
     /**
+     * Stops what a [failure]d [what] (the start, the activation) had started, as a stop does, and whatever cancelled it:
+     * the stop runs in a scope of its own, which a cancellation of the caller does not reach, and the caller waits for
+     * it at most the node's stop bound ([ServiceNodeOptions.stopBound]). A failure of the stop is suppressed onto
+     * [failure]. Past the bound, the stop goes on in the background, and the ERROR logged names what it had not
+     * stopped yet. Either way the node ends [STOPPED][ServiceNode.State.STOPPED], so a later [stop] does nothing.
+     */
+    private suspend fun undo(failure: Throwable, what: String) {
+        val stopping = undoing.async { shutdown(joined = true) }
+        // The wait and the stop's outcome apart: only what the stop threw is its failure, never the bound's timeout.
+        val ended = withContext(NonCancellable) { withTimeoutOrNull(options.stopBound) { stopping.join() } } != null
+        if (ended) {
+            try {
+                stopping.await() // Ended: returns or throws at once, whether or not the caller is cancelled.
+            } catch (@Suppress("TooGenericExceptionCaught") stopFailed: Exception) {
+                failure.addSuppressed(stopFailed)
+            }
+        } else {
+            state = ServiceNode.State.STOPPED
+            logger.error {
+                "Node $node of $service did not finish stopping what its failed $what started within " +
+                    "${options.stopBound}; it goes on in the background. Not stopped yet: ${notStopped()}."
+            }
+        }
+    }
+
+    /** What a stop under way has not stopped yet: the steps it has not reached, and the contexts still in their groups. */
+    private fun notStopped(): String {
+        val pending = ServiceNode.Step.entries - reached
+        val joined = contexts.filterValues { it.ownership.isRunning }.keys
+        return "the steps $pending, the lease groups of the contexts $joined"
+    }
+
+    /**
      * Leaves the cluster and closes the node, in the order the class describes. A node that never started joined
      * nothing, so it skips the hand-off, but closes what it was built with from the next step on: its gateway refuses
      * commands from then on. Stopping twice does nothing.
@@ -451,6 +490,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         suspend fun run(step: ServiceNode.Step, block: suspend () -> Unit) {
             try {
                 block()
+                reached += step
                 logger.info { "Node $node of $service: $step." }
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -28,6 +28,7 @@ import {
   type RecordDetailSectionContext,
   type WorkbenchController,
 } from '../../react/index.js';
+import { useStale } from '../../react/useStale.js';
 import { SurfaceAnnouncer, useAnnouncer } from '../kit/Announcer.js';
 import { Button } from '../components/button.js';
 import { CardSettings } from '../record/CardSettings.js';
@@ -225,6 +226,7 @@ export function RecordParts({
   const messages = useViewMessages(wording, locale);
   const { filter, state } = workbench;
   const table = useRecordTable(record);
+  const stale = useStale(record);
   const kanban = useRecordKanban(record);
   const detail = useRecordDetail(record, {
     open: detailOptions?.open,
@@ -455,6 +457,7 @@ export function RecordParts({
         {table.layout === 'kanban' ? (
           <RecordKanban
             table={table}
+            stale={stale}
             kanban={kanban}
             renderCell={renderCell}
             emptyTitle={emptyTitle}
@@ -468,6 +471,7 @@ export function RecordParts({
         ) : table.layout === 'card' ? (
           <RecordCards
             table={table}
+            stale={stale}
             renderCell={renderCell}
             selectable={selectable}
             emptyTitle={emptyTitle}
@@ -480,6 +484,7 @@ export function RecordParts({
         ) : (
           <RecordTable
             table={table}
+            stale={stale}
             renderCell={renderCell}
             selectable={selectable}
             emptyTitle={emptyTitle}

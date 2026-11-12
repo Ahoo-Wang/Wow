@@ -674,7 +674,7 @@ export const ColumnResize: Story = {
     // The column, not only the cell the handle is in: the header and the
     // rows under it have to come out the same width, or the "width" is a
     // header that has parted company with its column.
-    const wanted = Math.round(before + 80);
+    const wanted = Math.round(Math.max(48, before) + 80);
     await waitFor(() => {
       const now = canvas
         .getByRole('separator', {

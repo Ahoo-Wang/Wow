@@ -59,6 +59,8 @@ import type { ViewMessages } from '../kit/messages.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { formatNumber } from '../kit/numbers.js';
 import { resultSlots } from '../kit/frames.js';
+import { STALE } from '../kit/stale.js';
+import { cn } from 'cn';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
@@ -373,7 +375,7 @@ export function AnalysisParts({
           // lays the three parts out exactly as the result block laid them
           // out when they were its own children (no gap, no margin
           // collapsing, `min-w-0` so a wide table still scrolls inside it).
-          className="fve:flex fve:min-w-0 fve:flex-col fve:data-[stale]:opacity-60 fve:data-[stale]:transition-opacity"
+          className={cn('fve:flex fve:min-w-0 fve:flex-col', STALE)}
         >
           {/* A grouping nothing fell into is one sentence whichever layout is
               in force; a chart of no rows is a pair of empty axes, which reads
