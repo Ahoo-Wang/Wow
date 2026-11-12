@@ -49,6 +49,9 @@ export function Workbench({
         definitionId={definitionId}
         instanceId={instanceId}
         onInstanceChange={onInstanceChange}
+        // The list is this page's navigation: it opens beside the view, where
+        // the engine's own default folds it (D94).
+        defaultSidebarOpen
         landmark="region"
       />
     </div>
