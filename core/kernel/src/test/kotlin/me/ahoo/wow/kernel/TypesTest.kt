@@ -128,16 +128,16 @@ class TypesTest {
     @Test
     fun `an ambiguous parameterized dependency should name the parameter, its type and the candidates`() {
         val ambiguous = object : Dependencies {
-            override fun find(type: Class<*>, qualifier: String?): Any? = null
+            override fun find(type: Class<*>, name: String?): Any? = null
 
-            override fun find(type: Type, qualifier: String?): Any? =
+            override fun find(type: Type, name: String?): Any? =
                 throw AmbiguousDependencyException(type, listOf("retail", "wholesale"))
         }
         val failure = runCatching { ambiguous.get(Catalog::class.java, prices, null, "the Cart model", "prices") }
             .exceptionOrNull() as AmbiguousDependencyException
         failure.message.assert().isEqualTo(
             "2 dependencies are $catalogName<java.lang.String> (retail, wholesale) and none is primary: the " +
-                "parameter prices of the Cart model takes one; qualify it with @Name.",
+                "parameter prices of the Cart model takes one; name it with @DependencyName.",
         )
         failure.parameter.assert().isEqualTo("prices")
         failure.building.assert().isEqualTo("the Cart model")
@@ -148,9 +148,9 @@ class TypesTest {
     @Test
     fun `a dependency of another class than the parameter's should fail`() {
         val wrong = object : Dependencies {
-            override fun find(type: Class<*>, qualifier: String?): Any? = null
+            override fun find(type: Class<*>, name: String?): Any? = null
 
-            override fun find(type: Type, qualifier: String?): Any? = "text"
+            override fun find(type: Type, name: String?): Any? = "text"
         }
         assertThrownBy<IllegalStateException> {
             wrong.get(Catalog::class.java, prices, null, null, "prices")

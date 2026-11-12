@@ -122,9 +122,8 @@ export const FunctionKind = {
   /** A saga. */
   SAGA: 'saga',
   /**
-   * A built-in subscription of Wow's (snapshots, reservations, timers, access
-   * stamps, sinks, receipts, the command intake): its `processor` and `name`
-   * say which.
+   * A built-in subscription of Wow's, such as the one that writes snapshots:
+   * its `processor` and `name` say which.
    */
   SYSTEM: 'system',
 } as const;

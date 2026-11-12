@@ -231,7 +231,7 @@ class BeanFactoryDependenciesTest {
     }
 
     @Test
-    fun `a qualified dependency should be the bean of that name and type`() {
+    fun `a named dependency should be the bean of that name and type`() {
         beanFactory.registerSingleton("first", StringBuilder("1"))
         beanFactory.registerSingleton("second", StringBuilder("2"))
         dependencies.get(StringBuilder::class.java, "second").toString().assert().isEqualTo("2")
@@ -240,7 +240,7 @@ class BeanFactoryDependenciesTest {
     }
 
     @Test
-    fun `several beans of a type should need a qualifier unless one is primary`() {
+    fun `several beans of a type should need a name unless one is primary`() {
         beanFactory.registerSingleton("first", StringBuilder("1"))
         beanFactory.registerSingleton("second", StringBuilder("2"))
         assertThrows<IllegalStateException> { dependencies.find(StringBuilder::class.java, null) }

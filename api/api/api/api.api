@@ -274,6 +274,10 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/BoundedCon
 public abstract interface annotation class me/ahoo/wow/api/annotation/CreateAggregate : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/DependencyName : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/Description : java/lang/annotation/Annotation {
 	public abstract fun value ()Ljava/lang/String;
 }

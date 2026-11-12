@@ -43,6 +43,7 @@ internal object AnnotationSet {
         "AggregateId",
         "AfterCommand",
         "Name",
+        "DependencyName",
         "Revision",
         "Alias",
         "Projection",

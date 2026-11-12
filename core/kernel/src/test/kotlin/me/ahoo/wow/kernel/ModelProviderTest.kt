@@ -80,12 +80,12 @@ class ModelProviderTest {
     }
 
     @Test
-    fun `a missing qualified dependency should name its qualifier`() {
+    fun `a missing named dependency should say its name`() {
         val error = runCatching { Dependencies.of(Pricing { 1 }).get(Pricing::class.java, "retail") }
             .exceptionOrNull() as MissingDependencyException
-        error.message.assert().contains("${Pricing::class.java.name} qualified \"retail\"")
+        error.message.assert().contains("${Pricing::class.java.name} named \"retail\"")
         error.type.assert().isEqualTo(Pricing::class.java)
-        error.qualifier.assert().isEqualTo("retail")
+        error.name.assert().isEqualTo("retail")
         error.building.assert().isNull()
         val building = "OrderProjection"
         assertThrownBy<MissingDependencyException> { Dependencies.NONE.get(Pricing::class.java, null, building) }
@@ -95,23 +95,23 @@ class ModelProviderTest {
     }
 
     @Test
-    fun `dependencies should be found by type, and by qualifier when one is given`() {
+    fun `dependencies should be found by type, and by name when one is given`() {
         val retail = Pricing { 2 }
         val wholesale = Pricing { 1 }
         val dependencies = Dependencies.of(mapOf("retail" to retail, "wholesale" to wholesale), "text")
         dependencies.get(Pricing::class.java, "wholesale").assert().isSameAs(wholesale)
         dependencies.get(String::class.java).assert().isEqualTo("text")
         dependencies.find(Pricing::class.java, null).assert().isNull()
-        // A qualifier names one dependency, of the type asked for.
+        // A name picks one dependency, of the type asked for.
         dependencies.find(String::class.java, "retail").assert().isNull()
     }
 
     @Test
-    fun `two dependencies of a type should be ambiguous without a qualifier`() {
+    fun `two dependencies of a type should be ambiguous without a name`() {
         assertThrownBy<AmbiguousDependencyException> {
             Dependencies.of(Pricing { 1 }, Pricing { 2 }).get(Pricing::class.java)
         }.hasMessageStartingWith("2 dependencies are ${Pricing::class.java.name} (").hasMessageEndingWith(
-            "and none is primary takes one; qualify it with @Name.",
+            "and none is primary takes one; name it with @DependencyName.",
         )
     }
 

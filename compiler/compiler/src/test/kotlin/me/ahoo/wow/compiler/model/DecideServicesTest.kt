@@ -164,14 +164,14 @@ class DecideServicesTest {
         val commands = standIn(CommandClient::class.java)
 
         val services = object : Dependencies {
-            override fun find(type: Class<*>, qualifier: String?): Any? = when (type) {
+            override fun find(type: Class<*>, name: String?): Any? = when (type) {
                 QueryApi::class.java -> queries
                 NodeQueryApi::class.java -> nodeQueries
                 CommandClient::class.java -> commands
                 else -> null
             }
 
-            override fun find(type: Type, qualifier: String?): Any? = null
+            override fun find(type: Type, name: String?): Any? = null
         }
 
         fun run(loader: ClassLoader): List<String> = runBlocking {

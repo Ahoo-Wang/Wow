@@ -72,6 +72,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 - 目标: `CLASS`
 - 参数: 无。
 
+## `@DependencyName`
+
+[DependencyName](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/DependencyName.kt): The name of the dependency a parameter takes.
+
+- 目标: `VALUE_PARAMETER`
+- 参数: `value: String`
+
 ## `@Description`
 
 [Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
@@ -104,7 +111,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
 
-- 目标: `CLASS`, `FUNCTION`, `VALUE_PARAMETER`
+- 目标: `CLASS`, `FUNCTION`
 - 参数: `value: String`
 
 ## `@OnCommand`

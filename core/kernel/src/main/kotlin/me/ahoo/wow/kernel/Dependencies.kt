@@ -27,28 +27,28 @@ import java.lang.reflect.Type
  */
 fun interface Dependencies {
     /**
-     * The dependency of [type] named [qualifier], or the only one of [type] when [qualifier] is null; null when
+     * The dependency of [type] named [name], or the only one of [type] when [name] is null; null when
      * there is none.
      */
-    fun find(type: Class<*>, qualifier: String?): Any?
+    fun find(type: Class<*>, name: String?): Any?
 
     /**
-     * The dependency of the full [type], a parameterized one, named [qualifier], or the only one of [type] when
-     * [qualifier] is null; null when there is none. By its class ([Types.rawOf]) by default, for a host that knows no
+     * The dependency of the full [type], a parameterized one, named [name], or the only one of [type] when
+     * [name] is null; null when there is none. By its class ([Types.rawOf]) by default, for a host that knows no
      * generics; a host that does finds it by every type argument.
      *
      * @throws AmbiguousDependencyException when several are of [type] and none is the one to take.
      */
-    fun find(type: Type, qualifier: String?): Any? = find(Types.rawOf(type), qualifier)
+    fun find(type: Type, name: String?): Any? = find(Types.rawOf(type), name)
 
     /**
-     * The dependency of [type], named [qualifier] when it is given, to build [building] with (a processor, `the Order
+     * The dependency of [type], named [name] when it is given, to build [building] with (a processor, `the Order
      * model`): [find]'s, or a [MissingDependencyException] naming what it builds when there is none.
      */
-    fun <T : Any> get(type: Class<T>, qualifier: String? = null, building: String? = null): T {
-        val dependency = find(type, qualifier) ?: throw MissingDependencyException(type, qualifier, building)
+    fun <T : Any> get(type: Class<T>, name: String? = null, building: String? = null): T {
+        val dependency = find(type, name) ?: throw MissingDependencyException(type, name, building)
         check(type.isInstance(dependency)) {
-            "The dependency of ${type.name}${describe(qualifier)} is a ${dependency.javaClass.name}."
+            "The dependency of ${type.name}${describe(name)} is a ${dependency.javaClass.name}."
         }
         return type.cast(dependency)
     }
@@ -58,14 +58,14 @@ fun interface Dependencies {
      * [find]'s by the full type, or a [MissingDependencyException] naming the type when there is none; an
      * [AmbiguousDependencyException] naming the parameter when several are of it.
      */
-    fun <T : Any> get(raw: Class<T>, type: Type, qualifier: String?, building: String?, parameter: String): T {
+    fun <T : Any> get(raw: Class<T>, type: Type, name: String?, building: String?, parameter: String): T {
         val dependency = try {
-            find(type, qualifier)
+            find(type, name)
         } catch (ambiguous: AmbiguousDependencyException) {
             throw ambiguous.of(building, parameter)
-        } ?: throw MissingDependencyException(raw, qualifier, building, type)
+        } ?: throw MissingDependencyException(raw, name, building, type)
         check(raw.isInstance(dependency)) {
-            "The dependency of ${Types.nameOf(type)}${describe(qualifier)} is a ${dependency.javaClass.name}."
+            "The dependency of ${Types.nameOf(type)}${describe(name)} is a ${dependency.javaClass.name}."
         }
         return raw.cast(dependency)
     }
@@ -80,17 +80,17 @@ fun interface Dependencies {
         fun of(vararg instances: Any): Dependencies = of(emptyMap(), *instances)
 
         /**
-         * The [qualified] instances, found by their qualifier, and the [instances], found by type; a type two of
-         * [instances] have is ambiguous, so one of them needs a qualifier.
+         * The [named] instances, found by their name, and the [instances], found by type; a type two of
+         * [instances] have is ambiguous, so one of them needs a name.
          */
         @JvmStatic
-        fun of(qualified: Map<String, Any>, vararg instances: Any): Dependencies {
-            val unqualified = instances.toList()
-            return Dependencies { type, qualifier ->
-                if (qualifier != null) {
-                    qualified[qualifier]?.takeIf { type.isInstance(it) }
+        fun of(named: Map<String, Any>, vararg instances: Any): Dependencies {
+            val unnamed = instances.toList()
+            return Dependencies { type, name ->
+                if (name != null) {
+                    named[name]?.takeIf { type.isInstance(it) }
                 } else {
-                    val candidates = unqualified.filter { type.isInstance(it) }
+                    val candidates = unnamed.filter { type.isInstance(it) }
                     if (candidates.size > 1) {
                         throw AmbiguousDependencyException(type, candidates.map { it.javaClass.name })
                     }
@@ -99,29 +99,29 @@ fun interface Dependencies {
             }
         }
 
-        internal fun describe(qualifier: String?): String = qualifier?.let { " qualified \"$it\"" }.orEmpty()
+        internal fun describe(name: String?): String = name?.let { " named \"$it\"" }.orEmpty()
     }
 }
 
 /**
- * No dependency of [type], named [qualifier] when it is not null, to build [building] with: a processor
+ * No dependency of [type], named [name] when it is not null, to build [building] with: a processor
  * (`OrderSummaryProjection`) or a model (`the Order model`), the generated code's models and processors when it is
  * null.
  */
 class MissingDependencyException(
     val type: Class<*>,
-    val qualifier: String?,
+    val name: String?,
     val building: String? = null,
     /** The full type looked for, when it is a parameterized one. */
     val fullType: Type = type,
 ) : IllegalStateException(
-    "No dependency of ${Types.nameOf(fullType)}${Dependencies.describe(qualifier)} to build " +
+    "No dependency of ${Types.nameOf(fullType)}${Dependencies.describe(name)} to build " +
         "${building ?: "the models and processors"} with: register one with the host.",
 )
 
 /**
  * Several dependencies are of [type], the [candidates] by their names, and none is the one to take: the [parameter]
- * of [building] names one with a qualifier (`@Name`), or the host marks one primary.
+ * of [building] names one (`@DependencyName`), or the host marks one primary.
  */
 class AmbiguousDependencyException(
     val type: Type,
@@ -131,7 +131,7 @@ class AmbiguousDependencyException(
 ) : IllegalStateException(
     "${candidates.size} dependencies are ${Types.nameOf(type)} (${candidates.joinToString()}) and none is primary" +
         (parameter?.let { ": the parameter $it" }.orEmpty()) + (building?.let { " of $it" }.orEmpty()) +
-        " takes one; qualify it with @Name.",
+        " takes one; name it with @DependencyName.",
 ) {
     /** This ambiguity, of the [parameter] of [building]. */
     fun of(building: String?, parameter: String): AmbiguousDependencyException =
