@@ -9,10 +9,9 @@ service:
 ports:
   web:
     nodePort: 30080
+  # TLS on, the chart's default (ports.websecure.http.tls), with the Ingress's certificate.
   websecure:
     nodePort: 30443
-    tls:
-      enabled: true
 ingressClass:
   enabled: true
   isDefaultClass: true
