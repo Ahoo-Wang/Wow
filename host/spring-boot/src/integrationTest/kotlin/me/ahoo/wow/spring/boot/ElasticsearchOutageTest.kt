@@ -24,7 +24,6 @@ import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.hc.core5.http.HttpHost
-import org.apache.hc.core5.util.Timeout
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -40,29 +39,24 @@ class OutageMeters {
     fun meterRegistry(): MeterRegistry = SimpleMeterRegistry()
 }
 
-/** The application's Elasticsearch client for an outage: a server that does not answer fails a call within seconds. */
+/**
+ * The application's Elasticsearch client, built with the library's defaults (no response timeout of its own): a call to
+ * a server that does not answer is bounded by the store's `operation-timeout` alone.
+ */
 @Configuration(proxyBeanMethods = false)
 class OutageElasticsearchClient {
     @Bean(destroyMethod = "close")
-    fun elasticsearchClient(): Rest5Client = Rest5Client.builder(
-        HttpHost.create("http://" + ElasticsearchOutageTest.address)
-    )
-        .setConnectionConfigCallback {
-            it.setConnectTimeout(Timeout.ofSeconds(1)).setSocketTimeout(Timeout.ofSeconds(2))
-        }
-        .setRequestConfigCallback {
-            it.setConnectionRequestTimeout(Timeout.ofSeconds(1)).setResponseTimeout(Timeout.ofSeconds(2))
-        }
-        .build()
+    fun elasticsearchClient(): Rest5Client =
+        Rest5Client.builder(HttpHost.create("http://" + ElasticsearchOutageTest.address)).build()
 }
 
 /**
  * Elasticsearch, the account's only snapshot store, out of service mid-run, the account's log on MongoDB: paused (it
- * answers nothing, so each call waits out the client's timeouts) or stopped and started again (a call is refused at
- * once). A type's own snapshot store is on the write path whatever its type, so the node is not ready once it has kept
- * failing. A command that still reaches the node commits, its load replaying the log (each failed load counted, not
- * logged), but its default wait times out; a state read fails, retryable; and once the store is back the node is
- * ready again and the snapshot subscription catches up by itself.
+ * answers nothing, so each call waits out the store's `operation-timeout`, the client having no timeout of its own) or
+ * stopped and started again (a call is refused at once). A type's own snapshot store is on the write path whatever its
+ * type, so the node is not ready once it has kept failing. A command that still reaches the node commits, its load
+ * replaying the log (each failed load counted, not logged), but its default wait times out; a state read fails,
+ * retryable; and once the store is back the node is ready again and the snapshot subscription catches up by itself.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ElasticsearchOutageTest {
@@ -78,10 +72,12 @@ class ElasticsearchOutageTest {
             "wow.log.store" to "mongo",
             "wow.stores.es.type" to "elasticsearch",
             "wow.stores.es.index-prefix" to "outage$run",
+            "wow.stores.es.operation-timeout" to "PT2S",
             "wow.aggregates.[$BANK.account].snapshot.store" to "es",
             "wow.health.stores.down-after" to "PT2S",
             "wow.node.sample-interval" to "PT1S",
-            "wow.wait.default-timeout" to "PT3S",
+            // Longer than the store's bound: a paused store's load fails, and the command commits, before it ends.
+            "wow.wait.default-timeout" to "PT6S",
             sources = listOf(
                 HostTestApp::class.java,
                 OutageElasticsearchClient::class.java,
