@@ -1,0 +1,14 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1794442498	4.76	7.87	8.97	11	sysmond 3, WindowServer 2, bash 1		52	0	0.1	
+1794442510	5.09	7.84	8.95	5	jstat 3, symptomsd 1, AppleCentauriAlpha 0		548	71	0.3	
+1794442522	5.49	7.83	8.93	15	java 5, jstat 3, Stats 2		549	69	0.2	
+1794442534	6.09	7.85	8.92	6	WindowServer 2, Stats 1, AppleCentauriAlpha 1		726	70	0.3	
+1794442546	8.09	8.20	9.03	5	WindowServer 1, Stats 1, configd 1		521	70	0.0	
+1794442558	9.81	8.54	9.14	13	jstat 6, sysmond 3, WindowServer 1		578	70	0.0	
+1794442570	9.77	8.58	9.14	6	Stats 1, WindowServer 1, AppleCentauriAlpha 1		578	70	0.3	
+1794442582	9.56	8.57	9.13	7	WindowServer 1, claude 1, AppleCentauriAlpha 1		561	70	0.1	
+1794442594	9.22	8.56	9.12	18	jstat 12, sysmond 3, AppleCentauriAlpha 0		586	70	0.0	
+1794442606	8.89	8.50	9.09	9	jstat 5, claude 1, WindowServer 0		678	69	0.3	
+1794442618	8.57	8.46	9.06	4	AppleCentauriAlpha 1, WindowServer 1, Stats 1		601	68	0.3	
+1794442630	8.78	8.51	9.08	3	AppleCentauriAlpha 1, WindowServer 1, jstat 0		644	70	0.0	
+1794442642	8.18	8.39	9.03	28	launchd 15, jstat 11, AppleCentauriAlpha 1		645	70	0.0	

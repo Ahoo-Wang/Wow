@@ -1,0 +1,35 @@
+1794442499 [settle] 1s: node-1 0.03
+1794442500 [settle] 2s: node-1 0.03
+1794442501 [settle] 3s: node-1 0.03
+1794442501 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794442501 [bench] running E1 at 8000/s
+1794442501 [run] E1 @ 8000.0/s: warm-up
+1794442531 [run] E1 @ 8000.0/s: measure
+1794442651 [run] E1 @ 8000.0/s: drain
+1794442654 # run: E1
+1794442654 
+1794442654 deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), loadJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), stores kafka mongo, storeWriteIops , primed true, primeSeconds 10, settleSeconds 3, accounts 100000, session /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/20261111-161357-run-mongo-n1-saturation.
+1794442654 
+1794442654 Open loop at 8000.0/s, uniform over 100000 accounts, 30 s warm-up, 120 s measured.
+1794442654 
+1794442654 | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+1794442654 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+1794442654 | 8000.0/s | 959995 | 5 | 8.4 ms | 69.6 ms | 124.4 ms | 190.5 ms | 293.4 ms | 260.1 ms |
+1794442654 
+1794442654 Errors: {generator-overload=5}
+1794442654 
+1794442654 Load generator: 1.57 cores of 18 available to it.
+1794442654 
+1794442654 | Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+1794442654 | --- | --- | --- | --- | --- | --- |
+1794442654 | node-1 | 2.19 | 1509 MB | 966 MB | 172 | 0.742 s |
+1794442654 
+1794442654 | Container | CPU avg | CPU max | Memory |
+1794442654 | --- | --- | --- | --- |
+1794442654 | wow-e2e-bench-kafka | 35.9% | 129.8% | 1006MiB / 31.36GiB |
+1794442654 | wow-e2e-bench-mongo | 178.1% | 251.1% | 2.146GiB / 31.36GiB |
+1794442654 
+1794442654 Store operations, mongo (seconds -0.777 to 120.706): {epoch=121.48300004005432, insert=966211, query=493, update=1035833, delete=0, getmore=0, command=5602}
+1794442654 Store operations, kafkaEndOffsets (seconds -29.821 to 121.58): {wow.transfer.account.state=1193066, wow.transfer.commands=0}
+1794442654 
+1794442654 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/mongo-store-cost/r4-main/run

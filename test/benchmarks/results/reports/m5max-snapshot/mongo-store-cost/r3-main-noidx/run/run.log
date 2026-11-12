@@ -1,0 +1,33 @@
+1794442049 [settle] 1s: node-1 0.02
+1794442050 [settle] 2s: node-1 0.03
+1794442051 [settle] 3s: node-1 0.03
+1794442051 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794442051 [bench] running E1 at 8000/s
+1794442051 [run] E1 @ 8000.0/s: warm-up
+1794442081 [run] E1 @ 8000.0/s: measure
+1794442201 [run] E1 @ 8000.0/s: drain
+1794442204 # run: E1
+1794442204 
+1794442204 deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), loadJvm openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing), stores kafka mongo, storeWriteIops , primed true, primeSeconds 10, settleSeconds 3, accounts 100000, session /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/20261111-160625-run-mongo-n1-saturation.
+1794442204 
+1794442204 Open loop at 8000.0/s, uniform over 100000 accounts, 30 s warm-up, 120 s measured.
+1794442204 
+1794442204 | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+1794442204 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+1794442204 | 8000.0/s | 960000 | 0 | 8.0 ms | 68.1 ms | 123.9 ms | 167.9 ms | 223.1 ms | 203.8 ms |
+1794442204 
+1794442204 Load generator: 1.56 cores of 18 available to it.
+1794442204 
+1794442204 | Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+1794442204 | --- | --- | --- | --- | --- | --- |
+1794442204 | node-1 | 2.19 | 1520 MB | 960 MB | 171 | 0.731 s |
+1794442204 
+1794442204 | Container | CPU avg | CPU max | Memory |
+1794442204 | --- | --- | --- | --- |
+1794442204 | wow-e2e-bench-kafka | 37.1% | 128.0% | 990MiB / 31.36GiB |
+1794442204 | wow-e2e-bench-mongo | 179.2% | 316.8% | 2.153GiB / 31.36GiB |
+1794442204 
+1794442204 Store operations, mongo (seconds -0.75 to 120.704): {epoch=121.4539999961853, insert=965993, query=489, update=1035624, delete=0, getmore=0, command=5603}
+1794442204 Store operations, kafkaEndOffsets (seconds -29.835 to 121.518): {wow.transfer.account.state=1193600, wow.transfer.commands=0}
+1794442204 
+1794442204 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/p1-sweep-edges-b33c1b/test/benchmarks/results/e2e/mongo-store-cost/r3-main-noidx/run

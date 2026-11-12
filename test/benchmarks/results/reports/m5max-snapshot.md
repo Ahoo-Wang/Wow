@@ -1,6 +1,6 @@
 # Saturation snapshot on Apple M5 Max
 
-The latest saturation snapshot of Wow 10 on the local Apple M5 Max (decision D391 keeps one): single-node closed-loop ceilings on disk, PostgreSQL and MongoDB, with uniform, Zipf and one-hot-account keys for E1 and uniform keys for E3; then three nodes on this one host; then a controlled check of PostgreSQL's E1 on one hot account. Measured on 2026-11-10 and 11, from 22:33 to 01:38 (PST), at `a7c372ad3e` (`main`), the benchmark's JVMs on JDK 25. It replaces the snapshot at [`b435768e49`](https://github.com/Ahoo-Wang/Wow/blob/a7c372ad3ef808f479776a6183247c39f46189fc/test/benchmarks/results/reports/m5max-snapshot.md), whose figures stand beside each of this one's below. The raw results and the scripts are in [`m5max-snapshot/`](m5max-snapshot/).
+The latest saturation snapshot of Wow 10 on the local Apple M5 Max (decision D391 keeps one): single-node closed-loop ceilings on disk, PostgreSQL and MongoDB, with uniform, Zipf and one-hot-account keys for E1 and uniform keys for E3; then three nodes on this one host; then a controlled check of PostgreSQL's E1 on one hot account; and an addendum of 2026-11-11 that measures MongoDB's cost per commit below the knee, with and without the log's access indexes (D420). Measured on 2026-11-10 and 11, from 22:33 to 01:38 (PST), at `a7c372ad3e` (`main`), the benchmark's JVMs on JDK 25. It replaces the snapshot at [`b435768e49`](https://github.com/Ahoo-Wang/Wow/blob/a7c372ad3ef808f479776a6183247c39f46189fc/test/benchmarks/results/reports/m5max-snapshot.md), whose figures stand beside each of this one's below. The raw results and the scripts are in [`m5max-snapshot/`](m5max-snapshot/).
 
 ## Setup
 
@@ -171,6 +171,78 @@ Both the code and the JDK changed, so five fresh single-node PostgreSQL sessions
   - No arm updated the log table (no stamp of earlier streams), and no request-id lookup is among any arm's 25 most frequent statements.
   - The snapshot table had taken about 1.5 million updates by the sweep's end (the seed's and the prime's among them), 97% of them HOT, with 18,000–25,000 dead tuples, alike on both commits.
 
+## Addendum: MongoDB's cost per commit below the knee (D420)
+
+On GitHub Actions, E1 on MongoDB at 100k accounts has a higher p99 at an equal rate than `v10.0.0-beta.1` in every
+run on an EPYC 7763 ([actions-snapshot](actions-snapshot.md), "E1 on MongoDB at 100k accounts"). Those comparisons
+could not resolve a cost of about a tenth:
+
+- They compare latency at the lower arm's calibrated rate, where the store sits at 92–100% of its one core.
+- There a few percent more service time per commit becomes tens of percent of latency, and pairs scatter from 0.92 to
+  2.16.
+
+This check measures the cost on the store's side itself, at a fixed rate well under the knee, on 2026-11-11 from
+15:31 to 16:18 (PST), with the other sessions holding their builds.
+
+### Method
+
+| | |
+| --- | --- |
+| Arms | **tag:** the server of `v10.0.0-beta.1` (`22f8ac19cb`), whose log documents carry no access attributes, with 3 log indexes. **tag-idx:** the same, with `access_owner` and `access_space` created by hand after `up` (main's keys and partial filter). **main:** the server of `4665c3f0f6`, 5 log indexes. **main-noidx:** the same, with the two dropped by hand after `up`. The host creates them only at its start, so the change lasts the session (`indexes.log`, and the indexes listed in `store-after.json`). Every arm ran `4665c3f0f6`'s harness and load generator |
+| Sessions | One fresh single-node MongoDB session each, Kafka on, 1 GB heap, 100,000 accounts seeded and primed. Then one E1 run with uniform keys at a fixed 8,000/s open loop: 30 s of warm-up, 120 s measured. That is 37% of this snapshot's single-node MongoDB E1 ceiling (21,458.6/s) |
+| Order | First pass ABCD DCBA (r1 tag, main, main-noidx, tag-idx; r2 the reverse). Main's two rounds of CPU were 11.5% apart, more than main and main-noidx differed, so four more sessions ran: r3 main, r3 main-noidx, r4 main-noidx, r4 main. 12 sessions |
+| What is read | Around the run, from the store: mongod's CPU from its container's cgroup (`cpu.stat` `usage_usec`; no CPU limit), `serverStatus()` `opcounters`, and the log's and the snapshot's `$collStats` `latencyStats` and `storageStats`. Before them, 20 s with no load give mongod's floor, 0.12–0.15 cores. Each delta is over the run's whole window, about 150 s at the one rate, and is divided by the log documents the window added, 1,198,869–1,200,000 commits. The log is written in batched inserts (0.064–0.082 insert operations a commit), so its insert time is given per commit. p50 and p99 are the measured phase's, a by-line |
+| The window | As in this snapshot (`environment.txt`). Five idle Gradle and Kotlin daemons were allowed; over the 156 samples they used 0.4% of a core on average, 37.2% at most in one sample. No other JVM ran, and no measurement was disturbed or void, so none was rerun (`SUMMARY.md`) |
+
+### Results
+
+| Session | mongod CPU µs/commit, net | Log insert µs/commit | Snapshot update µs/op | Log avgObjSize | Log indexes, MB | p50 / p99 ms |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| r1 tag | 193.3 | 26.35 | 79.8 | 523 | 3, 294.3 | 8.77 / 190.5 |
+| r2 tag | 193.6 | 25.35 | 78.8 | 523 | 3, 295.4 | 8.45 / 193.5 |
+| r1 tag-idx | 212.4 | 30.21 | 83.9 | 523 | 5, 348.8 | 7.65 / 184.3 |
+| r2 tag-idx | 207.4 | 29.12 | 80.1 | 523 | 5, 350.0 | 7.74 / 120.8 |
+| r1 main | 199.4 | 29.43 | 75.1 | 559 | 5, 356.9 | 7.74 / 206.8 |
+| r2 main | 222.4 | 31.81 | 81.5 | 559 | 5, 357.9 | 6.82 / 90.6 |
+| r3 main | 202.1 | 29.04 | 73.5 | 559 | 5, 357.8 | 6.59 / 108.0 |
+| r4 main | 191.5 | 27.35 | 72.2 | 559 | 5, 357.0 | 8.45 / 124.4 |
+| r1 main-noidx | 200.2 | 27.35 | 76.6 | 559 | 3, 294.2 | 7.36 / 113.7 |
+| r2 main-noidx | 208.3 | 28.75 | 81.6 | 559 | 3, 291.8 | 7.78 / 178.2 |
+| r3 main-noidx | 193.4 | 26.38 | 74.3 | 559 | 3, 293.2 | 8.00 / 123.9 |
+| r4 main-noidx | 193.3 | 26.64 | 73.7 | 559 | 3, 295.0 | 6.94 / 113.2 |
+
+- **Index sizes at about 1.3M log documents:**
+  - The two access indexes are 27.0–27.7 MB each on the tag's documents and 30.0–31.7 MB each on main's.
+  - `_id_` (40–42), `version_key` (145–146) and `request_key` (106–110 MB) are alike on every arm (`STORE-COST.md`).
+- **Store operations per commit:** inserts 1.000 on every arm. Updates are 1.063–1.065 on the tag and 1.072–1.075 on
+  main.
+- **Snapshot documents:** 419 B on the tag and 421 B on main.
+- **The load generator dropped commands in four runs:** r1 main 857, r2 tag 666, r3 main 22 and r4 main 5. Each was
+  "generator-overload": its in-flight cap of 2,000 reached in one stalled second (worst-second p99 260–365 ms).
+  That is under 0.1% of each run, and there was no server error in any session. They are kept.
+
+| Comparison | What differs | mongod CPU per commit, by round | Log insert time per commit, by round |
+| --- | --- | --- | --- |
+| tag-idx / tag | the two index writes, on the tag's documents | 1.099, 1.071 | 1.146, 1.149 |
+| main / main-noidx | the two index writes, on main's documents | 0.996, 1.068, 1.045, 0.991 (median 1.021) | 1.076, 1.106, 1.101, 1.026 (median 1.088) |
+| main-noidx / tag | the documents (559 against 523 B) and the code, 3 indexes each | 1.036, 1.076 | 1.038, 1.134 |
+
+### Reading
+
+- **The two indexes cost the log's insert time in every comparison:** about 15% per commit on the tag's documents,
+  and 3–11% (median 9%) on main's. Each adds about 30 MB per 1.3M commit documents.
+- **mongod's CPU per commit:** the indexes cost 7–10% (14–19 µs) on the tag's documents, steady in both rounds. On
+  main's documents the median is +2% over four rounds, inside main's own spread of 191.5–222.4 µs.
+- **The documents and the code without the indexes** cost 4–8% more CPU and 4–13% more log insert time than the tag.
+- **The snapshot's updates** don't move with the indexes.
+- **What it says about Actions:** these are costs of the size that, on a store at one core, would show as about a
+  tenth of throughput at saturation (L3's calibrated 0.90 on Actions). That is consistent with the Actions difference,
+  not a measurement of it.
+- **The decision (D420):** MongoDB's access indexes leave out the nulls, as PostgreSQL's do. A null access attribute
+  is not written to the log document, and the two indexes are partial on the attribute's existence, so a commit of an
+  aggregate with no owner or space adds no entry to either. The re-measurement of the change follows, with the same
+  instrument: the tag, `main` and the change.
+
 ## Limits
 
 - One machine, one run each, apart from the e1-hot check's five sessions; no A/A pair in the snapshot itself. The noise band rests on one repeat of 4,096 clients a sweep, and the e1-hot check shows a spread of up to 40% at the steps below 64 clients.
@@ -196,6 +268,19 @@ The e1-hot check, with another commit's server built in its own worktree and cop
 test/benchmarks/results/reports/m5max-snapshot/scripts/03-e1-hot-arms.sh head-25=<this build> old-25=<the other build> head-21=<this build>,<JDK 21 home> head-25b=<this build> old-25b=<the other build>
 ```
 
+The store-cost addendum, with the tag's server built in its own worktree and copied likewise. The arms are given in
+the order of round 1, and round 2 runs them reversed. `--sequence` gives another order, as the second pass did with
+`--sequence="3:main 3:main-noidx 4:main-noidx 4:main"`. `store-cost.py` writes the tables:
+
+```bash
+test/benchmarks/results/reports/m5max-snapshot/scripts/04-mongo-store-cost.sh tag=<the tag's build> main=<this build> main-noidx=<this build>,drop tag-idx=<the tag's build>,create
+python3 -I test/benchmarks/results/reports/m5max-snapshot/scripts/store-cost.py test/benchmarks/results/e2e/mongo-store-cost main/main-noidx tag-idx/tag main-noidx/tag
+```
+
+The addendum's sessions ran from an earlier form of `04-mongo-store-cost.sh` that fixed its arms in the script, with
+the same commands. Its first start inherited JDK 21 from the shell and stopped at `bench.sh`'s check before any
+session began (`04-mongo-store-cost.log` begins after it). `JAVA_HOME` must be a JDK 25.
+
 The scripts write the raw output under `test/benchmarks/results/e2e/m5max-snapshot/` (ignored by git); `curate` in [`lib.sh`](m5max-snapshot/scripts/lib.sh) copies into [`m5max-snapshot/`](m5max-snapshot/) what this report rests on. The node logs are not committed; each session's `log-digest.md` counts their warnings and errors by message and by step.
 
 | Path | What |
@@ -205,4 +290,5 @@ The scripts write the raw output under `test/benchmarks/results/e2e/m5max-snapsh
 | `3-N-<backend>/` | The three-node session, likewise, with the fixed 1,024-client runs `e1-c1024/` and `e3-c1024/` |
 | `e1-hot-arms/<n>-<arm>/` | The e1-hot check's sessions, each with `hot-version.tsv`, `tables.txt`, `explain.txt` and its sweep's `pg-statements.txt` |
 | `0*-*.log` | Each script's output, the disturbed first three-node MongoDB session and the void first old-commit arm included |
-| [`scripts/`](m5max-snapshot/scripts/) | `run-all.sh`, `01-single-node.sh`, `02-three-nodes.sh`, `03-e1-hot-arms.sh`, `lib.sh`, `summarize.py`, `digest-logs.py` |
+| `mongo-store-cost/` | The addendum: [`STORE-COST.md`](m5max-snapshot/mongo-store-cost/STORE-COST.md) (every session's figures and index sizes, and the ratios), [`SUMMARY.md`](m5max-snapshot/mongo-store-cost/SUMMARY.md) (each run's verdict and load), `environment.txt`, `verdicts.txt`, the two passes' logs, and per session `r<round>-<arm>/` with `up.log`, `indexes.log`, `idle.json`, `store-before.json`, `store-after.json`, `host.txt` and the run's `result.json`, `host-load.tsv` and `allowed-jvms.txt` |
+| [`scripts/`](m5max-snapshot/scripts/) | `run-all.sh`, `01-single-node.sh`, `02-three-nodes.sh`, `03-e1-hot-arms.sh`, `04-mongo-store-cost.sh`, `lib.sh`, `summarize.py`, `store-cost.py`, `digest-logs.py` |
