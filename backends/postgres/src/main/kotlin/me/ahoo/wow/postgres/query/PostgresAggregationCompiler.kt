@@ -71,9 +71,8 @@ internal class PostgresAggregationCompiler(
         query.elements.forEach { element ->
             val container = admitted.field(element.path)
             val alias = compiler.nextAlias()
-            from.append(" CROSS JOIN LATERAL jsonb_array_elements(")
-                .append(PostgresFilterCompiler.objectElements(compiler.node(container)))
-                .append(") AS ").append(alias).append("(v)")
+            from.append(" CROSS JOIN LATERAL ")
+                .append(PostgresFilterCompiler.objectElements(compiler.node(container), alias))
             compiler.enter(container.physicalField, "$alias.v")
             elementFilters += alias to element.filter
         }
