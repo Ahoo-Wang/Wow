@@ -167,16 +167,16 @@ class MongoSnapshotStore(
     }
 
     /**
-     * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
-     * one aggregate type with one unordered `bulkWrite` of conditional upserts ([MongoSnapshotWrites]), each the save's
-     * own modifier `$set`, guarded as [save] guards one and over a document without a stale mark. Each operation
-     * either applied (it matched and wrote the snapshot, or found no document and inserted it: written) or met the
-     * key with its insert (the document exists and the filter did not match it: the guard refused the version, the
-     * document carries a stale mark, or a concurrent insert won the key). Such a snapshot is saved again alone, as
-     * [save] would ([conditionalUpsert]), which tells the three apart: it writes over a stale mark and clears one of a
-     * version up to its own, and marks a higher state revision stale. So a batch that all lands is one round trip; a
-     * marked document, during a rebuild, costs its save alone; one the server refused with another error, or whose state cannot be BSON, is
-     * [SnapshotSaveOutcome.Failed] alone.
+     * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of one aggregate type
+     * with one unordered `bulkWrite` of conditional upserts ([MongoSnapshotWrites]), each the save's own modifier
+     * `$set`, guarded as [save] guards one and over a document without a stale mark. Each operation either applied (it
+     * matched and wrote the snapshot, or found no document and inserted it: written) or met the key with its insert
+     * (the document exists and the filter did not match it: the guard refused the version, the document carries a stale
+     * mark, or a concurrent insert won the key). Such a snapshot is saved again alone, as [save] would
+     * ([conditionalUpsert]), which tells the three apart: it writes over a stale mark and clears one of a version up to
+     * its own, and marks a higher state revision stale. So a batch that all lands is one round trip; a marked document,
+     * during a rebuild, costs its save alone; one the server refused with another error, or whose state cannot be BSON,
+     * is [SnapshotSaveOutcome.Failed] alone.
      */
     override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.mongo {
         snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
