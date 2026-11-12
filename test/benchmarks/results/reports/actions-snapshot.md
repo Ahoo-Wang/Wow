@@ -261,6 +261,12 @@ At an equal rate, head over base:
   it is within the suite's noise, but its p50 is above in all four pairs. The run without the parent's walk doesn't
   confirm #5394 as its cause. That run was on EPYC 9V45 runners at about twice the rate, so the question is open on
   the 7763. Whether the difference matters at GA is not settled by these runs.
+- **Measured locally since, below the knee** ([m5max-snapshot](m5max-snapshot.md), "Addendum: MongoDB's cost per
+  commit below the knee"):
+  - The two indexes cost the log's insert time on every comparison, 9–15% per commit. On the tag's documents they
+    also cost 7–10% of mongod's CPU per commit.
+  - Main's documents and code without them cost another 4–8%.
+  - The decision is D420: the indexes leave out the nulls, as PostgreSQL's do. Its re-measurement follows.
 
 ### Snapshot writes on PostgreSQL
 

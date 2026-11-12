@@ -1,0 +1,30 @@
+## begin 2026-11-11T15:35:51-0800
+uptime: 15:35  up 2 days, 15:10, 2 users, load averages: 7.28 8.36 11.33
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
+busiest other processes (% of one core):
+  20.2 408 WindowServer
+  4.2 712 WallpaperAerialsExtension
+  3.3 52644 claude
+  1.7 785 VTDecoderXPCService
+  1.6 50540 claude
+  0.8 597 AppleCentauriAlpha
+  0.5 60912 bash
+  0.4 657 wifip2pd
+allowed JVMs (% of one core): 38528 48490 57345 57438 57683 0.4
+other JVMs:
+## end 2026-11-11T15:38:28-0800
+uptime: 15:38  up 2 days, 15:12, 2 users, load averages: 8.57 9.25 11.24
+swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
+containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
+busiest other processes (% of one core):
+  21.0 408 WindowServer
+  5.1 712 WallpaperAerialsExtension
+  3.7 477 symptomsd
+  1.7 785 VTDecoderXPCService
+  0.9 60912 bash
+  0.9 50618 claude
+  0.7 63948 docker
+  0.7 63848 mdworker_shared
+allowed JVMs (% of one core): 38528 48490 57345 57438 57683 0.0
+other JVMs:
