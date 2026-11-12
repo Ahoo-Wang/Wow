@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -105,8 +106,9 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun `a state with a NUL character loads back as saved, or is refused as a value`(): Unit = runBlocking {
-        // PostgreSQL's jsonb refuses it with a driver exception, MongoDB keeps it. Admission refuses it
-        // first; a store that sees it all the same keeps it or refuses it as a value, never as another failure.
+        // PostgreSQL's jsonb refuses it, MongoDB keeps it. Admission refuses it first; a store that sees it all the
+        // same keeps it or refuses it as a value (StorageRefusedException, so its aggregate is parked at once), never
+        // as another failure.
         val store = createStore()
         val saved = snapshot("a", 1).copyWith(state = """{"name":"a\u0000b","n\u0000":1}""")
         val outcome = runCatching { store.save(saved) }
@@ -115,7 +117,7 @@ abstract class SnapshotStoreSpec {
             outcome.getOrNull().assert().isEqualTo(true)
             store.load(saved.ref).assertSameAs(saved)
         } else {
-            refused.assert().isInstanceOf(IllegalArgumentException::class.java)
+            refused.assert().isInstanceOf(StorageRefusedException::class.java)
             store.load(saved.ref).assert().isNull()
         }
     }
@@ -286,7 +288,7 @@ abstract class SnapshotStoreSpec {
         outcomes[2].assert().isEqualTo(SnapshotSaveOutcome.Written)
         when (val outcome = outcomes[1]) {
             is SnapshotSaveOutcome.Failed -> {
-                outcome.cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+                outcome.cause.assert().isInstanceOf(StorageRefusedException::class.java)
                 store.load(refused.ref).assert().isNull()
             }
             else -> {

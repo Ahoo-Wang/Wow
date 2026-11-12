@@ -25,7 +25,7 @@ description: 发出命令后调用方可以等待什么、为什么默认等待�
 
 默认值有一点代价：回答在快照订阅处理完这次提交之后才到，而不是紧接着追加。快照订阅落后时，默认的等待会超时；这时结果会说明命令已达到 `committed`，调用方因此知道事实已经提交。快照订阅停放了这个聚合时，等待立即以 `wow.subscription.parked` 失败。关闭了快照的聚合没有快照阶段，它的默认等待是 `committed`。只有默认值会这样退回：对这样的聚合显式要求 `snapshot`，会在准入时被拒绝。
 
-快照查询读另一个存储上的副本的聚合，`snapshot` 到不了副本：调用方紧接着重新加载的列表可能还不包含这次提交。这样的调用方等待 `queryable`，它在副本包含这次提交后结束，比 `snapshot` 晚。
+快照查询读另一个存储上的副本的聚合，`snapshot` 到不了副本：调用方紧接着重新加载的列表可能还不包含这次提交。这样的调用方等待 `queryable`，它在副本包含这次提交后结束，比 `snapshot` 晚。唯一的快照存储是 Elasticsearch 的聚合，`snapshot` 与 `queryable` 是同一个等待，在索引包含这次提交时结束：这时按 ID 读取已有它，列表则只有在那个存储设 `refresh: wait-for` 时才有（[Elasticsearch](../operate/elasticsearch#only-snapshot-store)）。
 
 需要得少的调用方可以等待 `committed` 或 `accepted`；需要得多的可以指定更后面的阶段，或者一条等待链。
 
