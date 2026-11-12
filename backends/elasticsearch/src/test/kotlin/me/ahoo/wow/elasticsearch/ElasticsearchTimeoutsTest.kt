@@ -20,8 +20,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreResources
@@ -181,6 +183,40 @@ class ElasticsearchTimeoutsTest {
                 started.elapsedNow().assert().isLessThan(3.seconds)
                 // The exchange is aborted: the connection is closed, not left to the client's pool to wait on.
                 released.get(5, TimeUnit.SECONDS)
+            }
+        }
+    }
+
+    @Test
+    fun `a load its caller gives up on should close its connection then, not at the operation timeout`() {
+        ServerSocket(0).use { server ->
+            // Accepts, then holds every connection without a byte: a paused server. Records when the client lets go.
+            val released = CompletableFuture<Unit>()
+            thread(isDaemon = true) {
+                server.accept().use { socket ->
+                    runCatching { socket.getInputStream().readAllBytes() }
+                    released.complete(Unit)
+                }
+            }
+            // The store's bound is the default 30 seconds; the kernel gives the load up at its own deadline.
+            val restClient = Rest5Client.builder(HttpHost.create("http://127.0.0.1:${server.localPort}")).build()
+            restClient.use {
+                val store = ElasticsearchStoreProvider().open(
+                    StoreConfig.of(
+                        name = "search",
+                        type = ElasticsearchStoreProvider.TYPE,
+                        resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
+                    ),
+                ) as ElasticsearchStore
+                val ref = AggregateType("ctx", "order").ref("tenant", "o-1")
+                val started = TimeSource.Monotonic.markNow()
+                val loaded = runBlocking {
+                    withTimeoutOrNull(300.milliseconds) { store.snapshots("ctx").load(ref) }
+                }
+                loaded.assert().isNull()
+                // The coroutine's cancellation cancels the transport's future, which aborts the exchange.
+                released.get(2, TimeUnit.SECONDS)
+                started.elapsedNow().assert().isLessThan(3.seconds)
             }
         }
     }

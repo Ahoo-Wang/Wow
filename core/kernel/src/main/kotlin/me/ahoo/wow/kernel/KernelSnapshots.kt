@@ -15,15 +15,14 @@ package me.ahoo.wow.kernel
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
+import me.ahoo.wow.spi.log.readWithoutSnapshot
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -40,10 +39,10 @@ private val logger = KotlinLogging.logger {}
 /**
  * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the reader
  * [readers] gives its type, the one of a store holding both ([me.ahoo.wow.spi.store.Store.snapshotTails]), else apart
- * ([readSnapshotTailApart]). When the reader fails, the read is done apart: the first time logged as a warning,
- * every time counted with [ObservedEvent.StoreFellBack]. When it gives no answer within [timeout], it is cancelled and
- * the log is read alone, counted as timed out: the reader's store is the log's, so reading the snapshot apart would
- * wait on the same store again.
+ * ([readSnapshotTailApart]). When the reader fails, the read is done apart. When it gives no answer within [timeout], it
+ * is cancelled and the log is read alone ([readWithoutSnapshot]): the reader's store is the log's, so reading the
+ * snapshot apart would wait on the same store again. Each is counted with [ObservedEvent.StoreFellBack], `failed` or
+ * `timed-out`, and the first of each outage is logged as a warning ([OutageWarnings]).
  */
 internal class SnapshotTailReads(
     private val log: EventLog,
@@ -51,19 +50,22 @@ internal class SnapshotTailReads(
     private val observer: Observer,
     private val timeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
 ) {
-    private val failedLogged = AtomicBoolean()
+    private val warnings = OutageWarnings("a read answers")
 
     suspend fun read(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
         val reader = readers(ref.type) ?: return log.readSnapshotTailApart(ref, snapshots, earlier)
         try {
             // Null only when this read's own deadline passed: a caller's cancellation is thrown on.
-            withTimeoutOrNull(timeout) { reader.readWithSnapshot(ref, earlier) }?.let { return it }
+            withTimeoutOrNull(timeout) { reader.readWithSnapshot(ref, earlier) }?.let {
+                warnings.answered()
+                return it
+            }
             fellBack(ref, ObservedEvent.StoreFellBack.Reason.TIMED_OUT)
-            warnOnce(null) {
+            warnings.failed(null) {
                 "Reading the snapshot of $ref with its tail in one round trip gave no answer within $timeout: " +
                     "replaying its log."
             }
-            return SnapshotTail(null, AggregateTail(log.read(ref).toList(), emptyList()))
+            return log.readWithoutSnapshot(ref)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (
@@ -71,22 +73,11 @@ internal class SnapshotTailReads(
             failure: Exception,
         ) {
             fellBack(ref, ObservedEvent.StoreFellBack.Reason.FAILED)
-            warnOnce(
-                failure
-            ) { "Reading the snapshot of $ref with its tail in one round trip failed: reading them apart." }
+            warnings.failed(failure) {
+                "Reading the snapshot of $ref with its tail in one round trip failed: reading them apart."
+            }
         }
         return log.readSnapshotTailApart(ref, snapshots, earlier)
-    }
-
-    /** [message] as a warning the first time, at debug level after it: every failure is counted. */
-    private fun warnOnce(failure: Exception?, message: () -> String) {
-        if (failedLogged.compareAndSet(false, true)) {
-            logger.warn(
-                failure
-            ) { "${message()} Later failures are counted (wow.store.fallbacks), and logged at debug level." }
-        } else {
-            logger.debug(failure, message)
-        }
     }
 
     private fun fellBack(ref: AggregateRef, reason: ObservedEvent.StoreFellBack.Reason) = observer.observed(
@@ -104,16 +95,14 @@ internal class SnapshotTailReads(
  * A load that gives no answer within [timeout] is failed the same way: cancelled, its store call interrupted, and
  * counted as timed out, so a store that stops answering costs a replay, not the command's wait. Cancellation from
  * the caller still propagates. Each failure is counted with [ObservedEvent.StoreFellBack], and the first of each
- * outage is logged as a warning, the later ones at debug level: a store that is down fails every load. A load that
- * succeeds ends the outage, so the next failure, a later outage's first, is a warning again.
+ * outage is logged as a warning ([OutageWarnings]): a store that is down fails every load.
  */
 internal class TolerantSnapshots(
     private val store: SnapshotStore,
     private val observer: Observer,
     private val timeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
 ) : SnapshotStore by store {
-    /** Whether this outage's first failure was logged; cleared by a load that succeeds. */
-    private val failedLogged = AtomicBoolean()
+    private val warnings = OutageWarnings("a load succeeds")
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = try {
         // Null only when this load's own deadline passed: a caller's cancellation is thrown on.
@@ -123,9 +112,7 @@ internal class TolerantSnapshots(
                 "Loading the snapshot of $ref gave no answer within $timeout; replaying its log."
             }
         } else {
-            if (failedLogged.get()) {
-                failedLogged.set(false)
-            }
+            warnings.answered()
             loaded.snapshot
         }
     } catch (cancelled: CancellationException) {
@@ -149,19 +136,39 @@ internal class TolerantSnapshots(
         observer.observed(
             ObservedEvent.StoreFellBack(ref.type.context, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD, reason),
         )
-        if (failedLogged.compareAndSet(false, true)) {
-            logger.warn(failure) {
-                "${message()} Later failures are counted (wow.store.fallbacks), and logged at debug level until a " +
-                    "load succeeds."
-            }
-        } else {
-            logger.debug(failure, message)
-        }
+        warnings.failed(failure, message)
         return null
     }
 
     /** A load's answer, null when there is no snapshot: told apart from a load that gave none in time. */
     private class Loaded(val snapshot: SnapshotRecord?)
+}
+
+/**
+ * The warnings of the outages of one capability of a store: the first failure of an outage is logged as a warning, the
+ * later ones at debug level, until [until] (a call that answers, [answered]) ends it, so the next failure, a later
+ * outage's first, is a warning again. Every failure is counted besides ([ObservedEvent.StoreFellBack]).
+ */
+internal class OutageWarnings(private val until: String) {
+    private val warned = AtomicBoolean()
+
+    /** A call answered: the outage, if any, is over. */
+    fun answered() {
+        if (warned.get()) {
+            warned.set(false)
+        }
+    }
+
+    /** A failure of the outage: [message] logged as a warning when it is the outage's first, else at debug level. */
+    fun failed(failure: Exception?, message: () -> String) {
+        if (warned.compareAndSet(false, true)) {
+            logger.warn(failure) {
+                "${message()} Later failures are counted (wow.store.fallbacks), and logged at debug level until $until."
+            }
+        } else {
+            logger.debug(failure, message)
+        }
+    }
 }
 
 /**

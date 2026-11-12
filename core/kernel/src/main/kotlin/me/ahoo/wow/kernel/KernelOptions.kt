@@ -30,9 +30,10 @@ import kotlin.time.Duration.Companion.seconds
  * - [maxReplay]: the most streams a read of a state at a version folds ([Kernel.stateAt]): a state further from its
  *   snapshot, or from version 1 without one, is refused with [ReplayLimitExceededException], which names the
  *   aggregate, instead of replaying a long history on one read;
- * - [snapshotLoadTimeout]: how long a cache miss waits for its snapshot ([SnapshotStore.load][me.ahoo.wow.spi.snapshot.SnapshotStore.load],
- *   or the one-round-trip read of the snapshot with its tail) before it takes it as failed and replays the log: a
- *   snapshot is only a cache, so a store that stops answering costs a replay, not the command's wait.
+ * - [snapshotLoadTimeout]: how long a cache miss waits for its snapshot
+ *   ([SnapshotStore.load][me.ahoo.wow.spi.snapshot.SnapshotStore.load], or the one-round-trip read of the snapshot with
+ *   its tail) before it takes it as failed and replays the log: a snapshot is only a cache, so a store that stops
+ *   answering costs a replay, not the command's wait.
  *
  * Fields may be added: construct it with named arguments; the constructor is internal to Wow.
  */

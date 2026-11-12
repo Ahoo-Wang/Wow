@@ -173,7 +173,10 @@ class SnapshotProperties {
             loadTimeout,
             "Set it above zero and below wow.wait.default-timeout ($defaultWaitTimeout), so a command whose snapshot " +
                 "store does not answer replays its log within its wait.",
-        ) { "A snapshot load waiting $loadTimeout would outlast a command's default wait of $defaultWaitTimeout." }
+        ) {
+            "A snapshot load's timeout of $loadTimeout is not between zero and a command's default wait of " +
+                "$defaultWaitTimeout."
+        }
         val every = maintenanceInterval.toKotlinDuration()
         val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
         return SnapshotOptions(

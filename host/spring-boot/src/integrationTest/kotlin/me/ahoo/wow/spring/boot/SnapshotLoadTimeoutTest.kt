@@ -58,7 +58,7 @@ class SnapshotLoadTimeoutTest {
             "wow.log.partitions" to 2,
             "wow.state-cache.capacity" to 0,
             "wow.executor.max-in-flight" to 1,
-            "wow.snapshot.load-timeout" to "PT1S",
+            "wow.snapshot.load-timeout" to "PT2S",
             "wow.stores.mongo.type" to "mongo",
             "wow.stores.mongo.client" to "mongoClient",
             "wow.stores.mongo.database" to "load_timeout_log_$run",
@@ -110,15 +110,15 @@ class SnapshotLoadTimeoutTest {
                 held = deposit(first)
                 heldFor = Duration.ofNanos(System.nanoTime() - started)
             }
-            Thread.sleep(BUSY_AFTER_MILLIS)
-            // 2. Meanwhile the node is full: the bound is real.
+            // 2. Once the node says the first is in flight, it is full: the bound is real.
+            eventually { host.node.contexts.getValue(BANK).executor.commandsInFlight == 1 }
             val refused = host.post("/bank/account/$second/deposit", """{"amount":1}""")
             refused.status.assert().describedAs(refused.body.toString()).isEqualTo(BUSY)
             refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_BUSY)
             sending.join()
-            // 3. Its load failed at the timeout, a second, and it committed from the log right after.
+            // 3. Its load failed at the timeout, two seconds, and it committed from the log right after.
             held!!.status.assert().describedAs(held.body.toString()).isEqualTo(OK)
-            held!!.body!!["version"].asInt().assert().isEqualTo(2)
+            held.body!!["version"].asInt().assert().isEqualTo(2)
             heldFor.assert().isLessThan(Duration.ofSeconds(BOUND_SECONDS))
             // 4. Its slot is free: the next command is taken, not refused, and commits the same way.
             val next = deposit(third)
@@ -126,6 +126,14 @@ class SnapshotLoadTimeoutTest {
             timedOut().assert().isGreaterThanOrEqualTo(2.0)
         } finally {
             mongo.dockerClient.unpauseContainerCmd(mongo.containerId).exec()
+        }
+    }
+
+    private fun eventually(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + TIMEOUT_NANOS
+        while (!condition()) {
+            check(System.nanoTime() < deadline) { "Not reached in time." }
+            Thread.sleep(POLL_MILLIS)
         }
     }
 
@@ -145,7 +153,8 @@ class SnapshotLoadTimeoutTest {
         private const val BUSY = 429
         private const val SUFFIX = 8
         private const val LONG_SECONDS = 60L
-        private const val BOUND_SECONDS = 4L
-        private const val BUSY_AFTER_MILLIS = 300L
+        private const val BOUND_SECONDS = 5L
+        private const val TIMEOUT_NANOS = 10_000_000_000L
+        private const val POLL_MILLIS = 10L
     }
 }
