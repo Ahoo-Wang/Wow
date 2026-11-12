@@ -164,7 +164,7 @@ class ContractDirectory(
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
         if (subscription == Hop.SNAPSHOT_SUBSCRIPTION) {
-            return FunctionKind.SNAPSHOT.takeIf { owned.aggregates.any { it.snapshot.enabled } }
+            return FunctionKind.SYSTEM.takeIf { owned.aggregates.any { it.snapshot.enabled } }
         }
         val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
         return when (declared.kind) {

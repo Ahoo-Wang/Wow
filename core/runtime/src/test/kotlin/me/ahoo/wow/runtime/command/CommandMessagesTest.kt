@@ -88,7 +88,7 @@ class CommandMessagesTest {
                 ref,
                 Priced(BigDecimal("2.50")),
                 causation = Causation("root", "o-1@3"),
-                operator = Operator("alice", "t0", crossScope = true),
+                operator = Operator("alice", "t0", actedElsewhere = true),
             ),
             replyTo,
         )
@@ -102,7 +102,7 @@ class CommandMessagesTest {
         envelope.transport!!.wait.assert().isEqualTo(wait)
         val read = CommandMessages.commandOf(envelope)
         read.assert().isEqualTo(wire)
-        read.operator.assert().isEqualTo(Operator("alice", "t0", crossScope = true))
+        read.operator.assert().isEqualTo(Operator("alice", "t0", actedElsewhere = true))
         read.body.toString().assert().isEqualTo("""{"price":2.50}""")
         read.replyTo!!.executionId().assert().isEqualTo(execution)
         assertThrows<IllegalArgumentException> { CommandMessages.rejectedOf(envelope) }
@@ -420,6 +420,7 @@ class CommandMessagesTest {
             }),
         )
         receipts.subscription.name.assert().isEqualTo("wow.receipts.sales")
+        receipts.subscription.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         val rejected = CommandReceipt.Rejected<Any>(
             "c-1",
             "stock.item.Reserve",

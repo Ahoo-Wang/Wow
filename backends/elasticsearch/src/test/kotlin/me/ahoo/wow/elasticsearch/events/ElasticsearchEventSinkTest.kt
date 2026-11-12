@@ -148,7 +148,7 @@ class ElasticsearchEventSinkTest {
         val document = ElasticsearchEventDocuments.document(record("o1", 1, Operator("u", "tenant", true)))
         document.path("aggregateId").stringValue().assert().isEqualTo("o1")
         document.path("spaceId").isNull.assert().isTrue()
-        document.path("operator").path("crossScope").booleanValue().assert().isTrue()
+        document.path("operator").path("actedElsewhere").booleanValue().assert().isTrue()
         document.path("events")[0].path("body").path("amount").decimalValue().toPlainString().assert().isEqualTo("1.10")
         ElasticsearchEventDocuments.record(document).propertyNames().toList().assert()
             .isEqualTo(ElasticsearchEventDocuments.RECORD_FIELDS)

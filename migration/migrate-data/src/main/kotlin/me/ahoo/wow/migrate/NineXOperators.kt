@@ -21,7 +21,8 @@ import me.ahoo.wow.api.caller.Operator
  * it in its own field, [me.ahoo.wow.spi.log.EventStreamRecord.operator].
  *
  * - The header's value is the operator's [Operator.id]. 9.x records no tenant of the operator, so its
- *   [Operator.tenantId] is the stream's own tenant, and no cross-scope mark, so it is false.
+ *   [Operator.tenantId] is the stream's own tenant, and nothing of acting elsewhere, so [Operator.actedElsewhere] is
+ *   false.
  * - A stream without the header, or with a blank one, an anonymous caller's, has no operator.
  * - The header is a 9.x framework key, never a request fact: the imported stream's headers ([headersOf]) leave it out.
  *

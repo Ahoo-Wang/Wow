@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
@@ -188,7 +188,7 @@ SETTINGS non_replicated_deduplication_window = 1000
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_acted_elsewhere, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
@@ -228,7 +228,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 | `deleted`、`access` | 聚合是否已删除，以及提交时的访问属性（JSON 文本，含内置的 `owner` 与 `space`）：只作信息，不用于读取的授权 |
 | `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
 | `headers` | 命令携带的请求事实；仅 `_state_events` 有 |
-| `operator_id`、`operator_tenant_id`、`operator_cross_scope` | 谁提交的；没有时为空和 false |
+| `operator_id`、`operator_tenant_id`、`operator_acted_elsewhere` | 谁提交的；没有时为空和 false |
 | `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本；仅 `_state_events` 有 |
 | `state`、`state_fingerprint` | 提交之后的状态（JSON 文本）和它的 schema 的指纹；不发布状态的聚合为空 |
 | `state_numbers` | 状态每个顶层数字的原文，`_state_flat` 从中读取小数 |
@@ -320,7 +320,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `headers` Map(String, String),
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
     `state` String,
     `state_fingerprint` String,
@@ -351,7 +351,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{clust
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),
@@ -416,7 +416,7 @@ COMMENT 'wow-sink-format:1';
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_cross_scope, state, state_fingerprint, state_numbers
+(SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, operator_id, operator_tenant_id, operator_acted_elsewhere, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events_local`)
 COMMENT 'wow-sink-format:1';
 
@@ -449,7 +449,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 ## 命令不写入 {#commands-are-not-written}
 
-Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_cross_scope`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 payload。命令的正文不保存。要得到命令的历史：
+Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_acted_elsewhere`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 payload。命令的正文不保存。要得到命令的历史：
 
 - **从提交中读取**，看哪个命令在什么时候、为谁改变了一个聚合：
 

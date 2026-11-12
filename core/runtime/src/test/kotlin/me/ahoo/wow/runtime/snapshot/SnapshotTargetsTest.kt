@@ -127,7 +127,7 @@ class SnapshotTargetsTest {
             mapOf(order to SnapshotPlacement(listOf("a", "b"), primary = "b")),
         )
         val hops = SnapshotHops(runtime, "shop", targets, setOf(order))
-        hops.kindOf("shop", Hop.SNAPSHOT_SUBSCRIPTION).assert().isEqualTo(FunctionKind.SNAPSHOT)
+        hops.kindOf("shop", Hop.SNAPSHOT_SUBSCRIPTION).assert().isEqualTo(FunctionKind.SYSTEM)
         hops.kindOf("other", Hop.SNAPSHOT_SUBSCRIPTION).assert().isNull()
         hops.kindOf("shop", "projector").assert().isEqualTo(FunctionKind.PROJECT)
         SnapshotHops(runtime, "shop", targets, emptySet()).kindOf("shop", Hop.SNAPSHOT_SUBSCRIPTION).assert().isNull()

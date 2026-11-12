@@ -48,7 +48,7 @@ class ClickHouseSinkSchemaTest {
                 `headers` Map(String, String),
                 `operator_id` String,
                 `operator_tenant_id` String,
-                `operator_cross_scope` Bool,
+                `operator_acted_elsewhere` Bool,
                 `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
                 `state` String,
                 `state_fingerprint` String,

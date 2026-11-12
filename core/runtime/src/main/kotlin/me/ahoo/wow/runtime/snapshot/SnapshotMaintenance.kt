@@ -126,7 +126,7 @@ class SnapshotMaintenance(
     val rebuildSubscription: Subscription = Subscription.builtIn(
         REBUILD_SUBSCRIPTION,
         SubscriptionFilter(context, setOf(SnapshotRebuilds.AGGREGATE)),
-        FunctionKind.SNAPSHOT,
+        FunctionKind.SYSTEM,
         ::rebuildRequested,
     )
 

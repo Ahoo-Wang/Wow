@@ -29,7 +29,7 @@ class WaitStateTest {
     private val snapshot = Hop.snapshot("shop")
     private val command = FunctionInfo(FunctionKind.COMMAND, "shop", "order", "Place")
     private val sagaFunction = FunctionInfo(FunctionKind.SAGA, "shop", "order", "saga")
-    private val snapshotFunction = FunctionInfo(FunctionKind.SNAPSHOT, "shop", "snapshot", "snapshot")
+    private val snapshotFunction = FunctionInfo(FunctionKind.SYSTEM, "shop", "snapshot", "snapshot")
 
     private fun result(
         commandId: String,
@@ -180,7 +180,7 @@ class WaitStateTest {
         val state = WaitState(listOf(saga, snapshot), "root")
         state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
         state.offer(result("d-1", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-1")
-        val other = FunctionInfo(FunctionKind.SNAPSHOT, "shop", "snapshot", "other")
+        val other = FunctionInfo(FunctionKind.SYSTEM, "shop", "snapshot", "other")
         state.offer(result("d-1", snapshot, other))!!.assert().isEmpty()
         state.outcome.assert().isNull()
         state.offer(result("d-2", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-2")

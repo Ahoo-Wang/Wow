@@ -56,7 +56,7 @@ function stream(
     requestId: `r-${version}`,
     commandType: "t",
     ...(operator
-      ? { operator: { id: operator, tenantId: "(0)", crossScope: false } }
+      ? { operator: { id: operator, tenantId: "(0)", actedElsewhere: false } }
       : {}),
     events: [{ name: `ops.parked.${name}`, revision: 1, body }],
   };

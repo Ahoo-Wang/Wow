@@ -79,7 +79,7 @@ export interface Scope {
 export interface Operator {
   readonly id: string;
   readonly tenantId: string;
-  readonly crossScope: boolean;
+  readonly actedElsewhere: boolean;
 }
 
 /** How far a command has come. */
@@ -121,12 +121,12 @@ export const FunctionKind = {
   REACT: 'react',
   /** A saga. */
   SAGA: 'saga',
-  /** The snapshot subscription. */
-  SNAPSHOT: 'snapshot',
-  /** A reservation. */
-  RESERVATION: 'reservation',
-  /** A timer. */
-  TIMERS: 'timers',
+  /**
+   * A built-in subscription of Wow's (snapshots, reservations, timers, access
+   * stamps, sinks, receipts, the command intake): its `processor` and `name`
+   * say which.
+   */
+  SYSTEM: 'system',
 } as const;
 
 /** A {@link FunctionKind} value. */
@@ -447,11 +447,11 @@ export type SnapshotSystemField =
   | 'operator'
   | 'operator.id'
   | 'operator.tenantId'
-  | 'operator.crossScope'
+  | 'operator.actedElsewhere'
   | 'firstOperator'
   | 'firstOperator.id'
   | 'firstOperator.tenantId'
-  | 'firstOperator.crossScope'
+  | 'firstOperator.actedElsewhere'
   | 'schedules';
 
 /** A schedule rule of a snapshot's `schedules`. */
@@ -515,7 +515,7 @@ export type EventStreamField =
   | 'operator'
   | 'operator.id'
   | 'operator.tenantId'
-  | 'operator.crossScope'
+  | 'operator.actedElsewhere'
   | 'access'
   | 'access.owner'
   | 'access.space'

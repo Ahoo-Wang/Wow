@@ -57,7 +57,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 | `deleted` | boolean | Whether it is deleted |
 | `access` | object | Its declared access attributes; `access.<name>` names one, typed as the Manifest declares it |
 | `firstEventTime`, `lastEventTime` | integer | Its first and last event time, epoch milliseconds |
-| `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, crossScope}`; `null` for an anonymous caller. Filter on `operator.id` |
+| `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, actedElsewhere}`; `null` for an anonymous caller. Filter on `operator.id` |
 | `schedules` | object | The schedules it keeps, each rule by its key: `type` (`at`, `after` or `cron`) with `epochMillis`, `millis`, or `expression`, `timeZone` and `misfire`; `schedules.<key>` names one |
 | `state.*` | as the state schema says | The state, as the completed Manifest fragment's state schema describes it |
 

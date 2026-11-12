@@ -148,7 +148,7 @@ class TopicWaitProgressTest {
             Subscription(
                 "wow.snapshot",
                 SubscriptionFilter("shop"),
-                kind = FunctionKind.SNAPSHOT
+                kind = FunctionKind.SYSTEM
             ) { snapshotGate.await() },
         )
         val router = TopicRouter(setOf(order.type), TOPIC, 1, producer(acknowledgedAfterCommit))

@@ -58,7 +58,7 @@ internal class PostgresLogRows(private val context: String) {
         if (operator == null) {
             statement.setNull(index++, Types.BOOLEAN)
         } else {
-            statement.setBoolean(index++, operator.crossScope)
+            statement.setBoolean(index++, operator.actedElsewhere)
         }
         statement.setNullableString(index++, stream.access?.let(AccessValues::text))
         stream.accessVersion?.let { statement.setInt(index, it) } ?: statement.setNull(index, Types.INTEGER)
@@ -82,7 +82,7 @@ internal class PostgresLogRows(private val context: String) {
         causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
         headers = decodeStrings(row.getString("headers")),
         operator = row.getString("operator_id")?.let {
-            Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
+            Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_acted_elsewhere"))
         },
         access = AccessValues.parse(row.getString("access")),
         accessVersion = row.getInt("access_version").takeUnless { row.wasNull() },

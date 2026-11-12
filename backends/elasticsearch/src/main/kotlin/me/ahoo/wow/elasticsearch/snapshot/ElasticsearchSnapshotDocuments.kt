@@ -29,7 +29,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The snapshot document of the Elasticsearch snapshot index: each field of the snapshot record
  * under its own name, at the top level ([RECORD_FIELDS]): the state as the object `state`, the access attributes as an
- * object of them, the operators as `{id, tenantId, crossScope}` or null, the schedules as the object
+ * object of them, the operators as `{id, tenantId, actedElsewhere}` or null, the schedules as the object
  * of each rule by its key, `{type, ...}`; beside them the store's own fields, which no record shows:
  * the state's schema fingerprint, its state revision and, when it is marked stale, the version it was marked at.
  *
@@ -56,7 +56,7 @@ internal object ElasticsearchSnapshotDocuments {
 
     private const val OPERATOR_ID = "id"
     private const val OPERATOR_TENANT_ID = "tenantId"
-    private const val OPERATOR_CROSS_SCOPE = "crossScope"
+    private const val OPERATOR_ACTED_ELSEWHERE = "actedElsewhere"
 
     /** The fields of a snapshot record, in the record's order (`SnapshotRecord.toQueryRecord()`). */
     val RECORD_FIELDS: List<String> = listOf(
@@ -155,14 +155,14 @@ internal object ElasticsearchSnapshotDocuments {
         nodes.objectNode()
             .put(OPERATOR_ID, operator.id)
             .put(OPERATOR_TENANT_ID, operator.tenantId)
-            .put(OPERATOR_CROSS_SCOPE, operator.crossScope)
+            .put(OPERATOR_ACTED_ELSEWHERE, operator.actedElsewhere)
     }
 
     private fun operatorOf(node: JsonNode): Operator? = if (node.isObject) {
         Operator(
             node.path(OPERATOR_ID).stringValue(),
             node.path(OPERATOR_TENANT_ID).stringValue(),
-            node.path(OPERATOR_CROSS_SCOPE).booleanValue(),
+            node.path(OPERATOR_ACTED_ELSEWHERE).booleanValue(),
         )
     } else {
         null

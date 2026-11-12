@@ -73,7 +73,7 @@ class WaitSagaChainTest : WaitCoordinatorFixtures() {
         emitted.first().derived.assert().containsExactly(*derived.toTypedArray())
         emitted.drop(1).forEach {
             it.hop.assert().isEqualTo(Hop.snapshot("shop"))
-            it.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+            it.function.kind.assert().isEqualTo(FunctionKind.SYSTEM)
             it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         }
         emitted.drop(1).map { it.commandId }.assert().containsExactlyInAnyOrder(*derived.toTypedArray())
@@ -146,7 +146,7 @@ class WaitSagaChainTest : WaitCoordinatorFixtures() {
         val command = place(items = 1, wait = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), Hop.snapshot()))
         val hops = coordinator.stream(order, command).toList()
         hops.map { it.hop.stage }.assert().containsExactly(Stage.COMMITTED, Stage.HANDLED, Stage.HANDLED)
-        hops.last().function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+        hops.last().function.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         hops.last().commandId.assert().isEqualTo("${command.id}-reserve-1")
         snapshotted.assert().contains("${command.ref.id}-1@1")
         // Each hop answers the results of its own command: the order's at COMMITTED and at its saga's hop, the derived

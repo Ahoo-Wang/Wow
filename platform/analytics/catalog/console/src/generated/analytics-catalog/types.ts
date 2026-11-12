@@ -260,7 +260,7 @@ export interface ResultCommandResult {
   duplicate?: boolean;
   error?: { code: string; extensions?: Record<string, unknown>; message: string; violations?: { code: string; message: string; path: string; }[]; } | null;
   format?: number;
-  function: { context: string; kind: 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers'; name: string; processor: string; };
+  function: { context: string; kind: 'command' | 'project' | 'react' | 'saga' | 'system'; name: string; processor: string; };
   hop: ResultHop;
   pending?: ResultHop[];
   ref: { id: string; tenantId: string; type: { context: string; name: string; }; };

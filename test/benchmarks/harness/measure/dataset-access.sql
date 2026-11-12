@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `default`.`transfer_account_state`
     `causation_id` String,
     `operator_id` String,
     `operator_tenant_id` String,
-    `operator_cross_scope` Bool,
+    `operator_acted_elsewhere` Bool,
     `state` String,
     `state_fingerprint` String,
     `state_numbers` Map(String, String),

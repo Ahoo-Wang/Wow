@@ -145,9 +145,7 @@ const FunctionKind: {
     readonly PROJECT: "project";
     readonly REACT: "react";
     readonly SAGA: "saga";
-    readonly SNAPSHOT: "snapshot";
-    readonly RESERVATION: "reservation";
-    readonly TIMERS: "timers";
+    readonly SYSTEM: "system";
 };
 
 // @public
@@ -165,7 +163,7 @@ interface Hop {
 // @public
 interface Operator {
     // (undocumented)
-    readonly crossScope: boolean;
+    readonly actedElsewhere: boolean;
     // (undocumented)
     readonly id: string;
     // (undocumented)

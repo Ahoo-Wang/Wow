@@ -863,7 +863,7 @@ export interface EventStream<E extends CommittedEvent = CommittedEvent, A = Acce
 }
 
 // @public
-export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'access' | 'access.owner' | 'access.space' | 'events';
+export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.actedElsewhere' | 'access' | 'access.owner' | 'access.space' | 'events';
 
 // @public
 type ExpressionFilter<FIELDS extends string = string> = {
@@ -1168,9 +1168,7 @@ export const FunctionKind: {
     readonly PROJECT: "project";
     readonly REACT: "react";
     readonly SAGA: "saga";
-    readonly SNAPSHOT: "snapshot";
-    readonly RESERVATION: "reservation";
-    readonly TIMERS: "timers";
+    readonly SYSTEM: "system";
 };
 
 // @public
@@ -1380,7 +1378,7 @@ type NumericMoney = {
 // @public
 export interface Operator {
     // (undocumented)
-    readonly crossScope: boolean;
+    readonly actedElsewhere: boolean;
     // (undocumented)
     readonly id: string;
     // (undocumented)
@@ -1913,7 +1911,7 @@ export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `sta
 }
 
 // @public
-export type SnapshotSystemField = 'tenantId' | 'aggregateId' | 'version' | 'ownerId' | 'spaceId' | 'deleted' | 'access' | 'firstEventTime' | 'lastEventTime' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'firstOperator' | 'firstOperator.id' | 'firstOperator.tenantId' | 'firstOperator.crossScope' | 'schedules';
+export type SnapshotSystemField = 'tenantId' | 'aggregateId' | 'version' | 'ownerId' | 'spaceId' | 'deleted' | 'access' | 'firstEventTime' | 'lastEventTime' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.actedElsewhere' | 'firstOperator' | 'firstOperator.id' | 'firstOperator.tenantId' | 'firstOperator.actedElsewhere' | 'schedules';
 
 // @public
 interface SortCapable<FIELDS extends string = string> {

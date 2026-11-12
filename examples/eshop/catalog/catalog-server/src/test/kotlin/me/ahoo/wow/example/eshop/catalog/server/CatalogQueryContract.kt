@@ -333,7 +333,7 @@ abstract class CatalogQueryContract {
     private fun JsonNode.assertOperator(id: String) {
         this["id"].asString().assert().isEqualTo(id)
         this["tenantId"].asString().assert().isEqualTo(Caller.DEFAULT_TENANT)
-        this["crossScope"].asBoolean().assert().isFalse()
+        this["actedElsewhere"].asBoolean().assert().isFalse()
     }
 
     private fun published(category: String): String = """{"op":"and","operands":[

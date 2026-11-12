@@ -93,7 +93,7 @@ internal class SinkSubscription(
             filter = SubscriptionFilter(type.context, setOf(type.name)),
             startFrom = startFrom,
             decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
-            kind = FunctionKind.PROJECT,
+            kind = FunctionKind.SYSTEM,
             handler = ::write,
         )
     } else {

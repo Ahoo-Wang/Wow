@@ -70,7 +70,7 @@ object SinkFixtures {
         state: String? = stateOf(version),
         tenantId: String = "tenant-1",
         type: AggregateType = ORDER,
-        operator: Operator? = Operator("alice", "tenant-0", crossScope = true),
+        operator: Operator? = Operator("alice", "tenant-0", actedElsewhere = true),
     ): StateEventRecord = StateEventRecord(
         ref = type.ref(tenantId, id),
         version = version,

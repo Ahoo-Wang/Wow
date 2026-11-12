@@ -89,7 +89,7 @@ abstract class TimerStoreSpec {
         body = """{"reason":"unpaid","amount":2.50}""",
         causation = Causation("command-1", "$owner@$version"),
         headers = mapOf("app" to "web"),
-        operator = Operator("alice", "tenant", crossScope = true),
+        operator = Operator("alice", "tenant", actedElsewhere = true),
         scope = Scope("alice", "space-a"),
     )
 

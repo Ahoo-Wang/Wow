@@ -29,7 +29,7 @@ class WaitChainTest {
     }
 
     private val kinds = mapOf(
-        "wow.snapshot" to FunctionKind.SNAPSHOT,
+        "wow.snapshot" to FunctionKind.SYSTEM,
         "order.saga" to FunctionKind.SAGA,
         "order.projector" to FunctionKind.PROJECT,
     )

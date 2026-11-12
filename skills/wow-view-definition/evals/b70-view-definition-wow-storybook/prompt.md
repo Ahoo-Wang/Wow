@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:c67e31946b47bb973613ff62f50c7ab2aca8eecbf8423451f331fa46ae1af899",
+  "version" : "sha256:49ea7d5e7623108f745a13f0788c42c5c7278b9cb62cbeb527d50735e3a26e10",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -463,7 +463,7 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "operator.crossScope",
+    "path" : "operator.actedElsewhere",
     "types" : [ "boolean" ],
     "kind" : "scalar",
     "nullable" : false,

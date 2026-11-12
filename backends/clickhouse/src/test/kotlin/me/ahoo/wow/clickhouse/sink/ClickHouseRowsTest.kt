@@ -43,7 +43,7 @@ class ClickHouseRowsTest {
         WowJson.mapper.writeValueAsString(row.get("headers")).assert().isEqualTo("""{"app":"web"}""")
         row.get("operator_id").asString().assert().isEqualTo("alice")
         row.get("operator_tenant_id").asString().assert().isEqualTo("tenant-0")
-        row.get("operator_cross_scope").asBoolean().assert().isTrue()
+        row.get("operator_acted_elsewhere").asBoolean().assert().isTrue()
         row.get("state_fingerprint").asString().assert().isEqualTo("fingerprint-1")
     }
 
@@ -77,7 +77,7 @@ class ClickHouseRowsTest {
         val row = ClickHouseRows.rowOf(SinkFixtures.recordOf(operator = null))
         row.get("operator_id").asString().assert().isEmpty()
         row.get("operator_tenant_id").asString().assert().isEmpty()
-        row.get("operator_cross_scope").asBoolean().assert().isFalse()
+        row.get("operator_acted_elsewhere").asBoolean().assert().isFalse()
     }
 
     @Test

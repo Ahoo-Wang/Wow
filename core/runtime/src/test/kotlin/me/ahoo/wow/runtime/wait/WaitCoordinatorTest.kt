@@ -54,7 +54,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
         val answered = withTimeout(5.seconds) { result.await() }
         answered.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         answered.hop.assert().isEqualTo(Hop.snapshot("shop"))
-        answered.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+        answered.function.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         answered.version.assert().isEqualTo(1)
         answered.commandId.assert().isEqualTo(command.id)
         snapshotted.assert().contains("${command.ref.id}@1")
@@ -241,7 +241,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.duplicate.assert().isTrue()
         result.hop.assert().isEqualTo(Hop.snapshot("shop"))
-        result.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+        result.function.kind.assert().isEqualTo(FunctionKind.SYSTEM)
         // The results are not persisted (D49): only the first commit answered them.
         result.results.assert().isEmpty()
     }
