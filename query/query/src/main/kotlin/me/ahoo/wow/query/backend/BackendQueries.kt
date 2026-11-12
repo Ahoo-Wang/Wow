@@ -183,12 +183,13 @@ suspend fun QueryBackend.cursor(query: AdmittedQuery<CursorQuery>): CursorPage<O
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
     val after = cursor.cursor?.let { CursorTokens.decode(it, aggregateType, query.schema, sort, cursorPositions) }
-    val page = executing(query.timeout) { page(query, PageWindow.Keyset(after, cursor.size + 1)) }
-    val rows = page.rows.take(cursor.size).map(ObjectNode::requireStandardRecord)
-    val next = if (page.rows.size > cursor.size) {
+    val size = cursor.admittedSize()
+    val page = executing(query.timeout) { page(query, PageWindow.Keyset(after, size + 1)) }
+    val rows = page.rows.take(size).map(ObjectNode::requireStandardRecord)
+    val next = if (page.rows.size > size) {
         val positions = page.positions
             ?: throw QueryExecutionException("Backend keyset page must carry each row's position.")
-        CursorTokens.encode(positions[cursor.size - 1], aggregateType, query.schema, sort, cursorPositions)
+        CursorTokens.encode(positions[size - 1], aggregateType, query.schema, sort, cursorPositions)
     } else {
         null
     }
@@ -348,3 +349,6 @@ private fun JsonNode.requireStandardJson(path: ArrayList<String>, subject: (Stri
 /** Joins the names as the per-node concatenation did: a name after an empty prefix starts the path again. */
 private fun List<String>.render(): String =
     fold("") { prefix, name -> if (prefix.isEmpty()) name else "$prefix.$name" }
+
+/** The page size admission gave this cursor query: the one it named or the entry's default, never `null`. */
+internal fun CursorQuery.admittedSize(): Int = checkNotNull(size) { "An admitted cursor query names its page size." }

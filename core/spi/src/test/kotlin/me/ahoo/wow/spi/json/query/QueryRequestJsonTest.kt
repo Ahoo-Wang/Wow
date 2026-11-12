@@ -33,21 +33,27 @@ import tools.jackson.core.JacksonException
 import tools.jackson.core.type.TypeReference
 
 /**
- * The query bodies: `filter` is required and never null, `condition` (9.x's legacy filter) is an unknown property like
- * any other, and the 10.x count and total additions.
+ * The query bodies: an absent `filter` matches every record and a null one is refused, `condition` (9.x's legacy
+ * filter) is an unknown property like any other, and the 10.x count and total additions.
  */
 class QueryRequestJsonTest {
     private val mapper = QueryProtocolJson.mapper
     private val queryTypes = listOf(ListQuery::class.java, PagedQuery::class.java, SingleQuery::class.java)
 
     @Test
-    fun `query bodies should require a filter`() {
-        listOf("{}", """{"filter":null}""", """{"condition":{"field":"state.status","operator":"eq","value":"PAID"}}""")
-            .forEach { body ->
-                (queryTypes + CursorQuery::class.java + CountQuery::class.java).forEach { type ->
-                    assertThrows<JacksonException> { mapper.readValue(body, type) }
-                }
-            }
+    fun `a query body without a filter should match every record`() {
+        mapper.readValue("{}", ListQuery::class.java).assert().isEqualTo(ListQuery())
+        mapper.readValue("{}", PagedQuery::class.java).assert().isEqualTo(PagedQuery())
+        mapper.readValue("{}", SingleQuery::class.java).assert().isEqualTo(SingleQuery())
+        mapper.readValue("{}", CursorQuery::class.java).assert().isEqualTo(CursorQuery())
+        mapper.readValue("{}", CountQuery::class.java).assert().isEqualTo(CountQuery())
+    }
+
+    @Test
+    fun `a query body with a null filter should be rejected`() {
+        (queryTypes + CursorQuery::class.java + CountQuery::class.java).forEach { type ->
+            assertThrows<JacksonException> { mapper.readValue("""{"filter":null}""", type) }
+        }
     }
 
     @Test

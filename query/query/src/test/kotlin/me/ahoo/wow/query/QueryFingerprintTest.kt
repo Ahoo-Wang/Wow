@@ -123,6 +123,9 @@ class QueryFingerprintTest {
         paged(1, 10).assert().isEqualTo(paged(7, 10)).isNotEqualTo(paged(1, 20))
         fun cursor(value: String?) = fingerprintOf(QueryType.CURSOR, CursorQuery(MatchAllFilter, cursor = value))
         cursor("secret-cursor").assert().isEqualTo(cursor("other")).isNotEqualTo(cursor(null))
+        // A page that names its size has another shape than one that leaves it to the entry.
+        fingerprintOf(QueryType.CURSOR, CursorQuery(size = 5)).assert()
+            .isNotEqualTo(fingerprintOf(QueryType.CURSOR, CursorQuery()))
         queryShapeOf(QueryType.CURSOR, CursorQuery(MatchAllFilter, cursor = "secret-cursor")).assert()
             .doesNotContain("secret")
     }

@@ -57,6 +57,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
@@ -90,7 +91,8 @@ import tools.jackson.databind.node.ObjectNode
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on
  *   [QueryEntry.UNBOUNDED] without the budget.
  * - A `list` that names no limit runs with the budget's list default ([defaultListSize], at most its list size), as over
- *   HTTP; a `stream` reads keyset chunks of [chunkSize].
+ *   HTTP, and a `cursor` page that names no size with the same default, at most the budget's page size; a `stream`
+ *   reads keyset chunks of [chunkSize].
  * - A state read ([SnapshotQueries.state]) reads [latest] through the engine's [ReadFacade]: the caller's scope is
  *   checked against the state's (its owner only for an aggregate [QueryEngine.ownerships] says belongs to its owner), then the
  *   snapshot policies of its type, and it is masked and observed as the public port's state read is.
@@ -197,7 +199,7 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         override suspend fun cursor(query: CursorQuery): CursorPage<R> {
             check(query)
-            val page = mapped { gateway.cursor(query, caller) }
+            val page = mapped { gateway.cursor(query.withCursorDefault(), caller) }
             return CursorPage(page.list.map(row), page.nextCursor)
         }
 
@@ -205,6 +207,20 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         override fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> =
             gateway.aggregate(query, caller).mapped().map { decode(it, groupType) }
+
+        /**
+         * This cursor query with a page of the default list size, at most the budget's page size, when it names none
+         * (`null`), as the public port runs it; [defaultListSize] itself without a budget.
+         */
+        private fun CursorQuery.withCursorDefault(): CursorQuery {
+            val budget = gateway.entryPolicy.budget(caller.entry)
+            val default = if (budget == null) {
+                defaultListSize.takeIf { it > 0 }
+            } else {
+                budget.cursorDefault(defaultListSize)
+            }
+            return withDefaultSize(default)
+        }
 
         /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
         private fun ListQuery.withListDefault(): ListQuery {

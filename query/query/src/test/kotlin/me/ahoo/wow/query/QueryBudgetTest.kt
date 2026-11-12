@@ -37,9 +37,11 @@ import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TotalMode
@@ -47,6 +49,7 @@ import me.ahoo.wow.query.QueryBudgetFixtures.budget
 import me.ahoo.wow.query.QueryBudgetFixtures.expectAllowed
 import me.ahoo.wow.query.QueryBudgetFixtures.expectRejected
 import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.admission.withDefaultSize
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
@@ -216,6 +219,36 @@ class QueryBudgetTest {
         expectRejected(QueryType.COUNT, CountQuery(DeletionFilter(DeletionState.ALL)))
         expectAllowed(QueryType.COUNT, CountQuery(MatchAllFilter), scope = IdFilter("aggregate-id"))
         expectAllowed(QueryType.COUNT, CountQuery(MatchAllFilter), budget(allowExpensiveOperators = true))
+    }
+
+    @Test
+    fun `a cursor page that names no size takes the entry's default list size, at most the budget's page size`() {
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 100).cursorDefault(100).assert().isEqualTo(100)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 100).cursorDefault(20).assert().isEqualTo(20)
+        // A default list size above the page size gives the page size.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 50).cursorDefault(100).assert().isEqualTo(50)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorDefault(100).assert().isEqualTo(100)
+        // No default list size: the page size; neither: none, so the gateway pages by its own size.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 50).cursorDefault(0).assert().isEqualTo(50)
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 0).cursorDefault(0).assert().isNull()
+        // A query that names no size is never out of the budget's range.
+        QueryBudget(QueryBudget.HTTP_LABEL, maxPageSize = 3).check(CursorQuery())
+    }
+
+    @Test
+    fun `a cursor query's size is filled in only when it names none`() {
+        val query = CursorQuery(
+            IdFilter("id"),
+            Projection(include = listOf(QueryField("state.name"))),
+            listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
+            cursor = "next",
+        )
+        query.withDefaultSize(7).assert().isEqualTo(
+            CursorQuery(query.filter, query.projection, query.sort, 7, query.cursor),
+        )
+        query.withDefaultSize(null).assert().isSameAs(query)
+        val sized = CursorQuery(size = 3)
+        sized.withDefaultSize(7).assert().isSameAs(sized)
     }
 
     @Test

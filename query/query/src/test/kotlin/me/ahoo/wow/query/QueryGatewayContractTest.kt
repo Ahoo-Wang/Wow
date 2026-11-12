@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.CursorPositionCodec
@@ -48,6 +49,7 @@ import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
+import java.util.IdentityHashMap
 
 /**
  * The gateway answers the records a backend returns as JSON trees, unchanged: 9.x materialized typed snapshots and
@@ -90,6 +92,28 @@ class QueryGatewayContractTest {
     }
 
     @Test
+    fun `a cursor page that reaches the gateway with no size pages by the budget's page size, else by a chunk`() {
+        runTest {
+            // The in-process entry has no budget by default: a stream chunk, and its one row of look-ahead.
+            gateway.cursor(CursorQuery(), QueryCaller.IN_PROCESS)
+            SnapshotBackend.keysetSize.assert().isEqualTo(QueryGateway.DEFAULT_STREAM_CHUNK_SIZE + 1)
+            gateway.cursor(CursorQuery(), QueryCaller(entry = QueryEntry.HTTP))
+            SnapshotBackend.keysetSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxPageSize + 1)
+            gateway.cursor(CursorQuery(size = 3), QueryCaller.IN_PROCESS)
+            SnapshotBackend.keysetSize.assert().isEqualTo(4)
+        }
+    }
+
+    @Test
+    fun `a backend refuses a cursor query that was admitted without a page size`() {
+        runTest {
+            val unsized = AdmittedQuery(CursorQuery(), gatewaySchema(), QueryEntry.IN_PROCESS, IdentityHashMap())
+            runCatching { SnapshotBackend.cursor(unsized) }.exceptionOrNull().assert()
+                .isInstanceOf(IllegalStateException::class.java)
+        }
+    }
+
+    @Test
     fun `the snapshot gateway answers the raw aggregation rows`() {
         runTest {
             val query = AggregationQuery(
@@ -109,13 +133,19 @@ class QueryGatewayContractTest {
         @Volatile
         var after: CursorPosition? = null
 
+        @Volatile
+        var keysetSize: Int? = null
+
         override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             emit(snapshotNode())
             emit(snapshotNode())
         }
 
         override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
-            if (window is PageWindow.Keyset) after = window.after
+            if (window is PageWindow.Keyset) {
+                after = window.after
+                keysetSize = window.limit
+            }
             return twoRows()
         }
 

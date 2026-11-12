@@ -632,6 +632,7 @@ public final class me/ahoo/wow/api/query/CountQuery : me/ahoo/wow/api/query/Filt
 	public fun getFilter ()Lme/ahoo/wow/api/query/FilterExpression;
 	public final fun getLimit ()Ljava/lang/Integer;
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/query/CountQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/CountQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CountQuery;
 	public fun toString ()Ljava/lang/String;
@@ -640,6 +641,7 @@ public final class me/ahoo/wow/api/query/CountQuery : me/ahoo/wow/api/query/Filt
 }
 
 public final class me/ahoo/wow/api/query/CountQuery$Companion {
+	public final fun of ()Lme/ahoo/wow/api/query/CountQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/CountQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CountQuery;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/query/CountQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/query/CountQuery;
@@ -693,19 +695,19 @@ public final class me/ahoo/wow/api/query/CursorPage$Companion {
 
 public final class me/ahoo/wow/api/query/CursorQuery : me/ahoo/wow/api/query/Queryable {
 	public static final field Companion Lme/ahoo/wow/api/query/CursorQuery$Companion;
-	public static final field DEFAULT_SIZE I
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCursor ()Ljava/lang/String;
 	public fun getFilter ()Lme/ahoo/wow/api/query/FilterExpression;
 	public fun getProjection ()Lme/ahoo/wow/api/query/Projection;
-	public final fun getSize ()I
+	public final fun getSize ()Ljava/lang/Integer;
 	public fun getSort ()Ljava/util/List;
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/query/CursorQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/CursorQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/CursorQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/CursorQuery;
-	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)Lme/ahoo/wow/api/query/CursorQuery;
-	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/String;)Lme/ahoo/wow/api/query/CursorQuery;
+	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CursorQuery;
+	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/query/CursorQuery;
 	public fun toString ()Ljava/lang/String;
 	public fun withFilter (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/CursorQuery;
 	public synthetic fun withFilter (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/RewritableFilter;
@@ -714,12 +716,13 @@ public final class me/ahoo/wow/api/query/CursorQuery : me/ahoo/wow/api/query/Que
 }
 
 public final class me/ahoo/wow/api/query/CursorQuery$Companion {
+	public final fun of ()Lme/ahoo/wow/api/query/CursorQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/CursorQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/CursorQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/CursorQuery;
-	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)Lme/ahoo/wow/api/query/CursorQuery;
-	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/String;)Lme/ahoo/wow/api/query/CursorQuery;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/query/CursorQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/query/CursorQuery;
+	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/CursorQuery;
+	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/query/CursorQuery;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/query/CursorQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/query/CursorQuery;
 }
 
 public final class me/ahoo/wow/api/query/DateDiffUnit : java/lang/Enum {
@@ -1442,6 +1445,7 @@ public final class me/ahoo/wow/api/query/ListQuery : me/ahoo/wow/api/query/Query
 	public fun getProjection ()Lme/ahoo/wow/api/query/Projection;
 	public fun getSort ()Ljava/util/List;
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/ListQuery;
@@ -1454,6 +1458,7 @@ public final class me/ahoo/wow/api/query/ListQuery : me/ahoo/wow/api/query/Query
 }
 
 public final class me/ahoo/wow/api/query/ListQuery$Companion {
+	public final fun of ()Lme/ahoo/wow/api/query/ListQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/ListQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/ListQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/ListQuery;
@@ -1657,6 +1662,7 @@ public final class me/ahoo/wow/api/query/PagedQuery : me/ahoo/wow/api/query/Quer
 	public fun getSort ()Ljava/util/List;
 	public final fun getTotal ()Lme/ahoo/wow/api/query/TotalMode;
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/query/PagedQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/PagedQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/PagedQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/PagedQuery;
@@ -1670,6 +1676,7 @@ public final class me/ahoo/wow/api/query/PagedQuery : me/ahoo/wow/api/query/Quer
 }
 
 public final class me/ahoo/wow/api/query/PagedQuery$Companion {
+	public final fun of ()Lme/ahoo/wow/api/query/PagedQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/PagedQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/PagedQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/PagedQuery;
@@ -1901,6 +1908,7 @@ public final class me/ahoo/wow/api/query/SingleQuery : me/ahoo/wow/api/query/Que
 	public fun getProjection ()Lme/ahoo/wow/api/query/Projection;
 	public fun getSort ()Ljava/util/List;
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/query/SingleQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/SingleQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/SingleQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/SingleQuery;
@@ -1912,6 +1920,7 @@ public final class me/ahoo/wow/api/query/SingleQuery : me/ahoo/wow/api/query/Que
 }
 
 public final class me/ahoo/wow/api/query/SingleQuery$Companion {
+	public final fun of ()Lme/ahoo/wow/api/query/SingleQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/SingleQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/SingleQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/SingleQuery;

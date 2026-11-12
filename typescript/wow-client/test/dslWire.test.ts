@@ -385,6 +385,7 @@ const CASES: Record<string, () => unknown> = {
       pagination: pagination({ index: 2, size: 50 }),
     }),
   cursorQuery: () => cursorQuery({ filter: paid }),
+  'cursorQuery (defaults)': () => cursorQuery(),
   'cursorQuery (options)': () =>
     cursorQuery({
       filter: paid,

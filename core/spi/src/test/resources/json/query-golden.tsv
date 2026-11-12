@@ -1,6 +1,7 @@
 # The query protocol's wire, one value per line: <name> TAB <JSON>, for the values QueryJsonGoldenCases names.
-# Lines above the 10.x marker are byte for byte what 9.x JsonSerializer wrote, except two additions: PagedQuery
-# writes total (absent means BOUNDED) and PagedList writes exact after total.
+# Lines above the 10.x marker are what 9.x JsonSerializer wrote, except where 10.x changed them in place: PagedQuery
+# writes total (absent means BOUNDED), PagedList writes exact after total, a relative-time filter names its zone
+# timeZone, a time group writes no default timeZone, and a cursor query that names no size writes "size":null.
 MATCH_ALL	{"op":"match-all"}
 MATCH_NONE	{"op":"match-none"}
 ID	{"value":"id-1","op":"id"}
@@ -66,7 +67,7 @@ paged.default	{"filter":{"op":"match-all"},"projection":{},"pagination":{"index"
 paged.full	{"filter":{"value":"tenant-1","op":"tenant-id"},"projection":{"exclude":["state.secret"]},"sort":[{"field":"state.name","direction":"desc"}],"pagination":{"index":3,"size":15},"total":"bounded"}
 single.default	{"filter":{"op":"match-all"},"projection":{}}
 single.full	{"filter":{"value":"aggregate-1","op":"aggregate-id"},"projection":{},"sort":[{"field":"version","direction":"desc"}]}
-cursor.default	{"filter":{"op":"match-all"},"projection":{},"size":10}
+cursor.default	{"filter":{"op":"match-all"},"projection":{},"size":null}
 cursor.full	{"filter":{"op":"match-none"},"projection":{"include":["state.name"]},"sort":[{"field":"state.name","direction":"asc"}],"size":25,"cursor":"cursor-1"}
 pagedList	{"total":150,"exact":true,"list":["one","two"]}
 pagedList.empty	{"total":0,"exact":true,"list":[]}

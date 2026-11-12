@@ -195,7 +195,10 @@ class QueryProperties {
          */
         var unindexedSortExpensive: Boolean = defaults.unindexedSortExpensive
 
-        /** The limit of a list that names none, at most `max-list-size`. */
+        /**
+         * The limit of a list that names none, at most `max-list-size`, and the size of a cursor page that names
+         * none, at most `max-page-size`.
+         */
         var defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE
 
         fun budget(): QueryBudget = QueryBudget(

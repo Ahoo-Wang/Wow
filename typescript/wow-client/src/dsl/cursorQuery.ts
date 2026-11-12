@@ -12,11 +12,10 @@
  */
 
 import type { FilterExpression } from './filter/index.js';
+import { queryFilter } from './queryFilter.js';
 import type { Projection } from './projection.js';
 import type { FieldSort } from './sort.js';
 
-/** The page size `cursorQuery()` uses when none is given. */
-export const DEFAULT_CURSOR_SIZE = 10;
 /**
  * The largest page size the cursor model admits (`CursorQuery` in Wow).
  * Over HTTP the server enforces a smaller, configurable page limit — 100 by
@@ -41,7 +40,11 @@ export interface CursorQuery<FIELDS extends string = string> {
    * may appear once.
    */
   sort?: FieldSort<FIELDS>[];
-  /** The rows of one page; the server uses 10 when absent. */
+  /**
+   * The rows of one page. Absent, the server's default list size, at most
+   * its page size: the descriptor's `limits.defaultListSize` and
+   * `limits.maxPageSize` (100 and 100 unless the server configures others).
+   */
   size?: number;
   /**
    * Where the page starts: `null` or absent for the first page, then the
@@ -49,6 +52,18 @@ export interface CursorQuery<FIELDS extends string = string> {
    */
   cursor?: string | null;
 }
+
+/**
+ * What {@link cursorQuery} takes: a cursor query whose `filter` may be
+ * absent.
+ */
+export type CursorQueryOptions<FIELDS extends string = string> = Omit<
+  CursorQuery<FIELDS>,
+  'filter'
+> & {
+  /** What to match. Defaults to `filter.matchAll()`. */
+  filter?: FilterExpression<FIELDS>;
+};
 
 /** One page of a cursor query. */
 export interface CursorPage<T> {
@@ -59,10 +74,11 @@ export interface CursorPage<T> {
 }
 
 /**
- * Builds the body of a cursor query, with the defaults filled in: all fields,
- * no sort, a page of {@link DEFAULT_CURSOR_SIZE}, from the start.
+ * Builds the body of a cursor query, with the defaults filled in: every
+ * record, all fields, no sort, from the start. A `size` is sent only when
+ * given; absent, the server pages by its default list size.
  *
- * @throws TypeError when `size` is not an integer from 1 to
+ * @throws TypeError when `filter` is `null`, `size` is not an integer from 1 to
  *   {@link MAX_CURSOR_SIZE}, or `sort` names more than
  *   {@link MAX_CURSOR_SORT_FIELDS} fields or a field twice.
  *
@@ -86,10 +102,13 @@ export function cursorQuery<FIELDS extends string = string>({
   filter,
   projection = {},
   sort = [],
-  size = DEFAULT_CURSOR_SIZE,
+  size,
   cursor = null,
-}: CursorQuery<FIELDS>): CursorQuery<FIELDS> {
-  if (!Number.isInteger(size) || size < 1 || size > MAX_CURSOR_SIZE) {
+}: CursorQueryOptions<FIELDS> = {}): CursorQuery<FIELDS> {
+  if (
+    size !== undefined &&
+    (!Number.isInteger(size) || size < 1 || size > MAX_CURSOR_SIZE)
+  ) {
     throw new TypeError(`size must be between 1 and ${MAX_CURSOR_SIZE}.`);
   }
   if (sort.length > MAX_CURSOR_SORT_FIELDS) {
@@ -104,5 +123,5 @@ export function cursorQuery<FIELDS extends string = string>({
   if (new Set(fields).size !== fields.length) {
     throw new TypeError('Cursor sort fields must be unique.');
   }
-  return { filter, projection, sort, size, cursor };
+  return { filter: queryFilter(filter), projection, sort, size, cursor };
 }
