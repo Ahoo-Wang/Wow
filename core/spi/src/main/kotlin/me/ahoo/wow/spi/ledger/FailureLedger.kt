@@ -64,8 +64,9 @@ interface FailureLedger {
     /**
      * Parks [entry]'s aggregate for its subscription. When the aggregate is already parked, the entry with the
      * earlier from version is kept (on a tie, the one already there), its partition, from position and
-     * [ParkedAggregate.skipOnly] with it; an entry replaced this way keeps its retry state, takes the next revision
-     * and is no longer scheduled; a new one takes [entry]'s retry state, at revision 0.
+     * [ParkedAggregate.skipOnly] with it; an entry replaced this way keeps its retry state, but for a request an
+     * operator left for the parking it replaces ([ParkedAggregate.request], cleared when [entry] fails at another time),
+     * takes the next revision and is no longer scheduled; a new one takes [entry]'s retry state, at revision 0.
      *
      * @return true when the ledger changed: the aggregate was not parked, or is now parked from an earlier version.
      */
@@ -74,7 +75,9 @@ interface FailureLedger {
     /**
      * Replaces where the entry parking [entry]'s aggregate stands (its partition, from version and position, and
      * [ParkedAggregate.skipOnly]), why (its reason) and when (its failure time) with [entry]'s, while the aggregate is
-     * parked in partition [from]; it never parks one that is not. It keeps the entry's retry state, gives it the next
+     * parked in partition [from]; it never parks one that is not. It keeps the entry's retry state, but for a request
+     * an operator left: a request belongs to the parking it was made for, so a repark that fails at another time (a
+     * retry that failed again) clears it, and one that keeps the failure time (a re-home) keeps it. It gives the next
      * revision and clears its schedule. Its callers:
      *
      * - **The worker that retried the aggregate**, in the partition it read the entry in ([from], the entry's own
@@ -161,6 +164,11 @@ interface FailureLedger {
      * ([ParkedAmendment.TakeRequest]) or a restate applies only at the revision its caller read, so of two nodes that
      * both read it (an owner handing its partition off and the next one) only one claims or takes it, and nothing
      * written since the read is covered.
+     *
+     * An operator's amendment ([ParkedAmendment.MarkRecoverable], [ParkedAmendment.ApplyRetrySpec],
+     * [ParkedAmendment.Request]) that names its parking (its `failedAt`) applies only while the entry is that parking,
+     * checked in the same write: a command delivered again, or sent from what the console showed a while ago, never
+     * acts on a later parking of the aggregate.
      *
      * A ledger names the amendments it has a statement of its own for and applies every other one by its generic path,
      * [amendByRevision]: it reads the entry, applies the amendment ([amended]) and writes the result conditioned on
@@ -445,19 +453,15 @@ class ParkedRetrySpec @InternalWowApi constructor(
 
 /**
  * This entry with [amendment] applied at the next revision, or null when the amendment names a revision read that the
- * entry is no longer at: the reference semantics of [FailureLedger.amend], for a backend that changes the entry in
- * memory. Every amendment but a [ParkedAmendment.Schedule] and a [ParkedAmendment.TakeRequest] clears
+ * entry is no longer at, or an operator's parking ([ParkedAmendment.MarkRecoverable.failedAt] and the like) that is not
+ * this entry's: the reference semantics of [FailureLedger.amend], for a backend that changes the entry in memory. Every amendment but a [ParkedAmendment.Schedule] and a [ParkedAmendment.TakeRequest] clears
  * [ParkedAggregate.nextAttemptAt], so the owner looks at the entry again on its next scan.
  */
 fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
-    val read = when (amendment) {
-        is ParkedAmendment.ClaimRetry -> amendment.revision
-        is ParkedAmendment.Schedule -> amendment.revision
-        is ParkedAmendment.TakeRequest -> amendment.revision
-        is ParkedAmendment.Restate -> amendment.revision
-        is ParkedAmendment.MarkRecoverable, is ParkedAmendment.ApplyRetrySpec, is ParkedAmendment.Request -> revision
+    if (!isParking(amendment)) {
+        return null
     }
-    if (read != revision) {
+    if (readOf(amendment) != revision) {
         return null
     }
     val next = revision + 1
@@ -481,6 +485,26 @@ fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
             revision = next,
         )
     }
+}
+
+/** The revision [amendment] was decided at: the one its caller read, or this entry's for an operator's. */
+private fun ParkedAggregate.readOf(amendment: ParkedAmendment): Long = when (amendment) {
+    is ParkedAmendment.ClaimRetry -> amendment.revision
+    is ParkedAmendment.Schedule -> amendment.revision
+    is ParkedAmendment.TakeRequest -> amendment.revision
+    is ParkedAmendment.Restate -> amendment.revision
+    is ParkedAmendment.MarkRecoverable, is ParkedAmendment.ApplyRetrySpec, is ParkedAmendment.Request -> revision
+}
+
+/** Whether this entry is the parking an operator's [amendment] names by its failure time, or it names none. */
+private fun ParkedAggregate.isParking(amendment: ParkedAmendment): Boolean {
+    val parking = when (amendment) {
+        is ParkedAmendment.MarkRecoverable -> amendment.failedAt
+        is ParkedAmendment.ApplyRetrySpec -> amendment.failedAt
+        is ParkedAmendment.Request -> amendment.failedAt
+        else -> null
+    }
+    return parking == null || parking == failedAt
 }
 
 /**
@@ -512,9 +536,11 @@ suspend fun amendByRevision(
 /**
  * This entry where [entry] parks the aggregate (its partition, from version and position, and whether it can only be
  * skipped) and why (its reason and failure time), with this entry's retry state, at the next revision and no longer
- * scheduled: the reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
+ * scheduled; an operator's request is kept only while the failure time is: one left for another parking is cleared.
+ * The reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
  */
 fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith(
+    request = request.takeIf { entry.failedAt == failedAt },
     partition = entry.partition,
     fromVersion = entry.fromVersion,
     reason = entry.reason,

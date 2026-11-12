@@ -54,68 +54,95 @@ sealed interface ParkedAmendment {
     }
 
     /**
-     * Marks the entry [recoverable] (9.x `MarkRecoverable`).
+     * Marks the entry [recoverable] (9.x `MarkRecoverable`). The operator's
+     * action is told apart by [failedAt], when the parking it was made for failed (the entry's
+     * [ParkedAggregate.failedAt], as the operator saw it): the ledger applies it only while the entry it holds is that
+     * parking, in the same write. Null applies it to whichever parking is there: a caller that leaves it out accepts
+     * acting on a parking it may not have seen; the ops console always sends it.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class MarkRecoverable @InternalWowApi constructor(val recoverable: Recoverable) : ParkedAmendment {
+    class MarkRecoverable @InternalWowApi constructor(
+        val recoverable: Recoverable,
+        val failedAt: Long? = null,
+    ) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
             this === other || other is MarkRecoverable && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "MarkRecoverable(recoverable=$recoverable)"
+        override fun toString(): String = "MarkRecoverable(recoverable=$recoverable, failedAt=$failedAt)"
 
-        private fun valueFields(): List<Any?> = listOf(recoverable)
+        private fun valueFields(): List<Any?> = listOf(recoverable, failedAt)
 
         companion object {
             /** A MarkRecoverable of the given fields; parameters added later come last, with a default. */
             @JvmStatic
-            fun of(recoverable: Recoverable): MarkRecoverable = MarkRecoverable(recoverable)
+            @JvmOverloads
+            fun of(recoverable: Recoverable, failedAt: Long? = null): MarkRecoverable =
+                MarkRecoverable(recoverable, failedAt)
         }
     }
 
     /**
-     * Applies [spec] to the entry, or the subscription's spec again when null (9.x `ApplyRetrySpec`).
+     * Applies [spec] to the entry, or the subscription's spec again when null (9.x `ApplyRetrySpec`). The operator's
+     * action is told apart by [failedAt], when the parking it was made for failed (the entry's
+     * [ParkedAggregate.failedAt], as the operator saw it): the ledger applies it only while the entry it holds is that
+     * parking, in the same write. Null applies it to whichever parking is there: a caller that leaves it out accepts
+     * acting on a parking it may not have seen; the ops console always sends it.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class ApplyRetrySpec @InternalWowApi constructor(val spec: ParkedRetrySpec?) : ParkedAmendment {
+    class ApplyRetrySpec @InternalWowApi constructor(
+        val spec: ParkedRetrySpec?,
+        val failedAt: Long? = null,
+    ) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
             this === other || other is ApplyRetrySpec && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "ApplyRetrySpec(spec=$spec)"
+        override fun toString(): String = "ApplyRetrySpec(spec=$spec, failedAt=$failedAt)"
 
-        private fun valueFields(): List<Any?> = listOf(spec)
+        private fun valueFields(): List<Any?> = listOf(spec, failedAt)
 
         companion object {
             /** An ApplyRetrySpec of the given fields; parameters added later come last, with a default. */
             @JvmStatic
-            fun of(spec: ParkedRetrySpec?): ApplyRetrySpec = ApplyRetrySpec(spec)
+            @JvmOverloads
+            fun of(spec: ParkedRetrySpec?, failedAt: Long? = null): ApplyRetrySpec = ApplyRetrySpec(spec, failedAt)
         }
     }
 
     /**
-     * Leaves [request] for the partition's owner, replacing one it has not taken yet.
+     * Leaves [request] for the partition's owner, replacing one it has not taken yet. A request belongs to the parking
+     * it was made for: a park that replaces the entry, or a repark, that fails at another time clears it
+     * ([FailureLedger.park], [FailureLedger.repark]), so it is never taken on a parking nobody looked at. The operator's
+     * action is told apart by [failedAt], when the parking it was made for failed (the entry's
+     * [ParkedAggregate.failedAt], as the operator saw it): the ledger applies it only while the entry it holds is that
+     * parking, in the same write. Null applies it to whichever parking is there: a caller that leaves it out accepts
+     * acting on a parking it may not have seen; the ops console always sends it.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class Request @InternalWowApi constructor(val request: LedgerRequest) : ParkedAmendment {
+    class Request @InternalWowApi constructor(
+        val request: LedgerRequest,
+        val failedAt: Long? = null,
+    ) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
             this === other || other is Request && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "Request(request=$request)"
+        override fun toString(): String = "Request(request=$request, failedAt=$failedAt)"
 
-        private fun valueFields(): List<Any?> = listOf(request)
+        private fun valueFields(): List<Any?> = listOf(request, failedAt)
 
         companion object {
             /** A Request of the given fields; parameters added later come last, with a default. */
             @JvmStatic
-            fun of(request: LedgerRequest): Request = Request(request)
+            @JvmOverloads
+            fun of(request: LedgerRequest, failedAt: Long? = null): Request = Request(request, failedAt)
         }
     }
 

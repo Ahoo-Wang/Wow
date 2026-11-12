@@ -21,6 +21,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -38,6 +39,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
@@ -120,6 +122,26 @@ class LedgerPublisherTest {
                 it.reason.assert().isEqualTo("gone")
                 it.status.assert().isEqualTo("unrecoverable")
                 it.nextRetryAt.assert().isNull()
+            }
+            runtime.stop()
+        }
+
+    @Test
+    fun `an operator's request is published, and published gone once a retry that failed again parks it anew`(): Unit =
+        runBlocking {
+            parkAll("x1")
+            val parked = checkNotNull(ledger.parked(ID, cart("x1")))
+            ledger.amend(ID, cart("x1"), ParkedAmendment.Request(LedgerRequest.SKIP, parked.failedAt))
+            publisher.scan()
+            ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).request
+                .assert().isEqualTo("skip")
+
+            // The skip was asked of that parking: the one a failed retry makes is another, which nobody looked at.
+            ledger.repark(parked.copyWith(reason = "failed again", failedAt = parked.failedAt + 1)).assert().isTrue()
+            publisher.scan()
+            ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).let {
+                it.request.assert().isNull()
+                it.failedAt.assert().isEqualTo(parked.failedAt + 1)
             }
             runtime.stop()
         }

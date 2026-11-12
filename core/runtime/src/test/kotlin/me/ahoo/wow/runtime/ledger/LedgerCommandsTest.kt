@@ -204,6 +204,30 @@ class LedgerCommandsTest {
     }
 
     @Test
+    fun `a mark or a spec of another parking than the entry's is refused as stale, and the one it holds is changed`():
+        Unit = runBlocking {
+        parkAll("x1", start = false)
+        val id = SubscriptionId("shop", NAME)
+        val failedAt = ledger.parked(id, X1)!!.failedAt
+        val before = ledger.parked(id, X1)!!
+
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNRECOVERABLE, failedAt - 1)))!!
+            .code.assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0, failedAt = failedAt + 1)))!!
+            .code.assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
+        ledger.parked(id, X1).assert().isEqualTo(before)
+
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNRECOVERABLE, failedAt))).assert()
+            .isNull()
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0, failedAt = failedAt))).assert()
+            .isNull()
+        ledger.parked(id, X1)!!.let {
+            it.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+            it.retrySpec!!.maxRetries.assert().isEqualTo(0)
+        }
+    }
+
+    @Test
     fun `a skip resolves the entry, and one of a partition another node runs is left as a request`(): Unit =
         runBlocking {
             parkAll("x1", "x2")

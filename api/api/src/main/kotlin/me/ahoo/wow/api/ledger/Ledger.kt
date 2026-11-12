@@ -256,19 +256,29 @@ class MarkParkedRecoverable @InternalWowApi constructor(
     override val tenantId: String,
     override val id: String,
     val recoverable: Recoverable,
+    /**
+     * When the entry acted on was parked (epoch milliseconds, the entry's `failedAt`), as the caller saw it: the owning
+     * service refuses the action as [me.ahoo.wow.api.result.FrameworkCodes.LEDGER_STALE] when the entry it holds was
+     * parked at another time, and the check is made in the ledger's own write. Null acts on whichever parking the entry
+     * holds: a caller that leaves it out accepts acting on a parking it may not have seen; the ops console always sends
+     * it.
+     */
+    val failedAt: Long? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is MarkParkedRecoverable && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "MarkParkedRecoverable(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, recoverable=$recoverable)"
+    override fun toString(): String = "MarkParkedRecoverable(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, recoverable=$recoverable, failedAt=$failedAt)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id, recoverable)
+    private fun valueFields(): List<Any?> =
+        listOf(subscription, context, aggregate, tenantId, id, recoverable, failedAt)
 
     companion object {
         /** A MarkParkedRecoverable of the given fields; parameters added later come last, with a default. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             context: String,
@@ -276,16 +286,27 @@ class MarkParkedRecoverable @InternalWowApi constructor(
             tenantId: String,
             id: String,
             recoverable: Recoverable,
-        ): MarkParkedRecoverable = MarkParkedRecoverable(subscription, context, aggregate, tenantId, id, recoverable)
+            failedAt: Long? = null,
+        ): MarkParkedRecoverable =
+            MarkParkedRecoverable(subscription, context, aggregate, tenantId, id, recoverable, failedAt)
 
-        /** A MarkParkedRecoverable of [subscription]'s entry of [ref], [recoverable]. */
+        /** A MarkParkedRecoverable of [subscription]'s entry of [ref], parked at [failedAt], [recoverable]. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             ref: AggregateRef,
             recoverable: Recoverable,
-        ): MarkParkedRecoverable =
-            MarkParkedRecoverable(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, recoverable)
+            failedAt: Long? = null,
+        ): MarkParkedRecoverable = MarkParkedRecoverable(
+            subscription,
+            ref.type.context,
+            ref.type.name,
+            ref.tenantId,
+            ref.id,
+            recoverable,
+            failedAt,
+        )
     }
 }
 
@@ -305,13 +326,21 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
     val claimTtl: String? = null,
+    /**
+     * When the entry acted on was parked (epoch milliseconds, the entry's `failedAt`), as the caller saw it: the owning
+     * service refuses the action as [me.ahoo.wow.api.result.FrameworkCodes.LEDGER_STALE] when the entry it holds was
+     * parked at another time, and the check is made in the ledger's own write. Null acts on whichever parking the entry
+     * holds: a caller that leaves it out accepts acting on a parking it may not have seen; the ops console always sends
+     * it.
+     */
+    val failedAt: Long? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is ApplyParkedRetrySpec && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, claimTtl=$claimTtl)"
+    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, claimTtl=$claimTtl, failedAt=$failedAt)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
@@ -321,7 +350,8 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
         id,
         maxRetries,
         initialBackoff,
-        claimTtl
+        claimTtl,
+        failedAt,
     )
 
     companion object {
@@ -337,6 +367,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             maxRetries: Int? = null,
             initialBackoff: String? = null,
             claimTtl: String? = null,
+            failedAt: Long? = null,
         ): ApplyParkedRetrySpec = ApplyParkedRetrySpec(
             subscription,
             context,
@@ -345,10 +376,14 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             id,
             maxRetries,
             initialBackoff,
-            claimTtl
+            claimTtl,
+            failedAt,
         )
 
-        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [initialBackoff], [claimTtl]. */
+        /**
+         * An ApplyParkedRetrySpec of [subscription]'s entry of [ref], parked at [failedAt], [maxRetries],
+         * [initialBackoff], [claimTtl].
+         */
         @JvmStatic
         @JvmOverloads
         fun of(
@@ -357,6 +392,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             maxRetries: Int? = null,
             initialBackoff: String? = null,
             claimTtl: String? = null,
+            failedAt: Long? = null,
         ): ApplyParkedRetrySpec =
             ApplyParkedRetrySpec(
                 subscription,
@@ -366,7 +402,8 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
                 ref.id,
                 maxRetries,
                 initialBackoff,
-                claimTtl
+                claimTtl,
+                failedAt,
             )
     }
 }

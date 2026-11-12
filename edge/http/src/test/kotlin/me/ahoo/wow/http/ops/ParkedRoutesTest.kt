@@ -258,6 +258,30 @@ class ParkedRoutesTest {
     }
 
     @Test
+    fun `a mark or a spec naming another parking than the entry's is refused as stale, and changes nothing`(): Unit =
+        runBlocking {
+            park("a")
+            val client = client(other)
+            val ref = type.ref(TENANT, "a")
+            val before = ledger.parked(SubscriptionId("shop", NAME), ref)!!
+            val bodies = mapOf(
+                OpsPaths.MARK_RECOVERABLE to "\"recoverable\":\"unrecoverable\"",
+                OpsPaths.APPLY_RETRY_SPEC to "\"maxRetries\":0",
+            )
+            bodies.forEach { (action, body) ->
+                val stale = client.post("${entry("a")}/$action", "{$body,\"failedAt\":${before.failedAt - 1}}")
+                stale.status.assert().isEqualTo(409)
+                stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
+            }
+            ledger.parked(SubscriptionId("shop", NAME), ref).assert().isEqualTo(before)
+            bodies.forEach { (action, body) ->
+                client.post("${entry("a")}/$action", "{$body,\"failedAt\":${before.failedAt}}").status.assert()
+                    .isEqualTo(200)
+            }
+            ledger.parked(SubscriptionId("shop", NAME), ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+        }
+
+    @Test
     fun `parked timers are listed, retried and skipped by an operator`(): Unit = runBlocking {
         val timers = InMemoryTimerStore()
         val loop = TimerLoop(TimerOptions(), Clock.systemUTC())

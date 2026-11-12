@@ -422,6 +422,10 @@
         "context" : {
           "type" : "string"
         },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "id" : {
           "type" : "string"
         },
@@ -450,6 +454,10 @@
         },
         "context" : {
           "type" : "string"
+        },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "id" : {
           "type" : "string"

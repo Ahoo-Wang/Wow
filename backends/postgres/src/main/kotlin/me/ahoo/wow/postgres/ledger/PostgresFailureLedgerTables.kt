@@ -55,7 +55,8 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     /**
      * Inserts the entry (at revision 0, the column's default), or replaces where the parked one is parked and why
-     * only when this entry's from version is earlier, at the next revision and unscheduled. The conflict update locks the row and re-checks its condition against the latest committed row, so
+     * only when this entry's from version is earlier, at the next revision and unscheduled, clearing an operator's
+     * request left for a parking of another failure time. The conflict update locks the row and re-checks its condition against the latest committed row, so
      * concurrent parks keep the earliest. Returns a row only when the ledger changed.
      */
     val park = """
@@ -64,6 +65,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
         ON CONFLICT ($KEY) DO UPDATE
         SET partition = excluded.partition, from_version = excluded.from_version, reason = excluded.reason,
             failed_at = excluded.failed_at, from_position = excluded.from_position, skip_only = excluded.skip_only,
+            request = CASE WHEN parked.failed_at = excluded.failed_at THEN parked.request END,
             $UNSCHEDULED, revision = parked.revision + 1
         WHERE excluded.from_version < parked.from_version
         RETURNING from_version
@@ -71,10 +73,12 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     /**
      * Replaces the parked entry's partition, from version, reason, time, position and whether it can only be skipped,
-     * only while it is parked in the partition given last, at the next revision and unscheduled.
+     * only while it is parked in the partition given last, at the next revision and unscheduled, clearing an
+     * operator's request left for a parking of another failure time: the place, the failure time again, the key, the
+     * partition.
      */
-    val repark = "UPDATE $table SET ($PLACE) = (?, ?, ?, ?, ?, ?), $UNSCHEDULED, $NEXT_REVISION " +
-        "WHERE $MATCH AND partition = ?"
+    val repark = "UPDATE $table SET ($PLACE) = (?, ?, ?, ?, ?, ?), " +
+        "request = CASE WHEN failed_at = ? THEN request END, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH AND partition = ?"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
@@ -110,9 +114,12 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ?, $UNSCHEDULED, $NEXT_REVISION " +
         "WHERE $MATCH AND revision = ? RETURNING *"
 
-    val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
+    /** Marks the entry: the mark, the key, then the parking's failure time, or null for whichever is there. */
+    val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED, $NEXT_REVISION " +
+        "WHERE $MATCH AND $OF_PARKING RETURNING *"
 
-    val request = "UPDATE $table SET request = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
+    /** Leaves a request: the request, the key, then the parking's failure time, or null for whichever is there. */
+    val request = "UPDATE $table SET request = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH AND $OF_PARKING RETURNING *"
 
     /** Schedules the next attempt: the time, then the key, then the revision read. */
     val schedule = "UPDATE $table SET next_attempt_at = ?, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
@@ -166,6 +173,9 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
         /** Where an entry is parked and why: its partition, from version, reason, time, position, and `skip_only`. */
         private const val PLACE = "partition, from_version, reason, failed_at, from_position, skip_only"
+
+        /** The parking an operator's amendment names, by its failure time; any parking for null. */
+        private const val OF_PARKING = "failed_at = coalesce(?::bigint, failed_at)"
         private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
             "retry_claim_ttl_millis, recoverable, request, next_attempt_at"
         private const val DUE = "partition = ANY (?) AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"
