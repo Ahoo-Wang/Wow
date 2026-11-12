@@ -25,7 +25,7 @@ A command that names no wait waits for `snapshot`. When it returns, the snapshot
 
 The default costs a little. The answer comes after the snapshot subscription has handled the commit, not right after the append. If the snapshot subscription is behind, the default wait times out; the result then says that the command reached `committed`, so the caller knows the fact is committed. If it has parked the aggregate, the wait fails at once with `wow.subscription.parked`. An aggregate whose snapshots are turned off has no snapshot stage, and its default wait is `committed`. Only the default falls back this way: a caller that asks for `snapshot` on such an aggregate is refused at admission.
 
-For an aggregate whose snapshot queries read a copy on another store, `snapshot` does not reach the copy: a list the caller reloads next may not hold the commit yet. Such a caller waits for `queryable`, which ends once the copy has the commit, later than `snapshot`.
+For an aggregate whose snapshot queries read a copy on another store, `snapshot` does not reach the copy: a list the caller reloads next may not hold the commit yet. Such a caller waits for `queryable`, which ends once the copy has the commit, later than `snapshot`. For an aggregate whose only snapshot store is Elasticsearch, `snapshot` and `queryable` are one wait, ended when the index holds the commit: a read by id then has it, and a list has it only with `refresh: wait-for` on that store ([Elasticsearch](../operate/elasticsearch#only-snapshot-store)).
 
 A caller that needs less can wait for `committed` or `accepted`; one that needs more can name a later stage or a chain.
 
