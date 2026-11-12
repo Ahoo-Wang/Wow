@@ -307,6 +307,7 @@ class TopicSubscriptions internal constructor(
             runtime,
             context + fatals.contextOf(Component.OWNERSHIP, group.name),
             membership = membership,
+            observer = observer,
         )
         ownership.start()
         if (steppedOut) {

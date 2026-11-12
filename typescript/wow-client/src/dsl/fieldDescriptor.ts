@@ -130,7 +130,7 @@ export interface QueryDeprecation {
 /** How a sensitive field is protected. */
 export interface SensitivityDescriptor {
   /** How much its raw value is protected. */
-  level: SensitivityLevel;
+  level: SensitivityLevel | (string & {});
   /**
    * Whether filters and paged sorts may still compare its raw value: `false`
    * for {@link SensitivityLevel.CONFIDENTIAL}, and for
@@ -148,7 +148,7 @@ export interface FieldFilterDescriptor {
    * Each operator admitted on this field when used alone; empty when none,
    * as for a sensitive field that is not comparable.
    */
-  operators: FilterOperator[];
+  operators: (FilterOperator | (string & {}))[];
 }
 
 /** Where a field may appear in a sort. */
@@ -199,7 +199,7 @@ export interface FieldDescriptor {
   /** The value types it holds. */
   types: QueryValueType[];
   /** The structural shape of its value. */
-  kind: QueryValueKind;
+  kind: QueryValueKind | (string & {});
   /** Whether it may be `null`. */
   nullable: boolean;
   /** What its value means beyond its type; absent when nothing more. */
@@ -250,7 +250,7 @@ export interface DynamicFieldDescriptor {
   /** The value types they hold. */
   types: QueryValueType[];
   /** The structural shape of their values. */
-  kind: QueryValueKind;
+  kind: QueryValueKind | (string & {});
   /** Whether their values may be `null`, as a field's `nullable` says. */
   nullable: boolean;
   /**

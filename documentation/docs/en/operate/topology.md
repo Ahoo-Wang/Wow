@@ -40,6 +40,19 @@ A node keeps one membership record per service, listing the contexts and topics 
 
 The owner of a partition executes the commands for its aggregates and runs every subscription over it. A command that arrives at another node is forwarded to the owner. When no owner can be reached, for example while a partition changes hands, the receiving node runs the command itself, and the aggregate's version keeps the result correct. [Writing: admission to append](../concepts/write-path#routing) explains the rules.
 
+### A node stuck in its reconcile
+
+A node reconciles its partitions every second: it hands off those that are no longer its share and takes those that are. When one reconcile finishes no step, no partition taken or handed off, for `wow.cluster.reconcile-timeout` (1 minute), the node is stuck, usually on a subscription that does not stop or a partition that does not start. It then **fences** the context's partitions:
+
+- It leaves the members, so the other nodes take its share.
+- Its partitions stop taking commands at once. A command it is still given is forwarded to the partition's next owner.
+- Each partition's commands already running finish, or `wow.cluster.drain-timeout` (10 seconds) passes; only then does the node stop renewing that partition's lease. It sends no release: the lease expires within `wow.cluster.lease-ttl` (10 seconds), and another node takes the partition on its next reconcile. With the defaults the partitions are another node's about 21 seconds after the fence, and at no moment do two nodes both hold one.
+- It stops the partitions' timers.
+
+The fenced node still reads its command topics, and forwards the commands it reads. Its subscriptions keep running over the partitions it gave up, since stopping them is usually what it is stuck on. Their effects, a projection's write or a notification, can therefore repeat beside the new owner's until the reconcile moves again or the liveness check restarts the node (`wow.health.liveness.stall-timeout`, 3 minutes). That is the same exposure as a lease lost while a reconcile is busy. Once the reconcile moves again, the node is a member again, stops the partitions it gave up and takes its share back.
+
+A fence is logged at `WARN`, with the context and how long no step finished, and counted by `wow.cluster.fence.notices` (`wow.kind=fenced`), as is its recovery (`recovered`), so an operator sees it before the liveness check does. A reconcile that is long but keeps finishing steps, one taking many partitions from a slow store say, is not stuck. `wow.cluster.reconcile-timeout` must be longer than `wow.cluster.lease-ttl` and `wow.cluster.drain-timeout`, or the node does not start.
+
 ## Two ports
 
 Each node listens on two ports:

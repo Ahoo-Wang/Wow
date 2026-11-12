@@ -73,9 +73,10 @@ class ClusterProperties {
     var leaseParallelism: Int = DEFAULT_CLUSTER.leaseParallelism
 
     /**
-     * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends,
-     * so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after
-     * `wow.health.liveness.stall-timeout` fails the node's liveness.
+     * How long one reconcile may go without finishing a step for a partition before the node takes itself as stuck:
+     * it leaves the members and gives up its leases until the reconcile moves again, so the other nodes take the
+     * partitions it cannot run. Longer than `drain-timeout` and than `lease-ttl`, or the node does not start. One still
+     * running after `wow.health.liveness.stall-timeout` fails the node's liveness.
      */
     var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
 

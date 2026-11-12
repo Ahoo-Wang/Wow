@@ -14,6 +14,7 @@
 import {
   type FieldAggregateDescriptor,
   type QueryModelDescriptor,
+  WindowFunction,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   dateDiffUnitsOf,
@@ -26,6 +27,7 @@ import {
   type AnalysisLimits,
   type Issue,
   type IssuePath,
+  type WindowFunctionName,
   AggregationGroupTypes,
 } from '../model/index.js';
 import { listParam } from '../model/issue.js';
@@ -116,9 +118,10 @@ export function narrowAnalysis(
     next.firstLastOrderBy = offered.firstLastOrderBy;
   else delete next.firstLastOrderBy;
   // Which windows Wow computes over every group is the source's to say too
-  // (D87): a server before 9.9 sends none.
-  if (offered.windows && offered.windows.length > 0)
-    next.windows = [...offered.windows];
+  // (D87): a server before 9.9 sends none, and one the engine does not know,
+  // from a newer server, is left out, as an unknown metric type is.
+  const windows = windowFunctions(offered.windows ?? []);
+  if (windows.length > 0) next.windows = windows;
   else delete next.windows;
   // Whether a dimension may group the elements by a root field is the
   // source's to say as well: a server before 9.9 does not.
@@ -161,6 +164,14 @@ const METRIC_TYPES: readonly AnalysisMetric['type'][] = [
 /** The types of `listed` a capability can name; a server's own are left out. */
 function metricTypes(listed: readonly string[]): AnalysisMetric['type'][] {
   return METRIC_TYPES.filter(type => listed.includes(type));
+}
+
+/** The window functions of [listed] the engine knows, in the descriptor's order. */
+function windowFunctions(listed: readonly string[]): WindowFunctionName[] {
+  const known: readonly string[] = Object.values(WindowFunction);
+  return listed.filter((window): window is WindowFunctionName =>
+    known.includes(window),
+  );
 }
 
 interface AggregationContext {

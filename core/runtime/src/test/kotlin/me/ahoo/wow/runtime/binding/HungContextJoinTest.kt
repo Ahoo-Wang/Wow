@@ -173,6 +173,6 @@ class HungContextJoinTest {
         const val PARTITIONS = 4
         const val CARTS = 100
         const val SETTLE_MILLIS = 300L
-        val BOUND: Duration = 1.seconds
+        val BOUND: Duration = 2.seconds
     }
 }

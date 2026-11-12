@@ -19,6 +19,8 @@ import kotlin.reflect.KClass
 /**
  * How much the query subsystem protects a [Sensitive] field's raw value. Both levels mask the value in every query
  * result; they differ in what a query may do with the raw value.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class SensitivityLevel {
     /**

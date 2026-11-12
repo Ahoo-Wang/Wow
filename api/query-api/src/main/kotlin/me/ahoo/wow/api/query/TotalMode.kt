@@ -15,6 +15,8 @@ package me.ahoo.wow.api.query
 
 /**
  * How a paged query counts its total, the [PagedList.total] it returns.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class TotalMode {
     /** Counts every match: [PagedList.total] is exact. */

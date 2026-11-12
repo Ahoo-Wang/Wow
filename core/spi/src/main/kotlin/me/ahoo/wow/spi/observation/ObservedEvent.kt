@@ -288,6 +288,23 @@ sealed class ObservedEvent {
     }
 
     /**
+     * This node fenced the lease [group] (`service/context`, text: a service's own names): its reconcile finished no
+     * step for one partition for [stalledMillis], so the node left the group's members and gives up its leases, each
+     * once its partition's commands in flight end, for the other members to take ([OwnershipRecovered]).
+     */
+    class OwnershipFenced @InternalWowApi constructor(val group: String, val stalledMillis: Long) : ObservedEvent() {
+        override fun fields() = listOf("group" to group, "stalledMillis" to stalledMillis)
+    }
+
+    /**
+     * This node's reconcile of the lease [group] finished a step again after [fencedMillis] fenced ([OwnershipFenced]):
+     * the node is one of the group's members again, and takes its share of the partitions back.
+     */
+    class OwnershipRecovered @InternalWowApi constructor(val group: String, val fencedMillis: Long) : ObservedEvent() {
+        override fun fields() = listOf("group" to group, "fencedMillis" to fencedMillis)
+    }
+
+    /**
      * [subscription] of the subscription [group] paused [partition] on a systemic failure, [reason] describing it (the
      * failure's own words, so text): it handles nothing there but one probe at a time, spending no aggregate's retries
      * and parking none, until a handling succeeds ([PartitionResumed]).

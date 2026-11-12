@@ -37,6 +37,10 @@ import kotlin.time.TimeSource
  *
  * It alone puts, removes and clears the entries of [gates], which the ownership builds and passes it; the ownership and
  * its [LeaseRenewals] only read them, and flip a gate's own fields.
+ *
+ * Each step it finishes for one partition, an acquisition started or given up, a hand-off or a drop, is reported to
+ * [progressed]: the ownership takes a reconcile with no step for its reconcile timeout as stuck. A lease it takes while
+ * the ownership is [fenced] is marked lost at once, so it is never renewed.
  */
 internal class PartitionRuns(
     private val group: LeaseGroup,
@@ -51,17 +55,30 @@ internal class PartitionRuns(
     private val intake: SubscriptionRuntime?,
     private val timers: List<TimerRunner>,
     private val partitionChanged: (Int) -> Unit,
+    /** Told each step finished for one partition. */
+    private val progressed: () -> Unit = {},
+    /** Whether the ownership is fenced: a lease taken now is not renewed. */
+    private val fenced: () -> Boolean = { false },
 ) {
     /**
      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
      * [reads] completes, when given.
      */
-    suspend fun acquire(partition: Int, reads: Job?) = withContext(NonCancellable) {
+    suspend fun acquire(partition: Int, reads: Job?) = try {
+        start(partition, reads)
+    } finally {
+        progressed()
+    }
+
+    private suspend fun start(partition: Int, reads: Job?) = withContext(NonCancellable) {
         val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = PartitionGate(asked, unrenewedLimit)
+        // Put before the fence is asked: a fence that falls after the put sees the gate when it walks the gates, and
+        // one that fell before is seen here. Either way the gate is lost, never renewed, and expires for the others.
         gates[partition] = gate
+        closeIfFenced(gate)
         try {
             // Another node may have committed to the partition's aggregates since this one last cached them.
             partitionChanged(partition)
@@ -77,11 +94,22 @@ internal class PartitionRuns(
             return@withContext
         }
         gate.started()
+        // A fence may have fallen while the partition started, its walk closing a gate this start then opened: asked
+        // again once the gate is open, and closed at once.
+        closeIfFenced(gate)
         if (gate.lost) {
             // Lost while it started: the next reconcile stops it, as any partition whose lease was lost.
             logger.warn { "$node lost the lease of partition $partition of $group while starting it." }
         } else {
             logger.info { "$node acquired partition $partition of $group." }
+        }
+    }
+
+    /** Closes [gate] for good when the ownership is fenced: it takes no command, and its lease is not renewed. */
+    private fun closeIfFenced(gate: PartitionGate) {
+        if (fenced()) {
+            gate.lost = true
+            gate.accepting = false
         }
     }
 
@@ -118,6 +146,7 @@ internal class PartitionRuns(
                 ) { partitionChanged(partition) }
                 gates.remove(partition, gate)
                 logger.info { "$node handed off partition $partition of $group." }
+                progressed()
             }
         }.awaitAll()
     }
@@ -130,6 +159,7 @@ internal class PartitionRuns(
             stopSubscriptions(partition)
             partitionChanged(partition)
             gates.remove(partition, gate)
+            progressed()
         }
     }
 

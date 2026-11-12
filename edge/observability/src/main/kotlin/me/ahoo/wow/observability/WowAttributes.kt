@@ -114,6 +114,10 @@ object WowMetrics {
     const val THROTTLED_KIND: String = "throttled"
     const val UNTHROTTLED_KIND: String = "unthrottled"
 
+    /** The kinds of a lease group's fence: a stuck reconcile fenced it, or the reconcile moved again. */
+    const val FENCED_KIND: String = "fenced"
+    const val RECOVERED_KIND: String = "recovered"
+
     /** The kinds of a shared state's rebuild: its replay was longer than a page and met the replay gate, or not. */
     const val GATED_KIND: String = "gated"
     const val UNGATED_KIND: String = "ungated"
@@ -268,6 +272,15 @@ object WowMetrics {
             CAPABILITY to ObservedEvent.StoreFellBack.Capability.entries.map { it.value },
             REASON to ObservedEvent.StoreFellBack.Reason.entries.map { it.value },
         ),
+    )
+
+    val FENCE_NOTICES: MetricSpec = MetricSpec.counter(
+        "wow.cluster.fence.notices",
+        "The lease groups this node fenced, its reconcile having finished no step for the reconcile timeout, so it left " +
+            "the members and gave up its leases; and those it recovered. A fence is seen here before the liveness " +
+            "check restarts the node: alert on it.",
+        tags = listOf(GROUP, KIND),
+        values = mapOf(KIND to listOf(FENCED_KIND, RECOVERED_KIND)),
     )
 
     val RESERVATION_LOSSES: MetricSpec = MetricSpec.counter(
@@ -464,7 +477,7 @@ object WowMetrics {
     val ALL: List<MetricSpec> = listOf(
         COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
-        STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS,
+        STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS, FENCE_NOTICES,
         RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
         ACCESS_WALKED, MAINTENANCE_SKIPPED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED,
         SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
