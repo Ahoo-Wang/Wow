@@ -135,8 +135,8 @@ class StoreLayout(
         /**
          * The layout [placements] configure over [stores], the node's store instances by name, for the aggregate
          * types the node [serves]. Refused: a default or per-type store that names no store, or one that holds no log
-         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a `wow.aggregates` key of a type the node does not serve; more than one store
-         * and no `wow.log.store`; two log stores on one database.
+         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a `wow.aggregates` key of a type the node does
+         * not serve; more than one store and no `wow.log.store`; two log stores on one database.
          */
         fun of(
             placements: StorePlacements,
