@@ -49,8 +49,8 @@ class ClickHouseSinkSchemaTest {
                 `operator_id` String CODEC(ZSTD(1)),
                 `operator_tenant_id` String CODEC(ZSTD(1)),
                 `operator_acted_elsewhere` Bool,
-                `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(3)),
-                `state` String CODEC(ZSTD(3)),
+                `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+                `state` String CODEC(ZSTD(1)),
                 `state_fingerprint` String CODEC(ZSTD(1)),
                 `state_numbers` Map(String, String) CODEC(ZSTD(1))
             )

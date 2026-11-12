@@ -62,6 +62,17 @@ export function measureSuites({
       answers:
         'The access walk under live commands on MongoDB, as access-walk-pg.',
     },
-    ...sinkSuites(HEAD_PG),
+    'access-dataset-ch-codecs': {
+      group: 'codecs',
+      kind: 'measure',
+      measure: 'dataset-access',
+      arms: [
+        { ...ACCESS_DATASET_PG, id: 'lz4', args: ['--codecs=lz4'] },
+        { ...ACCESS_DATASET_PG, id: 'codecs' },
+      ],
+      answers:
+        "What the Sink's codecs cost a dataset's reads (CH-6, D421): access-dataset-ch's list page, count and aggregation under the dataset policy, its `_state` created without codecs (LZ4) against with the Sink's, two rounds ABBA on one runner.",
+    },
+    ...sinkSuites(HEAD_PG, BASE_PG),
   };
 }

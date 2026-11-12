@@ -478,7 +478,14 @@ export function runMeasure(
   { benchPath, installs, out, data, cpuset, rounds, arms, save },
 ) {
   if (SINK_PROGRAMS.includes(definition.measure)) {
-    runSink(definition, suite, { benchPath, out, cpuset, arms, save });
+    runSink(definition, suite, {
+      benchPath,
+      out,
+      cpuset,
+      arms,
+      installs,
+      save,
+    });
   } else if (definition.measure === 'walk') {
     for (const spec of definition.runs) {
       const runName = spec.arm.id;
@@ -542,6 +549,7 @@ export function runMeasure(
             `--backend=${arm.backend}`,
             `--runs=${MEASURE.runs}`,
             `--warm-up-runs=${MEASURE.warmUpRuns}`,
+            ...(arm.args ?? []),
             ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
             `--out=${dir}`,
           ],

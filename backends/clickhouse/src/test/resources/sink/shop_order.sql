@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(3)),
-    `state` String CODEC(ZSTD(3)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
 )
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `state` String CODEC(ZSTD(3)),
+    `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1)),
     `access_owner` Nullable(String) MATERIALIZED JSONExtract(access, 'owner', 'Nullable(String)') COMMENT 'wow:cb2ca92a12a84185',
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(3)),
+    `payload` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),

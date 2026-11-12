@@ -1,7 +1,6 @@
 -- The codec check's table (bench.sh measure --program=clickhouse-insert): the Sink's `_state_events` of the
 -- benchmark's account, with the codecs it creates, held to the Sink's DDL by ScaleCheckDdlTest. The harness also creates
--- it without its codecs (LZ4) and with ZSTD(1) on `state` and `events`, and fills each from the same rows. Statements
--- end with a semicolon at the end of a line.
+-- it without its codecs (LZ4), and fills both from the same rows. Statements end with a semicolon at the end of a line.
 
 CREATE TABLE IF NOT EXISTS `default`.`transfer_account_state_events`
 (
@@ -23,8 +22,8 @@ CREATE TABLE IF NOT EXISTS `default`.`transfer_account_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(3)),
-    `state` String CODEC(ZSTD(3)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
 )

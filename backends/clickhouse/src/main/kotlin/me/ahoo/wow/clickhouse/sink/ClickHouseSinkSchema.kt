@@ -300,9 +300,8 @@ class ClickHouseSinkSchema(
         )
 
         /**
-         * The codec of each stored column the Sink creates, by name, in place of ClickHouse's LZ4: ZSTD for text, a
-         * level higher for the states and the events' payloads, and the delta first for the version and the commit
-         * time, which grow along the sorting key. A codec is not part of a column's type (`system.columns.type`), so
+         * The codec of each stored column the Sink creates, by name, in place of ClickHouse's LZ4: ZSTD(1), one level
+         * for every one, and the delta first for the version and the commit time, which grow along the sorting key. A codec is not part of a column's type (`system.columns.type`), so
          * the Sink neither validates it nor changes an existing table's: such a table keeps its codecs until its
          * operator changes them.
          */
@@ -310,8 +309,8 @@ class ClickHouseSinkSchema(
             listOf(
                 "id", "tenant_id", "command_id", "request_id", "owner_id", "space_id", "access", "correlation_id",
                 "causation_id", "headers", "operator_id", "operator_tenant_id", "state_fingerprint", "state_numbers",
+                "state", "events", "payload",
             ).forEach { put(it, "ZSTD(1)") }
-            listOf("state", "events", "payload").forEach { put(it, "ZSTD(3)") }
             listOf("version", "commit_time").forEach { put(it, "Delta, ZSTD(1)") }
         }
 

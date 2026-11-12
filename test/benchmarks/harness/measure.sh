@@ -79,9 +79,14 @@ measure_dataset() {
   pin_containers "$BACKEND"
   clickhouse_up
   log "seeding ClickHouse"
-  local statement
+  # --codecs=lz4 creates the tables without the Sink's codecs, ClickHouse's LZ4 (CH-6's reads); the default keeps them.
+  local statement codecs
+  codecs=$(opt codecs sink)
   while IFS= read -r -d ';' statement; do
     statement=$(printf '%s\n' "$statement" | grep -v '^--' | sed '/^[[:space:]]*$/d')
+    if [ "$codecs" = lz4 ]; then
+      statement=$(printf '%s' "$statement" | perl -pe 's/ CODEC\((?:[^()]|\([^()]*\))*\)//g')
+    fi
     if [ -n "$statement" ]; then clickhouse "$statement" >/dev/null; fi
   done <"$HARNESS/measure/dataset-access.sql"
   cp "$HARNESS/measure/transfer.account_rows.json" "$OUT/config/wow/dataset/"
@@ -244,19 +249,17 @@ measure_clickhouse_insert() {
     done
   done
   # CH-6's codecs (D421): the Sink's `_state_events` as it creates it (measure/clickhouse-codecs.sql, held to the Sink's
-  # DDL by ScaleCheckDdlTest), against the same table without its codecs (LZ4, ClickHouse's default) and with ZSTD(1)
-  # on `state` and `events`. Each arm takes --rows commits of the Sink's shape (a state of about 1 KB, random ids,
+  # DDL by ScaleCheckDdlTest), against the same table without its codecs (LZ4, ClickHouse's default). Each arm takes --rows commits of the Sink's shape (a state of about 1 KB, random ids,
   # headers, one event, 20 tenants, ten versions an aggregate over two months) in the Sink's blocks, --repeats times,
   # timed by the query log; then once more as parts merges stay off, merged by one OPTIMIZE FINAL, whose query log
   # gives the merge's CPU, and the parts' bytes after it. codec.jsonl holds the inserts, codec-merge.jsonl the merges.
   local wow
   wow=$(grep -v '^--' "$HARNESS/measure/clickhouse-codecs.sql" | tr -d ';')
-  local -a codec_arms=(lz4 wow zstd1)
+  local -a codec_arms=(lz4 wow)
   local arm ddl
   for arm in "${codec_arms[@]}"; do
     case "$arm" in
       lz4) ddl=$(printf '%s' "$wow" | perl -pe 's/ CODEC\((?:[^()]|\([^()]*\))*\)//g') ;;
-      zstd1) ddl=$(printf '%s' "$wow" | perl -pe 's/^(\s+`(?:state|events)`.*) CODEC\(ZSTD\(3\)\)/$1 CODEC(ZSTD(1))/') ;;
       *) ddl=$wow ;;
     esac
     clickhouse "$(printf '%s' "$ddl" | sed "s/\`transfer_account_state_events\`/\`codec_$arm\`/")" >/dev/null
@@ -473,7 +476,9 @@ measure_sink() {
         WHERE event_type = 'NewPart' AND table IN ($SINK_TABLES)
           AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
         GROUP BY table ORDER BY table FORMAT JSONEachRow" | jq -s .)
-    inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows FROM system.query_log
+    inserts=$(clickhouse "SELECT count() AS inserts, sum(written_rows) AS writtenRows,
+        toUnixTimestamp64Milli(min(event_time_microseconds - toIntervalMillisecond(query_duration_ms))) AS firstMs,
+        toUnixTimestamp64Milli(max(event_time_microseconds)) AS lastMs FROM system.query_log
         WHERE type = 'QueryFinish' AND query_kind = 'Insert' AND has(tables, 'default.transfer_account_state_events')
           AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
         FORMAT JSONEachRow" | jq -s '.[0]')
