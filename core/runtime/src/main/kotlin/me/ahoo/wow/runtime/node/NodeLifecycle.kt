@@ -130,6 +130,13 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     private val lock = Mutex()
 
+    /** The steps the stop under way has reached. */
+    private val reached: MutableSet<ServiceNode.Step> = ConcurrentHashMap.newKeySet()
+
+    /** Runs the stop of a failed start or activation, apart from the caller, whose cancellation it outlives. */
+    private val undoing =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "undo"))
+
     /** Where the node is in its lifecycle. */
     @Volatile
     var state: ServiceNode.State = ServiceNode.State.NEW
@@ -387,16 +394,15 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
      */
     private suspend fun undo(failure: Throwable, what: String) {
         val stopping = undoing.async { shutdown(joined = true) }
-        val ended = withContext(NonCancellable) {
-            withTimeoutOrNull(options.stopBound) {
-                try {
-                    stopping.await()
-                } catch (@Suppress("TooGenericExceptionCaught") stopFailed: Exception) {
-                    failure.addSuppressed(stopFailed)
-                }
+        // The wait and the stop's outcome apart: only what the stop threw is its failure, never the bound's timeout.
+        val ended = withContext(NonCancellable) { withTimeoutOrNull(options.stopBound) { stopping.join() } } != null
+        if (ended) {
+            try {
+                stopping.await() // Ended: returns or throws at once, whether or not the caller is cancelled.
+            } catch (@Suppress("TooGenericExceptionCaught") stopFailed: Exception) {
+                failure.addSuppressed(stopFailed)
             }
-        } != null
-        if (!ended) {
+        } else {
             state = ServiceNode.State.STOPPED
             logger.error {
                 "Node $node of $service did not finish stopping what its failed $what started within " +
@@ -411,13 +417,6 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         val joined = contexts.filterValues { it.ownership.isRunning }.keys
         return "the steps $pending, the lease groups of the contexts $joined"
     }
-
-    /** The steps the stop under way has reached. */
-    private val reached: MutableSet<ServiceNode.Step> = ConcurrentHashMap.newKeySet()
-
-    /** Runs the stop of a failed start or activation, apart from the caller, whose cancellation it outlives. */
-    private val undoing =
-        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "undo"))
 
     /**
      * Leaves the cluster and closes the node, in the order the class describes. A node that never started joined

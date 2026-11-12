@@ -19,6 +19,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -68,6 +70,10 @@ class CancelledStartTest {
     @Volatile
     private var holdReleases = false
 
+    /** Makes the shop's leaves of its members fail, a step of the stop that throws. */
+    @Volatile
+    private var failLeaves = false
+
     private val backends = BackendFactory { context ->
         val opened = stores.backends(context)
         val leases = if (context == BACK) {
@@ -87,6 +93,11 @@ class CancelledStartTest {
                         released.await()
                     }
                     return opened.leases.release(group, partition, owner)
+                }
+
+                override suspend fun leave(service: String, node: String) {
+                    check(!failLeaves) { "The lease store is down." }
+                    opened.leases.leave(service, node)
                 }
             }
         }
@@ -117,6 +128,19 @@ class CancelledStartTest {
         options = options,
     )
 
+    /** What the start threw, as the caller of [ServiceNode.start] sees it; a cancelled job's await throws its own cause. */
+    @Volatile
+    private var startFailure: Throwable? = null
+
+    private fun CoroutineScope.starting(): Deferred<Unit> = async {
+        try {
+            node.start()
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            startFailure = failure
+            throw failure
+        }
+    }
+
     private suspend fun shopMembers(): List<String> =
         stores.backends(SHOP).leases.members(SHOP_SERVICE).filter { SHOP_GROUP in it.groups }.map { it.node }
 
@@ -146,19 +170,40 @@ class CancelledStartTest {
         }
 
     @Test
+    fun `a step of the clean-up that fails is suppressed onto the start's cancellation, which goes on up`(): Unit =
+        runBlocking {
+            val starting = starting()
+            try {
+                eventually { node.context(SHOP).ownership.owned.size == PARTITIONS }
+                withTimeout(10.seconds) { asked.await() }
+                failLeaves = true
+                starting.cancel()
+                assertThrows<CancellationException> { withTimeout(60.seconds) { starting.await() } }
+                startFailure.assert().isInstanceOf(CancellationException::class.java)
+                startFailure!!.suppressed.map { it.message }.assert().containsExactly("The lease store is down.")
+                node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
+            } finally {
+                answered.complete(Unit)
+            }
+        }
+
+    @Test
     fun `a clean-up past the node's stop bound goes on in the background, naming what it had not stopped`(): Unit =
         runBlocking {
             val logger = LoggerFactory.getLogger(ServiceNode::class.java) as Logger
             val appender = ListAppender<ILoggingEvent>().apply { start() }
             logger.addAppender(appender)
             holdReleases = true
-            val starting = async { node.start() }
+            val starting = starting()
             try {
                 eventually { node.context(SHOP).ownership.owned.size == PARTITIONS }
                 withTimeout(10.seconds) { asked.await() }
                 starting.cancel()
                 // The caller waits for the stop at most its bound, then the cancellation goes on up.
                 assertThrows<CancellationException> { withTimeout(60.seconds) { starting.await() } }
+                // The bound's own timeout is no failure of the stop: nothing is suppressed onto the cancellation.
+                startFailure.assert().isInstanceOf(CancellationException::class.java)
+                startFailure!!.suppressed.assert().isEmpty()
                 node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
                 val errors = synchronized(appender) { appender.list.toList() }
                     .filter { it.level == Level.ERROR }.map { it.formattedMessage }
