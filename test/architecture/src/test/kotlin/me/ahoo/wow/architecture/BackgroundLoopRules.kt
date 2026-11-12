@@ -58,7 +58,6 @@ object BackgroundLoopRules {
         ("subscription/PartitionRunner.kt" to "awaitCaughtUp") to "a partition's catch-up, until every worker is",
         ("subscription/SubscriptionOptions.kt" to "retryForever") to "one read retried until it succeeds",
         ("subscription/SubscriptionRuntime.kt" to "claim") to "one partition's start, once its stop under way ends",
-        ("subscription/SubscriptionWorker.kt" to "drain") to "one aggregate's lane, until it is empty",
         ("log/HandoffLog.kt" to "run") to "the flow of one tail, which the shared tail's worker collects",
         ("log/HandoffLog.kt" to "ownCommitAhead") to "one hand-over's wait for the commits ahead of it",
         ("log/HandoffLog.kt" to "drain") to "the entries one tail has in memory, until none is",
