@@ -21,7 +21,12 @@ import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.backend.single
 import tools.jackson.databind.JsonNode
 
-/** A fact a declaration states, or leaves to a source of lower priority. */
+/**
+ * A fact a declaration states, or leaves to a source of lower priority.
+ *
+ * A declaration states a fact or leaves it unset, and there is nothing in between. No case is added within 10.x, so a
+ * `when` over it may name every case.
+ */
 @ExperimentalWowApi
 sealed interface DeclarationValue<out T> {
     data object Unset : DeclarationValue<Nothing>

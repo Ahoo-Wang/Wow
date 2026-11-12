@@ -50,8 +50,6 @@ object CaseSetRules {
      */
     val PENDING: Map<String, String> = mapOf(
         "api/query-api" to "the query protocol's types",
-        "query/query" to "the query engine's types",
-        "query/query-tck" to "the query TCK's types",
     )
 
     private val DECLARATION = Regex("""^(\s*)((?:[a-z]+ )*)(class|interface|object)(?: (\w+))?""")

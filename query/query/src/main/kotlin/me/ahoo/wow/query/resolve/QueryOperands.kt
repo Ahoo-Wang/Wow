@@ -26,7 +26,11 @@ import tools.jackson.databind.JsonNode
  *   judged it, unless the storage's driver encodes it natively ([RuntimeOperands.NATIVE]).
  */
 
-/** How a backend hands a runtime value operand (9.x: a POJO) to its driver. */
+/**
+ * How a backend hands a runtime value operand (9.x: a POJO) to its driver.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ */
 enum class RuntimeOperands {
     /** As the JSON it writes as, the form a record stores it in. */
     NORMALIZE,

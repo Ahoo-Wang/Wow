@@ -66,9 +66,11 @@ class QueryModel @InternalWowApi constructor(
 }
 
 /**
- * What storage lets a field do. A closed set: a backend grants a subset per field, and every query rule is written
- * against these values. A storage adapter reports, for each logical path, the ones its native structures execute
- * ([QueryValueBindings]).
+ * What storage lets a field do. Wow defines the set: a backend grants a subset per field, and every query rule is
+ * written against these values. A storage adapter reports, for each logical path, the ones its native structures
+ * execute ([QueryValueBindings]).
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
 enum class QueryCapability {
     PRESENCE,
@@ -114,7 +116,12 @@ class QueryValueType @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(value)
 }
 
-/** Whether a value holds one value per record, or many (an array, or a value inside one). */
+/**
+ * Whether a value holds one value per record, or many (an array, or a value inside one).
+ *
+ * A record holds one value or many, and there is no third count. No case is added within 10.x, so a `when` over it may
+ * name every case.
+ */
 enum class QueryCardinality {
     SINGLE,
     MANY,

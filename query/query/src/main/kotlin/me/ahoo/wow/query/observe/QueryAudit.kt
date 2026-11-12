@@ -74,6 +74,11 @@ class QueryAudit internal constructor(
     val caller: QueryCaller,
     val elapsed: Duration,
 ) {
+    /**
+     * How the query ended: it completed, failed or was cancelled.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     */
     enum class Outcome { COMPLETE, ERROR, CANCEL }
 
     companion object {
