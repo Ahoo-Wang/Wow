@@ -1315,6 +1315,12 @@
     "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
     "sourceType" : "me.ahoo.wow.spring.boot.node.SharedStatesProperties"
   }, {
+    "name" : "wow.snapshot.load-timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a command's cache miss waits for its snapshot before it takes the load as failed and replays the log, counted in `wow.store.fallbacks` as `timed-out`: a snapshot is only a cache, so a store that stops answering costs a replay, not the command's wait. Below `wow.wait.default-timeout`, so such a command still answers at its commit.",
+    "sourceType" : "me.ahoo.wow.spring.boot.store.SnapshotProperties",
+    "defaultValue" : "PT2S"
+  }, {
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",
     "description" : "How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks.",

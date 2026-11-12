@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.KernelOptions
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -23,7 +24,9 @@ import kotlin.time.Duration.Companion.seconds
  * rewrites [batch] snapshots a page, at most [pages] pages a run, under a lease of [leaseTtl]; a node stays a member of
  * its state revision for [memberTtl] after its last run, so a rollback waits that long after the last node of the
  * higher revision is gone (none when it leaves gracefully). The snapshot subscriptions write at most [writeBatch]
- * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll].
+ * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll]. A command's cache miss, and a
+ * shared state's, waits at most [loadTimeout] for a snapshot before it replays the log
+ * ([me.ahoo.wow.kernel.KernelOptions.snapshotLoadTimeout]).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -35,6 +38,7 @@ class SnapshotOptions @InternalWowApi constructor(
     val leaseTtl: Duration = DEFAULT_TTL,
     val memberTtl: Duration = DEFAULT_TTL,
     val writeBatch: Int = DEFAULT_WRITE_BATCH,
+    val loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
 ) {
     init {
         require(interval.isPositive()) { "The snapshot maintenance runs at a positive interval." }
@@ -43,6 +47,7 @@ class SnapshotOptions @InternalWowApi constructor(
         require(leaseTtl > interval) { "The rebuild lease outlives the interval between runs." }
         require(memberTtl > interval) { "A revision membership outlives the interval between runs." }
         require(writeBatch >= 1) { "A snapshot write holds at least one snapshot." }
+        require(loadTimeout.isPositive()) { "A snapshot load's timeout is positive." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -52,9 +57,9 @@ class SnapshotOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "SnapshotOptions(interval=$interval, batch=$batch, pages=$pages, leaseTtl=$leaseTtl, " +
-            "memberTtl=$memberTtl, writeBatch=$writeBatch)"
+            "memberTtl=$memberTtl, writeBatch=$writeBatch, loadTimeout=$loadTimeout)"
 
-    private fun valueFields(): List<Any?> = listOf(interval, batch, pages, leaseTtl, memberTtl, writeBatch)
+    private fun valueFields(): List<Any?> = listOf(interval, batch, pages, leaseTtl, memberTtl, writeBatch, loadTimeout)
 
     companion object {
         val DEFAULT_INTERVAL: Duration = 5.seconds

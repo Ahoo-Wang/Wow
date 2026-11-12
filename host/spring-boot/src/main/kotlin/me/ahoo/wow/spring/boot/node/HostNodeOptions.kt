@@ -43,6 +43,6 @@ internal fun WowProperties.serviceNodeOptions(
     },
     topicRouted = topicRouted,
     ledger = ops.publish.options(transport = transport),
-    snapshots = configured("wow.snapshot") { snapshot.options() },
+    snapshots = configured("wow.snapshot") { snapshot.options(wait.defaultTimeout) },
     access = configured("wow.access") { access.options() },
 )

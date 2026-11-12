@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
@@ -89,6 +90,24 @@ internal suspend fun <T> CoroutineDispatcher.jdbc(block: suspend CoroutineScope.
     try {
         block()
     } catch (failure: SQLException) {
+        throw PostgresFailures.translate(failure)
+    }
+}
+
+/**
+ * [jdbc] for a read its caller may give up on: cancelling the caller interrupts the thread blocked in the driver, which
+ * closes the connection's socket, so the read ends at once and the pool replaces its broken connection instead of
+ * waiting out the store's operation timeout. Only for reads in autocommit: a write interrupted half-way has an unknown
+ * outcome.
+ */
+internal suspend fun <T> CoroutineDispatcher.jdbcRead(block: () -> T): T = runInterruptible(this) {
+    try {
+        block()
+    } catch (failure: SQLException) {
+        // The driver reports its interruption as an I/O failure: it is the caller's cancellation.
+        if (Thread.currentThread().isInterrupted) {
+            throw InterruptedException(failure.message).apply { initCause(failure) }
+        }
         throw PostgresFailures.translate(failure)
     }
 }

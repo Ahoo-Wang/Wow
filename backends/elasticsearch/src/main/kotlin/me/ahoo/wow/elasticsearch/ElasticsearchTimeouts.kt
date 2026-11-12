@@ -51,8 +51,12 @@ internal class BoundedTransport(restClient: Rest5Client, mapper: JsonpMapper, ti
 /**
  * [delegate], each request it sends answered within [timeout]: one that has no answer by then fails as a
  * [SocketTimeoutException], an I/O failure the store reads as transient (`ElasticsearchFailures`), and is cancelled,
- * which aborts its exchange and closes its connection, freeing its place in the client's pool. An answer that comes after it is
- * released at once. The store's calls are all asynchronous; a synchronous one is the client's own.
+ * which aborts its exchange and closes its connection, freeing its place in the client's pool. An answer that comes
+ * after it is released at once. The store's calls are all asynchronous; a synchronous one is the client's own.
+ *
+ * A caller that gives up, a cancelled coroutine, ends its own wait and nothing else: the request stays under its
+ * deadline. HttpClient 5's retry re-runs a request cancelled before its bytes are written, on a new connection that
+ * nothing then releases, so only the deadline, long after the request was written, cancels it.
  */
 internal class BoundedHttpClient(private val delegate: TransportHttpClient, private val timeout: Duration) :
     TransportHttpClient {
@@ -79,8 +83,10 @@ internal class BoundedHttpClient(private val delegate: TransportHttpClient, priv
         val answered = CompletableFuture<TransportHttpClient.Response>()
         val deadline = deadlines.schedule(
             {
-                val late = SocketTimeoutException("Elasticsearch gave no answer to $endpointId within $timeout.")
-                if (answered.completeExceptionally(late)) sent.cancel(true)
+                answered.completeExceptionally(
+                    SocketTimeoutException("Elasticsearch gave no answer to $endpointId within $timeout."),
+                )
+                sent.cancel(true)
             },
             timeout.inWholeMilliseconds,
             TimeUnit.MILLISECONDS,
@@ -92,8 +98,6 @@ internal class BoundedHttpClient(private val delegate: TransportHttpClient, priv
                 !answered.complete(response) -> response.close()
             }
         }
-        // A caller that gives up first, a cancelled coroutine, aborts the exchange as well.
-        answered.whenComplete { _, _ -> if (answered.isCancelled) sent.cancel(true) }
         return answered
     }
 

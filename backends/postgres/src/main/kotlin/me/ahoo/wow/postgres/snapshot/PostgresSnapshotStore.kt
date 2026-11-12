@@ -26,6 +26,7 @@ import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.postgres.jdbcRead
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessValues
@@ -382,7 +383,8 @@ class PostgresSnapshotStore(
         backfilled = row.getBoolean("backfilled"),
     )
 
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.jdbc {
+    // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.jdbcRead {
         require(ref.type.context == context) { "$ref is not in context $context." }
         dataSource.autoCommitted { connection ->
             connection.prepareStatement(tables(ref.type.name).load).use { query ->

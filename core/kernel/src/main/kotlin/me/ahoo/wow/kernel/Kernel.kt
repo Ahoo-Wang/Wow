@@ -153,7 +153,8 @@ class Kernel(
     policies: WritePolicies = WritePolicies.NONE,
 ) {
     /** Where a state comes from on a cache miss, and how streams fold into it. */
-    private val source = StateSourcing(log, codec, observer, snapshots, snapshotTailReaders)
+    private val source =
+        StateSourcing(log, codec, observer, snapshots, snapshotTailReaders, options.snapshotLoadTimeout)
 
     /** The reads of a committed state at a version or a time, and of its history. */
     private val history = StateHistory(source, log, codec)
@@ -437,10 +438,11 @@ class Kernel(
         source.stateOf(model, snapshot)
 
     /**
-     * [store] as a cache-miss load reads it: a snapshot that fails to load is none, so the state is replayed from the
-     * log; each failure is counted (`wow.store.fallbacks`), the first logged as a warning.
+     * [store] as a cache-miss load reads it: a snapshot that fails to load, or gives no answer within
+     * [KernelOptions.snapshotLoadTimeout], is none, so the state is replayed from the log; each failure is counted
+     * (`wow.store.fallbacks`), the first logged as a warning.
      */
-    fun tolerant(store: SnapshotStore): SnapshotStore = TolerantSnapshots(store, observer)
+    fun tolerant(store: SnapshotStore): SnapshotStore = TolerantSnapshots(store, observer, options.snapshotLoadTimeout)
 
     /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
     fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)

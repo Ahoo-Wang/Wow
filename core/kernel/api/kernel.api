@@ -273,13 +273,14 @@ public final class me/ahoo/wow/kernel/KernelOptions {
 	public static final field Companion Lme/ahoo/wow/kernel/KernelOptions$Companion;
 	public static final field DEFAULT_MAX_ATTEMPTS I
 	public static final field DEFAULT_MAX_REPLAY I
-	public synthetic fun <init> (IZJJIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IZJJIIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxAttempts ()I
 	public final fun getMaxEarlyWait-UwyO8pc ()J
 	public final fun getMaxReplay ()I
 	public final fun getRecentRequests ()I
 	public final fun getReservationTtl-UwyO8pc ()J
+	public final fun getSnapshotLoadTimeout-UwyO8pc ()J
 	public final fun getVerifyDecidePurity ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -288,6 +289,7 @@ public final class me/ahoo/wow/kernel/KernelOptions {
 public final class me/ahoo/wow/kernel/KernelOptions$Companion {
 	public final fun getDEFAULT_MAX_EARLY_WAIT-UwyO8pc ()J
 	public final fun getDEFAULT_RESERVATION_TTL-UwyO8pc ()J
+	public final fun getDEFAULT_SNAPSHOT_LOAD_TIMEOUT-UwyO8pc ()J
 }
 
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
