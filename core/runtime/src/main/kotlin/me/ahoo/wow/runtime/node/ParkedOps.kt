@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
+import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -306,6 +307,36 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                     ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0)),
                     { runner },
                     { _, _ -> true },
+                )
+            }
+
+            /**
+             * The aggregates [skips] parked in the log [group]'s ledger, those of its types the context's access walks
+             * or snapshot rewrites could not read ([MaintenanceSkips]). Nothing retries them automatically: they wait
+             * for an operator. A retry runs the work on the aggregate again ([retry], true when its entry resolved),
+             * a skip resolves the entry and leaves undone what the work could not do; any node acts at once, and the
+             * node that runs the aggregate's partition of the group publishes the entry.
+             */
+            fun of(group: LogGroupNode, skips: MaintenanceSkips, retry: suspend (AggregateRef) -> Boolean): Scope {
+                val ids = setOf(skips.subscription)
+                val runtime = group.subscriptions
+                val runner = object : Runner {
+                    override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
+                        Partitioner.partitionOf(ref, group.log.partitions) in runtime.partitions
+
+                    override suspend fun acts(subscription: String, ref: AggregateRef): Boolean = true
+
+                    override suspend fun retry(subscription: String, ref: AggregateRef): Boolean = retry(ref)
+
+                    override suspend fun skip(subscription: String, ref: AggregateRef): Boolean = skips.skip(ref)
+                }
+                return Scope(
+                    runtime.group,
+                    { ids },
+                    runtime.ledger,
+                    ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0)),
+                    { runner },
+                    { _, type -> type in group.types },
                 )
             }
 

@@ -27,9 +27,10 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.ledger.MaintenanceSkips
+import me.ahoo.wow.runtime.ledger.replaying
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.spi.StorageBusyException
-import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
@@ -40,7 +41,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.TimeMark
@@ -95,8 +95,14 @@ fun interface AccessSnapshots {
  *   (a node of an earlier version still running, an import) is the follower's: [AccessStamping] stamps its aggregate
  *   when it reads it ([covers]).
  *
+ * - **An aggregate it cannot read**: one whose history does not replay, or whose read or stamps fail in a way no retry
+ *   changes, is parked under `wow.access.walk` ([skips]) and the walk goes on; any other failure stops the run, which
+ *   resumes at the cursor. A skipped aggregate's history keeps the attributes it was stamped with before, or none, and
+ *   an operator retries it ([retry]) or skips it. Without [skips], every failure stops the run.
+ *
  * The walks are observable in the registry of each log (the walk's schema, heads, cursor, count and completion), in
- * the observer's [ObservedEvent.AccessWalked] and [ObservedEvent.AccessStamped], and in the log.
+ * the observer's [ObservedEvent.AccessWalked], [ObservedEvent.AccessStamped] and [ObservedEvent.MaintenanceSkipped],
+ * and in the log.
  */
 @InternalWowApi
 class AccessWalking(
@@ -115,6 +121,8 @@ class AccessWalking(
     /** Where the walk's history reads run, and whether the log store's writes are pressed. */
     private val gate: ReplayGate = ReplayGate.OPEN,
     private val time: TimeSource = TimeSource.Monotonic,
+    /** Where the walks park the aggregates they cannot read; none: a failure of one stops the run. */
+    val skips: MaintenanceSkips? = null,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
@@ -209,6 +217,7 @@ class AccessWalking(
     suspend fun maintain(): Boolean {
         heartbeat()
         claims()
+        skips?.refresh()
         val deadline = time.markNow() + options.interval
         var walking = false
         for ((type, schema) in schemas) {
@@ -253,22 +262,30 @@ class AccessWalking(
         model: AggregateModel<*>,
         ref: AggregateRef,
         cause: ObservedEvent.AccessStamped.Cause,
-    ): Stamped? = stampCurrent(model, ref, cause) { log -> log.read(ref).toList() }
+    ): Stamped? = stampCurrent(model, ref, cause, walked = false) { log -> log.read(ref).toList() }
 
-    /** [stampCurrent], reading [ref]'s whole history from its log with [history]. */
+    /**
+     * [stampCurrent], reading [ref]'s whole history from its log with [history]; a failure of its replay [walked] is
+     * the walk's to skip ([replaying]), else thrown as it is, the follower's to classify.
+     */
     private suspend fun stampCurrent(
         model: AggregateModel<*>,
         ref: AggregateRef,
         cause: ObservedEvent.AccessStamped.Cause,
+        walked: Boolean,
         history: suspend (EventLog) -> List<EventStreamRecord>,
     ): Stamped? {
         val log = logOf(ref.type) ?: return null
         val stamps = log as? AccessStamps ?: return null
         val started = time.markNow()
         val streams = history(log)
-        val state = kernel.replayed(model, ref, streams) ?: return null
+        val replay = {
+            kernel.replayed(model, ref, streams)?.let {
+                AccessValues.ofStream(kernel.accessOf(model, it.state), it.scope) to it
+            }
+        }
+        val (access, state) = (if (walked) replaying(ref, replay) else replay()) ?: return null
         val head = streams.last().version
-        val access = AccessValues.ofStream(kernel.accessOf(model, state.state), state.scope)
         val written = stamps.stampIn(ref, access, head, 1, head + 1, options.batch)
         targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.batch) }
         snapshots.rewrite(ref, streams, state)
@@ -391,8 +408,11 @@ class AccessWalking(
         var renewed = time.markNow()
         while (!deadline.hasPassedNow()) {
             val page = walks.aggregates(type, walk.cursor, pace.pageOf(options.walkBatch, options.interval))
+            var stamped = 0
             page.refs.forEach { ref ->
-                stampPaced(model, ref, pace)
+                if (stampPaced(model, ref, pace)) {
+                    stamped++
+                }
                 // A slow pace may hold a page longer than a share of the lease: it is renewed within the page.
                 if (renewed.elapsedNow() >= options.leaseTtl / LEASE_RENEWALS) {
                     leases.renew(lease, listOf(0), node, options.leaseTtl)
@@ -401,7 +421,7 @@ class AccessWalking(
             }
             val next = walk.copy(
                 cursor = page.next ?: walk.cursor,
-                walked = walk.walked + page.refs.size,
+                walked = walk.walked + stamped,
                 completed = page.next == null,
             )
             if (!walks.advance(type, walk.schema, next.cursor, next.walked, next.completed)) {
@@ -412,7 +432,7 @@ class AccessWalking(
             }
             walk = next
             walked[type] = walk
-            observer.observed(ObservedEvent.AccessWalked(type, page.refs.size, walk.completed))
+            observer.observed(ObservedEvent.AccessWalked(type, stamped, walk.completed))
             if (walk.completed) {
                 leases.release(lease, 0, node)
                 logger.info { "The access walk of $type is completed: ${walk.walked} aggregates stamped." }
@@ -426,17 +446,16 @@ class AccessWalking(
 
     /**
      * Stamps [ref] as the walk does, its history read under the log store's query bulkhead, then waits as [pace] says;
-     * a read the bulkhead refuses presses the pace, and is tried again a period later.
+     * a read the bulkhead refuses presses the pace, and is tried again a period later. True when it is stamped, false
+     * when it is skipped ([skips]).
      */
     @Suppress("TooGenericExceptionCaught") // Only a refusal is the walk's to wait out; the rest is rethrown.
-    private suspend fun stampPaced(model: AggregateModel<*>, ref: AggregateRef, pace: WalkPace) {
+    private suspend fun stampPaced(model: AggregateModel<*>, ref: AggregateRef, pace: WalkPace): Boolean {
         while (true) {
             pace.sense { gate.pressed(ref.type) }
             val began = time.markNow()
-            try {
-                stampCurrent(model, ref, ObservedEvent.AccessStamped.Cause.WALK) { log ->
-                    gate.replay(ref) { log.read(ref).toList() }
-                }
+            val stamped = try {
+                attempt(ref) { stampWalked(model, ref) }
             } catch (failure: Exception) {
                 if (!refused(failure)) throw failure
                 logger.debug(failure) { "The log store refused the access walk's read of $ref." }
@@ -445,7 +464,34 @@ class AccessWalking(
                 continue
             }
             delay(pace.pause(began.elapsedNow()))
-            return
+            return stamped
+        }
+    }
+
+    /** Stamps [ref] as the walk does, its history read under the log store's query bulkhead. */
+    private suspend fun stampWalked(model: AggregateModel<*>, ref: AggregateRef) {
+        stampCurrent(model, ref, ObservedEvent.AccessStamped.Cause.WALK, walked = true) { log ->
+            gate.replay(ref) { log.read(ref).toList() }
+        }
+    }
+
+    /** Runs [work] on [ref], skipped as [skips] says; true when it ran. */
+    private suspend fun attempt(ref: AggregateRef, work: suspend () -> Unit): Boolean =
+        skips?.attempt(ref, work) ?: run {
+            work()
+            true
+        }
+
+    /**
+     * An operator's retry of [ref], which the walk skipped: its history stamped with its current attributes, as the
+     * walk does; true when it is, and its entry resolved. A failure that skips it leaves the entry as it is.
+     */
+    suspend fun retry(ref: AggregateRef): Boolean {
+        val model = models[ref.type] ?: return false
+        val skips = skips ?: return false
+        return skips.retry(ref) {
+            stampWalked(model, ref)
+            true
         }
     }
 
@@ -480,84 +526,4 @@ class AccessWalking(
         private const val MAX_CAUSES = 8
         private val logger = KotlinLogging.logger {}
     }
-}
-
-/** The attributes of an aggregate's history as of [version]: what a stamp wrote, or a stream carries. */
-@InternalWowApi
-class Stamped(val version: Int, val access: Map<String, Any?>)
-
-/**
- * The access schema of an aggregate type: what its streams' attributes are derived as, the declared ones by name, each
- * with the kind of its stored values and whether it holds many (`department:string,teams:string[]`), empty for none.
- * The built-in owner and space are of every schema.
- */
-@InternalWowApi
-object AccessSchema {
-    fun of(model: AggregateModel<*>): String = model.accessAttributes.sortedBy { it.name }.joinToString(",") {
-        "${it.name}:${kindOf(it.type)}${if (it.multiple) "[]" else ""}"
-    }
-
-    /** A short hash of [schema], for a name. */
-    fun hashOf(schema: String): String =
-        MessageDigest.getInstance("SHA-256").digest(schema.toByteArray()).take(HASH_BYTES)
-            .joinToString("") { "%02x".format(it) }
-
-    private fun kindOf(type: Class<*>): String = when {
-        type.isEnum -> "enum"
-        type == String::class.java -> "string"
-        type == Boolean::class.javaObjectType -> "boolean"
-        else -> "integer"
-    }
-
-    private const val HASH_BYTES = 8
-}
-
-/**
- * Writes [stamps] together ([AccessStamps.stampAll]), in writes of at most [batch] streams each: a stamp of more is cut
- * into chunks of [batch], each written whole in one write. Returns the streams stamped.
- */
-@InternalWowApi
-suspend fun AccessStamps.stampAllIn(stamps: List<AccessStamp>, batch: Int): Int {
-    require(batch >= 1) { "A write stamps at least one stream." }
-    val chunks = stamps.flatMap { stamp ->
-        (stamp.from until stamp.until step batch).map { from ->
-            stamp.copy(from = from, until = minOf(from + batch, stamp.until))
-        }
-    }
-    var written = 0
-    var bulk = ArrayList<AccessStamp>()
-    var streams = 0
-    chunks.forEach { chunk ->
-        val size = chunk.until - chunk.from
-        if (bulk.isNotEmpty() && streams + size > batch) {
-            written += stampAll(bulk)
-            bulk = ArrayList()
-            streams = 0
-        }
-        bulk += chunk
-        streams += size
-    }
-    if (bulk.isNotEmpty()) {
-        written += stampAll(bulk)
-    }
-    return written
-}
-
-/** Stamps [access] as of [asOf] over the streams of [ref] from [from] until [until], at most [batch] in each stamp. */
-internal suspend fun AccessStamps.stampIn(
-    ref: AggregateRef,
-    access: Map<String, Any?>,
-    asOf: Int,
-    from: Int,
-    until: Int,
-    batch: Int,
-): Int {
-    var start = from
-    var written = 0
-    while (start < until) {
-        val end = minOf(start + batch, until)
-        written += stamp(ref, access, asOf, start, end)
-        start = end
-    }
-    return written
 }

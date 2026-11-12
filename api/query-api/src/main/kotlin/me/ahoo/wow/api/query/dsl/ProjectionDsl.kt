@@ -27,7 +27,7 @@ import me.ahoo.wow.api.query.QueryField
  * ```
  */
 @QueryDslMarker
-class ProjectionDsl : NestedFieldDsl() {
+class ProjectionDsl internal constructor() : NestedFieldDsl() {
     private val include = mutableListOf<QueryField<*>>()
     private val exclude = mutableListOf<QueryField<*>>()
 
@@ -47,5 +47,5 @@ class ProjectionDsl : NestedFieldDsl() {
         fields.mapTo(exclude) { QueryField(it.path.withNestedField()) }
     }
 
-    fun build(): Projection = Projection(include.toList(), exclude.toList())
+    internal fun build(): Projection = Projection(include.toList(), exclude.toList())
 }

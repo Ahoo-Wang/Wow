@@ -27,7 +27,7 @@ import me.ahoo.wow.api.query.Sort
  * ```
  */
 @QueryDslMarker
-class SortDsl : NestedFieldDsl() {
+class SortDsl internal constructor() : NestedFieldDsl() {
     private val sorts: MutableList<Sort> = mutableListOf()
 
     fun sort(sort: Sort) {
@@ -42,5 +42,5 @@ class SortDsl : NestedFieldDsl() {
 
     fun QueryField<*>.desc() = path.desc()
 
-    fun build(): List<Sort> = sorts.toList()
+    internal fun build(): List<Sort> = sorts.toList()
 }

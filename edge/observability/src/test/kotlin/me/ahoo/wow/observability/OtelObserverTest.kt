@@ -165,6 +165,20 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `an aggregate the background work skipped is counted by its type and work`() {
+        val walk = ObservedEvent.MaintenanceSkipped(ORDER, ObservedEvent.MaintenanceSkipped.Work.ACCESS_WALK)
+        val rewrite = ObservedEvent.MaintenanceSkipped(ORDER, ObservedEvent.MaintenanceSkipped.Work.SNAPSHOT_REWRITE)
+        observer.observed(walk)
+        observer.observed(walk)
+        observer.observed(rewrite)
+        fun skipped(work: String) = telemetry.meters.get(WowMetrics.MAINTENANCE_SKIPPED.name)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.AGGREGATE, "order", WowMetrics.KIND, work).counter().count()
+        skipped("access-walk").assert().isEqualTo(2.0)
+        skipped("snapshot-rewrite").assert().isEqualTo(1.0)
+        walk.toString().assert().isEqualTo("MaintenanceSkipped(type=$ORDER, work=ACCESS_WALK)")
+    }
+
+    @Test
     fun `refusals, wait timeouts, dropped signals, failed forwards, tail reads and store fallbacks should be counted`() {
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))

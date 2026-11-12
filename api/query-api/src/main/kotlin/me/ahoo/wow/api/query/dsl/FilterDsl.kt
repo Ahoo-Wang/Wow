@@ -95,7 +95,8 @@ import java.time.ZoneId
 @Suppress("LargeClass")
 @QueryDslMarker
 class FilterDsl internal constructor(
-    private val prefix: String = "",
+    /** The path [path] scopes this block's relative fields to; `null` outside any. */
+    private val scope: QueryField<*>? = null,
     private val allowScopedExpression: Boolean = false,
     /** The absolute path of the element [elementMatch] scopes this block to; `null` at the record's root. */
     private val element: QueryField<*>? = null,
@@ -112,7 +113,7 @@ class FilterDsl internal constructor(
      * Logical fields in [expression] must already be valid for the insertion context.
      */
     fun expression(expression: FilterExpression) {
-        require(prefix == "" || allowScopedExpression) {
+        require(scope == null || allowScopedExpression) {
             "Prebuilt expression cannot be added inside a path scope."
         }
         add(expression)
@@ -384,7 +385,7 @@ class FilterDsl internal constructor(
         add(if (value == null) IsNotNullFilter(field) else NotEqualFilter(field, value))
 
     private fun scoped(field: QueryField<*>, block: FilterDsl.() -> Unit) {
-        val scoped = FilterDsl(prefix = field.path, element = element).apply(block)
+        val scoped = FilterDsl(scope = field, element = element).apply(block)
         require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
         add(scoped.build())
     }
@@ -397,7 +398,7 @@ class FilterDsl internal constructor(
     }
 
     private fun nested(name: String, block: FilterDsl.() -> Unit): FilterDsl {
-        val nested = FilterDsl(prefix = prefix, allowScopedExpression = allowScopedExpression, element = element)
+        val nested = FilterDsl(scope = scope, allowScopedExpression = allowScopedExpression, element = element)
             .apply(block)
         require(nested.expressions.isNotEmpty()) { "$name block cannot be empty." }
         return nested
@@ -413,14 +414,14 @@ class FilterDsl internal constructor(
 
     private fun QueryField<*>.at(): QueryField<*> = field(path)
 
-    /** [value] in this block's terms: relative to its element when it lies under it, then under its path scope. */
+    /**
+     * [value] in this block's terms: relative to its element when it lies under it, then under its path scope by the
+     * one rule of a path under a prefix ([QueryField.absoluteTo]).
+     */
     private fun field(value: String): QueryField<*> {
         val relative = element?.let { QueryField(value).relativeTo(it)?.path } ?: value
-        return QueryField(resolvePath(relative))
+        return QueryField(relative).absoluteTo(scope)
     }
-
-    private fun resolvePath(value: String): String =
-        if (prefix == "") value else QueryField(value).absoluteTo(QueryField(prefix)).path
 }
 
 /** Builds a [FilterExpression]; see [FilterDsl]. */
