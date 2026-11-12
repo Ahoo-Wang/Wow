@@ -40,7 +40,8 @@ The drill was written and checked against these versions. Install matching ones:
 | `kubectl` | **1.36 to 1.38** | kubectl supports one minor version of skew from the server, 1.37. On this machine: Homebrew's `kubernetes-cli` 1.37.2 at `/opt/homebrew/bin/kubectl`, and OrbStack's own v1.33.9 at `/usr/local/bin/kubectl`, which a shell started before the path changed still finds first. The drill resolves kubectl once (`DRILL_KUBECTL`, else the first on the path), and `drill.sh tools` refuses one outside 1.36 to 1.38: run it with `DRILL_KUBECTL=/opt/homebrew/bin/kubectl` to be sure. |
 | Calico | v3.32.2 | `versions.env`, checked by SHA-256. |
 | Docker | OrbStack | Sized as above. |
-| JDK | **21** | The build's toolchain, as CI's: it builds the eShop's servers and the platform's generated values. The images run their own JDK 25. |
+| JDK 25 | **25** | What runs, by the owner's rule (everything that runs, runs on JDK 25). The images run on it: deploy/'s Dockerfiles take Alibaba Dragonwell 25 (`dragonwell:25-ubuntu`, pinned by digest). The cluster test's JVM runs on it (`-Pwow.test.java=25`), and so does every Gradle the drill launches (`DRILL_JAVA_HOME`, else `java_home -v 25`). On this machine: `/Library/Java/JavaVirtualMachines/temurin-25.jdk`. `drill.sh tools` refuses the run without it. |
+| JDK 21 | **21** | The build's toolchain, as CI's: it compiles the eShop and the platform's generated values at the tag, and Gradle finds it as a toolchain (it need not be `JAVA_HOME`). On this machine: `/Library/Java/JavaVirtualMachines/temurin-21.jdk`, also the shell's default `JAVA_HOME`. |
 
 Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registries for the release's artifacts.
 

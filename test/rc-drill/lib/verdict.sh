@@ -24,6 +24,7 @@ e2e() {
   # The test's own kubectl is the one first on its path: the drill's, whatever the shell's path says.
   PATH="$(dirname "$kubectl"):$PATH" "$root/gradlew" -p "$root" :eshop-e2e:clusterTest --console=plain \
     "-Pga.gateway=$gateway" "-Pga.secret=$(cat "$evidence/secrets/JWT")" -Pga.backend=mongo -Pga.partitions=64 \
+    "-Pwow.test.java=$RUN_JDK" \
     "-Pga.state=$evidence/e2e/state" -Pga.mongo-user=drill-reader "-Pga.scenarios=$scenarios" \
     "-Pga.report=$evidence/e2e/$label" ${extra[@]+"${extra[@]}"}
 }
