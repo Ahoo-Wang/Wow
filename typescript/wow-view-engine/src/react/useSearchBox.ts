@@ -58,11 +58,13 @@ export function useSearchBox(
     },
     [runtime],
   );
-  const submit = useCallback(() => runtime?.apply(), [runtime]);
+  const submit = useCallback(() => {
+    if (runtime) searchInForce(runtime);
+  }, [runtime]);
   const clear = useCallback(() => {
     if (!runtime) return;
     searchInDraft(runtime, '');
-    runtime.apply();
+    searchInForce(runtime);
   }, [runtime]);
   const field = runtime ? searchFieldOf(runtime.definition.fields) : null;
   if (!runtime || !state || !field) return null;
@@ -87,4 +89,23 @@ function searchInDraft(runtime: ViewRuntime<DataViewConfig>, text: string) {
   if (!field) return;
   const draft = runtime.getSnapshot().draft.filter;
   runtime.edit({ filter: withRootSearch(draft, field.name, text) });
+}
+
+/**
+ * Puts the draft's search in force, and nothing else with it: Enter in the
+ * box and its ✕ are the search's own, and a condition still waiting in the
+ * editor is not theirs to run. They applied the whole draft before, so a
+ * search also ran whatever else had been left undecided.
+ */
+function searchInForce(runtime: ViewRuntime<DataViewConfig>) {
+  const field = searchFieldOf(runtime.definition.fields);
+  if (!field) return;
+  const { draft, applied } = runtime.getSnapshot();
+  runtime.apply({
+    filter: withRootSearch(
+      applied.filter,
+      field.name,
+      rootSearch(draft.filter, field.name),
+    ),
+  });
 }
