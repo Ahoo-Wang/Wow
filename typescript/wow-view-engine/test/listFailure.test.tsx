@@ -61,6 +61,7 @@ describe('when the list cannot be read', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        defaultSidebarOpen
       />,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
@@ -114,6 +115,7 @@ describe('when the list cannot be read', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        defaultSidebarOpen
       />,
     );
 

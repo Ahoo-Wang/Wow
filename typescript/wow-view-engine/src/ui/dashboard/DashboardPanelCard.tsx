@@ -325,7 +325,8 @@ export function DashboardPanelCard({
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'fve:h-full fve:gap-2 fve:overflow-hidden fve:py-(--_fve-panel-padding-block)',
+        // `group/panel`: the header's menu shows under a pointer on the card.
+        'fve:group/panel fve:h-full fve:gap-2 fve:overflow-hidden fve:py-(--_fve-panel-padding-block)',
         FOCUS_PANEL,
         heading && 'fve:justify-center',
       )}

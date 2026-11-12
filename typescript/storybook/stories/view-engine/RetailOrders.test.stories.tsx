@@ -18,6 +18,7 @@ import displayMeta, {
   OrderWorkbenchScene as DisplayOrderWorkbench,
 } from './RetailOrders.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
 
 /**
@@ -62,6 +63,7 @@ export const OrderWorkbenchScene: Story = {
   ...DisplayOrderWorkbench,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', { name: new RegExp(`^${escaped(title)}`) });
     for (const title of VIEWS)
@@ -341,6 +343,7 @@ export const OperatorReadsWhole: Story = {
   ...DisplayOrderWorkbench,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     await userEvent.click(
       await canvas.findByRole('button', { name: /^礼品加急/ }),
     );

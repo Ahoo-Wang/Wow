@@ -302,6 +302,7 @@ describe('the states behind a click pass axe', () => {
   async function workbench(
     instance: ViewInstance = pendingOrders,
     definition?: DataViewDefinition,
+    listed = false,
   ) {
     const user = userEvent.setup();
     render(
@@ -310,6 +311,7 @@ describe('the states behind a click pass axe', () => {
           engine={engineWith([instance], definition)}
           definitionId="orders"
           instanceId={instance.id}
+          defaultSidebarOpen={listed}
         />
       </ViewSurface>,
     );
@@ -333,24 +335,16 @@ describe('the states behind a click pass axe', () => {
     return user;
   }
 
-  it('the sidebar collapsed, with the switcher in the title bar', async () => {
-    const user = await workbench();
-    await user.click(
-      screen.getByRole('button', {
-        name: defaultMessages['label.workbench.collapse-sidebar'],
-      }),
-    );
+  it('the view list out, beside the view', async () => {
+    await workbench(pendingOrders, undefined, true);
 
     expect(await violations(document.body)).toEqual([]);
   });
 
+  // The list starts folded, so the collapsed row is what every other state
+  // here is drawn under; this one opens the switcher that stands in it.
   it('the view switcher open', async () => {
     const user = await workbench();
-    await user.click(
-      screen.getByRole('button', {
-        name: defaultMessages['label.workbench.collapse-sidebar'],
-      }),
-    );
     await user.click(
       screen.getByRole('button', {
         name: new RegExp(

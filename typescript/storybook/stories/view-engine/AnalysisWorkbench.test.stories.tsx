@@ -67,6 +67,7 @@ import {
   typeBox,
   valueLabels,
 } from './chartDom.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -336,9 +337,7 @@ export const TitleClearOfSlantedTicks: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(
-      await canvas.findByRole('button', {
-        name: zhCN['label.layout.chart'],
-      }),
+      await canvas.findByRole('button', { name: zhCN['label.layout.chart'] }),
     );
     await chartsDrawn(canvasElement);
     await userEvent.click(
@@ -969,9 +968,7 @@ export const FollowUpToRecords: Story = {
     ]);
 
     await userEvent.click(
-      within(menu).getByRole('menuitem', {
-        name: zhCN['label.drill.records'],
-      }),
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.records'] }),
     );
 
     // 记录视图，不是聚合：华南的两单，按明细列出来。
@@ -2854,7 +2851,8 @@ export const VisualizePanel: Story = {
     const canvas = within(canvasElement);
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
-    // The list is in the column, and the panel is not.
+    // The list is in the column once it is unfolded, and the panel is not.
+    await showViewList(canvasElement);
     const list = canvasElement.querySelector<HTMLElement>(
       '[data-slot="view-sidebar"]',
     );

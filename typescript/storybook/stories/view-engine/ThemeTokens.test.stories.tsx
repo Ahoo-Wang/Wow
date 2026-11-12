@@ -240,7 +240,7 @@ function modeOf(canvasElement: HTMLElement): 'light' | 'dark' {
  */
 export const PresetPinnedReachesPopups: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, preset: STORY_PRESET },
+  args: { ...DisplayWithData.args, preset: STORY_PRESET, listed: true },
   play: async ({ canvasElement }) => {
     const release = withStoryPreset();
     try {
@@ -276,7 +276,7 @@ export const PresetPinnedReachesPopups: Story = {
  */
 export const PresetOnPartOfThePage: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args },
+  args: { ...DisplayWithData.args, listed: true },
   play: async ({ canvasElement }) => {
     const release = withStoryPreset();
     canvasElement.setAttribute('data-fve-preset', STORY_PRESET);
@@ -547,7 +547,7 @@ const FONT_POPUPS: readonly {
  */
 const popupsTakeTheSurfaceFont = (preset: 'neutral' | 'porcelain'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, paged: true, preset },
+  args: { ...DisplayWithData.args, paged: true, preset, listed: true },
   play: async ({ canvasElement }) => {
     await within(canvasElement).findByRole('table');
     const surface = canvasElement.querySelector<HTMLElement>(

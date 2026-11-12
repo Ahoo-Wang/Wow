@@ -113,7 +113,9 @@ async function setup(editDatasetWording?: boolean) {
       wordings,
     },
   }).refresh();
-  render(<DataWorkbench engine={engine} definitionId={ID} />);
+  render(
+    <DataWorkbench engine={engine} definitionId={ID} defaultSidebarOpen />,
+  );
   return { engine, set };
 }
 

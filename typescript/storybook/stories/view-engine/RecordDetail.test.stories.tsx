@@ -82,6 +82,8 @@ export const HostSections: Story = {
     // Focus goes into the panel, onto the record's key.
     const key = within(panel).getByRole('heading', { name: 'SO-1003' });
     await waitFor(() => expect(document.activeElement).toBe(key));
+    // Where a reader lands, not a control: it wears no focus outline (D94).
+    await expect(getComputedStyle(key).outlineStyle).toBe('none');
     await expect(address(canvasElement)).toBe('?id=SO-1003');
 
     // The host's sections stand among the engine's, each a named region.

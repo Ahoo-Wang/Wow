@@ -86,17 +86,26 @@ function setup(
   return { engine, source };
 }
 
-/** The workbench over one saved analysis view, waited for its first result. */
-async function open(instance?: ViewInstance, answer?: ViewSource) {
-  const { engine, source } = setup(instance, undefined, answer);
+/**
+ * The workbench on the saved analysis view, its view list out: the column
+ * the panel takes is the list's, so the list is what these tests start with.
+ */
+function mount(engine: ViewEngine) {
   render(
     <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
       viewKinds={['analysis']}
+      defaultSidebarOpen
     />,
   );
+}
+
+/** The workbench over one saved analysis view, waited for its first result. */
+async function open(instance?: ViewInstance, answer?: ViewSource) {
+  const { engine, source } = setup(instance, undefined, answer);
+  mount(engine);
   await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
   return { engine, source };
 }
@@ -613,14 +622,7 @@ describe('a funnel is offered where it draws', () => {
         },
       }),
     );
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        viewKinds={['analysis']}
-      />,
-    );
+    mount(engine);
 
     const way = await screen.findByRole('button', {
       name: label('label.analysis.open-chart-options'),
@@ -644,14 +646,7 @@ describe('a funnel is offered where it draws', () => {
 
   it('keeps the tray as the way out of a finding that is not the chart’s', async () => {
     const { engine } = setup(viewOf({ limit: 0 }));
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        viewKinds={['analysis']}
-      />,
-    );
+    mount(engine);
 
     expect(
       await screen.findByRole('button', {

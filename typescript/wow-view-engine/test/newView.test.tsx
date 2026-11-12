@@ -66,7 +66,13 @@ function workArea(): HTMLElement {
 describe('a new view, from the work area to the list', () => {
   it('says the definition has no view yet, and offers one', async () => {
     const { engine } = setup();
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+      />,
+    );
 
     await waitFor(() => workArea());
     expect(within(workArea()).getByText('No view yet')).toBeDefined();
@@ -97,7 +103,13 @@ describe('a new view, from the work area to the list', () => {
 
   it('opens it unsaved with its editor out, then names it on the first save', async () => {
     const { engine, store } = setup();
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+      />,
+    );
     await waitFor(() => workArea());
 
     // Both kinds may be made here, so the button is a menu of the two (D20
@@ -198,7 +210,13 @@ describe('a new view, from the work area to the list', () => {
 
   it('offers nothing to a reader who may not create', async () => {
     const { engine } = setup(readOnly);
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+      />,
+    );
 
     await waitFor(() => workArea());
     expect(within(workArea()).getByText('No view yet')).toBeDefined();

@@ -13,6 +13,7 @@
 
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { showViewList } from './recordWorkbenchTest.js';
 import displayMeta, {
   OrderEventStream as DisplayOrderEventStream,
 } from './RetailOrderEvents.stories.js';
@@ -41,6 +42,7 @@ export const OrderEventStream: Story = {
   ...DisplayOrderEventStream,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', { name: new RegExp(`^${escaped(title)}`) });
 

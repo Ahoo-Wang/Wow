@@ -116,6 +116,14 @@ export const AddTimeFilterAutoConnects: Story = {
         canvasElement.querySelectorAll('[data-slot="panel-wiring"]'),
       ).toHaveLength(2),
     );
+    // Nothing is wired yet, and each strip says so by its mark's shape: a
+    // pulled plug, and a cable once the filter reaches the panel.
+    const marks = (icon: string) =>
+      canvasElement.querySelectorAll(
+        `[data-slot="panel-wiring-mark"].lucide-${icon}`,
+      );
+    await expect(marks('unplug')).toHaveLength(2);
+    await expect(marks('cable')).toHaveLength(0);
 
     await userEvent.click(
       canvas.getByRole('combobox', {
@@ -142,6 +150,8 @@ export const AddTimeFilterAutoConnects: Story = {
         }),
       });
     await waitFor(() => expect(summary()).toHaveTextContent('创建时间'));
+    await expect(marks('cable')).toHaveLength(2);
+    await expect(marks('unplug')).toHaveLength(0);
     await expect(
       canvasElement.querySelectorAll('[data-slot="panel-wiring-manual"]'),
     ).toHaveLength(1);

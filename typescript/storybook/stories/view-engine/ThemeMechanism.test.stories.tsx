@@ -241,6 +241,7 @@ export const UnsetMechanismDrawsItsBuiltInValues: Story = {
     colorMode: 'light',
     preset: 'neutral',
     paged: true,
+    listed: true,
   },
   play: async ({ canvasElement }) => {
     const { surface, current } = await workbench(canvasElement);
@@ -331,6 +332,7 @@ const azureMarks = (theme: 'light' | 'dark'): Story => ({
     colorMode: theme,
     preset: undefined,
     paged: true,
+    listed: true,
     tokens: { '--fve-brand': VIOLET },
   },
   play: async ({ canvasElement }) => {

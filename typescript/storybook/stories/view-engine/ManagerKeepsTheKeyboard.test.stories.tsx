@@ -38,6 +38,8 @@ const meta = {
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: see `RecordWorkbenchViews`.
   parameters: { ...displayMeta.parameters },
+  // The manager is behind the list's gear, and the list opens folded (D94).
+  args: { ...displayMeta.args, listed: true },
 };
 
 export default meta;
@@ -54,6 +56,25 @@ async function heldWithTheKeyboard(button: HTMLElement): Promise<void> {
   await expect(document.activeElement).toBe(button);
   await expect(button).toHaveAttribute('aria-disabled', 'true');
 }
+
+/**
+ * The manager opens on its heading: where a reader starts, not a control,
+ * so the keyboard is there and no focus outline is drawn round it (D94).
+ */
+export const OpensOnItsHeadingWithNoOutline: Story = {
+  ...DisplayManageViews,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await openManager(canvas, '我盯的大额单');
+    const heading = within(document.body).getByRole('heading', {
+      name: zhCN['label.manage.heading'],
+    });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    await expect(heading.matches(':focus-visible')).toBe(true);
+    await expect(getComputedStyle(heading).outlineStyle).toBe('none');
+  },
+};
 
 /** Publishing copies the view, so the row stays — and so does the keyboard. */
 export const PublishKeepsTheKeyboard: Story = {

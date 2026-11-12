@@ -167,14 +167,11 @@ export interface WorkbenchShellProps {
    * it. It is view state and nothing else: never saved, never asked about by
    * the leave guard.
    *
-   * Left out, the shell decides from the room it was actually given and
-   * keeps deciding as that room changes (`useSidebarFold`): a column
-   * narrower than `md` folds, because below that width the list is not
-   * beside the view but stacked on top of it, and 204px of navigation above
-   * the first row is the worst trade a phone can make. Once the user has
-   * pressed the fold themselves, their answer stands. A host that says
-   * `true` or `false` is obeyed at every width and never measured — it knows
-   * something about its page that a measurement does not.
+   * Left out, the list starts folded at every width (`useSidebarFold`, D94):
+   * the view is what a reader came for, and the collapsed row unfolds the
+   * list in one press. Once the user has pressed the fold themselves, their
+   * answer stands. A host that says `true` or `false` is obeyed at every
+   * width — it knows something about its page that a default does not.
    */
   defaultSidebarOpen?: boolean;
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */

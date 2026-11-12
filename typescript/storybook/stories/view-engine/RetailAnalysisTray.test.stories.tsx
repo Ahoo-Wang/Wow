@@ -14,6 +14,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { showViewList } from './recordWorkbenchTest.js';
 import displayMeta, {
   OrderAnalysis as DisplayOrderAnalysis,
 } from './RetailAnalysis.stories.js';
@@ -41,9 +42,10 @@ const CHANNEL_VIEW = '本月 GMV 较上月同期（分渠道）';
 /** A view's title as the start of a pattern: its parentheses mean themselves. */
 const escaped = (title: string) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Opens a saved analysis from the list and waits for its answer. */
+/** Unfolds the list, opens a saved analysis from it and waits for its answer. */
 async function openView(canvasElement: HTMLElement, title: string) {
   const canvas = within(canvasElement);
+  await showViewList(canvasElement);
   await userEvent.click(
     await canvas.findByRole(
       'button',

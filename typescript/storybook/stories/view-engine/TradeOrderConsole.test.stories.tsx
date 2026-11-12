@@ -12,6 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { showViewList } from './recordWorkbenchTest.js';
 import displayMeta, {
   SnapshotConsole as DisplaySnapshotConsole,
 } from './TradeOrderConsole.stories.js';
@@ -52,6 +53,7 @@ export const SnapshotConsole: Story = {
   ...DisplaySnapshotConsole,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', { name: new RegExp(`^${title}`) });
 

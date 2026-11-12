@@ -61,6 +61,8 @@ function Workbench({ landmark }: { landmark?: WorkbenchLandmark }) {
           messages={HOST_LANGUAGE.messages}
           locale={HOST_LANGUAGE.locale}
           landmark={landmark}
+          // The list's column is one of the boxes measured, so it is open.
+          defaultSidebarOpen
         />
       )}
     </StoryEngine>

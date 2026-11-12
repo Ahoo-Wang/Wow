@@ -30,7 +30,10 @@ import {
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
-import { DataWorkbench } from '../src/ui/DataWorkbench.js';
+import {
+  DataWorkbench,
+  type DataWorkbenchProps,
+} from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
 import {
   ordersDefinition,
@@ -770,6 +773,18 @@ describe('what a drag of a view says out loud', () => {
  * view it has open may be the one that just went.
  */
 describe('managing views from the workbench', () => {
+  /** The workbench with its view list out: the manager is opened from it. */
+  function listed(engine: ViewEngine, props: Partial<DataWorkbenchProps> = {}) {
+    return render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+        {...props}
+      />,
+    );
+  }
+
   /** One row of the manager, by the title it shows. */
   function row(title: string): HTMLElement {
     const found = Array.from(
@@ -824,7 +839,7 @@ describe('managing views from the workbench', () => {
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
     });
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    listed(engine);
     // A regex, because this one *is* the default: its row carries the star,
     // and the star says so in a word rather than only in a picture.
     await waitFor(() =>
@@ -858,13 +873,7 @@ describe('managing views from the workbench', () => {
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
     });
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
         'true',
@@ -894,7 +903,7 @@ describe('managing views from the workbench', () => {
       ),
       store,
     });
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    listed(engine);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     await remove('Mine');
@@ -909,13 +918,7 @@ describe('managing views from the workbench', () => {
 
   it('lets go of the view once a recovered delete lands', async () => {
     const { engine, store } = workbenchSetup();
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     vi.spyOn(store, 'delete').mockRejectedValueOnce(new Error('socket closed'));
 
@@ -952,13 +955,7 @@ describe('managing views from the workbench', () => {
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
     });
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     // The server moved on; taking their version adopts the existing
     // instance, it does not delete it.
@@ -1008,7 +1005,7 @@ describe('managing views from the workbench', () => {
     });
     // No explicit instance: the workbench rides on the default view, so
     // nothing is pinned and a list reload must not close the runtime.
-    render(<DataWorkbench engine={engine} definitionId="orders" />);
+    listed(engine);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     fireEvent.click(screen.getByRole('button', { name: /Columns/ }));

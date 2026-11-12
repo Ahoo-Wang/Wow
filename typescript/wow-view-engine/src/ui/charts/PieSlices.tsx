@@ -24,15 +24,14 @@ import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
 import { measureText } from './measure.js';
 import { useChartMotion } from './motion.js';
-import { drawnSlices, pieCaptions, pieFit, pieOption } from './pieOption.js';
+import {
+  drawnSlices,
+  pieCaptions,
+  pieFit,
+  pieHug,
+  pieOption,
+} from './pieOption.js';
 import type { ChartTheme } from './theme.js';
-
-/**
- * How wide a pie's plot grows beside its legend, against its height: the
- * circle and room either side for the shares written outside it. Wider, the
- * legend stood a hand's width from the slices it names.
- */
-const PIE_HUG = 1.3;
 
 /**
  * A pie or a donut, drawn by ECharts from `pieOption`.
@@ -148,6 +147,17 @@ export function PieSlices({
       ),
     [data, spec, label, locale, other, seriesName, donut],
   );
+  // The circle and its labels' room, so the legend stands by them (`pieHug`).
+  const hug = useCallback(
+    (tall: number, text: ChartTheme['text']) =>
+      pieHug(
+        pieCaptions(data, { spec, label, locale, other, seriesName }),
+        tall,
+        caption => measureText(caption, undefined, text.size),
+        text,
+      ),
+    [data, spec, label, locale, other, seriesName],
+  );
   // The merged remainder is not a group of the result: it stands for
   // several, and no one condition selects them.
   const onClick = useMemo(
@@ -187,7 +197,7 @@ export function PieSlices({
       option={option}
       adapt={adapt}
       onClick={onClick}
-      hug={PIE_HUG}
+      hug={hug}
       legendEntries={at ? entries : undefined}
       legend={
         at && {

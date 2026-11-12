@@ -27,6 +27,7 @@ import {
   typeBox,
   valueLabels,
 } from './chartDom.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
@@ -170,6 +171,8 @@ export const ChartOptionsPages: Story = {
     const body = within(document.body);
     // Two metrics, so there are two series to stack and a legend to read.
     await chartsDrawn(canvasElement);
+    // The list beside the view, since the panel is shown to borrow its column.
+    await showViewList(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(8));
 
     // Level one: the panel takes the sidebar column, where the view list was.

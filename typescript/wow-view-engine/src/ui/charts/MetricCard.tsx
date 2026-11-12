@@ -196,6 +196,17 @@ const DIRECTION_ICON = {
 const CHANGE_WRAPS =
   'fve:max-w-full fve:@max-3xs/metric:h-auto fve:@max-3xs/metric:min-h-5 fve:@max-3xs/metric:py-0 fve:@max-3xs/metric:whitespace-normal';
 
+/**
+ * A change and the words that say what it is measured against: one row on a
+ * card with room for both, and two — the words under the badge — on every
+ * card under 16rem, the width the figure steps down at. Decided by the
+ * card's width and never by the badge's: left to wrap, 「较前一日」 sat
+ * beside a short change and under a long one, so the trend lines of one row
+ * of tiles started at different heights (2026-11 audit).
+ */
+const CHANGE_ROW =
+  'fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm fve:@max-3xs/metric:flex-col fve:@max-3xs/metric:flex-nowrap fve:@max-3xs/metric:items-start fve:@max-3xs/metric:gap-0.5';
+
 function PeriodChange({
   period,
   amountOf,
@@ -242,7 +253,7 @@ function PeriodChange({
     <span
       data-slot="metric-change"
       data-direction={direction}
-      className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
+      className={CHANGE_ROW}
     >
       <ChangeBadge
         direction={direction}
@@ -313,10 +324,7 @@ function CompareChange({
     );
   if (delta === null)
     return (
-      <span
-        data-slot="metric-compare"
-        className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
-      >
+      <span data-slot="metric-compare" className={CHANGE_ROW}>
         <span className="fve:text-muted-foreground">—</span>
         {said}
       </span>
@@ -327,7 +335,7 @@ function CompareChange({
     <span
       data-slot="metric-compare"
       data-direction={direction}
-      className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
+      className={CHANGE_ROW}
     >
       <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
         <Icon data-icon="inline-start" />

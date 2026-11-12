@@ -140,6 +140,7 @@ export const SurfaceTokensReachPopups: Story = {
     ...DisplayWithData.args,
     colorMode: 'light',
     preset: 'porcelain',
+    listed: true,
     tokens: { '--fve-primary': HOST_PRIMARY },
   },
   play: async ({ canvasElement }) => {
@@ -310,6 +311,7 @@ const HOST_UTILITIES = `@layer theme, base, components, utilities;
  */
 export const HostUtilitiesAfterTheEngine: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   parameters: {
     ...displayMeta.parameters,
     viewport: {

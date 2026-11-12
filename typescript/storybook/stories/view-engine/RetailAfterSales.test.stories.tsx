@@ -14,6 +14,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { showViewList } from './recordWorkbenchTest.js';
 import displayMeta, {
   AfterSaleWorkbench as DisplayAfterSaleWorkbench,
 } from './RetailAfterSales.stories.js';
@@ -74,6 +75,7 @@ export const AfterSaleWorkbench: Story = {
   ...DisplayAfterSaleWorkbench,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     const view = (title: string) =>
       canvas.getByRole('button', {
         name: new RegExp(`^${escaped(title)}`),

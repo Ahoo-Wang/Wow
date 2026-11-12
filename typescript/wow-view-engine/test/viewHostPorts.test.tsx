@@ -184,7 +184,7 @@ describe('the router port: every way off through the route of its resource', () 
   it('goes to the route with what the page opens with, and the page opens it', async () => {
     const { at } = hosted({
       '/': <EmbeddedView instanceId={ALL} interaction="interactive" />,
-      '/orders': <DataWorkbench definitionId="orders" />,
+      '/orders': <DataWorkbench definitionId="orders" defaultSidebarOpen />,
     });
     await userClick(
       await screen.findByRole('button', { name: 'Open in the workbench' }),
@@ -203,7 +203,7 @@ describe('the router port: every way off through the route of its resource', () 
     const { at } = hosted(
       {
         '/': <EmbeddedView instanceId={ALL} interaction="interactive" />,
-        '/orders': <DataWorkbench definitionId="orders" />,
+        '/orders': <DataWorkbench definitionId="orders" defaultSidebarOpen />,
       },
       '/',
       { bindings: routes },
@@ -278,7 +278,7 @@ async function userClick(element: HTMLElement) {
 describe('the address: `?view=`, a new entry per view', () => {
   it('opens the view the address names and writes the reader’s pick back', async () => {
     const { router, at } = hosted(
-      { '/orders': <DataWorkbench definitionId="orders" /> },
+      { '/orders': <DataWorkbench definitionId="orders" defaultSidebarOpen /> },
       '/orders?view=orders-1',
     );
     await waitFor(() => expect(current()).toBe('Mine'));
@@ -300,7 +300,9 @@ describe('the address: `?view=`, a new entry per view', () => {
     });
     try {
       hosted(
-        { '/orders': <DataWorkbench definitionId="orders" /> },
+        {
+          '/orders': <DataWorkbench definitionId="orders" defaultSidebarOpen />,
+        },
         '/orders?view=orders-1',
       );
       await waitFor(() => expect(current()).toBe('Mine'));
@@ -332,7 +334,11 @@ describe('the address: `?view=`, a new entry per view', () => {
     const { at } = hosted(
       {
         '/orders': (
-          <DataWorkbench definitionId="orders" instanceId="orders-2" />
+          <DataWorkbench
+            definitionId="orders"
+            instanceId="orders-2"
+            defaultSidebarOpen
+          />
         ),
       },
       '/orders?view=orders-1',
@@ -353,18 +359,16 @@ describe('the address: two workbenches on one page', () => {
     );
   }
 
+  /** Both workbenches on one page, each with its list out for `openIn`. */
+  const TWO = (
+    <>
+      <DataWorkbench definitionId="orders" defaultSidebarOpen />
+      <DashboardWorkbench definitionId="overview" defaultSidebarOpen />
+    </>
+  );
+
   it('each opens only its own definition’s view, and neither writes over the other’s', async () => {
-    const { at } = hosted(
-      {
-        '/': (
-          <>
-            <DataWorkbench definitionId="orders" />
-            <DashboardWorkbench definitionId="overview" />
-          </>
-        ),
-      },
-      '/?view=orders-1',
-    );
+    const { at } = hosted({ '/': TWO }, '/?view=orders-1');
     await waitFor(() => expect(openIn('Orders')).toBe('Mine'));
     // The board workbench sets the orders view aside: its own default, and
     // no 「belongs to another page」 left on screen.
@@ -394,18 +398,7 @@ describe('the address: two workbenches on one page', () => {
       },
     );
     const asked = vi.spyOn(engine.store, 'get');
-    hosted(
-      {
-        '/': (
-          <>
-            <DataWorkbench definitionId="orders" />
-            <DashboardWorkbench definitionId="overview" />
-          </>
-        ),
-      },
-      '/?view=orders-2',
-      { engine },
-    );
+    hosted({ '/': TWO }, '/?view=orders-2', { engine });
 
     await waitFor(() => expect(openIn('Overview')).toMatch(/^Home board/));
     // The orders workbench opened it, though its list never named it.
@@ -426,18 +419,7 @@ describe('the address: two workbenches on one page', () => {
 
   /** Both workbenches on `/?view=<id>`, over `engine`. */
   function both(id: string, engine: ViewEngine) {
-    hosted(
-      {
-        '/': (
-          <>
-            <DataWorkbench definitionId="orders" />
-            <DashboardWorkbench definitionId="overview" />
-          </>
-        ),
-      },
-      `/?view=${id}`,
-      { engine },
-    );
+    hosted({ '/': TWO }, `/?view=${id}`, { engine });
   }
   const titles = () =>
     [...document.querySelectorAll('[data-slot="view-title"]')].map(
@@ -500,17 +482,7 @@ describe('the address: two workbenches on one page', () => {
   });
 
   it('sets a declared view of another definition aside by its id alone', async () => {
-    const { at } = hosted(
-      {
-        '/': (
-          <>
-            <DataWorkbench definitionId="orders" />
-            <DashboardWorkbench definitionId="overview" />
-          </>
-        ),
-      },
-      `/?view=${ALL}`,
-    );
+    const { at } = hosted({ '/': TWO }, `/?view=${ALL}`);
     await waitFor(() => expect(openIn('Orders')).toMatch(/^All orders/));
     await waitFor(() => expect(openIn('Overview')).toMatch(/^Home board/));
     expect(at().search).toBe(`?view=${ALL}`);

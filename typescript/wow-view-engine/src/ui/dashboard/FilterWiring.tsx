@@ -13,7 +13,7 @@
 
 import { createContext, useContext, useId } from 'react';
 import { cn } from 'cn';
-import { CableIcon, XIcon } from 'lucide-react';
+import { CableIcon, UnplugIcon, XIcon } from 'lucide-react';
 import { boardFieldsOf } from '../../dashboard/boardFields.js';
 import { wireableFields } from '../../dashboard/index.js';
 import type { DashboardField } from '../../model/index.js';
@@ -85,6 +85,11 @@ export function PanelWiring({
   );
   const reach = panel.reach[filter.name];
   const wired = reach?.wired ? reach : null;
+  // A wired strip and an unwired one are told apart at a glance down the
+  // board, by the mark's shape and its ink and not by reading each select:
+  // a cable in the text's ink where the filter reaches the panel, a pulled
+  // plug in the quiet ink where it does not (2026-11 audit, F6).
+  const Mark = wired ? CableIcon : UnplugIcon;
   return (
     <ModeBar
       data-slot="panel-wiring"
@@ -95,9 +100,10 @@ export function PanelWiring({
         TEXT_UI,
       )}
     >
-      <CableIcon
+      <Mark
         aria-hidden
-        className="fve:text-muted-foreground fve:size-3.5"
+        data-slot="panel-wiring-mark"
+        className={cn('fve:size-3.5', !wired && 'fve:text-muted-foreground')}
       />
       {fields.length === 0 ? (
         <span

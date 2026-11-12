@@ -62,6 +62,7 @@ const paintOf = (node: Element) => getComputedStyle(node).backgroundColor;
  */
 export const SidebarIsANavigationColumn: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -155,16 +156,15 @@ export const SidebarIsANavigationColumn: Story = {
 };
 
 /**
- * The fold the shell decides for itself, and the one filling the screen asks
- * for.
+ * The list is folded until someone opens it (D94), and a narrow column is
+ * where that is worth the most.
  *
- * A 375px column has no room for a 224px list beside it — below `md` the
+ * A 375px column has no room for a list beside the view — below `md` the
  * list is not beside the view at all but stacked over it, and the table
- * started 204px down. Filling the screen is the same argument made by the
- * user: the gesture is about the rows, and navigation is the first thing
- * that is not the rows.
+ * started 204px down. The host says nothing about the fold here, and
+ * nothing is measured to decide it: the list is folded at every width.
  */
-export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
+export const TheListOpensFoldedInANarrowColumn: Story = {
   ...DisplayNarrowTitleBar,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -174,8 +174,8 @@ export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
     const host =
       canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
 
-    // Nobody passed `defaultSidebarOpen`: the shell measured the column it
-    // was given and folded the list for it.
+    // Nobody passed `defaultSidebarOpen`, so the list is folded: the rule
+    // at any width, seen here in the column it matters most in.
     await expect(host.getBoundingClientRect().width).toBe(375);
     await expect(sidebar()).toBeNull();
     // Which is what the fold buys: the rows start at the top of the column
@@ -219,20 +219,21 @@ export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
 };
 
 /**
- * The same rule after arrival: the fold follows the column it is given, in
- * both directions, and stops following once the user has answered for
- * themselves.
+ * The same rule in a column with room to spare, and after arrival: the fold
+ * is never the width's to decide (D94). Left out, the list is folded at
+ * 1000px as it is at 375px, and stays folded as the column changes; once
+ * the user has opened it, it stays open as the column changes too.
  *
- * jsdom lays nothing out, so the unit test drives a fake observer over a
- * faked width; this is the one place a real `ResizeObserver` on a real box
- * is weighed. The width is the host's, as a host's is — a split pane dragged
- * narrower, a panel opened beside the page, a window resized — and the
- * workbench is told nothing but the box it ends up in.
+ * The fold once followed a `ResizeObserver` on the surface, open at `md`
+ * and up; jsdom lays nothing out, so this is the one place a real box
+ * changing width is shown to move nothing. The width is the host's, as a
+ * host's is — a split pane dragged narrower, a panel opened beside the page,
+ * a window resized — and the workbench is told nothing but the box it ends
+ * up in.
  */
-export const TheListFollowsTheColumnItIsGiven: Story = {
+export const TheFoldDoesNotFollowTheColumn: Story = {
   ...DisplayNarrowTitleBar,
-  // Wide enough to open with the list beside the view; the play is what
-  // takes the room away and gives it back.
+  // Wide enough for the list to stand beside the view, were width the rule.
   args: { ...DisplayNarrowTitleBar.args, narrowWidth: 1000 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -245,44 +246,43 @@ export const TheListFollowsTheColumnItIsGiven: Story = {
       host.style.width = `${width}px`;
       await expect(host.getBoundingClientRect().width).toBe(width);
       // A `ResizeObserver` reports on the frame after the box changed, so
-      // the answer is never the one on screen at this instant.
+      // an answer that followed the width would not be on screen at this
+      // instant.
       await new Promise(settle => setTimeout(settle, 200));
     };
 
+    // Room for it, and folded all the same: nobody asked for it open.
     await expect(host.getBoundingClientRect().width).toBe(1000);
-    await expect(sidebar()).not.toBeNull();
-
-    // Dragged below `md`: the list would no longer be *beside* the view but
-    // stacked over it, which is the whole reason a narrow column folds.
+    await expect(sidebar()).toBeNull();
+    // Below `md` and back: still nobody has asked.
     await resizeTo(608);
     await expect(sidebar()).toBeNull();
-
-    // And back, because the room it was folded for is there again.
     await resizeTo(1000);
-    await expect(sidebar()).not.toBeNull();
+    await expect(sidebar()).toBeNull();
 
-    // Then the user answers, and the measurement stops answering: folded by
-    // hand in a column with room to spare, it stays folded through a trip
-    // down to 608 and back. Undoing that under their hands, once per drag,
-    // is worse than a list folded where it would have fitted.
+    // Then the user answers, and that is the answer from then on: opened
+    // by hand, the list stays through a trip down to 608 and back.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: zhCN['label.workbench.collapse-sidebar'],
+        name: zhCN['label.workbench.expand-sidebar'],
       }),
     );
-    await expect(sidebar()).toBeNull();
+    await expect(sidebar()).not.toBeNull();
     await resizeTo(608);
+    await expect(sidebar()).not.toBeNull();
     await resizeTo(1000);
-    await expect(sidebar()).toBeNull();
+    await expect(sidebar()).not.toBeNull();
   },
 };
 
 /**
  * Filling the screen gives the rows the room, and the list is the first
- * thing that is not the rows.
+ * thing that is not the rows: a list the host opened is folded for as long
+ * as the view fills the screen, and is back when it no longer does.
  */
 export const FillingTheScreenFoldsTheList: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -324,8 +324,9 @@ export const FillingTheScreenFoldsTheList: Story = {
  */
 export const CollapseAndSwitch: Story = {
   ...DisplayCollapsedSidebar,
-  // Starts open on purpose: the fold itself is half of what is asserted.
-  args: { ...DisplayCollapsedSidebar.args, collapsed: false },
+  // Starts open on purpose — `defaultSidebarOpen` is `true`, and the host
+  // is obeyed: the fold itself is half of what is asserted.
+  args: { ...DisplayCollapsedSidebar.args, collapsed: false, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -408,6 +409,7 @@ export const CollapseAndSwitch: Story = {
  */
 export const AViewRowSaysItsKindOnHover: Story = {
   ...DisplayWithData,
+  args: { ...DisplayWithData.args, listed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');

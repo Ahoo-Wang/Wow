@@ -33,7 +33,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench, type DataWorkbenchProps } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   DRAWN,
@@ -330,17 +330,28 @@ describe('useAnalysisEditor', () => {
   });
 });
 
+/** The analysis workbench with its view list out, where these tests look. */
+function listed(
+  engine: ViewEngine,
+  instanceId: string,
+  messages?: DataWorkbenchProps['messages'],
+) {
+  return render(
+    <DataWorkbench
+      engine={engine}
+      definitionId="orders"
+      instanceId={instanceId}
+      viewKinds={['analysis']}
+      messages={messages}
+      defaultSidebarOpen
+    />,
+  );
+}
+
 describe('DataWorkbench', () => {
   async function open(source: ViewSource = testSource()) {
     const harness = setup(source);
-    render(
-      <DataWorkbench
-        engine={harness.engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        viewKinds={['analysis']}
-      />,
-    );
+    listed(harness.engine, 'orders-1');
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
     return harness;
   }
@@ -481,18 +492,10 @@ describe('DataWorkbench', () => {
   it("takes the host's wording, for its own alerts and everything inside", async () => {
     const { engine } = setup();
 
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="missing"
-        messages={{
-          'label.view.unopenable': '打不开这个视图',
-          'label.scope.group.personal': '仅自己',
-        }}
-        viewKinds={['analysis']}
-      />,
-    );
+    listed(engine, 'missing', {
+      'label.view.unopenable': '打不开这个视图',
+      'label.scope.group.personal': '仅自己',
+    });
 
     expect(await screen.findByText('打不开这个视图')).toBeDefined();
     // The sidebar is named by the definition rather than by the catalogue;
@@ -814,14 +817,7 @@ describe('deleting the open analysis', () => {
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
     });
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        viewKinds={['analysis']}
-      />,
-    );
+    listed(engine, 'orders-1');
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'By warehouse' }).ariaCurrent,

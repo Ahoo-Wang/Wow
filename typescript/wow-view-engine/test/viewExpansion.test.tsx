@@ -138,12 +138,20 @@ function engineWith(source: ViewSource = testSource()): ViewEngine {
   });
 }
 
+/** The record workbench on a saved view, its view list beside the view. */
+const workbench = (engine = engineWith()) => (
+  <DataWorkbench
+    engine={engine}
+    definitionId="orders"
+    instanceId="mine"
+    defaultSidebarOpen
+  />
+);
+
 /** The record workbench, opened on a saved view with rows on screen. */
 async function open(engine = engineWith()) {
   const user = userEvent.setup();
-  render(
-    <DataWorkbench engine={engine} definitionId="orders" instanceId="mine" />,
-  );
+  render(workbench(engine));
   await screen.findByRole('table');
   return user;
 }
@@ -295,13 +303,7 @@ describe('the background while a view fills the screen', () => {
   it('leaves nothing behind when the view is unmounted while expanded', async () => {
     give('scroll');
     const user = userEvent.setup();
-    const view = render(
-      <DataWorkbench
-        engine={engineWith()}
-        definitionId="orders"
-        instanceId="mine"
-      />,
-    );
+    const view = render(workbench());
     await screen.findByRole('table');
     await user.click(screen.getByRole('button', { name: FILL }));
     expect(held()).toEqual(LOCKED);
@@ -315,15 +317,7 @@ describe('the background while a view fills the screen', () => {
   it('survives the setup React runs twice', async () => {
     give('auto');
     const user = userEvent.setup();
-    const view = render(
-      <StrictMode>
-        <DataWorkbench
-          engine={engineWith()}
-          definitionId="orders"
-          instanceId="mine"
-        />
-      </StrictMode>,
-    );
+    const view = render(<StrictMode>{workbench()}</StrictMode>);
     await screen.findByRole('table');
 
     await user.click(screen.getByRole('button', { name: FILL }));
@@ -403,14 +397,7 @@ describe('two surfaces on one document', () => {
   async function page(expand = true) {
     const user = userEvent.setup();
     const container = document.body.appendChild(document.createElement('div'));
-    const view = render(
-      <DataWorkbench
-        engine={engineWith()}
-        definitionId="orders"
-        instanceId="mine"
-      />,
-      { container, baseElement: container },
-    );
+    const view = render(workbench(), { container, baseElement: container });
     await view.findByRole('table');
     const fill = async () =>
       user.click(view.getByRole('button', { name: FILL }));
@@ -453,19 +440,12 @@ describe('two surfaces on one document', () => {
     give('scroll', 'important', frameDocument);
     try {
       const here = await page();
-      const inFrame = render(
-        <DataWorkbench
-          engine={engineWith()}
-          definitionId="orders"
-          instanceId="mine"
-        />,
-        {
-          container: frameDocument.body.appendChild(
-            frameDocument.createElement('div'),
-          ),
-          baseElement: frameDocument.body,
-        },
-      );
+      const inFrame = render(workbench(), {
+        container: frameDocument.body.appendChild(
+          frameDocument.createElement('div'),
+        ),
+        baseElement: frameDocument.body,
+      });
       await inFrame.findByRole('table');
       fireEvent.click(inFrame.getByRole('button', { name: FILL }));
 
@@ -664,19 +644,12 @@ describe('the keyboard', () => {
     const frame = document.body.appendChild(document.createElement('iframe'));
     const frameDocument = frame.contentDocument!;
     try {
-      const inFrame = render(
-        <DataWorkbench
-          engine={engineWith()}
-          definitionId="orders"
-          instanceId="mine"
-        />,
-        {
-          container: frameDocument.body.appendChild(
-            frameDocument.createElement('div'),
-          ),
-          baseElement: frameDocument.body,
-        },
-      );
+      const inFrame = render(workbench(), {
+        container: frameDocument.body.appendChild(
+          frameDocument.createElement('div'),
+        ),
+        baseElement: frameDocument.body,
+      });
       await inFrame.findByRole('table');
       fireEvent.click(inFrame.getByRole('button', { name: FILL }));
 
@@ -1149,14 +1122,7 @@ describe('an embedded view, expanded by its host', () => {
 
     // A second surface, later in the document, expanded over the embed.
     const container = document.body.appendChild(document.createElement('div'));
-    const over = render(
-      <DataWorkbench
-        engine={engineWith()}
-        definitionId="orders"
-        instanceId="mine"
-      />,
-      { container, baseElement: container },
-    );
+    const over = render(workbench(), { container, baseElement: container });
     await over.findByRole('table');
     await user.click(over.getByRole('button', { name: FILL }));
 

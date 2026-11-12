@@ -26,7 +26,7 @@ interface WorkbenchFoldsOptions {
   open: boolean;
   /** Whether the next view is on its way. */
   opening: boolean;
-  /** Controlled page fold; the measurement answers for it when left out. */
+  /** Where the page's fold starts; folded when left out. */
   defaultSidebarOpen?: boolean;
   /** Told whenever either fold opens or closes, for a host that mirrors it. */
   onSidebarOpenChange?(open: boolean): void;
@@ -115,14 +115,9 @@ export function useWorkbenchFolds({
   const expanded = expansion.expanded;
   const [inFill, setInFill] = useState(false);
   // The fold as the *page* has it — the one a host sets and is told about,
-  // and the one the surface's own width answers for until a press settles
-  // it. What is actually on screen is derived from it, because a screen
-  // filled by the view has a fold of its own.
-  const page = useSidebarFold(
-    surfaceRef,
-    defaultSidebarOpen,
-    onSidebarOpenChange,
-  );
+  // folded until a press opens it. What is actually on screen is derived
+  // from it, because a screen filled by the view has a fold of its own.
+  const page = useSidebarFold(defaultSidebarOpen, onSidebarOpenChange);
   const sidebarOpen = expanded ? inFill : page.open;
   const fill: ViewExpansion = {
     expanded,
@@ -169,9 +164,8 @@ export function useWorkbenchFolds({
       // While the screen is filled the answer is the fill's, and it lasts as
       // long as the fill does: a user who wants the list back inside one gets
       // it, and the next fill still starts without it. That press says nothing
-      // about the page's own fold, so it does not end the measurement either —
-      // which is why the two folds report to the host separately, each about
-      // the answer it holds.
+      // about the page's own fold, which is why the two folds report to the
+      // host separately, each about the answer it holds.
       if (expanded) {
         setInFill(next);
         onSidebarOpenChange?.(next);

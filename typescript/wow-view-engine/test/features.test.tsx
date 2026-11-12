@@ -88,6 +88,7 @@ describe('workbench features', () => {
         engine={engineWith()}
         definitionId="orders"
         instanceId="orders-1"
+        defaultSidebarOpen
       />,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
@@ -104,6 +105,7 @@ describe('workbench features', () => {
         definitionId="orders"
         instanceId="orders-1"
         features={OFF}
+        defaultSidebarOpen
       />,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));

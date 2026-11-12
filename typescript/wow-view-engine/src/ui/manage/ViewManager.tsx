@@ -322,8 +322,10 @@ export function ViewManager({
         <DialogHeader>
           {/* `tabIndex={-1}` makes it a focus target without making it a tab
               stop: it is reachable when focus is *sent* here, and invisible
-              to Tab, which is what a heading should be. */}
-          <DialogTitle ref={heading} tabIndex={-1}>
+              to Tab, which is what a heading should be. And it wears no
+              focus outline, as a landing heading does not (`LANDING_HEADING`,
+              D94): a box around words that cannot be pressed. */}
+          <DialogTitle ref={heading} tabIndex={-1} className="fve:outline-none">
             {messages.label(word('label.manage.heading'))}
           </DialogTitle>
           <DialogDescription>

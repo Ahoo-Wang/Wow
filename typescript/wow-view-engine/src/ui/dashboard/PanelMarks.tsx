@@ -183,7 +183,10 @@ function BadgeLine({ marks }: { marks: PanelMarkSet }) {
       {unreached.length > 0 && (
         <ToneBadge
           data-slot="panel-not-reached"
-          tone="warning"
+          // A note, not a warning: nothing is wrong with a panel a filter
+          // was left off on purpose, and it wears this for as long as the
+          // filter holds a value — a required date, always.
+          tone="neutral"
           dot={false}
           className={BADGE_WRAPS}
         >

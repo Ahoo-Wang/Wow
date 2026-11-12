@@ -40,7 +40,7 @@ The workbench of one data definition: its record views and analysis views in one
 | `onNavigate` | The way back to the board a view was handed from: with it, the workbench draws "Back to ⟨dashboard⟩" under the title bar. The `ViewHost`'s route when left out |
 | `expandable` | Whether it offers to fill the screen; on by default |
 | `landmark` | The landmark the work column is: `main` by default; `region` where the page already has its own `<main>` |
-| `defaultSidebarOpen`, `onSidebarOpenChange` | Where the sidebar starts: view state, never saved and never asked about by the leave guard. Left out, a column narrower than `md` opens folded |
+| `defaultSidebarOpen`, `onSidebarOpenChange` | Where the sidebar starts: view state, never saved and never asked about by the leave guard. Left out, the list starts folded, one press away; `true` starts with it open |
 | `colorMode`, `density`, `preset`, `tokens` | The mode, the density, a pinned preset, and the host's own `--fve-*` for this surface and its popups |
 | `onRenderFailure` | Told of a render failure one of its boundaries caught; the part shows a recoverable error state in place regardless |
 

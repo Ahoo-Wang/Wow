@@ -226,7 +226,8 @@ export function RecordDetail({
               ref={heading}
               tabIndex={-1}
               className={cn(
-                'fve:break-all',
+                // No outline: where a reader lands, not a control (D94).
+                'fve:break-all fve:outline-none',
                 title === undefined && 'fve:font-mono',
                 title !== undefined && 'fve:text-lg',
               )}

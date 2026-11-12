@@ -181,6 +181,26 @@ export function scopeLabels(table: HTMLElement): string[] {
   );
 }
 
+/**
+ * The view list on screen, unfolded the way a reader unfolds it: a
+ * workbench opens with the list folded away (D94), and a play that reads
+ * the list or presses a row of it presses the title bar's unfold button
+ * first. A list already open is left as it is, so a play may ask again
+ * before each row it presses. A board's list is named for boards, hence
+ * `label`.
+ */
+export async function showViewList(
+  canvasElement: HTMLElement,
+  label = zhCN['label.workbench.expand-sidebar'],
+): Promise<void> {
+  const list = () => canvasElement.querySelector('[data-slot="view-list"]');
+  if (list() !== null) return;
+  await userEvent.click(
+    await within(canvasElement).findByRole('button', { name: label }),
+  );
+  await waitFor(() => expect(list()).not.toBeNull());
+}
+
 /** One view's row in the sidebar, by the name it shows. */
 export function listItem(
   canvasElement: HTMLElement,

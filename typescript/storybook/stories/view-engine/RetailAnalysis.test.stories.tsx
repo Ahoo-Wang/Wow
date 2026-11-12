@@ -29,6 +29,7 @@ import {
 } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
+import { showViewList } from './recordWorkbenchTest.js';
 import { BATH_TOWEL_TITLE } from './retail/views.js';
 import { underMedia } from './media.js';
 import { matchScreenshot } from './screenshot.js';
@@ -49,6 +50,8 @@ export default meta;
 
 /** A view's title as the start of a pattern: its parentheses mean themselves. */
 const escaped = (title: string) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** What finds a view's row in the list: a name that starts with its title. */
+const named = (title: string) => ({ name: new RegExp(`^${escaped(title)}`) });
 
 type Story = StoryObj<typeof displayMeta>;
 
@@ -147,13 +150,7 @@ export const OrderAnalysis: Story = {
   tags: ['visual'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const view = (title: string) =>
-      canvas.getByRole('button', {
-        name: new RegExp(`^${escaped(title)}`),
-      });
-    for (const title of ORDER_VIEWS)
-      await waitFor(() => expect(view(title)).toBeInTheDocument());
-
+    const view = (title: string) => canvas.getByRole('button', named(title));
     // A-01: this month so far against the same days of last month.
     await expect(
       await canvas.findByText('¥145,394.65', {}, { timeout: 4_000 }),
@@ -168,8 +165,12 @@ export const OrderAnalysis: Story = {
       'data-tone',
       'success',
     );
-    // The workbench as it opens, before anything is pressed.
+    // The workbench as it opens, before anything is pressed: the list is
+    // folded away (D94). Unfolded, every saved analysis is in it.
     await matchScreenshot(canvasElement, 'analysis-workbench');
+    await showViewList(canvasElement);
+    for (const title of ORDER_VIEWS)
+      await waitFor(() => expect(view(title)).toBeInTheDocument());
 
     // A-01 (D38): 客单价 as a trend — each day its own sums divided — read
     // on its last whole day against the day before, as money.
@@ -695,6 +696,7 @@ export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await showViewList(canvasElement);
     await expect(
       await canvas.findByRole('button', { name: /^购买次数分布/ }),
     ).toHaveAttribute('aria-current', 'true');
@@ -725,15 +727,12 @@ export const MemberAnalysis: Story = {
   },
 };
 
-/** The workbench open, a saved analysis pressed, its chart drawn. */
+/** The list unfolded, a saved analysis pressed in it, its chart drawn. */
 async function openAnalysis(canvasElement: HTMLElement, title: string) {
   const canvas = within(canvasElement);
+  await showViewList(canvasElement);
   await userEvent.click(
-    await canvas.findByRole(
-      'button',
-      { name: new RegExp(`^${escaped(title)}`) },
-      { timeout: 10_000 },
-    ),
+    await canvas.findByRole('button', named(title), { timeout: 10_000 }),
   );
   await waitFor(() =>
     expect(

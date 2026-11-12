@@ -37,6 +37,7 @@ import {
   EmbeddedDashboard,
   EmbeddedView,
   DataWorkbench,
+  type DataWorkbenchProps,
 } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import { SPACE } from '../src/ui/kit/layout.js';
@@ -75,6 +76,18 @@ describe('DataWorkbench', () => {
     });
   }
 
+  /** The workbench with its view list out, for a test that looks in it. */
+  function listed(engine: ViewEngine, props: Partial<DataWorkbenchProps> = {}) {
+    return render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        defaultSidebarOpen
+        {...props}
+      />,
+    );
+  }
+
   /**
    * The guard is built in the workbench, outside the surface that carries the
    * wording, so the labels it resolves are the ones in force *there* — the
@@ -83,14 +96,10 @@ describe('DataWorkbench', () => {
    */
   it('asks its leave question in the wording the host gave', async () => {
     const engine = withTwo();
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        messages={{ 'label.leave.heading': '离开这个视图？' }}
-      />,
-    );
+    listed(engine, {
+      instanceId: 'orders-1',
+      messages: { 'label.leave.heading': '离开这个视图？' },
+    });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     act(() => engine.openRuntimes()[0].edit({ pageSize: 30 }));
 
@@ -124,13 +133,7 @@ describe('DataWorkbench', () => {
   it('settles an unknown write before it lets the view go', async () => {
     const engine = withTwo();
     const store = engine.store as MemoryViewStore;
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     vi.spyOn(store, 'save').mockRejectedValueOnce(new Error('socket closed'));
     act(() => engine.openRuntimes()[0].edit({ pageSize: 30 }));
@@ -160,13 +163,7 @@ describe('DataWorkbench', () => {
       instance: () => ({ save: false, rename: false, delete: false }),
     }));
 
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     expect(screen.queryByRole('button', { name: 'Manage views' })).toBeNull();
@@ -185,13 +182,7 @@ describe('DataWorkbench', () => {
       }),
     }));
 
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     expect(screen.getByRole('button', { name: 'Manage views' })).toBeDefined();
@@ -200,13 +191,7 @@ describe('DataWorkbench', () => {
   it('opens a view and shows its rows', async () => {
     const { engine } = setup();
 
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
+    listed(engine, { instanceId: 'orders-1' });
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     const order = () =>
@@ -364,17 +349,13 @@ describe('DataWorkbench', () => {
   it("takes the host's wording, for its own alerts and everything inside", async () => {
     const { engine } = setup();
 
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="missing"
-        messages={{
-          'label.view.unopenable': '打不开这个视图',
-          'label.scope.group.personal': '仅自己',
-        }}
-      />,
-    );
+    listed(engine, {
+      instanceId: 'missing',
+      messages: {
+        'label.view.unopenable': '打不开这个视图',
+        'label.scope.group.personal': '仅自己',
+      },
+    });
 
     expect(await screen.findByText('打不开这个视图')).toBeDefined();
     // The sidebar is named by the definition rather than by the catalogue;
@@ -482,7 +463,7 @@ describe('DataWorkbench', () => {
     }
 
     it('lists both kinds in one list, and opens either (D20)', async () => {
-      render(<DataWorkbench engine={withBoth()} definitionId="orders" />);
+      listed(withBoth());
 
       await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
       const sidebar = within(
@@ -502,13 +483,7 @@ describe('DataWorkbench', () => {
     });
 
     it('lists only the kind a host narrows it to (D9)', async () => {
-      render(
-        <DataWorkbench
-          engine={withBoth()}
-          definitionId="orders"
-          viewKinds={['record']}
-        />,
-      );
+      listed(withBoth(), { viewKinds: ['record'] });
 
       await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
       const sidebar = within(
