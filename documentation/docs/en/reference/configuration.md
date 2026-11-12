@@ -186,7 +186,7 @@ Whether the node is stuck, so a restart helps; a storage outage never fails it.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.health.liveness.stall-timeout` | `Duration` | `PT3M` | How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or commands in flight not finish while every log answers, before the node is not live; longer than `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts. |
+| `wow.health.liveness.stall-timeout` | `Duration` | `PT3M` | How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end (in a start, finish no step), or commands in flight not finish while every log answers, before the node is not live; longer than `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts. |
 
 ## `wow.health.ownership`
 

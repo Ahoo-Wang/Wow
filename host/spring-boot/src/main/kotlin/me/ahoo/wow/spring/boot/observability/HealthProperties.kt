@@ -108,9 +108,9 @@ class HealthSubscriptionsProperties {
 @InternalWowApi
 class HealthLivenessProperties {
     /**
-     * How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or
-     * commands in flight not finish while every log answers, before the node is not live; longer than
-     * `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.
+     * How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end (in a start,
+     * finish no step), or commands in flight not finish while every log answers, before the node is not live; longer
+     * than `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.
      */
     var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
 }

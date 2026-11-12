@@ -97,8 +97,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A storage outage never fails it: a store call that fails or times out returns, and a reconcile waiting on a slow
  * store ends once it answers, while a restart would not bring the stores back, and a restart storm would only add
- * load to them. So the bound is minutes, well above what a slow store under load takes. A node that is not running
- * (starting, stopping) is live: the startup probe covers the start, and a draining node is not restarted.
+ * load to them. So the bound is minutes, well above what a slow store under load takes. A starting node is `DOWN` only
+ * as `reconcile`, a reconcile of `group` having finished no step for `stalledMillis` past it; a stopping node is live.
  *
  * A probe reads what was recorded and sampled: it never calls a store. [sampler], the node's one sampler, which its
  * owner starts and closes, samples the node; each of its samples probes the stores the node has not called and checks
@@ -264,27 +264,27 @@ class NodeHealth(
             "lastDriverTickMillis" to driverTickAge?.inWholeMilliseconds,
             "lastProgressMillis" to progressAge.inWholeMilliseconds,
         )
-        if (node.state != ServiceNode.State.RUNNING || !isRunning) {
+        // A start counts its reconciles alone, each by how long it has finished no step.
+        val starting = node.state == ServiceNode.State.STARTING
+        if (!starting && (node.state != ServiceNode.State.RUNNING || !isRunning)) {
             return ComponentHealth(LIVENESS, HealthStatus.UP, details)
         }
         val stall = options.stallTimeout
         val stalls = mutableListOf<String>()
-        if (tickAge != null && tickAge >= stall) {
+        if (!starting && tickAge != null && tickAge >= stall) {
             stalls += STALLED_DISPATCHER
         }
-        if (driverTickAge != null && driverTickAge >= stall) {
+        if (!starting && driverTickAge != null && driverTickAge >= stall) {
             stalls += STALLED_DRIVERS
         }
-        val reconciling = ownerships().mapNotNull { ownership ->
-            ownership.reconcilingFor?.takeIf { it >= stall }?.let { ownership.group.name to it }
-        }.maxByOrNull { it.second }
+        val reconciling = longest { if (starting) it.stalledFor else it.reconcilingFor }
         if (reconciling != null) {
             stalls += STALLED_RECONCILE
             details["group"] = reconciling.first
-            details["reconcilingMillis"] = reconciling.second.inWholeMilliseconds
+            details[if (starting) "stalledMillis" else "reconcilingMillis"] = reconciling.second.inWholeMilliseconds
         }
         val storesAnswer = stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
-        if (inFlight > 0 && progressAge >= stall && storesAnswer) {
+        if (!starting && inFlight > 0 && progressAge >= stall && storesAnswer) {
             stalls += STALLED_KERNEL
         }
         if (stalls.isEmpty()) {
@@ -294,6 +294,11 @@ class NodeHealth(
         details["stalls"] = stalls
         return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
     }
+
+    /** The group whose [of] is the longest at or past the stall timeout, with it; null when none is. */
+    private fun longest(of: (PartitionOwnership) -> Duration?): Pair<String, Duration>? = ownerships().mapNotNull { o ->
+        of(o)?.takeIf { it >= options.stallTimeout }?.let { o.group.name to it }
+    }.maxByOrNull { it.second }
 
     private fun nodeState(): ComponentHealth {
         val fatal = node.fatals.first
@@ -399,6 +404,7 @@ class NodeHealth(
         if (standby) {
             details[STANDBY] = true
         }
+        ownership.fenced.takeIf { it }?.let { details["fenced"] = true }
         return ComponentHealth(name, status, details)
     }
 
