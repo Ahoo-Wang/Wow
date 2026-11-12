@@ -17,11 +17,12 @@
 # view store contract, the eShop web UI, the ops and catalog consoles, the
 # benchmark's Axon server, the migrate-data image, the workflows), and `ci-gate`
 # is the merge signal: it passes when every job that ran passed. A manual
-# dispatch runs everything. The Node 22 jobs (the unit
-# matrix's Node 22 legs, view-engine's Node 22 shards and Package / Node
-# 22.12.0) and the JVM tests on Temurin 25 (the check and integration
-# matrices' JDK 25 legs) run on pushes to main and on dispatch, never on a pull
-# request: nightly.yml dispatches this workflow on main every night main moved.
+# dispatch runs everything. The JVM tests run on Temurin 25, as Wow runs. The
+# Node 22 jobs (the unit matrix's Node 22 legs, view-engine's Node 22 shards and
+# Package / Node 22.12.0) and the JVM tests on Temurin 21, the floor Wow
+# supports (the check and integration matrices' JDK 21 legs), run on pushes to
+# main and on dispatch, never on a pull request: nightly.yml dispatches this
+# workflow on main every night main moved.
 name: CI
 on:
   pull_request:
@@ -99,7 +100,7 @@ jobs:
   # matrix names exactly those shards (.github/scripts/integration-shards.mjs).
   # The `rest` shard also checks the publications.
   check:
-    name: Check (${{ matrix.shard }})${{ matrix.java != '21' && format(' / JDK {0}', matrix.java) || '' }}
+    name: Check (${{ matrix.shard }})${{ matrix.java != '25' && format(' / JDK {0}', matrix.java) || '' }}
     needs: scope
     if: needs.scope.outputs.jvm == 'true'
     timeout-minutes: 40
@@ -110,10 +111,10 @@ jobs:
       fail-fast: false
       matrix:
         shard: [host, apps, tooling, rest]
-        # The tests on Temurin 25 too, off pull requests (D29 tests on 21 and 25, D368 recommends 25): the toolchain
-        # still compiles for 21, and only the test JVM is 25 (`-Pwow.test.java`). The JDK 25 legs upload no
-        # coverage and rehearse no publication; the 21 legs keep their names.
-        java: ${{ fromJSON(github.event_name == 'pull_request' && '["21"]' || '["21", "25"]') }}
+        # The tests on Temurin 25, as Wow runs (D368), and off pull requests on Temurin 21 too, the floor Wow supports
+        # (D29): the toolchain compiles for 21 either way, and only the test JVM is 25 (`-Pwow.test.java`). The
+        # JDK 25 legs upload the coverage and rehearse the publications, on every run; the JDK 21 legs only test.
+        java: ${{ fromJSON(github.event_name == 'pull_request' && '["25"]' || '["25", "21"]') }}
         include:
           - shard: rest
             publications: true
@@ -134,20 +135,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Check the modules with coverage
-        if: matrix.java == '21'
-        env:
-          SHARD: ${{ matrix.shard }}
-        run: ./gradlew :check :code-coverage-report:coverageReport "-Pwow.check.shard=$SHARD" --stacktrace
       # setup-java leaves the JDK's home in JAVA_HOME_<major>_X64, where Gradle finds the test launcher.
-      - name: Check the modules, the tests on JDK ${{ matrix.java }}
-        if: matrix.java != '21'
+      - name: Check the modules with coverage, the tests on JDK ${{ matrix.java }}
+        if: matrix.java == '25'
         env:
           SHARD: ${{ matrix.shard }}
           JAVA: ${{ matrix.java }}
         run: >-
-          ./gradlew :check "-Pwow.check.shard=$SHARD" "-Pwow.test.java=$JAVA"
+          ./gradlew :check :code-coverage-report:coverageReport "-Pwow.check.shard=$SHARD" "-Pwow.test.java=$JAVA"
           "-Porg.gradle.java.installations.fromEnv=JAVA_HOME_${JAVA}_X64" --stacktrace
+      # The toolchain's own JDK, 21, launches the tests when no other is named.
+      - name: Check the modules, the tests on JDK ${{ matrix.java }}
+        if: matrix.java == '21'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ./gradlew :check "-Pwow.check.shard=$SHARD" --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
       # throwaway key the check generates (gpg): every release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
@@ -156,20 +158,20 @@ jobs:
       # documented three-module layout builds against that repository
       # (test/publication-consumer), as a user's build resolves a release.
       - name: Check the publications
-        if: matrix.publications && matrix.java == '21'
+        if: matrix.publications && matrix.java == '25'
         run: ./gradlew publicationCheck publicationConsumerCheck --stacktrace
       # Codecov's reports keep no closing-brace line, whether or not Codecov adjusts the upload.
       - name: Drop the closing-brace lines of the unit test coverage
-        if: matrix.java == '21'
+        if: matrix.java == '25'
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
       # The coverage job judges the patch from it and uploads it to Codecov.
       - name: Stage the unit test coverage
-        if: matrix.java == '21'
+        if: matrix.java == '25'
         env:
           ARTIFACT: coverage-jvm-unit-${{ matrix.shard }}
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml "coverage-artifact/$ARTIFACT/"
       - name: Keep the unit test coverage
-        if: matrix.java == '21'
+        if: matrix.java == '25'
         uses: actions/upload-artifact@v7
         with:
           name: coverage-jvm-unit-${{ matrix.shard }}
@@ -219,7 +221,7 @@ jobs:
         run: ./gradlew :spring-boot:test --tests '*ConfigurationKeysTest' --stacktrace
 
   integration:
-    name: Integration Test (${{ matrix.shard }})${{ matrix.java != '21' && format(' / JDK {0}', matrix.java) || '' }}
+    name: Integration Test (${{ matrix.shard }})${{ matrix.java != '25' && format(' / JDK {0}', matrix.java) || '' }}
     needs: scope
     if: needs.scope.outputs.jvm == 'true'
     timeout-minutes: 40
@@ -231,8 +233,8 @@ jobs:
       matrix:
         # Each shard's projects are its `include` entry's; the scope job checks that the two lists agree.
         shard: [eshop, host-platform, kafka-elasticsearch-clickhouse, mongo-postgres]
-        # On Temurin 25 too, off pull requests, as the check matrix.
-        java: ${{ fromJSON(github.event_name == 'pull_request' && '["21"]' || '["21", "25"]') }}
+        # On Temurin 25, and off pull requests on Temurin 21 too, as the check matrix.
+        java: ${{ fromJSON(github.event_name == 'pull_request' && '["25"]' || '["25", "21"]') }}
         include:
           - shard: eshop
             projects: :eshop-e2e :eshop-ordering-server
@@ -258,31 +260,30 @@ jobs:
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Run the integration tests with coverage
-        if: matrix.java == '21'
-        env:
-          PROJECTS: ${{ matrix.projects }}
-        run: >-
-          ./gradlew :integrationTest :code-coverage-report:integrationCoverageReport
-          "-Pwow.integration.projects=$PROJECTS" --stacktrace
-      - name: Run the integration tests on JDK ${{ matrix.java }}
-        if: matrix.java != '21'
+      - name: Run the integration tests with coverage on JDK ${{ matrix.java }}
+        if: matrix.java == '25'
         env:
           PROJECTS: ${{ matrix.projects }}
           JAVA: ${{ matrix.java }}
         run: >-
-          ./gradlew :integrationTest "-Pwow.integration.projects=$PROJECTS" "-Pwow.test.java=$JAVA"
+          ./gradlew :integrationTest :code-coverage-report:integrationCoverageReport
+          "-Pwow.integration.projects=$PROJECTS" "-Pwow.test.java=$JAVA"
           "-Porg.gradle.java.installations.fromEnv=JAVA_HOME_${JAVA}_X64" --stacktrace
-      - name: Drop the closing-brace lines of the integration test coverage
+      - name: Run the integration tests on JDK ${{ matrix.java }}
         if: matrix.java == '21'
+        env:
+          PROJECTS: ${{ matrix.projects }}
+        run: ./gradlew :integrationTest "-Pwow.integration.projects=$PROJECTS" --stacktrace
+      - name: Drop the closing-brace lines of the integration test coverage
+        if: matrix.java == '25'
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
       - name: Stage the integration test coverage
-        if: matrix.java == '21'
+        if: matrix.java == '25'
         env:
           ARTIFACT: coverage-integration-${{ matrix.shard }}
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml "coverage-artifact/$ARTIFACT/"
       - name: Keep the integration test coverage
-        if: matrix.java == '21'
+        if: matrix.java == '25'
         uses: actions/upload-artifact@v7
         with:
           name: coverage-integration-${{ matrix.shard }}
@@ -295,7 +296,7 @@ jobs:
         if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
-          name: integration-reports-${{ matrix.shard }}${{ matrix.java != '21' && format('-jdk{0}', matrix.java) || '' }}
+          name: integration-reports-${{ matrix.shard }}${{ matrix.java != '25' && format('-jdk{0}', matrix.java) || '' }}
           path: |
             **/build/reports/hang-dumps/
             **/build/reports/tests/integrationTest/
