@@ -957,7 +957,7 @@ describe('the theme’s two paths (4.1)', () => {
         engine={engineOf()}
         colorMode="host"
         tokenSource="host"
-        preset="azure"
+        preset="porcelain"
         brand="#1d4ed8"
       >
         {null}

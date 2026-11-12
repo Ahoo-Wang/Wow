@@ -27,8 +27,9 @@
  *   colour, told apart by their edges: `card-edge` is the divider grey,
  *   not the foreground at 10%.
  * - **What the eye reads first (S11)**: every control's edge 2px
- *   (`edge-width`), a 2px solid focus outline 2px off the control
- *   (`focus-*`, no halo, so the gap is the ground and the mark reads on a
+ *   (`edge-width`), a 2px solid focus outline 2px off the control (the
+ *   stylesheet's own mark since D94, so nothing of it is written here;
+ *   no halo, so the gap is the ground and the mark reads on a
  *   filled button too — and a table row, a record card and a board panel's
  *   body draw the same 2px, D76), a grey header band (#DEDEDE / #161616)
  *   in bold with the divider between its columns, a selected row tinted blue
@@ -39,8 +40,10 @@
  *   badge edged in its full tone, bold titles and bands, and a hovered or
  *   pressed control a clear step darker (the ink at 10% / 18%).
  * - **The dark control wash** (`bg-input/30`) is what set the dark edge,
- *   ring and quiet grey: on the header band, the selected row and the
- *   sidebar the edge reads 5.25, the ring 5.22 and the quiet grey 7.61.
+ *   ring and quiet grey, while a dark control wore one (none does since
+ *   D94; the values were kept): on the header band, the selected row and
+ *   the sidebar, over that wash, the edge read 5.25, the ring 5.22 and the
+ *   quiet grey 7.61.
  *   A brand's dark ring is held at 0.83 and above and its dark chroma at
  *   0.12 and below for the same wash: a saturated magenta clipped back to
  *   sRGB loses light and read 4.3 there.
@@ -65,7 +68,6 @@
   --fvp-card-foreground: oklch(0 0 0deg);
   --fvp-popover-foreground: oklch(0 0 0deg);
   --fvp-primary: oklch(0.38 0.23 264deg);
-  --fvp-primary-foreground: oklch(1 0 0deg);
   --fvp-secondary: oklch(0.94 0 0deg);
   --fvp-secondary-foreground: oklch(0 0 0deg);
   --fvp-muted: oklch(0.955 0 0deg);
@@ -171,11 +173,6 @@
   /* A filled control keeps the edge a control owes here. */
   --fvp-control-edge: oklch(0.42 0 0deg);
   --fvp-dark-control-edge: oklch(0.84 0 0deg);
-  --fvp-focus-width: 2px;
-  --fvp-focus-offset: 2px;
-  --fvp-focus-style: solid;
-  --fvp-focus-halo: oklch(0 0 0deg / 0%);
-  --fvp-dark-focus-halo: oklch(0 0 0deg / 0%);
   --fvp-edge-width: 2px;
   --fvp-badge-edge: 100%;
   --fvp-title-weight: 700;

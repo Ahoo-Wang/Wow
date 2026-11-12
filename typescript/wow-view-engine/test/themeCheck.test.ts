@@ -394,8 +394,8 @@ describe('the command', () => {
 
   it('measures only the presets it is told to', () => {
     const path = file('ring.css', ':root { --fve-ring: #eeeeee; }');
-    const { text } = invoke('theme-check', path, '--preset', 'azure');
-    expect(text).toContain('azure/light');
+    const { text } = invoke('theme-check', path, '--preset', 'porcelain');
+    expect(text).toContain('porcelain/light');
     expect(text).not.toContain('neutral/light');
   });
 

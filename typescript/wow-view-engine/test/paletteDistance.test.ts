@@ -70,7 +70,6 @@ const VISION = {
 const LIGHT_EXCEPTIONS: Record<string, readonly number[]> = {
   neutral: [3, 4, 5],
   // Yellow, in each palette of its own that keeps one.
-  azure: [4],
   porcelain: [5],
   contrast: [],
 };

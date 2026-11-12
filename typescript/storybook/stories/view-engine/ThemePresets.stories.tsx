@@ -29,10 +29,6 @@ import '@ahoo-wang/wow-view-engine/themes.css';
  */
 const PRIMARY = {
   neutral: { light: 'oklch(0.5 0.19 264)', dark: 'oklch(0.77 0.133 264)' },
-  azure: {
-    light: 'oklch(0.541 0.1928 258.885)',
-    dark: 'oklch(0.6726 0.176 255.302)',
-  },
   porcelain: {
     light: 'oklch(0.522 0.1771 255.83)',
     dark: 'oklch(0.7333 0.1438 249.651)',
@@ -73,7 +69,6 @@ const description = `**能力 · 主题与预设：逐套预设**（阶段 5；D
 ${RETAIL_DATA_NOTE}
 
 - **neutral**：默认，也就是不挂预设时的样子。
-- **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的系统字体栈，自带一套八色。
 - **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，焦点跟主色，自带一套八色。想要 macOS／Apple 桌面应用那种感觉，就选它（名字按风格取，受其启发、与其无关）。
 - **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
 
@@ -162,9 +157,6 @@ const presetStory = (preset: Preset): Story => ({
 
 /** The stylesheet's own look: every variable left to `styles.css`. */
 export const Neutral: Story = presetStory('neutral');
-
-/** A Chinese enterprise admin look: a clear blue, white cards on grey. */
-export const Azure: Story = presetStory('azure');
 
 /** A native desktop look: system type, larger corners, soft shadows. */
 export const Porcelain: Story = presetStory('porcelain');
