@@ -39,7 +39,7 @@ wow:
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
-| `wow.stores.<name>.operation-timeout` | How long each of its requests may wait for an answer ([below](#a-server-that-stops-answering)) | `wow.elasticsearch.operation-timeout`, `30s` |
+| `wow.stores.<name>.operation-timeout` | How long the caller of each of its requests waits for an answer ([below](#a-server-that-stops-answering)) | `wow.elasticsearch.operation-timeout`, `30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots, which its commands load from and its state reads read; Elasticsearch too ([below](#only-snapshot-store)) | `wow.snapshot.store`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read; another store than its own then keeps a copy of its snapshots for them | Its own snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
@@ -48,7 +48,36 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ### A server that stops answering {#a-server-that-stops-answering}
 
-Each request of the store, a write, a load or a query, waits at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do. A server that stops answering, paused or behind a lost connection, fails the request as a transient error instead of holding it: its exchange is aborted and its connection closed, freeing its place in the client's pool. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries. The bound is the store's own: the `Rest5Client`'s timeouts still apply when they are shorter, and a client built with the library's defaults, which has no response timeout, is bounded all the same.
+Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
+
+The bound is the caller's, not the connection's. The store cancels no request: HttpClient 5 keeps a reused connection whose exchange is cancelled, and it re-runs a request cancelled before its bytes are written on a new connection that nothing then releases. The request runs on in the application's `Rest5Client`, and its connection is freed when the server answers or resets it, or at the client's own response timeout. While a server is paused, the client's pool can fill: later requests wait for a connection while their callers still fail at the bound, and the connections come back once the server answers again.
+
+The client decides how long a connection is held:
+
+- **Spring Boot's client** (`spring.elasticsearch.*`) has no response timeout. `spring.elasticsearch.socket-timeout` (30 seconds by default) does not end an exchange on a connection the pool reuses, so a paused server holds its connections until it answers. A `Rest5ClientBuilderCustomizer` bean sets the response timeout:
+
+<!-- sample: fragment -->
+
+```kotlin
+import co.elastic.clients.transport.rest5_client.low_level.Rest5ClientBuilder
+import org.apache.hc.client5.http.config.RequestConfig
+import org.apache.hc.core5.util.Timeout
+import org.springframework.boot.elasticsearch.autoconfigure.Rest5ClientBuilderCustomizer
+import org.springframework.context.annotation.Bean
+
+@Bean
+fun elasticsearchResponseTimeout(): Rest5ClientBuilderCustomizer = object : Rest5ClientBuilderCustomizer {
+    override fun customize(builder: Rest5ClientBuilder) = Unit
+
+    override fun customize(builder: RequestConfig.Builder) {
+        builder.setResponseTimeout(Timeout.ofSeconds(30))
+    }
+}
+```
+
+- **A client built by hand** sets it with `setRequestConfigCallback { it.setResponseTimeout(Timeout.ofSeconds(30)) }` on its `Rest5Client.builder`.
+
+A request with no answer within the client's response timeout fails and its connection is closed, and it is not re-run. The response timeout bounds every request of the client, so it is set above the longest one the store makes, such as a search or the event index's access stamp.
 
 ## Snapshot queries
 
@@ -123,7 +152,7 @@ wow:
 - **Commands load from it by id.** A command loads its state from the index with a real-time get and reads the log's tail from the log's store. The state reads (`GET …/state`) read the index the same way. A write that returned is read back by id at once, whatever `refresh` is.
 - **Its default wait ends at Elasticsearch.** `snapshot` ends once the index holds the commit. The type's queries read the same index, so `queryable` is the same wait. With the default `refresh: none`, a search sees the commit within the index's refresh interval after that. A page that submits a command and then reloads a list can miss it, while a read by id cannot: a product created and then listed at once can be missing from the list while its state read by id already has it.
 - **`refresh: wait-for` closes that gap for every command of the store's types.** Every write then returns once a search sees it, so every command that waits by default answers up to a refresh interval later. The store's subscription is capped at one batch per write lane a refresh interval, as for a copy ([above](#reading-your-own-write)). Beyond the cap, it falls behind, and a command that misses the state cache replays a longer tail of the log.
-- **An outage takes the node out of service.** A type's own snapshot store is on the commands' path, whatever its type. Once it has kept failing for `wow.health.stores.down-after`, the node is not ready. A command that still reaches the node commits, its load replaying the log, but its default wait times out (`504 wow.wait.timeout`, the result committed). A load waits at most `wow.snapshot.load-timeout` (2 seconds by default) for its snapshot: a store that does not answer at all, paused or behind a lost connection, costs each command that long and a replay, and the command gives its slot of the node's bound back then. The load's request stays open until the store's `operation-timeout`, which aborts it and closes its connection: the HTTP client re-runs a request cancelled before its bytes are written, on a connection nothing would release. A state read answers `503 wow.storage.unavailable`. Each load that fails is counted in `wow.store.fallbacks` (`snapshot-load`, reason `failed`, or `timed-out` for one given up at the timeout), and only the first is logged as a warning. The store's subscription pauses, and it catches up once Elasticsearch is back. A type whose commands must not depend on Elasticsearch keeps its snapshots on the log's database with a copy on Elasticsearch, whose outage only stops search ([Choose the Stores](./choosing-storage#elasticsearch-is-never-the-log)).
+- **An outage takes the node out of service.** A type's own snapshot store is on the commands' path, whatever its type. Once it has kept failing for `wow.health.stores.down-after`, the node is not ready. A command that still reaches the node commits, its load replaying the log, but its default wait times out (`504 wow.wait.timeout`, the result committed). A load waits at most `wow.snapshot.load-timeout` (2 seconds by default) for its snapshot: a store that does not answer at all, paused or behind a lost connection, costs each command that long and a replay, and the command gives its slot of the node's bound back then. The load's request runs on in the client until the server answers or the client's own response timeout ends it ([A server that stops answering](#a-server-that-stops-answering)). A state read answers `503 wow.storage.unavailable`. Each load that fails is counted in `wow.store.fallbacks` (`snapshot-load`, reason `failed`, or `timed-out` for one given up at the timeout), and only the first is logged as a warning. The store's subscription pauses, and it catches up once Elasticsearch is back. A type whose commands must not depend on Elasticsearch keeps its snapshots on the log's database with a copy on Elasticsearch, whose outage only stops search ([Choose the Stores](./choosing-storage#elasticsearch-is-never-the-log)).
 
 - **A state the index refuses parks its aggregate.** The state is mapped without dynamic fields, so a new field or a value of another type is kept unindexed. A document the index still refuses parks the aggregate at once in the store's subscription, as every store does with a snapshot it can never take ([Parked aggregates](./replay#parked-aggregates)). For Elasticsearch, that is an object where the mapping holds a value or the reverse, or more access attributes than the index's field limit; for MongoDB, a state beyond its 16 MiB document limit or one BSON cannot hold; for PostgreSQL, a value it refuses as data. Since Elasticsearch is the aggregate's only snapshot store, the aggregate then has no newer snapshot:
   - its commands still commit, and their default waits end failed (`wow.subscription.parked`);

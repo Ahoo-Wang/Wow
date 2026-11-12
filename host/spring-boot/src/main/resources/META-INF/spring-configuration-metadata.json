@@ -551,7 +551,7 @@
   }, {
     "name" : "wow.elasticsearch.operation-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long each request of an Elasticsearch store, its writes, loads and queries alike, may wait for an answer: a server that stops answering fails the request instead of holding it; the client's own response timeout still applies when shorter.",
+    "description" : "How long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "PT30S"
   }, {

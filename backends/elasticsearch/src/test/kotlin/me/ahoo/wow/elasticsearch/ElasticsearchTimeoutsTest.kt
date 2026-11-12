@@ -15,7 +15,11 @@ package me.ahoo.wow.elasticsearch
 
 import co.elastic.clients.transport.TransportOptions
 import co.elastic.clients.transport.http.TransportHttpClient
+import co.elastic.clients.transport.rest5_client.low_level.Request
+import co.elastic.clients.transport.rest5_client.low_level.Response
+import co.elastic.clients.transport.rest5_client.low_level.ResponseListener
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import co.elastic.clients.transport.rest5_client.low_level.Rest5ClientBuilder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -28,16 +32,19 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.store.StoreConfig
-import me.ahoo.wow.spi.store.StoreResources
 import org.apache.hc.core5.http.HttpHost
+import org.apache.hc.core5.util.Timeout
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
+import java.io.InputStream
 import java.net.ServerSocket
+import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -72,14 +79,16 @@ class ElasticsearchTimeoutsTest {
         BoundedHttpClient(held, timeout).performRequestAsync("get", null, request, null)
 
     @Test
-    fun `a request with no answer within the timeout should fail as an I-O timeout and be cancelled`() {
+    fun `a request with no answer within the timeout should fail its caller, and not be cancelled`() {
         val held = HeldClient()
         val started = TimeSource.Monotonic.markNow()
         val failure = assertThrows<ExecutionException> { send(held, 100.milliseconds).get(5, TimeUnit.SECONDS) }
         started.elapsedNow().assert().isLessThan(2.seconds)
         failure.cause.assert().isInstanceOf(SocketTimeoutException::class.java)
         failure.cause!!.message.assert().isEqualTo("Elasticsearch gave no answer to get within 100ms.")
-        held.sent.isCancelled.assert().isTrue()
+        // The request is the client's: a cancel frees no reused connection, and one before its bytes are written leaks.
+        Thread.sleep(200)
+        held.sent.isCancelled.assert().isFalse()
     }
 
     @Test
@@ -90,18 +99,13 @@ class ElasticsearchTimeoutsTest {
         held.sent.complete(response)
         answered.get(1, TimeUnit.SECONDS).assert().isSameAs(response)
         Thread.sleep(500)
-        held.sent.isCancelled.assert().isFalse()
+        answered.isCompletedExceptionally.assert().isFalse()
         verify(exactly = 0) { response.close() }
     }
 
     @Test
     fun `an answer after the timeout should be released`() {
-        // A client whose request cannot be cancelled any more: its answer was already on the way.
-        val held = object : HeldClient() {
-            override val sent = object : CompletableFuture<TransportHttpClient.Response>() {
-                override fun cancel(mayInterruptIfRunning: Boolean): Boolean = false
-            }
-        }
+        val held = HeldClient()
         val answered = send(held, 50.milliseconds)
         assertThrownBy<ExecutionException> { answered.get(5, TimeUnit.SECONDS) }
         val response = mockk<TransportHttpClient.Response>(relaxed = true)
@@ -119,18 +123,13 @@ class ElasticsearchTimeoutsTest {
     }
 
     @Test
-    fun `a caller giving up should end its wait alone, the request left to its deadline`() {
+    fun `a caller giving up should end its wait alone, the request left running`() {
         val held = HeldClient()
-        val answered = send(held, 200.milliseconds)
+        val answered = send(held, 100.milliseconds)
         answered.cancel(true)
-        // Not cancelled by the caller: a request cancelled before its bytes are written is retried by HttpClient 5.
+        // Past its timeout too: nothing cancels the request.
+        Thread.sleep(300)
         held.sent.isCancelled.assert().isFalse()
-        // Its deadline still aborts it.
-        val started = TimeSource.Monotonic.markNow()
-        while (!held.sent.isCancelled) {
-            check(started.elapsedNow() < 2.seconds) { "The deadline did not cancel the request." }
-            Thread.sleep(10)
-        }
     }
 
     @Test
@@ -160,82 +159,166 @@ class ElasticsearchTimeoutsTest {
         assertThrownBy<IllegalArgumentException> { BoundedHttpClient(HeldClient(), Duration.ZERO) }
     }
 
-    @Test
-    fun `a store's request to a server that accepts and never answers should fail within its operation timeout`() {
-        ServerSocket(0).use { server ->
-            // Accepts, then holds every connection without a byte: a paused server. Records when the request reached it
-            // and when the client lets go.
-            val requested = CompletableFuture<TimeSource.Monotonic.ValueTimeMark>()
-            val released = CompletableFuture<Unit>()
+    /**
+     * A server that answers every request at once but its second, the first after the client's warm-up: that one it
+     * holds without a byte, a paused server, then answers after [holdFor] when it is set. Records when the held request
+     * reached it, when it answered it and when the client closed its connection.
+     */
+    private class HeldServer(private val holdFor: Duration? = null) : AutoCloseable {
+        private val server = ServerSocket(0)
+        private val requests = AtomicInteger()
+        val requested = CompletableFuture<TimeSource.Monotonic.ValueTimeMark>()
+        val answeredLate = CompletableFuture<Unit>()
+        val closed = CompletableFuture<Unit>()
+        val url: String get() = "http://127.0.0.1:${server.localPort}"
+
+        init {
             thread(isDaemon = true) {
-                server.accept().use { socket ->
-                    val input = socket.getInputStream()
-                    if (input.read() >= 0) requested.complete(TimeSource.Monotonic.markNow())
-                    // The client's end of the connection: closed (end of stream) or reset (aborted).
-                    runCatching { input.readAllBytes() }
-                    released.complete(Unit)
+                while (true) {
+                    val connection = runCatching { server.accept() }.getOrNull() ?: break
+                    thread(isDaemon = true) { serve(connection) }
                 }
             }
-            // The application's client has no response timeout of its own.
-            val restClient = Rest5Client.builder(HttpHost.create("http://127.0.0.1:${server.localPort}")).build()
-            restClient.use {
-                val store = ElasticsearchStoreProvider().open(
-                    StoreConfig.of(
-                        name = "search",
-                        type = ElasticsearchStoreProvider.TYPE,
-                        options = mapOf(ElasticsearchStoreProvider.OPERATION_TIMEOUT.key to "PT0.3S"),
-                        resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
-                    ),
-                ) as ElasticsearchStore
+        }
+
+        private fun serve(connection: Socket) = connection.use {
+            val input = it.getInputStream()
+            var holding = false
+            while (readHead(input)) {
+                if (requests.incrementAndGet() == HELD) {
+                    holding = true
+                    requested.complete(TimeSource.Monotonic.markNow())
+                    holdFor ?: break
+                    Thread.sleep(holdFor.inWholeMilliseconds)
+                    answeredLate.complete(Unit)
+                }
+                it.getOutputStream().apply {
+                    write(OK)
+                    flush()
+                }
+            }
+            // The client's end of the connection: closed (end of stream) or reset (aborted).
+            runCatching { input.readAllBytes() }
+            if (holding) closed.complete(Unit)
+        }
+
+        /** Reads one request's head, false at the end of the stream: the requests here have no body. */
+        private fun readHead(input: InputStream): Boolean {
+            var matched = 0
+            while (matched < HEAD_END.length) {
+                val byte = runCatching { input.read() }.getOrDefault(-1)
+                if (byte < 0) return false
+                matched = when (byte.toChar()) {
+                    HEAD_END[matched] -> matched + 1
+                    '\r' -> 1
+                    else -> 0
+                }
+            }
+            return true
+        }
+
+        override fun close() = server.close()
+
+        private companion object {
+            const val HELD = 2
+            const val HEAD_END = "\r\n\r\n"
+            val OK = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".toByteArray()
+        }
+    }
+
+    /** The application's client to [server], one connection in its pool, with library defaults besides [configure]. */
+    private fun client(server: HeldServer, configure: (Rest5ClientBuilder) -> Unit = {}): Rest5Client =
+        Rest5Client.builder(HttpHost.create(server.url))
+            .setConnectionManagerCallback { it.setMaxConnPerRoute(1).setMaxConnTotal(1) }
+            .also(configure)
+            .build()
+
+    /** A store over [restClient] bounded by [timeout], its client warmed by one request: the held one is not its first. */
+    private fun warmStore(restClient: Rest5Client, timeout: Duration): ElasticsearchStore {
+        restClient.performRequest(Request("GET", "/warm-up")).statusCode.assert().isEqualTo(OK_STATUS)
+        return ElasticsearchStore(
+            StoreConfig.of(name = "search", type = ElasticsearchStoreProvider.TYPE),
+            restClient,
+            ElasticsearchNames(""),
+            operationTimeout = timeout,
+        )
+    }
+
+    /** A request sent now, answered or failed into the future. */
+    private fun Rest5Client.next(): CompletableFuture<Int> {
+        val outcome = CompletableFuture<Int>()
+        performRequestAsync(
+            Request("GET", "/next"),
+            object : ResponseListener {
+                override fun onSuccess(response: Response) {
+                    outcome.complete(response.statusCode)
+                }
+
+                override fun onFailure(exception: Exception) {
+                    outcome.completeExceptionally(exception)
+                }
+            },
+        )
+        return outcome
+    }
+
+    @Test
+    fun `a store's request to a paused server should fail its caller at the timeout, the connection held until it answers`() {
+        HeldServer(holdFor = 1500.milliseconds).use { server ->
+            client(server).use { restClient ->
+                val store = warmStore(restClient, timeout = 300.milliseconds)
                 assertThrownBy<StorageUnavailableException> { runBlocking { store.probe() } }
-                // Within its bound of the request reaching the server, whatever a cold client took to send it.
-                requested.get(LONG_SECONDS, TimeUnit.SECONDS).elapsedNow().assert().isLessThan(3.seconds)
-                // The exchange is aborted: the connection is closed, not left to the client's pool to wait on.
-                released.get(5, TimeUnit.SECONDS)
+                // Failed within its bound of reaching the server, whatever the client took to send it.
+                val reached = server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
+                reached.elapsedNow().assert().isLessThan(1.seconds)
+                // The connection is the client's: its pool's only one is still held, so the next request waits for it.
+                val next = restClient.next()
+                Thread.sleep(300)
+                next.isDone.assert().isFalse()
+                // The server answers: the answer is released, and the connection serves the next request.
+                next.get(LONG_SECONDS, TimeUnit.SECONDS).assert().isEqualTo(OK_STATUS)
+                server.answeredLate.isDone.assert().isTrue()
             }
         }
     }
 
     @Test
-    fun `a load its caller gives up on should keep its connection until the operation timeout aborts it`() {
-        ServerSocket(0).use { server ->
-            // Accepts, reads the request's first bytes, then holds the connection without answering: a paused server.
-            val requested = CompletableFuture<Unit>()
-            val released = CompletableFuture<Unit>()
-            thread(isDaemon = true) {
-                server.accept().use { socket ->
-                    val input = socket.getInputStream()
-                    if (input.read() >= 0) requested.complete(Unit)
-                    // The client's end of the connection: closed (end of stream) or reset (aborted).
-                    runCatching { input.readAllBytes() }
-                    released.complete(Unit)
-                }
-            }
-            val restClient = Rest5Client.builder(HttpHost.create("http://127.0.0.1:${server.localPort}")).build()
-            restClient.use {
-                val store = ElasticsearchStoreProvider().open(
-                    StoreConfig.of(
-                        name = "search",
-                        type = ElasticsearchStoreProvider.TYPE,
-                        options = mapOf(ElasticsearchStoreProvider.OPERATION_TIMEOUT.key to "PT2S"),
-                        resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
-                    ),
-                ) as ElasticsearchStore
+    fun `a load its caller gives up on should leave its request running, its connection freed by the answer`() {
+        HeldServer(holdFor = 1500.milliseconds).use { server ->
+            client(server).use { restClient ->
+                val store = warmStore(restClient, timeout = 5.seconds)
                 val ref = AggregateType("ctx", "order").ref("tenant", "o-1")
                 runBlocking {
                     val load = async(Dispatchers.Default) { store.snapshots("ctx").load(ref) }
                     // The kernel gives the load up once its request is on the wire.
-                    requested.get(LONG_SECONDS, TimeUnit.SECONDS)
-                    val gaveUp = TimeSource.Monotonic.markNow()
+                    server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
                     load.cancelAndJoin()
-                    // The caller's wait has ended; the request's connection is still open, under its deadline.
-                    Thread.sleep(500)
-                    released.isDone.assert().isFalse()
-                    // The store's operation timeout aborts it, closing its connection.
-                    released.get(LONG_SECONDS, TimeUnit.SECONDS)
-                    gaveUp.elapsedNow().assert().isLessThan(LONG_SECONDS.seconds)
                 }
+                // Not cancelled: the connection stays the request's until the server answers it.
+                val next = restClient.next()
+                Thread.sleep(300)
+                next.isDone.assert().isFalse()
+                next.get(LONG_SECONDS, TimeUnit.SECONDS).assert().isEqualTo(OK_STATUS)
+                server.closed.isDone.assert().isFalse()
             }
+        }
+    }
+
+    @Test
+    fun `the client's response timeout should free a connection a server never answers`() {
+        // The paused server never answers; the application's client bounds its requests itself.
+        HeldServer().use { server ->
+            client(server) { it.setRequestConfigCallback { config -> config.setResponseTimeout(Timeout.ofSeconds(1)) } }
+                .use { restClient ->
+                    val store = warmStore(restClient, timeout = 300.milliseconds)
+                    assertThrownBy<StorageUnavailableException> { runBlocking { store.probe() } }
+                    val reached = server.requested.get(LONG_SECONDS, TimeUnit.SECONDS)
+                    // The client ends the exchange at its response timeout, closing the connection, and the pool's
+                    // place serves the next request.
+                    server.closed.get(LONG_SECONDS, TimeUnit.SECONDS)
+                    reached.elapsedNow().assert().isGreaterThan(800.milliseconds)
+                    restClient.next().get(LONG_SECONDS, TimeUnit.SECONDS).assert().isEqualTo(OK_STATUS)
+                }
         }
     }
 
@@ -247,5 +330,6 @@ class ElasticsearchTimeoutsTest {
 
     private companion object {
         const val LONG_SECONDS = 10L
+        const val OK_STATUS = 200
     }
 }
