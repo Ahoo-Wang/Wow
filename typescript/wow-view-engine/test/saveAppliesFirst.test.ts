@@ -29,6 +29,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import {
+  deferred,
   nextTask,
   ordersDefinition,
   recordConfig,
@@ -167,6 +168,102 @@ describe('a save with part of the draft waiting for apply', () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(copy.config).toMatchObject({ sort: BY_AMOUNT });
     expect(runtime.getSnapshot().applied.sort).toEqual(BY_AMOUNT);
+  });
+});
+
+describe('a draft that changes while its save waits', () => {
+  const PAGE = { total: 2, exact: true, list: [...ROWS] };
+
+  /** A source whose pages after the first are answered when the test says. */
+  function heldSource() {
+    const held: ReturnType<typeof deferred<typeof PAGE>>[] = [];
+    let opened = false;
+    const paged = vi.fn<ViewSource['paged']>(() => {
+      if (!opened) {
+        opened = true;
+        return Promise.resolve(PAGE);
+      }
+      const next = deferred<typeof PAGE>();
+      held.push(next);
+      return next.promise;
+    });
+    return { source: testSource({ paged }), held };
+  }
+
+  it('runs what was edited during the wait, and writes the draft that was answered', async () => {
+    const { source, held } = heldSource();
+    const { engine, runtime, store, save } = await opened(source);
+
+    runtime.edit({ sort: BY_AMOUNT });
+    const saving = engine.save(runtime);
+    await nextTask();
+    expect(held).toHaveLength(1);
+    // Typed while the first query is out: it waits again.
+    runtime.edit({ pageSize: 30 });
+    held[0].resolve(PAGE);
+    await nextTask();
+
+    // Not written yet: the page size has not run.
+    expect(save).not.toHaveBeenCalled();
+    expect(held).toHaveLength(2);
+    held[1].resolve(PAGE);
+    await saving;
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(runtime.getSnapshot().applied).toMatchObject({
+      sort: BY_AMOUNT,
+      pageSize: 30,
+    });
+    expect((await store.get('mine')).config).toMatchObject({
+      sort: BY_AMOUNT,
+      pageSize: 30,
+    });
+  });
+
+  it('is not saved when it is still changing after three runs', async () => {
+    const { source, held } = heldSource();
+    const { engine, runtime, save } = await opened(source);
+
+    runtime.edit({ sort: BY_AMOUNT });
+    const saving = engine.save(runtime).catch((error: unknown) => error);
+    for (let run = 0; run < 3; run += 1) {
+      await nextTask();
+      expect(held).toHaveLength(run + 1);
+      runtime.edit({ pageSize: 30 + run });
+      held[run].resolve(PAGE);
+    }
+    const refused = await saving;
+
+    expect(isViewCommandError(refused) && refused.issue.code).toBe(
+      'view.save.not-applied',
+    );
+    expect(save).not.toHaveBeenCalled();
+    // Three runs, and no fourth.
+    await nextTask();
+    expect(held).toHaveLength(3);
+  });
+});
+
+describe('a view closed while its save waits', () => {
+  it('ends the save, refused, and writes nothing', async () => {
+    const never = new Promise<never>(() => undefined);
+    const paged = vi
+      .fn<ViewSource['paged']>()
+      .mockResolvedValueOnce({ total: 2, exact: true, list: [...ROWS] })
+      .mockReturnValue(never);
+    const { engine, runtime, save } = await opened(testSource({ paged }));
+
+    runtime.edit({ sort: BY_AMOUNT });
+    const saving = engine.save(runtime).catch((error: unknown) => error);
+    await nextTask();
+    expect(runtime.getSnapshot().query.status).toBe('loading');
+    runtime.dispose();
+    const refused = await saving;
+
+    expect(isViewCommandError(refused) && refused.issue.code).toBe(
+      'view.runtime.not-owned',
+    );
+    expect(save).not.toHaveBeenCalled();
   });
 });
 

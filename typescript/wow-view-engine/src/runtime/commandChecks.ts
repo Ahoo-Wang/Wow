@@ -111,19 +111,55 @@ function requireSavable(
  * a draft with an error, which `apply` would not run either and the save's
  * own check refuses by name. A draft with nothing waiting and an answer on
  * screen asks the source nothing more.
+ *
+ * **What is written is what was answered.** The draft can change while a
+ * query is out — a condition typed during the wait — and then part of it
+ * waits again: it is run again, until the draft about to be written is the
+ * one the source answered. `APPLY_ROUNDS` times at most; a draft still
+ * moving then is not saved (`view.save.not-applied`), since a save that
+ * chases a draft being edited has no moment to write.
+ *
+ * **A view closed while its save waits** — switched away from, its
+ * workbench unmounted — ends the save, refused (`view.runtime.not-owned`):
+ * no answer is coming for it, and a promise left open would hold its button
+ * busy for good.
  */
 async function appliedDraft<C extends ViewConfig>(
   runtime: ManagedViewRuntime<C>,
 ): Promise<ViewRuntimeState<C>> {
-  const state = runtime.getSnapshot();
-  if (runtime.kind === 'dashboard' || hasError(state.issues)) return state;
-  if (comparePending(state.draft, state.applied, state.issues).pending)
-    runtime.apply();
-  else if (state.query.status === 'error') runtime.refresh();
-  const answered = await new Promise<ViewRuntimeState<C>>(resolve => {
+  for (let round = 0; ; round += 1) {
+    if (runtime.disposed)
+      throw new ViewCommandError(issue('view.runtime.not-owned', []));
+    const state = runtime.getSnapshot();
+    if (runtime.kind === 'dashboard' || hasError(state.issues)) return state;
+    const waits = comparePending(
+      state.draft,
+      state.applied,
+      state.issues,
+    ).pending;
+    const { status } = state.query;
+    if (!waits && status !== 'error' && status !== 'loading') return state;
+    if (round === APPLY_ROUNDS)
+      throw new ViewCommandError(issue('view.save.not-applied', []));
+    if (waits) runtime.apply();
+    else if (status === 'error') runtime.refresh();
+    const answered = await settled(runtime);
+    if (!runtime.disposed && answered.query.status === 'error')
+      throw new ViewCommandError(issue('view.save.not-applied', []));
+  }
+}
+
+/** How many times a save runs a draft that changed while it was run. */
+const APPLY_ROUNDS = 3;
+
+/** The state once no query is out, or once the runtime is closed. */
+function settled<C extends ViewConfig>(
+  runtime: ManagedViewRuntime<C>,
+): Promise<ViewRuntimeState<C>> {
+  return new Promise(resolve => {
     const read = () => {
       const now = runtime.getSnapshot();
-      if (now.query.status === 'loading') return false;
+      if (!runtime.disposed && now.query.status === 'loading') return false;
       resolve(now);
       return true;
     };
@@ -132,9 +168,6 @@ async function appliedDraft<C extends ViewConfig>(
       if (read()) stop();
     });
   });
-  if (answered.query.status === 'error')
-    throw new ViewCommandError(issue('view.save.not-applied', []));
-  return answered;
 }
 
 /**
