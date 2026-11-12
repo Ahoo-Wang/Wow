@@ -66,6 +66,8 @@ internal class Preparation(
         commandType: String,
         reach: CommandReach,
     ): Prepared {
+        // A creation's declared time (`@OccurredAt`) is its commit's: never one the node's clock has not reached.
+        unwritable(command, scope)?.let { return Prepared.Done(it) }
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
         val version = loaded.version

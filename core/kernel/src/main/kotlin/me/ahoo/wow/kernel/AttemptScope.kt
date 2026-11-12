@@ -298,14 +298,18 @@ internal class AttemptScopes(
     ): AttemptScope? {
         val now = clock()
         val schedule = command.schedule
-        return if (schedule != null && now < schedule.due) null else open(
-            command,
-            loaded,
-            wait,
-            encode,
-            now,
-            occurredAt
-        )
+        return if (schedule != null && now < schedule.due) {
+            null
+        } else {
+            open(
+                command,
+                loaded,
+                wait,
+                encode,
+                now,
+                occurredAt
+            )
+        }
     }
 
     /**

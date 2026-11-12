@@ -280,6 +280,13 @@ internal class AggregateAnalyzer(
         return emptyList()
     }
 
+    /** How [command] creates its aggregate: `REQUIRED` (`@CreateAggregate`), `ALLOWED` (`@AllowCreate`) or `NONE`. */
+    private fun creationOf(command: KSClassDeclaration): String = when {
+        command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
+        command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
+        else -> "NONE"
+    }
+
     private fun commandBinding(
         function: KSFunctionDeclaration,
         dependencies: MutableMap<String, Dependency>,
@@ -318,11 +325,7 @@ internal class AggregateAnalyzer(
                 "type that does not, such as a Decision"
         }
         unlistedEvents(function, open, returned, producesListed, problems)?.let { warnings += it }
-        val creation = when {
-            command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
-            command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
-            else -> "NONE"
-        }
+        val creation = creationOf(command)
         val unaddressed = command.hasAnnotation(Unaddressed::class.java.name)
         return CommandBinding(
             command = commandType.render(),

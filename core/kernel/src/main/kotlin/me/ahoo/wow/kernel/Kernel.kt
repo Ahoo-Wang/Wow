@@ -297,13 +297,8 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            // A creation's declared time (`@OccurredAt`) is its commit's: never one the node's clock has not reached.
-            val occurredAt = if (loaded.version == 0) model.occurredAtOf(command.body) else null
-            val attempt = attemptOn(command, loaded, waitBeyondCommitted, encode, occurredAt)
-            unwritable(command, attempt)?.let {
-                attempt.compensate()
-                return requests.standing(loaded, cached, it) ?: continue
-            }
+            val attempt =
+                attemptOn(command, loaded, waitBeyondCommitted, encode, declaredTimeOf(model, command, loaded))
             val prepared = try {
                 preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -328,6 +323,10 @@ class Kernel(
         }
         return CommandOutcome.Contended(maxAttempts)
     }
+
+    /** The time [command] declares it occurred (`@OccurredAt`) when it creates its aggregate, [loaded]; else null. */
+    private fun declaredTimeOf(model: AggregateModel<*>, command: Command<*>, loaded: CachedState): Long? =
+        if (loaded.version == 0) model.occurredAtOf(command.body) else null
 
     /**
      * The answer to [prepared], a decision on [loaded] that appends nothing, as [requests] gives it
