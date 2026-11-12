@@ -53,6 +53,7 @@ interface CommandManifest {
     readonly mounted?: boolean;
     // (undocumented)
     readonly name: string;
+    readonly occurredAtProperty?: string;
     readonly produces?: readonly string[];
     // (undocumented)
     readonly routes: readonly RouteManifest[];

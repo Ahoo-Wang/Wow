@@ -219,6 +219,7 @@ internal object ManifestFragmentBuilder {
                         description = command.description,
                         idProperty = command.aggregateId?.json,
                         internal = command.internal,
+                        occurredAtProperty = command.occurredAt?.json,
                     )
                 } + binding.mounted.map { mounted ->
                     val name = mounted.commandName ?: simpleName(mounted.type)

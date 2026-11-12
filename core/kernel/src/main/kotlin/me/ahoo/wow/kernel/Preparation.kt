@@ -97,7 +97,17 @@ internal class Preparation(
             "${command.ref} does not exist: a decision that only schedules needs an aggregate that exists."
         }
         // The decision's own time: what it read as `now` is the time its events are committed at.
-        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach)
+        val writtenAt = scope.writtenAt.takeIf { scope.declaresTime }
+        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach, writtenAt)
+    }
+
+    /**
+     * The headers of the stream of [command]: its own, its [rejection]'s when it carries one, and when it was actually
+     * written ([EventStreamRecord.WRITTEN_AT]) when its commit's time is the one it declares.
+     */
+    private fun headersOf(command: Command<*>, rejection: Rejection?, writtenAt: Long?): Map<String, String> {
+        val headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers
+        return writtenAt?.let { headers + (EventStreamRecord.WRITTEN_AT to it.toString()) } ?: headers
     }
 
     /**
@@ -114,6 +124,7 @@ internal class Preparation(
         rejection: Rejection?,
         commitTime: Long,
         reach: CommandReach,
+        writtenAt: Long?,
     ): Prepared {
         val version = loaded.version
 
@@ -137,7 +148,7 @@ internal class Preparation(
             events = events.map { codec.encode(model, it) },
             scope = metadata.scope,
             causation = command.causation,
-            headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
+            headers = headersOf(command, rejection, writtenAt),
             operator = command.operator,
             access = AccessValues.ofStream(codec.stored(declared), metadata.scope),
             // The attributes after this commit are of its own version, until a later change stamps them.

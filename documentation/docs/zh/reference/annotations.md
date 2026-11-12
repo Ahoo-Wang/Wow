@@ -114,6 +114,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 - 目标: `CLASS`, `FUNCTION`
 - 参数: `value: String`
 
+## `@OccurredAt`
+
+[OccurredAt](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OccurredAt.kt): The property of a command that holds when what the command records occurred: a `Long` of epoch milliseconds the command's class declares, or `Long?`, whose null declares nothing.
+
+- 目标: `PROPERTY`, `FIELD`
+- 参数: 无。
+
 ## `@OnCommand`
 
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.

@@ -124,6 +124,8 @@ internal data class CommandBinding(
     val internal: Boolean = false,
     /** The command's `@AggregateId` property, which its body names its aggregate by; null when it has none. */
     val aggregateId: AggregateIdBinding? = null,
+    /** The command's `@OccurredAt` property, which declares when what it records happened; null when it has none. */
+    val occurredAt: OccurredAtBinding? = null,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
     /**

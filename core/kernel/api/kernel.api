@@ -59,6 +59,7 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun addDecider (Ljava/lang/Class;Ljava/lang/String;Lme/ahoo/wow/kernel/DecideFunction;)V
 	public final fun addEvolver (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/functions/Function2;)V
 	public final fun addMounted (Ljava/lang/Class;Ljava/lang/String;)V
+	public final fun addOccurredAt (Ljava/lang/Class;Lkotlin/jvm/functions/Function1;)V
 	public final fun addUpgrade (Ljava/lang/Class;ILme/ahoo/wow/kernel/EventUpgrade;)V
 	public final fun after (Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;)V
 	public static synthetic fun after$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V

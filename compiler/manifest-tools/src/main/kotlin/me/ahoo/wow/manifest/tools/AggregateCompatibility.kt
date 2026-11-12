@@ -189,6 +189,7 @@ private fun Changes.compareCommand(path: String, baseline: CommandManifest, curr
     compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
     list += schemas.compare("$path.schema", baseline.schema, current.schema)
     compareInternal("$path.internal", baseline.internal, current.internal)
+    compareOccurredAt("$path.occurredAtProperty", baseline.occurredAtProperty, current.occurredAtProperty)
     if (baseline.creation != current.creation) {
         val change = "creation changed from ${baseline.creation} to ${current.creation}"
         if (current.creation == Creation.ALLOWED) {
@@ -214,6 +215,23 @@ private fun Changes.compareCommand(path: String, baseline: CommandManifest, curr
         if (owned == Side.BASELINE) baseline.routes.filterNot { isOwn(it, current.routes) } else baseline.routes,
         if (owned == Side.CURRENT) current.routes.filterNot { isOwn(it, baseline.routes) } else current.routes,
     )
+}
+
+/**
+ * A creation command's declaration of when it occurred (`@OccurredAt`): one added is additive, since a sender that
+ * gives no time keeps the clock's; one removed or moved to another property is breaking, since an importer's times
+ * would then be ignored, or read from a property it does not send.
+ */
+private fun Changes.compareOccurredAt(path: String, baseline: String?, current: String?) {
+    when {
+        baseline == current -> Unit
+        baseline == null -> additive(path, "the command declares when it occurred, by $current")
+        current == null -> breaking(
+            path,
+            "the command no longer declares when it occurred: an importer's times are ignored"
+        )
+        else -> breaking(path, "the command declares when it occurred by $current, not $baseline")
+    }
 }
 
 /** A command made internal, whose public routes go, or made public, whose public routes come. */

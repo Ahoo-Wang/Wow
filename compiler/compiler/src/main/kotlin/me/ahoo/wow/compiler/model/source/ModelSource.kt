@@ -110,6 +110,9 @@ internal object ModelSource {
         )
         appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
         appendLine("        }")
+        command.occurredAt?.let { occurred ->
+            appendLine("        occurredAt<${command.command}> { it.`${occurred.property}` }")
+        }
         command.aggregateId?.let { id ->
             appendLine("        aggregateId<${command.command}> { it.`${id.property}` }")
         }

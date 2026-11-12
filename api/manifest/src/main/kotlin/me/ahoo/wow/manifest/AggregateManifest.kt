@@ -221,6 +221,10 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  * name no id: a sender reads it from the body, and one that cannot (a computed id it does not send) leaves it to the
  * service, which reads it from the command.
  *
+ * [occurredAtProperty] is the property of a creation command's JSON body that declares when what it records happened
+ * (epoch milliseconds), as its class's `@OccurredAt` property declares it: the creating commit's time, an import's
+ * creation time in the system it came from; null for a command that declares none.
+ *
  * A [system] command is the framework's, not the domain's: a lifecycle command, a snapshot rebuild or a schedule job's
  * command, named by its full system name (`wow.lifecycle.DeleteAggregate`) and routed on a reserved segment
  * ([CommandRoutes.SYSTEM_SEGMENT_PREFIX]). Every route the edge serves is a command's [routes], a system command's
@@ -246,6 +250,7 @@ class CommandManifest @InternalWowApi constructor(
     val system: Boolean = false,
     val idProperty: String? = null,
     val internal: Boolean = false,
+    val occurredAtProperty: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandManifest && valueFields() == other.valueFields()
@@ -255,7 +260,7 @@ class CommandManifest @InternalWowApi constructor(
     override fun toString(): String =
         "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
             "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description, system=$system, " +
-            "idProperty=$idProperty, internal=$internal)"
+            "idProperty=$idProperty, internal=$internal, occurredAtProperty=$occurredAtProperty)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -270,6 +275,7 @@ class CommandManifest @InternalWowApi constructor(
         system,
         idProperty,
         internal,
+        occurredAtProperty,
     )
 }
 

@@ -67,6 +67,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `internal`: left out when absent or at its default
 - `transformsTo`
 - `idProperty`
+- `occurredAtProperty`
 - `description`
 
 ## `Error`

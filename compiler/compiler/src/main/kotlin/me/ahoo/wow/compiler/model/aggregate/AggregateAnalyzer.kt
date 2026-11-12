@@ -337,6 +337,7 @@ internal class AggregateAnalyzer(
             unaddressed = unaddressed,
             internal = command.hasAnnotation(InternalCommand::class.java.name),
             aggregateId = AggregateIdResolver.of(command, creation, unaddressed, problems),
+            occurredAt = OccurredAtResolver.of(command, creation, problems),
             type = command.binaryName(),
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,

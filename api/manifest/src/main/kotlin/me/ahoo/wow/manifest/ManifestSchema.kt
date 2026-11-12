@@ -151,6 +151,10 @@ object ManifestSchema {
                 ),
                 "transformsTo" to strings(),
                 "idProperty" to string("The property of the command's body that holds its aggregate's id."),
+                "occurredAtProperty" to string(
+                    "The property of the creation command's body that declares when what it records happened, epoch " +
+                        "milliseconds: the creating commit's time (@OccurredAt)."
+                ),
                 "description" to string(),
             ),
             EVENT to objectOf(

@@ -107,6 +107,7 @@ class ManifestTreeTest {
             schema = Manifest.schemaRef("sample.Restock"),
             routes = listOf(CommandRoutes.unaddressed("shop", "stock", "Restock")),
             idProperty = "productId",
+            occurredAtProperty = "restockedAt",
         )
         val manifest = Manifest(
             contexts = listOf(
@@ -125,6 +126,8 @@ class ManifestTreeTest {
         val json = mapper.writeValueAsString(ManifestTree.write(manifest))
         json.assert().contains("\"idProperty\":\"productId\"")
         json.indexOf("\"idProperty\"").assert().isEqualTo(json.lastIndexOf("\"idProperty\""))
+        json.assert().contains("\"occurredAtProperty\":\"restockedAt\"")
+        json.indexOf("\"occurredAtProperty\"").assert().isEqualTo(json.lastIndexOf("\"occurredAtProperty\""))
         read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
             .assert().containsExactly(restock, CommandManifest("Count", schema = "#/\$defs/C"))
     }

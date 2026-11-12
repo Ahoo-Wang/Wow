@@ -41,6 +41,7 @@ internal object AnnotationSet {
         "Unaddressed",
         "InternalCommand",
         "AggregateId",
+        "OccurredAt",
         "AfterCommand",
         "Name",
         "DependencyName",
@@ -95,8 +96,8 @@ internal object AnnotationSet {
     /** The annotations only a member of an aggregate's state takes: `@Access`. */
     private val STATE_NAMES = setOf("Access")
 
-    /** The annotations only a property of a command an aggregate decides takes: `@AggregateId`. */
-    private val COMMAND_NAMES = setOf("AggregateId")
+    /** The annotations only a property of a command an aggregate decides takes: `@AggregateId`, `@OccurredAt`. */
+    private val COMMAND_NAMES = setOf("AggregateId", "OccurredAt")
 
     private const val IDENTITY =
         "a command carries no tenant, owner or version: they are Command.ref's and the scope's, from the route or " +
