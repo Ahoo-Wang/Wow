@@ -47,6 +47,7 @@ On the machine: `docker` (OrbStack), `kind` and the Calico manifest at the versi
 | `platform/ingress/` | Traefik (`traefik-values.yaml`), and the Ingress that sends every path to the gateway over HTTP and HTTPS. |
 | `platform/observability/` | The OpenTelemetry Operator's values and the Instrumentation that injects the Java agent, as `deploy/`'s values expect. The collector. Prometheus with `alerts.yaml`, one rule per row of Operate › Observability's "What to alert on". kube-state-metrics for the pods' readiness. |
 | `platform/probes.yaml` | The boundary's vantage points, `outsider` and `insider`, on the catalog's image. |
+| `eshop-build.sh`, `published-wow.init.gradle.kts` | The eShop's servers built from a release's source against the Wow it published on Maven Central ("Running it"). |
 | `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). The platform's three services take `deploy/`'s values unchanged. |
 
 ### Where the drill differs from `deploy/`, and why
@@ -127,14 +128,14 @@ With a previous version, the run installs that version first, then upgrades to t
 
 The folder stays on the machine. `drill.sh teardown` deletes the cluster.
 
-**Two pieces `drill.sh` calls that come with the drill's next PRs:**
+**The two pieces `drill.sh` calls:**
 
 - **`eshop-build.sh <source> <version>`.** It builds the eShop's five servers from a release's source (a worktree of its tag) against the Wow that version published on Maven Central, not the source's own modules:
   - `installDist`, which the images' Dockerfiles take;
   - `generateWowHelmValues`, which writes `build/wow/helm/values.yaml`.
 
-  It works on any release's source, the tag's files unchanged: the switch it needs cannot be in beta.2's source.
-- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
+  It runs the release's own build with `published-wow.init.gradle.kts`, so the tag's files stay as they were tagged. The eShop declares Wow by its coordinates, and the root build substitutes each with its project; the init script adds a later rule, for the eShop's projects alone, that sends every `me.ahoo.wow` module back to the published version: their classpaths, the BOM, and the compiler the Gradle plugin adds. Then it proves where Wow came from: every `wow-*-<version>.jar` in each distribution must have the SHA-1 that Maven Central publishes for it, and no other version of a Wow jar may be there.
+- **The cluster test driven from outside** (`:eshop-e2e:clusterTest`, the drill's next PR). Besides `ga.gateway`, `ga.secret`, `ga.backend`, `ga.partitions` and `ga.report`, it takes:
   - `ga.namespace`: the namespace its `kubectl` acts in;
   - `ga.run`: a prefix for its data, so a second run on the same stores works;
   - `ga.scenarios`: what it runs:
