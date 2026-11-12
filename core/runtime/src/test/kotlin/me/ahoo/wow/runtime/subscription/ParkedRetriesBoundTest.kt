@@ -26,7 +26,7 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.timer.TestClock
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -57,9 +57,10 @@ class ParkedRetriesBoundTest {
     /** While set, a retry's read of the aggregate it names waits for it. */
     private val reads = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
+    /** A retry reads its aggregate's entries with [EventLog.readEntries]: that read is the one held. */
     private val log = object : EventLog by inner {
-        override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
-            inner.read(ref, fromVersion, toVersion).onStart { reads[ref.id]?.await() }
+        override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+            inner.readEntries(ref, fromVersion, toVersion).onStart { reads[ref.id]?.await() }
     }
     private val appender = Appender(log)
 
