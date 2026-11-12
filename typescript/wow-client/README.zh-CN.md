@@ -91,7 +91,7 @@ const result = await commands.wait({
 与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
 一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
 `CommandResult`。`wait` 是与 Kotlin 一致的 `WaitPlan`：`WaitPlan.ACCEPTED`、`COMMITTED`、
-`SNAPSHOT`，或由 `wait` 各跳（`accepted`、`committed`、`snapshot`，或某个订阅的 `handled`，
+`SNAPSHOT`，或由 `wait` 各跳（`accepted`、`committed`、`snapshot`、`queryable`，或某个订阅的 `handled`，
 也可以跨过 Saga 派生的命令）组成的 `WaitPlan.of(...hops)`，`.within(ms)` 给它超时；
 `timeout` 以毫秒计并覆盖计划的超时。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。

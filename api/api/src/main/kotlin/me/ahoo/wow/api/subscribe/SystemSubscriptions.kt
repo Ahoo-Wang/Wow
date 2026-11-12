@@ -24,6 +24,14 @@ object SystemSubscriptions {
      */
     const val SNAPSHOT: String = "wow.snapshot"
 
+    /**
+     * A wait's `queryable` hop ([me.ahoo.wow.api.result.Hop.queryable]): the commit is in the store the aggregate type's
+     * snapshot queries read. It is answered by the snapshot subscription that writes that store: the one of the type's
+     * copy where its queries read another store, else the one of its own store, as [SNAPSHOT] is. No subscription
+     * runs under this name.
+     */
+    const val QUERYABLE: String = "wow.queryable"
+
     /** The built-in subscription that confirms reservations. */
     const val RESERVATION: String = "wow.reservation"
 

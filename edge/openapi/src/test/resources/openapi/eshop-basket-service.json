@@ -4789,7 +4789,7 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
         "schema" : {
           "type" : "string"
         }

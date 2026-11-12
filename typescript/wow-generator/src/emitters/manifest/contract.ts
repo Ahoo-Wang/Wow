@@ -115,6 +115,7 @@ export function emitContract(
     `  /** Until a command of \`${context.name}\` passed admission. */\n  accepted: (): Hop => wait.accepted(${name}),`,
     `  /** Until a command's events are appended to the log of \`${context.name}\`. */\n  committed: (): Hop => wait.committed(${name}),`,
     `  /** Until the snapshot of \`${context.name}\` holds the commit. */\n  snapshot: (): Hop => wait.snapshot(${name}),`,
+    `  /** Until the store the snapshot queries of \`${context.name}\` read holds the commit. */\n  queryable: (): Hop => wait.queryable(${name}),`,
   ];
   if (hasSubscriptions) {
     hops.push(

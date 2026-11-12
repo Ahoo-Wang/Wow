@@ -37,7 +37,7 @@ internal class WaitHops(
     /** Whether a wait on [entry] waits for this subscription next. */
     fun waitsHere(entry: SourcedEntry): Boolean {
         val hop = entry.transport?.wait?.nextHandled ?: return false
-        return hop.subscription == subscription.hopOf(entry.stream.ref.type) &&
+        return hop.subscription in subscription.hopsOf(entry.stream.ref.type) &&
             (hop.context ?: subscription.context) == subscription.context
     }
 

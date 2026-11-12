@@ -44,6 +44,8 @@ export const viewStoreWait = {
   committed: (): Hop => wait.committed(ViewStoreContract.NAME),
   /** Until the snapshot of `view-store` holds the commit. */
   snapshot: (): Hop => wait.snapshot(ViewStoreContract.NAME),
+  /** Until the store the snapshot queries of `view-store` read holds the commit. */
+  queryable: (): Hop => wait.queryable(ViewStoreContract.NAME),
   /** Until a subscription of `view-store` handled the commit. */
   handled: (subscription: ViewStoreSubscription): Hop => wait.handled(subscription, ViewStoreContract.NAME),
 } as const;

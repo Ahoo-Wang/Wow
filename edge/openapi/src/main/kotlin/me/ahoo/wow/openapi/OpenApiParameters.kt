@@ -52,8 +52,9 @@ internal object OpenApiParameters {
         ),
         Http.WAIT_HEADER to header(
             Http.WAIT_HEADER,
-            "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot` or " +
-                "`handled(subscription)`, with an optional `(context)`, such as " +
+            "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the " +
+                "store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an " +
+                "optional `(context)`, such as " +
                 "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
         ),
         Http.WAIT_TIMEOUT_HEADER to header(

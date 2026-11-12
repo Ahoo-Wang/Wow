@@ -42,6 +42,13 @@ class HeaderGrammarTest {
         // The snapshot subscription's name is reserved under wow.; a subscription named snapshot is an application's.
         WaitHeader.parse("handled(wow.snapshot)").hops.assert().containsExactly(Hop.snapshot())
         WaitHeader.parse("handled(snapshot)").hops.assert().containsExactly(Hop.handled("snapshot"))
+        // The store an aggregate's snapshot queries read: a hop of its own, reserved under wow. as the snapshot's is.
+        WaitHeader.parse("queryable").hops.assert().containsExactly(Hop.queryable())
+        WaitHeader.parse("QUERYABLE( order )").hops.assert().containsExactly(Hop.queryable("order"))
+        WaitHeader.parse("handled(wow.queryable)").hops.assert().containsExactly(Hop.queryable())
+        WaitHeader.formatHop(Hop.queryable()).assert().isEqualTo("queryable")
+        WaitHeader.formatHop(Hop.queryable("order")).assert().isEqualTo("queryable(order)")
+        Hop.queryable("order").toString().assert().isEqualTo("queryable(order)")
     }
 
     @Test

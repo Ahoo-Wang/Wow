@@ -10,7 +10,7 @@
     "eshop-catalog/category/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/category/queryClient.ts": "51769dace5e09ca4e3d9aa7fec055f028ba94eb02b77f404c053aa1aa34691bd",
     "eshop-catalog/client.ts": "956e0b66e93894a5d5e3d9e5f8117be65a1c5e06fba9c537003ced482eaaa010",
-    "eshop-catalog/contract.ts": "84c5d43d5775b1a425116004663117422b00171b0a62e29af17217756447ce1c",
+    "eshop-catalog/contract.ts": "96e0655af16fc385db595523645337c0b1145e69e895f4ef2a067e68a47bc1b4",
     "eshop-catalog/index.ts": "a5174f7adb99ff0f92207ae045ea5d608cfe9653bc140102b2124142e10a89ac",
     "eshop-catalog/manifest.ts": "6255f2a1075bef352622faf92ea099f3246415f8cfbe268874c232ca42b9ea29",
     "eshop-catalog/product/aggregate.ts": "7098b598e245b0aa88baf8101c70943a8744922d81b384a970b509e8f72bae2f",

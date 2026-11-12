@@ -26,6 +26,8 @@ export const eshopPaymentWait = {
   committed: (): Hop => wait.committed(EshopPaymentContract.NAME),
   /** Until the snapshot of `eshop-payment` holds the commit. */
   snapshot: (): Hop => wait.snapshot(EshopPaymentContract.NAME),
+  /** Until the store the snapshot queries of `eshop-payment` read holds the commit. */
+  queryable: (): Hop => wait.queryable(EshopPaymentContract.NAME),
   /** Until a subscription of `eshop-payment` handled the commit. */
   handled: (subscription: EshopPaymentSubscription): Hop => wait.handled(subscription, EshopPaymentContract.NAME),
 } as const;

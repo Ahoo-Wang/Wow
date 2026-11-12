@@ -3,7 +3,7 @@
   "files": {
     "index.ts": "c8cc2cfaa3a5b13ebc9eb794e2899b8269b66c8a4ca2a3170797a63f34b8be3f",
     "view-store/client.ts": "3b45d7c97fdd626ca1a1be6f8bf6b85061d16e968f30d9fed3e4aeb092e71158",
-    "view-store/contract.ts": "fedfd405c7ad28f1aa9f2fd568861ea1b4ab55434315f6e7e852f23935f91a87",
+    "view-store/contract.ts": "f464915367f0096d1c95a4925d01a7c1071d63c2cfe44ca50af0c64d85ac4e95",
     "view-store/dataset_wording/aggregate.ts": "400fc65b242bd37d45a2348842fe3b43fff7701dbe97c00b1c1bc4685b6b5a03",
     "view-store/dataset_wording/commandClient.ts": "6c627fbb06f89ecbc4301c1ef98d4ab4b8f9056b2d8782e42ed28081d6c7b30b",
     "view-store/dataset_wording/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",

@@ -96,11 +96,11 @@ class Subscription private constructor(
      */
     val retry: HandlerRetry? = null,
     /**
-     * The hop a wait names for this subscription's handling of an aggregate of a type, null when none does: its
-     * [name] when not given (a snapshot target answers the `snapshot` hop for the types whose primary it is, and none
-     * for the others).
+     * The hops a wait names for this subscription's handling of an aggregate of a type, none when no hop does: its
+     * [name] alone when not given (a snapshot store's subscription answers the `snapshot` hop for the types whose own
+     * store it is and the `queryable` hop for those whose queries read it).
      */
-    private val answers: ((AggregateType) -> String?)? = null,
+    private val answers: ((AggregateType) -> Set<String>)? = null,
 ) {
     /**
      * With a [handler] that reports nothing of what it did: a saga, which reports what it derived, is made with [saga].
@@ -149,8 +149,10 @@ class Subscription private constructor(
         require(kind != FunctionKind.COMMAND) { "A subscription handles commits, not commands." }
     }
 
-    /** The name a wait's hop gives this subscription for an aggregate of [type], null when no hop names it. */
-    internal fun hopOf(type: AggregateType): String? = if (answers == null) name else answers.invoke(type)
+    /** The names a wait's hop gives this subscription for an aggregate of [type]; none when no hop names it. */
+    internal fun hopsOf(type: AggregateType): Set<String> = answers?.invoke(type) ?: named
+
+    private val named: Set<String> = setOf(name)
 
     /** Whether a lane runs its live entries together: a subscription that [coalesces] or is made [batching]. */
     internal val runsTogether: Boolean get() = coalesces || runHandler != null
@@ -210,7 +212,7 @@ class Subscription private constructor(
             filter: SubscriptionFilter,
             kind: FunctionKind,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
-            answers: ((AggregateType) -> String?)? = null,
+            answers: ((AggregateType) -> Set<String>)? = null,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,

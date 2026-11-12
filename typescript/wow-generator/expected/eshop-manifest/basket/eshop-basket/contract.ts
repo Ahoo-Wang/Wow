@@ -26,6 +26,8 @@ export const eshopBasketWait = {
   committed: (): Hop => wait.committed(EshopBasketContract.NAME),
   /** Until the snapshot of `eshop-basket` holds the commit. */
   snapshot: (): Hop => wait.snapshot(EshopBasketContract.NAME),
+  /** Until the store the snapshot queries of `eshop-basket` read holds the commit. */
+  queryable: (): Hop => wait.queryable(EshopBasketContract.NAME),
   /** Until a subscription of `eshop-basket` handled the commit. */
   handled: (subscription: EshopBasketSubscription): Hop => wait.handled(subscription, EshopBasketContract.NAME),
 } as const;
