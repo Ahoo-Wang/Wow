@@ -186,11 +186,19 @@ export function SortableHeader({
   const after = upcoming
     ? upcoming(column.field)
     : cycledSort(drafted, column.field, true);
+  // A reference read as names sorts by the id no reader sees, so
+  // the header says so whether or not it is sorted yet: the word in the
+  // name, the reason in its description and its tooltip.
+  const byId = column.sortsById === true;
+  // The word stands beside the label in the name as it does on screen:
+  // what a reader sees in the button is 「买家 按 ID」, and a name with the
+  // action between the two does not hold it (WCAG 2.5.3).
+  const shown = byId
+    ? `${column.label} ${messages.label('label.sort.by-id')}`
+    : column.label;
   const name = messages.label(
     `label.sort.${pressAction(after, column.field)}`,
-    {
-      field: column.label,
-    },
+    { field: shown },
   );
   // A position is only meaningful against another one.
   const position = sort.length > 1 && at >= 0 ? at + 1 : null;
@@ -198,10 +206,6 @@ export function SortableHeader({
   // said beside the action, so the name reads true against what is shown.
   const waiting = drafted.find(entry => entry.field === column.field);
   const waits = (waiting?.direction ?? null) !== direction;
-  // A reference read as names sorts by the id no reader sees, so
-  // the header says so whether or not it is sorted yet: the word in the
-  // name, the reason in its description and its tooltip.
-  const byId = column.sortsById === true;
   const describedBy = [
     additiveId,
     note?.id,
@@ -230,7 +234,6 @@ export function SortableHeader({
         {...stop}
         aria-label={[
           name,
-          byId ? messages.label('label.sort.by-id') : null,
           position === null
             ? null
             : messages.label('label.sort.at', {
