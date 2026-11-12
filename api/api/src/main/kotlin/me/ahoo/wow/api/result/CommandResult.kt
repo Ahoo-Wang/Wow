@@ -31,9 +31,9 @@ enum class FunctionKind {
     SAGA,
 
     /**
-     * A built-in subscription of Wow's: the snapshots, the reservations, the timers, the access stamps, the sinks, the
-     * receipts and the command intake. Which one it is is its [FunctionInfo.processor] and [FunctionInfo.name], its
-     * name split at the last dot (`wow` and `snapshot` for `wow.snapshot`).
+     * A built-in subscription of Wow's, such as the one that writes snapshots. Which one it is is its
+     * [FunctionInfo.processor] and [FunctionInfo.name], its name split at the last dot (`wow` and `snapshot` for
+     * `wow.snapshot`).
      */
     SYSTEM,
 
