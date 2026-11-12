@@ -55,12 +55,14 @@ sealed interface SubscriptionStart {
     }
 
     /**
-     * From the first entry of the partition, in log order, committed at or after [instant]: every entry after it is
-     * handled, whatever its commit time; after the head when none is yet, as [End].
+     * From the first entry of the partition, in log order, written at or after [instant]: every entry after it is
+     * handled, whatever its time; after the head when none is yet, as [End]. An entry's time is when it was written
+     * (`EventStreamRecord.writtenAt`): an import's commit occurred long before, and was written after the instant all
+     * the same.
      *
-     * Commit times are not ordered along a partition: an entry's is its decision's time (`DecideScope.now`), and
-     * decisions of different aggregates commit in another order than they read the time (one decides longer, or waits
-     * longer to be appended), as imported history and a lease handover's clock skew do too. So the entry is found by
+     * Those times are not ordered along a partition: an entry's is its decision's reading of the clock, and decisions
+     * of different aggregates commit in another order than they read it (one decides longer, or waits longer to be
+     * appended), as a lease handover's clock skew does too. So the entry is found by
      * reading the partition forward from its first entry ([firstAt]) up to the head read when the search begins, the
      * way a subscription catching up reads it ([EventLog.tail]), once, on the subscription's first start in the
      * partition: the entries before the start are read, not handled.
@@ -74,7 +76,7 @@ sealed interface SubscriptionStart {
                 emptyFlow()
             } else {
                 log.tail(partition, null).transformWhile { entry ->
-                    emit(TimedEntry(entry.position.sequence, entry.stream.commitTime))
+                    emit(TimedEntry(entry.position.sequence, entry.stream.writtenAt))
                     entry.position.sequence < head
                 }
             }
@@ -94,7 +96,7 @@ sealed interface SubscriptionStart {
             var read = 0L
             val first = commits.firstOrNull { commit ->
                 read++
-                commit.commitTime?.let { it >= millis } == true
+                commit.writtenAt?.let { it >= millis } == true
             }
             val checkpoint = first?.let { it.sequence - 1 } ?: end
             logger.info {
@@ -142,7 +144,7 @@ sealed interface SubscriptionStart {
     }
 }
 
-/** An entry of a partition, at [sequence] (from 1), committed at [commitTime]; null when it cannot be read. */
-internal class TimedEntry(val sequence: Long, val commitTime: Long?)
+/** An entry of a partition, at [sequence] (from 1), written at [writtenAt]; null when it cannot be read. */
+internal class TimedEntry(val sequence: Long, val writtenAt: Long?)
 
 private val logger = KotlinLogging.logger {}

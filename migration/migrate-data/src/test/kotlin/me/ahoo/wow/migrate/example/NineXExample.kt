@@ -48,6 +48,9 @@ import java.math.BigDecimal
 internal object NineXExample {
     const val CONTEXT = "example"
 
+    /** When the tests' import writes its streams: after every 9.x stream of the example, which they keep as written. */
+    const val IMPORTED_AT: Long = 1_794_000_000_000L
+
     /**
      * The event the V10 port retired (decision D219): the 9.x `order_archived` the import tests add, as 9.x's
      * `DroppedEvent` would have handled it after the archive feature was removed.

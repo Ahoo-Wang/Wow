@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
@@ -62,6 +63,14 @@ class TopicStartTest {
         at(4_000).assert().isEqualTo(0L)
         at(6_000).assert().isEqualTo(2L)
         at(8_000).assert().isEqualTo(4L)
+    }
+
+    @Test
+    fun `an instant starts at an imported record written after it, whenever its commit occurred`(): Unit = runBlocking {
+        // Version 2 was created long before in the system it came from, and written at 4 s.
+        val imported = committedAt(2, 0).copyWith(headers = mapOf(EventStreamRecord.WRITTEN_AT to "4000"))
+        topics.publish(committedAt(1, 1), imported, committedAt(3, 5))
+        at(3_000).assert().isEqualTo(1L)
     }
 
     @Test

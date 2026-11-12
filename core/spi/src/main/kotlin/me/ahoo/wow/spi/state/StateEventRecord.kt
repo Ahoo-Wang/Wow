@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
 
@@ -105,6 +106,13 @@ class StateEventRecord @InternalWowApi constructor(
 
     /** The identity of the commit, `ref@version`: what a reader deduplicates by. */
     val id: String get() = idOf(ref, version)
+
+    /**
+     * When the commit was actually written (epoch milliseconds): [commitTime], unless its creation command declared
+     * the commit's time ([EventStreamRecord.WRITTEN_AT] among [headers]), which the time it was written then follows.
+     */
+    val writtenAt: Long
+        get() = headers[EventStreamRecord.WRITTEN_AT]?.toLongOrNull() ?: commitTime
 
     /** This StateEventRecord with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi

@@ -142,14 +142,17 @@ object ScheduleSlots {
         else -> rule.firstDue(commitTime) ?: Timers.NOT_EVALUATED
     }
 
-    /** The timer [set], an event of [stream], makes in [partitions] partitions, its first slot evaluated. */
+    /**
+     * The timer [set], an event of [stream], makes in [partitions] partitions, its first slot evaluated: counted from
+     * when the commit was written ([EventStreamRecord.writtenAt]), as [Timers.of] counts.
+     */
     @JvmStatic
     fun timerOf(stream: EventStreamRecord, set: ScheduleSet, partitions: Int): Timer {
         val timer = Timers.of(stream, set, partitions)
         if (set.rule !is ScheduleRule.Cron) {
             return timer
         }
-        val due = firstDue(set.rule, stream.commitTime)
+        val due = firstDue(set.rule, stream.writtenAt)
         return timer.copyWith(dueAt = due, slotDueAt = due)
     }
 

@@ -1412,6 +1412,7 @@ public final class me/ahoo/wow/spi/state/StateEventRecord {
 	public final fun getState ()Lme/ahoo/wow/spi/state/PublishedState;
 	public final fun getTransport ()Lme/ahoo/wow/spi/log/Transport;
 	public final fun getVersion ()I
+	public final fun getWrittenAt ()J
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;)Lme/ahoo/wow/spi/state/StateEventRecord;
