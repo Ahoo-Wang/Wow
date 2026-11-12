@@ -14,6 +14,8 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -22,7 +24,10 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StartsWithFilter
@@ -32,6 +37,8 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -39,18 +46,22 @@ import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
+import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
  * The access indexes of a log collection: created as `ddl` says, partial on the streams, and taken by the `events`
- * model's queries under an access policy, a multikey one for a multiple attribute.
+ * model's queries under an access policy, a multikey one for a multiple attribute. The built-in attributes' indexes are
+ * partial on the attribute's existence instead (D420): a stream of an aggregate without an owner or a space leaves both out
+ * and adds no entry, and reads back with both null.
  */
 class MongoEventQueryIndexesTest {
     private val type = AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
@@ -75,13 +86,13 @@ class MongoEventQueryIndexesTest {
         defs = mapOf("it.OrderState" to mapOf("type" to "object")),
     )
 
-    /** Stream `n`, the first of its aggregate, of an owner and a space among a hundred; every fiftieth not stamped. */
-    private fun stream(n: Int): EventStreamRecord {
-        val scope = Scope("u-${n % OWNERS}", "s-${n % OWNERS}")
-        val access = AccessValues.ofStream(
-            mapOf("region" to "R${n % REGIONS}", "teams" to listOf("K${n % REGIONS}")),
-            scope
-        )
+    /**
+     * Stream `n`, the first of its aggregate, of an owner and a space among a hundred, every third of neither (as E1's
+     * aggregates are); every fiftieth not stamped.
+     */
+    private fun stream(n: Int, region: String = "R${n % REGIONS}"): EventStreamRecord {
+        val scope = if (n % NO_SCOPE == 0) Scope.NONE else Scope("u-${n % OWNERS}", "s-${n % OWNERS}")
+        val access = AccessValues.ofStream(mapOf("region" to region, "teams" to listOf("K${n % REGIONS}")), scope)
         return EventStreamRecord(
             ref = type.ref(if (n % 2 == 0) "t3" else "t4", "o-$n"),
             version = 1,
@@ -102,11 +113,7 @@ class MongoEventQueryIndexesTest {
             for (chunk in (0 until ROWS).chunked(BATCH)) {
                 log.appendAll(chunk.map { stream(it) to null })
             }
-            val binding = MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
-                .binding(type)!!
-            val schema = QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
-                .compile(QuerySchemaContext(type, QueryModel.EVENTS), binding.storage)
-                .schema()
+            val schema = schema()
             val declarations = QueryIndexDeclaration.accessOf(manifest, type.context, type.name) +
                 QueryIndexDeclaration.BUILT_IN_ACCESS
             val indexes = MongoQueryIndexes.planLog(type.context, type.name, QueryIndexPlan.of(schema, declarations))
@@ -126,18 +133,9 @@ class MongoEventQueryIndexesTest {
                 .assert().isEqualTo(MongoQueryIndexReport())
 
             val collection = database.getCollection(indexes.first().collection)
-            fun plan(filter: FilterExpression): String {
-                val admitted = QueryAdmission.Trusted.list(
-                    ListQuery(AndFilter(listOf(TenantIdFilter("t3"), filter)), limit = 10),
-                    schema,
-                )
-                // Every `events` query holds the streams' scope, the indexes' partial filter.
-                val streams = Filters.exists("version")
-                val filter = Filters.and(streams, MongoMatchCompiler.compile(admitted.query.filter, admitted))
-                return collection.find(filter)
-                    .limit(10).explain()
-                    .get("queryPlanner", Document::class.java).get("winningPlan", Document::class.java).toJson()
-            }
+            fun plan(filter: FilterExpression): String = collection.find(compiled(schema, filter))
+                .limit(10).explain()
+                .get("queryPlanner", Document::class.java).get("winningPlan", Document::class.java).toJson()
             fun uses(name: String) = "\"indexName\": \"$name\""
             val single = QueryField("access.region")
             val multiple = QueryField("access.teams")
@@ -151,7 +149,73 @@ class MongoEventQueryIndexesTest {
             // A policy ORs its branches: each takes its own attribute's index.
             plan(OrFilter(listOf(EqualFilter(QueryField("access.owner"), "u-7"), EqualFilter(multiple, "K7"))))
                 .assert().contains(uses("access_owner")).contains(uses("access_teams"))
+
+            // The built-in indexes skip the streams without the attribute (D420): equality, `$in` and a negation
+            // imply it and read the index; `isNull` cannot, and scans the streams, as intended (PostgreSQL alike).
+            val owner = QueryField("access.owner")
+            val space = QueryField("access.space")
+            plan(InFilter(owner, listOf("u-7", "u-8"))).assert().contains(uses("access_owner"))
+            plan(AndFilter(listOf(IsNotNullFilter(owner), NorFilter(listOf(EqualFilter(owner, "u-7"))))))
+                .assert().contains(uses("access_owner"))
+            plan(IsNullFilter(space)).assert().contains("COLLSCAN").doesNotContain(uses("access_space"))
+            plan(OrFilter(listOf(EqualFilter(owner, "u-7"), IsNullFilter(space)))).assert().contains("COLLSCAN")
+
+            // A stream without an owner or a space adds no entry to their indexes; every stamped stream has a region.
+            val keys = database.runCommand(Document("validate", collection.namespace.collectionName))
+                .get("keysPerIndex", Document::class.java)
+            val stamped = (0 until ROWS).filter { it % UNSTAMPED != 0 }
+            keys.getInteger("access_owner").assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
+            keys.getInteger("access_space").assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
+            keys.getInteger("access_region").assert().isEqualTo(stamped.size)
+            // `isNull` still finds them all: the attribute left out matches it as a null does.
+            collection.countDocuments(compiled(schema, IsNullFilter(space)))
+                .assert().isEqualTo(stamped.count { it % NO_SCOPE == 0 && it % 2 == 0 }.toLong())
         }
+
+    @Test
+    fun `a stream without an owner or a space reads back with both null, appended, stamped or written before D420`():
+        Unit = runBlocking {
+            val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
+            val appended = stream(6)
+            log.append(appended)
+            val collection = database.getCollection(MongoNames.of(MongoEventLog.PREFIX, type.context, type.name))
+            fun stored() = checkNotNull(collection.find(Filters.eq("aggregate_id", "o-6")).first())
+                .get("access", Document::class.java)
+            stored().keys.assert().containsExactly("region", "teams")
+            suspend fun read() = log.read(appended.ref).toList().single().access
+            read().assert().isEqualTo(appended.access).containsKeys("owner", "space")
+
+            val restamped = checkNotNull(stream(6, region = "R9").access)
+            log.stamp(appended.ref, restamped, 1, 1, 2).assert().isEqualTo(1)
+            stored().keys.assert().containsExactly("region", "teams")
+            read().assert().isEqualTo(restamped)
+
+            // A stream written before D420 holds the nulls: it reads the same, and `isNull` matches it.
+            collection.updateOne(
+                Filters.eq("aggregate_id", "o-6"),
+                Updates.set("access", Document("owner", null).append("space", null).append("region", "R9")
+                    .append("teams", listOf("K6"))),
+            )
+            read().assert().isEqualTo(restamped)
+            collection.countDocuments(compiled(schema(), IsNullFilter(QueryField("access.space")))).assert().isEqualTo(1L)
+        }
+
+    /** The `events` schema of [type] over this log, as the query engine compiles it. */
+    private suspend fun schema() = QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
+        .compile(
+            QuerySchemaContext(type, QueryModel.EVENTS),
+            MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!.storage,
+        )
+        .schema()
+
+    /** [filter] in tenant t3, compiled as an `events` query is, with the streams' scope, the indexes' partial filter. */
+    private fun compiled(schema: QueryModelSchema, filter: FilterExpression): Bson {
+        val admitted = QueryAdmission.Trusted.list(
+            ListQuery(AndFilter(listOf(TenantIdFilter("t3"), filter)), limit = 10),
+            schema,
+        )
+        return Filters.and(Filters.exists("version"), MongoMatchCompiler.compile(admitted.query.filter, admitted))
+    }
 
     private companion object {
         const val PARTITIONS = 4
@@ -160,5 +224,6 @@ class MongoEventQueryIndexesTest {
         const val OWNERS = 100
         const val REGIONS = 10
         const val UNSTAMPED = 50
+        const val NO_SCOPE = 3
     }
 }

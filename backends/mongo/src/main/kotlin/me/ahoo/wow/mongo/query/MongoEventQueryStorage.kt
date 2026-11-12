@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
@@ -189,6 +190,12 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                             .put(MongoOperators.TENANT_ID, operator.tenantId)
                             .put(MongoOperators.ACTED_ELSEWHERE, operator.actedElsewhere)
                     } ?: nodes.nullNode(),
+                )
+                // The built-in attributes a stream leaves out when they have no value, put back as null.
+                EventStreamFields.ACCESS -> set(
+                    logical,
+                    document.get(physical, Document::class.java)?.let { ExactBson.node(MongoAccess.restored(it)) }
+                        ?: nodes.nullNode(),
                 )
                 else -> set(logical, ExactBson.node(document[physical]))
             }

@@ -22,6 +22,7 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.access.AccessValues
 import org.bson.Document
 import org.slf4j.LoggerFactory
 
@@ -43,7 +44,10 @@ data class MongoQueryIndex(
     /** The key document of the index: `{tenant_id: 1, <key>: 1, ...}`. */
     fun keyDocument(): Document = Document().also { document -> keys.forEach { document[it] = 1 } }
 
-    /** The partial filter of the index: `{deleted: false}` on the snapshots, `{version: {$exists: true}}` on a log. */
+    /**
+     * The partial filter of the index: `{deleted: false}` on the snapshots, `{version: {$exists: true}}` on a log, the
+     * attribute's existence for a built-in access attribute's ([MongoQueryIndexes.planLog]).
+     */
     fun partialFilter(): Document = Document(partial)
 
     /** The `createIndexes` specification of the index, as `listIndexes` reports it. */
@@ -87,6 +91,9 @@ object MongoQueryIndexes {
     /** The index names the store keeps for itself. */
     private val RESERVED = setOf(MongoSnapshotDocuments.ID + "_")
 
+    /** The paths of the built-in access attributes in a log stream, which a stream leaves out without a value. */
+    private val BUILT_IN_ACCESS = listOf(AccessValues.OWNER, AccessValues.SPACE).map { "${MongoEventLog.ACCESS}.$it" }
+
     /**
      * The indexes of the snapshot collection of [aggregate] in [context]: the two scope indexes, then those of
      * [plan], keyed by its keys' document paths. Fails on a second multi-valued key (MongoDB cannot index parallel
@@ -120,7 +127,10 @@ object MongoQueryIndexes {
      * The indexes of [plan], the access attributes of [aggregate] in [context], on its log collection: led by the
      * tenant, each attribute's document path (multikey for a multiple one), partial on the streams
      * (`{version: {$exists: true}}`), which every `events` query asks for, so it can use them; the log's placeholders
-     * hold no version. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
+     * hold no version. A built-in attribute's index (`owner`, `space`) is partial on the attribute's existence
+     * instead, which a placeholder lacks too and a stream leaves out without a value ([me.ahoo.wow.mongo.MongoAccess], decision D420), so a stream of an
+     * aggregate without an owner or a space adds no entry: an equality, an `$in` or a negation implies it and reads
+     * the index, and `isNull` scans the streams, as on PostgreSQL. No tie-breaker ends them: they narrow the streams an access policy lets a reader see,
      * and are not read for an order, which for an `events` query ends with the stream key (tenant, aggregate, version).
      */
     fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<MongoQueryIndex> {
@@ -135,7 +145,11 @@ object MongoQueryIndexes {
                 val physical = key.physicalField
                 MongoSnapshotDocuments.checked(physical.path)
             }
-            MongoQueryIndex(context, aggregate, index.name, paths.distinct(), collection, streams)
+            // On its attribute's existence alone, which an equality, an `$in` or a negation implies even as a
+            // branch of an `$or`: a branch does not imply the streams' `version`, so the planner would pass it by.
+            val partial = paths.singleOrNull { it in BUILT_IN_ACCESS }?.let { Document(it, Document("\$exists", true)) }
+                ?: streams
+            MongoQueryIndex(context, aggregate, index.name, paths.distinct(), collection, partial)
         }
     }
 

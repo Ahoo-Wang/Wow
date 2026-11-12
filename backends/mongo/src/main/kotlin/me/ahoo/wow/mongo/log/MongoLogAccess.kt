@@ -23,6 +23,7 @@ import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_WALK
@@ -66,7 +67,7 @@ internal class MongoLogAccess(
         return dispatcher.mongo {
             collections.of(ref.type).log.updateMany(
                 stampFilter(ref, asOf, from, until),
-                Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
+                Updates.combine(Updates.set(ACCESS, MongoAccess.log(access)), Updates.set(ACCESS_VERSION, asOf)),
             ).matchedCount.toInt()
         }
     }
@@ -84,7 +85,7 @@ internal class MongoLogAccess(
                 val updates = group.map {
                     UpdateManyModel<Document>(
                         stampFilter(it.ref, it.asOf, it.from, it.until),
-                        Updates.combine(Updates.set(ACCESS, Document(it.access)), Updates.set(ACCESS_VERSION, it.asOf)),
+                        Updates.combine(Updates.set(ACCESS, MongoAccess.log(it.access)), Updates.set(ACCESS_VERSION, it.asOf)),
                     )
                 }
                 collections.of(type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).matchedCount
