@@ -530,7 +530,6 @@ class PartitionAppendQueueTest {
         }
     }
 
-    /** Holds its first batch until [release]; batch number [failBatch] (from 1) throws. */
     /**
      * [Dispatchers.Default], counting the tasks dispatched and not finished: [idle] once every coroutine on it is
      * suspended.
@@ -552,6 +551,7 @@ class PartitionAppendQueueTest {
         }
     }
 
+    /** Holds its first batch until [release]; batch number [failBatch] (from 1) throws. */
     private class GatedLog(
         delegate: EventLog,
         private val failBatch: Int? = null,
