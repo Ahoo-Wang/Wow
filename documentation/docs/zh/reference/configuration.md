@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 284 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 282 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -50,10 +50,9 @@ Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `w
 | `wow.aggregates.[<context>.<aggregate>].log.store` | `String` |  | The store of `wow.stores` the type's log is on, over `wow.log.store`. |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | `String` |  | The store of `wow.stores` the type's `events` queries read; its log store when not set. |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | `UnpinnedEvents` |  | Whether an `events` query of the type that names no aggregate runs, over its store's. |
-| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | `String` |  | The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set. |
+| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | `String` |  | The store of `wow.stores` the type's `snapshot` queries read, which then keeps a copy of its snapshots; its `snapshot.store` when not set. |
 | `wow.aggregates.[<context>.<aggregate>].routing` | `CommandRouting` | `auto` | How the commands of the type are routed, over `wow.routing` (CommandRouting): `topic` writes them to its context's command topic, accepted once the broker acknowledged them, which needs a topic transport; `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it. |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | `String` |  | The one of them the type's write side and state reads read; the first when not set. |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | `List<String>` |  | The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`. |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | `String` |  | The store of `wow.stores` the type's snapshots are kept on, over `wow.snapshot.store`. |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | `String` |  | The tenant every aggregate of the type is in, whoever the caller is. |
 
 ## `wow.callers.<service>`
@@ -612,8 +611,7 @@ Where the snapshots are by default, and how the snapshot maintenance runs: `wow.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.snapshot.maintenance-interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
-| `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set. |
-| `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `wow.snapshot`, each other one's `wow.snapshot:<store>`. |
+| `wow.snapshot.store` | `String` |  | The store of `wow.stores` every aggregate's snapshots are kept on, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.store` names another; `wow.log.store` when not set. Its built-in subscription is `wow.snapshot`. The write side, the state reads and the snapshot queries read it, unless an aggregate's `query.snapshot.store` names another, which then keeps a copy for its queries. |
 | `wow.snapshot.write-batch` | `Integer` | `256` | How many snapshots of a partition the snapshot subscriptions write together at most. |
 
 ## `wow.snapshot.rebuild`

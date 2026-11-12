@@ -135,12 +135,9 @@ class QueryAutoConfiguration {
                 store.facet<StoreQueries>()?.snapshots(options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
-            val configured = backends.layout?.let { layout ->
-                HostSnapshotQueryStores.configured(wow.ifAvailable) { layout.snapshotPlacementOf(it).targets }
-            }.orEmpty()
-            // A type's snapshot queries read the store its configuration names, else its primary; its commands and its
-            // state reads read the primary whatever the queries read.
-            val storeOf = { type: AggregateType -> configured[type] ?: backends.snapshotStoreOf(type)?.name }
+            // A type's snapshot queries read its copy where it has one, else its own store; its commands and its state
+            // reads read its own store whatever the queries read.
+            val storeOf = { type: AggregateType -> backends.querySnapshotStoreOf(type)?.name }
             val backend = SnapshotQueryBackend.routing(types, storeOf) { type -> storeOf(type)?.let(byStore::get) }
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {

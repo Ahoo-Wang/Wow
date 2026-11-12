@@ -166,10 +166,14 @@ class ContextBackends @InternalWowApi constructor(
 
 /**
  * The store instances a context's ports were opened on: those its [writePath] needs (each store holding one of its
- * logs, each type's primary snapshot store), whose outage makes the node not ready, and the [others] (additional
- * snapshot stores, query and search stores), whose outage the node's health shows without taking it out of service.
+ * logs, each type's own snapshot store), whose outage makes the node not ready, and the [others] (the stores of the
+ * types' snapshot copies, which their queries read), whose outage the node's health shows without taking it out of
+ * service.
  */
-class PlacedStores @InternalWowApi constructor(val writePath: Set<Store>, val others: Set<Store> = emptySet()) {
+class PlacedStores @InternalWowApi constructor(
+    val writePath: Set<Store>,
+    internal val others: Set<Store> = emptySet()
+) {
     /** Every placed store, the write path's first. */
     val all: Set<Store> get() = writePath + others
 

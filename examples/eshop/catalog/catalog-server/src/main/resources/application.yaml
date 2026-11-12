@@ -66,8 +66,6 @@ wow:
     store: main
   aggregates:
     "[eshop-catalog.product]":
-      snapshot:
-        stores: [main, search]
       query:
         snapshot:
           store: search

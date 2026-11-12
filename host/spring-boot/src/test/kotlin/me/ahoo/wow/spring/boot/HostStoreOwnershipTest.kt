@@ -173,7 +173,7 @@ class HostStoreOwnershipTest {
                 "wow.stores.unopenable.type" to "owned",
                 "wow.stores.unopenable.region" to "nowhere",
                 "wow.log.store" to "main",
-                "wow.snapshot.stores" to "snapshots",
+                "wow.snapshot.store" to "snapshots",
                 sources = sources,
             )
         }

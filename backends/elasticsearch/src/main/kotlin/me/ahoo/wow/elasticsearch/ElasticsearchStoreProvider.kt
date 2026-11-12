@@ -41,16 +41,17 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 
 /**
- * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log,
- * so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
- * primary that holds the log or snapshots in a database, never as the primary, and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
+ * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log, so a store of this
+ * type keeps the copy an aggregate type's snapshot queries read (`wow.aggregates.[<context>.<aggregate>]
+ * .query.snapshot.store`), beside the type's own snapshot store in a database; never a type's own snapshot store,
+ * and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
  * `client` option names (else the only one), with the settings:
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
  *   several services or environments share; none by default;
  * - `refresh`: when a write becomes visible to searches, `false` (the default: within the index's refresh interval),
  *   `wait_for` (a snapshot is queryable once its write returns) or `true` (an immediate refresh, for tests). A
- *   command's `snapshot` wait is answered by the subscription of its primary snapshot store, never this one's, so
+ *   command's `snapshot` wait is answered by the subscription of its own snapshot store, never this one's, so
  *   waiting for a refresh serves only an in-process caller that builds a wait hop on this store's subscription in
  *   code (`wow.snapshot:<store>`, a name `Wow-Wait` does not admit), and caps that subscription's writes at a batch
  *   per write lane a refresh interval;
@@ -229,8 +230,8 @@ internal class ElasticsearchStore(
         UnsupportedOperationException(
             "The Elasticsearch store $name holds no log: snapshots only. Keep the log and the control plane " +
                 "(timers, checkpoints, leases, the failure ledger, reservations) on a PostgreSQL or MongoDB store " +
-                "(wow.log.store), and name $name among a type's snapshot stores " +
-                "(wow.aggregates.[<context>.<aggregate>].snapshot.stores).",
+                "(wow.log.store), and make $name the store a type's snapshot queries read, which keeps a copy of them " +
+                "(wow.aggregates.[<context>.<aggregate>].query.snapshot.store).",
         )
 
     companion object {

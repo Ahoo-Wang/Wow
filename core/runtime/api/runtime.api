@@ -588,7 +588,6 @@ public final class me/ahoo/wow/runtime/node/PlacedStores {
 	public static final field NONE Lme/ahoo/wow/runtime/node/PlacedStores;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAll ()Ljava/util/Set;
-	public final fun getOthers ()Ljava/util/Set;
 	public final fun getWritePath ()Ljava/util/Set;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -760,23 +759,6 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion {
 	public final fun getDEFAULT_INTERVAL-UwyO8pc ()J
 	public final fun getDEFAULT_TTL-UwyO8pc ()J
-}
-
-public final class me/ahoo/wow/runtime/snapshot/SnapshotPlacement {
-	public static final field Companion Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getPrimary ()Ljava/lang/String;
-	public final fun getTargets ()Ljava/util/List;
-	public fun hashCode ()I
-	public static final fun of (Ljava/util/List;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public static final fun of (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/runtime/snapshot/SnapshotPlacement$Companion {
-	public final fun of (Ljava/util/List;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public final fun of (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement$Companion;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/snapshot/SnapshotPlacement;
 }
 
 public final class me/ahoo/wow/runtime/state/SharedStateOptions {

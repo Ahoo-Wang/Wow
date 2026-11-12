@@ -107,10 +107,10 @@ class HostStoresTest {
         val layout = layoutOf(
             properties {
                 log.store = "a"
-                snapshot.stores = mutableListOf("b")
+                snapshot.store = "b"
                 aggregates["$BANK.account"] = AggregateProperties().apply {
                     log.store = "c"
-                    snapshot.stores = mutableListOf("a")
+                    snapshot.store = "a"
                 }
                 aggregates["$BANK.other"] = AggregateProperties().apply { tenant = "fixed" }
             },
@@ -125,68 +125,68 @@ class HostStoresTest {
     }
 
     @Test
-    fun `snapshots may have several targets, by default or per type, each with its primary (D172)`() {
+    fun `a type's snapshots are on one store, copied to the one its queries read when that is another (D423)`() {
         val layout = layoutOf(
             properties {
                 log.store = "a"
-                snapshot.stores = mutableListOf("a", "b")
-                snapshot.primary = "b"
+                snapshot.store = "b"
                 aggregates["$BANK.account"] = AggregateProperties().apply {
-                    snapshot.stores = mutableListOf("c", "a")
+                    snapshot.store = "c"
+                    query.snapshot.store = "a"
                 }
             },
             memory("a", "b", "c"),
             models,
         )
-        layout.snapshotDefault.assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
-        layout.snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("c", "a"), "c"))
+        layout.snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("c", copy = "a"))
         layout.snapshotStoreOf(account).assert().isEqualTo("c")
+        layout.querySnapshotStoreOf(account).assert().isEqualTo("a")
+        layout.snapshotPlacementOf(AggregateType(BANK, "other")).assert().isEqualTo(SnapshotPlacement("b"))
         layout.snapshotStores.assert().containsExactlyInAnyOrder("a", "b", "c")
         val stores = memory("a", "b", "c")
-        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshots)
-        targets.default.assert().isEqualTo("a")
+        val bank = layout.open(BANK, stores, 4)
+        val targets = checkNotNull(bank.snapshots)
+        targets.default.assert().isEqualTo("b")
         targets.stores.keys.assert().containsExactlyInAnyOrder("a", "b", "c")
         targets.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
-        // A type that names its primary alone keeps the default targets.
+        targets.querySubscriptionOf(account).assert().isEqualTo("wow.snapshot:a")
+        // Its queries naming its own store keep no copy; naming another alone copies the default store's snapshots.
         layoutOf(
             properties {
                 log.store = "a"
-                snapshot.stores = mutableListOf("a", "b")
-                aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.primary = "b" }
+                aggregates["$BANK.account"] = AggregateProperties().apply {
+                    snapshot.store = "b"
+                    query.snapshot.store = "b"
+                }
             },
             memory("a", "b"),
             models,
-        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("b"))
+        layoutOf(
+            properties {
+                log.store = "a"
+                aggregates["$BANK.account"] = AggregateProperties().apply { query.snapshot.store = "b" }
+            },
+            memory("a", "b"),
+            models,
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("a", copy = "b"))
         assertThrows<WowConfigurationException> {
-            layoutOf(properties { snapshot.stores = mutableListOf("z") }, memory("a"), models)
-        }.key.assert().isEqualTo("wow.snapshot.stores")
+            layoutOf(properties { snapshot.store = "z" }, memory("a"), models)
+        }.key.assert().isEqualTo("wow.snapshot.store")
         assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
-                    snapshot.primary = "b"
+                    aggregates["$BANK.account"] = AggregateProperties().apply { query.snapshot.store = "z" }
                 },
-                memory("a", "b"),
-                models
-            )
-        }.key.assert().isEqualTo("wow.snapshot.primary")
-        assertThrows<IllegalStateException> {
-            layoutOf(
-                properties {
-                    log.store = "a"
-                    aggregates["$BANK.account"] = AggregateProperties().apply {
-                        snapshot.stores = mutableListOf("a")
-                        snapshot.primary = "b"
-                    }
-                },
-                memory("a", "b"),
+                memory("a"),
                 models,
             )
-        }.message.assert().contains("primary store b is not one of its targets")
+        }.key.assert().isEqualTo("wow.aggregates.[$BANK.account].query.snapshot.store")
     }
 
     @Test
-    fun `a store that only holds a copy is never a type's primary snapshot store, nor its only one`() {
+    fun `a store that only holds a copy is never a type's own snapshot store, and may be its queries' copy`() {
         val stores = memory("a") + (
             "search" to object : AcmeStore(StoreConfig("search", "search")) {
                 override val primarySnapshots: Boolean = false
@@ -195,36 +195,35 @@ class HostStoresTest {
         layoutOf(
             properties {
                 log.store = "a"
-                aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("a", "search") }
+                aggregates["$BANK.account"] = AggregateProperties().apply { query.snapshot.store = "search" }
             },
             stores,
             models,
-        ).snapshotPlacementOf(account).primary.assert().isEqualTo("a")
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement("a", copy = "search"))
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("search") }
+                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.store = "search" }
                 },
                 stores,
                 models,
             )
         }.message.assert().contains(
-            "The snapshot placement makes search",
-            "List a mongo or postgres store first",
+            "The store placement makes search",
+            "Keep the snapshots on a mongo or postgres store",
             "query search through the aggregate type's query snapshot store",
         )
         assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
-                    snapshot.stores = mutableListOf("a", "search")
-                    snapshot.primary = "search"
+                    snapshot.store = "search"
                 },
                 stores,
                 models,
             )
-        }.key.assert().isEqualTo("wow.snapshot.primary")
+        }.key.assert().isEqualTo("wow.snapshot.store")
     }
 
     @Test
@@ -252,12 +251,12 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    snapshot.stores = mutableListOf("c")
+                    snapshot.store = "c"
                 },
                 two,
                 models
             )
-        }.key.assert().isEqualTo("wow.snapshot.stores")
+        }.key.assert().isEqualTo("wow.snapshot.store")
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
@@ -272,12 +271,12 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.stores = mutableListOf("z") }
+                    aggregates["$BANK.account"] = AggregateProperties().apply { snapshot.store = "z" }
                 },
                 two,
                 models,
             )
-        }.key.assert().isEqualTo("wow.aggregates.[$BANK.account].snapshot.stores")
+        }.key.assert().isEqualTo("wow.aggregates.[$BANK.account].snapshot.store")
         assertThrows<IllegalArgumentException> { layoutOf(properties(), emptyMap(), models) }
     }
 
@@ -310,7 +309,7 @@ class HostStoresTest {
         layoutOf(
             properties {
                 log.store = "a"
-                snapshot.stores = mutableListOf("b")
+                snapshot.store = "b"
             },
             stores,
             models
@@ -357,14 +356,10 @@ class HostStoresTest {
         }
         // All on one store: covered there.
         covered(StoreLayout("a"), "a").assert().containsExactly("a:$BANK")
-        // The default snapshots, or a type's, on another store, or mirrored there: not covered.
+        // The default snapshots, or a type's, on another store, or copied there: not covered.
         covered(StoreLayout("a", "b"), "a", "b").assert().isEmpty()
         covered(StoreLayout("a", snapshots = mapOf(account to "b")), "a", "b").assert().isEmpty()
-        covered(
-            StoreLayout("a", placements = mapOf(account to SnapshotPlacement(listOf("a", "b"), "a"))),
-            "a",
-            "b",
-        ).assert().isEmpty()
+        covered(StoreLayout("a", copies = mapOf(account to "b")), "a", "b").assert().isEmpty()
         // A type's log on another store, whose log group saves its checkpoints there: not covered.
         covered(StoreLayout("a", logs = mapOf(account to "b")), "a", "b").assert().isEmpty()
         // Another context's split leaves this one whole.
@@ -494,20 +489,17 @@ class HostStoresTest {
     }
 
     @Test
-    fun `a type whose log store keeps its primary snapshots should get that store's read of both together`() {
+    fun `a type whose log store keeps its own snapshots should get that store's read of both together`() {
         val tailing = Tailing("a")
         val search = Unopened("b", "search", holdsLogs = false)
-        val layout = StoreLayout(
-            "a",
-            placements = mapOf(account to SnapshotPlacement(listOf("b", "a"), "b")),
-        )
+        val layout = StoreLayout("a", snapshots = mapOf(account to "b"), copies = mapOf(account to "a"))
         val bank = layout.open(BANK, mapOf("a" to tailing, "b" to search), 4)
         // The default placement keeps the snapshots on the log's store: read together.
         bank.snapshotTails.of(AggregateType(BANK, "other")).assert().isSameAs(tailing.reader)
-        // The account's primary snapshots are on another store: read apart.
+        // The account's own snapshots are on another store: read apart, whatever its copy.
         bank.snapshotTails.of(account).assert().isNull()
         bank.stores.writePath.assert().containsExactlyInAnyOrder(tailing, search)
-        bank.stores.others.assert().isEmpty()
+        bank.stores.all.assert().containsExactlyInAnyOrder(tailing, search)
     }
 
     @Test
@@ -517,7 +509,7 @@ class HostStoresTest {
             "wow.stores.accounts.type" to "memory",
             "wow.log.store" to "main",
             "wow.aggregates.[bank.account].log.store" to "accounts",
-            "wow.aggregates.[bank.account].snapshot.stores" to "accounts",
+            "wow.aggregates.[bank.account].snapshot.store" to "accounts",
         )
         host.use {
             val opened = host.post("/bank/account/open-account", """{"owner":"store"}""")
