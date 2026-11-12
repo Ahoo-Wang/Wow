@@ -414,3 +414,4 @@ fun onSourcing(event: OrderPaid, commit: EventStream) {
 
 - [拒绝与错误码](./rejections)：声明命令被拒绝时用的错误码。
 - [编写 Saga](./sagas)：从聚合的决定派生命令。
+- [从其他系统导入](./importing)：创建在别处已经存在的聚合，取它们在那里创建的时间。
