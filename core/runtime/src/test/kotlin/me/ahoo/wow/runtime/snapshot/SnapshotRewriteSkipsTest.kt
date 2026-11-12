@@ -101,6 +101,7 @@ class SnapshotRewriteSkipsTest {
         model: AggregateModel<Counter>,
         store: SnapshotStore,
         skips: Boolean = true,
+        with: MaintenanceSkips? = null,
     ) = SnapshotMaintenance(
         CONTEXT,
         GROUP,
@@ -114,7 +115,7 @@ class SnapshotRewriteSkipsTest {
         listOf(LogProgress(GROUP, log, InMemoryCheckpointStore())),
         SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
         observer = observer,
-        skips = skipsOf(Work.SNAPSHOT_REWRITE).takeIf { skips },
+        skips = with ?: skipsOf(Work.SNAPSHOT_REWRITE).takeIf { skips },
     )
 
     private fun skipsOf(work: Work) =
@@ -243,6 +244,30 @@ class SnapshotRewriteSkipsTest {
         ledger.parked(parked, ghost.ref)!!.reason.assert().isEqualTo("The log holds no stream of it.")
         skipped().assert().hasSize(1)
     }
+
+    @Test
+    fun `a snapshot with no stream whose type has no ledger should be left pending, the table rebuilding`(): Unit =
+        runBlocking {
+            val store = InMemorySnapshotStore()
+            val ghost = SnapshotRecord(type.ref("tenant", "ghost"), 1, "f", "{}", firstEventTime = 0, lastEventTime = 0)
+            store.save(ghost)
+            val unledgered = MaintenanceSkips(CONTEXT, Work.SNAPSHOT_REWRITE, { null })
+            val maintenance = maintenance(model(2), store, skips = false, with = unledgered)
+            maintenance.prepare()
+
+            maintenance.maintain()
+
+            store.table(type)!!.rebuilding.assert().isTrue()
+            ledger.count(parked, 10).assert().isZero()
+        }
+
+    @Test
+    fun `an operator's retry of a type it does not keep, or without skips, should resolve nothing`(): Unit =
+        runBlocking {
+            val store = InMemorySnapshotStore()
+            maintenance(model(2), store).retry(AggregateType(CONTEXT, "other").ref("tenant", "a")).assert().isFalse()
+            maintenance(model(2), store, skips = false).retry(type.ref("tenant", "a")).assert().isFalse()
+        }
 
     @Test
     fun `a rebuild without skips should stop at a snapshot whose history does not replay, as it did`(): Unit =

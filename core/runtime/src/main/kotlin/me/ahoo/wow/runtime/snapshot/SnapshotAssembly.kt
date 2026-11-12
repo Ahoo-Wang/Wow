@@ -80,7 +80,7 @@ internal class SnapshotAssembly(
         progress: List<LogProgress>,
         options: SnapshotOptions,
         address: () -> String,
-        skips: MaintenanceSkips? = null,
+        skips: MaintenanceSkips?,
     ): SnapshotMaintenance? = targets?.takeIf { snapshotted.isNotEmpty() }?.let {
         SnapshotMaintenance(
             context, group, node, snapshotted, it, kernel, codec, log, leases, progress, options, address, observer,

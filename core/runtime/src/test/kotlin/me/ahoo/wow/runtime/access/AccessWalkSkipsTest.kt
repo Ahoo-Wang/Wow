@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.FailureClassification
@@ -197,6 +198,23 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
         runBlocking { ledger.isParked(parked, poisoned) }.assert().isFalse()
         history(log, "b").assert().containsExactly(null, null)
         skipped().assert().hasSize(1)
+    }
+
+    @Test
+    fun `an operator's retry of a type the walk does not stamp, or of a walk without skips, should resolve nothing`() {
+        val log = InMemoryEventLog()
+        runBlocking { walkingOf(log).retry(AggregateType("office", "other").ref("tenant", "a")) }.assert().isFalse()
+        val plain = AccessWalking(
+            "office",
+            "service/office",
+            "n-1",
+            listOf(model),
+            Kernel(log),
+            { log },
+            InMemoryLeaseStore(),
+            options,
+        )
+        runBlocking { plain.retry(poisoned) }.assert().isFalse()
     }
 
     @Test

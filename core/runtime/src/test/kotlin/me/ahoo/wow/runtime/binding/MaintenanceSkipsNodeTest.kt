@@ -91,6 +91,9 @@ class MaintenanceSkipsNodeTest {
             parked(rewrite)
 
             node.parked.subscriptions.assert().contains(walk, rewrite)
+            // The node runs every partition: it publishes the entries, and acts on them at once.
+            node.parked.owns(walk, ref).assert().isTrue()
+            node.parked.owns(rewrite, ref).assert().isTrue()
             count(MaintenanceSkips.ACCESS_WALK).assert().isEqualTo(1)
             count(MaintenanceSkips.SNAPSHOT_REWRITE).assert().isEqualTo(1)
             node.parked.get(walk, ref)!!.entry.reason.assert().isEqualTo("skipped")
