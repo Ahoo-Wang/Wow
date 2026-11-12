@@ -414,3 +414,4 @@ Test each command function with `aggregateSpec`: given these events, when this c
 
 - [Rejections and Error Codes](./rejections): declare the codes a command is refused with.
 - [Write a Saga](./sagas): derive commands from what an aggregate decided.
+- [Import from Another System](./importing): create aggregates that already exist elsewhere, at the time they were created there.

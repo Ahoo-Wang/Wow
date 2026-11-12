@@ -7,6 +7,8 @@ description: What changes between Wow 9.x and V10, the path a 9.x service takes 
 
 Wow V10 is a redesign, not an upgrade in place. It keeps what a 9.x service is about, aggregates, commands, events, sagas, projections and queries, and rebuilds the machinery under them. This page explains what changes, what the way across looks like, and where to start.
 
+These tools migrate from Wow 9.x only. Aggregates from another system are imported with a creation command that declares when each was created ([Import from Another System](../guide/importing)).
+
 ## What changes
 
 | Topic | 9.x | V10 |
