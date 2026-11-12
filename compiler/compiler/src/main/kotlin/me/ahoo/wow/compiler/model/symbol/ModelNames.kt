@@ -39,7 +39,11 @@ internal object ModelNames {
     /** The lifecycle commands, by Kotlin name: an after hook may include them. */
     val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
 
-    /** The system commands every aggregate decides (lifecycle and schedule), by Kotlin name. */
+    /**
+     * The system commands every aggregate decides (lifecycle and schedule), by Kotlin name. The compiler sees no
+     * `:spi`, so it names them from `:api`'s registries; `ModelNamesTest` pins them to
+     * `SystemCommandGroups.DECIDED_BY_EVERY_AGGREGATE`.
+     */
     val SYSTEM_COMMANDS: Set<String> = LIFECYCLE_COMMANDS + Schedules.COMMANDS.values.map { it.canonicalName }
     const val ON_SOURCING = "onSourcing"
     const val STRING = "kotlin.String"

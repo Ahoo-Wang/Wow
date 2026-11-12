@@ -33,6 +33,8 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.EnableJob
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -49,6 +51,8 @@ import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.RebuildSnapshot
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
@@ -330,6 +334,17 @@ class CommandMessagesTest {
             sender.typeOf(Command("c", "r", ref, DeleteAggregate())).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
                 .message.assert().contains("depend on the api module of stock")
+            // A job or rebuild command is a built-in aggregate's, which no saga sends: the failure says so.
+            listOf(
+                RebuildSnapshot(listOf("i-1")) to SnapshotRebuilds.REBUILD_SNAPSHOT,
+                EnableJob("nightly") to ScheduleJobs.ENABLE_JOB,
+            ).forEach { (body, name) ->
+                assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, body)) }.message.assert()
+                    .isEqualTo(
+                        "$name is a command of stock's built-in aggregates, which a saga does not send: its service " +
+                            "takes it from its own routes.",
+                    )
+            }
             val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", wrong, Reserve(1))) }
                 .message.assert().contains("not one of stock.warehouse")

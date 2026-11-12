@@ -17,9 +17,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.ScheduleJobs
-import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -28,7 +25,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.CommandRelay
-import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.wait.WaitContext
 /**
  * The commands of peer contexts that the [CommandGateway] admits: the aggregates of a
@@ -62,13 +59,15 @@ class PeerCommands(
      * (`ctx.agg.AddItem`), one of its former names, or, for a request built from a command object, its class's binary
      * name. A mounted command is an edge's only and is never sent. Null when none matches.
      *
-     * A system command, such as a lifecycle one, is named by its system name (`wow.lifecycle.TransferOwner`) and sent
-     * under it, as a saga's is ([CommandSender.typeOf]); its schema is keyed by that name, not a class, so its class is
-     * the one the framework names it for ([systemClassOf]).
+     * A system command is named by its system name (`wow.lifecycle.TransferOwner`); its schema is keyed by that name,
+     * not a class, so its class is the one the framework names it for ([systemClassOf]). Of the system commands a
+     * contract lists ([SystemCommandGroups.LISTED_BY_A_CONTRACT]), this node relays the lifecycle ones, sent under their
+     * names as a saga's are ([CommandSender.typeOf]), and refuses the rebuild and the jobs ([PeerCommand.builtIn]),
+     * which the peer's built-in aggregates decide behind its own routes.
      */
     fun resolve(type: AggregateType, aggregate: AggregateManifest, request: String): PeerCommand? {
         // A system command built from its object is named by its class: the framework names it by its system name.
-        val command = SYSTEM_COMMANDS.entries.firstOrNull { it.value.name == request }?.key ?: request
+        val command = SYSTEM_COMMANDS.commands.entries.firstOrNull { it.value.name == request }?.key ?: request
         val schema = Manifest.schemaRef(command)
         val manifest = aggregate.commands.filterNot { it.mounted }.firstOrNull { it.names(type, command) }
             ?: aggregate.commands.filterNot { it.mounted }.firstOrNull { it.schema == schema }
@@ -82,7 +81,7 @@ class PeerCommands(
                 Creation.ALLOWED -> Creation.ALLOWED
             },
             manifest.idProperty,
-            builtIn = manifest.system && manifest.name in BUILT_IN_COMMANDS,
+            builtIn = manifest.system && manifest.name in SYSTEM_COMMANDS && manifest.name !in RELAYED.commands,
         )
     }
 
@@ -103,8 +102,8 @@ class PeerCommands(
     private fun CommandManifest.names(type: AggregateType, command: String): Boolean =
         (aliases + name).any { it == command || "$type.$it" == command || it == "$type.$command" }
 
-    /** The class of the system command [name], as [CommandSender.typeOf] names its class; null for one it names not. */
-    private fun systemClassOf(name: String): Class<*>? = SYSTEM_COMMANDS[name]
+    /** The class of the system command [name] a contract lists; null for one it lists not. */
+    private fun systemClassOf(name: String): Class<*>? = SYSTEM_COMMANDS.classOf(name)
 
     private fun classOf(schema: String): Class<*>? = try {
         Class.forName(Manifest.schemaKey(schema), false, classLoader)
@@ -115,14 +114,18 @@ class PeerCommands(
     }
 }
 
-/** The system commands a peer's aggregate takes by their names, as [CommandSender.typeOf] names them. */
-private val SYSTEM_COMMANDS: Map<String, Class<*>> = Lifecycle.COMMANDS + Schedules.COMMANDS
+/**
+ * The system commands a peer's contract lists, the client's too ([SystemCommandGroups.LISTED_BY_A_CONTRACT]): its
+ * lifecycle, its rebuild and its jobs. A schedule's commands are none of them: no contract lists them.
+ */
+private val SYSTEM_COMMANDS = SystemCommandGroups.LISTED_BY_A_CONTRACT
 
 /**
- * The system commands a contract lists for a context's built-in aggregates, its snapshot rebuild and its jobs, which
- * this node does not relay to a peer: their addressing and authorization are the peer's own routes'.
+ * Of [SYSTEM_COMMANDS], those this node relays to a peer: the lifecycle ones. The rebuild and the jobs are commands of
+ * the peer's built-in aggregates, whose addressing and authorization are its own routes': they are refused. A job
+ * command is refused before that, since its job aggregate is no aggregate of a contract.
  */
-private val BUILT_IN_COMMANDS: Set<String> = SnapshotRebuilds.COMMANDS.keys + ScheduleJobs.COMMANDS.keys
+private val RELAYED = SystemCommandGroups.Group.LIFECYCLE
 
 /**
  * A command type of a peer context's contract: its full [name] (`ctx.agg.Command`, or a system command's system name,
