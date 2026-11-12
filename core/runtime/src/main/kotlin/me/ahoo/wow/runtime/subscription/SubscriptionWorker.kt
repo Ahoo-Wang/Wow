@@ -294,8 +294,10 @@ internal class SubscriptionWorker(
         is Item.Skip -> runSkip(ref, item)
     }
 
-    /** [failure] escaped [item]: its lane ends ([AggregateLanes]), a fatal error recorded with its partition. */
-    private fun stopped(item: Item, failure: Throwable) {
+    /** [failure] escaped [item] of [ref]: its lane ends ([AggregateLanes]), a fatal error recorded with its partition. */
+    private fun stopped(ref: AggregateRef, item: Item, failure: Throwable) {
+        // The lanes' end is logged at ERROR, under their one name: this names the aggregate it stopped at.
+        logger.warn { "Subscription ${subscription.name} stopped at $ref in partition $partition: $failure." }
         // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
         (item as? Item.Action)?.result?.completeExceptionally(failure)
         if (failure is VirtualMachineError) {

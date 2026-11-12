@@ -21,8 +21,9 @@ import me.ahoo.wow.runtime.health.launchWorker
 /**
  * The lanes of one [SubscriptionWorker], [name]d: one an aggregate with items queued, drained in [scope] one item after
  * another, in their order, until the lane is empty; the aggregate's next item opens a new lane. Each item is run by
- * [handle], which handles its own failures. Whatever escapes it, but the scope's stop, is told to [stopped] and ends the
- * lane as a loop of the node ends ([launchWorker]): the node's liveness is `DOWN`, or the node fatal for a fatal error.
+ * [handle], which handles its own failures. Whatever escapes it, but the scope's stop, is told to [stopped] with the
+ * aggregate, and ends the lane as a loop of the node ends ([launchWorker]), the worker's lanes named once: the node's
+ * liveness is `DOWN`, or the node fatal for a fatal error.
  * The lane stays active, so the aggregate's later entries wait behind the one it did not settle rather than run past
  * it, until a restart reads the partition again from its checkpoint. Every section runs under [monitor], the worker's.
  */
@@ -31,9 +32,12 @@ internal class AggregateLanes<I : Any>(
     private val monitor: Any,
     private val scope: CoroutineScope,
     private val handle: suspend (ref: AggregateRef, lane: Lane<I>, item: I) -> Unit,
-    private val stopped: (item: I, failure: Throwable) -> Unit,
+    private val stopped: (ref: AggregateRef, item: I, failure: Throwable) -> Unit,
 ) {
     private val active = HashMap<AggregateRef, Lane<I>>()
+
+    /** The loop name of every lane, made once: a lane opens for nearly every entry. */
+    private val loop = "lanes of $name"
 
     /** One aggregate's queued items. */
     class Lane<I> {
@@ -44,7 +48,7 @@ internal class AggregateLanes<I : Any>(
     fun enqueue(ref: AggregateRef, item: I, first: Boolean) {
         val lane = active[ref] ?: Lane<I>().also {
             active[ref] = it
-            scope.launchWorker("lane of $ref in $name") { next(ref, it) }
+            scope.launchWorker(loop) { next(ref, it) }
         }
         if (first) lane.items.addFirst(item) else lane.items.addLast(item)
     }
@@ -66,7 +70,7 @@ internal class AggregateLanes<I : Any>(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
-            stopped(item, failure)
+            stopped(ref, item, failure)
             throw failure
         }
         return true

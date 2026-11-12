@@ -108,7 +108,7 @@ class LaneEndTest {
 
             fatals.endedLoop!!.let {
                 it.component.assert().isEqualTo(Component.SUBSCRIPTION)
-                it.loop.assert().isEqualTo("lane of ${cart("a")} in $NAME partition 0")
+                it.loop.assert().isEqualTo("lanes of $NAME partition 0")
                 it.error.assert().isEqualTo(NotImplementedError::class.java.name)
             }
             fatals.isFatal.assert().isFalse()
