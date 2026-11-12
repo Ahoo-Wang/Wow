@@ -168,6 +168,16 @@ export interface FilterEditorController extends FilterTreeController {
   /** Applies the draft, which is what runs the query. */
   submit(): void;
   /**
+   * Takes conditions that are in force out of force, now, and nothing else
+   * with them (the ✕ on a badge of the applied summary): each is set back
+   * to "nothing said" (`clearValue`) in the draft and in what is in force,
+   * and only that is applied — an edit still waiting elsewhere in the draft
+   * goes on waiting. It used to apply the whole draft: a ✕ that also ran a
+   * condition the reader had not yet decided on. The paths are the applied
+   * summary's, which the draft shares until its tree is restructured.
+   */
+  unset(paths: readonly FilterPath[]): void;
+  /**
    * Puts the draft conditions back to the ones last applied, and runs
    * nothing.
    *
@@ -457,6 +467,27 @@ export function useFilterEditor(
     ),
     clear: useCallback(() => change(clearFilter), [change]),
     submit: useCallback(() => runtime?.apply(), [runtime]),
+    unset: useCallback(
+      (paths: readonly FilterPath[]) => {
+        let inForce = ownFilter(runtime?.getSnapshot().applied);
+        if (!runtime || !inForce) return;
+        // The same edit, made on what is in force by the same controller.
+        const applied = treeController({
+          tree: inForce,
+          fields,
+          kinds,
+          issues: [],
+          current: () => inForce!,
+          onChange: next => (inForce = next),
+        });
+        for (const path of paths) {
+          base.clearValue(path);
+          applied.clearValue(path);
+        }
+        runtime.apply({ filter: inForce });
+      },
+      [runtime, base, fields, kinds],
+    ),
     // Read off the snapshot rather than off `inForce`, for the same reason
     // every other command here does: `edit` is synchronous, so the tree put
     // back is the one the runtime holds at the moment of the click.
