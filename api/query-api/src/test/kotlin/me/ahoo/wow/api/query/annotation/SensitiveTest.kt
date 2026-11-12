@@ -22,16 +22,35 @@ class SensitiveTest {
     @Test
     fun `default mask masks every Unicode code point`() {
         val mask = KeepMaskStrategy()
-        mask.mask("A中😀").assert().isEqualTo("***")
-        mask.mask("").assert().isEmpty()
+        mask.mask("A中😀".displayed()).assert().isEqualTo("***")
+        mask.mask("".displayed()).assert().isEmpty()
     }
 
     @Test
     fun `keep mask preserves edges and fully masks short values`() {
-        KeepMaskStrategy(3, 4).mask("13800138000").assert().isEqualTo("138****8000")
-        KeepMaskStrategy(3, 4).mask("1234567").assert().isEqualTo("*******")
-        KeepMaskStrategy(Int.MAX_VALUE, 1).mask("short").assert().isEqualTo("*****")
-        KeepMaskStrategy(2, 2).mask("A中😀BCD").assert().isEqualTo("A中**CD")
+        KeepMaskStrategy(3, 4).mask("13800138000".displayed()).assert().isEqualTo("138****8000")
+        KeepMaskStrategy(3, 4).mask("1234567".displayed()).assert().isEqualTo("*******")
+        KeepMaskStrategy(Int.MAX_VALUE, 1).mask("short".displayed()).assert().isEqualTo("*****")
+        KeepMaskStrategy(2, 2).mask("A中😀BCD".displayed()).assert().isEqualTo("A中**CD")
+    }
+
+    @Test
+    fun `a sensitive value is its value and level, and its text never shows the value`() {
+        val value = SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL)
+        value.value.assert().isEqualTo("13800138000")
+        value.level.assert().isEqualTo(SensitivityLevel.CONFIDENTIAL)
+        value.assert().isEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL))
+        value.hashCode().assert().isEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.CONFIDENTIAL).hashCode())
+        value.assert().isNotEqualTo(SensitiveValue.of("13800138000", SensitivityLevel.DISPLAY))
+        value.assert().isNotEqualTo(SensitiveValue.of("other", SensitivityLevel.CONFIDENTIAL))
+        (value as Any).assert().isNotEqualTo("13800138000")
+        value.toString().assert().isEqualTo("SensitiveValue(level=CONFIDENTIAL)").doesNotContain("13800138000")
+    }
+
+    @Test
+    fun `a strategy written as a lambda reads the value and its level`() {
+        val strategy = MaskStrategy { "${it.level.name.lowercase()}:${it.value.length}" }
+        strategy.mask(SensitiveValue.of("13800138000", SensitivityLevel.DISPLAY)).assert().isEqualTo("display:11")
     }
 
     @Test
@@ -74,3 +93,5 @@ class SensitiveTest {
         val placedOn: String,
     )
 }
+
+private fun String.displayed(): SensitiveValue = SensitiveValue.of(this, SensitivityLevel.DISPLAY)

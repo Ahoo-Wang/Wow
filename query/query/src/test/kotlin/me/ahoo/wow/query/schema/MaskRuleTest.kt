@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -32,7 +33,7 @@ class MaskRuleTest {
     fun `a rule is its level and mask, whatever strategy instance it compiled`() {
         val resolver = MaskStrategyResolver.of(mapOf("x" to MaskStrategy { "#" }))
         val rule = MaskRule(SensitivityLevel.DISPLAY, QueryMask.Strategy("x"), resolver)
-        rule.compiled.mask("abc").assert().isEqualTo("#")
+        rule.compiled.mask(SensitiveValue.of("abc", SensitivityLevel.DISPLAY)).assert().isEqualTo("#")
         rule.assert().isEqualTo(MaskRule(SensitivityLevel.DISPLAY, QueryMask.Strategy("x"), resolver))
         rule.hashCode().assert().isEqualTo(
             MaskRule(SensitivityLevel.DISPLAY, QueryMask.Strategy("x"), resolver).hashCode()
@@ -42,7 +43,8 @@ class MaskRuleTest {
         (rule as Any).assert().isNotEqualTo("x")
         rule.toString().assert().contains("DISPLAY")
         MaskStrategyResolver.NONE.resolve("x").assert().isNull()
-        MaskRule(SensitivityLevel.CONFIDENTIAL, QueryMask.Keep(1, 1)).compiled.mask("abcd").assert().isEqualTo("a**d")
+        MaskRule(SensitivityLevel.CONFIDENTIAL, QueryMask.Keep(1, 1)).compiled
+            .mask(SensitiveValue.of("abcd", SensitivityLevel.CONFIDENTIAL)).assert().isEqualTo("a**d")
     }
 
     @Test
