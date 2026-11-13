@@ -56,8 +56,9 @@ object StateJson {
 
     /**
      * Identifies the shape of [stateType]'s JSON as [mapper] serializes it: the first 64 bits of the SHA-256 hash, as
-     * 16 hex characters, of a structural description built from what Jackson's format visitor reports, that is from the serializers the mapper would use,
-     * after naming strategies, ignored properties and the Kotlin module apply ([shape]):
+     * 16 hex characters, of a structural description built from what Jackson's format visitor reports, that is from the
+     * serializers the mapper would use, after naming strategies, ignored properties and the Kotlin module apply
+     * ([shape]):
      * - a bean is `{name:shape,...}` over its serialized properties, sorted by name, each property's declared type
      *   described in turn (type arguments resolved);
      * - an enum is `enum(A,B,...)` over its serialized constants, sorted;
