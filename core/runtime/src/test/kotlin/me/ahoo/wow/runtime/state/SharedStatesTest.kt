@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.Stripes
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.ORDER
@@ -270,17 +271,33 @@ class SharedStatesTest {
     }
 
     @Test
-    fun `the views should age out`() {
+    fun `the views should age out at the next put on their stripe, a read evicting nothing`() {
+        // A capacity this small is one stripe: every put below is on the stripe of both aggregates.
         val views = views(maxAge = 10.seconds)
         views.put(alice, view(1))
         time += 6.seconds
         views.put(bob, view(1))
         time += 6.seconds
+        // Twelve seconds old, alice's view is past its age, but a read evicts nothing: it is read as it is.
+        views.get(alice, 1).assert().isNotNull()
+        views.floor(alice, 2).assert().isNotNull()
+        views.size.assert().isEqualTo(2)
+        // The next put evicts it, and keeps bob's, six seconds old.
+        views.put(alice, view(2))
         views.get(alice, 1).assert().isNull()
         views.get(bob, 1).assert().isNotNull()
         time += 6.seconds
+        views.floor(bob, 2).assert().isNotNull()
+        views.put(alice, view(3))
         views.floor(bob, 2).assert().isNull()
-        views.size.assert().isEqualTo(0)
+        views.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `the views should be striped finer than the state cache, 64 stripes at the default capacity`() {
+        Stripes.of(SharedStateOptions.DEFAULT_CAPACITY, minShare = 64, max = 64).assert().isEqualTo(64)
+        Stripes.of(16, minShare = 64, max = 64).assert().isEqualTo(1)
+        Stripes.of(SharedStateOptions.DEFAULT_CAPACITY).assert().isEqualTo(Stripes.MAX)
     }
 
     @Test

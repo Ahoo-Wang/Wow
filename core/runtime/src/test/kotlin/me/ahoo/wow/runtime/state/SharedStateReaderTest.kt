@@ -209,10 +209,11 @@ class SharedStateReaderTest {
     @Test
     fun `a view evicted between two commits should cost the store reads again, and only once`(): Unit = runBlocking {
         val time = TestTimeSource()
+        // A capacity this small is one stripe, so the put below is on the stripe of the reader's views.
         val aging = SharedStates(
             codec,
             mapOf(PROJECTION to setOf(CART)),
-            SharedStateOptions(maxAge = 1.seconds),
+            SharedStateOptions(capacity = STRIPE_CAPACITY, maxAge = 1.seconds),
             time
         )
         val elsewhere = Executor(kernel)
@@ -222,9 +223,12 @@ class SharedStateReaderTest {
         val entries = (1..3).map { stream(it) }
         val loads = snapshots.loads
         reader(views = aging).read(entries[0])
-        // The view the reader kept for version 1 ages out before version 2 is handed over.
+        // The view the reader kept for version 1 ages out before version 2 is handed over: the next put on its stripe,
+        // another aggregate's, evicts it. A read alone evicts nothing.
         time += 2.seconds
+        aging.put(CART.ref(TENANT, "bob"), SerializedState(1, "{}"))
         aging.size.assert().isEqualTo(1)
+        aging.get(ref, 1).assert().isNull()
         log.streamsRead = 0
         reader(views = aging).read(entries[1]).items().assert().containsExactly("apple", "pear")
         snapshots.loads.assert().isEqualTo(loads + 1)
@@ -364,5 +368,6 @@ class SharedStateReaderTest {
     private companion object {
         const val SNAPSHOT = "snapshot"
         const val PROJECTION = "CartView.onEvent"
+        const val STRIPE_CAPACITY = 16
     }
 }

@@ -124,6 +124,10 @@ class SharedStateOptions @InternalWowApi constructor(
  *   base of its next entry; and in any case once it is older than [SharedStateOptions.maxAge] or the views exceed
  *   [SharedStateOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
  *   parked never holds views for long. A view missing for any reason costs its reader a rebuild, never a wrong state.
+ *   Both bounds are kept by the writes, at each [put] on a view's stripe: a read takes the lock to look up and
+ *   evicts nothing, so a view past its age is still read until the next put on its stripe evicts it. That is harmless:
+ *   a view is the state at its version, whatever its age, and the age only bounds what a reader gone elsewhere leaves
+ *   behind.
  * - **Rebuilding**: a reader's rebuild of a state from the snapshot store and the log runs one an aggregate at a time
  *   ([rebuild]): the readers that miss the same hot aggregate at once replay its log once, not once each, and then
  *   evolve the view the rebuild left. A rebuild that replays more than one page of the log ([VersionPages.SIZE]
@@ -158,9 +162,12 @@ class SharedStates(
     /**
      * The views, striped by aggregate as [me.ahoo.wow.runtime.LruStateCache] is: each stripe holds its
      * share of [SharedStateOptions.capacity] under its own lock, so the executor's [record] and the consumers' [get] and
-     * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe.
+     * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe. A commit
+     * takes its aggregate's stripe several times (the executor's expectation and record, each reader's read and pass),
+     * so the views are spread finer than the state cache's: shares of [STRIPE_SHARE] views, up to [STRIPES] stripes,
+     * 64 of 64 views at the default capacity.
      */
-    private val stripes: Array<Stripe> = Stripes.of(options.capacity).let { count ->
+    private val stripes: Array<Stripe> = Stripes.of(options.capacity, STRIPE_SHARE, STRIPES).let { count ->
         Array(count) { index ->
             Stripe(Stripes.share(options.capacity, count, index), (options.maxBytes / count).coerceAtLeast(1))
         }
@@ -381,7 +388,6 @@ class SharedStates(
         }
 
         fun get(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
-            expire()
             slots[ref]?.views?.get(version)?.view
         }
 
@@ -420,7 +426,6 @@ class SharedStates(
         }
 
         fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
-            expire()
             slots[ref]?.views?.lowerEntry(version)?.value?.view
         }
 
@@ -437,7 +442,7 @@ class SharedStates(
             }
         }
 
-        /** Called under the lock: evicts the views older than the maximum age, oldest first. */
+        /** Called under the lock, from [put] alone: evicts the views older than the maximum age, oldest first. */
         private fun expire() {
             while (order.isNotEmpty() && order.values.first().recorded.elapsedNow() > options.maxAge) {
                 evictEldest()
@@ -454,6 +459,14 @@ class SharedStates(
                 slots.remove(eldest.ref)
             }
         }
+    }
+
+    private companion object {
+        /** The most stripes of the views. */
+        const val STRIPES = 64
+
+        /** The fewest views a stripe holds a share of. */
+        const val STRIPE_SHARE = 64
     }
 
     private data class Key(val ref: AggregateRef, val version: Int)
