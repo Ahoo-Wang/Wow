@@ -97,16 +97,20 @@ class RawRunTest {
     }
 
     @Test
-    fun `a bench-pipeline line's field is read by its section, null when the line has none`() {
-        val line = "{\"t\":3,\"appendDepth\":{\"queued\":0,\"handedGroups\":2},\"appendCalls\":{\"calls\":40,\"streams\":600}," +
-            "\"pool\":{\"active\":4,\"waiting\":1,\"max\":10}}"
+    fun `a bench-pipeline line is read as its JSON tree, a field by its section, null when it has none`() {
+        val line = WowWindow.sectionsOf(
+            "{\"t\":3,\"appendDepth\":{\"queued\":0,\"handedGroups\":2}," +
+                "\"appendCalls\":{\"calls\":40,\"streams\":600},\"pool\":{\"active\":4,\"waiting\":1,\"max\":10}," +
+                "\"appendClock\":{\"calls\":200,\"call\":700000,\"statement\":620000}}",
+        )!!
         WowWindow.field(line, "appendCalls", "calls").assert().isEqualTo(40.0)
         WowWindow.field(line, "appendCalls", "streams").assert().isEqualTo(600.0)
         WowWindow.field(line, "pool", "waiting").assert().isEqualTo(1.0)
+        WowWindow.field(line, "appendClock", "statement").assert().isEqualTo(620000.0)
         WowWindow.field(line, "appendDepth", "calls").assert().isNull()
         WowWindow.field(line, "window", "x").assert().isNull()
-        val clocked = "{\"appendClock\":{\"calls\":200,\"call\":700000,\"statement\":620000}}"
-        WowWindow.field(clocked, "appendClock", "statement").assert().isEqualTo(620000.0)
+        WowWindow.sectionsOf("not json").assert().isNull()
+        WowWindow.sectionsOf(null).assert().isNull()
     }
 
     @Test

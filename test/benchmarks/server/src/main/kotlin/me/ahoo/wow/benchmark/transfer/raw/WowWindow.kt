@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.benchmark.transfer.raw
 
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -24,16 +26,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * and threads waiting for a connection.
  */
 class WowWindow(private val pipeline: () -> String?, private val saves: () -> Long) {
-    private class Sample(val millis: Long, val calls: Double, val streams: Double, val saves: Long, val line: String)
+    private class Sample(val millis: Long, val calls: Double, val streams: Double, val saves: Long, val line: JsonNode)
 
     private val samples = ArrayList<Sample>()
     private val stopping = AtomicBoolean()
     private val sampler = Thread.ofPlatform().name("raw-wow-window").start {
         while (!stopping.get()) {
-            val line = pipeline().orEmpty()
-            val calls = field(line, "appendCalls", "calls")
-            val streams = field(line, "appendCalls", "streams")
-            if (calls != null && streams != null) {
+            val line = sectionsOf(pipeline())
+            val calls = line?.let { field(it, "appendCalls", "calls") }
+            val streams = line?.let { field(it, "appendCalls", "streams") }
+            if (line != null && calls != null && streams != null) {
                 synchronized(samples) { samples += Sample(System.currentTimeMillis(), calls, streams, saves(), line) }
             }
             Thread.sleep(SAMPLE_MILLIS)
@@ -52,8 +54,8 @@ class WowWindow(private val pipeline: () -> String?, private val saves: () -> Lo
         return halfOf(FIRST, first, middle) + halfOf(SECOND, middle, last) + clockOf(first, last) + mapOf(
             APPEND_CALLS_PER_SECOND_ALL to (last.calls - first.calls) / seconds,
             HANDED_GROUPS to taken.mapNotNull { field(it.line, "appendDepth", "handedGroups") }.average(),
-            POOL_WAITING to taken.mapNotNull { field(it.line, "pool", "waiting") }.average(),
-            POOL_ACTIVE to taken.mapNotNull { field(it.line, "pool", "active") }.average(),
+            POOL_WAITING to taken.mapNotNull { pools(it.line, "waiting") }.average(),
+            POOL_ACTIVE to taken.mapNotNull { pools(it.line, "active") }.average(),
         ).filterValues { !it.isNaN() }
     }
 
@@ -103,10 +105,20 @@ class WowWindow(private val pipeline: () -> String?, private val saves: () -> Lo
         private const val MIN_SAMPLES = 5
         private const val MILLIS = 1_000.0
 
-        /** A number field of a section of a `bench-pipeline` line; null when the line has none. */
-        fun field(line: String, section: String, name: String): Double? {
-            val body = Regex("\"${Regex.escape(section)}\":\\{([^}]*)}").find(line)?.groupValues?.get(1) ?: return null
-            return Regex("\"${Regex.escape(name)}\":(-?[0-9.]+)").find(body)?.groupValues?.get(1)?.toDoubleOrNull()
-        }
+        private val json = JsonMapper.builder().build()
+
+        /** A `bench-pipeline` line (one JSON object of sections) as its tree; null without one or when it is not JSON. */
+        fun sectionsOf(line: String?): JsonNode? = line?.let { runCatching { json.readTree(it) }.getOrNull() }
+            ?.takeIf { it.isObject }
+
+        /** A number field of a section of a line's tree ([sectionsOf]); null when it has none. */
+        fun field(sections: JsonNode, section: String, name: String): Double? =
+            sections.get(section)?.get(name)?.takeIf { it.isNumber }?.asDouble()
+
+        /** A field summed over the line's pools: `pool`, or `pool.<bean>` each when the node has several. */
+        private fun pools(sections: JsonNode, name: String): Double? = sections.propertyNames()
+            .filter { it == "pool" || it.startsWith("pool.") }
+            .mapNotNull { field(sections, it, name) }
+            .takeIf { it.isNotEmpty() }?.sum()
     }
 }

@@ -206,10 +206,11 @@ class WowShape<S : AutoCloseable>(
      */
     private fun take(): List<Batch>? = lock.withLock {
         val fill = options.appendFill
-        var due = 0L
+        // When the first batch was seen with a fill to wait for; null until then, and without a fill.
+        var waitingSince: Long? = null
         while (!closing) {
-            if (handed.isNotEmpty() && fill != null && due == 0L) due = System.nanoTime() + FILL_WAIT_NANOS
-            val filled = fill == null || handed.sumOf { it.pendings.size } >= fill || System.nanoTime() >= due
+            if (handed.isNotEmpty() && fill != null && waitingSince == null) waitingSince = System.nanoTime()
+            val filled = fill == null || handed.sumOf { it.pendings.size } >= fill || waitedOut(waitingSince)
             if (handed.isNotEmpty() && filled) {
                 val batches = ArrayList<Batch>()
                 var streams = 0
@@ -220,10 +221,13 @@ class WowShape<S : AutoCloseable>(
                 }
                 return batches
             }
-            ready.await(if (due > 0) FILL_POLL_MILLIS else POLL_MILLIS, TimeUnit.MILLISECONDS)
+            ready.await(if (waitingSince != null) FILL_POLL_MILLIS else POLL_MILLIS, TimeUnit.MILLISECONDS)
         }
         null
     }
+
+    /** Whether a fill's wait that began at [since] (System.nanoTime) has run FILL_WAIT_NANOS: false when none began. */
+    private fun waitedOut(since: Long?): Boolean = since != null && System.nanoTime() - since >= FILL_WAIT_NANOS
 
     private fun saveLoop(store: S) {
         while (!appendersDone || saves.isNotEmpty()) {
@@ -231,8 +235,8 @@ class WowShape<S : AutoCloseable>(
             val batch = arrayListOf(first)
             val most = options.saveFill ?: options.writerMax
             saves.drainTo(batch, most - 1)
-            val due = System.nanoTime() + FILL_WAIT_NANOS
-            while (batch.size < (options.saveFill ?: 0) && System.nanoTime() < due) {
+            val since = System.nanoTime()
+            while (batch.size < (options.saveFill ?: 0) && !waitedOut(since)) {
                 saves.poll(FILL_POLL_MILLIS, TimeUnit.MILLISECONDS)?.let { batch += it }
                 saves.drainTo(batch, most - batch.size)
             }
