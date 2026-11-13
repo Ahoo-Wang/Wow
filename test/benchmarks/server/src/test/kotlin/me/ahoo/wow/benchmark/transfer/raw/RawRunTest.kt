@@ -97,6 +97,27 @@ class RawRunTest {
     }
 
     @Test
+    fun `a bench-pipeline line's field is read by its section, null when the line has none`() {
+        val line = "{\"t\":3,\"appendDepth\":{\"queued\":0,\"handedGroups\":2},\"appendCalls\":{\"calls\":40,\"streams\":600}," +
+            "\"pool\":{\"active\":4,\"waiting\":1,\"max\":10}}"
+        WowWindow.field(line, "appendCalls", "calls").assert().isEqualTo(40.0)
+        WowWindow.field(line, "appendCalls", "streams").assert().isEqualTo(600.0)
+        WowWindow.field(line, "pool", "waiting").assert().isEqualTo(1.0)
+        WowWindow.field(line, "appendDepth", "calls").assert().isNull()
+        WowWindow.field(line, "window", "x").assert().isNull()
+    }
+
+    @Test
+    fun `a call's mean time is its nanoseconds over its calls in a window, none without a call`() {
+        val times = CallTimes()
+        times.add("append", 3_000_000)
+        times.time("append") { Thread.sleep(0) }
+        times.counters()["append calls"].assert().isEqualTo(2.0)
+        val growth = mapOf("append nanos" to 6e6, "append calls" to 3.0, "save nanos" to 0.0, "save calls" to 0.0)
+        CallTimes.means(growth).assert().isEqualTo(mapOf("appendMs" to 2.0))
+    }
+
+    @Test
     fun `a cgroup's CPU is its cpu stat's usage in microseconds`() {
         cgroupUsageMicros("usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n").assert().isEqualTo(123456)
         cgroupUsageMicros("user_usec 1\n").assert().isNull()

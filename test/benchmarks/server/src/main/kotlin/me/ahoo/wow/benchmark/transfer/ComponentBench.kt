@@ -236,15 +236,36 @@ fun toJson(value: Any?): String = when (value) {
     else -> toJson(value.toString())
 }
 
-/** Counts the store's round trips by command name, from the MongoDB driver's command events or the JDBC calls. */
+/**
+ * Counts the store's round trips by command name, from the MongoDB driver's command events or the JDBC calls; and on
+ * JDBC times them ([timings]): each statement's execution by its name, a connection's wait in the pool (`poolWait`)
+ * and its hold, taken to closed (`connectionHold`).
+ */
 class StoreCounter {
     private val counts = ConcurrentHashMap<String, LongAdder>()
+    private val nanos = ConcurrentHashMap<String, LongAdder>()
+    private val timed = ConcurrentHashMap<String, LongAdder>()
 
     fun count(name: String) = counts.computeIfAbsent(name) { LongAdder() }.increment()
 
-    fun reset() = counts.clear()
+    /** One [name] call of [took] nanoseconds. */
+    fun time(name: String, took: Long) {
+        nanos.computeIfAbsent(name) { LongAdder() }.add(took)
+        timed.computeIfAbsent(name) { LongAdder() }.increment()
+    }
+
+    fun reset() {
+        counts.clear()
+        nanos.clear()
+        timed.clear()
+    }
 
     fun snapshot(): Map<String, Long> = counts.mapValues { it.value.sum() }.toSortedMap()
+
+    /** Each timed name's nanoseconds and calls so far: `<name> nanos`, `<name> calls`. */
+    fun timings(): Map<String, Double> =
+        nanos.mapKeys { "${it.key} nanos" }.mapValues { it.value.sum().toDouble() } +
+            timed.mapKeys { "${it.key} calls" }.mapValues { it.value.sum().toDouble() }
 }
 
 /**
@@ -269,6 +290,10 @@ class ComponentCounters {
     }
 }
 
+/** The timings of a connection's wait in the pool and of its hold, taken to closed (StoreCounter.timings). */
+const val POOL_WAIT = "poolWait"
+const val CONNECTION_HOLD = "connectionHold"
+
 private val EXECUTIONS = setOf("execute", "executeQuery", "executeUpdate", "executeBatch", "executeLargeUpdate")
 
 /**
@@ -280,6 +305,7 @@ private fun <T : Any> proxy(
     type: Class<T>,
     onCall: (String, Array<Any?>) -> Unit,
     wrap: (Any?, Array<Any?>) -> Any? = { result, _ -> result },
+    onDone: (String, Array<Any?>, Long) -> Unit = { _, _, _ -> },
 ): T =
     type.cast(
         Proxy.newProxyInstance(
@@ -288,10 +314,13 @@ private fun <T : Any> proxy(
             InvocationHandler { _, method, arguments ->
                 val given: Array<Any?> = arguments ?: emptyArray()
                 onCall(method.name, given)
+                val started = System.nanoTime()
                 try {
                     wrap(method.invoke(target, *given), given)
                 } catch (failure: InvocationTargetException) {
                     throw failure.targetException
+                } finally {
+                    onDone(method.name, given, System.nanoTime() - started)
                 }
             },
         ),
@@ -302,28 +331,51 @@ private fun <T : Any> proxy(
  * rollbacks counted on [counter].
  */
 private fun counted(dataSource: DataSource, counter: StoreCounter): DataSource {
-    fun statement(value: Any?, sql: String?): Any? {
-        val onStatement: (String, Array<Any?>) -> Unit = { name, arguments ->
-            if (name in EXECUTIONS) counter.count(statementLabel(sql ?: arguments.firstOrNull() as? String))
-        }
-        return when (value) {
-            is CallableStatement -> proxy(value, CallableStatement::class.java, onStatement)
-            is PreparedStatement -> proxy(value, PreparedStatement::class.java, onStatement)
-            is Statement -> proxy(value, Statement::class.java, onStatement)
-            else -> value
-        }
-    }
+    fun statement(value: Any?, sql: String?): Any? = countedStatement(value, sql, counter)
     val onConnection: (String, Array<Any?>) -> Unit = { name, _ ->
         if (name == "commit" || name == "rollback") counter.count(name)
     }
     fun connection(value: Any?): Any? = if (value is Connection) {
-        proxy(value, Connection::class.java, onConnection) { result, arguments ->
-            statement(result, arguments.firstOrNull() as? String)
+        val taken = System.nanoTime()
+        // The connection's first statement names its hold too: an append's connection apart from a save's.
+        var first: String? = null
+        val held: (String, Array<Any?>) -> Unit = { name, arguments ->
+            if (name == "close") {
+                val hold = System.nanoTime() - taken
+                counter.time(CONNECTION_HOLD, hold)
+                first?.let { counter.time("$CONNECTION_HOLD $it", hold) }
+            }
+            onConnection(name, arguments)
         }
+        proxy(value, Connection::class.java, held, { result, arguments ->
+            val sql = arguments.firstOrNull() as? String
+            if (first == null && sql != null) first = statementLabel(sql)
+            statement(result, sql)
+        })
     } else {
         value
     }
-    return proxy(dataSource, DataSource::class.java, { _, _ -> }) { result, _ -> connection(result) }
+    val pooled: (String, Array<Any?>, Long) -> Unit = { name, _, took ->
+        if (name == "getConnection") counter.time(POOL_WAIT, took)
+    }
+    return proxy(dataSource, DataSource::class.java, { _, _ -> }, { result, _ -> connection(result) }, pooled)
+}
+
+/** [value], a statement of [sql], with its executions counted and timed on [counter] by its label. */
+private fun countedStatement(value: Any?, sql: String?, counter: StoreCounter): Any? {
+    val label = { arguments: Array<Any?> -> statementLabel(sql ?: arguments.firstOrNull() as? String) }
+    val onStatement: (String, Array<Any?>) -> Unit = { name, arguments ->
+        if (name in EXECUTIONS) counter.count(label(arguments))
+    }
+    val onExecuted: (String, Array<Any?>, Long) -> Unit = { name, arguments, took ->
+        if (name in EXECUTIONS) counter.time(label(arguments), took)
+    }
+    return when (value) {
+        is CallableStatement -> proxy(value, CallableStatement::class.java, onStatement, onDone = onExecuted)
+        is PreparedStatement -> proxy(value, PreparedStatement::class.java, onStatement, onDone = onExecuted)
+        is Statement -> proxy(value, Statement::class.java, onStatement, onDone = onExecuted)
+        else -> value
+    }
 }
 
 private val SQL_TABLE = Regex("""\b(?:from|into|update|join)\s+("?[\w.]+"?)""", RegexOption.IGNORE_CASE)

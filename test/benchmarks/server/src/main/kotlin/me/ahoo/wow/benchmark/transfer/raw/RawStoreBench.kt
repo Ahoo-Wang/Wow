@@ -14,12 +14,15 @@
 package me.ahoo.wow.benchmark.transfer.raw
 
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.benchmark.transfer.BenchPipeline
+import me.ahoo.wow.benchmark.transfer.CONNECTION_HOLD
 import me.ahoo.wow.benchmark.transfer.ComponentCounters
 import me.ahoo.wow.benchmark.transfer.ComponentRun
 import me.ahoo.wow.benchmark.transfer.StoreCounter
 import me.ahoo.wow.benchmark.transfer.TransferServer
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.context.ApplicationContext
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -182,6 +185,8 @@ private fun seed(
         .profiles(backend)
         .run(
             "--wow.internal.port=0",
+            // The node's append queue and pool, read over the window (WowWindow): an atomic add a call.
+            "--bench.pipeline.enabled=true",
             *options.filterKeys { it.startsWith("spring.") || it.startsWith("wow.") }
                 .map { "--${it.key}=${it.value}" }
                 .toTypedArray(),
@@ -202,16 +207,18 @@ private fun seed(
     var to = 0L
     var watched: () -> Map<String, Double> = { emptyMap() }
     var diagnostics: Map<String, Double> = emptyMap()
+    var window: WowWindow? = null
     val component = try {
         run.run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java)) { starting ->
             // The horizon is watched over the measured deposits alone, not the settling after them.
-            if (!starting) diagnostics = watched()
+            if (!starting) diagnostics = watched() + window?.stop().orEmpty() + wowTimes(context)
             // The warm-up's snapshots are written behind its commits: let them land before the measured deposits.
             Thread.sleep(SETTLE_MILLIS)
             if (starting) {
                 before = counters() + commands.snapshot()
                 from = System.currentTimeMillis()
                 watched = watch()
+                window = windowOf(context, commands)
             } else {
                 to = System.currentTimeMillis()
                 after = counters() + commands.snapshot()
@@ -229,6 +236,37 @@ private fun seed(
     return growth.mapValues { (_, delta) -> delta / ops } + statements + rate + (WOW_FAILED to failed / ops) +
         diagnostics
 }
+
+/** Wow's run's window, read on its node's `bench-pipeline` line and its saves; null without the line. */
+private fun windowOf(context: ApplicationContext, commands: RawCommands): WowWindow? {
+    val store = context.getBean(StoreCounter::class.java)
+    return context.getBeanProvider(BenchPipeline::class.java).ifAvailable?.let { line ->
+        WowWindow(line::snapshot) { savesOf(store.snapshot(), commands.snapshot()) }
+    }
+}
+
+/**
+ * Wow's run's store calls over its window (StoreCounter.timings, reset at its start), by the names the model's are
+ * (CallTimes): its append's and save's statements' round trips, a connection's wait in the pool and its hold.
+ */
+private fun wowTimes(context: ApplicationContext): Map<String, Double> =
+    CallTimes.means(context.getBean(StoreCounter::class.java).timings()).mapKeys { (key, _) ->
+        when (key) {
+            "${PG_APPENDS.removePrefix(STATEMENTS)}Ms" -> "${RawPostgres.APPEND_ROUND_TRIP}Ms"
+            "${PG_SAVES.removePrefix(STATEMENTS)}Ms" -> "${RawPostgres.SAVE_ROUND_TRIP}Ms"
+            "$CONNECTION_HOLD ${PG_APPENDS.removePrefix(STATEMENTS)}Ms" -> APPEND_HOLD_MS
+            "$CONNECTION_HOLD ${PG_SAVES.removePrefix(STATEMENTS)}Ms" -> SAVE_HOLD_MS
+            else -> key
+        }
+    }.filterKeys { it in WOW_TIMES }
+
+/**
+ * Wow's run's snapshot saves so far: its save statements of the snapshot table (PostgreSQL, [statements]) or its
+ * update commands of the snapshot collection (MongoDB, [commands]), whichever the store counted.
+ */
+private fun savesOf(statements: Map<String, Long>, commands: Map<String, Double>): Long =
+    statements.filterKeys { it.endsWith(" ${RawPostgres.SNAPSHOT}") && !it.contains(" select ") }.values.sum() +
+        (commands["commands: update ${RawMongo.SNAPSHOT}"] ?: 0.0).toLong()
 
 /** The calibration's connections: Wow's run's concurrency. */
 const val CALIBRATION_CONNECTIONS = 64
@@ -266,7 +304,7 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
         { raw.counters() + raw.tables() },
         raw::checkpoint,
         records = raw::records,
-        watch = raw::watch,
+        watch = raw::watchWow,
     )
     raw.loadTemplates(settings.templates)
     val cpu = ContainerCpu(settings.container)

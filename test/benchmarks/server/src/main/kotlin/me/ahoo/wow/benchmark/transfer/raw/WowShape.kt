@@ -75,7 +75,12 @@ class WowShape<S : AutoCloseable>(
         val saved = CompletableFuture<Boolean>()
     }
 
-    private class Batch(val lane: Int, val pendings: List<Pending>)
+    private class Batch(val lane: Int, val pendings: List<Pending>) {
+        val handedAt = System.nanoTime()
+    }
+
+    /** The calls' times (CallTimes): an append call and a save call, taken to answered, and a batch's wait. */
+    private val times = CallTimes()
 
     private val lock = ReentrantLock()
     private val ready = lock.newCondition()
@@ -128,7 +133,7 @@ class WowShape<S : AutoCloseable>(
         SHAPE_APPEND_CALLS to appendCalls.get().toDouble(),
         SHAPE_APPEND_PARTITIONS to appendPartitions.get().toDouble(),
         SHAPE_SAVE_CALLS to saveCalls.get().toDouble(),
-    )
+    ) + times.counters()
 
     /** Queues [command] and waits for its answer ([Options.answer]): whether it was written. */
     fun submit(command: Aggregates.Command): Boolean {
@@ -159,6 +164,8 @@ class WowShape<S : AutoCloseable>(
     private fun appendLoop(store: S) {
         while (true) {
             val batches = take() ?: return
+            val takenAt = System.nanoTime()
+            batches.forEach { times.add(APPEND_GAP, takenAt - it.handedAt) }
             val taken = batches.flatMap { it.pendings }
             appendCalls.incrementAndGet()
             appendPartitions.addAndGet(batches.size.toLong())
@@ -178,6 +185,7 @@ class WowShape<S : AutoCloseable>(
                     if (written[at]) saves.put(pending) else pending.saved.complete(false)
                 }
             }
+            times.add(APPEND_CALL, System.nanoTime() - takenAt)
             lock.withLock {
                 batches.forEach {
                     busy[it.lane] = false
@@ -214,6 +222,7 @@ class WowShape<S : AutoCloseable>(
             val batch = arrayListOf(first)
             saves.drainTo(batch, options.writerMax - 1)
             saveCalls.incrementAndGet()
+            val takenAt = System.nanoTime()
             try {
                 val written = save(store, batch.map { it.command })
                 val saved = written.count { it }.toLong()
@@ -224,6 +233,7 @@ class WowShape<S : AutoCloseable>(
                 saveFailedCount.addAndGet(batch.size.toLong())
                 batch.forEach { it.saved.completeExceptionally(failure) }
             }
+            times.add(SAVE_CALL, System.nanoTime() - takenAt)
         }
     }
 
@@ -276,6 +286,14 @@ class WowShape<S : AutoCloseable>(
         /** A step's ratio of its window's saves to its appends. */
         const val SAVES_PER_APPEND = "savesPerAppend"
 
+        /**
+         * The calls' times' names (CallTimes): an append call, its batches taken to their callers answered; a batch's
+         * wait, handed to taken; a save call, taken to answered.
+         */
+        const val APPEND_CALL = "appendCall"
+        const val APPEND_GAP = "appendGap"
+        const val SAVE_CALL = "saveCall"
+
         /** A step's partitions an append call, its window's. */
         const val PARTITIONS_PER_APPEND = "partitionsPerAppend"
 
@@ -318,6 +336,7 @@ class WowShape<S : AutoCloseable>(
             if (appended > 0) put(SAVES_PER_APPEND, (growth[SHAPE_SAVED] ?: 0.0) / appended)
             val calls = growth[SHAPE_APPEND_CALLS] ?: 0.0
             if (calls > 0) put(PARTITIONS_PER_APPEND, (growth[SHAPE_APPEND_PARTITIONS] ?: 0.0) / calls)
+            putAll(CallTimes.means(growth))
         }
     }
 }

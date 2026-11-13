@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.benchmark.transfer.raw
 
+import me.ahoo.wow.benchmark.transfer.CONNECTION_HOLD
+import me.ahoo.wow.benchmark.transfer.POOL_WAIT
+
 // The calibration's checks: what of Wow's own run on the store the clone's calibration step is held to, per store.
 
 /**
@@ -27,8 +30,9 @@ internal fun postgresCalibration(wow: Map<String, Double>, calibrating: RawStep)
     val spread = spreadOf(wow)?.let { mapOf(WowShape.PARTITIONS_PER_APPEND to it) }.orEmpty()
     return calibrationOf(
         (if (path) PATH_CHECKS else POSTGRES_CHECKS) + MODEL_CHECKS + SPREAD_CHECK + KEPT_CHECKS,
-        (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits") + XMIN_APART,
-        postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread,
+        (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits") + XMIN_APART +
+            CALL_APART + PostgresCounters.NEW_PAGE_SHARE + LAYOUT_METRICS,
+        postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread + wowCalls(wow),
         calibrating,
         modelled(calibrating) + rawPath,
     )
@@ -46,14 +50,38 @@ internal fun spreadOf(wow: Map<String, Double>): Double? {
     return updates / appends
 }
 
+/**
+ * Wow's append calls from its queue's counts over its window (WowWindow), where it has no clock of its own: a call's
+ * mean time, the appenders over the calls a second, when the lanes' groups waited for them throughout (a mean of one
+ * at least: both appenders always in a call); a group's mean wait, by Little's law, the groups waiting over the groups
+ * handed a second (the calls a second times the partitions an append, one group a partition).
+ */
+private fun wowCalls(wow: Map<String, Double>): Map<String, Double> {
+    val calls = wow[WowWindow.APPEND_CALLS_PER_SECOND_ALL]?.takeIf { it > 0 } ?: return emptyMap()
+    val waiting = wow[WowWindow.HANDED_GROUPS] ?: return emptyMap()
+    return buildMap {
+        if (waiting >= 1) put("${WowShape.APPEND_CALL}Ms", WowShape.APPENDERS * MILLIS / calls)
+        spreadOf(wow)?.let { put("${WowShape.APPEND_GAP}Ms", waiting / (calls * it) * MILLIS) }
+    }
+}
+
+/** The calls' times reported apart on both sides (CallTimes, Wow's from wowTimes and wowCalls). */
+private val CALL_APART: List<String>
+    get() = WOW_TIMES + listOf("${WowShape.APPEND_CALL}Ms", "${WowShape.APPEND_GAP}Ms", "${WowShape.SAVE_CALL}Ms")
+private const val MILLIS = 1_000.0
+
 /** The WAL's records of a row's update: HOT, not, and onto a new page. */
 private val UPDATE_RECORDS = listOf("Heap/HOT_UPDATE", "Heap/UPDATE", "Heap/UPDATE+INIT")
 
 /** Wow's PostgreSQL counters per command as the calibration reads them: with its snapshot table's HOT share. */
 private fun postgresWow(wow: Map<String, Double>): Map<String, Double> {
     val table = RawPostgres.SNAPSHOT
-    val hot = (wow["$table updates"] ?: 0.0).takeIf { it > 0 }
-        ?.let { mapOf("hotShare" to (wow["$table hot updates"] ?: 0.0) / it) }.orEmpty()
+    val hot = (wow["$table updates"] ?: 0.0).takeIf { it > 0 }?.let {
+        mapOf(
+            PostgresCounters.HOT_SHARE to (wow["$table hot updates"] ?: 0.0) / it,
+            PostgresCounters.NEW_PAGE_SHARE to (wow["$table new page updates"] ?: 0.0) / it,
+        )
+    }.orEmpty()
     return wow + hot
 }
 
@@ -125,6 +153,23 @@ internal fun mongoCalibration(wow: Map<String, Double>, calibrating: RawStep): R
 /** Wow's commands a second in its own run, the rate the calibration is paced at. */
 internal const val WOW_RATE = "wowCommandsPerSecond"
 private const val SHARE = 0.10
+
+/** The store counters' prefix of a statement's count among Wow's counters. */
+internal const val STATEMENTS = "statements: "
+
+/** Wow's run's store calls' times, as the model's are named: round trips, a pool's wait, a connection's hold. */
+internal val WOW_TIMES = listOf(
+    "${RawPostgres.APPEND_ROUND_TRIP}Ms",
+    "${RawPostgres.SAVE_ROUND_TRIP}Ms",
+    "${POOL_WAIT}Ms",
+    "${CONNECTION_HOLD}Ms",
+    APPEND_HOLD_MS,
+    SAVE_HOLD_MS,
+)
+
+/** Wow's run's connection holds of its appends and its saves alone, taken to closed (StoreCounter.timings). */
+internal const val APPEND_HOLD_MS = "appendConnectionHoldMs"
+internal const val SAVE_HOLD_MS = "saveConnectionHoldMs"
 internal const val PG_APPENDS = "statements: statement with wow_log__transfer__account"
 internal const val PG_SAVES = "statements: statement set wow_snapshot__transfer__account"
 internal const val MONGO_APPENDS = "commands: insert wow_log__transfer__account"

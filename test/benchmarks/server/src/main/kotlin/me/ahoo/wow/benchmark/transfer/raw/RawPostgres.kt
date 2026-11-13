@@ -80,8 +80,11 @@ class RawPostgres(
 
     private val stats = PostgresCounters(::connect)
 
-    /** PostgreSQL's cumulative counters (PostgresCounters). */
-    fun counters(): Map<String, Double> = stats.counters()
+    /** The append's and the save's statements' round trips, sent to result read (CallTimes). */
+    private val times = CallTimes()
+
+    /** PostgreSQL's cumulative counters (PostgresCounters), and the statements' round trips. */
+    fun counters(): Map<String, Double> = stats.counters() + times.counters()
 
     /** Each of Wow's tables' rows written (PostgresCounters). */
     fun tables(): Map<String, Double> = stats.tables()
@@ -93,15 +96,24 @@ class RawPostgres(
     fun recordsOf(case: RawCase): (Map<String, Double>, Map<String, Double>) -> Map<String, Double> =
         if (case.name == CALIBRATION) ::records else { _, _ -> emptyMap() }
 
-    /** Watches the store's horizon over a window (PostgresCounters.watch). */
-    fun watch(): () -> Map<String, Double> = stats.watch()
+    /** Watches the store's horizon over a window (PostgresCounters.watch), and the clone's snapshot table's layout. */
+    fun watch(): () -> Map<String, Double> = watching("raw_snapshot")
+
+    /** As [watch], with Wow's snapshot table's layout: Wow's own run's. */
+    fun watchWow(): () -> Map<String, Double> = watching(SNAPSHOT)
+
+    private fun watching(table: String): () -> Map<String, Double> {
+        val before = connect().use { layoutOf(it, table, "Before") }
+        val horizon = stats.watch()
+        return { horizon() + before + connect().use { layoutOf(it, table, "After") } }
+    }
 
     /** The WAL between two counters' reads by record type and table (PostgresCounters). */
     fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> =
         stats.records(before, after)
 
     /** The snapshot table's HOT share, from the counters' growth. */
-    fun ratios(growth: Map<String, Double>): Map<String, Double> = stats.ratios(growth)
+    fun ratios(growth: Map<String, Double>): Map<String, Double> = stats.ratios(growth) + CallTimes.means(growth)
 
     /** The server's version and settings, and Wow's partition count. */
     fun settings(): Map<String, Any?> = stats.settings() + ("partitions" to partitions)
@@ -312,7 +324,7 @@ class RawPostgres(
                     bindTyped(s, at++, column.type, value)
                 }
             }
-            s.execute()
+            times.time(APPEND_ROUND_TRIP) { s.execute() }
             lastResult(s, BooleanArray(commands.size)) { r ->
                 // Wow's final select: each stream's ord, its version, and its sequence when it was written.
                 BooleanArray(commands.size).also { written ->
@@ -346,7 +358,7 @@ class RawPostgres(
                     bindTyped(s, at++, column.type, value)
                 }
             }
-            s.execute()
+            times.time(SAVE_ROUND_TRIP) { s.execute() }
             val keys = lastResult(s, emptySet()) { r -> buildSet { while (r.next()) add(r.getString(2)) } }
             BooleanArray(commands.size) { commands[it].id in keys }
         }
@@ -399,6 +411,9 @@ class RawPostgres(
         /** The clone's tables. */
         val RAW_TABLES = setOf("raw_log", "raw_snapshot", "raw_partition")
 
+        /** The round trips' names (CallTimes): an append's statement and a save's, sent to result read. */
+        const val APPEND_ROUND_TRIP = "appendRoundTrip"
+        const val SAVE_ROUND_TRIP = "saveRoundTrip"
         const val WOW_TODAY = "wow-today"
         const val P2_SEPARATE = "p2-separate"
         const val P2_COMBINED = "p2-combined"
