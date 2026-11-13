@@ -123,7 +123,13 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     /**
      * [save] of [rows] snapshots of distinct refs as one autocommitted statement, each row guarded as [save] guards
-     * one; given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
+     * one; given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a
+     * refused one returns none.
+     *
+     * The conflict path's row lock, which PostgreSQL logs for each row it updates, is what keeps concurrent saves of
+     * common rows from crossing: every row, inserted or updated, is taken in one pass in key order. It is not to be
+     * optimized away. A save that updates the existing rows and inserts the others in two passes deadlocks under
+     * concurrent writers of the same new aggregates, which this one never does.
      */
     fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
 
