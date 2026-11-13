@@ -36,8 +36,9 @@ import kotlin.concurrent.withLock
  * Every allocated sequence is **settled** by the log: written, or a placeholder written at it. A block is **done** once
  * it is used up or closed and every sequence it gave is settled. It is not taken out of the counter's list then, which
  * would cost a write of its own: its node's next reservation in the partition takes it out in the same update that
- * adds the new block, and a tail of the partition that has read through it takes it out too ([MongoTailReads]), which
- * is what clears the done blocks of a node that stopped before its next reservation. So **a listed block is open, or
+ * adds the new block, and a tail of the partition that has read through it takes it out once it has seen it so for a
+ * grace ([DoneBlocks]), by when a live node has reserved again: that is what clears the done blocks of a node that
+ * stopped before its next reservation. So **a listed block is open, or
  * done and waiting for its node's next reservation or for a tail.** Both name the block (its node and its first
  * sequence), so either taking it out first leaves the other a no-op, and neither touches a block being added.
  *
