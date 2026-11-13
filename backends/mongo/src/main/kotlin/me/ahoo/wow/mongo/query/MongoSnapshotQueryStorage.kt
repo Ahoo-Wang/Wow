@@ -30,6 +30,10 @@ import me.ahoo.wow.spi.VirtualThreads
  * ([manageIndexes]). [readPreference] moves the queries off the primary (`secondaryPreferred`, say),
  * at the cost of reading snapshots a little behind the ones a command's default wait waited for; the
  * primary's by default. The indexes are managed on the primary.
+ *
+ * The queries read at the client's read concern (`local` by default), where the `events` queries read what a majority
+ * has committed ([me.ahoo.wow.mongo.log.committed]): a snapshot is folded from committed entries, so the worst a
+ * failover shows of one is an older state, never an entry that was not.
  */
 @InternalWowApi
 class MongoSnapshotQueryStorage @JvmOverloads constructor(

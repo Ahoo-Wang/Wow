@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.ReadPreference
 import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -24,6 +25,7 @@ import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.committed
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -71,12 +73,19 @@ class MongoEventQueryStorage @JvmOverloads constructor(
     /** The log collection of [aggregateName]. */
     fun collection(aggregateName: String): String = MongoNames.of(MongoEventLog.PREFIX, context, aggregateName)
 
+    /**
+     * The log collection [type]'s queries read: what a majority has committed, as every reader of the log reads it
+     * ([committed]), so a query never shows a stream a failover rolls back; then off the primary when [readPreference]
+     * says so. The snapshots' queries keep the client's read concern ([MongoSnapshotQueryStorage]).
+     */
+    internal fun collectionOf(type: AggregateType): MongoCollection<Document> =
+        committed(database.getCollection(collection(type.name)))
+            .let { collection -> readPreference?.let(collection::withReadPreference) ?: collection }
+
     override fun createBinding(key: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
         require(key.context == context) { "$key is not in context $context." }
-        val collection = database.getCollection(collection(key.name))
-            .let { collection -> readPreference?.let(collection::withReadPreference) ?: collection }
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(key, collection, options, dispatcher, MongoEventStreams(key, partitions)),
+            MongoSnapshotQueryBackend(key, collectionOf(key), options, dispatcher, MongoEventStreams(key, partitions)),
             MongoEventStorageAdapter,
         )
     }
