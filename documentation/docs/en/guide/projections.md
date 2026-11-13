@@ -39,6 +39,7 @@ fun onEvent(event: StateEvent<OrderState>) {
 ```
 
 - `StateEvent<OrderState>` calls the handler once for each commit of every order, with `state` the order's state after the commit. Take `StateTypedEvent<S, E>` instead to be called only for the events of type `E`, once per such event.
+- A `StateEvent<S>` handler takes every commit, decoded and with its state read. One that names its event (`E`, or `StateTypedEvent<S, E>` when it needs the state) is passed over for a commit without one, before that work, its position still moving on. So name the event a projection reads; an operator then sees no `handle <subscription>` span and no `wow.subscription.lag` sample for a commit it does not take.
 - `scope.ownerId` is the aggregate's owner after the commit, here the buyer; `commitTime` is when it committed.
 - `@Blocking` runs the handler on a virtual thread, since it writes to a store outside Wow. A handler may also be `suspend`, or return a Reactor `Mono`.
 - The handler is a subscription of its own, `OrderSummaryProjection.onEvent`.

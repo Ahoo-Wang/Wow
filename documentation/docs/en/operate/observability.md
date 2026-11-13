@@ -57,7 +57,7 @@ Put `wow-observability` on the class path. The spans go through the application'
 | --- | --- |
 | Admission | `admit <context>.<aggregate>`, an internal span, the child of the request's server span |
 | Execution, decision, append | `execute`, `decide`, `append <context>.<aggregate>` |
-| A subscription handling an entry of the log | `handle <subscription>` |
+| A subscription handling an entry of the log | `handle <subscription>`; none for an entry its filter passes over |
 | A subscription handling a message of a topic | `process <topic>`, a consumer span |
 | A timer firing | `fire <command type>` |
 | A query | A span per query |
@@ -72,7 +72,7 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.command.duration` | Timer | A command's execution, from taking it to its outcome, by outcome |
 | `wow.command.refusals` | Counter | Commands that ended before the kernel took them: refusals, busy lanes or nodes, unavailable stores |
 | `wow.command.rejections` | Counter | Commands their aggregate rejected, with or without events, by the rejection's code: business outcomes, not failures |
-| `wow.subscription.lag` | Timer | From a commit to a subscription handling it |
+| `wow.subscription.lag` | Timer | From a commit to a subscription handling it; none for a commit its filter passes over, such as one without the event a handler names |
 | `wow.subscription.backlog` | Gauge | The entries of a partition after a subscription's position |
 | `wow.subscription.progress` | Gauge | A subscription's position over the log's head, 0 to 1: a rebuild's progress |
 | `wow.subscription.parked.aggregates` | Gauge | The aggregates a subscription has parked |
