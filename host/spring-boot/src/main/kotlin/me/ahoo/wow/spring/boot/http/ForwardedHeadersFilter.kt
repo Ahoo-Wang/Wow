@@ -13,23 +13,38 @@
 
 package me.ahoo.wow.spring.boot.http
 
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import me.ahoo.wow.client.ForwardedHeaders
 import org.springframework.web.server.CoWebFilter
-import org.springframework.web.server.CoWebFilterChain
 import org.springframework.web.server.ServerWebExchange
+import org.springframework.web.server.WebFilter
+import org.springframework.web.server.WebFilterChain
+import reactor.core.publisher.Mono
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Puts the [names] headers of each public request in the coroutine context of its handling ([ForwardedHeaders]), so a
  * user-mode client forwards the end user's credential to a peer.
+ *
+ * A plain [WebFilter], not a coroutine one: Spring's coroutine handlers (`coRouter`, as Wow's routes are) and coroutine
+ * filters start from the context in [CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE], so the element is put there, beside
+ * whatever an earlier filter put, unconfined when none did, as a coroutine filter would have started it. A request
+ * without any of the headers passes untouched: no element, no coroutine, nothing allocated.
  */
-internal class ForwardedHeadersFilter(private val names: List<String>) : CoWebFilter() {
-    override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
-        val headers = names.mapNotNull { name -> exchange.request.headers.getFirst(name)?.let { name to it } }.toMap()
-        if (headers.isEmpty()) {
-            chain.filter(exchange)
-        } else {
-            withContext(ForwardedHeaders(headers)) { chain.filter(exchange) }
+internal class ForwardedHeadersFilter(private val names: List<String>) : WebFilter {
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
+        val requestHeaders = exchange.request.headers
+        var headers: MutableMap<String, String>? = null
+        for (name in names) {
+            val value = requestHeaders.getFirst(name) ?: continue
+            headers = (headers ?: LinkedHashMap()).apply { put(name, value) }
         }
+        if (headers != null) {
+            val attributes = exchange.attributes
+            val context = attributes[CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE] as CoroutineContext?
+                ?: Dispatchers.Unconfined
+            attributes[CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE] = context + ForwardedHeaders(headers)
+        }
+        return chain.filter(exchange)
     }
 }

@@ -20,6 +20,8 @@ import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
@@ -28,6 +30,7 @@ import org.springframework.web.server.CoWebFilter
 import org.springframework.web.server.CoWebFilterChain
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
+import reactor.core.publisher.Mono
 import kotlin.coroutines.ContinuationInterceptor
 
 /**
@@ -106,6 +109,14 @@ class ForwardedHeadersFilterTest {
         seen.laterFilter.assert().isNull()
         // The handler's coroutine runs as coRouter starts it with no context of a filter's: unconfined.
         seen.dispatcher.assert().isEqualTo("Dispatchers.Unconfined")
+    }
+
+    @Test
+    fun `a request without them should pass untouched, no coroutine context set for it`() {
+        val filter = NodePeers().wowForwardedHeadersFilter(WowProperties())
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/").build())
+        filter.filter(exchange) { Mono.empty() }.block()
+        exchange.attributes.assert().doesNotContainKey(CoWebFilter.COROUTINE_CONTEXT_ATTRIBUTE)
     }
 
     @Test
