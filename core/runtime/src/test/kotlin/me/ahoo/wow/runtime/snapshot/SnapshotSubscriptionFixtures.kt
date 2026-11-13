@@ -122,9 +122,16 @@ abstract class SnapshotSubscriptionFixtures {
         }
     }
 
-    /** Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. */
-    protected class RecordingStore(private val delegate: SnapshotStore = InMemorySnapshotStore()) :
-        SnapshotStore by delegate {
+    /**
+     * Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. Its
+     * subscription may have [inFlight] of its writes running at once.
+     */
+    protected class RecordingStore(
+        private val delegate: SnapshotStore = InMemorySnapshotStore(),
+        private val inFlight: Int = SnapshotStore.DEFAULT_WRITES_IN_FLIGHT,
+    ) : SnapshotStore by delegate {
+        override val writesInFlight: Int get() = inFlight
+
         val saves = CopyOnWriteArrayList<Int>()
         val batches = CopyOnWriteArrayList<Int>()
         val loads = AtomicInteger()
