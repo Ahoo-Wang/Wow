@@ -1,0 +1,99 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo.log
+
+import com.mongodb.client.model.Filters
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.log.AppendOutcome
+import org.bson.Document
+import org.junit.jupiter.api.Test
+
+/**
+ * The done blocks of the counter's list (MongoSequencer): a node takes its own out in its next reservation, a tail that
+ * read through one takes it out whoever's it is, so the list does not grow with the nodes that stop.
+ *
+ * Each case fills a node's first block exactly: one partition, and one group of [MongoEventLog.BLOCK] first versions,
+ * which allocates the block's every sequence and settles each, so the block is done with no reservation after it.
+ */
+class MongoSequencerDoneBlocksTest : MongoLogFixtures() {
+    private fun fill(log: MongoEventLog, context: String, node: Int) {
+        val ids = (1..MongoEventLog.BLOCK).map { "n$node-$it" }.toTypedArray()
+        runBlocking { log.appendAll(group(context, *ids)) }.forEach {
+            it.assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        }
+    }
+
+    /** The sequence [log] appends one more first version of [context] at. */
+    private fun next(log: MongoEventLog, context: String): Long {
+        val outcome = runBlocking { log.append(stream("next", 1, aggregate = AggregateType(context, "order"))) }
+        return (outcome as AppendOutcome.Committed).position.sequence
+    }
+
+    private fun listed(context: String): List<Long> =
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+            .find(Filters.eq("_id", 0)).first()!!
+            .getList("blocks", Document::class.java).orEmpty().map { it.getLong("from") }
+
+    @Test
+    fun `a node that stopped with a done block listed has it taken out by the next owner's tail`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            fill(MongoLogFixture.log(1, context), context, 1)
+            // Done, and listed until its node's next reservation, which never comes: the node stops here.
+            listed(context).assert().containsExactly(1L)
+            val owner = MongoLogFixture.log(1, context)
+            // Certain: the read that delivered the block's last sequence went through it, and took it out before it
+            // returned.
+            tailed(owner, MongoEventLog.BLOCK.toInt()).size.assert().isEqualTo(MongoEventLog.BLOCK.toInt())
+            listed(context).assert().isEmpty()
+        }
+
+    @Test
+    fun `the list should not grow over nodes that stop one after another with a done block`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val tail = MongoLogFixture.log(1, context)
+        for (node in 1..STOPS) {
+            fill(MongoLogFixture.log(1, context), context, node)
+            listed(context).assert().containsExactly((node - 1) * MongoEventLog.BLOCK + 1)
+            tailed(tail, node * MongoEventLog.BLOCK.toInt())
+            listed(context).assert().isEmpty()
+        }
+    }
+
+    @Test
+    fun `a node's next reservation should take its done block out, and a tail's pull before it changes nothing`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(1, context)
+            fill(log, context, 1)
+            // The node's own next reservation takes its done block out in the same update.
+            next(log, context).assert().isEqualTo(MongoEventLog.BLOCK + 1)
+            listed(context).assert().containsExactly(MongoEventLog.BLOCK + 1)
+
+            // Another node fills its block; a tail takes it out first, then that node's reservation names it again.
+            val other = MongoLogFixture.newContext()
+            val second = MongoLogFixture.log(1, other)
+            fill(second, other, 2)
+            tailed(second, MongoEventLog.BLOCK.toInt())
+            listed(other).assert().isEmpty()
+            next(second, other).assert().isEqualTo(MongoEventLog.BLOCK + 1)
+            listed(other).assert().containsExactly(MongoEventLog.BLOCK + 1)
+        }
+
+    private companion object {
+        const val STOPS = 3
+    }
+}

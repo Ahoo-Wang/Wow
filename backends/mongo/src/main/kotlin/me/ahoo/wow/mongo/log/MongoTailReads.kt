@@ -93,12 +93,17 @@ internal class MongoTailReads(
         val pastRun = entries.keys.any { it > next } || gaps.keys.any { it > next }
         val missing = next.takeIf { pastRun || unread(counter, next, end) && beyond(partition, end, known) }
         val names = known.map { it.name }.toSet()
-        val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
+        val blocks = sequencer.openBlocks(counter)
+        val unknown = blocks.any { block -> block.collections.any { it !in names } }
         val again = when {
             next > end -> true
             unknown || missing != null -> collections.register().map { it.name }.toSet() != names
             else -> false
         }
+        // A listed block wholly at or below the run this read went through (`through`: each of its sequences an entry
+        // or a placeholder) is done, whoever's it is: taken out of the counter's list, its node's next reservation
+        // having not come (MongoSequencer). A write only when one is listed; none on a poll that finds none.
+        blocks.filter { it.to <= next - 1 }.forEach { sequencer.remove(partition, it) }
         return TailBatch(run, through = next - 1, missing, again)
     }
 
