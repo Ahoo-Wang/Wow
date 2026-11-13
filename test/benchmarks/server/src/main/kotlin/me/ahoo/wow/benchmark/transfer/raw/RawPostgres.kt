@@ -86,6 +86,13 @@ class RawPostgres(
     /** Each of Wow's tables' rows written (PostgresCounters). */
     fun tables(): Map<String, Double> = stats.tables()
 
+    /**
+     * [case]'s WAL reader ([records]): the calibration's alone, which its checks read; over a fast step's window the WAL
+     * is millions of records, and reading them for nothing made each such step minutes long.
+     */
+    fun recordsOf(case: RawCase): (Map<String, Double>, Map<String, Double>) -> Map<String, Double> =
+        if (case.name == CALIBRATION) ::records else { _, _ -> emptyMap() }
+
     /** The WAL between two counters' reads by record type and table (PostgresCounters). */
     fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> =
         stats.records(before, after)

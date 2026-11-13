@@ -12,6 +12,7 @@ import {
   ceilingText,
   rawAnomalies,
   rawArgs,
+  rawCpus,
   rawTable,
   renderRaw,
   settingsText,
@@ -287,5 +288,26 @@ test('the ceilings are named for what each is compared with, and what they leave
   assert.match(
     row,
     /^\| wow-shape-snapshot \| P0: today \| snapshot \| command \|/,
+  );
+});
+
+test("a raw run's store is on the CPUs its paired suites give it: mongod alone, PostgreSQL with the program", () => {
+  const measured = { load: '3', server: '0-2' };
+  assert.deepEqual(rawCpus(measured, 'mongo'), {
+    load: '3',
+    store: '1',
+    server: '0,2',
+  });
+  assert.deepEqual(rawCpus(measured, 'postgres'), { load: '3', server: '0-1' });
+  assert.deepEqual(rawCpus({ load: '7', server: '0-6' }, 'mongo'), {
+    load: '7',
+    store: '5',
+    server: '0,1,2,3,4,6',
+  });
+  assert.deepEqual(rawCpus({}, 'mongo'), {});
+  assert.ok(
+    rawArgs({ backend: 'mongo' }, {}, measured, '/out').includes(
+      '--store-cpus=1',
+    ),
   );
 });

@@ -336,7 +336,7 @@ private fun postgresStep(
     return try {
         val counters = { raw.counters() + shape?.counters().orEmpty() }
         val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
-        runStep(case.case, connections, pace, cpu, counters, ratios, raw::records) { index ->
+        runStep(case.case, connections, pace, cpu, counters, ratios, raw.recordsOf(case.case)) { index ->
             val owned = Aggregates(versions, index, connections)
             if (shape != null) {
                 caller(shape, owned)

@@ -79,15 +79,18 @@ class PostgresCounters(private val connect: () -> Connection) {
      * The WAL written between [before]'s and [after]'s positions (WAL_POSITION), per record type and the table it
      * touched (an index's or TOAST table's own, its table's): `wal <type> <table> records`, the type
      * `<resource manager>/<record>` and the table `-` for a record of none (a commit), and each table's record bytes,
-     * full-page images among them (`wal <table> bytes`). Read with pg_walinspect; empty when the extension is not there
-     * or a checkpoint recycled the segments.
+     * full-page images among them (`wal <table> bytes`). Read with pg_walinspect; empty when the extension is not there,
+     * a checkpoint recycled the segments, or the read took longer than RECORDS_TIMEOUT.
      */
     fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> {
         val start = before[WAL_POSITION]?.toLong() ?: return emptyMap()
         val end = after[WAL_POSITION]?.toLong()?.takeIf { it > start } ?: return emptyMap()
         return try {
             connect().use { connection ->
-                connection.createStatement().use { it.execute("CREATE EXTENSION IF NOT EXISTS pg_walinspect") }
+                connection.createStatement().use {
+                    it.execute("CREATE EXTENSION IF NOT EXISTS pg_walinspect")
+                    it.execute("SET statement_timeout = '$RECORDS_TIMEOUT'")
+                }
                 connection.prepareStatement(RECORDS).use { statement ->
                     statement.setString(1, lsnOf(start))
                     statement.setString(2, lsnOf(end))
@@ -144,19 +147,28 @@ class PostgresCounters(private val connect: () -> Connection) {
         }
 
         /** Each record's type and the table its first block is of (an index's or TOAST table's owner), counted. */
+        /**
+         * Each record's type and the table its first block is of (an index's or TOAST table's owner), counted: the
+         * records grouped by type and relation file first, so the catalog is joined once a group, not once a record.
+         */
         private val RECORDS = """
-            SELECT w.resource_manager || '/' || split_part(w.record_type, ' ', 1),
-                coalesce(owner.relname, rel.relname, '-'), count(*), sum(w.record_length)
-            FROM pg_get_wal_records_info(?::pg_lsn, ?::pg_lsn) w
-            LEFT JOIN pg_class rel
-                ON rel.relfilenode = substring(w.block_ref FROM 'rel \d+/\d+/(\d+)')::oid AND rel.relfilenode <> 0
-            LEFT JOIN pg_index i ON i.indexrelid = rel.oid
-            LEFT JOIN pg_class owner ON owner.oid = coalesce(
-                i.indrelid,
-                (SELECT t.oid FROM pg_class t WHERE t.reltoastrelid = rel.oid)
+            WITH w AS (
+                SELECT resource_manager || '/' || split_part(record_type, ' ', 1) AS type,
+                    substring(block_ref FROM 'rel \d+/\d+/(\d+)')::oid AS node,
+                    count(*) AS records, sum(record_length) AS bytes
+                FROM pg_get_wal_records_info(?::pg_lsn, ?::pg_lsn) GROUP BY 1, 2
             )
+            SELECT w.type, coalesce(owner.relname, rel.relname, '-'), sum(w.records), sum(w.bytes)
+            FROM w
+            LEFT JOIN pg_class rel ON rel.relfilenode = w.node AND rel.relfilenode <> 0
+            LEFT JOIN pg_index i ON i.indexrelid = rel.oid
+            LEFT JOIN pg_class toast ON toast.reltoastrelid = rel.oid
+            LEFT JOIN pg_class owner ON owner.oid = coalesce(i.indrelid, toast.oid)
             GROUP BY 1, 2
         """.trimIndent()
+
+        /** The WAL read's bound: past it the read gives up, as without pg_walinspect. */
+        private const val RECORDS_TIMEOUT = "60s"
 
         /** The durability and storage settings a ceiling is quoted with. */
         private val settingNames = listOf(

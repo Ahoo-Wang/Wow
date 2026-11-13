@@ -186,6 +186,7 @@ fun runStep(
     worker: (Int) -> RawWorker,
 ): RawStep {
     val (warmUpSeconds, seconds) = pace.timing
+    val guard = Watchdog("${case.name} at $connections", Watchdog.limitOf(warmUpSeconds + seconds))
     val tally = Tally(connections, pace.rate?.let { (case.flushUnits * NANOS_PER_SECOND / it).toLong() })
     val workers = ArrayList<RawWorker>(connections)
     val threads = ArrayList<Thread>(connections)
@@ -232,6 +233,44 @@ fun runStep(
         tally.stopping.set(true)
         threads.forEach { it.join() }
         workers.forEach { it.close() }
+        guard.cancel()
+    }
+}
+
+/**
+ * A step's watchdog: unless cancelled within [limitSeconds] (limitOf a step's own length), it says which step ([name])
+ * printed nothing for that long and ends the program with EXIT_HUNG ([halt]), so a step that hangs (a store read that
+ * does not return, a worker that never stops) costs minutes and names itself, rather than the job's whole timeout and
+ * a log that ends at the step before.
+ */
+class Watchdog(
+    private val name: String,
+    private val limitSeconds: Long,
+    private val halt: (Int) -> Unit = Runtime.getRuntime()::halt,
+) {
+    private val thread = Thread.ofPlatform().daemon().name("raw-watchdog").start {
+        try {
+            Thread.sleep(limitSeconds * MILLIS)
+            System.err.println("raw: $name printed nothing for $limitSeconds s, past its limit: it hung")
+            System.err.flush()
+            halt(EXIT_HUNG)
+        } catch (_: InterruptedException) {
+            // Cancelled: the step ended in time.
+        }
+    }
+
+    /** The step ended: the watchdog stands down. */
+    fun cancel() = thread.interrupt()
+
+    companion object {
+        const val GUARD_FACTOR = 4L
+        const val GUARD_MARGIN_SECONDS = 60L
+
+        /** A step's limit: GUARD_FACTOR times its own [seconds], warm-up and measured, and GUARD_MARGIN_SECONDS. */
+        fun limitOf(seconds: Int): Long = GUARD_FACTOR * seconds + GUARD_MARGIN_SECONDS
+
+        /** The program's exit when a step hung, apart from a failure's. */
+        const val EXIT_HUNG = 4
     }
 }
 

@@ -84,6 +84,18 @@ class RawRunTest {
     }
 
     @Test
+    fun `a step that outlives its limit halts the program with the hung exit, one cancelled in time does not`() {
+        Watchdog.limitOf(40).assert().isEqualTo(4 * 40 + 60L)
+        val halted = java.util.concurrent.CompletableFuture<Int>()
+        Watchdog("calibration at 64", 0, halted::complete)
+        halted.get(5, java.util.concurrent.TimeUnit.SECONDS).assert().isEqualTo(Watchdog.EXIT_HUNG)
+        val calm = java.util.concurrent.CompletableFuture<Int>()
+        Watchdog("calibration at 64", 1, calm::complete).cancel()
+        Thread.sleep(1_500)
+        calm.isDone.assert().isFalse()
+    }
+
+    @Test
     fun `a cgroup's CPU is its cpu stat's usage in microseconds`() {
         cgroupUsageMicros("usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n").assert().isEqualTo(123456)
         cgroupUsageMicros("user_usec 1\n").assert().isNull()
