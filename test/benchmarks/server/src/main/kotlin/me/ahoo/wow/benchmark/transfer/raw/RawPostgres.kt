@@ -28,9 +28,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * `raw_log`, `raw_snapshot` and `raw_partition`, written with rows of the domain's own commits as templates, by Wow's
  * own statement texts and parameter types:
  *
- * - the append, Wow's group commit across partitions for one table ([appendText]): each stream's version read by the
- *   version key, linked to the streams before it, the ones that fit taken, the partitions' counters locked in order
- *   and bumped, the rows inserted in key order, each stream's sequence returned; one autocommitted statement;
+ * - the append, Wow's group commit for one table, across partitions ([appendText]) or, when the group's streams are
+ *   of one partition, its one-partition form ([appendOneText]), as Wow's appender chooses: each stream's version read
+ *   by the version key, linked to the streams before it, the ones that fit taken, the partitions' counters locked in
+ *   order and bumped, the rows inserted in key order, each stream's sequence returned; one autocommitted statement;
  * - the save, Wow's version-guarded multi-row upsert of rows in key order, returning the keys it wrote ([upsertText]),
  *   one transaction a flush whose bound ([bound]: `synchronous_commit` off when asynchronous, and the timeouts Wow
  *   sets at its default 30-second operation timeout) is sent with it in one round trip, as Wow sends it.
@@ -72,7 +73,8 @@ class RawPostgres(
         partitions = connection.createStatement().use { s ->
             s.executeQuery("SELECT count(*) FROM $PARTITIONS").use { r -> r.next().let { r.getInt(1) } }
         }
-        logTemplates = rows(connection, LOG, logColumns, "ORDER BY sequence DESC LIMIT $count")
+        // The measured deposits' streams (version 3 on: an account's opening is 1, its warm-up deposit 2), the latest first.
+        logTemplates = rows(connection, LOG, logColumns, "WHERE version >= 3 ORDER BY commit_time DESC LIMIT $count")
         snapshotTemplates = rows(connection, SNAPSHOT, snapshotColumns, "LIMIT $count")
         check(logTemplates.isNotEmpty() && snapshotTemplates.isNotEmpty() && partitions > 0) {
             "Wow's tables hold no rows to copy."
@@ -112,14 +114,13 @@ class RawPostgres(
         add(
             Case(RawCase(P2_SEPARATE, COMMAND, logBatch, "P2: today's split"), FILLFACTOR) { c, a ->
                 val commands = a.take(logBatch)
-                val appended = append(c, commands)
-                appended + snapshots(c, commands, synchronous = false)
+                both(append(c, commands), snapshots(c, commands, synchronous = false))
             }
         )
         add(
             Case(RawCase(P2_COMBINED, COMMAND, logBatch, "P2: one synchronous transaction"), FILLFACTOR) { c, a ->
                 val commands = a.take(logBatch)
-                transaction(c) { append(c, commands, bound(synchronous = true)) + upsert(c, commands) }
+                transaction(c) { both(append(c, commands, bound(synchronous = true)), upsert(c, commands)) }
             }
         )
         add(
@@ -146,8 +147,12 @@ class RawPostgres(
             saved += snapshots(connection, commands.subList(from, from + n), synchronous = false)
             from += n
         }
-        return Flushed(minOf(appended.written, saved.written), appended.refused + saved.refused)
+        return both(appended, saved)
     }
+
+    /** A command counts once, when its append and its snapshot were both written: the fewer of the two. */
+    private fun both(appended: Flushed, saved: Flushed) =
+        Flushed(minOf(appended.written, saved.written), appended.refused + saved.refused)
 
     /**
      * Fresh `raw_*` tables: cloned from Wow's, the snapshot table at [fillfactor], and each of [aggregates] aggregates
@@ -222,11 +227,15 @@ class RawPostgres(
     }
 
     /** [commands]' append, Wow's one statement (prefixed by [prefix], a transaction's bound): its streams written. */
-    private fun append(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed =
-        connection.prepareStatement(prefix + appendText(commands.size)).use { s ->
+    private fun append(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed {
+        val parts = commands.map { Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant, it.id), partitions) }
+        // As Wow's appender: the one-partition form when the group's streams are of one partition, else across.
+        val across = parts.distinct().size > 1
+        val text = if (across) appendText(commands.size) else appendOneText(parts[0], commands.size)
+        return connection.prepareStatement(prefix + text).use { s ->
             var at = 1
-            for (command in commands) {
-                s.setInt(at++, Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant, command.id), partitions))
+            for ((index, command) in commands.withIndex()) {
+                if (across) s.setInt(at++, parts[index])
                 val row = logTemplates[Math.floorMod(template.getAndIncrement(), logTemplates.size)]
                 logColumns.forEachIndexed { i, column ->
                     val value: Any? = when (column.name) {
@@ -247,6 +256,7 @@ class RawPostgres(
             }
             Flushed(written, commands.size - written)
         }
+    }
 
     /** [commands]' snapshots as Wow's one multi-row upsert, rows in key order: the keys it wrote. */
     private fun upsert(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed =
@@ -331,6 +341,43 @@ class RawPostgres(
             ), appended_0 AS (INSERT INTO raw_log (partition, sequence, $columns) SELECT fits.part, bump.sequence - fits.total + fits.rank, ${logColumns.joinToString { "fits.${it.name}" }} FROM fits JOIN bump ON bump.partition = fits.part WHERE fits.branch = 0 ORDER BY fits.tenant_id, fits.request_id RETURNING sequence)
             SELECT current.ord, current.version, bump.sequence - fits.total + fits.rank AS sequence
             FROM current LEFT JOIN fits ON fits.ord = current.ord LEFT JOIN bump ON bump.partition = fits.part
+            ORDER BY current.ord
+            """.trimIndent()
+        }
+    }
+
+    /**
+     * Wow's group commit of one partition's streams (PostgresEventLogTables.appendGroup) for one table, on the clone:
+     * its text with `raw_log` and `raw_partition` for Wow's tables and branch 0 for its one table. Wow sends it for a
+     * group whose streams are all of one partition: every one-stream call, and of a call of n streams spread over
+     * the partitions about (1 / partitions)^(n - 1).
+     */
+    fun appendOneText(partition: Int, streams: Int): String = synchronized(appends) {
+        appends.getOrPut(-(partition * MAX_STREAMS + streams) - 1) {
+            val columns = logColumns.joinToString { it.name }
+            val values = (0 until streams).joinToString(", ") { ord ->
+                "($ord, 0, " + logColumns.joinToString { "?::${it.type}" } + ")"
+            }
+            """
+            WITH input (ord, branch, $columns) AS (VALUES $values),
+            current AS (SELECT input.ord, coalesce((SELECT max(log.version) FROM raw_log AS log WHERE log.aggregate_id = input.aggregate_id AND log.tenant_id = input.tenant_id), 0) AS version FROM input WHERE input.branch = 0),
+            links AS (
+                SELECT input.ord, row_number() OVER (
+                    PARTITION BY input.branch, input.tenant_id, input.aggregate_id ORDER BY input.version
+                ) AS link
+                FROM input
+            ),
+            fits AS (
+                SELECT input.*, row_number() OVER (ORDER BY input.ord) AS rank, count(*) OVER () AS total
+                FROM input JOIN current ON current.ord = input.ord JOIN links ON links.ord = input.ord
+                WHERE input.version - current.version = links.link
+            ), bump AS (
+                UPDATE raw_partition SET sequence = sequence + (SELECT count(*) FROM fits)
+                WHERE partition = $partition AND EXISTS (SELECT 1 FROM fits)
+                RETURNING sequence
+            ), appended_0 AS (INSERT INTO raw_log (partition, sequence, $columns) SELECT $partition, bump.sequence - fits.total + fits.rank, ${logColumns.joinToString { "fits.${it.name}" }} FROM fits, bump WHERE fits.branch = 0 ORDER BY fits.tenant_id, fits.request_id RETURNING sequence)
+            SELECT current.ord, current.version, bump.sequence - fits.total + fits.rank AS sequence
+            FROM current LEFT JOIN fits ON fits.ord = current.ord LEFT JOIN bump ON true
             ORDER BY current.ord
             """.trimIndent()
         }
@@ -463,6 +510,7 @@ class RawPostgres(
         const val P2_COMBINED = "p2-combined"
         private const val COMMAND = "command"
         private const val SEQUENCE = "sequence"
+        private const val MAX_STREAMS = 100_000
         private const val FILLFACTOR = 100
         private const val LOW_FILLFACTOR = 80
 

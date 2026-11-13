@@ -170,20 +170,25 @@ fun runStep(
 ): RawStep {
     val (warmUpSeconds, seconds) = pace.timing
     val tally = Tally(connections, pace.rate?.let { (case.flushUnits * NANOS_PER_SECOND / it).toLong() })
-    val workers = List(connections, worker)
-    val threads = workers.mapIndexed { index, w ->
-        Thread.ofPlatform().name("raw-$index").start { tally.loop(index, w) }
-    }
+    val workers = ArrayList<RawWorker>(connections)
+    val threads = ArrayList<Thread>(connections)
     try {
+        repeat(connections) { index -> workers += worker(index) }
+        workers.forEachIndexed { index, w -> threads += Thread.ofPlatform().name("raw-$index").start { tally.loop(index, w) } }
         Thread.sleep(warmUpSeconds * MILLIS)
-        val (cpuBefore, before) = tally.paused { cpu.micros() to counters() }.also { tally.measuring.set(true) }
-        val startedAt = System.nanoTime()
-        Thread.sleep(seconds * MILLIS)
-        val (cpuAfter, after) = tally.paused {
-            tally.measuring.set(false)
-            cpu.micros() to counters()
+        // The window opens as the pause ends and closes as the next one begins: its reads are outside it.
+        val (cpuBefore, before, startedAt) = tally.paused {
+            val read = cpu.micros() to counters()
+            tally.measuring.set(true)
+            Triple(read.first, read.second, System.nanoTime())
         }
-        val elapsed = (System.nanoTime() - startedAt) / NANOS_PER_SECOND
+        Thread.sleep(seconds * MILLIS)
+        val (endedAt, cpuAfter, after) = tally.paused {
+            val ended = System.nanoTime()
+            tally.measuring.set(false)
+            Triple(ended, cpu.micros(), counters())
+        }
+        val elapsed = (endedAt - startedAt) / NANOS_PER_SECOND
         val units = tally.counted.sum()
         if (units == 0L) {
             tally.failure.get()?.let { throw IllegalStateException("${case.name} at $connections did nothing", it) }
@@ -233,22 +238,32 @@ private class Tally(connections: Int, private val interval: Long?) {
     val failure = AtomicReference<Throwable?>(null)
     private val times = List(connections) { LongList() }
     private val next = AtomicLong(System.nanoTime())
+    private val pausedNanos = AtomicLong()
     private val gate = ReentrantReadWriteLock()
 
     /**
      * Runs [block] with every worker between flushes: no flush is in flight, and none starts until it returns. A paced
-     * schedule moves on by the pause, so the pause makes no flush late.
+     * schedule moves on by the pause, the due times not yet claimed and those a worker already holds alike (it adds
+     * the pauses since it claimed one), so the pause makes no flush late and is in no flush's latency.
      */
     fun <T> paused(block: () -> T): T = gate.write {
         val started = System.nanoTime()
-        block().also { if (interval != null) next.addAndGet(System.nanoTime() - started) }
+        try {
+            block()
+        } finally {
+            val pause = System.nanoTime() - started
+            pausedNanos.addAndGet(pause)
+            if (interval != null) next.addAndGet(pause)
+        }
     }
 
     /** Worker [index]'s loop: flush until the step stops, counting what lands inside the window. */
     fun loop(index: Int, worker: RawWorker) {
         while (!stopping.get()) {
-            val due = interval?.let { pace(it) }
+            val turn = interval?.let { Turn(next.getAndAdd(it), pausedNanos.get()) }
+            turn?.await()
             gate.read {
+                val due = turn?.due()
                 val started = System.nanoTime()
                 val done = try {
                     worker.flush()
@@ -257,23 +272,31 @@ private class Tally(connections: Int, private val interval: Long?) {
                     failure.compareAndSet(null, error)
                     null
                 }
-                if (measuring.get() && done != null) {
-                    counted[index] += done.written.toLong()
-                    refused[index] += done.refused.toLong()
-                    flushed[index]++
-                    if (due != null && started - due > LATE_NANOS) late[index]++
-                    times[index].add(System.nanoTime() - (due ?: started))
-                }
+                if (measuring.get() && done != null) count(index, done, due, started)
             }
         }
     }
 
-    /** Waits for this flush's turn, one every [interval] nanoseconds across the workers; returns when it was due. */
-    private fun pace(interval: Long): Long {
-        val due = next.getAndAdd(interval)
-        val wait = due - System.nanoTime()
-        if (wait > 0) LockSupport.parkNanos(wait)
-        return due
+    private fun count(index: Int, done: Flushed, due: Long?, started: Long) {
+        counted[index] += done.written.toLong()
+        refused[index] += done.refused.toLong()
+        flushed[index]++
+        if (due != null && started - due > LATE_NANOS) late[index]++
+        times[index].add(System.nanoTime() - (due ?: started))
+    }
+
+    /** A paced flush's turn: its [claimed] due time, moved on by every pause since ([pausedAt] the pauses then). */
+    private inner class Turn(private val claimed: Long, private val pausedAt: Long) {
+        fun due(): Long = claimed + pausedNanos.get() - pausedAt
+
+        /** Waits until the turn is due, however far the pauses meanwhile move it. */
+        fun await() {
+            while (true) {
+                val wait = due() - System.nanoTime()
+                if (wait <= 0) return
+                LockSupport.parkNanos(wait)
+            }
+        }
     }
 
     /** Every worker's flush latencies, in nanoseconds. */

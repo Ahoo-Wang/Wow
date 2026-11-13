@@ -31,19 +31,22 @@ import kotlin.system.exitProcess
  *
  * First the benchmark's domain runs in this JVM on the store (ComponentRun, as the L1 benchmark does): `--templates`
  * accounts and four deposits each, so Wow creates its tables and writes real rows, and the store's counters per
- * command are read around it. Then, with the driver alone, each case runs on fresh clones of Wow's tables over
- * `--connections`, `--warm-up` seconds unmeasured and `--seconds` measured, over `--aggregates` opened aggregates
- * whose versions its steps carry on; on PostgreSQL P2's two cases run again at `--p2-share` of the split's
- * throughput, so they compare at one rate. `--cases` keeps the cases whose name starts with one of its prefixes.
+ * command are read around it. Then, with the driver alone, each case's steps run over `--connections`, each on fresh
+ * clones of Wow's tables with `--aggregates` aggregates opened at version 1 (no step runs on what another left),
+ * `--warm-up` seconds unmeasured and `--seconds` measured; on PostgreSQL P2's two cases run again at `--p2-share` of
+ * the split's throughput, so they compare at one rate. `--cases` keeps the cases whose name starts with one of its
+ * prefixes.
  *
  * The calibration leads raw.json: today's shape on Wow's ground (as many aggregates as Wow's run, every one written
  * since the checkpoint, at its concurrency, paced at its throughput, in its batch shape from its statements per
  * command) against Wow's own counters per command, each within its bound: WAL records, bytes and the HOT share on
- * PostgreSQL; inserts, updates, journal and oplog bytes on MongoDB, Wow's without its node's checkpoint and lease
- * updates, which the clone does not write. Reported apart: full-page images and commits on PostgreSQL (its commit
- * counter counts the transactions Wow's node only reads in), commands on MongoDB. A run that fails it or cannot take
- * it says so first, and none of its cases is read; nor is a step with a failed or refused write. raw.json goes to `--out`, with the store's version and
- * durability settings and the run's batch parameters.
+ * PostgreSQL; inserts, updates, journal and oplog bytes on MongoDB, Wow's updates and oplog bytes without its node's
+ * checkpoint and lease writes, which the clone does not make; the appends and saves per command, so a wrong batch
+ * shape fails it; and no command of Wow's run failed. Reported apart: full-page images and commits on PostgreSQL (its
+ * commit counter counts the transactions Wow's node only reads in), commands and the node's own oplog bytes on
+ * MongoDB. A run that fails it or cannot take it says so first, and none of its cases is read; nor is a step with a
+ * failed or refused write. raw.json goes to `--out`, with the store's version and durability settings and the run's
+ * batch parameters.
  *
  * Run it on the install's class path with main class `RawStoreBenchKt`; bench.sh's `measure --program=raw` does.
  */
@@ -126,9 +129,6 @@ data class RawSettings(
             require(settings.connections.max() * widest <= settings.aggregates) {
                 "Each connection's flush needs $widest aggregates of its own: raise --aggregates."
             }
-            require(CALIBRATION_CONNECTIONS * settings.logBatch <= settings.templates) {
-                "The calibration's $CALIBRATION_CONNECTIONS connections need ${settings.logBatch} templates each."
-            }
             return settings
         }
 
@@ -157,8 +157,13 @@ private fun seed(
     options: Map<String, String>,
     counters: () -> Map<String, Double>,
     checkpoint: () -> Unit,
+    own: (Long, Long) -> Map<String, Double> = { _, _ -> emptyMap() },
 ): Map<String, Double> {
-    val context = SpringApplicationBuilder(TransferServer::class.java, ComponentCounters::class.java)
+    val context = SpringApplicationBuilder(
+        TransferServer::class.java,
+        ComponentCounters::class.java,
+        RawCommands::class.java
+    )
         .web(WebApplicationType.NONE)
         .profiles(backend)
         .run(
@@ -178,14 +183,19 @@ private fun seed(
         warmUpOps = templates,
         concurrency = SEED_CONCURRENCY,
     )
+    val commands = context.getBean(RawCommands::class.java)
+    var from = 0L
+    var to = 0L
     val component = try {
         run.run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java)) { starting ->
             // The warm-up's snapshots are written behind its commits: let them land before the measured deposits.
             Thread.sleep(SETTLE_MILLIS)
             if (starting) {
-                before = counters()
+                before = counters() + commands.snapshot()
+                from = System.currentTimeMillis()
             } else {
-                after = counters()
+                to = System.currentTimeMillis()
+                after = counters() + commands.snapshot()
             }
         }
     } finally {
@@ -195,7 +205,9 @@ private fun seed(
     val statements = (component["storeRoundTripsByCommand"] as Map<*, *>?).orEmpty()
         .mapNotNull { (key, value) -> (value as? Number)?.let { "statements: $key" to it.toDouble() } }
     val rate = (component["throughput"] as? Number)?.let { mapOf(WOW_RATE to it.toDouble()) }.orEmpty()
-    return after.mapValues { (key, value) -> (value - (before[key] ?: value)) / ops } + statements + rate
+    val failed = (component["failed"] as Map<*, *>?).orEmpty().values.sumOf { (it as Number).toDouble() }
+    val growth = after.mapValues { (key, value) -> value - (before[key] ?: 0.0) } + own(from, to)
+    return growth.mapValues { (_, delta) -> delta / ops } + statements + rate + (WOW_FAILED to failed / ops)
 }
 
 /** The calibration's connections: Wow's run's concurrency. */
@@ -204,8 +216,22 @@ const val CALIBRATION_CONNECTIONS = 64
 /** The calibration's case: today's, on Wow's ground. */
 const val CALIBRATION = "calibration"
 
-/** Versions of [aggregates] opened aggregates, at version 1, which a case's steps carry on. */
+/** Versions of [aggregates] aggregates opened at version 1. */
 fun opened(aggregates: Int): IntArray = IntArray(aggregates) { 1 }
+
+/**
+ * A case's steps, one at each of [connections]: each on tables [prepare]d afresh, its [aggregates] aggregates opened at
+ * version 1, so no step runs on what an earlier one left (dead tuples, grown indexes, a vacuum's work).
+ */
+fun stepsOf(
+    connections: List<Int>,
+    aggregates: Int,
+    prepare: () -> Unit,
+    run: (connections: Int, versions: IntArray) -> RawStep,
+): List<RawStep> = connections.map { n ->
+    prepare()
+    run(n, opened(aggregates))
+}
 
 private fun postgres(settings: RawSettings, options: Map<String, String>): RawResult {
     val raw = RawPostgres(
@@ -227,19 +253,22 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
             }
         }.also(::print)
     val (logBatch, snapshotBatch) = shapeOf(wow, PG_APPENDS, PG_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
+    requireTemplates(logBatch, settings.templates)
     val today = raw.cases(logBatch, snapshotBatch, settings.batches).first { it.case.name == RawPostgres.WOW_TODAY }
     raw.prepare(today.fillfactor, settings.templates)
     val calibrating = step(
         RawPostgres.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.fillfactor, today.flush),
         CALIBRATION_CONNECTIONS,
-        Pace(settings.timing, wow[WOW_RATE]),
+        Pace(calibrationTiming(settings), wow[WOW_RATE]),
         opened(settings.templates),
     )
     val steps = mutableListOf(calibrating)
     for (case in cases.filter { settings.keeps(it.case.name) }) {
-        raw.prepare(case.fillfactor, settings.aggregates)
-        val versions = opened(settings.aggregates)
-        settings.connections.forEach { steps += step(case, it, Pace(settings.timing), versions) }
+        steps += stepsOf(settings.connections, settings.aggregates, {
+            raw.prepare(case.fillfactor, settings.aggregates)
+        }) { n, versions ->
+            step(case, n, Pace(settings.timing), versions)
+        }
     }
     // P2 at one rate: both cases at a share of the split's throughput at the most connections.
     val split = steps.lastOrNull { it.case.name == RawPostgres.P2_SEPARATE && it.rate == null }
@@ -251,7 +280,13 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
         }
     }
     return RawResult(
-        calibrationOf(POSTGRES_CHECKS, listOf("walFpi", "commits"), postgresWow(wow), calibrating),
+        calibrationOf(
+            POSTGRES_CHECKS + shapeChecks(logBatch) + FAILED_CHECK,
+            listOf("walFpi", "commits"),
+            postgresWow(wow) + shapeCounts(wow, PG_APPENDS, PG_SAVES),
+            calibrating,
+            shaped(logBatch, snapshotBatch),
+        ),
         raw.settings(),
         steps
     )
@@ -270,7 +305,7 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         uri = options["spring.mongodb.uri"] ?: "mongodb://localhost:27017/?replicaSet=rs0",
         databaseName = options["wow.mongo.database"] ?: "transfer",
     ).use { raw ->
-        val wow = seed("mongo", settings.templates, options, { raw.counters() + raw.tables() }) {}
+        val wow = seed("mongo", settings.templates, options, { raw.counters() + raw.tables() }, {}, raw::ownOplog)
         raw.loadTemplates(settings.templates)
         val cpu = ContainerCpu(settings.container)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
@@ -286,33 +321,84 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 }.copy(pool = connections)
             }.also(::print)
         val shape = shapeOf(wow, MONGO_APPENDS, MONGO_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
+        requireTemplates(shape.first, settings.templates)
         val today = raw.cases(shape.first, shape.second, settings.batches).first { it.case.name == RawMongo.WOW_TODAY }
         raw.prepare(settings.templates, today.bigState)
         val calibrating = step(
             RawMongo.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.bigState, today.flush),
             CALIBRATION_CONNECTIONS,
             opened(settings.templates),
-            Pace(settings.timing, wow[WOW_RATE]),
+            Pace(calibrationTiming(settings), wow[WOW_RATE]),
         )
         val steps = mutableListOf(calibrating)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
-            raw.prepare(settings.aggregates, case.bigState)
-            val versions = opened(settings.aggregates)
-            settings.connections.forEach { steps += step(case, it, versions) }
+            steps += stepsOf(settings.connections, settings.aggregates, {
+                raw.prepare(settings.aggregates, case.bigState)
+            }) { n, versions ->
+                step(case, n, versions)
+            }
         }
-        // Wow's updates without its node's own (checkpoints, leases), which the clone does not write.
-        val own = wow.filterKeys { it.endsWith(" update") && ".wow_" in it && "__" !in it }.values.sum()
-        val updates = wow["updates"]?.let { mapOf("updates" to it - own) }.orEmpty()
-        RawResult(calibrationOf(MONGO_CHECKS, listOf("commands"), wow + updates, calibrating), raw.settings(), steps)
+        RawResult(
+            calibrationOf(
+                MONGO_CHECKS + shapeChecks(shape.first) + FAILED_CHECK,
+                listOf("commands", OWN_OPLOG_BYTES),
+                mongoWow(wow) + shapeCounts(wow, MONGO_APPENDS, MONGO_SAVES),
+                calibrating,
+                shaped(shape.first, shape.second),
+            ),
+            raw.settings(),
+            steps,
+        )
     }
 
 /**
- * Wow's batch shape in its own run, from its statements per command: the commands an append took (the statement
- * [append]) and the snapshots a save took of them (the statement [save]); null when its run did not count them.
+ * Wow's MongoDB counters per command as the calibration reads them: its updates without its node's own (checkpoints,
+ * leases: their collections' `top` counts) and its oplog bytes without the node's own entries over the window, which
+ * the clone does not write. Its journal bytes keep them: the journal has no account by collection; the node's own
+ * oplog bytes, reported apart, say about how much they are.
+ */
+private fun mongoWow(wow: Map<String, Double>): Map<String, Double> {
+    val own = wow.filterKeys { it.endsWith(" update") && ".wow_" in it && "__" !in it }.values.sum()
+    return wow + buildMap {
+        wow["updates"]?.let { put("updates", it - own) }
+        wow["oplogBytes"]?.let { put("oplogBytes", it - (wow[OWN_OPLOG_BYTES] ?: 0.0)) }
+    }
+}
+
+/**
+ * The calibration's warm-up and measured seconds: its warm-up at least CALIBRATION_WARM_UP, since PostgreSQL's table
+ * counters reach a reader up to a second late and an idle backend holds its last ones longer, so a short warm-up's
+ * first writes (every row's first update, never HOT) would be counted in the window.
+ */
+private fun calibrationTiming(
+    settings: RawSettings
+) = maxOf(settings.warmUpSeconds, CALIBRATION_WARM_UP) to settings.seconds
+
+/** Fails unless the calibration's 64 connections have [logBatch] templates each. */
+private fun requireTemplates(logBatch: Int, templates: Int) = require(CALIBRATION_CONNECTIONS * logBatch <= templates) {
+    "The calibration's $CALIBRATION_CONNECTIONS connections need $logBatch templates each: raise --templates."
+}
+
+/** Wow's appends and saves per command, from the statements or commands [shapeOf] reads, as the shape checks name them. */
+private fun shapeCounts(wow: Map<String, Double>, append: String, save: String): Map<String, Double> = buildMap {
+    wow[append]?.let { put(APPENDS, it) }
+    wow[save]?.let { put(SAVES, it) }
+}
+
+/** The clone's appends and saves per command in the calibration's shape: one append a flush, its groups' saves. */
+private fun shaped(logBatch: Int, snapshotBatch: Int): Map<String, Double> = mapOf(
+    APPENDS to 1.0 / logBatch,
+    SAVES to groupsOf(logBatch, snapshotBatch).size.toDouble() / logBatch,
+    WOW_FAILED to 0.0,
+)
+
+/**
+ * Wow's batch shape in its own run, from its statements or commands per command: the commands an append took (the
+ * count [append]) and the snapshots a save took of them (the count [save]); null when its run did not count them.
  */
 fun shapeOf(wow: Map<String, Double>, append: String, save: String): Pair<Int, Int>? {
-    val appends = wow["statements: $append"]?.takeIf { it > 0 } ?: return null
-    val saves = wow["statements: $save"]?.takeIf { it > 0 } ?: return null
+    val appends = wow[append]?.takeIf { it > 0 } ?: return null
+    val saves = wow[save]?.takeIf { it > 0 } ?: return null
     val logBatch = (1 / appends).roundToInt().coerceAtLeast(1)
     val groups = (logBatch * saves).roundToInt().coerceIn(1, logBatch)
     return logBatch to (logBatch + groups - 1) / groups
@@ -327,8 +413,9 @@ fun calibrationOf(
     apart: List<String>,
     wow: Map<String, Double>,
     calibrating: RawStep,
+    shape: Map<String, Double> = emptyMap(),
 ): RawCalibration {
-    val raw = calibrating.perUnit + calibrating.ratios
+    val raw = calibrating.perUnit + calibrating.ratios + shape
     return RawCalibration(
         checks = checks.map { (metric, bound) -> RawCheck(metric, wow[metric], raw[metric], bound) },
         apart = apart.map { RawCheck(it, wow[it], raw[it], RawCheck.Bound()) },
@@ -342,15 +429,34 @@ private fun print(step: RawStep) =
     println("raw ${step.case.name} at ${step.connections}: ${step.unitsPerSecond} ${step.case.unit}s/s")
 
 private const val SEED_CONCURRENCY = CALIBRATION_CONNECTIONS
+private const val CALIBRATION_WARM_UP = 10
 private const val DEPOSITS = 4
 private const val SETTLE_MILLIS = 2_000L
 private const val SHARE = 0.10
+private const val HALF = 0.5
 private const val WOW_GROUND = "today on Wow's ground: the calibration"
 private const val WOW_RATE = "wowCommandsPerSecond"
-private const val PG_APPENDS = "statement with wow_log__transfer__account"
-private const val PG_SAVES = "statement set wow_snapshot__transfer__account"
-private const val MONGO_APPENDS = "insert"
-private const val MONGO_SAVES = "update"
+private const val PG_APPENDS = "statements: statement with wow_log__transfer__account"
+private const val PG_SAVES = "statements: statement set wow_snapshot__transfer__account"
+private const val MONGO_APPENDS = "commands: insert wow_log__transfer__account"
+private const val MONGO_SAVES = "commands: update wow_snapshot__transfer__account"
+private const val APPENDS = "appendsPerCommand"
+private const val SAVES = "savesPerCommand"
+private const val WOW_FAILED = "failedPerCommand"
+private const val OWN_OPLOG_BYTES = "ownOplogBytes"
+
+/**
+ * The batch shape's checks: the appends and saves per command, each within what a shape of whole numbers can come to
+ * Wow's (half a command an append, half a save a flush of [logBatch] commands), so a shape read from the wrong counts
+ * fails while Wow's own rounding does not.
+ */
+private fun shapeChecks(logBatch: Int) = listOf(
+    APPENDS to RawCheck.Bound(absolute = 1.0 / (logBatch - HALF) - 1.0 / logBatch),
+    SAVES to RawCheck.Bound(absolute = HALF / logBatch),
+)
+
+/** No command of Wow's run failed: a failed command wrote less than a deposit. */
+private val FAILED_CHECK = listOf(WOW_FAILED to RawCheck.Bound(absolute = 0.0))
 
 /** PostgreSQL's checks: WAL records and bytes within 10%, the HOT share within 0.10. */
 private val POSTGRES_CHECKS = listOf(

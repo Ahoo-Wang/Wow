@@ -16,7 +16,6 @@ package me.ahoo.wow.benchmark.transfer.raw
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class RawRunTest {
@@ -53,24 +52,24 @@ class RawRunTest {
     }
 
     @Test
-    fun `a case's second step goes on from the versions its first wrote`() {
-        val written = ConcurrentHashMap<Int, MutableList<Int>>()
-        val versions = opened(40)
-        fun step(connections: Int): Map<Int, List<Int>> {
-            written.clear()
+    fun `each step of a case runs on freshly prepared tables, its aggregates opened at version 1`() {
+        val events = ArrayList<String>()
+        val started = ArrayList<List<Int>>()
+        val ended = ArrayList<List<Int>>()
+        val steps = stepsOf(listOf(2, 4), aggregates = 40, prepare = { events += "prepare" }) { connections, versions ->
+            events += "step at $connections"
+            started += versions.toList()
             runStep(CASE, connections, Pace(0 to 1), ContainerCpu(null), { emptyMap() }) { index ->
                 val owned = Aggregates(versions, index, connections)
-                fake { owned.take(2).forEach { written.computeIfAbsent(it.number) { ArrayList() }.add(it.version) } }
-            }.read.assert().isTrue()
-            return written.mapValues { (_, list) -> list.toList() }
+                fake { owned.take(2) }
+            }.also { ended += versions.toList() }
         }
-        val first = step(2)
-        val second = step(4)
-        second.keys.assert().isNotEmpty()
-        for ((number, later) in second) {
-            val highest = first[number]?.max() ?: continue
-            later.min().assert().describedAs("aggregate $number").isGreaterThan(highest)
-        }
+        events.assert().containsExactly("prepare", "step at 2", "prepare", "step at 4")
+        steps.map { it.connections }.assert().containsExactly(2, 4)
+        steps.all { it.read }.assert().isTrue()
+        // The first step wrote versions past 1; the second started again from 1, on its freshly prepared tables.
+        ended[0].max().assert().isGreaterThan(1)
+        started.forEach { versions -> versions.distinct().assert().containsExactly(1) }
     }
 
     @Test
@@ -104,14 +103,13 @@ class RawRunTest {
     }
 
     @Test
-    fun `the calibration's batch shape is Wow's, from its statements per command`() {
+    fun `the calibration's batch shape is Wow's, from its statements or commands per command`() {
         val wow = mapOf("statements: append" to 0.0707, "statements: save" to 0.2205)
-        shapeOf(wow, "append", "save").assert().isEqualTo(14 to 5)
-        shapeOf(mapOf("statements: append" to 0.0678, "statements: save" to 0.1325), "append", "save")
-            .assert().isEqualTo(15 to 8)
-        shapeOf(mapOf("statements: append" to 2.0, "statements: save" to 5.0), "append", "save")
-            .assert().isEqualTo(1 to 1)
-        shapeOf(wow, "append", "missing").assert().isNull()
+        shapeOf(wow, "statements: append", "statements: save").assert().isEqualTo(14 to 5)
+        val mongo = mapOf("commands: insert log" to 0.0678, "commands: update snapshot" to 0.1325)
+        shapeOf(mongo, "commands: insert log", "commands: update snapshot").assert().isEqualTo(15 to 8)
+        shapeOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
+        shapeOf(wow, "statements: append", "missing").assert().isNull()
     }
 
     @Test

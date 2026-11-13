@@ -41,6 +41,7 @@ import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonString
+import org.bson.BsonTimestamp
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.atomic.AtomicInteger
@@ -81,12 +82,14 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
     private var sequencer = Sequencer(0)
 
     /**
-     * Up to [count] streams of Wow's log (its documents that hold events: no placeholder) and of its snapshots as
-     * templates, and its partition count, its counters'.
+     * Up to [count] streams of Wow's measured deposits (version 3 on: an account's opening is 1, its warm-up deposit
+     * 2; documents that hold events, so no placeholder), the latest first, and of its snapshots as templates; and its
+     * partition count, its counters'.
      */
     fun loadTemplates(count: Int) {
-        logTemplates = database.getCollection(LOG).find(Filters.exists("events.0"))
-            .sort(Document("_id", -1)).limit(count).toList()
+        logTemplates = database.getCollection(LOG)
+            .find(Filters.and(Filters.exists("events.0"), Filters.gte(VERSION, MEASURED_VERSION)))
+            .sort(Document("commit_time", -1)).limit(count).toList()
         snapshotTemplates = database.getCollection(SNAPSHOT).find().limit(count).toList()
         partitions = database.getCollection(COUNTERS).countDocuments().toInt()
         check(logTemplates.isNotEmpty() && snapshotTemplates.isNotEmpty() && partitions > 0) {
@@ -454,6 +457,26 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         )
     }
 
+    /**
+     * The oplog's bytes of the node's own collections (its checkpoints and leases: not an aggregate's, whose
+     * collections are `<prefix>__<context>__<aggregate>`) written between [fromMillis] and [toMillis], as
+     * `ownOplogBytes`: what Wow's oplog holds that the clone's does not.
+     */
+    fun ownOplog(fromMillis: Long, toMillis: Long): Map<String, Double> {
+        val window = Filters.and(
+            Filters.gte("ts", BsonTimestamp((fromMillis / MILLIS).toInt(), 0)),
+            Filters.lte("ts", BsonTimestamp((toMillis / MILLIS).toInt(), 0)),
+            Filters.regex("ns", "^$databaseName\\.wow_(?!.*__)"),
+        )
+        val sum = Document("\$sum", Document("\$bsonSize", "\$\$ROOT"))
+        val total = admin.getDatabase("local").getCollection("oplog.rs")
+            .aggregate(
+                listOf(Document("\$match", window), Document("\$group", Document("_id", null).append("bytes", sum)))
+            )
+            .firstOrNull()?.get("bytes") as Number?
+        return mapOf("ownOplogBytes" to (total?.toDouble() ?: 0.0))
+    }
+
     override fun close() = admin.close()
 
     companion object {
@@ -474,6 +497,8 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         fun positionId(partition: Int, sequence: Long): Long = (partition.toLong() shl SEQUENCE_BITS) or sequence
 
         private const val SEQUENCE_BITS = 51
+        private const val MEASURED_VERSION = 3
+        private const val MILLIS = 1_000L
         private const val COMMAND = "command"
         private const val TENANT_ID = "tenant_id"
         private const val AGGREGATE_ID = "aggregate_id"
