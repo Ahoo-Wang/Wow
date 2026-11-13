@@ -20,6 +20,7 @@ import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.WriteModel
 import org.bson.BsonArray
+import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonString
@@ -27,14 +28,15 @@ import org.bson.Document
 import org.bson.conversions.Bson
 
 /**
- * A snapshot's save on MongoDB in each shape its store cost is priced in: [Update.M0] Wow's own filter and pipeline
+ * A snapshot's save on MongoDB in each shape its store cost is priced in: [Update.M1] Wow's own filter and modifier
  * (MongoSnapshotStore), and the candidate shapes against it.
  */
 object MongoShapes {
     /**
-     * A snapshot's update, the shapes its store cost is priced in: [M0] Wow's aggregation pipeline `$set` of every
-     * field as `$literal` and the stale mark's `$cond`; [M1] a modifier `$set` with no mark in the filter; [M2] M1
-     * with `$setOnInsert` for what never changes; [M3] a `replaceOne` of the document.
+     * A snapshot's update, the shapes its store cost is priced in: [M1] Wow's batch save today (MongoSnapshotWrites:
+     * its guard with no stale mark, `stale_version: {$exists: false}`, in the one filter document, and a modifier
+     * `$set` of its fields); [M0] the aggregation pipeline `$set` of every field as `$literal` and the stale mark's
+     * `$cond` it sent before; [M2] M1 with `$setOnInsert` for what never changes; [M3] a `replaceOne` of the document.
      */
     enum class Update { M0, M1, M2, M3 }
 
@@ -64,7 +66,10 @@ object MongoShapes {
                 UPSERT,
             )
             Update.M1 -> UpdateOneModel(
-                Filters.and(guardOf(tenant, command, revision), Filters.exists(STALE_VERSION, false)),
+                (guardOf(tenant, command, revision) as BsonDocument).append(
+                    STALE_VERSION,
+                    BsonDocument("\$exists", BsonBoolean.FALSE),
+                ),
                 Document("\$set", fields.without(TENANT_ID, AGGREGATE_ID)),
                 UPSERT,
             )

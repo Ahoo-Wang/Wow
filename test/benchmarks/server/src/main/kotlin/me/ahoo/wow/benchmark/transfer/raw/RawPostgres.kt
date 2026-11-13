@@ -116,8 +116,7 @@ class RawPostgres(
      * The cases: [WOW_TODAY] (today's shape: [logBatch] streams an append, their snapshots [snapshotBatch] a
      * transaction, asynchronously), the log alone, P0 and P1 (the snapshot upsert alone at each of [rows] rows a
      * statement, synchronous and asynchronous, at fillfactor 100 and 80), P2 (the append and its snapshots in one
-     * synchronous transaction against today's split), Wow's own peak shape at calls of up to 64, 256 and 512 streams
-     * ([WowShape]) and a point read.
+     * synchronous transaction against today's split), Wow's own peak shape ([WowShape.cases]) and a point read.
      */
     fun cases(logBatch: Int, snapshotBatch: Int, rows: List<Int>): List<Case> = buildList {
         add(
@@ -155,18 +154,8 @@ class RawPostgres(
                 transaction(c) { both(append(c, commands, bound(synchronous = true)), upsert(c, commands)) }
             }
         )
-        for (merge in WowShape.MERGES) {
-            val prices = "Wow's peak shape: two appenders, calls of up to $merge streams; two writers of up to " +
-                "${WowShape.WRITER_MAX} rows"
-            add(
-                Case(
-                    RawCase("wow-shape-$merge", COMMAND, 1, prices, wowShape = true),
-                    FILLFACTOR,
-                    WowShape.Options(merge)
-                ) { _, _ ->
-                    error("A shape's callers submit to it.")
-                }
-            )
+        for ((case, options) in WowShape.cases()) {
+            add(Case(case, FILLFACTOR, options) { _, _ -> error("A shape's callers submit to it.") })
         }
         add(
             Case(RawCase("point-read", "read", 1, "reference: a snapshot by its key"), FILLFACTOR) { c, a ->

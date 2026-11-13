@@ -54,8 +54,8 @@ import kotlin.concurrent.withLock
  * - the log as Wow appends a group: each stream at its partition's next sequence ([Partitioner]), `_id` its position,
  *   all of them one ordered `insertMany`; the sequences come from blocks of [BLOCK] reserved on the partition's counter
  *   by one pipeline `findOneAndUpdate` and taken off its list by one `$pull` once used, as Wow's sequencer does;
- * - the snapshots as an unordered `bulkWrite` of version-guarded upserts in one of four [Update] shapes, M0 Wow's own
- *   filter and pipeline, so each is priced per update as mongod times them.
+ * - the snapshots as an unordered `bulkWrite` of version-guarded upserts in one of four [Update] shapes, M1 Wow's own
+ *   filter and modifier `$set`, so each is priced per update as mongod times them.
  *
  * Wow's appender reads an aggregate's previous sequence from its cache of the last ones (a hit in steady state), so no
  * read precedes an append here. A unit counts only when the store wrote it; a write error refuses it.
@@ -95,7 +95,7 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
 
     /**
      * The cases: [WOW_TODAY] (today's shape, the calibration: the log's group of [logBatch] and their snapshots
-     * [snapshotBatch] a `bulkWrite` in [Update.M0]), the log alone, each [Update] at each of [batches] updates a
+     * [snapshotBatch] a `bulkWrite` in [Update.M1], Wow's own), the log alone, each [Update] at each of [batches] updates a
      * `bulkWrite` with the domain's state and with a 4 KB one, the log's insert and its snapshots' `bulkWrite` in one
      * multi-document transaction against the same calls back to back, and a point read.
      */
@@ -107,7 +107,7 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
                 var saved = Flushed(0)
                 var from = 0
                 for (n in groupsOf(logBatch, snapshotBatch)) {
-                    saved += w.write(commands.subList(from, from + n), Update.M0, bigState = false)
+                    saved += w.write(commands.subList(from, from + n), Update.M1, bigState = false)
                     from += n
                 }
                 both(appended, saved)
@@ -122,7 +122,11 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
             for (update in Update.entries) {
                 for (n in batches) {
                     val name = "${update.name.lowercase()}-$n-${if (bigState) "state-4k" else "state"}"
-                    val prices = if (update == Update.M0) "M0: today" else "B: ${update.name}"
+                    val prices = when (update) {
+                        Update.M1 -> "M1: today"
+                        Update.M0 -> "M0: the pipeline before #6210"
+                        else -> "B: ${update.name}"
+                    }
                     add(
                         Case(
                             RawCase(name, "update", n, prices),
@@ -136,14 +140,14 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
             Case(RawCase(C_TRANSACTION, COMMAND, logBatch, "C: one multi-document transaction"), false) { w, a ->
                 val commands = a.take(logBatch)
                 requireNotNull(w.session).withTransaction<Flushed> {
-                    both(w.insert(commands), w.write(commands, Update.M0, bigState = false))
+                    both(w.insert(commands), w.write(commands, Update.M1, bigState = false))
                 }
             }
         )
         add(
             Case(RawCase(C_BACK_TO_BACK, COMMAND, logBatch, "C's writes back to back, no transaction"), false) { w, a ->
                 val commands = a.take(logBatch)
-                both(w.insert(commands), w.write(commands, Update.M0, bigState = false))
+                both(w.insert(commands), w.write(commands, Update.M1, bigState = false))
             }
         )
         addAll(shapeCases())
@@ -155,22 +159,15 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         )
     }
 
-    /** Wow's own peak shape ([WowShape]) at calls of up to 64, 256 and 512 streams. */
-    private fun shapeCases(): List<Case> = buildList {
-        for (merge in WowShape.MERGES) {
-            val prices = "Wow's peak shape: two appenders, calls of up to $merge streams; two writers of up to " +
-                "${WowShape.WRITER_MAX} updates"
-            add(
-                Case(
-                    RawCase("wow-shape-$merge", COMMAND, 1, prices, wowShape = true),
-                    false,
-                    WowShape.Options(merge)
-                ) { _, _ ->
-                    error("A shape's callers submit to it.")
-                }
-            )
+    /** Wow's own peak shape and its what-ifs ([WowShape.cases]). */
+    private fun shapeCases(): List<Case> =
+        WowShape.cases().map { (case, options) ->
+            Case(
+                case,
+                false,
+                options
+            ) { _, _ -> error("A shape's callers submit to it.") }
         }
-    }
 
     /** A command counts once its stream and its snapshot were both written. */
     private fun both(appended: Flushed, saved: Flushed) =
@@ -224,7 +221,7 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
 
     /**
      * Wow's own write path on this store ([options]), on [client]: its appenders' and writers' writers, the log's
-     * group and the snapshots' `bulkWrite` in Wow's shape (M0).
+     * group and the snapshots' `bulkWrite` in Wow's shape (M1).
      */
     fun shapeOf(options: WowShape.Options, client: MongoClient): WowShape<Writer> = WowShape(
         partitions,
@@ -232,7 +229,7 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         options,
         { Writer(client, null) },
         { writer, commands -> writer.insertEach(commands) },
-        { writer, commands -> writer.writeEach(commands, Update.M0, bigState = false) },
+        { writer, commands -> writer.writeEach(commands, Update.M1, bigState = false) },
     )
 
     private fun counted(written: BooleanArray): Flushed = written.count { it }.let { Flushed(it, written.size - it) }

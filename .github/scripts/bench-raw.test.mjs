@@ -244,25 +244,48 @@ test('a failed run, an uncalibrated one, a step not read and late paced flushes 
   assert.match(summary, /\*\*1 run\(s\) failed\*\*/);
 });
 
-test('the ceiling is the best read step of a shape Wow can give the store, and its absence is said', () => {
-  assert.equal(
-    ceilingText({
-      ceiling: {
-        case: 'wow-shape-512',
+test('the ceilings are named for what each is compared with, and what they leave out is said', () => {
+  const text = ceilingText({
+    ceilings: {
+      committed: {
+        case: 'wow-shape-committed',
         connections: 1024,
+        unitsPerSecond: 41250.4,
+      },
+      snapshot: {
+        case: 'wow-shape-snapshot',
+        connections: 4096,
         unitsPerSecond: 31250.4,
       },
-    }),
-    'Ceiling: 31250 commands/s, `wow-shape-512` at 1024 callers (the best read step of a shape Wow can give the store; the per-connection cases are shapes it cannot).',
+    },
+  });
+  assert.match(
+    text,
+    /^Ceilings: committed 41250 commands\/s \(`wow-shape-committed` at 1024 callers; answered at the append, its snapshots saved behind and kept up with\); snapshot 31250 commands\/s \(`wow-shape-snapshot` at 4096 callers; answered once its snapshot is written\)\./,
   );
-  assert.match(ceilingText({}), /^No ceiling/);
+  assert.match(
+    text,
+    /leaves out the node's checkpoints and leases, the tails' reads and Kafka/,
+  );
+  assert.match(
+    ceilingText({ ceilings: {} }),
+    /^No ceiling: the run is uncalibrated/,
+  );
   const [, , row] = rawTable({
     raw: {
       ...RUN.raw,
       steps: [
-        { ...STEP, case: 'wow-shape-512', unit: 'command', wowShape: true },
+        {
+          ...STEP,
+          case: 'wow-shape-snapshot',
+          unit: 'command',
+          ceiling: 'snapshot',
+        },
       ],
     },
   });
-  assert.match(row, /^\| wow-shape-512 \| P0: today \| yes \| command \|/);
+  assert.match(
+    row,
+    /^\| wow-shape-snapshot \| P0: today \| snapshot \| command \|/,
+  );
 });

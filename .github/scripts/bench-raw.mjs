@@ -135,14 +135,28 @@ export function calibrationText(raw) {
 }
 
 /**
- * The ceiling a figure of Wow's is compared with: the best read step of a shape Wow can give the store (two
- * appenders merging the lanes' batches, two snapshot writers), in commands a second.
+ * The ceilings a figure of Wow's is compared with, each the best candidate step of Wow's own shape (two appenders
+ * merging the lanes' batches to 512 streams, two snapshot writers of up to 256 rows): committed, a command answered at
+ * its append with its snapshots saved behind and kept up with; snapshot, answered once its snapshot is written too.
+ * What they leave out is said beside them.
  */
 export function ceilingText(raw) {
-  const c = raw?.ceiling;
-  if (!c)
-    return 'No ceiling: no step of a shape Wow can give the store was read.';
-  return `Ceiling: ${num(c.unitsPerSecond, 0)} commands/s, \`${c.case}\` at ${c.connections} callers (the best read step of a shape Wow can give the store; the per-connection cases are shapes it cannot).`;
+  const ceilings = raw?.ceilings ?? {};
+  const named = [
+    [
+      'committed',
+      'answered at the append, its snapshots saved behind and kept up with',
+    ],
+    ['snapshot', 'answered once its snapshot is written'],
+  ]
+    .filter(([kind]) => ceilings[kind])
+    .map(
+      ([kind, what]) =>
+        `${kind} ${num(ceilings[kind].unitsPerSecond, 0)} commands/s (\`${ceilings[kind].case}\` at ${ceilings[kind].connections} callers; ${what})`,
+    );
+  if (named.length === 0)
+    return 'No ceiling: the run is uncalibrated, or no step of the shape Wow gives the store was a candidate (read, unpaced, no snapshot failed, a committed one with its snapshots kept up).';
+  return `Ceilings: ${named.join('; ')}. Each is the store alone doing Wow's appends and snapshots in Wow's own shape; it leaves out the node's checkpoints and leases, the tails' reads and Kafka, which Wow's figure pays for too. The per-connection and what-if cases are shapes Wow does not give the store.`;
 }
 
 /** The store's version and durability settings, and the run's batch shape, a ceiling is quoted with. */
@@ -163,8 +177,8 @@ const readText = step =>
 export function rawTable(run) {
   const mongo = run.raw?.backend === 'mongo';
   const head = mongo
-    ? "| Case | Prices | Wow's shape | Unit | Connections | Pool | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Read |"
-    : "| Case | Prices | Wow's shape | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Late | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Read |";
+    ? "| Case | Prices | Wow's shape (ceiling) | Unit | Connections | Pool | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Read |"
+    : "| Case | Prices | Wow's shape (ceiling) | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Late | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Read |";
   return [
     head,
     `| ${head
@@ -181,7 +195,7 @@ export function rawTable(run) {
         ? [
             step.case,
             step.prices,
-            step.wowShape ? 'yes' : 'no',
+            step.ceiling ?? 'no',
             step.unit,
             step.connections,
             step.pool ?? 'default',
@@ -199,7 +213,7 @@ export function rawTable(run) {
         : [
             step.case,
             step.prices,
-            step.wowShape ? 'yes' : 'no',
+            step.ceiling ?? 'no',
             step.unit,
             step.connections,
             Number.isFinite(step.rate)

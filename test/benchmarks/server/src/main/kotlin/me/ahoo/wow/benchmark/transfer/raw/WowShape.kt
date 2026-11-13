@@ -17,19 +17,26 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Wow's own write path at its peak, the shape the node gives the store, with the driver alone: a caller's command
- * queues on its partition's lane (PartitionAppendQueue); [Options.appenders] committers each take what the lanes hand
- * them, a lane's batch of at most [Options.maxBatch] streams from each lane with none in flight, up to
- * [Options.mergeMax] streams, and append them with one call ([append]); once a command's stream is in the log, its
- * snapshot queues for [Options.writers] writers, each saving up to [Options.writerMax] rows a call ([save]), as the
- * node's snapshot writes do. Each appender and writer has its own store connection ([open]).
+ * Wow's own write path at its peak, the shape the node gives the store, with the driver alone:
  *
- * A caller ([submit]) waits for its command: it counts once its stream and its snapshot were both written, as the
- * other cases count a command; a store call that throws fails each command it carried.
+ * - a caller's command queues on its partition's lane (PartitionAppendQueue); a lane with no batch handed or in
+ *   flight hands one at once, what it holds up to [Options.maxBatch] streams, fixed when handed;
+ * - [Options.appenders] committers each take the first batch handed and those handed meanwhile, whole, while the call
+ *   holds fewer than [Options.mergeMax] streams (so a call carries up to `mergeMax + maxBatch - 1`), and append them
+ *   with one call ([append]); a lane hands its next batch once its batch is written;
+ * - once a command's stream is in the log, its snapshot queues for [Options.writers] writers, each saving up to
+ *   [Options.writerMax] rows a call ([save]), as the node's snapshot writes do (SnapshotWrites).
+ *
+ * Each appender and writer has its own store connection ([open]). A caller ([submit]) waits for its command as
+ * [Options.answer] says: at its append ([Answer.COMMITTED], as Wow's E1 answers, the writers saving behind) or once its
+ * snapshot was written too ([Answer.SNAPSHOT], the default wait's). A store call that throws fails each command it
+ * carried. [counters] counts the streams appended and the snapshots saved, so a committed step can say whether its
+ * snapshots kept up.
  */
 class WowShape<S : AutoCloseable>(
     private val partitions: Int,
@@ -39,12 +46,16 @@ class WowShape<S : AutoCloseable>(
     private val append: (S, List<Aggregates.Command>) -> BooleanArray,
     private val save: (S, List<Aggregates.Command>) -> BooleanArray,
 ) : AutoCloseable {
+    /** When a caller's command is answered. */
+    enum class Answer { COMMITTED, SNAPSHOT }
+
     /**
-     * The shape: Wow's defaults (AppendQueueOptions: two mergers, a lane's batch of 64, calls of up to 512 streams;
-     * two snapshot writers of up to 256 rows), [mergeMax] the one the cases vary.
+     * The shape: Wow's defaults (AppendQueueOptions: two mergers, a lane's batch of 64, calls merged up to 512
+     * streams; two snapshot writes in flight of up to 256 rows), [mergeMax] the one a what-if case varies.
      */
     data class Options(
         val mergeMax: Int = MERGE_MAX,
+        val answer: Answer = Answer.SNAPSHOT,
         val appenders: Int = APPENDERS,
         val maxBatch: Int = MAX_BATCH,
         val writers: Int = WRITERS,
@@ -52,23 +63,36 @@ class WowShape<S : AutoCloseable>(
     ) {
         /** The store connections the shape holds: one an appender, one a writer. */
         val connections: Int get() = appenders + writers
+
+        /** Whether it is the shape Wow's node gives the store: its own constants, the runtime has no option for them. */
+        val wows: Boolean
+            get() = mergeMax == MERGE_MAX && appenders == APPENDERS && maxBatch == MAX_BATCH && writers == WRITERS &&
+                writerMax == WRITER_MAX
     }
 
     private class Pending(val command: Aggregates.Command) {
-        val done = CompletableFuture<Boolean>()
+        val appended = CompletableFuture<Boolean>()
+        val saved = CompletableFuture<Boolean>()
     }
 
+    private class Batch(val lane: Int, val pendings: List<Pending>)
+
     private val lock = ReentrantLock()
-    private val handed = lock.newCondition()
+    private val ready = lock.newCondition()
     private val lanes = Array(partitions) { ArrayDeque<Pending>() }
-    private val inFlight = BooleanArray(partitions)
-    private var cursor = 0
+
+    /** Whether a lane's batch is handed or in flight: a lane has one at most. */
+    private val busy = BooleanArray(partitions)
+    private val handed = ArrayDeque<Batch>()
+    private val appendedCount = AtomicLong()
+    private val savedCount = AtomicLong()
+    private val saveFailedCount = AtomicLong()
 
     @Volatile
     private var closing = false
 
     @Volatile
-    private var appended = false
+    private var appendersDone = false
     private val saves = LinkedBlockingQueue<Pending>()
     private val stores = ArrayList<S>()
     private val appenders = ArrayList<Thread>()
@@ -90,82 +114,103 @@ class WowShape<S : AutoCloseable>(
         }
     }
 
-    /** Queues [command] and waits for it: whether its stream and its snapshot were both written. */
+    /** The streams appended and the snapshots saved so far, cumulative. */
+    fun counters(): Map<String, Double> = mapOf(
+        SHAPE_APPENDED to appendedCount.get().toDouble(),
+        SHAPE_SAVED to savedCount.get().toDouble(),
+        SHAPE_SAVE_FAILED to saveFailedCount.get().toDouble(),
+    )
+
+    /** Queues [command] and waits for its answer ([Options.answer]): whether it was written. */
     fun submit(command: Aggregates.Command): Boolean {
         val pending = Pending(command)
         lock.withLock {
             check(!closing) { "The shape is closed." }
-            lanes[partitionOf(command)].addLast(pending)
-            handed.signal()
+            val lane = partitionOf(command)
+            lanes[lane].addLast(pending)
+            hand(lane)
         }
+        val answer = if (options.answer == Answer.COMMITTED) pending.appended else pending.saved
         return try {
-            pending.done.get()
+            answer.get()
         } catch (failure: ExecutionException) {
             throw failure.cause ?: failure
         }
     }
 
+    /** Hands [lane]'s next batch when it has none handed or in flight: what it holds, up to a lane's batch. */
+    private fun hand(lane: Int) {
+        if (busy[lane] || lanes[lane].isEmpty()) return
+        val batch = List(minOf(options.maxBatch, lanes[lane].size)) { lanes[lane].removeFirst() }
+        busy[lane] = true
+        handed.addLast(Batch(lane, batch))
+        ready.signal()
+    }
+
     private fun appendLoop(store: S) {
         while (true) {
-            val (taken, parts) = take() ?: return
+            val batches = take() ?: return
+            val taken = batches.flatMap { it.pendings }
             val written = try {
                 append(store, taken.map { it.command })
             } catch (failure: Exception) {
-                taken.forEach { it.done.completeExceptionally(failure) }
+                taken.forEach {
+                    it.appended.completeExceptionally(failure)
+                    it.saved.completeExceptionally(failure)
+                }
                 null
             }
-            lock.withLock {
-                parts.forEach { inFlight[it] = false }
-                handed.signalAll()
-            }
             if (written != null) {
+                appendedCount.addAndGet(written.count { it }.toLong())
                 taken.forEachIndexed { at, pending ->
-                    if (written[at]) {
-                        saves.put(pending)
-                    } else {
-                        pending.done.complete(false)
-                    }
+                    pending.appended.complete(written[at])
+                    if (written[at]) saves.put(pending) else pending.saved.complete(false)
+                }
+            }
+            lock.withLock {
+                batches.forEach {
+                    busy[it.lane] = false
+                    hand(it.lane)
                 }
             }
         }
     }
 
     /**
-     * The next call's streams: from each lane with none in flight, in turn from where the last call began, a batch of
-     * up to the lane's maximum, until the call's maximum; and the lanes it took from. Waits for one; null once closed.
+     * The next call's batches: the first handed and those handed meanwhile, each whole, while the call holds fewer
+     * than the call's maximum. Waits for one; null once closed.
      */
-    private fun take(): Pair<List<Pending>, List<Int>>? = lock.withLock {
+    private fun take(): List<Batch>? = lock.withLock {
         while (!closing) {
-            val taken = ArrayList<Pending>()
-            val parts = ArrayList<Int>()
-            for (k in 0 until partitions) {
-                val part = (cursor + k) % partitions
-                val room = minOf(options.maxBatch, options.mergeMax - taken.size)
-                if (room <= 0) break
-                if (inFlight[part] || lanes[part].isEmpty()) continue
-                repeat(minOf(room, lanes[part].size)) { taken += lanes[part].removeFirst() }
-                inFlight[part] = true
-                parts += part
+            if (handed.isNotEmpty()) {
+                val batches = ArrayList<Batch>()
+                var streams = 0
+                while (handed.isNotEmpty() && streams < options.mergeMax) {
+                    val batch = handed.removeFirst()
+                    batches += batch
+                    streams += batch.pendings.size
+                }
+                return batches
             }
-            if (taken.isNotEmpty()) {
-                cursor = (cursor + 1) % partitions
-                return taken to parts
-            }
-            handed.await(POLL_MILLIS, TimeUnit.MILLISECONDS)
+            ready.await(POLL_MILLIS, TimeUnit.MILLISECONDS)
         }
         null
     }
 
     private fun saveLoop(store: S) {
-        while (!appended || saves.isNotEmpty()) {
+        while (!appendersDone || saves.isNotEmpty()) {
             val first = saves.poll(POLL_MILLIS, TimeUnit.MILLISECONDS) ?: continue
             val batch = arrayListOf(first)
             saves.drainTo(batch, options.writerMax - 1)
             try {
                 val written = save(store, batch.map { it.command })
-                batch.forEachIndexed { at, pending -> pending.done.complete(written[at]) }
+                val saved = written.count { it }.toLong()
+                savedCount.addAndGet(saved)
+                saveFailedCount.addAndGet(batch.size - saved)
+                batch.forEachIndexed { at, pending -> pending.saved.complete(written[at]) }
             } catch (failure: Exception) {
-                batch.forEach { it.done.completeExceptionally(failure) }
+                saveFailedCount.addAndGet(batch.size.toLong())
+                batch.forEach { it.saved.completeExceptionally(failure) }
             }
         }
     }
@@ -177,26 +222,80 @@ class WowShape<S : AutoCloseable>(
     override fun close() {
         lock.withLock {
             closing = true
-            handed.signalAll()
+            ready.signalAll()
         }
         appenders.forEach { it.join() }
-        appended = true
+        appendersDone = true
         writers.forEach { it.join() }
         val left = IllegalStateException("The shape closed before the command was written.")
-        lock.withLock { lanes.forEach { lane -> lane.forEach { it.done.completeExceptionally(left) } } }
+        lock.withLock {
+            val queued = lanes.flatMap { it } + handed.flatMap { it.pendings }
+            queued.forEach {
+                it.appended.completeExceptionally(left)
+                it.saved.completeExceptionally(left)
+            }
+        }
         stores.forEach { runCatching { it.close() } }
     }
 
     companion object {
-        /** Wow's defaults (AppendQueueOptions, the snapshot writes). */
+        /**
+         * Wow's own constants, which the runtime gives no option for (held to them by a test): AppendQueueOptions'
+         * defaults, and the snapshot writes' (SnapshotStore.DEFAULT_WRITES_IN_FLIGHT, SnapshotOptions.DEFAULT_WRITE_BATCH).
+         */
         const val MERGE_MAX = 512
         const val APPENDERS = 2
         const val MAX_BATCH = 64
         const val WRITERS = 2
         const val WRITER_MAX = 256
+
+        /** The counters' names: the streams appended, the snapshots saved. */
+        const val SHAPE_APPENDED = "shapeAppended"
+        const val SHAPE_SAVED = "shapeSaved"
+
+        /** The snapshots the writers failed or the store refused: a committed caller does not see them. */
+        const val SHAPE_SAVE_FAILED = "shapeSaveFailed"
+
+        /** A step's ratio of its window's saves to its appends. */
+        const val SAVES_PER_APPEND = "savesPerAppend"
+
+        /** The share of a window's appends its saves must reach for a committed step to count as sustained. */
+        const val SAVES_KEPT = 0.97
         private const val POLL_MILLIS = 50L
 
-        /** The calls' maxima the cases price: one lane's batch, four lanes', and Wow's default of eight. */
-        val MERGES = listOf(MAX_BATCH, 256, MERGE_MAX)
+        /** The calls' maxima the what-if cases price beside Wow's: one lane's batch and four lanes'. */
+        val WHAT_IFS = listOf(MAX_BATCH, 256)
+
+        /**
+         * The shape's cases, each a [RawCase] with its options: Wow's own shape answered at the append (the committed
+         * ceiling) and at the snapshot (the snapshot ceiling), and the what-if calls of up to 64 and 256 streams, which
+         * no runtime option gives (no ceiling).
+         */
+        fun cases(): List<Pair<RawCase, Options>> = buildList {
+            val wows = "Wow's peak shape: two appenders merging the lanes' batches to $MERGE_MAX streams, two writers " +
+                "of up to $WRITER_MAX snapshots"
+            add(
+                RawCase("wow-shape-committed", COMMAND, 1, "$wows; answered at the append", RawCase.COMMITTED) to
+                    Options(answer = Answer.COMMITTED)
+            )
+            add(
+                RawCase("wow-shape-snapshot", COMMAND, 1, "$wows; answered once the snapshot is written", RawCase.SNAPSHOT) to
+                    Options(answer = Answer.SNAPSHOT)
+            )
+            for (merge in WHAT_IFS) {
+                add(
+                    RawCase("what-if-merge-$merge", COMMAND, 1, "what-if: calls of up to $merge streams (no option gives it)") to
+                        Options(mergeMax = merge)
+                )
+            }
+        }
+
+        private const val COMMAND = "command"
+
+        /** A step's shape ratios from its counters' growth: its saves per append. */
+        fun ratios(growth: Map<String, Double>): Map<String, Double> {
+            val appended = growth[SHAPE_APPENDED] ?: return emptyMap()
+            return if (appended > 0) mapOf(SAVES_PER_APPEND to (growth[SHAPE_SAVED] ?: 0.0) / appended) else emptyMap()
+        }
     }
 }

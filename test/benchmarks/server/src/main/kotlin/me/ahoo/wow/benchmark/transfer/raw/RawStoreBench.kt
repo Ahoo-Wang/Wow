@@ -314,7 +314,9 @@ private fun postgresStep(
 ): RawStep {
     val shape = case.shape?.let(raw::shapeOf)
     return try {
-        runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
+        val counters = { raw.counters() + shape?.counters().orEmpty() }
+        val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
+        runStep(case.case, connections, pace, cpu, counters, ratios) { index ->
             val owned = Aggregates(versions, index, connections)
             if (shape != null) {
                 caller(shape, owned)
@@ -352,7 +354,9 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
             raw.client(case.shape?.connections ?: connections).use { client ->
                 val shape = case.shape?.let { raw.shapeOf(it, client) }
                 try {
-                    runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
+                    val counters = { raw.counters() + shape?.counters().orEmpty() }
+                    val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
+                    runStep(case.case, connections, pace, cpu, counters, ratios) { index ->
                         val owned = Aggregates(versions, index, connections)
                         if (shape != null) {
                             caller(shape, owned)

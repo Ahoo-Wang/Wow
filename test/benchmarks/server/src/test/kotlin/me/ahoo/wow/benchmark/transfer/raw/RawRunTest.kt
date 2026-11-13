@@ -176,6 +176,36 @@ class RawRunTest {
         )
     }
 
+    @Test
+    fun `a ceiling comes from a calibrated run's read, unpaced steps of wow's shape, a committed one's saves kept up`() {
+        fun step(
+            ceiling: String?,
+            perSecond: Long,
+            ratios: Map<String, Double> = emptyMap(),
+            failures: Long = 0,
+            saveFailed: Double = 0.0
+        ) =
+            RawStep(
+                case = RawCase("c-$ceiling-$perSecond", "command", 1, "", ceiling),
+                connections = 64, rate = null, seconds = 1.0, units = perSecond, flushes = perSecond,
+                failures = failures, refused = 0, late = 0, p50FlushMs = 1.0, p99FlushMs = 2.0, storeCpuMsPerUnit = null,
+                perUnit = mapOf(WowShape.SHAPE_SAVE_FAILED to saveFailed), ratios = ratios,
+            )
+        val kept = mapOf(WowShape.SAVES_PER_APPEND to 0.99)
+        val steps = listOf(
+            step(null, 90_000),
+            step(RawCase.COMMITTED, 50_000, kept),
+            step(RawCase.COMMITTED, 70_000, mapOf(WowShape.SAVES_PER_APPEND to 0.8)),
+            step(RawCase.COMMITTED, 60_000, kept, failures = 1),
+            step(RawCase.COMMITTED, 55_000, kept, saveFailed = 0.01),
+            step(RawCase.SNAPSHOT, 30_000),
+            step(RawCase.SNAPSHOT, 40_000),
+        )
+        ceilingsOf(steps, calibrated = true).mapValues { it.value.units }.assert()
+            .isEqualTo(mapOf(RawCase.COMMITTED to 50_000L, RawCase.SNAPSHOT to 40_000L))
+        ceilingsOf(steps, calibrated = false).assert().isEmpty()
+    }
+
     private companion object {
         val CASE = RawCase("fake", "command", 2, "a fake store")
 

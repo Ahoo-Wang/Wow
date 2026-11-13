@@ -25,16 +25,25 @@ import kotlin.concurrent.write
 /**
  * One write or read a raw run measures (RawStoreBench): its [name], the [unit] its figures are per (a `row` or an
  * `update` of a snapshot, a `command` of Wow's, a `read`), how many units one flush asks for ([flushUnits]), and what
- * it prices ([prices]: today's shape, a candidate, or a reference); [wowShape] when it is a shape Wow's node can give
- * the store (WowShape), whose best read step is the ceiling a figure of Wow's is compared with.
+ * it prices ([prices]: today's shape, a candidate, or a reference); and with a [ceiling], that it is the shape Wow's
+ * node gives the store (WowShape), whose best candidate step is that ceiling: [COMMITTED], a command answered at its
+ * append (Wow's E1), or [SNAPSHOT], once its snapshot was written too (the default wait's).
  */
 data class RawCase(
     val name: String,
     val unit: String,
     val flushUnits: Int,
     val prices: String,
-    val wowShape: Boolean = false,
-)
+    val ceiling: String? = null,
+) {
+    /** Whether it is a shape Wow's node gives the store. */
+    val wowShape: Boolean get() = ceiling != null
+
+    companion object {
+        const val COMMITTED = "committed"
+        const val SNAPSHOT = "snapshot"
+    }
+}
 
 /** What one flush did: the [written] units the store took, and the [refused] ones it did not (a guard, a key). */
 data class Flushed(val written: Int, val refused: Int = 0)
@@ -377,6 +386,7 @@ fun rawJson(
             "unit" to step.case.unit,
             "prices" to step.case.prices,
             "wowShape" to step.case.wowShape,
+            "ceiling" to step.case.ceiling,
             "connections" to step.connections,
             "pool" to step.pool,
             "rate" to step.rate,
@@ -397,17 +407,28 @@ fun rawJson(
     }
     return jsonOf(
         mapOf("schema" to "wow-e2e-bench/raw/1", "calibration" to calibration.toMap()) + settings +
-            mapOf("store" to store, "ceiling" to ceilingOf(steps)?.let(::ceilingMap), "steps" to rows),
+            mapOf(
+                "store" to store,
+                "ceilings" to ceilingsOf(steps, calibration.passed).mapValues { (_, step) -> ceilingMap(step) },
+                "steps" to rows,
+            ),
     )
 }
 
 /**
- * The ceiling a figure of Wow's is compared with: the read step of a shape Wow can give the store ([RawCase.wowShape]),
- * a command its unit, that did the most commands a second; null without one.
+ * The ceilings a figure of Wow's is compared with, by what it is compared with ([RawCase.ceiling]): of each, the
+ * candidate step that did the most commands a second. A candidate is a step of Wow's own shape, unpaced and read, with
+ * no snapshot its writers failed; a committed one only when its window's saves kept up with its appends (at least
+ * [WowShape.SAVES_KEPT] of them). None from an uncalibrated run ([calibrated]).
  */
-fun ceilingOf(steps: List<RawStep>): RawStep? =
-    steps.filter { it.case.wowShape && it.case.unit == "command" && it.read && it.rate == null }
-        .maxByOrNull { it.unitsPerSecond }
+fun ceilingsOf(steps: List<RawStep>, calibrated: Boolean): Map<String, RawStep> {
+    if (!calibrated) return emptyMap()
+    return steps.filter { step ->
+        step.case.ceiling != null && step.read && step.rate == null &&
+            (step.perUnit[WowShape.SHAPE_SAVE_FAILED] ?: 0.0) == 0.0 &&
+            (step.case.ceiling != RawCase.COMMITTED || (step.ratios[WowShape.SAVES_PER_APPEND] ?: 0.0) >= WowShape.SAVES_KEPT)
+    }.groupBy { it.case.ceiling!! }.mapValues { (_, candidates) -> candidates.maxBy { it.unitsPerSecond } }
+}
 
 private fun ceilingMap(step: RawStep): Map<String, Any?> = mapOf(
     "case" to step.case.name,
