@@ -27,23 +27,21 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.InsertManyOptions
-import com.mongodb.client.model.ReplaceOneModel
-import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.ReturnDocument
-import com.mongodb.client.model.UpdateOneModel
-import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
-import com.mongodb.client.model.WriteModel
 import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.AGGREGATE_ID
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.BIG_STATE
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.STATE
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.TENANT_ID
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.Update
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.VERSION
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.keyOf
+import me.ahoo.wow.benchmark.transfer.raw.MongoShapes.modelOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.log.Partitioner
-import org.bson.BsonArray
-import org.bson.BsonDocument
-import org.bson.BsonInt32
-import org.bson.BsonString
 import org.bson.BsonTimestamp
 import org.bson.Document
-import org.bson.conversions.Bson
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -63,13 +61,6 @@ import kotlin.concurrent.withLock
  * read precedes an append here. A unit counts only when the store wrote it; a write error refuses it.
  */
 class RawMongo(private val uri: String, private val databaseName: String) : AutoCloseable {
-    /**
-     * A snapshot's update, the shapes its store cost is priced in: [M0] Wow's aggregation pipeline `$set` of every
-     * field as `$literal` and the stale mark's `$cond`; [M1] a modifier `$set` with no mark in the filter; [M2] M1
-     * with `$setOnInsert` for what never changes; [M3] a `replaceOne` of the document.
-     */
-    enum class Update { M0, M1, M2, M3 }
-
     /** A case of this store, the state it writes ([bigState]: about 4 KB, else the domain's), and its flush. */
     class Case(val case: RawCase, val bigState: Boolean, val flush: (Writer, Aggregates) -> Flushed)
 
@@ -322,141 +313,6 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
             this["commit_time"] = System.currentTimeMillis()
         }
 
-    /** [command]'s snapshot save in the shape of [update], guarded by a lower version of no higher state revision. */
-    private fun modelOf(
-        template: Document,
-        command: Aggregates.Command,
-        update: Update,
-        bigState: Boolean,
-    ): WriteModel<Document> {
-        val tenant = template.getString(TENANT_ID)
-        val revision = template.getInteger(STATE_REVISION, 1)
-        val fields = Document(template).apply {
-            remove("_id")
-            remove(STALE_VERSION)
-            this[AGGREGATE_ID] = command.id
-            this[VERSION] = command.version
-            this["last_event_time"] = System.currentTimeMillis()
-            if (bigState) this[STATE] = BIG_STATE
-        }
-        val guards = listOf(Filters.lt(VERSION, command.version), Filters.lte(STATE_REVISION, revision))
-        val key = Filters.eq("_id", keyOf(tenant, command.id))
-        return when (update) {
-            Update.M0 -> UpdateOneModel(
-                guardOf(tenant, command, revision),
-                listOf<Bson>(Document("\$set", pipelineSet(fields, command.version))),
-                UPSERT,
-            )
-            Update.M1 -> UpdateOneModel(
-                Filters.and(guardOf(tenant, command, revision), Filters.exists(STALE_VERSION, false)),
-                Document("\$set", fields.without(TENANT_ID, AGGREGATE_ID)),
-                UPSERT,
-            )
-            Update.M2 -> UpdateOneModel(
-                Filters.and(listOf(key) + guards),
-                Document("\$set", fields.without(*ON_INSERT.toTypedArray()))
-                    .append("\$setOnInsert", Document(fields.filterKeys { it in ON_INSERT })),
-                UPSERT,
-            )
-            Update.M3 -> ReplaceOneModel(Filters.and(listOf(key) + guards), fields, ReplaceOptions().upsert(true))
-        }
-    }
-
-    /** Wow's save filter (MongoSnapshotStore): the key, the tenant and the id, a lower version, no higher revision. */
-    private fun guardOf(tenant: String, command: Aggregates.Command, revision: Int): Bson =
-        BsonDocument("_id", BsonDocument(KEY_TENANT, BsonString(tenant)).append(KEY_AGGREGATE, BsonString(command.id)))
-            .append(TENANT_ID, BsonString(tenant))
-            .append(AGGREGATE_ID, BsonString(command.id))
-            .append(VERSION, BsonDocument("\$lt", BsonInt32(command.version)))
-            .append(STATE_REVISION, BsonDocument("\$lte", BsonInt32(revision)))
-
-    /** Wow's pipeline `$set`: every field as `$literal`, and the stale mark kept only above [version]. */
-    private fun pipelineSet(fields: Document, version: Int): Document = Document().apply {
-        for ((field, value) in fields.without(TENANT_ID, AGGREGATE_ID)) this[field] = Document("\$literal", value)
-        val unmarked = BsonDocument("\$lte", BsonArray(listOf(BsonString("\$$STALE_VERSION"), BsonInt32(version))))
-        this[STALE_VERSION] = Document("\$cond", listOf(unmarked, "\$\$REMOVE", "\$$STALE_VERSION"))
-    }
-
-    private fun Document.without(vararg keys: String): Document = Document(filterKeys { it !in keys })
-
-    private fun keyOf(tenant: String, id: String) = Document(KEY_TENANT, tenant).append(KEY_AGGREGATE, id)
-
-    /**
-     * MongoDB's cumulative counters: the journal's syncs, their time, writes and bytes; the oplog's bytes; the
-     * operations; and the snapshot collection's write latency (`latencyStats`, microseconds) and its writes.
-     */
-    fun counters(): Map<String, Double> {
-        val status = database.runCommand(Document("serverStatus", 1))
-        val journal = (status["wiredTiger"] as Document?)?.get("log") as Document?
-        val ops = status["opcounters"] as Document?
-        val oplog = admin.getDatabase("local").runCommand(Document("collStats", "oplog.rs"))
-        val latency = database.getCollection(RAW_SNAPSHOT)
-            .aggregate(listOf(Document("\$collStats", Document("latencyStats", Document()))))
-            .firstOrNull()?.let { (it["latencyStats"] as Document?)?.get("writes") as Document? }
-        fun number(document: Document?, key: String): Double? = (document?.get(key) as Number?)?.toDouble()
-        return buildMap {
-            number(journal, "log sync operations")?.let { put("journalSyncs", it) }
-            number(journal, "log sync time duration (usecs)")?.let { put("journalSyncMs", it / MICROS_PER_MILLI) }
-            number(journal, "log write operations")?.let { put("journalWrites", it) }
-            number(journal, "log bytes written")?.let { put("journalBytes", it) }
-            number(oplog, "size")?.let { put("oplogBytes", it) }
-            number(ops, "insert")?.let { put("inserts", it) }
-            number(ops, "update")?.let { put("updates", it) }
-            number(ops, "command")?.let { put("commands", it) }
-            number(latency, "latency")?.let { put("snapshotWriteMicros", it) }
-            number(latency, "ops")?.let { put("snapshotWrites", it) }
-        }
-    }
-
-    /**
-     * Each of Wow's and the clone's collections' inserts, updates and removes (the `top` command): where a
-     * calibration's gap is.
-     */
-    fun tables(): Map<String, Double> {
-        val totals = admin.getDatabase("admin").runCommand(Document("top", 1))["totals"] as Document?
-            ?: return emptyMap()
-        return buildMap {
-            for ((namespace, value) in totals) {
-                if (!namespace.contains(".wow_") && !namespace.contains(".raw_")) continue
-                val counts = value as Document
-                for (kind in listOf("insert", "update", "remove", "queries", "commands")) {
-                    val count = (counts[kind] as Document?)?.get("count") as Number? ?: continue
-                    put("$namespace $kind", count.toDouble())
-                }
-            }
-        }
-    }
-
-    /** The mean latency of the snapshot collection's writes over a step, microseconds, from the counters' growth. */
-    fun ratios(growth: Map<String, Double>): Map<String, Double> {
-        val writes = growth["snapshotWrites"] ?: 0.0
-        if (writes <= 0) return emptyMap()
-        return mapOf("snapshotWriteMicros" to (growth["snapshotWriteMicros"] ?: 0.0) / writes)
-    }
-
-    /**
-     * The server's version and the settings a ceiling is quoted with: its storage engine, journal and write concern,
-     * and the log's partitions and sequence block.
-     */
-    fun settings(): Map<String, Any?> {
-        val build = database.runCommand(Document("buildInfo", 1))
-        val status = database.runCommand(Document("serverStatus", 1))
-        val adminDatabase = admin.getDatabase("admin")
-        val options = adminDatabase.runCommand(Document("getCmdLineOpts", 1))
-        val replica = runCatching { adminDatabase.runCommand(Document("replSetGetConfig", 1)) }.getOrNull()
-        val config = replica?.get("config") as Document?
-        return mapOf(
-            "version" to build.getString("version"),
-            "storageEngine" to (status["storageEngine"] as Document?)?.getString("name"),
-            "writeConcern" to "majority",
-            "journal" to ((options["parsed"] as Document?)?.get("storage") as Document?)?.get("journal")?.toString(),
-            "writeConcernMajorityJournalDefault" to config?.get("writeConcernMajorityJournalDefault"),
-            "replicaSetMembers" to (config?.get("members") as List<*>?)?.size,
-            "partitions" to partitions,
-            "sequenceBlock" to BLOCK,
-        )
-    }
-
     /**
      * The oplog's bytes of the node's own collections (its checkpoints and leases: not an aggregate's, whose
      * collections are `<prefix>__<context>__<aggregate>`) written between [fromMillis] and [toMillis], as
@@ -476,6 +332,20 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
             .firstOrNull()?.get("bytes") as Number?
         return mapOf("ownOplogBytes" to (total?.toDouble() ?: 0.0))
     }
+
+    private val stats = MongoCounters(admin, database)
+
+    /** MongoDB's cumulative counters (MongoCounters). */
+    fun counters(): Map<String, Double> = stats.counters()
+
+    /** Each of Wow's and the clone's collections' writes (MongoCounters). */
+    fun tables(): Map<String, Double> = stats.tables()
+
+    /** The snapshot collection's mean write latency over a step, from the counters' growth. */
+    fun ratios(growth: Map<String, Double>): Map<String, Double> = stats.ratios(growth)
+
+    /** The server's version and settings, and the log's partitions and sequence block. */
+    fun settings(): Map<String, Any?> = stats.settings() + mapOf("partitions" to partitions, "sequenceBlock" to BLOCK)
 
     override fun close() = admin.close()
 
@@ -500,15 +370,7 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         private const val MEASURED_VERSION = 3
         private const val MILLIS = 1_000L
         private const val COMMAND = "command"
-        private const val TENANT_ID = "tenant_id"
-        private const val AGGREGATE_ID = "aggregate_id"
-        private const val VERSION = "version"
         private const val SEQUENCE = "sequence"
-        private const val STATE = "state"
-        private const val STATE_REVISION = "state_revision"
-        private const val STALE_VERSION = "stale_version"
-        private const val KEY_TENANT = "t"
-        private const val KEY_AGGREGATE = "a"
         private const val BLOCKS = "blocks"
         private const val NODE = "node"
         private const val FROM = "from"
@@ -516,18 +378,6 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         private const val COLLECTIONS = "collections"
         private const val NODE_NAME = "raw"
         private const val PREPARE_BATCH = 1_000
-        private const val MICROS_PER_MILLI = 1_000.0
-        private const val BIG_STATE_BYTES = 4_096
-        private val UPSERT = UpdateOptions().upsert(true)
         private val UNORDERED = BulkWriteOptions().ordered(false)
-
-        /** What never changes after an aggregate's first commit, set only on the upsert's insert in [Update.M2]. */
-        private val ON_INSERT = listOf("first_event_time", "first_operator", TENANT_ID, AGGREGATE_ID)
-
-        /** A state of about 4 KB: notes of fixed text, so no store compresses them away. */
-        private val BIG_STATE = Document(
-            "notes",
-            List(BIG_STATE_BYTES / 64) { index -> (0 until 64).map { 'a' + (index * 7 + it) % 26 }.joinToString("") },
-        )
     }
 }
