@@ -118,21 +118,28 @@ class WowShapeTest {
     fun `a committed caller is answered at its append, its snapshot saved behind`() {
         val saving = java.util.concurrent.CountDownLatch(1)
         val saved = AtomicInteger()
-        WowShape(partitions, ::partitionOf, WowShape.Options(answer = WowShape.Answer.COMMITTED), ::Store, { _, c ->
-            BooleanArray(c.size) { true }
-        }) { _, c ->
+        val committed = WowShape.Options(answer = WowShape.Answer.COMMITTED)
+        val append = { _: Store, c: List<Aggregates.Command> -> BooleanArray(c.size) { true } }
+        val save = { _: Store, c: List<Aggregates.Command> ->
             saving.await()
             saved.addAndGet(c.size)
             BooleanArray(c.size) { true }
-        }.use { shape ->
+        }
+        val shape = WowShape(partitions, ::partitionOf, committed, ::Store, append, save)
+        shape.use {
             shape.submit(Aggregates.Command(1, 2)).assert().isTrue()
             saved.get().assert().isZero()
             shape.counters()[WowShape.SHAPE_APPENDED].assert().isEqualTo(1.0)
+            shape.counters()[WowShape.SHAPE_APPEND_CALLS].assert().isEqualTo(1.0)
+            shape.counters()[WowShape.SHAPE_APPEND_PARTITIONS].assert().isEqualTo(1.0)
             saving.countDown()
         }
         saved.get().assert().isEqualTo(1)
+        shape.counters()[WowShape.SHAPE_SAVE_CALLS].assert().isEqualTo(1.0)
         WowShape.ratios(mapOf(WowShape.SHAPE_APPENDED to 100.0, WowShape.SHAPE_SAVED to 96.0))
             .assert().isEqualTo(mapOf(WowShape.SAVES_PER_APPEND to 0.96))
+        WowShape.ratios(mapOf(WowShape.SHAPE_APPEND_CALLS to 4.0, WowShape.SHAPE_APPEND_PARTITIONS to 10.0))
+            .assert().isEqualTo(mapOf(WowShape.PARTITIONS_PER_APPEND to 2.5))
     }
 
     @Test

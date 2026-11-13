@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.transfer.raw
 
 import me.ahoo.test.asserts.assert
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicInteger
@@ -164,18 +165,17 @@ class RawRunTest {
     }
 
     @Test
-    fun `the calibration's batch shape is Wow's, from its statements or commands per command`() {
-        val wow = mapOf("statements: append" to 0.0707, "statements: save" to 0.2205)
-        shapeOf(wow, "statements: append", "statements: save").assert().isEqualTo(14 to 5)
-        val mongo = mapOf("commands: insert log" to 0.0678, "commands: update snapshot" to 0.1325)
-        shapeOf(mongo, "commands: insert log", "commands: update snapshot").assert().isEqualTo(15 to 8)
-        shapeOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
-        // Wow's writer saves behind its appends and across them: fewer saves than appends, each of more snapshots.
-        val behind = mapOf("statements: append" to 0.17075, "statements: save" to 0.109375)
-        shapeOf(behind, "statements: append", "statements: save").assert().isEqualTo(6 to 9)
-        val mongoBehind = mapOf("commands: insert log" to 0.139, "commands: update snapshot" to 0.051)
-        shapeOf(mongoBehind, "commands: insert log", "commands: update snapshot").assert().isEqualTo(7 to 20)
-        shapeOf(wow, "statements: append", "missing").assert().isNull()
+    fun `wow's partitions an append are its partition table's updates over its appends, its WAL's when read`() {
+        val appends = "statements: statement with wow_log__transfer__account"
+        val wow = mapOf(
+            appends to 0.1,
+            "wal Heap/HOT_UPDATE wow_log__transfer__partition records" to 0.45,
+            "wal Heap/UPDATE wow_log__transfer__partition records" to 0.05,
+            "wow_log__transfer__partition updates" to 0.6,
+        )
+        spreadOf(wow).assert().isEqualTo(5.0, within(1e-9))
+        spreadOf(wow.filterKeys { !it.startsWith("wal ") }).assert().isEqualTo(6.0, within(1e-9))
+        spreadOf(wow - appends).assert().isNull()
     }
 
     @Test

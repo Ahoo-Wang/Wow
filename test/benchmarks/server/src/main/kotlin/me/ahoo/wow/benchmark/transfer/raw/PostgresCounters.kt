@@ -112,6 +112,53 @@ class PostgresCounters(private val connect: () -> Connection) {
         }
     }
 
+    /**
+     * Watches how far back open transactions hold the store's horizon while a window runs, a diagnostic of the HOT
+     * share (a dead row version an open snapshot may still see is not pruned, so its page's space is not freed for the
+     * next update): every SAMPLE_MILLIS, the oldest backend_xmin's age in transactions and the longest-open
+     * transaction holding one, in this database and besides the watcher's own. The returned stop gives their means and
+     * maxima over the window (XMIN_METRICS).
+     */
+    fun watch(): () -> Map<String, Double> {
+        val ages = ArrayList<Double>()
+        val holds = ArrayList<Double>()
+        val stopping = java.util.concurrent.atomic.AtomicBoolean()
+        val sampler = Thread.ofPlatform().name("raw-xmin").start {
+            runCatching {
+                connect().use { connection ->
+                    connection.prepareStatement(HORIZON).use { statement ->
+                        while (!stopping.get()) {
+                            statement.executeQuery().use { r ->
+                                r.next()
+                                synchronized(ages) {
+                                    ages += r.getDouble(1)
+                                    holds += r.getDouble(2)
+                                }
+                            }
+                            Thread.sleep(SAMPLE_MILLIS)
+                        }
+                    }
+                }
+            }
+        }
+        return {
+            stopping.set(true)
+            sampler.join()
+            synchronized(ages) {
+                if (ages.isEmpty()) {
+                    emptyMap()
+                } else {
+                    mapOf(
+                        XMIN_AGE_MEAN to ages.average(),
+                        XMIN_AGE_MAX to ages.max(),
+                        XMIN_HOLD_MS_MEAN to holds.average(),
+                        XMIN_HOLD_MS_MAX to holds.max(),
+                    )
+                }
+            }
+        }
+    }
+
     /** The server's version and the settings a ceiling is quoted with. */
     fun settings(): Map<String, Any?> = connect().use { connection ->
         connection.createStatement().use { s ->
@@ -125,6 +172,20 @@ class PostgresCounters(private val connect: () -> Connection) {
     }
 
     companion object {
+        /** The horizon's diagnostics ([watch]): the oldest xmin's age and the longest hold, mean and maximum. */
+        const val XMIN_AGE_MEAN = "xminAgeMean"
+        const val XMIN_AGE_MAX = "xminAgeMax"
+        const val XMIN_HOLD_MS_MEAN = "xminHoldMsMean"
+        const val XMIN_HOLD_MS_MAX = "xminHoldMsMax"
+        val XMIN_METRICS = listOf(XMIN_AGE_MEAN, XMIN_AGE_MAX, XMIN_HOLD_MS_MEAN, XMIN_HOLD_MS_MAX)
+        private const val SAMPLE_MILLIS = 100L
+        private val HORIZON = """
+            SELECT coalesce(max(age(backend_xmin)), 0),
+                coalesce(max(extract(epoch FROM clock_timestamp() - xact_start) * 1000)
+                    FILTER (WHERE backend_xmin IS NOT NULL), 0)
+            FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()
+        """.trimIndent()
+
         /** The WAL's insert position in bytes, among the counters: a step's growth leaves it out. */
         const val WAL_POSITION = "walPosition"
         private const val LOW_BITS = 32

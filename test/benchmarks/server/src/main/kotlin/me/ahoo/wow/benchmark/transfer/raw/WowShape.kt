@@ -87,6 +87,9 @@ class WowShape<S : AutoCloseable>(
     private val appendedCount = AtomicLong()
     private val savedCount = AtomicLong()
     private val saveFailedCount = AtomicLong()
+    private val appendCalls = AtomicLong()
+    private val appendPartitions = AtomicLong()
+    private val saveCalls = AtomicLong()
 
     @Volatile
     private var closing = false
@@ -114,11 +117,17 @@ class WowShape<S : AutoCloseable>(
         }
     }
 
-    /** The streams appended and the snapshots saved so far, cumulative. */
+    /**
+     * The streams appended and the snapshots saved so far, cumulative, and the calls that wrote them: the append calls
+     * and the partitions they took streams of (a lane's batch is one partition's), and the save calls.
+     */
     fun counters(): Map<String, Double> = mapOf(
         SHAPE_APPENDED to appendedCount.get().toDouble(),
         SHAPE_SAVED to savedCount.get().toDouble(),
         SHAPE_SAVE_FAILED to saveFailedCount.get().toDouble(),
+        SHAPE_APPEND_CALLS to appendCalls.get().toDouble(),
+        SHAPE_APPEND_PARTITIONS to appendPartitions.get().toDouble(),
+        SHAPE_SAVE_CALLS to saveCalls.get().toDouble(),
     )
 
     /** Queues [command] and waits for its answer ([Options.answer]): whether it was written. */
@@ -151,6 +160,8 @@ class WowShape<S : AutoCloseable>(
         while (true) {
             val batches = take() ?: return
             val taken = batches.flatMap { it.pendings }
+            appendCalls.incrementAndGet()
+            appendPartitions.addAndGet(batches.size.toLong())
             val written = try {
                 append(store, taken.map { it.command })
             } catch (failure: Exception) {
@@ -202,6 +213,7 @@ class WowShape<S : AutoCloseable>(
             val first = saves.poll(POLL_MILLIS, TimeUnit.MILLISECONDS) ?: continue
             val batch = arrayListOf(first)
             saves.drainTo(batch, options.writerMax - 1)
+            saveCalls.incrementAndGet()
             try {
                 val written = save(store, batch.map { it.command })
                 val saved = written.count { it }.toLong()
@@ -256,8 +268,16 @@ class WowShape<S : AutoCloseable>(
         /** The snapshots the writers failed or the store refused: a committed caller does not see them. */
         const val SHAPE_SAVE_FAILED = "shapeSaveFailed"
 
+        /** The calls' counters' names: the append calls, the partitions they took streams of, the save calls. */
+        const val SHAPE_APPEND_CALLS = "shapeAppendCalls"
+        const val SHAPE_APPEND_PARTITIONS = "shapeAppendPartitions"
+        const val SHAPE_SAVE_CALLS = "shapeSaveCalls"
+
         /** A step's ratio of its window's saves to its appends. */
         const val SAVES_PER_APPEND = "savesPerAppend"
+
+        /** A step's partitions an append call, its window's. */
+        const val PARTITIONS_PER_APPEND = "partitionsPerAppend"
 
         /** The share of a window's appends its saves must reach for a committed step to count as sustained. */
         const val SAVES_KEPT = 0.97
@@ -292,10 +312,12 @@ class WowShape<S : AutoCloseable>(
 
         private const val COMMAND = "command"
 
-        /** A step's shape ratios from its counters' growth: its saves per append. */
-        fun ratios(growth: Map<String, Double>): Map<String, Double> {
-            val appended = growth[SHAPE_APPENDED] ?: return emptyMap()
-            return if (appended > 0) mapOf(SAVES_PER_APPEND to (growth[SHAPE_SAVED] ?: 0.0) / appended) else emptyMap()
+        /** A step's shape ratios from its counters' growth: its saves per append, and its partitions an append call. */
+        fun ratios(growth: Map<String, Double>): Map<String, Double> = buildMap {
+            val appended = growth[SHAPE_APPENDED] ?: 0.0
+            if (appended > 0) put(SAVES_PER_APPEND, (growth[SHAPE_SAVED] ?: 0.0) / appended)
+            val calls = growth[SHAPE_APPEND_CALLS] ?: 0.0
+            if (calls > 0) put(PARTITIONS_PER_APPEND, (growth[SHAPE_APPEND_PARTITIONS] ?: 0.0) / calls)
         }
     }
 }

@@ -93,6 +93,9 @@ class RawPostgres(
     fun recordsOf(case: RawCase): (Map<String, Double>, Map<String, Double>) -> Map<String, Double> =
         if (case.name == CALIBRATION) ::records else { _, _ -> emptyMap() }
 
+    /** Watches the store's horizon over a window (PostgresCounters.watch). */
+    fun watch(): () -> Map<String, Double> = stats.watch()
+
     /** The WAL between two counters' reads by record type and table (PostgresCounters). */
     fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> =
         stats.records(before, after)
