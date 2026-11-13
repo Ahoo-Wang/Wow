@@ -114,8 +114,8 @@ abba() {
 
 # Each second until killed, into $1: the epoch, the cores the host's foreign processes used (every process but this
 # tree's and the arms' installs' (after $1), OrbStack's VM, which runs the containers, and the JVMs in
-# ALLOW_JVM_PIDS, idle shared daemons), the busiest of them, and each of the harness's containers' CPU so far (its
-# cgroup's usage_usec), so the table gives the store's cores over each step.
+# ALLOW_JVM_PIDS, idle shared daemons), the busiest of them, and each of the harness's containers' CPU so far in
+# microseconds (its cgroup's, from the daemon's stats API), so the table gives the store's cores over each step.
 abba_host() {
   local file=$1 arm paths="$REPO"
   shift
@@ -123,6 +123,9 @@ abba_host() {
     arm=$(echo "$arm" | cut -d'|' -f2)
     if [ -n "$arm" ]; then paths="$paths|$arm"; fi
   done
+  local socket
+  socket=$(docker context inspect --format '{{.Endpoints.docker.Host}}')
+  socket=${socket#unix://}
   printf 'epoch\tforeignCores\ttop\tcontainers\n' >"$file"
   while true; do
     ps -A -o pid=,%cpu=,args= | awk -v paths="$paths" -v allowed=" ${ALLOW_JVM_PIDS:-} " -v now="$(date +%s)" '
@@ -134,9 +137,13 @@ abba_host() {
         total += cpu; if (cpu > 1) top = top sprintf("%s %.0f, ", substr(command, 1, 40), cpu)
       }
       END { printf "%s\t%.2f\t%s\t", now, total / 100, top }' >>"$file"
+    # Read through the daemon's stats API, not `docker exec`: a process in the container would run on its pinned CPU
+    # and count in the usage it reads (about one percent of a core a second, idle, against none measurable this way).
     local container usage containers=""
     for container in $(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench-); do
-      usage=$(docker exec "$container" cat /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '$1 == "usage_usec" { print $2 }')
+      usage=$(curl -s --unix-socket "$socket" \
+        "http://localhost/containers/$container/stats?stream=false&one-shot=true" |
+        grep -o '"total_usage":[0-9]*' | head -1 | awk -F: '{ printf "%.0f", $2 / 1000 }')
       if [ -n "$usage" ]; then containers="$containers$container=$usage,"; fi
     done
     echo "$containers" >>"$file"

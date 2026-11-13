@@ -162,7 +162,7 @@ const refusedShare = step => {
 
 /**
  * The host's samples (abba_host's host.tsv): each second's epoch, foreign cores, and each harness container's CPU so
- * far in microseconds (its cgroup's usage_usec), by name.
+ * far in microseconds (its cgroup's, through Docker's stats API), by name.
  */
 export function hostSamples(tsv) {
   return tsv
