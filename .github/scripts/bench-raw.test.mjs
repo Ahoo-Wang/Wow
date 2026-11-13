@@ -9,6 +9,7 @@ import { SUITES } from './bench.mjs';
 import {
   RAW,
   calibrationText,
+  nodeTimeText,
   ceilingText,
   rawAnomalies,
   rawArgs,
@@ -309,5 +310,29 @@ test("a raw run's store is on the CPUs its paired suites give it: mongod alone, 
     rawArgs({ backend: 'mongo' }, {}, measured, '/out').includes(
       '--store-cpus=1',
     ),
+test("the calibration says Wow's node time around a call is why the model's own shape is not Wow's", () => {
+  const apart = [
+    { metric: 'appendCallMs', wowPerCommand: 3.5, rawPerCommand: 2.3 },
+    { metric: 'appendRoundTripMs', wowPerCommand: 2.7, rawPerCommand: 2.25 },
+    {
+      metric: 'uncapped appendsPerCommand',
+      wowPerCommand: 1 / 15,
+      rawPerCommand: 1 / 9,
+    },
+  ];
+  const text = nodeTimeText({ apart });
+  assert.match(
+    text,
+    /Wow's call 3\.50 ms against its store round trip 2\.70 ms \(0\.80 ms around it\)/,
+  );
+  assert.match(text, /the model's 2\.30 against 2\.25 ms/);
+  assert.match(
+    text,
+    /Wow's appends carry 15(\.0)? commands and the model's 9(\.0)?\./,
+  );
+  assert.equal(nodeTimeText({ apart: apart.slice(1) }), '');
+  assert.match(
+    calibrationText({ calibration: { checks: [], apart, passed: true } }),
+    /node time around each append call/,
   );
 });

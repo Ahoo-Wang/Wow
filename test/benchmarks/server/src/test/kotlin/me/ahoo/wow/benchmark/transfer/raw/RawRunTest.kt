@@ -118,6 +118,14 @@ class RawRunTest {
     }
 
     @Test
+    fun `wow's call sizes are its commands an append and snapshots a save, each its own`() {
+        val wow = mapOf("statements: append" to 0.0664, "statements: save" to 0.1135)
+        sizesOf(wow, "statements: append", "statements: save").assert().isEqualTo(15 to 9)
+        sizesOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
+        sizesOf(wow, "statements: append", "missing").assert().isNull()
+    }
+
+    @Test
     fun `a cgroup's CPU is its cpu stat's usage in microseconds`() {
         cgroupUsageMicros("usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n").assert().isEqualTo(123456)
         cgroupUsageMicros("user_usec 1\n").assert().isNull()

@@ -51,7 +51,10 @@ class WowShape<S : AutoCloseable>(
 
     /**
      * The shape: Wow's defaults (AppendQueueOptions: two mergers, a lane's batch of 64, calls merged up to 512
-     * streams; two snapshot writes in flight of up to 256 rows), [mergeMax] the one a what-if case varies.
+     * streams; two snapshot writes in flight of up to 256 rows), [mergeMax], [appenders] and [writers] the ones a
+     * what-if case varies. With [appendFill] and [saveFill], a call holds that many streams or snapshots: it waits for
+     * them (FILL_WAIT_MILLIS at most) and takes no more than whole lanes' batches past them, so the calls are of a size
+     * given rather than of what is there, as the calibration's equal shape is; null, as Wow's take them.
      */
     data class Options(
         val mergeMax: Int = MERGE_MAX,
@@ -60,6 +63,8 @@ class WowShape<S : AutoCloseable>(
         val maxBatch: Int = MAX_BATCH,
         val writers: Int = WRITERS,
         val writerMax: Int = WRITER_MAX,
+        val appendFill: Int? = null,
+        val saveFill: Int? = null,
     ) {
         /** The store connections the shape holds: one an appender, one a writer. */
         val connections: Int get() = appenders + writers
@@ -67,7 +72,7 @@ class WowShape<S : AutoCloseable>(
         /** Whether it is the shape Wow's node gives the store: its own constants, the runtime has no option for them. */
         val wows: Boolean
             get() = mergeMax == MERGE_MAX && appenders == APPENDERS && maxBatch == MAX_BATCH && writers == WRITERS &&
-                writerMax == WRITER_MAX
+                writerMax == WRITER_MAX && appendFill == null && saveFill == null
     }
 
     private class Pending(val command: Aggregates.Command) {
@@ -200,18 +205,22 @@ class WowShape<S : AutoCloseable>(
      * than the call's maximum. Waits for one; null once closed.
      */
     private fun take(): List<Batch>? = lock.withLock {
+        val fill = options.appendFill
+        var due = 0L
         while (!closing) {
-            if (handed.isNotEmpty()) {
+            if (handed.isNotEmpty() && fill != null && due == 0L) due = System.nanoTime() + FILL_WAIT_NANOS
+            val filled = fill == null || handed.sumOf { it.pendings.size } >= fill || System.nanoTime() >= due
+            if (handed.isNotEmpty() && filled) {
                 val batches = ArrayList<Batch>()
                 var streams = 0
-                while (handed.isNotEmpty() && streams < options.mergeMax) {
+                while (handed.isNotEmpty() && streams < (fill ?: options.mergeMax)) {
                     val batch = handed.removeFirst()
                     batches += batch
                     streams += batch.pendings.size
                 }
                 return batches
             }
-            ready.await(POLL_MILLIS, TimeUnit.MILLISECONDS)
+            ready.await(if (due > 0) FILL_POLL_MILLIS else POLL_MILLIS, TimeUnit.MILLISECONDS)
         }
         null
     }
@@ -220,7 +229,13 @@ class WowShape<S : AutoCloseable>(
         while (!appendersDone || saves.isNotEmpty()) {
             val first = saves.poll(POLL_MILLIS, TimeUnit.MILLISECONDS) ?: continue
             val batch = arrayListOf(first)
-            saves.drainTo(batch, options.writerMax - 1)
+            val most = options.saveFill ?: options.writerMax
+            saves.drainTo(batch, most - 1)
+            val due = System.nanoTime() + FILL_WAIT_NANOS
+            while (batch.size < (options.saveFill ?: 0) && System.nanoTime() < due) {
+                saves.poll(FILL_POLL_MILLIS, TimeUnit.MILLISECONDS)?.let { batch += it }
+                saves.drainTo(batch, most - batch.size)
+            }
             saveCalls.incrementAndGet()
             val takenAt = System.nanoTime()
             try {
@@ -300,6 +315,11 @@ class WowShape<S : AutoCloseable>(
         /** The share of a window's appends its saves must reach for a committed step to count as sustained. */
         const val SAVES_KEPT = 0.97
         private const val POLL_MILLIS = 50L
+        private const val FILL_POLL_MILLIS = 1L
+        private const val FILL_WAIT_NANOS = 20_000_000L
+
+        /** The what-if's appenders and writers: twice Wow's, a candidate's count to price. */
+        const val MORE_CALLERS = 4
 
         /** The calls' maxima the what-if cases price beside Wow's: one lane's batch and four lanes'. */
         val WHAT_IFS = listOf(MAX_BATCH, 256)
@@ -326,6 +346,14 @@ class WowShape<S : AutoCloseable>(
                         Options(mergeMax = merge)
                 )
             }
+            add(
+                RawCase(
+                    "what-if-$MORE_CALLERS-appenders-$MORE_CALLERS-writers",
+                    COMMAND,
+                    1,
+                    "what-if: $MORE_CALLERS appenders and $MORE_CALLERS writers, Wow's $APPENDERS and $WRITERS (no option gives it)",
+                ) to Options(appenders = MORE_CALLERS, writers = MORE_CALLERS)
+            )
         }
 
         private const val COMMAND = "command"

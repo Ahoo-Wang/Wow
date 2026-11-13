@@ -15,26 +15,28 @@ package me.ahoo.wow.benchmark.transfer.raw
 
 import me.ahoo.wow.benchmark.transfer.CONNECTION_HOLD
 import me.ahoo.wow.benchmark.transfer.POOL_WAIT
+import kotlin.math.roundToInt
 
 // The calibration's checks: what of Wow's own run on the store the clone's calibration step is held to, per store.
 
 /**
- * PostgreSQL's calibration of Wow's own write path (WowShape) paced to Wow's rate: on the WAL of the cloned tables when
- * both runs read it by table (PATH_CHECKS), else on all of it (POSTGRES_CHECKS); the model's calls (MODEL_CHECKS) with
- * its partitions an append, its saves kept up and no failed command either way.
+ * PostgreSQL's calibration of Wow's own write path (WowShape) paced to Wow's rate in Wow's shape ([calibrating]): on
+ * the WAL of the cloned tables when both runs read it by table (PATH_CHECKS), else on all of it (POSTGRES_CHECKS); its
+ * calls of Wow's sizes (EQUAL_SHAPE_CHECKS), its saves kept up and no failed command either way. Apart, the model's own
+ * shape at that rate ([uncapped]) against Wow's, and their calls' times: Wow's node time around a call.
  */
-internal fun postgresCalibration(wow: Map<String, Double>, calibrating: RawStep): RawCalibration {
+internal fun postgresCalibration(wow: Map<String, Double>, calibrating: RawStep, uncapped: RawStep): RawCalibration {
     val wowPath = PostgresCounters.onTables(wow, RawPostgres.WOW_TABLES, PATH)
     val rawPath = PostgresCounters.onTables(calibrating.perUnit, RawPostgres.RAW_TABLES, PATH)
     val path = wowPath.isNotEmpty() && rawPath.isNotEmpty()
     val spread = spreadOf(wow)?.let { mapOf(WowShape.PARTITIONS_PER_APPEND to it) }.orEmpty()
     return calibrationOf(
-        (if (path) PATH_CHECKS else POSTGRES_CHECKS) + MODEL_CHECKS + SPREAD_CHECK + KEPT_CHECKS,
+        (if (path) PATH_CHECKS else POSTGRES_CHECKS) + EQUAL_SHAPE_CHECKS + KEPT_CHECKS,
         (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits") + XMIN_APART +
-            CALL_APART + PostgresCounters.NEW_PAGE_SHARE + LAYOUT_METRICS,
-        postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread + wowCalls(wow),
+            WowShape.PARTITIONS_PER_APPEND + SHAPE_APART + CALL_APART + PostgresCounters.NEW_PAGE_SHARE + LAYOUT_METRICS,
+        (postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread + wowCalls(wow)).let { it + shapeOf(it) },
         calibrating,
-        modelled(calibrating) + rawPath,
+        modelled(calibrating) + rawPath + uncappedOf(uncapped),
     )
 }
 
@@ -142,13 +144,14 @@ fun calibrationOf(
  * MongoDB's calibration of Wow's own write path (WowShape) paced to Wow's rate: its inserts, updates, journal and
  * oplog bytes, the model's calls, its saves kept up and no failed command.
  */
-internal fun mongoCalibration(wow: Map<String, Double>, calibrating: RawStep): RawCalibration = calibrationOf(
-    MONGO_CHECKS + MODEL_CHECKS + KEPT_CHECKS,
-    listOf("commands", OWN_OPLOG_BYTES),
-    mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES),
-    calibrating,
-    modelled(calibrating),
-)
+internal fun mongoCalibration(wow: Map<String, Double>, calibrating: RawStep, uncapped: RawStep): RawCalibration =
+    calibrationOf(
+        MONGO_CHECKS + EQUAL_SHAPE_CHECKS + KEPT_CHECKS,
+        listOf("commands", OWN_OPLOG_BYTES) + SHAPE_APART,
+        (mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES)).let { it + shapeOf(it) },
+        calibrating,
+        modelled(calibrating) + uncappedOf(uncapped),
+    )
 
 /** Wow's commands a second in its own run, the rate the calibration is paced at. */
 internal const val WOW_RATE = "wowCommandsPerSecond"
@@ -186,17 +189,49 @@ internal const val OWN_OPLOG_BYTES = "ownOplogBytes"
 private val XMIN_APART = PostgresCounters.XMIN_METRICS
 
 /**
- * The model's checks: its append and save calls per command within 10% of Wow's. The lanes, appenders and writers make
- * their batches at Wow's rate as the runtime does, with its own constants, so a gap here is a finding about the model,
- * not a shape to copy.
+ * The equal shape's checks: the calibration's append and save calls per command within 10% of Wow's, which its calls'
+ * sizes (WowShape.Options.appendFill, saveFill) are set to, so its store counters are at Wow's shape.
  */
-private val MODEL_CHECKS = listOf(APPENDS to RawCheck.Bound(share = SHARE), SAVES to RawCheck.Bound(share = SHARE))
+private val EQUAL_SHAPE_CHECKS =
+    listOf(APPENDS to RawCheck.Bound(share = SHARE), SAVES to RawCheck.Bound(share = SHARE))
 
 /**
- * The partitions an append within 10% of Wow's: each one the append takes streams of has its counter row locked and
- * updated, two records, so the model's lanes are held to Wow's.
+ * The model's own shape at Wow's rate against Wow's, apart and never a check: its batches follow from its calls' time,
+ * and Wow's from its node's time around each call too (CALL_APART), which the model does not have.
  */
-private val SPREAD_CHECK = listOf(WowShape.PARTITIONS_PER_APPEND to RawCheck.Bound(share = SHARE))
+private val SHAPE_APART = listOf(SHAPE_APPENDS, SHAPE_SAVES, SHAPE_SPREAD)
+
+/** Wow's shape under SHAPE_APART's names: its append and save calls per command, its partitions an append. */
+private fun shapeOf(wow: Map<String, Double>): Map<String, Double> = buildMap {
+    wow[APPENDS]?.let { put(SHAPE_APPENDS, it) }
+    wow[SAVES]?.let { put(SHAPE_SAVES, it) }
+    wow[WowShape.PARTITIONS_PER_APPEND]?.let { put(SHAPE_SPREAD, it) }
+}
+
+/**
+ * The uncapped model's step as the calibration reports it apart: its shape under SHAPE_APART's names, and its calls'
+ * times (CALL_APART), the comparison of Wow's node time with none.
+ */
+private fun uncappedOf(uncapped: RawStep): Map<String, Double> = buildMap {
+    putAll(uncapped.ratios.filterKeys { it.endsWith("Ms") })
+    put(SHAPE_APPENDS, uncapped.perUnit[WowShape.SHAPE_APPEND_CALLS] ?: 0.0)
+    put(SHAPE_SAVES, uncapped.perUnit[WowShape.SHAPE_SAVE_CALLS] ?: 0.0)
+    uncapped.ratios[WowShape.PARTITIONS_PER_APPEND]?.let { put(SHAPE_SPREAD, it) }
+}
+
+private const val SHAPE_APPENDS = "uncapped appendsPerCommand"
+private const val SHAPE_SAVES = "uncapped savesPerCommand"
+private const val SHAPE_SPREAD = "uncapped partitionsPerAppend"
+
+/**
+ * Wow's run's call sizes: the commands an append took and the snapshots a save took, from its counts [append] and
+ * [save] per command; null when its run did not count them.
+ */
+internal fun sizesOf(wow: Map<String, Double>, append: String, save: String): Pair<Int, Int>? {
+    val appends = wow[append]?.takeIf { it > 0 } ?: return null
+    val saves = wow[save]?.takeIf { it > 0 } ?: return null
+    return (1 / appends).roundToInt().coerceAtLeast(1) to (1 / saves).roundToInt().coerceAtLeast(1)
+}
 
 /**
  * The model's saves kept up with its appends (WowShape.SAVES_KEPT, as a committed ceiling's), and no command of Wow's

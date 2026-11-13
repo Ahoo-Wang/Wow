@@ -143,7 +143,7 @@ export function calibrationText(raw) {
   const apart = (c.apart ?? [])
     .map(check => `${check.metric} ${ratioText(check)}`)
     .join('; ');
-  const tail = apart ? ` Apart: ${apart}.` : '';
+  const tail = `${apart ? ` Apart: ${apart}.` : ''}${nodeTimeText(c)}`;
   if (!c.passed) {
     const why =
       c.read === false
@@ -152,6 +152,29 @@ export function calibrationText(raw) {
     return `**Uncalibrated (${why}): ${checks || 'no check'}.${tail} No case of this run is read.**`;
   }
   return `Calibrated on Wow's ground, per command: ${checks}.${tail}`;
+}
+
+/**
+ * Why the model's own shape at Wow's rate is not Wow's, from the calibration's apart metrics: Wow's node time around
+ * each append call, which the model has none of; empty unless both sides' call and round trip were read.
+ */
+export function nodeTimeText(calibration) {
+  const of = metric =>
+    (calibration?.apart ?? []).find(check => check.metric === metric) ?? {};
+  const [call, trip, appends] = [
+    'appendCallMs',
+    'appendRoundTripMs',
+    'uncapped appendsPerCommand',
+  ].map(of);
+  const values = [call, trip, appends].flatMap(check => [
+    check.wowPerCommand,
+    check.rawPerCommand,
+  ]);
+  if (!values.every(Number.isFinite)) return '';
+  return (
+    ` The model's own shape differs from Wow's by Wow's node time around each append call: Wow's call ${num(call.wowPerCommand, 2)} ms against its store round trip ${num(trip.wowPerCommand, 2)} ms (${num(call.wowPerCommand - trip.wowPerCommand, 2)} ms around it), the model's ${num(call.rawPerCommand, 2)} against ${num(trip.rawPerCommand, 2)} ms,` +
+    ` so at Wow's rate Wow's appends carry ${num(1 / appends.wowPerCommand, 1)} commands and the model's ${num(1 / appends.rawPerCommand, 1)}.`
+  );
 }
 
 /**

@@ -274,6 +274,9 @@ const val CALIBRATION_CONNECTIONS = 64
 /** The calibration's case: today's, on Wow's ground. */
 const val CALIBRATION = "calibration"
 
+/** The model's own shape beside the calibration, apart. */
+const val CALIBRATION_MODEL = "calibration-model"
+
 /** Versions of [aggregates] aggregates opened at version 1. */
 fun opened(aggregates: Int): IntArray = IntArray(aggregates) { 1 }
 
@@ -312,14 +315,17 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
     fun step(case: RawPostgres.Case, connections: Int, pace: Pace, versions: IntArray): RawStep =
         postgresStep(raw, cpu, case, connections, pace, versions)
     val model = cases.first { it.case.ceiling == RawCase.COMMITTED }
-    raw.prepare(model.fillfactor, settings.templates)
-    val calibrating = step(
-        RawPostgres.Case(calibrationCase(model.case), model.fillfactor, model.shape, model.flush),
-        CALIBRATION_CONNECTIONS,
-        Pace(calibrationTiming(settings), wow[WOW_RATE]),
-        opened(settings.templates),
-    )
-    val steps = mutableListOf(calibrating)
+    val (calibrating, uncapped) = listOf(equalShape(model.shape, wow, PG_APPENDS, PG_SAVES), model.shape)
+        .zip(listOf(calibrationCase(model.case), modelCase(model.case))).map { (shape, case) ->
+            raw.prepare(model.fillfactor, settings.templates)
+            step(
+                RawPostgres.Case(case, model.fillfactor, shape, model.flush),
+                CALIBRATION_CONNECTIONS,
+                Pace(calibrationTiming(settings), wow[WOW_RATE]),
+                opened(settings.templates),
+            )
+        }
+    val steps = mutableListOf(calibrating, uncapped)
     for (case in cases.filter { settings.keeps(it.case.name) }) {
         val clients = if (case.shape != null) settings.shapeClients else settings.connections
         steps += stepsOf(clients, settings.aggregates, {
@@ -337,7 +343,7 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
             steps += step(case, split.connections, pace, opened(settings.aggregates))
         }
     }
-    return RawResult(postgresCalibration(wow, calibrating), raw.settings(), steps)
+    return RawResult(postgresCalibration(wow, calibrating, uncapped), raw.settings(), steps)
 }
 
 /** A PostgreSQL step: [case]'s workers on a connection each, or callers of Wow's own write path for a shape. */
@@ -402,14 +408,17 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 }
             }.also(::print)
         val model = cases.first { it.case.ceiling == RawCase.COMMITTED }
-        raw.prepare(settings.templates, model.bigState)
-        val calibrating = step(
-            RawMongo.Case(calibrationCase(model.case), model.bigState, model.shape, model.flush),
-            CALIBRATION_CONNECTIONS,
-            opened(settings.templates),
-            Pace(calibrationTiming(settings), wow[WOW_RATE]),
-        )
-        val steps = mutableListOf(calibrating)
+        val (calibrating, uncapped) = listOf(equalShape(model.shape, wow, MONGO_APPENDS, MONGO_SAVES), model.shape)
+            .zip(listOf(calibrationCase(model.case), modelCase(model.case))).map { (shape, case) ->
+                raw.prepare(settings.templates, model.bigState)
+                step(
+                    RawMongo.Case(case, model.bigState, shape, model.flush),
+                    CALIBRATION_CONNECTIONS,
+                    opened(settings.templates),
+                    Pace(calibrationTiming(settings), wow[WOW_RATE]),
+                )
+            }
+        val steps = mutableListOf(calibrating, uncapped)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
             val clients = if (case.shape != null) settings.shapeClients else settings.connections
             steps += stepsOf(clients, settings.aggregates, {
@@ -418,7 +427,7 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 step(case, n, versions)
             }
         }
-        RawResult(mongoCalibration(wow, calibrating), raw.settings(), steps)
+        RawResult(mongoCalibration(wow, calibrating, uncapped), raw.settings(), steps)
     }
 
 /**
@@ -432,9 +441,22 @@ private fun calibrationTiming(
 
 /**
  * The calibration's case: Wow's own write path answered at the append ([model], the committed ceiling's), as Wow's E1
- * answers, paced to Wow's rate on Wow's ground; no ceiling of its own.
+ * answers, paced to Wow's rate on Wow's ground, in Wow's shape (equalShape); no ceiling of its own.
  */
 private fun calibrationCase(model: RawCase) = model.copy(name = CALIBRATION, prices = WOW_GROUND, ceiling = null)
+
+/** The model's own shape at Wow's rate, beside the calibration: what its lanes make of Wow's load, apart. */
+private fun modelCase(model: RawCase) = model.copy(name = CALIBRATION_MODEL, prices = MODEL_GROUND, ceiling = null)
+
+/**
+ * Wow's own write path ([shape]) with its calls of the sizes Wow's run made ([sizesOf], from the counts [append] and
+ * [save]): the store's cost a command at an equal shape, which the calibration checks. The model's own sizes follow
+ * from its calls' time, and Wow's from its node's time around each call too, so they are compared apart.
+ */
+private fun equalShape(shape: WowShape.Options?, wow: Map<String, Double>, append: String, save: String) =
+    sizesOf(wow, append, save)?.let { (commands, snapshots) ->
+        shape?.copy(appendFill = commands, saveFill = snapshots)
+    } ?: shape
 
 /** A caller of Wow's own write path: one command a flush, counted once its stream and its snapshot were written. */
 private fun caller(shape: WowShape<*>, owned: Aggregates) = object : RawWorker {
@@ -449,4 +471,5 @@ private const val SEED_CONCURRENCY = CALIBRATION_CONNECTIONS
 private const val CALIBRATION_WARM_UP = 10
 private const val DEPOSITS = 4
 private const val SETTLE_MILLIS = 2_000L
+private const val MODEL_GROUND = "Wow's own write path at Wow's rate, its own shape: Wow's node time apart"
 private const val WOW_GROUND = "Wow's own write path on Wow's ground, at its rate: the calibration"

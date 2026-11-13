@@ -94,6 +94,29 @@ class WowShapeTest {
     }
 
     @Test
+    fun `a filled call waits for its size and takes whole batches past it, its saves of theirs`() {
+        val calls = Calls()
+        val options = WowShape.Options(answer = WowShape.Answer.COMMITTED, maxBatch = 4, appendFill = 6, saveFill = 5)
+        val pool = Executors.newFixedThreadPool(64)
+        val results = shape(calls, options).use { shape ->
+            (0 until 400).map { number -> pool.submit<Boolean> { shape.submit(Aggregates.Command(number, 2)) } }
+                .map { it.get() }
+        }
+        pool.shutdown()
+        results.all { it }.assert().isTrue()
+        calls.appends.sumOf { it.size }.assert().isEqualTo(400)
+        // A call takes no more than a lane's batch past its size, a save none past its own.
+        calls.appends.all { it.size <= 6 + 4 - 1 }.assert().isTrue()
+        calls.saves.sum().assert().isEqualTo(400)
+        calls.saves.all { it <= 5 }.assert().isTrue()
+        // Certain enough to assert: 64 callers keep far more than six commands queued, and a call waits up to 20 ms for
+        // its size, ten times the store call's 2 ms, so calls and saves reach their sizes; how many do is timing's.
+        calls.appends.any { it.size >= 6 }.assert().isTrue()
+        calls.saves.any { it == 5 }.assert().isTrue()
+        WowShape.Options(appendFill = 6).wows.assert().isFalse()
+    }
+
+    @Test
     fun `a command the store refused is not saved, and one a failed call carried fails its caller`() {
         val calls = Calls()
         shape(calls, WowShape.Options(), refuse = { it.number == 3 }).use { shape ->
@@ -162,7 +185,9 @@ class WowShapeTest {
             Triple("wow-shape-snapshot", RawCase.SNAPSHOT, true),
             Triple("what-if-merge-64", null, false),
             Triple("what-if-merge-256", null, false),
+            Triple("what-if-4-appenders-4-writers", null, false),
         )
+        WowShape.cases().last().second.connections.assert().isEqualTo(8)
     }
 
     @Test
