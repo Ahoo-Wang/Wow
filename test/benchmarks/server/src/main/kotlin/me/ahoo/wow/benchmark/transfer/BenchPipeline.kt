@@ -57,8 +57,11 @@ import java.util.concurrent.TimeUnit
  *   `release` to its connection given back, and `hopBack` to the call returned, which sum to their `call`; and, over
  *   the `commanded` calls (MongoDB's, whose driver reports each command's time to this line's listener), `command`,
  *   the driver's own time of the commands within `statement`, so `statement` less `command` is the driver's work
- *   around them (a command's encoding, a connection's check-out). Each between two lines, over that second's calls, is
- *   the mean of a call's step.
+ *   around them (a command's encoding, a connection's check-out); and, of `bind`, where the log tells (MongoDB's group),
+ *   `encode`, the streams' documents built, and `lookup`, the `lookups` of an aggregate's last sequence it did not
+ *   remember, so `bind` less both is the sequencing, and `bindCommand` over `bindCommands`, the driver's time of the
+ *   commands sent while building (its counter writes and lookups). Each between two lines, over that second's calls, is the mean of a
+ *   call's step.
  * - `snapshotClock`, cumulative from this line's first read, the same for the snapshot subscriptions' writes (each
  *   subscription's `SnapshotWrites`, a write one `saveAll` of a leader's batch): the `saves` the leaders took and the
  *   `snapshots` they wrote (an aggregate's highest version a write), `writing` now (the leaders in a store's call),
@@ -212,6 +215,11 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                     "hopBack" to clocks.sumOf { it.hopBack },
                     "commanded" to clocks.sumOf { it.commanded },
                     "command" to clocks.sumOf { it.command },
+                    "encode" to clocks.sumOf { it.encode },
+                    "lookup" to clocks.sumOf { it.lookup },
+                    "lookups" to clocks.sumOf { it.lookups },
+                    "bindCommand" to clocks.sumOf { it.bindCommand },
+                    "bindCommands" to clocks.sumOf { it.bindCommands },
                 )
             }
 

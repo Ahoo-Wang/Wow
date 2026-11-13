@@ -33,7 +33,13 @@ import java.util.concurrent.atomic.LongAdder
  * - for the [commanded] calls, those whose driver reported its commands' own time: [command], their sum, from each
  *   command's message sent to its reply. Of a marked call's [statement], what [command] leaves is the driver's work
  *   around its commands (encoding a command, checking a connection out, decoding its reply), and the store's own
- *   work between them.
+ *   work between them;
+ * - of [bind], for every call whose store tells: [encode], the time spent encoding the batch's records, and [lookup],
+ *   the time of the [lookups] the store made while building it (MongoDB's log: each stream's document, and a read of
+ *   an aggregate's last sequence it did not remember). What they leave of [bind] is the rest of the building (on
+ *   MongoDB's log, sequencing: the partitions' blocks and the streams' sequences); and [bindCommand], the driver's
+ *   own time of the [bindCommands] the store sent before its first command of the batch (on MongoDB's log, its
+ *   partitions' counter writes and its lookups).
  */
 @InternalWowApi
 class CallClock internal constructor() {
@@ -50,6 +56,11 @@ class CallClock internal constructor() {
     private val hoppingBack = LongAdder()
     private val commandedCalls = LongAdder()
     private val commanding = LongAdder()
+    private val encoding = LongAdder()
+    private val lookingUp = LongAdder()
+    private val lookedUp = LongAdder()
+    private val bindCommanding = LongAdder()
+    private val bindCommanded = LongAdder()
 
     val calls: Long get() = clocked.sum()
     val call: Long get() = micros(calling)
@@ -64,6 +75,11 @@ class CallClock internal constructor() {
     val hopBack: Long get() = micros(hoppingBack)
     val commanded: Long get() = commandedCalls.sum()
     val command: Long get() = micros(commanding)
+    val encode: Long get() = micros(encoding)
+    val lookup: Long get() = micros(lookingUp)
+    val lookups: Long get() = lookedUp.sum()
+    val bindCommand: Long get() = micros(bindCommanding)
+    val bindCommands: Long get() = bindCommanded.sum()
 
     /** A call clocked from now, its batch taken: [ClockedCall.done] once the caller's committer is free. */
     internal fun start(): ClockedCall = ClockedCall(this, StoreCallMarks())
@@ -88,6 +104,11 @@ class CallClock internal constructor() {
             commandedCalls.increment()
             commanding.add(marks.command)
         }
+        encoding.add(marks.encode)
+        lookingUp.add(marks.lookup)
+        lookedUp.add(marks.lookups.toLong())
+        bindCommanding.add(marks.bindCommand)
+        bindCommanded.add(marks.bindCommands.toLong())
     }
 
     private companion object {
