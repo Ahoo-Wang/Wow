@@ -147,7 +147,8 @@ internal object Stripes {
     const val MAX: Int = 16
     const val MIN_SHARE: Int = 256
 
-    fun of(capacity: Int): Int = (capacity / MIN_SHARE).coerceIn(1, MAX)
+    /** How many stripes hold [capacity]: shares of at least [minShare], at most [max] of them. */
+    fun of(capacity: Int, minShare: Int = MIN_SHARE, max: Int = MAX): Int = (capacity / minShare).coerceIn(1, max)
 
     /** The capacity of stripe [index] of [count]: [capacity] spread evenly, the remainder over the first ones. */
     fun share(capacity: Int, count: Int, index: Int): Int = capacity / count + if (index < capacity % count) 1 else 0
