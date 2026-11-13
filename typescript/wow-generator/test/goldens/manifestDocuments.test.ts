@@ -132,7 +132,7 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
     );
     // A command without a request id is sent with a generated one (review A3-16).
     const GENERATED = expect.stringMatching(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
     expect(JSON.parse(output)).toEqual([
       {

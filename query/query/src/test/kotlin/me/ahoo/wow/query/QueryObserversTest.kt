@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -188,6 +189,38 @@ class QueryObserversTest {
     }
 
     @Test
+    fun `a refusal is logged at debug only, its burst being the bulkhead's, and a store failure each time`() {
+        val observer = QueryLogObserver()
+        val failed = QueryExecutionException("Query storage failed.", IllegalStateException("driver text"))
+        val events = capture(null) {
+            observer.onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
+            observer.onError(aggregate, QueryType.LIST, failed)
+            observer.onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
+            observer.onError(aggregate, QueryType.LIST, failed)
+        }.filter { it.loggerName == QueryLogObserver::class.java.name }
+        events.filter { it.level == Level.DEBUG }.map { it.formattedMessage }.assert()
+            .containsExactly(*Array(2) { "Query [$aggregate/LIST] refused: store [main] is at its limit." })
+        events.filter { it.level == Level.ERROR }.map { it.formattedMessage }.assert()
+            .containsExactly("Query storage failed.", "Query storage failed.")
+        events.filter { it.level == Level.WARN || it.level == Level.INFO }.assert().isEmpty()
+    }
+
+    @Test
+    fun `a refusal writes nothing when the query log is above debug level`() {
+        val logger = LoggerFactory.getLogger(QueryLogObserver::class.java) as Logger
+        val level = logger.level
+        logger.level = Level.INFO
+        try {
+            capture(null) {
+                QueryLogObserver().onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
+                QueryLogObserver().onError(aggregate, QueryType.LIST, QueryViolation.InvalidCursor.rejection())
+            }.filter { it.loggerName == QueryLogObserver::class.java.name }.assert().isEmpty()
+        } finally {
+            logger.level = level
+        }
+    }
+
+    @Test
     fun `a server fault is logged at ERROR with every cause message redacted`() {
         val secret = IllegalStateException("driver echoed secret-value", IllegalArgumentException("nested secret"))
         val errors = captureErrors {
@@ -224,16 +257,16 @@ class QueryObserversTest {
     private fun captureErrors(block: () -> Unit): List<ILoggingEvent> = capture(Level.ERROR, block)
 
     /**
-     * The events of [level] logged while [block] runs. The root logger takes any thread's events, which may arrive
+     * The events of [level] (of every level when null) logged while [block] runs. The root logger takes any thread's events, which may arrive
      * while they are read, so they are read under the appender's lock, which each append takes.
      */
-    private fun capture(level: Level, block: () -> Unit): List<ILoggingEvent> {
+    private fun capture(level: Level?, block: () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         logger.addAppender(appender)
         return try {
             block()
-            synchronized(appender) { appender.list.toList() }.filter { it.level == level }
+            synchronized(appender) { appender.list.toList() }.filter { level == null || it.level == level }
         } finally {
             logger.detachAppender(appender)
             appender.stop()

@@ -1336,10 +1336,17 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Written : me/aho
 }
 
 public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
+	public static final field Companion Lme/ahoo/wow/spi/snapshot/SnapshotStore$Companion;
+	public static final field DEFAULT_WRITES_IN_FLIGHT I
 	public fun getRebuilds ()Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;
+	public fun getWritesInFlight ()I
 	public abstract fun load (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotStore$Companion {
+	public static final field DEFAULT_WRITES_IN_FLIGHT I
 }
 
 public final class me/ahoo/wow/spi/snapshot/SnapshotTable {

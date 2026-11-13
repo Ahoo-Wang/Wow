@@ -24,11 +24,17 @@ import org.springframework.context.annotation.Configuration
 /**
  * The benchmark server ([TransferServer]) with an Elasticsearch store, for the measurements of the search and the
  * sink: its profile `search` (`application-search.yaml`) names the store and puts the account's
- * events on it, which starts the account's Elasticsearch sink. The benchmark server's own distribution stays without
+ * events on it, which starts the account's Elasticsearch sink. Its client counts its requests
+ * ([SearchRequestsConfiguration]) and ends one the server does not answer at its response timeout
+ * ([SearchClientTimeout]). The benchmark server's own distribution stays without
  * Elasticsearch, so no other suite's classpath, start-up or memory changes.
  */
 fun main(args: Array<String>) {
-    SpringApplication(TransferServer::class.java, SearchRequestsConfiguration::class.java)
+    SpringApplication(
+        TransferServer::class.java,
+        SearchRequestsConfiguration::class.java,
+        SearchClientTimeout::class.java,
+    )
         .apply { setAdditionalProfiles(SEARCH_PROFILE) }
         .run(*args)
 }

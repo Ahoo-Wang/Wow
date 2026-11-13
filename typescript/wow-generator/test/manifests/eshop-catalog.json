@@ -12,7 +12,7 @@
           "description": "A brand of the catalog's products",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState",
-            "fingerprint": "f7053ff71b889c2fa55cdea93a17045f6b55025b8ee4a833368150248ec81f11"
+            "fingerprint": "f7053ff71b889c2f"
           },
           "snapshot": { "enabled": true },
           "commands": [
@@ -146,7 +146,7 @@
           "description": "A category of the catalog's products",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState",
-            "fingerprint": "f7053ff71b889c2fa55cdea93a17045f6b55025b8ee4a833368150248ec81f11"
+            "fingerprint": "f7053ff71b889c2f"
           },
           "snapshot": { "enabled": true },
           "commands": [
@@ -283,7 +283,7 @@
           "description": "A product of the catalog",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState",
-            "fingerprint": "2750dd38582ead29d510019c9029cc86ac38093b41aaf0441e8e9a8c4a09fe0f"
+            "fingerprint": "2750dd38582ead29"
           },
           "snapshot": { "enabled": true },
           "commands": [

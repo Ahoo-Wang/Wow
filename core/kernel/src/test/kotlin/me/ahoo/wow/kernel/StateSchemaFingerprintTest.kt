@@ -74,7 +74,7 @@ class StateSchemaFingerprintTest {
     @Test
     fun `the same class gives the same fingerprint every time`() {
         fingerprint(Order::class.java, EventCodec()).assert().isEqualTo(order)
-        order.assert().hasSize(64)
+        order.assert().hasSize(16)
     }
 
     @Test

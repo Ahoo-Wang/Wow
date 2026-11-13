@@ -22,7 +22,8 @@ import java.io.File
 /**
  * The applications of the Wow modules build on their public API alone (review R2.5-7): no build or file opts in to
  * `InternalWowApi`, and a platform server's declaration does only to read a host setting no public type gives
- * (design rule K1), each on [HOST_SETTING_READERS] with its reason.
+ * (design rule K1), each on [HOST_SETTING_READERS] with its reason; the benchmark server's one instrument of the
+ * node's queues is on [BENCHMARK_INSTRUMENTS].
  */
 class InternalOptInTest {
     private val repositoryRoot: File =
@@ -31,8 +32,8 @@ class InternalOptInTest {
 
     @Test
     fun `no application of the Wow modules should opt in to their internal API`() {
-        InternalOptInRules.internalOptIns(repositoryRoot, HOST_SETTING_READERS).assert().isEmpty()
-        InternalOptInRules.staleOptIns(repositoryRoot, HOST_SETTING_READERS).assert()
+        InternalOptInRules.internalOptIns(repositoryRoot, ALLOWED).assert().isEmpty()
+        InternalOptInRules.staleOptIns(repositoryRoot, ALLOWED).assert()
             .describedAs("Remove these entries: their declarations no longer opt in.")
             .isEmpty()
     }
@@ -107,5 +108,20 @@ class InternalOptInTest {
             "$CATALOG#datasetReferenceActions" to "wow.peers.<context>.contract: no public type gives the described peers",
             "$CATALOG#manifestPeers" to "wow.peers.<context>.contract: no public type gives the described peers",
         )
+
+        private const val BENCH_PIPELINE =
+            "test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchPipeline.kt"
+
+        /**
+         * The benchmark server's instrument of the node's queues, off unless a run asks for it: the rule keeps an
+         * application on the public API, and the benchmark's measured application still is; this class only reads the
+         * node it measures (its append queue's counts, its hand-off logs, its subscriptions' positions) and calls
+         * nothing on its write path. The one class, so a change to those types breaks it alone.
+         */
+        val BENCHMARK_INSTRUMENTS: Map<String, String> = mapOf(
+            "$BENCH_PIPELINE#BenchPipeline" to "a never-published benchmark instrument reading the node's queues",
+        )
+
+        val ALLOWED: Map<String, String> = HOST_SETTING_READERS + BENCHMARK_INSTRUMENTS
     }
 }

@@ -79,6 +79,15 @@ class ElasticsearchSnapshotStore internal constructor(
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
     override val rebuilds: SnapshotRebuildStore get() = this
 
+    /**
+     * Four with `refresh: wait_for`, whose every write returns only once the next refresh makes it visible: the
+     * subscription then writes at most four batches a refresh interval, whatever the load, so it keeps as many in flight
+     * as it did before the calls were merged across partitions. Otherwise a write returns once indexed, and the default
+     * holds.
+     */
+    override val writesInFlight: Int
+        get() = if (refresh == Refresh.WaitFor) WAIT_FOR_WRITES_IN_FLIGHT else SnapshotStore.DEFAULT_WRITES_IN_FLIGHT
+
     private val indices = ElasticsearchIndices(client)
 
     /** The indices whose definition this store has made sure of. */
@@ -504,6 +513,9 @@ class ElasticsearchSnapshotStore internal constructor(
         .put(BACKFILLED, table.backfilled)
 
     internal companion object {
+        /** [writesInFlight] with `refresh: wait_for`. */
+        const val WAIT_FOR_WRITES_IN_FLIGHT = 4
+
         /** How many times a write is decided again before the store gives up: each retry means another write landed. */
         const val MAX_ATTEMPTS = 128
 

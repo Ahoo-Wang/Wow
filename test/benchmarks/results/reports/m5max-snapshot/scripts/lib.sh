@@ -25,7 +25,16 @@
 #                  process on the host, OrbStack's VM among them, and of the load generator's busiest thread (percent
 #                  of one core): a generator whose HTTP client's one selector thread is busy all the time is the bound,
 #                  however few cores it uses in all; then the CPU of the JVMs in ALLOW_JVM_PIDS (percent of one core)
-#                  and the pids of the JVMs that are neither this benchmark's nor allowed
+#                  and the pids of the JVMs that are neither this benchmark's nor allowed; last, each of the
+#                  benchmark's containers' cumulative CPU (`name=usec`, its cgroup's `usage_usec`), from which
+#                  summarize.py gives each container's cores over a step
+#   mongo-stats.tsv  with the session's MongoDB, its counters every second over the measurement (`mongo_stats`):
+#                  the journal's syncs and their time, the write concern's majority waits and their time, the writes'
+#                  and transactions' operations and latency, the transactions aborted, the retried commands, the write
+#                  conflicts, all cumulative, and the write tickets in use; summarize.py gives each step's waits
+#   jfr/           with STEP_JFR set, a flight recording of each server's measured seconds of each closed-loop step,
+#                  node-<n>-c<clients>.jfr, cut from one recording per server by `jcmd JFR.dump begin=-<step>s` as
+#                  the step's line arrives (nodes.txt maps n to the server's pid and port)
 #   saturate.log   a sweep's output, each line stamped with the epoch second it was printed: a step's line marks
 #                  the end of its measured phase
 #   run.log        a fixed-rate run's output, stamped the same way
@@ -54,6 +63,10 @@ ACCOUNTS=100000
 # generator ends a sweep after a step that failed more than 1% of its commands.
 SWEEP=(--sweep --growth=4 --max-concurrency=4096 --step=30 --warm-up=10)
 SAMPLE_SECONDS=10
+# The JFR settings of each closed-loop step's recording (`default` or `profile`), or empty for none. A recording costs
+# the servers some CPU (about 1% with `default`, more with `profile`), so a sweep recorded with it is not compared with
+# one without; environment.txt records the setting.
+STEP_JFR="${STEP_JFR:-}"
 # A measurement voided or disturbed runs again at most RERUNS times, once the host was quiet for QUIET_SAMPLES samples in
 # a row: no JVM but this benchmark's and the allowed ones, those under VOID_JVM_CPU (stricter than a step's rule, which
 # lets one sample over it pass), the other processes under
@@ -156,6 +169,7 @@ record_environment() {
     echo "engine: OrbStack $(orb version 2>/dev/null | sed -n "s/^Version: //p")"
     echo "docker: $(docker version --format '{{.Server.Version}}'), $(docker info --format '{{.NCPU}} CPUs, {{.MemTotal}} bytes')"
     echo "jdk: $("$JAVA_HOME/bin/java" -version 2>&1 | sed -n 2p)"
+    echo "step JFR: ${STEP_JFR:-off}"
     echo "allowed JVMs (pid, %cpu, rss KB, started, command): ${ALLOW_JVM_PIDS:-none}"
     if [ -n "${ALLOW_JVM_PIDS:-}" ]; then
       # shellcheck disable=SC2086
@@ -204,13 +218,22 @@ host_record() {
   } >>"$1"
 }
 
+# Each of the benchmark's containers' cumulative CPU, `name=usec` comma-separated: its cgroup's `usage_usec` (the
+# containers have no CPU limit).
+bench_container_usage() {
+  local name
+  for name in $(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench-); do
+    printf '%s=%s\n' "$name" "$(docker exec "$name" sh -c "sed -n 's/^usage_usec //p' /sys/fs/cgroup/cpu.stat" 2>/dev/null)"
+  done | grep -E '=[0-9]+$' | paste -sd, -
+}
+
 # Samples the host into $1 every SAMPLE_SECONDS until sampler_stop.
 sampler_start() {
-  printf 'epoch\tload1\tload5\tload15\tforeignCpu\ttopForeign\tforeignContainers\thostCpu\tgeneratorThread\tallowedJvmCpu\tforeignJvms\n' >"$1"
+  printf 'epoch\tload1\tload5\tload15\tforeignCpu\ttopForeign\tforeignContainers\thostCpu\tgeneratorThread\tallowedJvmCpu\tforeignJvms\tbenchContainersUsec\n' >"$1"
   (
     while :; do
       procs=$(foreign_processes)
-      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" \
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" \
         "$(sysctl -n vm.loadavg | tr -d '{}' | awk '{print $1 "\t" $2 "\t" $3}')" \
         "$(echo "$procs" | awk '{s += $1} END {printf "%.0f", s}')" \
         "$(echo "$procs" | head -3 | awk '{c = $1; $1 = ""; $2 = ""; sub(/^ +/, ""); printf "%s%s %.0f", (NR > 1 ? ", " : ""), $0, c}')" \
@@ -219,6 +242,7 @@ sampler_start() {
         "$(generator_thread)" \
         "$(allowed_jvm_cpu)" \
         "$(foreign_jvms | awk '{print $1}' | paste -sd, -)" \
+        "$(bench_container_usage)" \
         >>"$1"
       sleep "$SAMPLE_SECONDS"
     done
@@ -232,6 +256,94 @@ sampler_stop() {
     wait "$SAMPLER" 2>/dev/null
   fi
   SAMPLER=""
+}
+
+# The server JVMs of the session, `<node> <pid>` a line: the java processes started with --wow.node.id=node-<n>.
+server_pids() {
+  ps -A -o pid=,command= |
+    sed -n 's/^ *\([0-9][0-9]*\) [^ ]*java .*--wow\.node\.id=node-\([0-9][0-9]*\).*/\2 \1/p' | sort -n
+}
+
+# With STEP_JFR set, starts one flight recording on each server and a watcher of the sweep in $1 (its saturate.log):
+# each step's line marks the end of its measured $2 seconds, which each server's recording is then cut to, as
+# $1/jfr/node-<n>-c<clients>.jfr. step_jfr_stop ends both.
+STEP_WATCHER=""
+step_jfr_start() {
+  local out=$1 step=$2 node pid
+  [ -n "$STEP_JFR" ] || return 0
+  mkdir -p "$out/jfr"
+  server_pids >"$out/jfr/nodes.txt"
+  while read -r node pid; do
+    jcmd "$pid" JFR.start name=wow-steps settings="$STEP_JFR" maxage=10m >/dev/null 2>&1 ||
+      say "node-$node ($pid): no step recording"
+  done <"$out/jfr/nodes.txt"
+  (
+    local seen=0 lines epoch clients
+    while :; do
+      lines=$(grep -E '^[0-9]+ \[saturate\] .*: concurrency=[0-9]+ ' "$out/saturate.log" 2>/dev/null)
+      while [ "$seen" -lt "$(printf '%s' "$lines" | grep -c .)" ]; do
+        seen=$((seen + 1))
+        epoch=$(printf '%s\n' "$lines" | sed -n "${seen}p" | cut -d' ' -f1)
+        clients=$(printf '%s\n' "$lines" | sed -n "${seen}p" | sed -n 's/.*concurrency=\([0-9]*\) .*/\1/p')
+        while read -r node pid; do
+          jcmd "$pid" JFR.dump name=wow-steps filename="$out/jfr/node-$node-c$clients.jfr" \
+            begin="$(date -u -r $((epoch - step)) +%Y-%m-%dT%H:%M:%SZ)" \
+            end="$(date -u -r "$epoch" +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1 ||
+            say "node-$node: no recording of the step at $clients clients"
+        done <"$out/jfr/nodes.txt"
+        echo "$seen" >"$out/jfr/.dumped"
+      done
+      sleep 1
+    done
+  ) &
+  STEP_WATCHER=$!
+}
+
+step_jfr_stop() {
+  local out=$1 node pid
+  [ -n "$STEP_WATCHER" ] || return 0
+  # The last step's line may have just arrived: the watcher dumps every step before it stops, 60 s at most.
+  local steps waited=0
+  steps=$(grep -cE '^[0-9]+ \[saturate\] .*: concurrency=[0-9]+ ' "$out/saturate.log" 2>/dev/null)
+  while [ "$(cat "$out/jfr/.dumped" 2>/dev/null || echo 0)" -lt "${steps:-0}" ] && [ "$waited" -lt 60 ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  rm -f "$out/jfr/.dumped"
+  kill "$STEP_WATCHER" 2>/dev/null
+  wait "$STEP_WATCHER" 2>/dev/null
+  STEP_WATCHER=""
+  while read -r node pid; do
+    jcmd "$pid" JFR.stop name=wow-steps >/dev/null 2>&1 || true
+  done <"$out/jfr/nodes.txt"
+}
+
+# With the session's MongoDB, samples its serverStatus into $1/mongo-stats.tsv every second until mongo_stats_stop:
+# one mongosh session for the whole measurement, so no step pays for its start.
+MONGO_STATS=""
+MONGO_STATS_COLUMNS="epoch log_sync log_sync_time_us wtime_waits wtime_ms write_ops write_latency_us transaction_ops"
+MONGO_STATS_COLUMNS="$MONGO_STATS_COLUMNS transaction_latency_us transactions_aborted retried_commands write_conflicts"
+MONGO_STATS_COLUMNS="$MONGO_STATS_COLUMNS write_tickets_out"
+mongo_stats_start() {
+  [ -n "$(docker ps -q --filter name=wow-e2e-bench-mongo)" ] || return 0
+  echo "$MONGO_STATS_COLUMNS" | tr ' ' '\t' >"$1/mongo-stats.tsv"
+  docker exec wow-e2e-bench-mongo mongosh --quiet --eval "while (true) { const s = db.serverStatus(),
+    l = s.wiredTiger.log, w = s.metrics?.getLastError?.wtime ?? {}, lat = s.opLatencies ?? {},
+    x = s.transactions ?? {}, q = s.queues?.execution?.write ?? s.wiredTiger?.concurrentTransactions?.write ?? {};
+    print([Math.floor(Date.now() / 1000), l['log sync operations'], l['log sync time duration (usecs)'], w.num ?? 0,
+      w.totalMillis ?? 0, lat.writes?.ops ?? 0, lat.writes?.latency ?? 0, lat.transactions?.ops ?? 0,
+      lat.transactions?.latency ?? 0, x.totalAborted ?? 0, x.retriedCommandsCount ?? 0,
+      s.metrics?.operation?.writeConflicts ?? 0, q.out ?? -1].map(Number).join('\t')); sleep(1000); }" \
+    >>"$1/mongo-stats.tsv" 2>/dev/null &
+  MONGO_STATS=$!
+}
+
+mongo_stats_stop() {
+  if [ -n "$MONGO_STATS" ]; then
+    kill "$MONGO_STATS" 2>/dev/null
+    wait "$MONGO_STATS" 2>/dev/null
+  fi
+  MONGO_STATS=""
 }
 
 # Each line of the input, stamped with the epoch second it arrives.
@@ -249,8 +361,19 @@ measure() {
   pg_statements reset
   host_record "$out/host.txt" begin
   sampler_start "$out/host-load.tsv"
+  mongo_stats_start "$out"
+  if [ "$command" = saturate ]; then
+    local step argument
+    step=30
+    for argument in "$@"; do
+      case $argument in --step=*) step=${argument#--step=} ;; esac
+    done
+    step_jfr_start "$out" "$step"
+  fi
   "$B" "$command" --reuse "$@" --out="$out" 2>&1 | stamp >"$out/$log"
   local status=${PIPESTATUS[0]}
+  step_jfr_stop "$out"
+  mongo_stats_stop
   sampler_stop
   host_record "$out/host.txt" end
   pg_statements "$out/pg-statements.txt"
@@ -381,5 +504,5 @@ curate() {
     --include='saturate.log' --include='run.log' --include='saturation.json' --include='result.json' \
     --include='settle.json' --include='settle.log' --include='summary.md' --include='pg-statements.txt' \
     --include='hot-version.tsv' --include='tables.txt' --include='explain.txt' \
-    --include='allowed-jvms.txt' --exclude='*' "$1/" "$2/"
+    --include='allowed-jvms.txt' --include='mongo-stats.tsv' --exclude='*' "$1/" "$2/"
 }

@@ -66,7 +66,7 @@ A type whose states are searched on Elasticsearch has two arrangements. They dif
 | Elasticsearch down | On the commands' path: the node is not ready, a command reaching it commits but its default wait times out, and its state reads fail | Off the commands' path: search is stale until Elasticsearch is back, and commands, waits and state reads go on |
 | A state the index refuses | The aggregate is parked: no newer snapshot, and its waits fail | Missing from search only |
 
-`refresh: wait-for` costs by its mechanism: each write to the index returns only after a refresh, so every wait that ends there ends up to a refresh interval later. The subscription that writes the index is capped at one batch per write lane a refresh interval.
+`refresh: wait-for` costs by its mechanism: each write to the index returns only after a refresh, so every wait that ends there ends up to a refresh interval later. The subscription that writes the index is capped at four writes in flight a refresh interval, each a batch.
 
 ## The costs {#costs}
 

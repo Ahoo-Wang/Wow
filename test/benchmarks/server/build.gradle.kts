@@ -33,8 +33,9 @@ dependencies {
     implementation("me.ahoo.wow:wow-kafka")
     // The dataset queries of the access scale check (bench.sh measure): served only with wow.clickhouse.endpoint set.
     implementation("me.ahoo.wow:wow-clickhouse")
-    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
-    runtimeOnly("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310); BenchPipeline reads its
+    // public pool MXBean.
+    implementation("com.zaxxer:HikariCP")
     // The node's health contributors, without Actuator's endpoints: BenchQueryLimits reads the stores' query bounds
     // from the `wow` contributor, as an operator reads them.
     implementation("org.springframework.boot:spring-boot-health")

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.admission
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Semaphore
@@ -28,10 +29,14 @@ import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.observe.QueryLogObserver
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * How many queries one store runs at once: the queries of the snapshots and the `events` of every
@@ -49,6 +54,13 @@ import kotlin.time.Duration.Companion.milliseconds
  * The [limit] starts at [maxConcurrent] and may move between 1 and [ceiling] ([limit] it to another:
  * an [AdaptiveQueryLimit] gives way to the store's writes). Lowering it cancels no query: the permits of the queries
  * beyond it are kept back as those queries end. A bulkhead whose [ceiling] is its [maxConcurrent] keeps that limit.
+ *
+ * Refusals come in bursts while the store is at its limit, and the bulkhead logs them as one: the first refusal of a
+ * burst as a warning naming the store and its limit, under [QueryLogObserver]'s category, which logs each refusal at
+ * debug level only. Each refusal is counted. A burst ends at the first query admitted at once (a permit free) once
+ * [BURST_QUIET] has passed since the last refusal, so a store that hovers at its limit, refusing and admitting by
+ * turns, keeps one burst open; its end is logged with how many queries it refused and how long it lasted, and the next
+ * refusal is a later burst's first. Outside a burst, an admission reads one counter; inside one, the clock as well.
  */
 @InternalWowApi
 class QueryBulkhead(
@@ -62,6 +74,8 @@ class QueryBulkhead(
     val maxQueued: Int = maxConcurrent * DEFAULT_QUEUE_FACTOR,
     /** The highest the [limit] may be raised to. */
     val ceiling: Int = maxConcurrent,
+    /** The clock of the bursts of refusals, in nanoseconds: [System.nanoTime] by default. */
+    private val nanoTime: () -> Long = System::nanoTime,
 ) {
     init {
         require(maxConcurrent >= 1) { "A store runs at least one query at once, not $maxConcurrent." }
@@ -74,6 +88,13 @@ class QueryBulkhead(
     private val permits = Semaphore(ceiling, ceiling - maxConcurrent)
     private val waiting = AtomicInteger()
     private val contended = AtomicInteger()
+
+    /** The queries refused in the burst running now: zero outside a burst of refusals. */
+    private val refusals = AtomicLong()
+
+    /** When the running burst's first refusal and its latest one were made ([nanoTime]). */
+    private val burstStart = AtomicLong()
+    private val lastRefusal = AtomicLong()
     private val lock = Any()
 
     /** The permits above the [limit] kept back; guarded by [lock]. */
@@ -150,7 +171,10 @@ class QueryBulkhead(
      * chunks may give it back between two and take it again, so a lowered [limit] applies to it from its next chunk.
      */
     suspend fun acquire() {
-        if (permits.tryAcquire()) return
+        if (permits.tryAcquire()) {
+            admittedAtOnce()
+            return
+        }
         contended.incrementAndGet()
         if (maxWait == Duration.ZERO || !enqueue()) throw busy()
         try {
@@ -181,7 +205,39 @@ class QueryBulkhead(
         }
     }
 
-    private fun busy() = QueryBusyException(store, limit)
+    /** A refusal, counted in its burst: the first of a burst is logged as a warning. */
+    private fun busy(): QueryBusyException {
+        val now = nanoTime()
+        lastRefusal.set(now)
+        if (refusals.getAndIncrement() == 0L) {
+            burstStart.set(now)
+            log.warn {
+                "Query store [$store] runs as many queries as it allows at once ($limit): it refuses queries (429 " +
+                    "wow.query.busy). Later refusals are counted, and logged at debug level until it admits a query " +
+                    "at once ${BURST_QUIET.inWholeSeconds} seconds after the last one."
+            }
+        }
+        return QueryBusyException(store, limit)
+    }
+
+    /**
+     * A query admitted with a permit free ends the running burst, if [BURST_QUIET] has passed since its last refusal,
+     * logging how many queries it refused and how long it lasted.
+     */
+    private fun admittedAtOnce() {
+        if (refusals.get() == 0L) {
+            return
+        }
+        val last = lastRefusal.get()
+        if (nanoTime() - last < BURST_QUIET_NANOS) {
+            return
+        }
+        val refused = refusals.getAndSet(0)
+        if (refused > 0) {
+            val lasted = (last - burstStart.get()).nanoseconds
+            log.info { "Query store [$store] admits queries at once again, after refusing $refused in $lasted." }
+        }
+    }
 
     override fun toString(): String =
         if (ceiling == maxConcurrent) {
@@ -193,6 +249,13 @@ class QueryBulkhead(
 
     @InternalWowApi
     companion object {
+        /** The log of the bursts of refusals: the query observer's, which logged each refusal before. */
+        private val log = KotlinLogging.logger(QueryLogObserver::class.java.name)
+
+        /** How long a store refuses no query, while it admits some at once, before its burst of refusals ends. */
+        val BURST_QUIET: Duration = 10.seconds
+        private val BURST_QUIET_NANOS = BURST_QUIET.inWholeNanoseconds
+
         /** How long a query waits for a permit by default. */
         val DEFAULT_MAX_WAIT: Duration = 200.milliseconds
 

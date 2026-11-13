@@ -51,7 +51,11 @@ import me.ahoo.wow.spi.log.LogPosition
 import org.bson.Document
 import org.bson.types.Binary
 
-/** The documents of a context's log on MongoDB: a stream's, as appended, and the entry or stream a read gives back. */
+/**
+ * The documents of a context's log on MongoDB: a stream's, as appended, and the entry or stream a read gives back. A
+ * field without a value is left out rather than written as null (the owner, the space, the causation, as the built-in
+ * access attributes are, [MongoAccess.log]): a read gives it back as null, and a match on null matches its absence.
+ */
 internal class MongoLogDocuments(private val context: String) {
     /** [stream]'s document, its sequence set when it is inserted. */
     fun documentOf(partition: Int, stream: EventStreamRecord, transport: ByteArray?) = Document()
@@ -70,12 +74,13 @@ internal class MongoLogDocuments(private val context: String) {
                 Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, ExactBson.document(it.payload))
             },
         )
-        .append(OWNER_ID, stream.scope.ownerId)
-        .append(SPACE_ID, stream.scope.spaceId)
-        .append(
-            CAUSATION,
-            stream.causation?.let { Document(CORRELATION_ID, it.correlationId).append(CAUSATION_ID, it.causationId) },
-        )
+        .apply {
+            stream.scope.ownerId?.let { append(OWNER_ID, it) }
+            stream.scope.spaceId?.let { append(SPACE_ID, it) }
+            stream.causation?.let {
+                append(CAUSATION, Document(CORRELATION_ID, it.correlationId).append(CAUSATION_ID, it.causationId))
+            }
+        }
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         // The access attributes and the version they are of, its own: both absent when not stamped.

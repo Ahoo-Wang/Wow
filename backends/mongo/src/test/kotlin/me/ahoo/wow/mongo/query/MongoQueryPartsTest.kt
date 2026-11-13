@@ -206,11 +206,15 @@ class MongoQueryPartsTest {
         val record = MongoEventDocuments.record(document)
         record.get("operator").isNull.assert().isTrue()
         record.get("access").isNull.assert().isTrue()
+        // A stream without an owner or a space leaves them out: the record shows them as null.
+        record.get("ownerId").isNull.assert().isTrue()
+        record.get("spaceId").isNull.assert().isTrue()
         val held = Document("tenant_id", "t")
             .append("operator", Document("id", "u").append("tenantId", "t"))
             .append("access", Document("region", "east"))
         MongoEventDocuments.record(held).toString().assert().isEqualTo(
-            """{"tenantId":"t","operator":{"id":"u","tenantId":"t","actedElsewhere":false},""" +
+            """{"tenantId":"t","ownerId":null,"spaceId":null,""" +
+                """"operator":{"id":"u","tenantId":"t","actedElsewhere":false},""" +
                 """"access":{"owner":null,"space":null,"region":"east"}}""",
         )
     }

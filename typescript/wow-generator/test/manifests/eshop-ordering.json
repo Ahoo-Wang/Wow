@@ -12,7 +12,7 @@
           "description": "A buyer's order, from its submission to its shipment",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState",
-            "fingerprint": "ff46c67020feb7d37b9e278dc4eeaf1ee025d8aa947c1feff970b1b3140e9f30"
+            "fingerprint": "ff46c67020feb7d3"
           },
           "snapshot": { "enabled": true },
           "commands": [

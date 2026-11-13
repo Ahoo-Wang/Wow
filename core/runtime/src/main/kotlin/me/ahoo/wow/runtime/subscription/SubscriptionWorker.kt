@@ -213,6 +213,12 @@ internal class SubscriptionWorker(
     var watermark: Long = checkpoint
         private set
 
+    /**
+     * The entries taken and not yet below the [watermark]: the window [SubscriptionOptions.maxInFlight] bounds, whose
+     * room comes back only as the watermark moves. Read without the monitor.
+     */
+    val inFlight: Int get() = outstanding.value
+
     /** The entries complete above the [watermark], each waiting for an earlier one. Guarded by the monitor. */
     private var completeAbove = 0L
 

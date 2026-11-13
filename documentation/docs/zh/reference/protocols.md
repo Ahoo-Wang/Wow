@@ -141,7 +141,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
     ],
     "state": {
       "version": 2,
-      "schemaFingerprint": "43bfa906ccc015f9dc85b5ad142a24dcb99668d69f98ebd9d1ae73471c97be4d",
+      "schemaFingerprint": "43bfa906ccc015f9",
       "state": {
         "owner": "Alice",
         "balance": 100

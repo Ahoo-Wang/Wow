@@ -72,10 +72,11 @@ internal class SubscriptionProgress(
 
     /**
      * Where each subscription stands in each partition this runtime runs on this node: its watermark,
-     * the sequence up to which every entry is complete. Against the source's head it is how far a subscription, a
-     * rebuild under a new name among them, has come. Empty while the runtime is stopped.
+     * the sequence up to which every entry is complete, and the entries it took above it. Against the source's head it
+     * is how far a subscription, a rebuild under a new name among them, has come. Empty while the runtime is stopped.
+     * Reads the workers' own fields, with no lock.
      */
     fun positions(): List<SubscriptionPosition> = workers()?.values?.map {
-        SubscriptionPosition(it.subscription.name, it.partition, it.watermark)
+        SubscriptionPosition(it.subscription.name, it.partition, it.watermark, it.inFlight)
     }.orEmpty()
 }

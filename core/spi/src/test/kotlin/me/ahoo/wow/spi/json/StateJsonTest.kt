@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.json
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import java.security.MessageDigest
 
 /** The shape of a state's JSON and its fingerprint (finding R5.A-19: the kernel and the Manifest's generator share it). */
 class StateJsonTest {
@@ -28,7 +29,10 @@ class StateJsonTest {
     fun `a state's shape is its serialized properties, sorted, each described`() {
         StateJson.shape(Account::class.java).assert()
             .isEqualTo("{balance:long,owner:java.lang.String,tags:java.util.Set<enum(FROZEN,VIP)>}")
-        StateJson.fingerprint(Account::class.java).assert().hasSize(64)
+        // The first 64 bits of the shape's SHA-256, in hex.
+        val sha256 = MessageDigest.getInstance("SHA-256").digest(StateJson.shape(Account::class.java).toByteArray())
+        StateJson.fingerprint(Account::class.java).assert().hasSize(16)
+            .isEqualTo(sha256.joinToString("") { "%02x".format(it) }.take(16))
             .isEqualTo(StateJson.fingerprint(Account::class.java, StateJson.mapper))
         StateJson.fingerprint(Renamed::class.java).assert().isNotEqualTo(StateJson.fingerprint(Account::class.java))
     }

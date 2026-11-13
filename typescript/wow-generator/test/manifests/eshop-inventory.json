@@ -12,7 +12,7 @@
           "description": "A product's stock: units on hand, and those reserved for orders",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.domain.stock.StockState",
-            "fingerprint": "45816edb89ab34cb0635421726207356873b7c06bee85a566ac990b012b702d5"
+            "fingerprint": "45816edb89ab34cb"
           },
           "snapshot": { "enabled": true },
           "commands": [

@@ -122,12 +122,23 @@ abstract class SnapshotSubscriptionFixtures {
         }
     }
 
-    /** Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. */
-    protected class RecordingStore(private val delegate: SnapshotStore = InMemorySnapshotStore()) :
-        SnapshotStore by delegate {
+    /**
+     * Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. Its
+     * subscription may have [inFlight] of its writes running at once.
+     */
+    protected class RecordingStore(
+        private val delegate: SnapshotStore = InMemorySnapshotStore(),
+        private val inFlight: Int = SnapshotStore.DEFAULT_WRITES_IN_FLIGHT,
+    ) : SnapshotStore by delegate {
+        override val writesInFlight: Int get() = inFlight
+
         val saves = CopyOnWriteArrayList<Int>()
         val batches = CopyOnWriteArrayList<Int>()
         val loads = AtomicInteger()
+        private val writing = AtomicInteger()
+
+        /** The most writes ([saveAll]) this store had running at once. */
+        val peakWrites = AtomicInteger()
 
         @Volatile
         var gate: CompletableDeferred<Unit>? = null
@@ -143,10 +154,15 @@ abstract class SnapshotSubscriptionFixtures {
         }
 
         override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
-            batches += snapshots.size
-            saves += snapshots.map { it.version }
-            gate?.await()
-            return delegate.saveAll(snapshots).also { afterSave?.invoke() }
+            peakWrites.accumulateAndGet(writing.incrementAndGet(), ::maxOf)
+            try {
+                batches += snapshots.size
+                saves += snapshots.map { it.version }
+                gate?.await()
+                return delegate.saveAll(snapshots).also { afterSave?.invoke() }
+            } finally {
+                writing.decrementAndGet()
+            }
         }
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord? {
@@ -185,6 +201,14 @@ abstract class SnapshotSubscriptionFixtures {
     ).also { runtimes += it }
 
     protected val runtime = runtime()
+
+    /**
+     * The entries the snapshot subscription itself has taken and not completed in
+     * partition 0 (its position's `inFlight`): what it holds, which [probed], another subscription's, does not tell.
+     */
+    protected fun snapshotsTaken(): Int =
+        runtime.positions().singleOrNull { it.subscription == snapshots.subscription.name && it.partition == 0 }
+            ?.inFlight ?: 0
     protected val executor = Executor(kernel, views = snapshots.views)
     protected val coordinator = WaitCoordinator(executor, registry, runtime, signals, origin, WaitOptions())
 

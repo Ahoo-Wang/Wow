@@ -54,6 +54,11 @@ spring:
     uri: mongodb://localhost:27017/?replicaSet=rs0
   elasticsearch:
     uris: http://localhost:9200
+eshop:
+  catalog:
+    elasticsearch:
+      # Boot's client has none, so a paused Elasticsearch would hold its connections; keep >= operation-timeout.
+      response-timeout: 30s
 wow:
   stores:
     main:
@@ -88,6 +93,11 @@ spring:
     uri: mongodb://localhost:27017/?replicaSet=rs0
   elasticsearch:
     uris: http://localhost:9200
+eshop:
+  catalog:
+    elasticsearch:
+      # Boot's client has none, so a paused Elasticsearch would hold its connections; keep >= operation-timeout.
+      response-timeout: 30s
 wow:
   stores:
     main:

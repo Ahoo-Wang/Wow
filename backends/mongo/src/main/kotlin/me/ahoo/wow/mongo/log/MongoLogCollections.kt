@@ -51,6 +51,15 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
 
+/**
+ * The log collection [log] as every reader of the log reads it, the `events` queries among them: what a majority has
+ * committed (`readConcern: majority`), so nothing that reads the log sees an entry a failover rolls back. The
+ * snapshots' queries read at the client's read concern instead: a snapshot is folded from committed entries, so the
+ * worst a failover shows of one is an older state, never an entry that was not.
+ */
+internal fun committed(log: MongoCollection<Document>): MongoCollection<Document> =
+    log.withReadConcern(ReadConcern.MAJORITY)
+
 /** The log collection of one aggregate type. */
 internal class AggregateCollection(
     val aggregate: String,
@@ -61,7 +70,7 @@ internal class AggregateCollection(
     val log: MongoCollection<Document> = database.getCollection(name)
 
     /** The entries a majority has committed: every read. */
-    val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
+    val committed: MongoCollection<Document> = committed(log)
 
     /** The appends and placeholders, acknowledged by a majority within the append timeout. */
     val appends: MongoCollection<Document> =
