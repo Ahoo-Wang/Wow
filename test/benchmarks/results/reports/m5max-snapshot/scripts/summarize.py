@@ -39,8 +39,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hostload  # noqa: E402
 from hostload import (  # noqa: E402,F401  (window.py reads these as summarize's)
-    VOID_JVM_CORES, container_cores, fmt_window, host_lines, load, reasons, record_allowed, samples, stamped,
-    step_windows, window)
+    VOID_JVM_CORES, container_cores, fmt_window, host_lines, load, mongo_samples, mongo_waits, reasons, record_allowed,
+    samples, stamped, step_windows, window)
 
 GENERATOR_SHARE = 0.8
 GENERATOR_THREAD = 0.9
@@ -245,6 +245,8 @@ def sweep(directory, label):
             f"| {step['concurrency']:,} | {step['throughput']:,.1f} | {step['p50Ms']:.2f} | {step['p99Ms']:.2f} | "
             f"{step['ok']:,} | {errors_text(step['errors'])} | {step.get('generatorCores', 0):.2f} | {thread} | "
             f"{other} | {host} | {containers_text(cores[step['concurrency']])} | {load1} | {flag} |")
+    waits = mongo_table(directory, steps, windows)
+    lines += waits["lines"]
     hosts = host_lines(directory)
     lines += ["", f"Load averages before: {hosts.get('begin', '–')}; after: {hosts.get('end', '–')}."]
     for concurrency in sorted(set(disturbed + void)):
@@ -273,7 +275,8 @@ def sweep(directory, label):
                             "p99Ms": fit["p99Ms"]} if fit else None,
             "steps": [{"clients": step["concurrency"], "throughput": step["throughput"], "p50Ms": step["p50Ms"],
                        "p99Ms": step["p99Ms"], "failedShare": failed_share(step), "errors": step["errors"],
-                       "containerCores": {name: round(value, 3) for name, value in cores[step["concurrency"]].items()}}
+                       "containerCores": {name: round(value, 3) for name, value in cores[step["concurrency"]].items()},
+                       "mongo": waits["steps"].get(step["concurrency"])}
                       for step in steps],
             "disturbed": disturbed,
             "void": void,
@@ -289,6 +292,36 @@ def sweep(directory, label):
         "before": hosts.get("begin", "–"),
         "after": hosts.get("end", "–"),
     }
+
+
+def mongo_table(directory, steps, windows):
+    """The MongoDB waits of each step of a sweep (mongo-stats.tsv), as markdown lines and as data by concurrency."""
+    rows = mongo_samples(directory)
+    found = {}
+    for step in steps:
+        span = windows.get(step["concurrency"])
+        w = mongo_waits(rows, *span) if span else None
+        if w:
+            found[step["concurrency"]] = {key: round(value, 3) if value is not None else None for key, value in w.items()}
+    if not found:
+        return {"lines": [], "steps": {}}
+
+    def cell(value, digits=2):
+        return "–" if value is None else f"{value:,.{digits}f}"
+
+    lines = ["", "MongoDB over each step's window (serverStatus, every second): the journal's syncs and their mean time, "
+             "the write concern's majority waits and their mean time, the writes' and transactions' mean latency, "
+             "the transactions aborted, the retried commands, the write conflicts, and the write tickets in use.", "",
+             "| Clients | Journal syncs/s | Sync (ms) | Majority waits/s | Wait (ms) | Write (µs) | Transaction (µs) "
+             "| Aborted/s | Retried/s | Conflicts/s | Tickets (mean / max) |",
+             "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    for concurrency, w in sorted(found.items()):
+        lines.append(
+            f"| {concurrency:,} | {cell(w['journalSyncsPerSecond'], 1)} | {cell(w['journalSyncMs'])} "
+            f"| {cell(w['majorityWaitsPerSecond'], 1)} | {cell(w['majorityWaitMs'])} | {cell(w['writeLatencyMicros'], 0)} "
+            f"| {cell(w['transactionLatencyMicros'], 0)} | {cell(w['abortedPerSecond'])} | {cell(w['retriedPerSecond'])} "
+            f"| {cell(w['writeConflictsPerSecond'])} | {cell(w['ticketsMean'], 1)} / {cell(w['ticketsMax'], 0)} |")
+    return {"lines": lines, "steps": found}
 
 
 def containers_text(cores):
