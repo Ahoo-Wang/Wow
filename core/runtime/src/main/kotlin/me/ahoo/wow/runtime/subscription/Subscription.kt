@@ -345,8 +345,10 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
  * the context when empty), of the aggregates whose id is in [ids] (any id when empty: a job's subscription reads its
  * job's instances alone), holding at least one event whose stored name is in [events] (any event when empty).
  * Event names are the names the log stores (`context.aggregate.Event`). Without models a renamed event must be listed
- * under its former names too; [resolve] adds them from the models. An entry outside the filter still moves the
- * checkpoint, its state never read.
+ * under its former names too; [resolve] adds them from the models. With [known], the event names the models know, a
+ * stream holding an event named outside them matches too: only decoding can tell whether a newer model's event is one
+ * of [events]', so it is handed on, as an unfiltered subscription would hand it. An entry outside the filter still
+ * moves the checkpoint, its state never read.
  */
 @InternalWowApi
 data class SubscriptionFilter(
@@ -354,6 +356,7 @@ data class SubscriptionFilter(
     val aggregates: Set<String> = emptySet(),
     val events: Set<String> = emptySet(),
     val ids: Set<String> = emptySet(),
+    val known: Set<String> = emptySet(),
 ) {
     init {
         require(context.isNotBlank()) { "A subscription filter needs a context." }
@@ -364,7 +367,7 @@ data class SubscriptionFilter(
         return type.context == context &&
             (aggregates.isEmpty() || type.name in aggregates) &&
             (ids.isEmpty() || stream.ref.id in ids) &&
-            (events.isEmpty() || stream.events.any { it.name in events })
+            (events.isEmpty() || stream.events.any { it.name in events || known.isNotEmpty() && it.name !in known })
     }
 
     /**

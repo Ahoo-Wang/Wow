@@ -328,6 +328,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private val eventsByName: Map<String, EventType> = this.eventTypes.flatMap { type ->
         (type.aliases + type.name).map { it to type }
     }.toMap()
+
+    /**
+     * Every stored event name this aggregate knows: its events' current and former names, and the retired ones it
+     * skips ([isRetired]). A record named otherwise is one only a newer model reads.
+     */
+    @InternalWowApi
+    val knownEventNames: Set<String> = eventsByName.keys + this.retiredEvents + KernelLifecycle.RETIRED_EVENTS
     private val commandsByType: Map<Class<*>, CommandType> = this.commandTypes.associateBy { it.type }
     private val commandsByName: Map<String, CommandType> = this.commandTypes.flatMap { type ->
         (type.aliases + type.name).map { it to type }
@@ -544,6 +551,14 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
     fun findEventType(name: String): EventType? = eventsByName[name]
+
+    /**
+     * The stored names, current and former, of this aggregate's events that are a [type], the type itself or a subtype
+     * of it: what a handler of each event of [type] takes, as the log names it.
+     */
+    @InternalWowApi
+    fun eventNamesOf(type: Class<*>): Set<String> =
+        eventTypes.filter { type.isAssignableFrom(it.type) }.flatMapTo(LinkedHashSet()) { it.aliases + it.name }
 
     /**
      * The command type named [name] (or formerly named so), or null when this aggregate has none: how a command that
