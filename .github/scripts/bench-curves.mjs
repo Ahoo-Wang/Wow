@@ -5,7 +5,11 @@
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { median } from './bench-calibration.mjs';
+import {
+  GENERATOR_BOUND,
+  generatorBound,
+  median,
+} from './bench-calibration.mjs';
 import {
   anomalyTable,
   bench,
@@ -127,24 +131,35 @@ const failedShare = step =>
  * A curve suite's steps: per client count, each arm's sweeps' throughputs (a step that failed more than 1% is left out
  * of its arm's values, and counted), the head's median over the base's for throughput and p99, the band (the larger
  * arm's A/A spread of its own sweeps' throughputs at the step), the ratio's range (the lowest head over the highest
- * base to the highest over the lowest), and the verdict: an arm higher only when the range clears the band, level
- * within it, undetermined without two clean sweeps an arm.
+ * base to the highest over the lowest), and the verdict. A step any sweep of either arm ran generator-bound measured
+ * the generator: invalid, with no ratio. Otherwise an arm is higher only when the range clears the band, level within
+ * it; when one arm has two clean sweeps and the other fewer, the verdict names the arm that failed the step and in how
+ * many sweeps; with neither, undetermined.
  */
 export function curveRows(suite) {
   const [a, b] = suite.arms.map(arm => arm.id);
   const sweeps = suite.curve?.sweeps ?? {};
   return (suite.curve?.concurrencies ?? []).map(clients => {
     const at = id =>
-      (sweeps[id] ?? [])
-        .map(sweep => sweep.steps.find(step => step.clients === clients))
-        .filter(Boolean);
+      (sweeps[id] ?? []).flatMap(sweep => {
+        const step = sweep.steps.find(found => found.clients === clients);
+        return step ? [{ ...step, generatorCpus: sweep.generatorCpus }] : [];
+      });
     const [base, head] = [at(a), at(b)];
     const [cleanBase, cleanHead] = [base, head].map(steps =>
       steps.filter(step => failedShare(step) <= 0.01),
     );
     const throughput = steps => steps.map(step => step.throughput);
     const p99 = steps => steps.map(step => step.p99Ms);
-    const both = cleanBase.length > 0 && cleanHead.length > 0;
+    const busiest = [...base, ...head].reduce(
+      (most, step) =>
+        (step.generatorCores ?? 0) > (most?.generatorCores ?? 0) ? step : most,
+      undefined,
+    );
+    const bound = [...base, ...head].some(step =>
+      generatorBound(step.generatorCores, step.generatorCpus),
+    );
+    const both = !bound && cleanBase.length > 0 && cleanHead.length > 0;
     const enough = cleanBase.length >= 2 && cleanHead.length >= 2;
     const band = enough
       ? Math.max(spread(throughput(cleanBase)), spread(throughput(cleanHead)))
@@ -159,13 +174,26 @@ export function curveRows(suite) {
             Math.min(...throughput(cleanBase)),
         }
       : undefined;
-    const verdict = !enough
-      ? 'undetermined (fewer than two clean sweeps an arm)'
-      : range.lo > 1 + band
-        ? `${b} higher`
-        : range.hi < 1 - band
-          ? `${a} higher`
-          : 'level (within the A/A band)';
+    // An arm short of two clean sweeps where the other has them failed the step: over 1% failed, or never reached it.
+    const failedIn = (id, clean) => (sweeps[id]?.length ?? 0) - clean.length;
+    const failing = [
+      [a, cleanBase, cleanHead],
+      [b, cleanHead, cleanBase],
+    ].find(
+      ([id, own, other]) =>
+        own.length < 2 && other.length >= 2 && failedIn(id, own) > 0,
+    );
+    const verdict = bound
+      ? GENERATOR_BOUND
+      : failing
+        ? `${failing[0]} failed the step in ${failedIn(failing[0], failing[1])} of ${sweeps[failing[0]].length} sweeps`
+        : !enough
+          ? 'undetermined (fewer than two clean sweeps an arm)'
+          : range.lo > 1 + band
+            ? `${b} higher`
+            : range.hi < 1 - band
+              ? `${a} higher`
+              : 'level (within the A/A band)';
     return {
       clients,
       base: throughput(cleanBase),
@@ -180,10 +208,8 @@ export function curveRows(suite) {
         ? median(p99(cleanHead)) / median(p99(cleanBase))
         : undefined,
       failed: base.length + head.length - cleanBase.length - cleanHead.length,
-      generatorCores: Math.max(
-        0,
-        ...[...base, ...head].map(step => step.generatorCores ?? 0),
-      ),
+      generatorCores: busiest?.generatorCores ?? 0,
+      generatorCpus: busiest?.generatorCpus,
     };
   });
 }
@@ -196,11 +222,11 @@ const perSecond = values =>
 export function curveTable(suite) {
   const [a, b] = suite.arms.map(arm => arm.id);
   return [
-    `| Clients | ${a} throughput (sweeps) | ${b} throughput (sweeps) | ${b}/${a} (median) | Range | A/A band | Verdict | p99 ${b}/${a} | Steps over 1% failed | Generator cores (max) |`,
+    `| Clients | ${a} throughput (sweeps) | ${b} throughput (sweeps) | ${b}/${a} (median) | Range | A/A band | Verdict | p99 ${b}/${a} | Steps over 1% failed | Generator cores (max, of its CPUs) |`,
     '| ---: | --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: |',
     ...curveRows(suite).map(
       row =>
-        `| ${row.clients} | ${perSecond(row.base)} | ${perSecond(row.head)} | ${ratioText(row.ratio)} | ${row.range ? `${ratioText(row.range.lo)}–${ratioText(row.range.hi)}` : '-'} | ${Number.isFinite(row.band) ? `±${num(row.band * 100)}%` : '-'} | ${row.verdict} | ${ratioText(row.p99Ratio)} | ${row.failed} | ${num(row.generatorCores, 2)} |`,
+        `| ${row.clients} | ${perSecond(row.base)} | ${perSecond(row.head)} | ${ratioText(row.ratio)} | ${row.range ? `${ratioText(row.range.lo)}–${ratioText(row.range.hi)}` : '-'} | ${Number.isFinite(row.band) ? `±${num(row.band * 100)}%` : '-'} | ${row.verdict} | ${ratioText(row.p99Ratio)} | ${row.failed} | ${num(row.generatorCores, 2)}${row.generatorCpus > 0 ? ` of ${row.generatorCpus}` : ''} |`,
     ),
   ];
 }
@@ -227,15 +253,12 @@ export function curveAnomalies(suite) {
             `${step.failed} of ${step.ok + step.failed} failed: left out of the step's ratio`,
           );
         }
-        if (
-          sweep.generatorCpus > 0 &&
-          step.generatorCores >= 0.9 * sweep.generatorCpus
-        ) {
+        if (generatorBound(step.generatorCores, sweep.generatorCpus)) {
           row(
             run,
             context,
             'load generator saturated',
-            `${num(step.generatorCores, 2)} of ${sweep.generatorCpus} cores: the step measured the generator`,
+            `${num(step.generatorCores, 2)} of ${sweep.generatorCpus} cores: the step measured the generator, so its row has no ratio`,
           );
         }
       }

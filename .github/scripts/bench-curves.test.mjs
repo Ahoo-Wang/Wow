@@ -16,12 +16,14 @@ import {
   suitesOf,
   usesBase,
 } from './bench.mjs';
+import { GENERATOR_BOUND } from './bench-calibration.mjs';
 import {
   CURVE,
   curveAnomalies,
   curveArgs,
   curveRows,
   curveSection,
+  curveTable,
 } from './bench-curves.mjs';
 
 // A stand-in for bench.sh's `saturate`: every step of the curve at a throughput of `clients` × the arm's factor
@@ -137,12 +139,54 @@ test('a step that failed more than 1% is left out of its arm and counted; a gene
   assert.deepEqual(row.base, [101, 102]);
   assert.equal(row.failed, 1);
   assert.equal(row.generatorCores, 1.9);
+  assert.equal(row.generatorCpus, 2);
   assert.deepEqual(
     curveAnomalies(suite).map(found => [found.run, found.kind]),
     [
       ['curve-base-1', 'error spike'],
       ['curve-head-2', 'load generator saturated'],
     ],
+  );
+});
+
+test('a step any sweep of either arm ran generator-bound is invalid: no ratio, and its cores out of the CPUs', () => {
+  const suite = swept([100, 101, 102], [120, 121, 122]);
+  suite.curve.sweeps.base[2].generatorCpus = 4;
+  suite.curve.sweeps.base[2].steps[0].generatorCores = 3.7;
+  const [row] = curveRows(suite);
+  assert.equal(row.verdict, GENERATOR_BOUND);
+  assert.equal(row.ratio, undefined);
+  assert.equal(row.range, undefined);
+  assert.equal(row.p99Ratio, undefined);
+  assert.match(
+    curveTable(suite)[2],
+    /^\| 64 \| .* \| - \| - \| .* \| invalid: generator-bound \| - \| 0 \| 3\.70 of 4 \|$/,
+  );
+  // Below 90% of its CPUs the generator is not what the step measured.
+  suite.curve.sweeps.base[2].steps[0].generatorCores = 3.5;
+  assert.equal(curveRows(suite)[0].verdict, 'head higher');
+});
+
+test('an arm that fails a step the other holds is named, with the sweeps it failed in', () => {
+  const failing = swept([100, 101, 102, 103], [120, 121, 122, 123]);
+  for (const sweep of failing.curve.sweeps.head.slice(0, 3))
+    sweep.steps[0].failed = 50;
+  assert.equal(
+    curveRows(failing)[0].verdict,
+    'head failed the step in 3 of 4 sweeps',
+  );
+  // A sweep that never reached the step counts as failing it.
+  const short = swept([100, 101, 102], [120, 121, 122]);
+  short.curve.sweeps.base[0].steps = [];
+  short.curve.sweeps.base[1] = { status: 'failed', key: 'base-2', steps: [] };
+  assert.equal(
+    curveRows(short)[0].verdict,
+    'base failed the step in 2 of 3 sweeps',
+  );
+  // Both short: nothing to name.
+  assert.equal(
+    curveRows(swept([100], [120]))[0].verdict,
+    'undetermined (fewer than two clean sweeps an arm)',
   );
 });
 
