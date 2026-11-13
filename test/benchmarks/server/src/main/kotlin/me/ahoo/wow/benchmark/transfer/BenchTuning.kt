@@ -51,14 +51,14 @@ class BenchTuning(
                 mergeMax = callCap ?: queue.mergeMax,
             ),
             snapshots = SnapshotOptions(
-                snapshots.interval,
-                snapshots.batch,
-                snapshots.pages,
-                snapshots.leaseTtl,
-                snapshots.memberTtl,
-                snapshots.writeBatch,
-                snapshots.loadTimeout,
-                snapshotWrites ?: snapshots.writesInFlight,
+                interval = snapshots.interval,
+                batch = snapshots.batch,
+                pages = snapshots.pages,
+                leaseTtl = snapshots.leaseTtl,
+                memberTtl = snapshots.memberTtl,
+                writeBatch = snapshots.writeBatch,
+                loadTimeout = snapshots.loadTimeout,
+                writesInFlight = snapshotWrites ?: snapshots.writesInFlight,
             ),
         )
         log.warn("bench-tuning {}", lineOf(tuned))

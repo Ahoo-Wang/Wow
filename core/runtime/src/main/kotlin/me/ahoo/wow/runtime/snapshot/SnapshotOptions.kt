@@ -28,7 +28,8 @@ import kotlin.time.Duration.Companion.seconds
  * shared state's, waits at most [loadTimeout] for a snapshot before it replays the log
  * ([me.ahoo.wow.kernel.KernelOptions.snapshotLoadTimeout]). With [writesInFlight], the subscriptions run that many
  * writes at once over the store's own [me.ahoo.wow.spi.snapshot.SnapshotStore.writesInFlight]: a seam for measuring
- * the count, bound to no configuration; null, the store's.
+ * the count, bound to no configuration and internal like the constructor; null, the store's. Once the writes follow
+ * their backlog it fixes the count, steady and behind alike.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -41,6 +42,7 @@ class SnapshotOptions @InternalWowApi constructor(
     val memberTtl: Duration = DEFAULT_TTL,
     val writeBatch: Int = DEFAULT_WRITE_BATCH,
     val loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
+    @property:InternalWowApi
     val writesInFlight: Int? = null,
 ) {
     init {
