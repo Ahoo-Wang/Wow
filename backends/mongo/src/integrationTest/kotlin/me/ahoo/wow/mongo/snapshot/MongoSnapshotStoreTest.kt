@@ -46,6 +46,12 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         "wow_snapshot__${context.replace('-', '_')}__$aggregate"
 
     @Test
+    fun `the store keeps two writes in flight, and four while its subscription is behind`() {
+        store().writesInFlight.assert().isEqualTo(SnapshotStore.DEFAULT_WRITES_IN_FLIGHT)
+        store().catchUpWritesInFlight.assert().isEqualTo(4)
+    }
+
+    @Test
     fun `a clocked save should mark each instant the store sees, its driver's bulk write within it`(): Unit =
         runBlocking {
             val context = MongoLogFixture.newContext()
