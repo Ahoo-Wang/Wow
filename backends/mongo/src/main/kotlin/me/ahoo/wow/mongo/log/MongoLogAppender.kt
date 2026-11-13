@@ -123,12 +123,12 @@ internal class MongoLogAppender(
             }
             val collection = collections.of(stream.ref.type)
             val partition = lookups.partitionOf(stream.ref)
-            val document = encode(partition, stream, transport).getOrElse {
+            val document = encode(partition, stream, transport, marks).getOrElse {
                 outcomes[index] = AppendOutcome.Rejected(it)
                 failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
                 return@forEachIndexed
             }
-            val after = previous[stream.ref] ?: previousOf(collection, stream) ?: run {
+            val after = previous[stream.ref] ?: previousOf(collection, stream, marks) ?: run {
                 val conflict = AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
                 outcomes[index] = duplicateOr(collection, stream, conflict)
                 failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
@@ -410,15 +410,21 @@ internal class MongoLogAppender(
      * one this log saw last when its version fits, else the aggregate's latest, read. A version already taken by
      * another node since is the version key's to refuse.
      */
-    private fun previousOf(collection: AggregateCollection, stream: EventStreamRecord): Long? {
+    private fun previousOf(
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+        marks: StoreCallMarks? = null,
+    ): Long? {
         if (stream.version == 1) return 0
         lastSequences[stream.ref]?.takeIf { it.version == stream.version - 1 }?.let { return it.sequence }
+        val looking = if (marks == null) 0L else System.nanoTime()
         val latest = collection.committed.find(lookups.refFilter(stream.ref))
             .sort(Sorts.descending(VERSION))
             .projection(Projections.include(VERSION, SEQUENCE))
             .limit(1)
             .first()
-            ?: return null
+        marks?.lookedUp(System.nanoTime() - looking)
+        latest ?: return null
         lastSequences[stream.ref] = LastSequence(latest.getInteger(VERSION), latest.getLong(SEQUENCE))
         return latest.getLong(SEQUENCE).takeIf { latest.getInteger(VERSION) == stream.version - 1 }
     }
@@ -541,6 +547,17 @@ internal class MongoLogAppender(
      * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone. A document
      * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then.
      */
+    /** [encode], its time added to [marks] when the call is clocked. */
+    private fun encode(
+        partition: Int,
+        stream: EventStreamRecord,
+        transport: ByteArray?,
+        marks: StoreCallMarks?,
+    ): Result<Document> {
+        val started = if (marks == null) 0L else System.nanoTime()
+        return encode(partition, stream, transport).also { marks?.encoded(System.nanoTime() - started) }
+    }
+
     private fun encode(partition: Int, stream: EventStreamRecord, transport: ByteArray?): Result<Document> = try {
         Result.success(documents.documentOf(partition, stream, transport))
     } catch (refused: IllegalArgumentException) {

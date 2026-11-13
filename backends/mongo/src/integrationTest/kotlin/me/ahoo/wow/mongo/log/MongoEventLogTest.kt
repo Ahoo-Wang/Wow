@@ -70,6 +70,17 @@ class MongoEventLogTest : EventLogSpec() {
             // One insert between sent and read; a lookup while the group was built is not the call's command.
             marks.commands.assert().isGreaterThanOrEqualTo(1)
             marks.command.assert().isPositive().isLessThanOrEqualTo(marks.read - marks.sent)
+            // Version 1 needs no previous sequence: the documents were built, nothing looked up.
+            marks.encode.assert().isPositive()
+            marks.lookups.assert().isZero()
+            // Another log of the context remembers no last sequence: its group of versions 2 looks each up once.
+            val fresh = MongoEventLog(ClockedMongo.client, MongoLogFixture.DATABASE, context, 2)
+            val again = StoreCallMarks()
+            withContext(again) {
+                fresh.appendAll(listOf("a", "b").map { Append.of(stream(it, 2, aggregate = type), null) })
+            }.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            again.lookups.assert().isEqualTo(2)
+            again.lookup.assert().isPositive().isLessThanOrEqualTo(again.sent - again.acquired)
             // Unclocked, the call holds no marks: the listener adds nothing to the earlier call's.
             val counted = marks.commands
             log.appendAll(listOf("d", "e").map { Append.of(stream(it, 1, aggregate = type), null) })

@@ -78,6 +78,24 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
     var commands: Int = 0
         private set
 
+    /**
+     * Of [acquired] to [sent] (what the store builds of the batch), the nanoseconds it spent encoding the batch's
+     * records into what its driver sends ([encoded]); zero where the store does not tell.
+     */
+    var encode: Long = 0
+        private set
+
+    /**
+     * Of [acquired] to [sent], the nanoseconds the store spent in lookups it made while building the batch (a read of
+     * the store, [lookups] of them, [lookedUp]); zero where the store does not tell or made none.
+     */
+    var lookup: Long = 0
+        private set
+
+    /** The lookups the store made while building the batch ([lookup]). */
+    var lookups: Int = 0
+        private set
+
     /** Whether the store marked every instant it sees, so each step between [taken] and [done] is known. */
     val marked: Boolean
         get() = listOf(entered, onThread, acquired, sent, read, released).none { it == 0L }
@@ -120,6 +138,17 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
             command += nanos
             commands++
         }
+    }
+
+    /** The store spent [nanos] encoding a record of the batch, before [sent]. */
+    fun encoded(nanos: Long) {
+        encode += nanos
+    }
+
+    /** The store spent [nanos] in a lookup while building the batch, before [sent]. */
+    fun lookedUp(nanos: Long) {
+        lookup += nanos
+        lookups++
     }
 
     @InternalWowApi

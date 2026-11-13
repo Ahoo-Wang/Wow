@@ -17,6 +17,18 @@ import org.junit.jupiter.api.Test
 
 class StoreCallMarksTest {
     @Test
+    fun `the building's encoding and lookups should add up, the lookups counted`() {
+        val marks = StoreCallMarks()
+        marks.encoded(3)
+        marks.encoded(4)
+        marks.lookedUp(10)
+        marks.lookedUp(20)
+        marks.encode.assert().isEqualTo(7L)
+        marks.lookup.assert().isEqualTo(30L)
+        marks.lookups.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `the driver's command time should count only between the first command sent and the last result read`() {
         val marks = StoreCallMarks()
         // A lookup while the store builds its batch: before sent, not the call's command.
