@@ -522,8 +522,9 @@ internal class MongoLogAppender(
     }
 
     /**
-     * Seals [block], another node's, from [from]: a placeholder at each of its sequences left in each collection it may
-     * write, so a write of that node still to come meets a taken position; then takes it out of the counter's list.
+     * Seals [block] from [from], another node's or one of this node that it never knew: a placeholder at each of its
+     * sequences left in each collection it may write, so a write of that node still to come meets a taken position;
+     * then takes it out of the counter's list.
      */
     fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
         val placeholders = (from..block.to).map { placeholder(partition, it, GAP_SEALED) }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.mongo.log
 
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -106,7 +107,34 @@ class MongoSequencerBlocksTest : MongoLogFixtures() {
         tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
     }
 
-    private fun counter(context: String) =
+    @Test
+    fun `a block of this node no lane holds is sealed by its own tail, as after a reservation's lost reply`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(1, context)
+            val other = MongoLogFixture.log(1, context)
+            val type = AggregateType(context, "order")
+            log.append(stream("a", 1, aggregate = type))
+            // The node's next reservation committed and its reply was lost: the block is listed in the node's name,
+            // and none of its lanes knows it.
+            val first = counter(context).getList("blocks", Document::class.java).single()
+            val lost = Document(first).append("from", MongoEventLog.BLOCK + 1).append("to", MongoEventLog.BLOCK * 2)
+            counters(context).updateOne(
+                Filters.eq("_id", 0),
+                Updates.combine(Updates.push("blocks", lost), Updates.set("sequence", MongoEventLog.BLOCK * 2)),
+            )
+            (other.append(stream("b", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+                .assert().isEqualTo(MongoEventLog.BLOCK * 2 + 1)
+            // The node's tail closes its own remainder at 2, waits at the lost block's first sequence past the stall
+            // grace, then seals the block.
+            tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+            counter(context).getList("blocks", Document::class.java).map { it.getLong("from") }
+                .assert().doesNotContain(MongoEventLog.BLOCK + 1)
+        }
+
+    private fun counters(context: String) =
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
-            .find(Filters.eq("_id", 0)).first()!!
+
+    private fun counter(context: String) =
+        counters(context).find(Filters.eq("_id", 0)).first()!!
 }
