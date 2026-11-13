@@ -91,17 +91,28 @@ class BenchPipelineNodeTest {
                 sections(pipeline)
                 repeat(COMMANDS) { node.gateway.execute(open(it)) }
 
-                // The tails deliver after the commits return, and a call is clocked once its committer is free, after
-                // its callers resumed: both waited for, then whatever the line says is held.
+                // The tails deliver after the commits return, a call is clocked once its committer is free, after its
+                // callers resumed, and a snapshot is written after its entry reached the subscription: all waited for,
+                // then whatever the line says is held.
+                fun count(section: String, field: String) =
+                    sections(pipeline)?.path(section)?.path(field)?.asLong() ?: 0L
                 withTimeoutOrNull(10.seconds) {
-                    while (sections(pipeline).let { it?.path("handoff")?.path("delivered")?.asLong() ?: 0 } == 0L ||
-                        sections(pipeline).let { it?.path("appendClock")?.path("calls")?.asLong() ?: 0 } == 0L
+                    while (count("handoff", "delivered") == 0L || count("appendClock", "calls") == 0L ||
+                        count("snapshotClock", "calls") == 0L
                     ) {
                         delay(10)
                     }
                 }
                 val line = checkNotNull(sections(pipeline))
-                val sections = listOf("appendDepth", "appendCalls", "appendClock", "handoff", "window", "windowMax")
+                val sections = listOf(
+                    "appendDepth",
+                    "appendCalls",
+                    "appendClock",
+                    "snapshotClock",
+                    "handoff",
+                    "window",
+                    "windowMax",
+                )
                 sections.forEach { section ->
                     line.has(section).assert().describedAs(section).isTrue()
                 }
@@ -111,6 +122,12 @@ class BenchPipelineNodeTest {
                 // The kernel's in-memory log marks none of the steps only a store's log sees.
                 line.path("appendClock").path("calls").asLong().assert().isGreaterThan(0L)
                 line.path("appendClock").path("marked").asLong().assert().isZero()
+                // The snapshot subscription's writes, each of at least one snapshot; the in-memory store marks none.
+                val snapshots = line.path("snapshotClock")
+                snapshots.path("calls").asLong().assert().isGreaterThan(0L)
+                snapshots.path("saves").asLong().assert().isGreaterThanOrEqualTo(snapshots.path("snapshots").asLong())
+                snapshots.path("snapshots").asLong().assert().isGreaterThanOrEqualTo(snapshots.path("calls").asLong())
+                snapshots.path("marked").asLong().assert().isZero()
             } finally {
                 node.stop()
             }

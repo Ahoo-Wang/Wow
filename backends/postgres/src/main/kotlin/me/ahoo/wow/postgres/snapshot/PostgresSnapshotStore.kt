@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres.snapshot
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -37,6 +38,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import me.ahoo.wow.spi.store.StoreCallMarks
 import tools.jackson.databind.json.JsonMapper
 import java.sql.Connection
 import java.sql.PreparedStatement
@@ -163,21 +165,28 @@ class PostgresSnapshotStore(
      * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown, and nothing of
      * the batch was written.
      */
-    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.jdbc {
-        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
-        val tablesOf = snapshots.map { it.ref.type.name }.distinct().associateWith(::tables)
-        if (snapshots.isEmpty()) {
-            emptyList()
-        } else {
-            dataSource.autoCommitted { connection ->
-                try {
-                    inTransaction(connection, asynchronous = covered) { bound ->
-                        saveRounds(bound, tablesOf, snapshots, alone = false)
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+        // A write the snapshot subscription clocks: marked from its entry to its connection given back, the commit's
+        // round trip and a refusal's mark among the release.
+        val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
+        return dispatcher.jdbc {
+            marks?.onThread()
+            snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
+            val tablesOf = snapshots.map { it.ref.type.name }.distinct().associateWith(::tables)
+            if (snapshots.isEmpty()) {
+                emptyList()
+            } else {
+                dataSource.autoCommitted { connection ->
+                    marks?.acquired()
+                    try {
+                        inTransaction(connection, asynchronous = covered) { bound ->
+                            saveRounds(bound, tablesOf, snapshots, alone = false, marks)
+                        }
+                    } catch (failure: SQLException) {
+                        PostgresFailures.refusedOrThrow(failure)
+                        saveRounds(connection, tablesOf, snapshots, alone = true, marks)
                     }
-                } catch (failure: SQLException) {
-                    PostgresFailures.refusedOrThrow(failure)
-                    saveRounds(connection, tablesOf, snapshots, alone = true)
-                }
+                }.also { marks?.released() }
             }
         }
     }
@@ -191,6 +200,7 @@ class PostgresSnapshotStore(
         tablesOf: Map<String, PostgresSnapshotTables>,
         snapshots: List<SnapshotRecord>,
         alone: Boolean,
+        marks: StoreCallMarks?,
     ): List<SnapshotSaveOutcome> {
         val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
         SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
@@ -199,9 +209,8 @@ class PostgresSnapshotStore(
                 val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
                 ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
                     val rows = chunk.map(snapshots::get)
-                    saveRows(connection, tablesOf.getValue(aggregate), rows, alone).forEachIndexed { at, outcome ->
-                        outcomes[chunk[at]] = outcome
-                    }
+                    val saved = saveRows(connection, tablesOf.getValue(aggregate), rows, alone, marks)
+                    saved.forEachIndexed { at, outcome -> outcomes[chunk[at]] = outcome }
                 }
             }
         }
@@ -217,18 +226,20 @@ class PostgresSnapshotStore(
         tables: PostgresSnapshotTables,
         snapshots: List<SnapshotRecord>,
         alone: Boolean,
+        marks: StoreCallMarks?,
     ): List<SnapshotSaveOutcome> {
         val written = try {
             connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
                 val width = PostgresSnapshotTables.ROW_PARAMETERS
                 snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
+                marks?.sent()
                 save.executeQuery().use { rows ->
                     buildSet<Pair<String, String>> {
                         while (rows.next()) {
                             add(rows.getString(1) to rows.getString(2))
                         }
                     }
-                }
+                }.also { marks?.read() }
             }
         } catch (failure: SQLException) {
             // Refused for a value, the statement wrote nothing; any other failure is thrown, and so is a refusal in the

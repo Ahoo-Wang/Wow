@@ -14,23 +14,26 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.runtime.log.AppendQueueCounts
 import me.ahoo.wow.spi.store.StoreCallMarks
 import java.util.concurrent.atomic.LongAdder
 
 /**
- * The time of the calls an [AppendQueueCounts] saw, in microseconds summed over them, cumulative, from the instants
- * each call's [StoreCallMarks] holds:
+ * The time of a caller's calls to a store (the append queue's to its log, the snapshot writes' to their store), in
+ * microseconds summed over them, cumulative, from the instants each call's [StoreCallMarks] holds:
  *
- * - [calls] clocked, the [call] from the group taken to the log's call returned, and [complete] from there to its
- *   outcomes handed to their callers and the committer free for its next group;
- * - for the [marked] calls, those whose log marked each instant it sees (PostgreSQL's): [enter], the group taken to
- *   the log's call entered; [hop], to the thread of its blocking work; [acquire], to its connection acquired; [bind],
- *   to its first statement sent (its tables found, its statement prepared and its streams' parameters bound and
- *   encoded); [statement], to its last statement's result read; [release], to its connection given back (a
- *   conflict's or a duplicate's lookups among it); and [hopBack], to the call returned to the queue.
- *
- * So for a marked call, [enter] + [hop] + [acquire] + [bind] + [statement] + [release] + [hopBack] is its [call].
+ * - [calls] clocked, the [call] from its batch taken to the store's call returned, and [complete] from there to its
+ *   outcomes handed to their callers and the caller's committer free for its next batch;
+ * - for the [marked] calls, those whose store marked each instant it sees: [enter], the batch taken to the store's
+ *   call entered; [hop], to the thread of its blocking work; [acquire], to its connection acquired; [bind], to its
+ *   first command or statement sent (what the store builds of the batch: tables found, statements prepared,
+ *   parameters bound, documents encoded); [statement], to its last result read; [release], to its connection given
+ *   back (a transaction's commit, a conflict's or a duplicate's lookups among it); and [hopBack], to the call
+ *   returned to the caller. So for a marked call, [enter] + [hop] + [acquire] + [bind] + [statement] + [release] +
+ *   [hopBack] is its [call];
+ * - for the [commanded] calls, those whose driver reported its commands' own time: [command], their sum, from each
+ *   command's message sent to its reply. Of a marked call's [statement], what [command] leaves is the driver's work
+ *   around its commands (encoding a command, checking a connection out, decoding its reply), and the store's own
+ *   work between them.
  */
 @InternalWowApi
 class CallClock internal constructor() {
@@ -45,6 +48,8 @@ class CallClock internal constructor() {
     private val running = LongAdder()
     private val releasing = LongAdder()
     private val hoppingBack = LongAdder()
+    private val commandedCalls = LongAdder()
+    private val commanding = LongAdder()
 
     val calls: Long get() = clocked.sum()
     val call: Long get() = micros(calling)
@@ -57,11 +62,13 @@ class CallClock internal constructor() {
     val statement: Long get() = micros(running)
     val release: Long get() = micros(releasing)
     val hopBack: Long get() = micros(hoppingBack)
+    val commanded: Long get() = commandedCalls.sum()
+    val command: Long get() = micros(commanding)
 
-    /** A call clocked from now, its group taken: [ClockedCall.done] once its committer is free. */
+    /** A call clocked from now, its batch taken: [ClockedCall.done] once the caller's committer is free. */
     internal fun start(): ClockedCall = ClockedCall(this, StoreCallMarks())
 
-    /** Adds the call [marks] holds, its committer free now. */
+    /** Adds the call [marks] holds, the caller's committer free now. */
     internal fun clocked(marks: StoreCallMarks) {
         marks.done()
         clocked.increment()
@@ -77,6 +84,10 @@ class CallClock internal constructor() {
             releasing.add(marks.released - marks.read)
             hoppingBack.add(marks.returned - marks.released)
         }
+        if (marks.commands > 0) {
+            commandedCalls.increment()
+            commanding.add(marks.command)
+        }
     }
 
     private companion object {
@@ -86,8 +97,8 @@ class CallClock internal constructor() {
     }
 }
 
-/** One call an [CallClock] clocks: its [marks], which go in the log call's context, and its clock. */
+/** One call a [CallClock] clocks: its [marks], which go in the store call's context, and its clock. */
 internal class ClockedCall(private val clock: CallClock, val marks: StoreCallMarks) {
-    /** The call's committer is free: its steps added to the clock. */
+    /** The caller's committer is free: the call's steps added to the clock. */
     fun done() = clock.clocked(marks)
 }

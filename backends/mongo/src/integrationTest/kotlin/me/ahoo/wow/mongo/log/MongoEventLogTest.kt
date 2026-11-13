@@ -18,16 +18,21 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.ClockedMongo
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.StoreCallMarks
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
@@ -47,6 +52,29 @@ class MongoEventLogTest : EventLogSpec() {
             EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")
         ),
     )
+
+    @Test
+    fun `a clocked group append should mark each instant the log sees, its driver's commands within it`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoEventLog(ClockedMongo.client, MongoLogFixture.DATABASE, context, 2)
+                .also { it.createSchema() }
+            val type = AggregateType(context, "order")
+            val marks = StoreCallMarks()
+            withContext(marks) {
+                log.appendAll(listOf("a", "b", "c").map { Append.of(stream(it, 1, aggregate = type), null) })
+            }.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            marks.marked.assert().isTrue()
+            listOf(marks.taken, marks.entered, marks.onThread, marks.acquired, marks.sent, marks.read, marks.released)
+                .zipWithNext().forEach { (earlier, later) -> later.assert().isGreaterThanOrEqualTo(earlier) }
+            // One insert between sent and read; a lookup while the group was built is not the call's command.
+            marks.commands.assert().isGreaterThanOrEqualTo(1)
+            marks.command.assert().isPositive().isLessThanOrEqualTo(marks.read - marks.sent)
+            // Unclocked, the call holds no marks: the listener adds nothing to the earlier call's.
+            val counted = marks.commands
+            log.appendAll(listOf("d", "e").map { Append.of(stream(it, 1, aggregate = type), null) })
+            marks.commands.assert().isEqualTo(counted)
+        }
 
     @Test
     fun `a commit of this log costs its idle tail one read`(): Unit = runBlocking {

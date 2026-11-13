@@ -31,6 +31,7 @@ import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -59,6 +60,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import me.ahoo.wow.spi.store.HeldStoreCallMarks
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.bson.BsonDocument
 import org.bson.BsonMaxKey
 import org.bson.BsonMaximumSizeExceededException
@@ -177,16 +180,31 @@ class MongoSnapshotStore(
      * its own, and marks a higher state revision stale. So a batch that all lands is one round trip; a marked document,
      * during a rebuild, costs its save alone; one the server refused with another error, or whose state cannot be BSON,
      * is [SnapshotSaveOutcome.Failed] alone.
+     *
+     * A write the snapshot subscription clocks ([StoreCallMarks] in its context) is marked from its entry to its work
+     * done: sent at its first `bulkWrite`, its documents built, and read after its last round. The driver checks a
+     * connection out within each command, so the call has none of its own: it is marked acquired once on its thread.
      */
-    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.mongo {
-        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
-        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
-        SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
-            round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
-                saveRound(collectionOf(aggregate), indexes, snapshots, outcomes)
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+        val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
+        return dispatcher.mongo {
+            marks?.onThread()
+            marks?.acquired()
+            snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
+            val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+            HeldStoreCallMarks.hold(marks)
+            try {
+                SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
+                    round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
+                        saveRound(collectionOf(aggregate), indexes, snapshots, outcomes, marks)
+                    }
+                }
+                marks?.read()
+            } finally {
+                HeldStoreCallMarks.release(marks)
             }
+            outcomes.map { checkNotNull(it) }.also { marks?.released() }
         }
-        outcomes.map { checkNotNull(it) }
     }
 
     /** Saves the [indexes] of [batch], of distinct refs of the collection [snapshots], into [outcomes]. */
@@ -195,6 +213,7 @@ class MongoSnapshotStore(
         indexes: List<Int>,
         batch: List<SnapshotRecord>,
         outcomes: Array<SnapshotSaveOutcome?>,
+        marks: StoreCallMarks?,
     ) {
         val written = ArrayList<Int>(indexes.size)
         val upserts = ArrayList<UpdateOneModel<Document>>(indexes.size)
@@ -217,6 +236,7 @@ class MongoSnapshotStore(
             return
         }
         val again = try {
+            marks?.sent()
             snapshots.bulkWrite(upserts, UNORDERED)
             emptyList()
         } catch (tooLarge: BsonMaximumSizeExceededException) {
