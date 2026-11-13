@@ -189,38 +189,30 @@ class QueryObserversTest {
     }
 
     @Test
-    fun `a burst of refusals is logged once as a warning and the rest at debug, a store failure each time`() {
+    fun `a refusal is logged at debug only, its burst being the bulkhead's, and a store failure each time`() {
         val observer = QueryLogObserver()
         val failed = QueryExecutionException("Query storage failed.", IllegalStateException("driver text"))
         val events = capture(null) {
             observer.onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
             observer.onError(aggregate, QueryType.LIST, failed)
-            repeat(3) {
-                observer.onError(aggregate, QueryType.LIST, QueryBusyException("main", 4, firstOfBurst = false))
-            }
+            observer.onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
             observer.onError(aggregate, QueryType.LIST, failed)
-        }
-        events.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert().containsExactly(
-            "Query store [main] runs as many queries as it allows at once (4): it refuses queries (429 " +
-                "wow.query.busy). Later refusals are logged at debug level until it admits a query at once again.",
-        )
-        events.single { it.level == Level.WARN }.throwableProxy.assert().isNull()
+        }.filter { it.loggerName == QueryLogObserver::class.java.name }
         events.filter { it.level == Level.DEBUG }.map { it.formattedMessage }.assert()
-            .containsExactly(*Array(3) { "Query [$aggregate/LIST] refused: store [main] is at its limit." })
+            .containsExactly(*Array(2) { "Query [$aggregate/LIST] refused: store [main] is at its limit." })
         events.filter { it.level == Level.ERROR }.map { it.formattedMessage }.assert()
             .containsExactly("Query storage failed.", "Query storage failed.")
-        events.forEach { it.loggerName.assert().isEqualTo(QueryLogObserver::class.java.name) }
+        events.filter { it.level == Level.WARN || it.level == Level.INFO }.assert().isEmpty()
     }
 
     @Test
-    fun `a refusal after the first of its burst writes nothing when its debug level is off`() {
+    fun `a refusal writes nothing when the query log is above debug level`() {
         val logger = LoggerFactory.getLogger(QueryLogObserver::class.java) as Logger
         val level = logger.level
         logger.level = Level.INFO
         try {
             capture(null) {
-                val later = QueryBusyException("main", 4, firstOfBurst = false)
-                QueryLogObserver().onError(aggregate, QueryType.LIST, later)
+                QueryLogObserver().onError(aggregate, QueryType.LIST, QueryBusyException("main", 4))
                 QueryLogObserver().onError(aggregate, QueryType.LIST, QueryViolation.InvalidCursor.rejection())
             }.filter { it.loggerName == QueryLogObserver::class.java.name }.assert().isEmpty()
         } finally {

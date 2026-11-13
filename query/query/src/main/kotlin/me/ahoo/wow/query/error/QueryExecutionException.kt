@@ -75,11 +75,6 @@ class QueryStorageUnavailableException(cause: Throwable? = null) :
 class QueryBusyException(
     val store: String,
     val maxConcurrent: Int,
-    /**
-     * Whether this is the first refusal of [store] since it last admitted a query at once: the first of a burst of
-     * refusals, which the query log writes as a warning, the rest at debug level.
-     */
-    val firstOfBurst: Boolean = true,
 ) : QueryExecutionException(
     "The query's store already runs as many queries as it allows at once; retry later.",
     StorageBusyException("The query store [$store] runs as many queries as it allows at once ($maxConcurrent)."),

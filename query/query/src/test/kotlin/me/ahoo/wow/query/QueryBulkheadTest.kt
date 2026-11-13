@@ -68,38 +68,48 @@ class QueryBulkheadTest {
         runCatching { block() }.exceptionOrNull() as QueryBusyException
 
     @Test
-    fun `refusals should come in bursts, each counted, the first marked, ended by a query admitted at once`(): Unit =
-        runBlocking {
-            val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO)
-            val gate = CompletableDeferred<Unit>()
-            val held = hold(bulkhead, gate)
-            val burst = (1..5).map { busy { bulkhead.run { "refused" } } }
-            burst.map { it.firstOfBurst }.assert().containsExactly(true, false, false, false, false)
-            gate.complete(Unit)
-            held.await()
-            val ended = infos { bulkhead.run { "admitted at once" } }
-            ended.map { it.formattedMessage }.assert()
-                .containsExactly("Query store [main] admits queries at once again, after refusing 5.")
-            ended.single().loggerName.assert().isEqualTo(QueryLogObserver::class.java.name)
-            // Outside a burst, a query admitted at once logs nothing.
-            infos { bulkhead.run { "admitted at once" } }.assert().isEmpty()
-            // The next burst's first refusal is marked again.
-            val again = CompletableDeferred<Unit>()
-            val heldAgain = hold(bulkhead, again)
-            busy { bulkhead.run { "refused" } }.firstOfBurst.assert().isTrue()
-            busy { bulkhead.run { "refused" } }.firstOfBurst.assert().isFalse()
-            again.complete(Unit)
-            heldAgain.await()
+    fun `a store hovering at its limit should keep one burst of refusals open, logged once`(): Unit = runBlocking {
+        var now = 0L
+        val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO, nanoTime = { now })
+        val hovering = logged {
+            repeat(4) { round ->
+                now = round.seconds.inWholeNanoseconds
+                bulkhead.acquire()
+                busy { bulkhead.acquire() }
+                bulkhead.release()
+                // Admitted at once within the quiet interval: the burst stays open.
+                bulkhead.run { "admitted at once" }
+            }
         }
+        hovering.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert().containsExactly(
+            "Query store [main] runs as many queries as it allows at once (1): it refuses queries (429 " +
+                "wow.query.busy). Later refusals are counted, and logged at debug level until it admits a query at " +
+                "once 10 seconds after the last one.",
+        )
+        hovering.filter { it.level == Level.INFO }.assert().isEmpty()
+        // The last refusal was at 3 s: an admission at once 10 s later ends the burst, with every refusal counted.
+        now = (3.seconds + QueryBulkhead.BURST_QUIET).inWholeNanoseconds
+        val ended = logged { bulkhead.run { "admitted at once" } }
+        ended.map { it.formattedMessage }.assert()
+            .containsExactly("Query store [main] admits queries at once again, after refusing 4 in 3s.")
+        ended.single().level.assert().isEqualTo(Level.INFO)
+        // Outside a burst an admission logs nothing, and the next refusal opens a later burst with its warning.
+        logged { bulkhead.run { "admitted at once" } }.assert().isEmpty()
+        bulkhead.acquire()
+        val again = logged { busy { bulkhead.acquire() } }
+        again.map { it.level }.assert().containsExactly(Level.WARN)
+        again.single().loggerName.assert().isEqualTo(QueryLogObserver::class.java.name)
+        bulkhead.release()
+    }
 
-    /** The INFO events of the query log while [block] runs. */
-    private suspend fun infos(block: suspend () -> Unit): List<ILoggingEvent> {
+    /** The WARN and INFO events of the query log while [block] runs. */
+    private suspend fun logged(block: suspend () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(QueryLogObserver::class.java) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         logger.addAppender(appender)
         return try {
             block()
-            synchronized(appender) { appender.list.toList() }.filter { it.level == Level.INFO }
+            synchronized(appender) { appender.list.toList() }.filter { it.level.isGreaterOrEqual(Level.INFO) }
         } finally {
             logger.detachAppender(appender)
             appender.stop()
