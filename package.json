@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:ci-scripts": "node --test .github/scripts/*.test.mjs scripts/*.test.mjs",
+    "bench:abba": "node .github/scripts/bench-abba.mjs",
     "bench:compare": "node .github/scripts/bench-compare.mjs",
     "set-version": "node .github/scripts/project-version.mjs set",
     "check:versions": "node .github/scripts/project-version.mjs check",

@@ -20,7 +20,7 @@
 # each sweep the arms run in turn, the order reversed every other sweep (A B, B A, ...), each a fresh `bench.sh
 # saturate` (empty stores, seeded and checked) at the given steps, its servers with the `bench-pipeline` line on, into
 # <root>/<sweep>-<arm>-<backend>/sweep with its output stamped (each line's epoch seconds), so each step's window
-# can be read from the line. Every other option goes to each sweep. Then .github/scripts/bench-abba.mjs writes the
+# can be read from the line. Every other option goes to each sweep. Then `pnpm bench:abba` (bench-abba.mjs) writes the
 # table, <root>/abba.md: each step a sweep, the arms' ratio to the first, each arm's own spread, the refused share,
 # and the line's calls, clock and windows over each step. It refuses to start while the harness's containers are up
 # (another run measuring on them, which a sweep's start would take down), unless --force.
@@ -80,7 +80,7 @@ abba() {
     done
   done
   kill "$sampler" 2>/dev/null || true
-  (cd "$REPO" && node .github/scripts/bench-abba.mjs "$root" | tee "$root/abba.md")
+  (cd "$REPO" && pnpm --silent bench:abba "$root" | tee "$root/abba.md")
   log "table in $root/abba.md"
 }
 
