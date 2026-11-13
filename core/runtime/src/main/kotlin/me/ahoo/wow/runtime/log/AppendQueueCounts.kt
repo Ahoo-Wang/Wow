@@ -110,6 +110,9 @@ class AppendClock internal constructor() {
     val release: Long get() = micros(releasing)
     val hopBack: Long get() = micros(hoppingBack)
 
+    /** A call clocked from now, its group taken: [ClockedCall.done] once its committer is free. */
+    internal fun start(): ClockedCall = ClockedCall(this, AppendCallMarks())
+
     /** Adds the call [marks] holds, its committer free now. */
     internal fun clocked(marks: AppendCallMarks) {
         marks.done()
@@ -133,4 +136,10 @@ class AppendClock internal constructor() {
 
         fun micros(nanos: LongAdder): Long = nanos.sum() / NANOS_PER_MICRO
     }
+}
+
+/** One call an [AppendClock] clocks: its [marks], which go in the log call's context, and its clock. */
+internal class ClockedCall(private val clock: AppendClock, val marks: AppendCallMarks) {
+    /** The call's committer is free: its steps added to the clock. */
+    fun done() = clock.clocked(marks)
 }

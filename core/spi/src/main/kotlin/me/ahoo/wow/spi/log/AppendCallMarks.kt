@@ -66,7 +66,7 @@ class AppendCallMarks : AbstractCoroutineContextElement(Key) {
 
     /** Whether the log marked every instant it sees, so each step between [taken] and [done] is known. */
     val marked: Boolean
-        get() = entered != 0L && onThread != 0L && acquired != 0L && sent != 0L && read != 0L && released != 0L
+        get() = listOf(entered, onThread, acquired, sent, read, released).none { it == 0L }
 
     fun entered() {
         entered = System.nanoTime()

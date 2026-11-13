@@ -182,10 +182,10 @@ class PartitionAppendQueue(
             streams += next.streams
         }
         group.forEach { it.counted?.taken(it.streams) }
-        val marks = marksOf(counting.get())
-        commit(group.flatMap { it.batch }, marks)
+        val call = counting.get()?.let { it.clock.start() }
+        commit(group.flatMap { it.batch }, call?.marks)
         group.forEach { it.done.complete(Unit) }
-        marks?.let { counting.get()?.clock?.clocked(it) }
+        call?.done()
         return true
     }
 
@@ -277,9 +277,9 @@ class PartitionAppendQueue(
                 handed.send(handing)
                 handing.done.await()
             } else {
-                val marks = marksOf(counting.get())
-                commit(batch, marks)
-                marks?.let { counting.get()?.clock?.clocked(it) }
+                val call = counting.get()?.let { it.clock.start() }
+                commit(batch, call?.marks)
+                call?.done()
             }
         }
         return true
@@ -308,9 +308,6 @@ class PartitionAppendQueue(
         }
         return batch
     }
-
-    /** A call's marks, only while something reads the [counts]: its group taken now. */
-    private fun marksOf(counts: AppendQueueCounts?): AppendCallMarks? = counts?.let { AppendCallMarks() }
 
     /** Not cancellable: an append taken into a batch completes. [marks], when clocked, go in the log call's context. */
     private suspend fun commit(batch: List<Pending>, marks: AppendCallMarks?) = withContext(

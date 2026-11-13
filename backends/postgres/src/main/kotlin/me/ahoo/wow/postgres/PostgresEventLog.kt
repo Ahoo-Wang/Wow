@@ -137,7 +137,7 @@ class PostgresEventLog(
     fun createTable(aggregateName: String) = catalog.createTable(aggregateName)
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        appendOne(stream, transport, currentCoroutineContext()[AppendCallMarks]?.apply { entered() })
+        appendOne(stream, transport, null)
 
     private suspend fun appendOne(
         stream: EventStreamRecord,

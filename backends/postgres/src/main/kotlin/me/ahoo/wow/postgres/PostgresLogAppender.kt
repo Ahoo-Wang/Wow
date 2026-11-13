@@ -43,7 +43,7 @@ internal class PostgresLogAppender(
         partition: Int,
         stream: EventStreamRecord,
         transport: ByteArray?,
-        marks: AppendCallMarks? = null,
+        marks: AppendCallMarks?,
     ): AppendOutcome {
         var sent = false
         return try {
@@ -66,7 +66,7 @@ internal class PostgresLogAppender(
         partition: Int,
         stream: EventStreamRecord,
         transport: ByteArray?,
-        marks: AppendCallMarks? = null,
+        marks: AppendCallMarks?,
     ): AppendOutcome {
         try {
             val sequence = connection.prepareStatement(table.append).use { append ->
@@ -136,7 +136,7 @@ internal class PostgresLogAppender(
      * [marks], when the call is clocked: its first connection acquired, its first statement sent and its last
      * statement's result read, a definite abort's appends again among them.
      */
-    fun appendAll(parts: List<Int>, streams: List<Append>, marks: AppendCallMarks? = null): List<AppendOutcome> {
+    fun appendAll(parts: List<Int>, streams: List<Append>, marks: AppendCallMarks?): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         var sent = false
         var stopped: SQLException? = null
