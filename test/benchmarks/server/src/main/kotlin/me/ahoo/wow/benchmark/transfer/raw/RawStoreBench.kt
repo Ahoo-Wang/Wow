@@ -450,12 +450,14 @@ private fun modelCase(model: RawCase) = model.copy(name = CALIBRATION_MODEL, pri
 
 /**
  * Wow's own write path ([shape]) with its calls of the sizes Wow's run made ([sizesOf], from the counts [append] and
- * [save]): the store's cost a command at an equal shape, which the calibration checks. The model's own sizes follow
- * from its calls' time, and Wow's from its node's time around each call too, so they are compared apart.
+ * [save]), each call waiting for its size as long as its streams and snapshots take to arrive at Wow's rate
+ * (WowShape.fillWaitOf): the store's cost a command at an equal shape, which the calibration checks. The model's own
+ * sizes follow from its calls' time, and Wow's from its node's time around each call too, so they are compared apart.
  */
 private fun equalShape(shape: WowShape.Options?, wow: Map<String, Double>, append: String, save: String) =
     sizesOf(wow, append, save)?.let { (commands, snapshots) ->
-        shape?.copy(appendFill = commands, saveFill = snapshots)
+        val wait = WowShape.fillWaitOf(listOf(commands, snapshots), wow[WOW_RATE])
+        shape?.copy(appendFill = commands, saveFill = snapshots, fillWaitNanos = wait)
     } ?: shape
 
 /** A caller of Wow's own write path: one command a flush, counted once its stream and its snapshot were written. */

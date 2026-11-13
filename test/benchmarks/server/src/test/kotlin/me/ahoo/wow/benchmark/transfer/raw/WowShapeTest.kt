@@ -26,6 +26,11 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 class WowShapeTest {
+    private companion object {
+        const val CALLERS = 64
+        const val SLOW_RATE = 700.0
+    }
+
     /** A store that records its calls: each append's partitions and size, each save, and when each was appended. */
     private class Store : AutoCloseable {
         override fun close() = Unit
@@ -114,6 +119,44 @@ class WowShapeTest {
         calls.appends.any { it.size >= 6 }.assert().isTrue()
         calls.saves.any { it == 5 }.assert().isTrue()
         WowShape.Options(appendFill = 6).wows.assert().isFalse()
+    }
+
+    /**
+     * [options]' saves' sizes with 64 callers submitting about 700 commands a second between them for [seconds], as an
+     * Actions runner's Wow run went: a caller every 64 / 700 s.
+     */
+    private fun paced(options: WowShape.Options, seconds: Double): List<Int> {
+        val calls = Calls()
+        val pool = Executors.newFixedThreadPool(CALLERS)
+        val interval = (CALLERS * 1_000.0 / SLOW_RATE).toLong()
+        val rounds = (seconds * SLOW_RATE / CALLERS).toInt()
+        shape(calls, options).use { shape ->
+            (0 until CALLERS).map { caller ->
+                pool.submit {
+                    Thread.sleep(caller * interval / CALLERS)
+                    repeat(rounds) { round ->
+                        shape.submit(Aggregates.Command(caller + round * CALLERS, 2))
+                        Thread.sleep(interval)
+                    }
+                }
+            }.forEach { it.get() }
+        }
+        pool.shutdown()
+        return calls.saves.toList()
+    }
+
+    @Test
+    fun `at a slow runner's rate a save waits as long as its snapshots take to arrive, and fills`() {
+        val wait = WowShape.fillWaitOf(listOf(6, 15), SLOW_RATE)
+        // Fifteen snapshots at 700 a second take 21 ms; two writers sharing them, twice that; the margin is four.
+        wait.assert().isEqualTo((4 * 15 / SLOW_RATE * 1e9).toLong())
+        WowShape.fillWaitOf(listOf(15, 9), 9_000.0).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
+        WowShape.fillWaitOf(listOf(6, 15), null).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
+        val committed = WowShape.Options(answer = WowShape.Answer.COMMITTED, appendFill = 6, saveFill = 15)
+        val saves = paced(committed.copy(fillWaitNanos = wait), seconds = 2.0)
+        // Certain enough to assert: the wait is twice what two writers sharing the arrivals need, so every save but the
+        // window's last ones fills; a fixed 20 ms wait (below the 21 ms the snapshots take) left them part full.
+        saves.dropLast(2).average().assert().isGreaterThan(13.5)
     }
 
     @Test

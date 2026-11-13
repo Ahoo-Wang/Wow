@@ -53,8 +53,9 @@ class WowShape<S : AutoCloseable>(
      * The shape: Wow's defaults (AppendQueueOptions: two mergers, a lane's batch of 64, calls merged up to 512
      * streams; two snapshot writes in flight of up to 256 rows), [mergeMax], [appenders] and [writers] the ones a
      * what-if case varies. With [appendFill] and [saveFill], a call holds that many streams or snapshots: it waits for
-     * them (FILL_WAIT_MILLIS at most) and takes no more than whole lanes' batches past them, so the calls are of a size
-     * given rather than of what is there, as the calibration's equal shape is; null, as Wow's take them.
+     * them ([fillWaitNanos] at most, fillWaitOf the rate they arrive at) and takes no more than whole lanes' batches past
+     * them, so the calls are of a size given rather than of what is there, as the calibration's equal shape is; null, as
+     * Wow's take them.
      */
     data class Options(
         val mergeMax: Int = MERGE_MAX,
@@ -65,6 +66,7 @@ class WowShape<S : AutoCloseable>(
         val writerMax: Int = WRITER_MAX,
         val appendFill: Int? = null,
         val saveFill: Int? = null,
+        val fillWaitNanos: Long = FILL_WAIT_NANOS,
     ) {
         /** The store connections the shape holds: one an appender, one a writer. */
         val connections: Int get() = appenders + writers
@@ -226,8 +228,8 @@ class WowShape<S : AutoCloseable>(
         null
     }
 
-    /** Whether a fill's wait that began at [since] (System.nanoTime) has run FILL_WAIT_NANOS: false when none began. */
-    private fun waitedOut(since: Long?): Boolean = since != null && System.nanoTime() - since >= FILL_WAIT_NANOS
+    /** Whether a fill's wait that began at [since] (System.nanoTime) has run its limit: false when none began. */
+    private fun waitedOut(since: Long?): Boolean = since != null && System.nanoTime() - since >= options.fillWaitNanos
 
     private fun saveLoop(store: S) {
         while (!appendersDone || saves.isNotEmpty()) {
@@ -320,7 +322,23 @@ class WowShape<S : AutoCloseable>(
         const val SAVES_KEPT = 0.97
         private const val POLL_MILLIS = 50L
         private const val FILL_POLL_MILLIS = 1L
-        private const val FILL_WAIT_NANOS = 20_000_000L
+
+        /** A fill's least wait, and the margin over the time its streams or snapshots take to arrive (fillWaitOf). */
+        const val FILL_WAIT_NANOS = 20_000_000L
+        const val FILL_MARGIN = 4
+        private const val NANOS_PER_SECOND = 1_000_000_000.0
+
+        /**
+         * How long a call waits to fill to the larger of [fills] at [rate] commands a second: FILL_MARGIN times the
+         * time that many take to arrive, every one a stream and a snapshot, so two appenders or writers sharing them
+         * still fill theirs; FILL_WAIT_NANOS at least. A fixed wait left a slow runner's saves part full: fifteen
+         * snapshots at 714 a second take 21 ms.
+         */
+        fun fillWaitOf(fills: List<Int>, rate: Double?): Long {
+            val most = fills.maxOrNull() ?: return FILL_WAIT_NANOS
+            if (rate == null || rate <= 0) return FILL_WAIT_NANOS
+            return maxOf(FILL_WAIT_NANOS, (FILL_MARGIN * most / rate * NANOS_PER_SECOND).toLong())
+        }
 
         /** The what-if's appenders and writers: twice Wow's, a candidate's count to price. */
         const val MORE_CALLERS = 4

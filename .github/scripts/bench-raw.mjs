@@ -168,8 +168,10 @@ export function calibrationText(raw) {
 }
 
 /**
- * Why the model's own shape at Wow's rate is not Wow's, from the calibration's apart metrics: Wow's node time around
- * each append call, which the model has none of; empty unless both sides' call and round trip were read.
+ * Why the model's own shape at Wow's rate is not Wow's, from the calibration's apart metrics: Wow's append calls take
+ * longer, its statement and the time around it in the node each beside the model's. Neither difference is said to be
+ * the node's code alone: where node and store share CPUs, each waits for the other's; empty unless both sides' call
+ * and statement were read.
  */
 export function nodeTimeText(calibration) {
   const of = metric =>
@@ -184,9 +186,13 @@ export function nodeTimeText(calibration) {
     check.rawPerCommand,
   ]);
   if (!values.every(Number.isFinite)) return '';
+  const around = check => num(check.call - check.trip, 2);
+  const wow = { call: call.wowPerCommand, trip: trip.wowPerCommand };
+  const model = { call: call.rawPerCommand, trip: trip.rawPerCommand };
   return (
-    ` The model's own shape differs from Wow's by Wow's node time around each append call: Wow's call ${num(call.wowPerCommand, 2)} ms against its store round trip ${num(trip.wowPerCommand, 2)} ms (${num(call.wowPerCommand - trip.wowPerCommand, 2)} ms around it), the model's ${num(call.rawPerCommand, 2)} against ${num(trip.rawPerCommand, 2)} ms,` +
-    ` so at Wow's rate Wow's appends carry ${num(1 / appends.wowPerCommand, 1)} commands and the model's ${num(1 / appends.rawPerCommand, 1)}.`
+    ` The model's own shape differs from Wow's because Wow's append calls take longer at the same rate: Wow's call ${num(wow.call, 2)} ms, its statement ${num(wow.trip, 2)} ms and ${around(wow)} ms around it in the node; the model's ${num(model.call, 2)} ms, ${num(model.trip, 2)} ms and ${around(model)} ms.` +
+    ` Where Wow's node and the store share CPUs, both parts include each waiting for the other's, so neither is the node's code alone.` +
+    ` At Wow's rate Wow's appends carry ${num(1 / appends.wowPerCommand, 1)} commands and the model's ${num(1 / appends.rawPerCommand, 1)}.`
   );
 }
 
