@@ -67,15 +67,44 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
 
     /**
      * The driver's own time of the call's commands from [sent] to [read], in nanoseconds: from each command's message
-     * sent to its reply, as the driver reports it ([commands] of them). A command before [sent] (a lookup while the
-     * store builds the batch) is [sent]'s, not counted here. Zero where the driver reports none (no listener, or a store
-     * whose driver has none).
+     * sent to its reply, as the driver reports it ([commands] of them). A command before [sent] (a lookup or a counter
+     * write while the store builds the batch) is counted apart, in [bindCommand]. Zero where the driver reports none (no
+     * listener, or a store whose driver has none).
      */
     var command: Long = 0
         private set
 
+    /**
+     * The driver's own time of the call's commands before [sent], in nanoseconds ([bindCommands] of them): what the
+     * store sent while building the batch (MongoDB's log: its partitions' counter writes and its lookups).
+     */
+    var bindCommand: Long = 0
+        private set
+
+    /** The commands the driver reported before [sent] ([bindCommand]). */
+    var bindCommands: Int = 0
+        private set
+
     /** The commands the driver reported ([command]). */
     var commands: Int = 0
+        private set
+
+    /**
+     * Of [acquired] to [sent] (what the store builds of the batch), the nanoseconds it spent encoding the batch's
+     * records into what its driver sends ([encoded]); zero where the store does not tell.
+     */
+    var encode: Long = 0
+        private set
+
+    /**
+     * Of [acquired] to [sent], the nanoseconds the store spent in lookups it made while building the batch (a read of
+     * the store, [lookups] of them, [lookedUp]); zero where the store does not tell or made none.
+     */
+    var lookup: Long = 0
+        private set
+
+    /** The lookups the store made while building the batch ([lookup]). */
+    var lookups: Int = 0
         private set
 
     /** Whether the store marked every instant it sees, so each step between [taken] and [done] is known. */
@@ -114,12 +143,29 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
         done = System.nanoTime()
     }
 
-    /** One of the call's commands took [nanos] by its driver's account: counted between [sent] and [read]. */
+    /**
+     * One of the call's commands took [nanos] by its driver's account: counted in [command] between [sent] and [read],
+     * in [bindCommand] before [sent].
+     */
     fun commanded(nanos: Long) {
-        if (sent != 0L && read == 0L) {
+        if (sent == 0L) {
+            bindCommand += nanos
+            bindCommands++
+        } else if (read == 0L) {
             command += nanos
             commands++
         }
+    }
+
+    /** The store spent [nanos] encoding a record of the batch, before [sent]. */
+    fun encoded(nanos: Long) {
+        encode += nanos
+    }
+
+    /** The store spent [nanos] in a lookup while building the batch, before [sent]. */
+    fun lookedUp(nanos: Long) {
+        lookup += nanos
+        lookups++
     }
 
     @InternalWowApi

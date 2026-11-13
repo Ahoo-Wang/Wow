@@ -72,6 +72,12 @@ class AppendClockTest {
         // The driver's time the log reported, each call's command, within its statement.
         clock.commanded.assert().isEqualTo(PARTITIONS.toLong())
         clock.command.assert().isEqualTo(PARTITIONS * COMMAND_NANOS / 1_000)
+        // What the log told of its building: each call's encoding and one lookup, within its bind.
+        clock.encode.assert().isEqualTo(PARTITIONS * ENCODE_NANOS / 1_000)
+        clock.lookup.assert().isEqualTo(PARTITIONS * LOOKUP_NANOS / 1_000)
+        clock.lookups.assert().isEqualTo(PARTITIONS.toLong())
+        clock.bindCommand.assert().isEqualTo(PARTITIONS * BIND_COMMAND_NANOS / 1_000)
+        clock.bindCommands.assert().isEqualTo(PARTITIONS.toLong())
         // Each step is rounded down to its microsecond: their sum is the call's, less at most one a step.
         val steps = with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }
         steps.forEach { it.assert().isNotNegative() }
@@ -136,6 +142,9 @@ class AppendClockTest {
             val outcomes = withContext(Dispatchers.IO) {
                 marks?.onThread()
                 marks?.acquired()
+                marks?.encoded(ENCODE_NANOS)
+                marks?.lookedUp(LOOKUP_NANOS)
+                marks?.commanded(BIND_COMMAND_NANOS)
                 marks?.sent()
                 Thread.sleep(1)
                 marks?.commanded(COMMAND_NANOS)
@@ -150,5 +159,8 @@ class AppendClockTest {
     private companion object {
         const val PARTITIONS = 4
         const val COMMAND_NANOS = 500_000L
+        const val ENCODE_NANOS = 200_000L
+        const val LOOKUP_NANOS = 300_000L
+        const val BIND_COMMAND_NANOS = 100_000L
     }
 }
