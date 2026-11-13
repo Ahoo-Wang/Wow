@@ -158,10 +158,15 @@ test('takers racing over one dead lock: one wins it, the others lose without rem
       encoding: 'utf8',
     }).stdout.trim();
     bash(lock, `lock_take crashed ${gone} ""`);
-    // Four takers started together over the one dead lock, each with a live pid of its own (a sleep it ends after).
+    // Four takers over the one dead lock, each with a live pid of its own: the four sleeps start first and end only
+    // once every taker has finished. So exactly one winner is certain: the winner's holder pid lives until the last
+    // taker is done, and a taker however late finds a live holder's lock, which it never takes over.
     const race = bash(
       lock,
-      `for owner in a b c d; do ( sleep 30 & me=$!; lock_take "$owner" $me "" && echo "won $owner"; kill $me ) & done; wait`,
+      `pids=""; for owner in a b c d; do sleep 30 & pids="$pids $!"; done
+      takers=""; set -- $pids
+      for owner in a b c d; do ( lock_take "$owner" "$1" "" && echo "won $owner" ) & takers="$takers $!"; shift; done
+      wait $takers; kill $pids`,
     );
     const winners = race.stdout
       .split('\n')
