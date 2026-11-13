@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.state
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 
 /**
@@ -24,9 +25,29 @@ import tools.jackson.databind.JsonNode
  * The runtime keeps its own form of a view for the state consumers of a context (`runtime.state.SharedStates`): the
  * serialized text a snapshot stores, with the aggregate's scope, deletion and access attributes. A sink maps that form to this one.
  *
+ * A sink makes one from that view's text ([ofText]): the tree is then parsed on its first read, once, and a writer of
+ * the record writes the text as it is ([stateText]).
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class PublishedState @InternalWowApi constructor(val version: Int, val schemaFingerprint: String, val state: JsonNode) {
+class PublishedState private constructor(
+    val version: Int,
+    val schemaFingerprint: String,
+    @Volatile private var tree: JsonNode?,
+    /** The state as the JSON text it was made from; null when it was made from a tree. */
+    @property:InternalWowApi val stateText: String?,
+) {
+    @InternalWowApi
+    constructor(
+        version: Int,
+        schemaFingerprint: String,
+        state: JsonNode,
+    ) : this(version, schemaFingerprint, state, null)
+
+    /** The state as a JSON tree, numbers exact: the one it was made from, or its text parsed on first read, once. */
+    val state: JsonNode
+        get() = tree ?: synchronized(this) { tree ?: WowJson.mapper.readTree(stateText).also { tree = it } }
+
     init {
         require(version >= 1) { "A committed state has a version from 1." }
         require(schemaFingerprint.isNotBlank()) { "A published state names the fingerprint of its schema." }
@@ -46,5 +67,14 @@ class PublishedState @InternalWowApi constructor(val version: Int, val schemaFin
         @JvmStatic
         fun of(version: Int, schemaFingerprint: String, state: JsonNode): PublishedState =
             PublishedState(version, schemaFingerprint, state)
+
+        /**
+         * A PublishedState of the state's JSON [text], the codec's own: a writer of the record writes it as it is, and
+         * [state] parses it on its first read.
+         */
+        @InternalWowApi
+        @JvmStatic
+        fun ofText(version: Int, schemaFingerprint: String, text: String): PublishedState =
+            PublishedState(version, schemaFingerprint, null, text)
     }
 }

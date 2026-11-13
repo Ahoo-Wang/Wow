@@ -15,6 +15,8 @@ package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
+import me.ahoo.wow.spi.state.StateEventPayload
 import org.junit.jupiter.api.Test
 
 class ClickHouseRowsTest {
@@ -70,6 +72,23 @@ class ClickHouseRowsTest {
         ClickHouseRows.rowOf(SinkFixtures.recordOf(state = """{"tiny":1E-7,"huge":1E+3}"""))
             .get("state_numbers").let { WowJson.mapper.writeValueAsString(it) }
             .assert().isEqualTo("""{"tiny":"0.0000001","huge":"1000"}""")
+    }
+
+    @Test
+    fun `a payload and a state made from the codec's text should be written as that text, numbers read alike`() {
+        // A double as the codec writes it: its exponent without a sign, which the tree would write with one.
+        val text = """{"double":1.0E20,"total":12.30}"""
+        val fromTrees = SinkFixtures.recordOf(state = text)
+        val record = fromTrees.copyWith(
+            events = listOf(StateEventPayload.ofText("order_placed", 1, text)),
+            state = PublishedState.ofText(1, "fingerprint-1", text),
+        )
+        val row = ClickHouseRows.rowOf(record)
+        row.get("events").single().get("payload").asString().assert().isEqualTo(text)
+        row.get("state").asString().assert().isEqualTo(text)
+        val treeRow = ClickHouseRows.rowOf(fromTrees)
+        treeRow.get("state").asString().assert().isEqualTo("""{"double":1.0E+20,"total":12.30}""")
+        row.get("state_numbers").assert().isEqualTo(treeRow.get("state_numbers"))
     }
 
     @Test

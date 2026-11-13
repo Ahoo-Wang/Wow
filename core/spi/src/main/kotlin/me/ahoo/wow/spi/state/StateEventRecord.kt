@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
@@ -27,9 +28,25 @@ import tools.jackson.databind.JsonNode
  * both of the current [revision] of its schema: a stored event of an older revision is upgraded before it is
  * published, and one stored under a former name is published under the current one.
  *
+ * A sink makes one from the payload's JSON text, the codec's own, which it holds already ([ofText]): the tree is then
+ * parsed on its first read, once, and a writer of the record writes the text as it is ([payloadText]).
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class StateEventPayload @InternalWowApi constructor(val name: String, val revision: Int, val payload: JsonNode) {
+class StateEventPayload private constructor(
+    val name: String,
+    val revision: Int,
+    @Volatile private var tree: JsonNode?,
+    /** The payload as the JSON text it was made from; null when it was made from a tree. */
+    @property:InternalWowApi val payloadText: String?,
+) {
+    @InternalWowApi
+    constructor(name: String, revision: Int, payload: JsonNode) : this(name, revision, payload, null)
+
+    /** The payload as a JSON tree, numbers exact: the one it was made from, or its text parsed on first read, once. */
+    val payload: JsonNode
+        get() = tree ?: synchronized(this) { tree ?: WowJson.mapper.readTree(payloadText).also { tree = it } }
+
     init {
         require(name.isNotBlank()) { "An event needs a name." }
         require(revision >= 1) { "An event revision starts at 1." }
@@ -49,6 +66,15 @@ class StateEventPayload @InternalWowApi constructor(val name: String, val revisi
         @JvmStatic
         fun of(name: String, revision: Int, payload: JsonNode): StateEventPayload =
             StateEventPayload(name, revision, payload)
+
+        /**
+         * A StateEventPayload of the payload's JSON [text], the codec's own: a writer of the record writes it as it is,
+         * and [payload] parses it on its first read.
+         */
+        @InternalWowApi
+        @JvmStatic
+        fun ofText(name: String, revision: Int, text: String): StateEventPayload =
+            StateEventPayload(name, revision, null, text)
     }
 }
 
