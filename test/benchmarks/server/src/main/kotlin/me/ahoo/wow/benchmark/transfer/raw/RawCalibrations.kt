@@ -53,18 +53,17 @@ internal fun spreadOf(wow: Map<String, Double>): Double? {
 }
 
 /**
- * Wow's append calls from its queue's counts over its window (WowWindow), where it has no clock of its own: a call's
- * mean time, the appenders over the calls a second, when the lanes' groups waited for them throughout (a mean of one
- * at least: both appenders always in a call); a group's mean wait, by Little's law, the groups waiting over the groups
- * handed a second (the calls a second times the partitions an append, one group a partition).
+ * Wow's append calls over its window (WowWindow): a call's mean time and its statement's from the node's own clock
+ * (the `bench-pipeline` line's `appendClock`), none on a build without it; a group's mean wait, by Little's law, the
+ * groups waiting over the groups handed a second (the calls a second times the partitions an append, one group a
+ * partition).
  */
-private fun wowCalls(wow: Map<String, Double>): Map<String, Double> {
-    val calls = wow[WowWindow.APPEND_CALLS_PER_SECOND_ALL]?.takeIf { it > 0 } ?: return emptyMap()
-    val waiting = wow[WowWindow.HANDED_GROUPS] ?: return emptyMap()
-    return buildMap {
-        if (waiting >= 1) put("${WowShape.APPEND_CALL}Ms", WowShape.APPENDERS * MILLIS / calls)
-        spreadOf(wow)?.let { put("${WowShape.APPEND_GAP}Ms", waiting / (calls * it) * MILLIS) }
-    }
+private fun wowCalls(wow: Map<String, Double>): Map<String, Double> = buildMap {
+    wow[WowWindow.CLOCK_CALL]?.let { put("${WowShape.APPEND_CALL}Ms", it) }
+    wow[WowWindow.CLOCK_STATEMENT]?.let { put("${RawPostgres.APPEND_ROUND_TRIP}Ms", it) }
+    val calls = wow[WowWindow.APPEND_CALLS_PER_SECOND_ALL]?.takeIf { it > 0 } ?: return@buildMap
+    val waiting = wow[WowWindow.HANDED_GROUPS] ?: return@buildMap
+    spreadOf(wow)?.let { put("${WowShape.APPEND_GAP}Ms", waiting / (calls * it) * MILLIS) }
 }
 
 /** The calls' times reported apart on both sides (CallTimes, Wow's from wowTimes and wowCalls). */

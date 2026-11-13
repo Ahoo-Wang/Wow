@@ -49,12 +49,27 @@ class WowWindow(private val pipeline: () -> String?, private val saves: () -> Lo
         val middle = taken[taken.size / 2]
         val (first, last) = taken.first() to taken.last()
         val seconds = (last.millis - first.millis) / MILLIS
-        return halfOf(FIRST, first, middle) + halfOf(SECOND, middle, last) + mapOf(
+        return halfOf(FIRST, first, middle) + halfOf(SECOND, middle, last) + clockOf(first, last) + mapOf(
             APPEND_CALLS_PER_SECOND_ALL to (last.calls - first.calls) / seconds,
             HANDED_GROUPS to taken.mapNotNull { field(it.line, "appendDepth", "handedGroups") }.average(),
             POOL_WAITING to taken.mapNotNull { field(it.line, "pool", "waiting") }.average(),
             POOL_ACTIVE to taken.mapNotNull { field(it.line, "pool", "active") }.average(),
         ).filterValues { !it.isNaN() }
+    }
+
+    /**
+     * The node's own clock of its append calls over the window (the line's `appendClock`, microseconds summed over
+     * the calls): a call's mean time and its statement's, taken to answered and sent to read; none on a build without
+     * the clock.
+     */
+    private fun clockOf(from: Sample, to: Sample): Map<String, Double> {
+        fun of(sample: Sample, name: String) = field(sample.line, "appendClock", name)
+        val calls = (of(to, "calls") ?: return emptyMap()) - (of(from, "calls") ?: return emptyMap())
+        if (calls <= 0) return emptyMap()
+        return listOf(CLOCK_CALL to "call", CLOCK_STATEMENT to "statement").mapNotNull { (key, name) ->
+            val micros = (of(to, name) ?: return@mapNotNull null) - (of(from, name) ?: return@mapNotNull null)
+            key to micros / calls / MILLIS
+        }.toMap()
     }
 
     private fun halfOf(half: String, from: Sample, to: Sample): Map<String, Double> {
@@ -78,6 +93,10 @@ class WowWindow(private val pipeline: () -> String?, private val saves: () -> Lo
         const val SNAPSHOTS_PER_SAVE = "snapshotsPerSave"
         const val APPEND_CALLS_PER_SECOND_ALL = "wowAppendCallsPerSecond"
         const val HANDED_GROUPS = "wowHandedGroupsMean"
+
+        /** The node's clock of an append call (clockOf): the whole call and its statement, milliseconds. */
+        const val CLOCK_CALL = "wowClockCallMs"
+        const val CLOCK_STATEMENT = "wowClockStatementMs"
         const val POOL_WAITING = "wowPoolWaitingMean"
         const val POOL_ACTIVE = "wowPoolActiveMean"
         private const val SAMPLE_MILLIS = 100L

@@ -105,6 +105,8 @@ class RawRunTest {
         WowWindow.field(line, "pool", "waiting").assert().isEqualTo(1.0)
         WowWindow.field(line, "appendDepth", "calls").assert().isNull()
         WowWindow.field(line, "window", "x").assert().isNull()
+        val clocked = "{\"appendClock\":{\"calls\":200,\"call\":700000,\"statement\":620000}}"
+        WowWindow.field(clocked, "appendClock", "statement").assert().isEqualTo(620000.0)
     }
 
     @Test
