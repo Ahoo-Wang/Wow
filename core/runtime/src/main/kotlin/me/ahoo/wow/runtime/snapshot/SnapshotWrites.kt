@@ -48,6 +48,11 @@ import me.ahoo.wow.spi.store.StoreCallMarks
  *   full; a take of fewer than [retireBelow] lowers it again, and a leader over the limit then gives its place up when
  *   it ends instead of handing it on. So below the peak the writes stay at [committers] with their calls large, and at
  *   the peak, where every take is full, they grow to [catchUp] (the store's [SnapshotStore.catchUpWritesInFlight]).
+ *   At a sustained peak the limit swings between the two: a leader started for a full take first takes only what
+ *   arrived since, often under [retireBelow], which lowers the limit until the next full take raises it. That is
+ *   harmless: a lowered limit takes no write away (a leader over it finishes its write, then gives its place up), a
+ *   leader costs one hand-over to start or end, and the writes keep up as with [catchUp] always (measured
+ *   2026-11-13). A store whose two counts are equal does none of this: its takes only compare the counts.
  * - **The invariant**, at every instant the monitor is free: a save waits without leading only while the leaders are
  *   at the limit or one gathers. Each change of the queue and of the leaders keeps it in one critical section:
  *   a save that leads or waits, a take (with [startWaiting] after it), a hand-over, and a cancelled leader's put-back
@@ -217,6 +222,7 @@ internal class SnapshotWrites(
      * limit up to [catchUp]; caught up when it took fewer than [retireBelow], the limit back to [committers].
      */
     private fun paced(taken: Int) {
+        if (catchUp == committers) return
         if (taken >= maxBatch && queue.any { !it.leads }) {
             limit = catchUp
         } else if (taken < retireBelow) {

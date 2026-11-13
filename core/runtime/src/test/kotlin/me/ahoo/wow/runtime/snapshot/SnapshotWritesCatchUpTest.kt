@@ -111,18 +111,89 @@ class SnapshotWritesCatchUpTest {
         }
 
     @Test
-    fun `a store that says no catch-up count should keep its writes in flight whatever the takes`(): Unit = runBlocking {
+    fun `a store that says no catch-up count should keep its writes in flight whatever the takes`(): Unit =
+        runBlocking {
+            val store = HeldStore()
+            val writes = SnapshotWrites(store, maxBatch = 2, committers = 1)
+            val first = async(Dispatchers.Default) { writes.save(snapshot("a")) }
+            eventually(5.seconds) { store.inFlight.get() == 1 }
+            val waiting = (0 until 10).map { async(Dispatchers.Default) { writes.save(snapshot("w$it")) } }
+            eventually(5.seconds) { writes.waiting == 10 }
+            store.first.complete(Unit)
+            store.rest.complete(Unit)
+            (listOf(first) + waiting).awaitAll()
+            // Certain: the catch-up count is the committers' one, so a take only compares the two and the limit stays.
+            store.most.get().assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a full take with nothing waiting behind it should leave the limit where it is`(): Unit = runBlocking {
         val store = HeldStore()
-        val writes = SnapshotWrites(store, maxBatch = 2, committers = 1)
+        val writes = SnapshotWrites(store, maxBatch = 2, committers = 1, catchUp = 3)
+        val counts = writes.counts()
         val first = async(Dispatchers.Default) { writes.save(snapshot("a")) }
         eventually(5.seconds) { store.inFlight.get() == 1 }
-        val waiting = (0 until 10).map { async(Dispatchers.Default) { writes.save(snapshot("w$it")) } }
-        eventually(5.seconds) { writes.waiting == 10 }
+        val waiting = (0 until 2).map { async(Dispatchers.Default) { writes.save(snapshot("w$it")) } }
+        eventually(5.seconds) { writes.waiting == 2 }
         store.first.complete(Unit)
+        // The two are taken together, a full take with nothing behind it, into a held call.
+        eventually(5.seconds) { writes.waiting == 0 && store.inFlight.get() == 1 }
+        counts.allowed.assert().isEqualTo(1)
         store.rest.complete(Unit)
         (listOf(first) + waiting).awaitAll()
-        // Certain: the catch-up count is the committers' one, so a full take raises the limit to where it is.
         store.most.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a write over a lowered limit should finish, then give its place up rather than hand it on`(): Unit =
+        runBlocking {
+            val store = HeldStore()
+            val writes = SnapshotWrites(store, maxBatch = 4, committers = 1, catchUp = 2, retireBelow = 2)
+            val counts = writes.counts()
+            val first = async(Dispatchers.Default) { writes.save(snapshot("a")) }
+            eventually(5.seconds) { store.inFlight.get() == 1 }
+            val waiting = (0 until 5).map { async(Dispatchers.Default) { writes.save(snapshot("w$it")) } }
+            eventually(5.seconds) { writes.waiting == 5 }
+            store.first.complete(Unit)
+            // Certain: the next leader takes four (full, one waiting), which raises the limit to two and starts the one
+            // left, whose take of one is under two and lowers it again; both calls are held.
+            eventually(5.seconds) { store.inFlight.get() == 2 }
+            counts.allowed.assert().isEqualTo(1)
+            // A save behind them: whichever write ends first finds it waiting with two leading over a limit of one, so
+            // gives its place up; the other hands its place to it.
+            val behind = async(Dispatchers.Default) { writes.save(snapshot("behind")) }
+            eventually(5.seconds) { writes.waiting == 1 }
+            store.rest.complete(Unit)
+            (listOf(first, behind) + waiting).awaitAll().assert().containsOnly(true)
+            store.most.get().assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a leader started for catching up and cancelled in its write should put its batch back`(): Unit =
+        runBlocking {
+            val store = HeldStore()
+            val writes = SnapshotWrites(store, maxBatch = 2, committers = 1, catchUp = 2, retireBelow = 1)
+            val first = async(Dispatchers.Default) { writes.save(snapshot("a")) }
+            eventually(5.seconds) { store.inFlight.get() == 1 }
+            val waiting = (0 until 6).map { async(Dispatchers.Default) { writes.save(snapshot("w$it")) } }
+            eventually(5.seconds) { writes.waiting == 6 }
+            store.first.complete(Unit)
+            // Certain: w0's leader takes w0 and w1 (full, more waiting) and starts w2, which takes w2 and w3: two held
+            // calls.
+            eventually(5.seconds) { store.inFlight.get() == 2 }
+            // The started leader, cancelled in its write, puts w3 back in front and hands its place on: w3 is written
+            // by a later write, as every save but the cancelled one's.
+            waiting[2].cancel()
+            waiting[2].join()
+            store.rest.complete(Unit)
+            (listOf(first) + waiting.filterIndexed { index, _ -> index != 2 }).awaitAll().assert().containsOnly(true)
+            store.load(type.ref("t", "w3"))?.version.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a catch-up count under the committers should be refused`() {
+        runCatching { SnapshotWrites(HeldStore(), maxBatch = 2, committers = 2, catchUp = 1) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     /**
