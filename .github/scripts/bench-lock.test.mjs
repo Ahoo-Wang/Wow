@@ -17,8 +17,11 @@ const LOCK_SH = join(
   '../../test/benchmarks/harness/lock.sh',
 );
 
-/** A bash prelude: bench.sh's log and options stubbed, the lock at [lock], lock.sh sourced. */
-const prelude = lock => `
+/**
+ * A bash prelude: bench.sh's log and options stubbed, the lock at [lock], lock.sh sourced; under bench.sh's own shell
+ * options when [strict], where a failed assignment ends the script.
+ */
+const prelude = (lock, strict = false) => `${strict ? 'set -euo pipefail' : ''}
 log() { echo "$*" >&2; }
 OPTIONS=""
 parse() { local a; for a in "$@"; do OPTIONS="$OPTIONS\${a#--}
@@ -31,8 +34,8 @@ WOW_BENCH_LOCK=${JSON.stringify(lock)}
 . ${JSON.stringify(LOCK_SH)}
 `;
 
-const bash = (lock, script, env = {}) =>
-  spawnSync('bash', ['-c', `${prelude(lock)}\n${script}`], {
+const bash = (lock, script, env = {}, strict = false) =>
+  spawnSync('bash', ['-c', `${prelude(lock, strict)}\n${script}`], {
     encoding: 'utf8',
     env: { ...process.env, ...env },
   });
@@ -178,4 +181,29 @@ test('takers racing over one dead lock: one wins it, the others lose without rem
     );
     assert.match(holder(lock), new RegExp(`^owner=${winners[0].slice(4)}\n`));
   }
+});
+
+test("under bench.sh's set -euo pipefail, the guard passes with no lock and with a gone holder's, and no helper ends the script", () => {
+  const lock = fresh();
+  const strict = script => bash(lock, script, {}, true);
+  const none = strict('lock_guard; echo passed');
+  assert.equal(none.status, 0, none.stderr);
+  assert.equal(none.stdout.trim(), 'passed', 'no lock: the guard passes');
+  const gone = spawnSync('bash', ['-c', 'echo $$'], {
+    encoding: 'utf8',
+  }).stdout.trim();
+  bash(lock, `lock_take crashed ${gone} ""`);
+  const dead = strict('lock_guard; echo passed');
+  assert.equal(dead.status, 0, dead.stderr);
+  assert.equal(
+    dead.stdout.trim(),
+    'passed',
+    "a gone holder's lock: the guard passes",
+  );
+  bash(lock, 'rm -rf "$LOCK_DIR"');
+  const helpers = strict(
+    'f=$(lock_field pid); a=$(lock_age); t=$(lock_time ""); lock_descends 1 || true; echo "done [$f]"',
+  );
+  assert.equal(helpers.status, 0, helpers.stderr);
+  assert.equal(helpers.stdout.trim(), 'done []');
 });
