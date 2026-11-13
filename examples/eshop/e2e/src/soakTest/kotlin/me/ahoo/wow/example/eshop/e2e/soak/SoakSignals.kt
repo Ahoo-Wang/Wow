@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.LongAdder
  * `:benchmark-server` checks that both count the same signals and log the same `bench-signals {json}` line.
  *
  * The node's overload and fallback signals, counted and logged once a second at WARN: the tails' store reads by reason
- * (D249), the refused commands by code, the timed-out waits by stage, the dropped wait signals, the failed forwards
- * and the partitions paused and resumed on a systemic failure (D243). The soak puts this class on its nodes' class
+ * (D249), the refused commands by code, the timed-out waits by stage, the dropped wait signals, the failed forwards,
+ * the partitions paused and resumed on a systemic failure (D243), the retries on a downstream's push-back, the
+ * partitions throttled and unthrottled, and the shared states rebuilt. The soak puts this class on its nodes' class
  * path (`eshop.extra-classpath`) and starts them with `bench.signals.enabled=true`; EshopSoakTest sums every node's
  * last line into its report.
  */
@@ -52,8 +53,8 @@ class SoakSignals : Observer, AutoCloseable {
         log.warn("bench-signals {}", snapshot())
     }
 
-    private fun count(kind: String, key: String) =
-        counters.computeIfAbsent(kind) { ConcurrentHashMap() }.computeIfAbsent(key) { LongAdder() }.increment()
+    private fun count(kind: String, key: String, amount: Long = 1) =
+        counters.computeIfAbsent(kind) { ConcurrentHashMap() }.computeIfAbsent(key) { LongAdder() }.add(amount)
 
     /** The counts as one JSON object: `{"t": <seconds since start>, "<kind>": {"<key>": <count>, …}, …}`. */
     fun snapshot(): String = buildString {
@@ -76,6 +77,27 @@ class SoakSignals : Observer, AutoCloseable {
             // The reason names the failing aggregate and its exception, so the key is the subscription alone.
             is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
             is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)
+            else -> slowed(event)
+        }
+    }
+
+    /** What slows a subscription down without pausing it: a downstream's push-back, a throttle, a rebuild. */
+    private fun slowed(event: ObservedEvent) {
+        when (event) {
+            // A retry on a downstream's push-back, by subscription and by the code it pushed back with.
+            is ObservedEvent.Backpressured -> {
+                count("backpressured", event.subscription)
+                count("backpressureCode", event.code)
+            }
+            // Throttled less unthrottled is the partitions a subscription throttles now.
+            is ObservedEvent.PartitionThrottled ->
+                count(if (event.throttled) "partitionThrottled" else "partitionUnthrottled", event.subscription)
+            // A shared state's rebuild, gated or not, ran or refused; a gated one's wait for a permit summed, so over
+            // the gated count it is the mean wait.
+            is ObservedEvent.StateRebuilt -> {
+                count("stateRebuilt", "${if (event.gated) "gated" else "ungated"}-${event.outcome.value}")
+                if (event.gated) count("stateRebuildWait", "millis", event.waitMillis)
+            }
             else -> Unit
         }
     }

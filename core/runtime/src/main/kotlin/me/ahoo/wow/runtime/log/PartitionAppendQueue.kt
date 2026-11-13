@@ -35,6 +35,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -148,10 +149,23 @@ class PartitionAppendQueue(
         scope.launchWorker("append lane $partition") { drain(lane, queued) }
     }
 
-    /** A lane's group, handed to the mergers: done once committed. */
-    private class Handed(val batch: List<Pending>) {
+    /**
+     * A lane's group, handed to the mergers: done once committed. [counted] by the counts that saw it handed, when
+     * there were any, so that only those count it taken.
+     */
+    private class Handed(val batch: List<Pending>, val counted: AppendQueueCounts?) {
         val done = CompletableDeferred<Unit>()
+        val streams: Int = batch.sumOf { it.streams.size }
     }
+
+    private val counting = AtomicReference<AppendQueueCounts?>()
+
+    /**
+     * What the queue's calls carried and the groups waiting for a committer ([AppendQueueCounts]), counted from the
+     * first call of this on. Until then the queue counts nothing: its only cost is reading that no one asked.
+     */
+    fun counts(): AppendQueueCounts =
+        counting.get() ?: AppendQueueCounts().let { fresh -> counting.compareAndExchange(null, fresh) ?: fresh }
 
     /**
      * Commits a group of the lanes' groups: the first handed, and those handed meanwhile, up to
@@ -160,12 +174,13 @@ class PartitionAppendQueue(
     private suspend fun merge(): Boolean {
         val first = handed.receiveCatching().getOrNull() ?: return false
         val group = arrayListOf(first)
-        var streams = first.batch.sumOf { it.streams.size }
+        var streams = first.streams
         while (streams < options.mergeMax) {
             val next = handed.tryReceive().getOrNull() ?: break
             group += next
-            streams += next.batch.sumOf { it.streams.size }
+            streams += next.streams
         }
+        group.forEach { it.counted?.taken(it.streams) }
         commit(group.flatMap { it.batch })
         group.forEach { it.done.complete(Unit) }
         return true
@@ -254,7 +269,8 @@ class PartitionAppendQueue(
         if (batch.isNotEmpty()) {
             if (merging) {
                 // One group of the partition in flight: its next waits, so the partition's order holds.
-                val handing = Handed(batch)
+                val handing = Handed(batch, counting.get())
+                handing.counted?.handed(handing.streams)
                 handed.send(handing)
                 handing.done.await()
             } else {
@@ -291,6 +307,7 @@ class PartitionAppendQueue(
     /** Not cancellable: an append taken into a batch completes. */
     private suspend fun commit(batch: List<Pending>) = withContext(NonCancellable) {
         val streams = batch.flatMap { it.streams }
+        counting.get()?.called(streams.size, if (merging) options.mergeMax else options.maxBatch)
         val outcomes = try {
             log.appendAll(streams).also {
                 check(it.size == streams.size) { "The log returned ${it.size} outcomes for ${streams.size} appends." }
