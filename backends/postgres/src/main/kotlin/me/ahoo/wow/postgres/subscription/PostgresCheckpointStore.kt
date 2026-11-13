@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.sql.Connection
+import java.sql.SQLException
 import javax.sql.DataSource
 
 /**
@@ -116,12 +117,18 @@ class PostgresCheckpointStore(
      * `ON CONFLICT DO UPDATE` locks each conflicting row and writes that lock to the WAL (41% of a checkpoint row's WAL
      * on a busy node), a row its guard refuses too.
      *
-     * The rows are locked in one pass and one order. [ADD] locks only the rows it inserts, in key order; [MOVE] only
-     * the rows it moves, in the arrays' key order (its plan probes the group's rows with them, which a test pins). So
-     * two saves touching the same rows, each ahead on some and behind on others, never wait on each other in a cycle,
-     * which an update followed by an upsert of the rows the other had moved could. A row another save inserted between
-     * the two statements is moved by [MOVE] if this save is ahead, its guard checked on the latest version, and left
-     * if not.
+     * Each statement locks only the rows it writes: [ADD] the rows it inserts, in key order (its select is ordered);
+     * [MOVE] the rows it moves, never one the guard refuses, in the order of its plan's outer side: the arrays, in
+     * key order, for a custom plan of a large batch; the group's rows, in the table's order, for a small batch or a
+     * generic plan, which a pooled connection reaches within a few saves. So two saves of one group that each move
+     * rows the other moves too (an owner's last save beside its successor's in a hand-over, a zombie owner's) may
+     * lock them in opposite orders and deadlock; a save that is not moving rows another moves never can. The one
+     * PostgreSQL picks as the victim (`40P01`) has had its transaction rolled back, and saves the batch again after a
+     * backoff ([DEADLOCK_BACKOFF_MILLIS], doubling), at most [DEADLOCK_ATTEMPTS] times in all: the other save has gone
+     * on and, its statements taking milliseconds, ended meanwhile, so the next attempt does not meet it. A save still
+     * failing then throws, as any failure: the runtime saves the batch again on its next tick, and a stop saves what
+     * it can and reports the failure. A row another save inserted between the two statements is moved by [MOVE] if
+     * this save is ahead, its guard checked on the latest version, and left if not.
      *
      * A failed batch commits none of it, and the caller saves it again, as it saves any batch that failed: each
      * statement only moves a position forward.
@@ -131,8 +138,21 @@ class PostgresCheckpointStore(
             return
         }
         dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                inTransaction(connection) { bound -> saveBatch(bound, group, checkpoints) }
+            var attempt = 1
+            while (true) {
+                try {
+                    dataSource.autoCommitted { connection ->
+                        inTransaction(connection) { bound -> saveBatch(bound, group, checkpoints) }
+                    }
+                    break
+                } catch (failure: SQLException) {
+                    // The deadlock's victim: rolled back whole, saved again; any other failure is the caller's.
+                    if (failure.sqlState != PostgresSchema.DEADLOCK_DETECTED || attempt >= DEADLOCK_ATTEMPTS) {
+                        throw failure
+                    }
+                    Thread.sleep(DEADLOCK_BACKOFF_MILLIS shl (attempt - 1))
+                    attempt++
+                }
             }
         }
     }
@@ -178,7 +198,16 @@ class PostgresCheckpointStore(
 
         const val LIST_OF = "SELECT partition, position FROM $TABLE WHERE subscription_group = ? AND subscription = ?"
 
-        val SAVE = rowsSql(1)
+        /** Upserts one checkpoint ([save]), moving its position only forward. */
+        const val SAVE = "INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position) " +
+            "VALUES (?, ?, ?, ?) ON CONFLICT (subscription_group, subscription, partition) " +
+            "DO UPDATE SET position = excluded.position WHERE c.position < excluded.position"
+
+        /** The attempts of a batch that a deadlock makes the victim of: the first and two more. */
+        const val DEADLOCK_ATTEMPTS = 3
+
+        /** The wait before a deadlock's victim saves its batch again, doubling each time: 100 ms, then 200 ms. */
+        const val DEADLOCK_BACKOFF_MILLIS = 100L
 
         /**
          * Inserts the rows of a batch not there yet, the batch given as three arrays in key order and its group. The
@@ -196,6 +225,7 @@ class PostgresCheckpointStore(
                 WHERE c.subscription_group = g.subscription_group AND c.subscription = v.subscription
                     AND c.partition = v.partition
             )
+            ORDER BY v.subscription, v.partition
             ON CONFLICT (subscription_group, subscription, partition) DO NOTHING
         """.trimIndent()
 
@@ -208,14 +238,6 @@ class PostgresCheckpointStore(
             FROM unnest(?::text[], ?::integer[], ?::bigint[]) AS v(subscription, partition, position)
             WHERE c.subscription_group = ? AND c.subscription = v.subscription AND c.partition = v.partition
                 AND c.position < v.position
-        """.trimIndent()
-
-        /** Upserts one checkpoint ([save]), moving its position only forward. */
-        private fun rowsSql(rows: Int): String = """
-            INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position)
-            VALUES ${List(rows) { "(?, ?, ?, ?)" }.joinToString(", ")}
-            ON CONFLICT (subscription_group, subscription, partition) DO UPDATE SET position = excluded.position
-            WHERE c.position < excluded.position
         """.trimIndent()
     }
 }

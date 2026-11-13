@@ -135,13 +135,17 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
-    fun `concurrent batches over the same keys in opposite orders never deadlock`(): Unit = runBlocking {
-        // The rows go in key order whatever order the caller gives them, so two batches lock them in one order.
+    fun `concurrent batches in opposite orders, each ahead on its own half, leave the highest`(): Unit = runBlocking {
+        // The rows go in key order whatever order the caller gives them. What makes this outcome certain: each batch
+        // is ahead on its own half only, at the stored position on the other, so each update locks rows the other
+        // leaves alone, and neither can wait on the other, whatever order its plan locks in.
         val group = "order-${System.nanoTime()}"
         val keys = (0 until KEYS)
         repeat(ROUNDS) { round ->
-            val forward = keys.map { Checkpoint.of("order", it, round * 2L + 1) }
-            val backward = keys.reversed().map { Checkpoint.of("order", it, round * 2L + 2) }
+            val high = round * 2L + 2
+            fun position(mine: Boolean) = if (mine) high else high - 2
+            val forward = keys.map { Checkpoint.of("order", it, position(it < KEYS / 2)) }
+            val backward = keys.reversed().map { Checkpoint.of("order", it, position(it >= KEYS / 2)) }
             listOf(forward, backward).map { batch ->
                 async(Dispatchers.IO) { store.saveAll(group, batch) }
             }.awaitAll()
@@ -206,40 +210,19 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
-    fun `concurrent saves crossed on every other key all commit and leave the highest`(): Unit = runBlocking {
-        // A smoke over the crossed shape at the store's own pace: an update followed by an upsert deadlocked here on
-        // some rounds (40P01). What is certain is the outcome, the highest per key; that no round deadlocks is the
-        // ordered lock pass's, which the test above shows step by step.
+    fun `concurrent saves each ahead on every other key all commit and leave the highest`(): Unit = runBlocking {
+        // At the store's own pace, over 64 keys. What makes this outcome certain: each save is ahead on its own keys
+        // only, at the stored position on the other's, so its update locks rows the other's leaves alone; the inserts
+        // of the first round lock new keys in key order. Neither can wait on the other in a cycle, whatever order the
+        // plans of the two pooled connections lock in. Saves moving the same rows are the next test's.
         val group = "crossed-pace-${System.nanoTime()}"
         repeat(ROUNDS) { round ->
             val high = round * 2L + 2
-            val even = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 0) high else high - 1) }
-            val odd = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 1) high else high - 1) }
+            val even = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 0) high else high - 2) }
+            val odd = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 1) high else high - 2) }
             listOf(even, odd).map { batch -> async(Dispatchers.IO) { store.saveAll(group, batch) } }.awaitAll()
         }
         (0 until KEYS).map { store.load(group, "x", it) }.assert().allMatch { it == ROUNDS * 2L }
-    }
-
-    @Test
-    fun `the update probes the group's rows with the batch, so it locks them in the batch's key order`() {
-        // Its lock order is the order of the side it probes with: the arrays, in key order. A plan that scanned the
-        // table first would lock in the table's order instead; this pins the one the order argument rests on.
-        val group = "plan-${System.nanoTime()}"
-        fun rows(position: Long) = (0 until 10).flatMap { s -> (0 until 64).map { Checkpoint.of("s$s", it, position) } }
-        runBlocking { store.saveAll(group, rows(1)) }
-        val batch = rows(2)
-        val plan = PostgresFixture.dataSource.connection.use { connection ->
-            connection.prepareStatement("EXPLAIN (FORMAT JSON) ${PostgresCheckpointStore.MOVE}").use { explain ->
-                bind(connection, explain, group, batch)
-                explain.executeQuery().use { rows ->
-                    rows.next()
-                    WowJson.mapper.readTree(rows.getString(1))
-                }
-            }
-        }
-        val join = plan.findParents("Hash Cond").single()
-        val outer = join.get("Plans").single { it.get("Parent Relationship").asString() == "Outer" }
-        outer.get("Node Type").asString().assert().isEqualTo("Function Scan")
     }
 
     private fun run(connection: Connection, sql: String, group: String, rows: List<Checkpoint>) =
