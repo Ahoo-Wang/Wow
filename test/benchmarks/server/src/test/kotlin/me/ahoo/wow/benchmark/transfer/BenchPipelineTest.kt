@@ -48,6 +48,7 @@ class BenchPipelineTest {
     fun `a node with nothing to say should log nothing`() {
         BenchPipeline { null }.snapshot().assert().isNull()
         BenchPipeline { mapOf("window" to emptyMap()) }.snapshot().assert().isNull()
+        BenchPipeline.clockOf(emptyList()).assert().isEmpty()
     }
 
     @Test
