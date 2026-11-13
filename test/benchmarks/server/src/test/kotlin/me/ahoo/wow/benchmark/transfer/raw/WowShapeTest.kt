@@ -29,6 +29,7 @@ class WowShapeTest {
     private companion object {
         const val CALLERS = 64
         const val SLOW_RATE = 700.0
+        const val HOLDING_NANOS = 2_000_000_000L
     }
 
     /** A store that records its calls: each append's partitions and size, each save, and when each was appended. */
@@ -146,17 +147,24 @@ class WowShapeTest {
     }
 
     @Test
-    fun `at a slow runner's rate a save waits as long as its snapshots take to arrive, and fills`() {
-        val wait = WowShape.fillWaitOf(listOf(6, 15), SLOW_RATE)
+    fun `a fill's wait is four times its snapshots' arrival at the rate, 20 ms at least`() {
         // Fifteen snapshots at 700 a second take 21 ms; two writers sharing them, twice that; the margin is four.
-        wait.assert().isEqualTo((4 * 15 / SLOW_RATE * 1e9).toLong())
+        WowShape.fillWaitOf(listOf(6, 15), SLOW_RATE).assert().isEqualTo((4 * 15 / SLOW_RATE * 1e9).toLong())
         WowShape.fillWaitOf(listOf(15, 9), 9_000.0).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
         WowShape.fillWaitOf(listOf(6, 15), null).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
-        val committed = WowShape.Options(answer = WowShape.Answer.COMMITTED, appendFill = 6, saveFill = 15)
-        val saves = paced(committed.copy(fillWaitNanos = wait), seconds = 2.0)
-        // Certain enough to assert: the wait is twice what two writers sharing the arrivals need, so every save but the
-        // window's last ones fills; a fixed 20 ms wait (below the 21 ms the snapshots take) left them part full.
-        saves.dropLast(2).average().assert().isGreaterThan(13.5)
+    }
+
+    @Test
+    fun `a save holds for its fill up to its limit, so every save is full until the callers stop`() {
+        // The appends as Wow's take them, so the snapshots arrive as the callers submit; only the saves are held.
+        val held = WowShape.Options(answer = WowShape.Answer.COMMITTED, saveFill = 15, fillWaitNanos = HOLDING_NANOS)
+        val saves = paced(held, seconds = 2.0)
+        saves.sum().assert().isEqualTo(CALLERS * (2.0 * SLOW_RATE / CALLERS).toInt())
+        // Certain: a save takes no more than its fill and waits seconds for it, far past any pause of the pacing, so no
+        // save holds fewer before the callers stop; then what is left, less than each writer's fill, goes in the tail.
+        val tail = saves.dropWhile { it == 15 }
+        tail.none { it == 15 }.assert().isTrue()
+        tail.sum().assert().isLessThan(2 * 15)
     }
 
     @Test
