@@ -256,3 +256,67 @@ def container_cores(rows, start, end):
         if first is not None and last is not None and last >= first:
             found[name.removeprefix("wow-e2e-bench-")] = (last - first) / 1e6 / (end - start)
     return found
+
+
+def mongo_samples(directory):
+    """The rows of [directory]/mongo-stats.tsv (lib.sh's mongo_stats) as {column: value}, by epoch; empty without."""
+    rows = []
+    try:
+        with open(os.path.join(directory, "mongo-stats.tsv"), encoding="utf-8") as file:
+            names = next(file).rstrip("\n").split("\t")
+            for line in file:
+                values = line.rstrip("\n").split("\t")
+                if len(values) != len(names):
+                    continue
+                try:
+                    rows.append(dict(zip(names, map(float, values))))
+                except ValueError:
+                    continue
+    except (OSError, StopIteration):
+        pass
+    return rows
+
+
+def mongo_waits(rows, start, end):
+    """MongoDB's waits over [start, end] from mongo_samples' rows: each counter's growth a second, the mean journal
+    sync, majority wait, write and transaction latency, and the write tickets in use (mean and max); None without a
+    sample on each side of both edges."""
+    def at(name, epoch):
+        before = [row for row in rows if row["epoch"] <= epoch]
+        after = [row for row in rows if row["epoch"] >= epoch]
+        if not before or not after:
+            return None
+        a, b = before[-1], after[0]
+        if b["epoch"] == a["epoch"]:
+            return a[name]
+        return a[name] + (b[name] - a[name]) * (epoch - a["epoch"]) / (b["epoch"] - a["epoch"])
+
+    if end <= start or not rows:
+        return None
+    grown = {}
+    for name in rows[0]:
+        if name in ("epoch", "write_tickets_out"):
+            continue
+        first, last = at(name, start), at(name, end)
+        if first is None or last is None:
+            return None
+        grown[name] = last - first
+    seconds = end - start
+
+    def mean(total, count, scale=1.0):
+        return grown[total] / grown[count] / scale if grown[count] > 0 else None
+
+    tickets = [row["write_tickets_out"] for row in rows if start <= row["epoch"] <= end and row["write_tickets_out"] >= 0]
+    return {
+        "journalSyncsPerSecond": grown["log_sync"] / seconds,
+        "journalSyncMs": mean("log_sync_time_us", "log_sync", 1000.0),
+        "majorityWaitsPerSecond": grown["wtime_waits"] / seconds,
+        "majorityWaitMs": mean("wtime_ms", "wtime_waits"),
+        "writeLatencyMicros": mean("write_latency_us", "write_ops"),
+        "transactionLatencyMicros": mean("transaction_latency_us", "transaction_ops"),
+        "abortedPerSecond": grown["transactions_aborted"] / seconds,
+        "retriedPerSecond": grown["retried_commands"] / seconds,
+        "writeConflictsPerSecond": grown["write_conflicts"] / seconds,
+        "ticketsMean": sum(tickets) / len(tickets) if tickets else None,
+        "ticketsMax": max(tickets) if tickets else None,
+    }

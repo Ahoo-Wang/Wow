@@ -28,6 +28,10 @@
 #                  and the pids of the JVMs that are neither this benchmark's nor allowed; last, each of the
 #                  benchmark's containers' cumulative CPU (`name=usec`, its cgroup's `usage_usec`), from which
 #                  summarize.py gives each container's cores over a step
+#   mongo-stats.tsv  with the session's MongoDB, its counters every second over the measurement (`mongo_stats`):
+#                  the journal's syncs and their time, the write concern's majority waits and their time, the writes'
+#                  and transactions' operations and latency, the transactions aborted, the retried commands, the write
+#                  conflicts, all cumulative, and the write tickets in use; summarize.py gives each step's waits
 #   jfr/           with STEP_JFR set, a flight recording of each server's measured seconds of each closed-loop step,
 #                  node-<n>-c<clients>.jfr, cut from one recording per server by `jcmd JFR.dump begin=-<step>s` as
 #                  the step's line arrives (nodes.txt maps n to the server's pid and port)
@@ -314,6 +318,34 @@ step_jfr_stop() {
   done <"$out/jfr/nodes.txt"
 }
 
+# With the session's MongoDB, samples its serverStatus into $1/mongo-stats.tsv every second until mongo_stats_stop:
+# one mongosh session for the whole measurement, so no step pays for its start.
+MONGO_STATS=""
+MONGO_STATS_COLUMNS="epoch log_sync log_sync_time_us wtime_waits wtime_ms write_ops write_latency_us transaction_ops"
+MONGO_STATS_COLUMNS="$MONGO_STATS_COLUMNS transaction_latency_us transactions_aborted retried_commands write_conflicts"
+MONGO_STATS_COLUMNS="$MONGO_STATS_COLUMNS write_tickets_out"
+mongo_stats_start() {
+  [ -n "$(docker ps -q --filter name=wow-e2e-bench-mongo)" ] || return 0
+  echo "$MONGO_STATS_COLUMNS" | tr ' ' '\t' >"$1/mongo-stats.tsv"
+  docker exec wow-e2e-bench-mongo mongosh --quiet --eval "while (true) { const s = db.serverStatus(),
+    l = s.wiredTiger.log, w = s.metrics?.getLastError?.wtime ?? {}, lat = s.opLatencies ?? {},
+    x = s.transactions ?? {}, q = s.queues?.execution?.write ?? s.wiredTiger?.concurrentTransactions?.write ?? {};
+    print([Math.floor(Date.now() / 1000), l['log sync operations'], l['log sync time duration (usecs)'], w.num ?? 0,
+      w.totalMillis ?? 0, lat.writes?.ops ?? 0, lat.writes?.latency ?? 0, lat.transactions?.ops ?? 0,
+      lat.transactions?.latency ?? 0, x.totalAborted ?? 0, x.retriedCommandsCount ?? 0,
+      s.metrics?.operation?.writeConflicts ?? 0, q.out ?? -1].map(Number).join('\t')); sleep(1000); }" \
+    >>"$1/mongo-stats.tsv" 2>/dev/null &
+  MONGO_STATS=$!
+}
+
+mongo_stats_stop() {
+  if [ -n "$MONGO_STATS" ]; then
+    kill "$MONGO_STATS" 2>/dev/null
+    wait "$MONGO_STATS" 2>/dev/null
+  fi
+  MONGO_STATS=""
+}
+
 # Each line of the input, stamped with the epoch second it arrives.
 stamp() {
   local line
@@ -329,6 +361,7 @@ measure() {
   pg_statements reset
   host_record "$out/host.txt" begin
   sampler_start "$out/host-load.tsv"
+  mongo_stats_start "$out"
   if [ "$command" = saturate ]; then
     local step argument
     step=30
@@ -340,6 +373,7 @@ measure() {
   "$B" "$command" --reuse "$@" --out="$out" 2>&1 | stamp >"$out/$log"
   local status=${PIPESTATUS[0]}
   step_jfr_stop "$out"
+  mongo_stats_stop
   sampler_stop
   host_record "$out/host.txt" end
   pg_statements "$out/pg-statements.txt"
@@ -470,5 +504,5 @@ curate() {
     --include='saturate.log' --include='run.log' --include='saturation.json' --include='result.json' \
     --include='settle.json' --include='settle.log' --include='summary.md' --include='pg-statements.txt' \
     --include='hot-version.tsv' --include='tables.txt' --include='explain.txt' \
-    --include='allowed-jvms.txt' --exclude='*' "$1/" "$2/"
+    --include='allowed-jvms.txt' --include='mongo-stats.tsv' --exclude='*' "$1/" "$2/"
 }
