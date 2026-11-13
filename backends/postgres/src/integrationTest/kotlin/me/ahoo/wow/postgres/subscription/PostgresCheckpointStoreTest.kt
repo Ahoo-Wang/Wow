@@ -53,15 +53,16 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
-    fun `a batch of checkpoints is one statement batch and one commit`(): Unit = runBlocking {
+    fun `a batch of checkpoints is one transaction and one commit`(): Unit = runBlocking {
         // B.O-5: in autocommit, each upsert of the JDBC batch was a transaction, and a WAL flush, of its own.
         val counted = CountedDataSource(PostgresFixture.dataSource)
         val batched = PostgresCheckpointStore(counted.dataSource)
         val group = "batch-${System.nanoTime()}"
         val mark = counted.begin()
         val commits = counted.commits
+        // Every row is new: the update moves none, the upsert inserts them all.
         batched.saveAll(group, (0 until 8).map { Checkpoint.of("snapshot", it, 10L + it) })
-        counted.since(mark).size.assert().isEqualTo(1)
+        counted.since(mark).size.assert().isEqualTo(2)
         (counted.commits - commits).assert().isEqualTo(1)
         (0 until 8).map { batched.load(group, "snapshot", it) }.assert().isEqualTo((0 until 8).map { 10L + it })
         // A batch moves positions forward only, in one commit again.
@@ -70,6 +71,39 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
         batched.load(group, "snapshot", 0).assert().isEqualTo(99L)
         batched.load(group, "snapshot", 1).assert().isEqualTo(11L)
     }
+
+    @Test
+    fun `a batch of rows that exist and move is one plain update, no upsert`(): Unit = runBlocking {
+        // The common save: every row there and behind. One statement, an update; the upsert's row lock is never taken.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val batched = PostgresCheckpointStore(counted.dataSource)
+        val group = "move-${System.nanoTime()}"
+        batched.saveAll(group, (0 until 64).map { Checkpoint.of("saga", it, 1) })
+        val mark = counted.begin()
+        batched.saveAll(group, (0 until 64).map { Checkpoint.of("saga", it, 2) })
+        counted.since(mark).single().assert().startsWith("UPDATE")
+        (0 until 64).map { batched.load(group, "saga", it) }.assert().allMatch { it == 2L }
+    }
+
+    @Test
+    fun `a row the guard refuses stays, one that is absent is inserted, one behind moves, in one save`(): Unit =
+        runBlocking {
+            // The update moves the row behind; the refused and the absent both take the upsert, which tells them
+            // apart under the row's lock: it inserts the absent and leaves the refused.
+            val counted = CountedDataSource(PostgresFixture.dataSource)
+            val batched = PostgresCheckpointStore(counted.dataSource)
+            val group = "mixed-${System.nanoTime()}"
+            batched.saveAll(group, listOf(Checkpoint.of("s", 0, 5), Checkpoint.of("s", 1, 5)))
+            val mark = counted.begin()
+            batched.saveAll(
+                group,
+                listOf(Checkpoint.of("s", 0, 9), Checkpoint.of("s", 1, 3), Checkpoint.of("s", 2, 4)),
+            )
+            counted.since(mark).map { it.substringBefore(' ') }.assert().containsExactly("UPDATE", "INSERT")
+            batched.load(group, "s", 0).assert().isEqualTo(9L)
+            batched.load(group, "s", 1).assert().isEqualTo(5L)
+            batched.load(group, "s", 2).assert().isEqualTo(4L)
+        }
 
     @Test
     fun `a batch that names a key twice keeps its furthest position`(): Unit = runBlocking {
@@ -88,7 +122,8 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
         val mark = counted.begin()
         val commits = counted.commits
         batched.saveAll(group, (0 until rows).map { Checkpoint.of("large", it, it.toLong()) })
-        counted.since(mark).size.assert().isEqualTo(3)
+        // The update of the rows that exist (none yet), then the upsert in three statements.
+        counted.since(mark).size.assert().isEqualTo(4)
         (counted.commits - commits).assert().isEqualTo(1)
         listOf(0, PostgresCheckpointStore.MAX_ROWS, rows - 1).forEach {
             batched.load(group, "large", it).assert().isEqualTo(it.toLong())

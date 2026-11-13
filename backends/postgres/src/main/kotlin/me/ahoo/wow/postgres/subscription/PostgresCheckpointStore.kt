@@ -103,13 +103,22 @@ class PostgresCheckpointStore(
     }
 
     /**
-     * The upserts [save] makes one by one, as one multi-row upsert in one transaction: one statement, whose round trip
-     * also carries the transaction's bound, and one commit, one WAL flush (in autocommit each upsert of a batch was a
-     * transaction of its own). A key saved twice keeps its furthest position, as one statement may touch a row once.
+     * The upserts [save] makes one by one, in one transaction and one commit, one WAL flush (in autocommit each upsert
+     * of a batch was a transaction of its own). A key saved twice keeps its furthest position, as one statement may
+     * touch a row once.
+     *
+     * The rows that exist are moved first with one plain update ([MOVE]): one key lookup per row, its guard the
+     * upsert's (`position < new`), and no `ON CONFLICT`, whose speculative insert locks each conflicting row and writes
+     * that lock to the WAL (41% of a checkpoint row's WAL on a busy node, its update being HOT). That is every row of a
+     * save but a subscription's first in a partition. The update says which rows it moved; the others are either
+     * absent or refused by the guard (a position not ahead of the stored one), and only they take the upsert
+     * ([saveRows]), which inserts the absent and, its guard checked again under the row's lock, leaves the refused as
+     * they are, or moves one that a concurrent save inserted meanwhile.
+     *
      * The rows go in key order, so two batches touching the same rows lock them in the same order and never wait on
-     * each other in a cycle; past [MAX_ROWS] they are split into several statements of the one transaction. A failed
-     * batch commits none of them, and the caller saves them again, as it saves any batch that failed: each upsert only
-     * moves a position forward.
+     * each other in a cycle; past [MAX_ROWS] the upserts are split into several statements of the one transaction. A
+     * failed batch commits none of them, and the caller saves them again, as it saves any batch that failed: each
+     * statement only moves a position forward.
      */
     override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
         if (checkpoints.isEmpty()) {
@@ -126,7 +135,8 @@ class PostgresCheckpointStore(
         val rows = checkpoints.groupBy { it.subscription to it.partition }.values
             .map { same -> same.maxBy { it.position } }
             .sortedWith(compareBy({ it.subscription }, { it.partition }))
-        rows.chunked(MAX_ROWS).forEach { chunk ->
+        val moved = move(connection, group, rows)
+        rows.filterNot { (it.subscription to it.partition) in moved }.chunked(MAX_ROWS).forEach { chunk ->
             connection.prepareStatement(saveRows(chunk.size)).use { save ->
                 chunk.forEachIndexed { at, checkpoint ->
                     val first = at * COLUMNS
@@ -139,6 +149,18 @@ class PostgresCheckpointStore(
             }
         }
     }
+
+    /** Moves the rows of [rows] that exist and are behind, with one update; the keys it moved. */
+    private fun move(connection: Connection, group: String, rows: List<Checkpoint>): Set<Pair<String, Int>> =
+        connection.prepareStatement(MOVE).use { update ->
+            update.setArray(1, connection.createArrayOf("text", rows.map { it.subscription }.toTypedArray()))
+            update.setArray(2, connection.createArrayOf("integer", rows.map { it.partition }.toTypedArray()))
+            update.setArray(3, connection.createArrayOf("bigint", rows.map { it.position }.toTypedArray()))
+            update.setString(4, group)
+            update.executeQuery().use { moved ->
+                buildSet { while (moved.next()) add(moved.getString(1) to moved.getInt(2)) }
+            }
+        }
 
     internal companion object {
         const val TABLE = "wow_checkpoint"
@@ -163,6 +185,18 @@ class PostgresCheckpointStore(
         const val LIST_OF = "SELECT partition, position FROM $TABLE WHERE subscription_group = ? AND subscription = ?"
 
         val SAVE = rowsSql(1)
+
+        /**
+         * Moves the rows of a batch that exist and are behind, the batch given as three arrays in key order, and
+         * returns the keys it moved: one lookup of the key a row, as a plain update, no lock beyond the update's.
+         */
+        val MOVE = """
+            UPDATE $TABLE AS c SET position = v.position
+            FROM unnest(?::text[], ?::integer[], ?::bigint[]) AS v(subscription, partition, position)
+            WHERE c.subscription_group = ? AND c.subscription = v.subscription AND c.partition = v.partition
+                AND c.position < v.position
+            RETURNING c.subscription, c.partition
+        """.trimIndent()
 
         /** The parameters of one row of [saveRows]. */
         private const val COLUMNS = 4
