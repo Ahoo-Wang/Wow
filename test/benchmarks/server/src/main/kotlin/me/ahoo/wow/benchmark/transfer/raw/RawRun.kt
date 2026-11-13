@@ -309,10 +309,10 @@ class Aggregates(private val versions: IntArray, index: Int, of: Int) {
     }
 
     companion object {
-        const val ID_PREFIX = "raw-"
-        const val ID_DIGITS = 32
+        const val ID_PREFIX = "acc-"
+        const val ID_DIGITS = 7
 
-        /** Aggregate number [number]'s id: as long as Wow's own (a UUID's 36 characters), in the numbers' order. */
+        /** Aggregate number [number]'s id, of the load generator's form (`acc-`, seven digits), as Wow's run has. */
         fun idOf(number: Int): String = ID_PREFIX + number.toString().padStart(ID_DIGITS, '0')
     }
 

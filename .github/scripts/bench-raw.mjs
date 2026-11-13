@@ -39,7 +39,7 @@ export function rawSuites(HEAD_PG, HEAD_MONGO) {
       measure: 'raw',
       arms: [HEAD_PG],
       answers:
-        "What PostgreSQL alone does with the writes Wow asks of it, and with the shapes that price a candidate: Wow's tables cloned and written with rows of Wow's own commits through the driver alone. Today's shape, first on Wow's ground as the calibration (WAL records, commits, bytes and the HOT share per command against Wow's own, full-page images apart), the append alone, the snapshot upsert alone at 4, 10 and 25 rows a statement, synchronous and not, at fillfactor 100 and 80 (P0, P1), the append and its snapshots in one synchronous transaction against today's split at one rate (P2), and a point read; per case, units a second, the store's CPU, WAL bytes, syncs and commits per unit, and the HOT share of the snapshot updates.",
+        "What PostgreSQL alone does with the writes Wow asks of it, and with the shapes that price a candidate: Wow's tables cloned and written with rows of Wow's own commits through the driver alone. Today's shape, first on Wow's ground (its rows, rate and batch shape) as the calibration (WAL records, bytes and the HOT share per command against Wow's own, full-page images and commits apart), the append alone, the snapshot upsert alone at 4, 10 and 25 rows a statement, synchronous and not, at fillfactor 100 and 80 (P0, P1), the append and its snapshots in one synchronous transaction against today's split at one rate (P2), and a point read; per case, units a second, the store's CPU, WAL bytes, syncs and commits per unit, and the HOT share of the snapshot updates.",
     },
     'raw-mongo': {
       group: 'raw',
@@ -47,7 +47,7 @@ export function rawSuites(HEAD_PG, HEAD_MONGO) {
       measure: 'raw',
       arms: [HEAD_MONGO],
       answers:
-        "What MongoDB alone does with the writes Wow asks of it, as raw-pg: today's shape, first on Wow's ground as the calibration (inserts, updates, journal and oplog bytes per command against Wow's own), the log's insertMany alone, the snapshot update in each shape its store cost is priced in (M0 today's pipeline, M1 a modifier $set, M2 with $setOnInsert, M3 replaceOne) at 4, 10 and 25 a bulkWrite with the domain's state and a 4 KB one, and the log's insert and its snapshots in one multi-document transaction beside the same calls back to back, each step on a pool of its connections; per update, mongod's CPU, its write latency (latencyStats), journal and oplog bytes.",
+        "What MongoDB alone does with the writes Wow asks of it, as raw-pg: today's shape, first on Wow's ground as the calibration (inserts, updates, journal and oplog bytes per command against Wow's own, its node's checkpoint and lease updates left out), the log's insertMany alone, the snapshot update in each shape its store cost is priced in (M0 today's pipeline, M1 a modifier $set, M2 with $setOnInsert, M3 replaceOne) at 4, 10 and 25 a bulkWrite with the domain's state and a 4 KB one, and the log's insert and its snapshots in one multi-document transaction beside the same calls back to back, each step on a pool of its connections; per update, mongod's CPU, its write latency (latencyStats), journal and oplog bytes.",
     },
   };
 }

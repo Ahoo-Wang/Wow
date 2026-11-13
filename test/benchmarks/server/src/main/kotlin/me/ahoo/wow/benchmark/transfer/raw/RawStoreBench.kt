@@ -21,6 +21,7 @@ import me.ahoo.wow.benchmark.transfer.TransferServer
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 import java.io.File
+import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
 /**
@@ -36,10 +37,12 @@ import kotlin.system.exitProcess
  * throughput, so they compare at one rate. `--cases` keeps the cases whose name starts with one of its prefixes.
  *
  * The calibration leads raw.json: today's shape on Wow's ground (as many aggregates as Wow's run, every one written
- * since the checkpoint, at its concurrency) against Wow's own counters per command, each within its bound: WAL
- * records, commits, bytes and the HOT share on PostgreSQL; inserts, updates, journal and oplog bytes on MongoDB. Full
- * page images and commands are reported apart. A run that fails it or cannot take it says so first, and none of its
- * cases is read; nor is a step with a failed or refused write. raw.json goes to `--out`, with the store's version and
+ * since the checkpoint, at its concurrency, paced at its throughput, in its batch shape from its statements per
+ * command) against Wow's own counters per command, each within its bound: WAL records, bytes and the HOT share on
+ * PostgreSQL; inserts, updates, journal and oplog bytes on MongoDB, Wow's without its node's checkpoint and lease
+ * updates, which the clone does not write. Reported apart: full-page images and commits on PostgreSQL (its commit
+ * counter counts the transactions Wow's node only reads in), commands on MongoDB. A run that fails it or cannot take
+ * it says so first, and none of its cases is read; nor is a step with a failed or refused write. raw.json goes to `--out`, with the store's version and
  * durability settings and the run's batch parameters.
  *
  * Run it on the install's class path with main class `RawStoreBenchKt`; bench.sh's `measure --program=raw` does.
@@ -191,7 +194,8 @@ private fun seed(
     // Wow's own statements per deposit, by statement (ComponentRun's count), beside the store's counters.
     val statements = (component["storeRoundTripsByCommand"] as Map<*, *>?).orEmpty()
         .mapNotNull { (key, value) -> (value as? Number)?.let { "statements: $key" to it.toDouble() } }
-    return after.mapValues { (key, value) -> (value - (before[key] ?: value)) / ops } + statements
+    val rate = (component["throughput"] as? Number)?.let { mapOf(WOW_RATE to it.toDouble()) }.orEmpty()
+    return after.mapValues { (key, value) -> (value - (before[key] ?: value)) / ops } + statements + rate
 }
 
 /** The calibration's connections: Wow's run's concurrency. */
@@ -222,12 +226,13 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
                 override fun close() = connection.close()
             }
         }.also(::print)
-    val today = cases.first { it.case.name == RawPostgres.WOW_TODAY }
+    val (logBatch, snapshotBatch) = shapeOf(wow, PG_APPENDS, PG_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
+    val today = raw.cases(logBatch, snapshotBatch, settings.batches).first { it.case.name == RawPostgres.WOW_TODAY }
     raw.prepare(today.fillfactor, settings.templates)
     val calibrating = step(
         RawPostgres.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.fillfactor, today.flush),
         CALIBRATION_CONNECTIONS,
-        Pace(settings.timing),
+        Pace(settings.timing, wow[WOW_RATE]),
         opened(settings.templates),
     )
     val steps = mutableListOf(calibrating)
@@ -245,11 +250,19 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
             steps += step(case, split.connections, pace, opened(settings.aggregates))
         }
     }
-    // Wow's HOT share, of its snapshot table's updates per command.
+    return RawResult(
+        calibrationOf(POSTGRES_CHECKS, listOf("walFpi", "commits"), postgresWow(wow), calibrating),
+        raw.settings(),
+        steps
+    )
+}
+
+/** Wow's PostgreSQL counters per command as the calibration reads them: with its snapshot table's HOT share. */
+private fun postgresWow(wow: Map<String, Double>): Map<String, Double> {
     val table = RawPostgres.SNAPSHOT
-    val wowHot = (wow["$table updates"] ?: 0.0).takeIf { it > 0 }
+    val hot = (wow["$table updates"] ?: 0.0).takeIf { it > 0 }
         ?.let { mapOf("hotShare" to (wow["$table hot updates"] ?: 0.0) / it) }.orEmpty()
-    return RawResult(calibrationOf(POSTGRES_CHECKS, listOf("walFpi"), wow + wowHot, calibrating), raw.settings(), steps)
+    return wow + hot
 }
 
 private fun mongo(settings: RawSettings, options: Map<String, String>): RawResult =
@@ -261,9 +274,9 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         raw.loadTemplates(settings.templates)
         val cpu = ContainerCpu(settings.container)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
-        fun step(case: RawMongo.Case, connections: Int, versions: IntArray): RawStep =
+        fun step(case: RawMongo.Case, connections: Int, versions: IntArray, pace: Pace = Pace(settings.timing)) =
             raw.client(connections).use { client ->
-                runStep(case.case, connections, Pace(settings.timing), cpu, raw::counters, raw::ratios) { index ->
+                runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
                     val writer = raw.writer(client, case.case)
                     val owned = Aggregates(versions, index, connections)
                     object : RawWorker {
@@ -272,12 +285,14 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                     }
                 }.copy(pool = connections)
             }.also(::print)
-        val today = cases.first { it.case.name == RawMongo.WOW_TODAY }
+        val shape = shapeOf(wow, MONGO_APPENDS, MONGO_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
+        val today = raw.cases(shape.first, shape.second, settings.batches).first { it.case.name == RawMongo.WOW_TODAY }
         raw.prepare(settings.templates, today.bigState)
         val calibrating = step(
             RawMongo.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.bigState, today.flush),
             CALIBRATION_CONNECTIONS,
             opened(settings.templates),
+            Pace(settings.timing, wow[WOW_RATE]),
         )
         val steps = mutableListOf(calibrating)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
@@ -285,8 +300,23 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
             val versions = opened(settings.aggregates)
             settings.connections.forEach { steps += step(case, it, versions) }
         }
-        RawResult(calibrationOf(MONGO_CHECKS, listOf("commands"), wow, calibrating), raw.settings(), steps)
+        // Wow's updates without its node's own (checkpoints, leases), which the clone does not write.
+        val own = wow.filterKeys { it.endsWith(" update") && ".wow_" in it && "__" !in it }.values.sum()
+        val updates = wow["updates"]?.let { mapOf("updates" to it - own) }.orEmpty()
+        RawResult(calibrationOf(MONGO_CHECKS, listOf("commands"), wow + updates, calibrating), raw.settings(), steps)
     }
+
+/**
+ * Wow's batch shape in its own run, from its statements per command: the commands an append took (the statement
+ * [append]) and the snapshots a save took of them (the statement [save]); null when its run did not count them.
+ */
+fun shapeOf(wow: Map<String, Double>, append: String, save: String): Pair<Int, Int>? {
+    val appends = wow["statements: $append"]?.takeIf { it > 0 } ?: return null
+    val saves = wow["statements: $save"]?.takeIf { it > 0 } ?: return null
+    val logBatch = (1 / appends).roundToInt().coerceAtLeast(1)
+    val groups = (logBatch * saves).roundToInt().coerceIn(1, logBatch)
+    return logBatch to (logBatch + groups - 1) / groups
+}
 
 /**
  * The calibration: each of [checks]' metrics per command of Wow's own run ([wow], every counter's) against the
@@ -316,11 +346,15 @@ private const val DEPOSITS = 4
 private const val SETTLE_MILLIS = 2_000L
 private const val SHARE = 0.10
 private const val WOW_GROUND = "today on Wow's ground: the calibration"
+private const val WOW_RATE = "wowCommandsPerSecond"
+private const val PG_APPENDS = "statement with wow_log__transfer__account"
+private const val PG_SAVES = "statement set wow_snapshot__transfer__account"
+private const val MONGO_APPENDS = "insert"
+private const val MONGO_SAVES = "update"
 
-/** PostgreSQL's checks: WAL records, commits and bytes within 10%, the HOT share within 0.10. */
+/** PostgreSQL's checks: WAL records and bytes within 10%, the HOT share within 0.10. */
 private val POSTGRES_CHECKS = listOf(
     "walRecords" to RawCheck.Bound(share = SHARE),
-    "commits" to RawCheck.Bound(share = SHARE),
     "walBytes" to RawCheck.Bound(share = SHARE),
     "hotShare" to RawCheck.Bound(absolute = SHARE),
 )

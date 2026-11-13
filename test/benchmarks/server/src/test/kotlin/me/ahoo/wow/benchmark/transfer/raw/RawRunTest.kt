@@ -48,10 +48,7 @@ class RawRunTest {
         List(4) { first.next().number }.assert().containsExactly(0, 3, 6, 9)
         Aggregates(versions, 1, 3).take(2).map { it.number to it.version }.assert().containsExactly(1 to 2, 4 to 2)
         Aggregates(versions, 1, 2).take(1).single().assert().isEqualTo(Aggregates.Command(1, 3))
-        Aggregates.idOf(42).apply {
-            length.assert().isEqualTo(36)
-            assert().isEqualTo("raw-00000000000000000000000000000042")
-        }
+        Aggregates.idOf(42).assert().isEqualTo("acc-0000042")
         assertThrows<IllegalArgumentException> { Aggregates(IntArray(2), 5, 6) }
     }
 
@@ -104,6 +101,17 @@ class RawRunTest {
         RawCalibration(checks, read = false).passed.assert().isFalse()
         RawCalibration(emptyList()).passed.assert().isFalse()
         RawCalibration(checks + RawCheck("walRecords", 10.0, 13.0, share)).passed.assert().isFalse()
+    }
+
+    @Test
+    fun `the calibration's batch shape is Wow's, from its statements per command`() {
+        val wow = mapOf("statements: append" to 0.0707, "statements: save" to 0.2205)
+        shapeOf(wow, "append", "save").assert().isEqualTo(14 to 5)
+        shapeOf(mapOf("statements: append" to 0.0678, "statements: save" to 0.1325), "append", "save")
+            .assert().isEqualTo(15 to 8)
+        shapeOf(mapOf("statements: append" to 2.0, "statements: save" to 5.0), "append", "save")
+            .assert().isEqualTo(1 to 1)
+        shapeOf(wow, "append", "missing").assert().isNull()
     }
 
     @Test
