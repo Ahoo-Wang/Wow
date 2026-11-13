@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
@@ -38,26 +40,49 @@ import kotlin.coroutines.ContinuationInterceptor
  * ([NodePeers.wowForwardedHeadersFilter]) and a `coRouter` handler, as Wow's routes are: the request's configured
  * headers, by their configured names, in the [ForwardedHeaders] of the handler's coroutine context, which
  * [UserCredential.FORWARDED] reads; none, and no element, for a request without them. A filter after it that runs in a
- * coroutine (`CoWebFilter`) sees the same element.
+ * coroutine (`CoWebFilter`) sees the same element, and so does an application's annotated controller with a suspend
+ * handler, which Spring starts from the same context (`InvocableHandlerMethod`).
  */
 class ForwardedHeadersFilterTest {
     /** What a handler, and a coroutine filter after Wow's, see of the request's forwarded headers. */
-    private class Seen {
+    class Seen {
         var handler: Map<String, String>? = null
         var credential: Map<String, String>? = null
         var dispatcher: String? = null
         var laterFilter: Map<String, String>? = null
     }
 
-    private fun client(names: List<String>, seen: Seen): WebTestClient {
-        val properties = WowProperties().apply { peer.forwardedHeaders = names.toMutableList() }
-        val filter: WebFilter = NodePeers().wowForwardedHeadersFilter(properties)
-        val later = object : CoWebFilter() {
-            override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
-                seen.laterFilter = currentCoroutineContext()[ForwardedHeaders]?.headers
-                chain.filter(exchange)
-            }
+    /** An application's own controller, annotated, with a suspend handler that would call a user-mode client. */
+    @RestController
+    class ProbeController(private val seen: Seen) {
+        @GetMapping("/probe")
+        suspend fun probe(): String {
+            val context = currentCoroutineContext()
+            seen.handler = context[ForwardedHeaders]?.headers
+            seen.credential = UserCredential.FORWARDED.headers(Caller.ANONYMOUS)
+            seen.dispatcher = context[ContinuationInterceptor].toString()
+            return "ok"
         }
+    }
+
+    private fun filter(names: List<String>): WebFilter {
+        val properties = WowProperties().apply { peer.forwardedHeaders = names.toMutableList() }
+        return NodePeers().wowForwardedHeadersFilter(properties)
+    }
+
+    private fun laterFilter(seen: Seen): WebFilter = object : CoWebFilter() {
+        override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
+            seen.laterFilter = currentCoroutineContext()[ForwardedHeaders]?.headers
+            chain.filter(exchange)
+        }
+    }
+
+    private fun controllerClient(names: List<String>, seen: Seen): WebTestClient =
+        WebTestClient.bindToController(ProbeController(seen))
+            .webFilter<WebTestClient.ControllerSpec>(filter(names), laterFilter(seen))
+            .build()
+
+    private fun client(names: List<String>, seen: Seen): WebTestClient {
         val routes = coRouter {
             GET("/probe") {
                 val context = currentCoroutineContext()
@@ -68,7 +93,7 @@ class ForwardedHeadersFilterTest {
             }
         }
         return WebTestClient.bindToRouterFunction(routes)
-            .webFilter<WebTestClient.RouterFunctionSpec>(filter, later)
+            .webFilter<WebTestClient.RouterFunctionSpec>(filter(names), laterFilter(seen))
             .build()
     }
 
@@ -108,6 +133,29 @@ class ForwardedHeadersFilterTest {
         seen.credential.assert().isEqualTo(emptyMap<String, String>())
         seen.laterFilter.assert().isNull()
         // The handler's coroutine runs as coRouter starts it with no context of a filter's: unconfined.
+        seen.dispatcher.assert().isEqualTo("Dispatchers.Unconfined")
+    }
+
+    @Test
+    fun `an annotated controller's suspend handler should read the forwarded credential`() {
+        val seen = Seen()
+        controllerClient(listOf("Authorization", "CoSec-App-Id"), seen).get().uri("/probe")
+            .header("Authorization", "Bearer alice")
+            .header("CoSec-App-Id", "shop")
+            .exchange().expectStatus().isOk
+        seen.handler.assert().isEqualTo(mapOf("Authorization" to "Bearer alice", "CoSec-App-Id" to "shop"))
+        seen.credential.assert().isEqualTo(seen.handler)
+        seen.laterFilter.assert().isEqualTo(seen.handler)
+        seen.dispatcher.assert().isEqualTo("Dispatchers.Unconfined")
+    }
+
+    @Test
+    fun `an annotated controller's suspend handler should read nothing for a request without them`() {
+        val seen = Seen()
+        controllerClient(listOf("Authorization"), seen).get().uri("/probe").exchange().expectStatus().isOk
+        seen.handler.assert().isNull()
+        seen.credential.assert().isEqualTo(emptyMap<String, String>())
+        seen.laterFilter.assert().isNull()
         seen.dispatcher.assert().isEqualTo("Dispatchers.Unconfined")
     }
 
