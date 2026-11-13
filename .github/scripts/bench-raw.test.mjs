@@ -4,6 +4,9 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { SUITES } from './bench.mjs';
 import {
@@ -14,7 +17,9 @@ import {
   rawAnomalies,
   rawArgs,
   rawCpus,
+  rawLayoutText,
   rawTable,
+  runRaw,
   renderRaw,
   settingsText,
 } from './bench-raw.mjs';
@@ -310,6 +315,9 @@ test("a raw run's store is on the CPUs its paired suites give it: mongod alone, 
     rawArgs({ backend: 'mongo' }, {}, measured, '/out').includes(
       '--store-cpus=1',
     ),
+  );
+});
+
 test("the calibration says Wow's node time around a call is why the model's own shape is not Wow's", () => {
   const apart = [
     { metric: 'appendCallMs', wowPerCommand: 3.5, rawPerCommand: 2.3 },
@@ -335,4 +343,26 @@ test("the calibration says Wow's node time around a call is why the model's own 
     calibrationText({ calibration: { checks: [], apart, passed: true } }),
     /node time around each append call/,
   );
+});
+
+test('a raw suite records and prints the CPUs its runs had, not the measure layout it was given', () => {
+  const suite = { cpus: { load: '3', server: '0-2' }, runs: [], failures: 0 };
+  runRaw(SUITES['raw-mongo'], suite, {
+    benchPath: '/bin/false',
+    out: mkdtempSync(join(tmpdir(), 'raw-')),
+    cpuset: suite.cpus,
+    arms: SUITES['raw-mongo'].arms,
+    installs: {},
+    save: () => {},
+  });
+  assert.deepEqual(suite.cpus, { load: '3', store: '1', server: '0,2' });
+  assert.equal(
+    rawLayoutText(suite.cpus),
+    "CPUs: the program on 0,2, the store on 1 alone, 3 idle (the generator's).",
+  );
+  assert.equal(
+    rawLayoutText({ load: '3', server: '0-1' }),
+    "CPUs: the program on 0-1, the store with the program, 3 idle (the generator's).",
+  );
+  assert.equal(rawLayoutText(undefined), 'CPUs: unpinned.');
 });
