@@ -164,3 +164,32 @@ test('outside a git repository the tree is unknown with changes, and no helper e
   assert.equal(result.stdout, 'commit=unknown dirty=yes\nunstamped\n');
   assert.equal(existsSync(join(dir, 'out')), true);
 });
+
+test("a reused run names the server build its session's up started, not one built since", () => {
+  const repo = repository();
+  const head = git(repo, 'rev-parse', 'HEAD');
+  stamped(repo, SERVER, head);
+  stamped(repo, LOAD, head);
+  const session = join(repo, 'out', 'session');
+  // `up` writes its session's line while its servers run this build.
+  assert.equal(
+    run(repo, `session_builds > ${JSON.stringify(session)}`).status,
+    0,
+  );
+  // A rebuild after `up`, of another commit: the session's servers still run the first.
+  stamped(repo, SERVER, 'c'.repeat(40));
+  const reused = run(repo, `. ${JSON.stringify(session)}; record_installs`);
+  assert.equal(reused.status, 0, reused.stderr);
+  assert.equal(
+    readFileSync(join(repo, 'out', 'install.txt'), 'utf8'),
+    `server=commit=${head} dirty=no\nload=commit=${head} dirty=no\n`,
+  );
+  assert.match(reused.stderr, new RegExp(`server build ${head.slice(0, 10)},`));
+  const fresh = run(repo, 'record_installs');
+  assert.match(
+    readFileSync(join(repo, 'out', 'install.txt'), 'utf8'),
+    /^server=commit=c{40} dirty=no\n/,
+    'a run without a session names the install as it is',
+  );
+  assert.equal(fresh.status, 0);
+});

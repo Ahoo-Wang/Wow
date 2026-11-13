@@ -314,11 +314,12 @@ setup() {
   # A session's servers run the build `up` started (resume); a new run's installs are this tree's build (stamp.sh).
   if [ "$(opt reuse false)" != true ]; then fresh_installs; fi
   if [ ! -x "$LOAD" ]; then build; fi
-  record_installs
   if [ "$(opt reuse false)" = true ]; then
     resume
+    record_installs
     return
   fi
+  record_installs
   # Everything started here stops when the script ends, also for `up` until its session is written, so an `up`
   # that fails leaves no server behind.
   trap down EXIT
@@ -394,6 +395,7 @@ setup() {
       printf 'S_STORE=%q\n' "$store"
       printf 'S_META=%q\n' "$META"
       printf 'S_JFR=%q\n' "$(opt jfr false)"
+      session_builds
       printf 'S_OUT=%q\n' "$OUT"
     } >"$SESSION"
   fi

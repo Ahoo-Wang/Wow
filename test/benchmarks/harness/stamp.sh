@@ -19,7 +19,8 @@
 # tree: built from another commit, from a tree with changes, unstamped or missing, they are rebuilt, so a run measures
 # the tree it runs from. On CI (CI set) the builds are the workflow's: a stamp of another commit stops the run, and an
 # unstamped one (a build older than the stamp) is only named. Every run names its server's and load generator's stamps
-# in its log and in <out>/install.txt, which the abba table and the suites' summaries print. Every helper answers
+# in its log and in <out>/install.txt, which the abba table and the suites' summaries print; a reused run names the
+# server build its session's `up` started. Every helper answers
 # rather than fails: bench.sh runs under `set -euo pipefail`.
 
 STAMP_FILE=wow-build-stamp
@@ -80,11 +81,15 @@ fresh_installs() {
   fi
 }
 
-# Names the builds the run measures with: the server's (its --install's, or this tree's) and the load generator's
-# stamps, in the log and in $OUT/install.txt (`server=<stamp>`, `load=<stamp>`).
+# The session file's line of the server build `up` started (S_SERVER_BUILD), which a reused run names.
+session_builds() { printf 'S_SERVER_BUILD=%q\n' "$(install_stamp "$(opt install "$SERVER_INSTALL")")"; }
+
+# Names the builds the run measures with: the server's and the load generator's stamps, in the log and in
+# $OUT/install.txt (`server=<stamp>`, `load=<stamp>`). The server's is its --install's or this tree's; on a reused
+# session, the build its `up` started (S_SERVER_BUILD, resume reads it), whatever was built since.
 record_installs() {
   local server load
-  server=$(install_stamp "$(opt install "$SERVER_INSTALL")")
+  server=${S_SERVER_BUILD:-$(install_stamp "$(opt install "$SERVER_INSTALL")")}
   load=$(install_stamp "$LOAD_INSTALL")
   printf 'server=%s\nload=%s\n' "$server" "$load" >"$OUT/install.txt"
   log "server build $(stamp_text "$server"), load generator $(stamp_text "$load")"
