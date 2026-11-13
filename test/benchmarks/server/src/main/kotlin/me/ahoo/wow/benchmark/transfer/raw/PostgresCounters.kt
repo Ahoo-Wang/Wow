@@ -26,7 +26,7 @@ class PostgresCounters(private val connect: () -> Connection) {
         connection.createStatement().use { s ->
             s.executeQuery(
                 "SELECT w.wal_bytes, w.wal_records, w.wal_fpi, w.wal_sync, w.wal_sync_time, d.xact_commit, " +
-                    "coalesce(t.n_tup_upd, 0), coalesce(t.n_tup_hot_upd, 0), " +
+                    "coalesce(t.n_tup_upd, 0), coalesce(t.n_tup_hot_upd, 0), coalesce(t.n_tup_newpage_upd, 0), " +
                     "(pg_current_wal_insert_lsn() - '0/0'::pg_lsn)::float8 " +
                     "FROM pg_stat_wal w CROSS JOIN pg_stat_database d " +
                     "LEFT JOIN pg_stat_user_tables t " +
@@ -43,7 +43,8 @@ class PostgresCounters(private val connect: () -> Connection) {
                     "commits" to r.getDouble(6),
                     "snapshotUpdates" to r.getDouble(7),
                     "snapshotHotUpdates" to r.getDouble(8),
-                    WAL_POSITION to r.getDouble(9),
+                    NEW_PAGE_UPDATES to r.getDouble(9),
+                    WAL_POSITION to r.getDouble(10),
                 )
             }
         }
@@ -53,7 +54,7 @@ class PostgresCounters(private val connect: () -> Connection) {
     fun tables(): Map<String, Double> = connect().use { connection ->
         connection.createStatement().use { s ->
             s.executeQuery(
-                "SELECT relname, n_tup_ins, n_tup_upd, n_tup_hot_upd, n_tup_del FROM pg_stat_user_tables " +
+                "SELECT relname, n_tup_ins, n_tup_upd, n_tup_hot_upd, n_tup_del, n_tup_newpage_upd FROM pg_stat_user_tables " +
                     "WHERE schemaname = current_schema() AND relname LIKE 'wow\\_%'",
             ).use { r ->
                 buildMap {
@@ -63,6 +64,7 @@ class PostgresCounters(private val connect: () -> Connection) {
                         put("$table updates", r.getDouble(3))
                         put("$table hot updates", r.getDouble(4))
                         put("$table deletes", r.getDouble(5))
+                        put("$table new page updates", r.getDouble(6))
                     }
                 }
             }
@@ -72,7 +74,14 @@ class PostgresCounters(private val connect: () -> Connection) {
     /** The share of the snapshot table's updates that were HOT, from the counters' growth. */
     fun ratios(growth: Map<String, Double>): Map<String, Double> {
         val updates = growth["snapshotUpdates"] ?: 0.0
-        return if (updates > 0) mapOf("hotShare" to (growth["snapshotHotUpdates"] ?: 0.0) / updates) else emptyMap()
+        return if (updates > 0) {
+            mapOf(
+                HOT_SHARE to (growth["snapshotHotUpdates"] ?: 0.0) / updates,
+                NEW_PAGE_SHARE to (growth[NEW_PAGE_UPDATES] ?: 0.0) / updates,
+            )
+        } else {
+            emptyMap()
+        }
     }
 
     /**
@@ -112,6 +121,53 @@ class PostgresCounters(private val connect: () -> Connection) {
         }
     }
 
+    /**
+     * Watches how far back open transactions hold the store's horizon while a window runs, a diagnostic of the HOT
+     * share (a dead row version an open snapshot may still see is not pruned, so its page's space is not freed for the
+     * next update): every SAMPLE_MILLIS, the oldest backend_xmin's age in transactions and the longest-open
+     * transaction holding one, in this database and besides the watcher's own. The returned stop gives their means and
+     * maxima over the window (XMIN_METRICS).
+     */
+    fun watch(): () -> Map<String, Double> {
+        val ages = ArrayList<Double>()
+        val holds = ArrayList<Double>()
+        val stopping = java.util.concurrent.atomic.AtomicBoolean()
+        val sampler = Thread.ofPlatform().name("raw-xmin").start {
+            runCatching {
+                connect().use { connection ->
+                    connection.prepareStatement(HORIZON).use { statement ->
+                        while (!stopping.get()) {
+                            statement.executeQuery().use { r ->
+                                r.next()
+                                synchronized(ages) {
+                                    ages += r.getDouble(1)
+                                    holds += r.getDouble(2)
+                                }
+                            }
+                            Thread.sleep(SAMPLE_MILLIS)
+                        }
+                    }
+                }
+            }
+        }
+        return {
+            stopping.set(true)
+            sampler.join()
+            synchronized(ages) {
+                if (ages.isEmpty()) {
+                    emptyMap()
+                } else {
+                    mapOf(
+                        XMIN_AGE_MEAN to ages.average(),
+                        XMIN_AGE_MAX to ages.max(),
+                        XMIN_HOLD_MS_MEAN to holds.average(),
+                        XMIN_HOLD_MS_MAX to holds.max(),
+                    )
+                }
+            }
+        }
+    }
+
     /** The server's version and the settings a ceiling is quoted with. */
     fun settings(): Map<String, Any?> = connect().use { connection ->
         connection.createStatement().use { s ->
@@ -125,6 +181,25 @@ class PostgresCounters(private val connect: () -> Connection) {
     }
 
     companion object {
+        /** The horizon's diagnostics ([watch]): the oldest xmin's age and the longest hold, mean and maximum. */
+        const val XMIN_AGE_MEAN = "xminAgeMean"
+        const val XMIN_AGE_MAX = "xminAgeMax"
+        const val XMIN_HOLD_MS_MEAN = "xminHoldMsMean"
+        const val XMIN_HOLD_MS_MAX = "xminHoldMsMax"
+        val XMIN_METRICS = listOf(XMIN_AGE_MEAN, XMIN_AGE_MAX, XMIN_HOLD_MS_MEAN, XMIN_HOLD_MS_MAX)
+        private const val SAMPLE_MILLIS = 100L
+        private val HORIZON = """
+            SELECT coalesce(max(age(backend_xmin)), 0),
+                coalesce(max(extract(epoch FROM clock_timestamp() - xact_start) * 1000)
+                    FILTER (WHERE backend_xmin IS NOT NULL), 0)
+            FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()
+        """.trimIndent()
+
+        /** The snapshot table's updates its new version went to another page for, and their share of its updates. */
+        const val NEW_PAGE_UPDATES = "snapshotNewPageUpdates"
+        const val NEW_PAGE_SHARE = "newPageShare"
+        const val HOT_SHARE = "hotShare"
+
         /** The WAL's insert position in bytes, among the counters: a step's growth leaves it out. */
         const val WAL_POSITION = "walPosition"
         private const val LOW_BITS = 32

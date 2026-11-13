@@ -4,16 +4,22 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { SUITES } from './bench.mjs';
 import {
   RAW,
   calibrationText,
+  nodeTimeText,
   ceilingText,
   rawAnomalies,
   rawArgs,
   rawCpus,
+  rawLayoutText,
   rawTable,
+  runRaw,
   renderRaw,
   settingsText,
 } from './bench-raw.mjs';
@@ -310,4 +316,56 @@ test("a raw run's store is on the CPUs its paired suites give it: mongod alone, 
       '--store-cpus=1',
     ),
   );
+});
+
+test("the calibration says Wow's longer append calls are why the model's own shape is not Wow's, without calling it all node time", () => {
+  const apart = [
+    { metric: 'appendCallMs', wowPerCommand: 14.1, rawPerCommand: 1.14 },
+    { metric: 'appendRoundTripMs', wowPerCommand: 7.1, rawPerCommand: 1.11 },
+    {
+      metric: 'uncapped appendsPerCommand',
+      wowPerCommand: 1 / 6,
+      rawPerCommand: 1 / 2,
+    },
+  ];
+  const text = nodeTimeText({ apart });
+  assert.match(
+    text,
+    /Wow's call 14\.10 ms, its statement 7\.10 ms and 7\.00 ms around it in the node; the model's 1\.14 ms, 1\.11 ms and 0\.03 ms/,
+  );
+  assert.match(
+    text,
+    /share CPUs, both parts include each waiting for the other's/,
+  );
+  assert.match(
+    text,
+    /Wow's appends carry 6(\.0)? commands and the model's 2(\.0)?\./,
+  );
+  assert.equal(nodeTimeText({ apart: apart.slice(1) }), '');
+  assert.match(
+    calibrationText({ calibration: { checks: [], apart, passed: true } }),
+    /append calls take longer at the same rate/,
+  );
+});
+
+test('a raw suite records and prints the CPUs its runs had, not the measure layout it was given', () => {
+  const suite = { cpus: { load: '3', server: '0-2' }, runs: [], failures: 0 };
+  runRaw(SUITES['raw-mongo'], suite, {
+    benchPath: '/bin/false',
+    out: mkdtempSync(join(tmpdir(), 'raw-')),
+    cpuset: suite.cpus,
+    arms: SUITES['raw-mongo'].arms,
+    installs: {},
+    save: () => {},
+  });
+  assert.deepEqual(suite.cpus, { load: '3', store: '1', server: '0,2' });
+  assert.equal(
+    rawLayoutText(suite.cpus),
+    "CPUs: the program on 0,2, the store on 1 alone, 3 idle (the generator's).",
+  );
+  assert.equal(
+    rawLayoutText({ load: '3', server: '0-1' }),
+    "CPUs: the program on 0-1, the store with the program, 3 idle (the generator's).",
+  );
+  assert.equal(rawLayoutText(undefined), 'CPUs: unpinned.');
 });

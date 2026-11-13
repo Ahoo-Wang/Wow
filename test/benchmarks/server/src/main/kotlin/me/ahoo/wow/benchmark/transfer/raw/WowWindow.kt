@@ -1,0 +1,124 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.benchmark.transfer.raw
+
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * Wow's own run's append queue and saves over its window, a diagnostic of the calibration's Wow side: every
+ * SAMPLE_MILLIS, the node's append calls and the streams they carried, its lanes' groups waiting for a committer and
+ * its pool (the `bench-pipeline` line's sections, [pipeline]), and its save statements ([saves], cumulative from the
+ * window's start). [stop] gives each half of the window's commands an append, append calls a second and snapshots a
+ * save, so a cold first half (slower calls, larger appends) shows, and over the whole window the mean groups waiting
+ * and threads waiting for a connection.
+ */
+class WowWindow(private val pipeline: () -> String?, private val saves: () -> Long) {
+    private class Sample(val millis: Long, val calls: Double, val streams: Double, val saves: Long, val line: JsonNode)
+
+    private val samples = ArrayList<Sample>()
+    private val stopping = AtomicBoolean()
+    private val sampler = Thread.ofPlatform().name("raw-wow-window").start {
+        while (!stopping.get()) {
+            val line = sectionsOf(pipeline())
+            val calls = line?.let { field(it, "appendCalls", "calls") }
+            val streams = line?.let { field(it, "appendCalls", "streams") }
+            if (line != null && calls != null && streams != null) {
+                synchronized(samples) { samples += Sample(System.currentTimeMillis(), calls, streams, saves(), line) }
+            }
+            Thread.sleep(SAMPLE_MILLIS)
+        }
+    }
+
+    /** Stops sampling: each half's figures and the window's means, empty without two samples a half. */
+    fun stop(): Map<String, Double> {
+        stopping.set(true)
+        sampler.join()
+        val taken = synchronized(samples) { samples.toList() }
+        if (taken.size < MIN_SAMPLES) return emptyMap()
+        val middle = taken[taken.size / 2]
+        val (first, last) = taken.first() to taken.last()
+        val seconds = (last.millis - first.millis) / MILLIS
+        return halfOf(FIRST, first, middle) + halfOf(SECOND, middle, last) + clockOf(first, last) + mapOf(
+            APPEND_CALLS_PER_SECOND_ALL to (last.calls - first.calls) / seconds,
+            HANDED_GROUPS to taken.mapNotNull { field(it.line, "appendDepth", "handedGroups") }.average(),
+            POOL_WAITING to taken.mapNotNull { pools(it.line, "waiting") }.average(),
+            POOL_ACTIVE to taken.mapNotNull { pools(it.line, "active") }.average(),
+        ).filterValues { !it.isNaN() }
+    }
+
+    /**
+     * The node's own clock of its append calls over the window (the line's `appendClock`, microseconds summed over
+     * the calls): a call's mean time and its statement's, taken to answered and sent to read; none on a build without
+     * the clock.
+     */
+    private fun clockOf(from: Sample, to: Sample): Map<String, Double> {
+        fun of(sample: Sample, name: String) = field(sample.line, "appendClock", name)
+        val calls = (of(to, "calls") ?: return emptyMap()) - (of(from, "calls") ?: return emptyMap())
+        if (calls <= 0) return emptyMap()
+        return listOf(CLOCK_CALL to "call", CLOCK_STATEMENT to "statement").mapNotNull { (key, name) ->
+            val micros = (of(to, name) ?: return@mapNotNull null) - (of(from, name) ?: return@mapNotNull null)
+            key to micros / calls / MILLIS
+        }.toMap()
+    }
+
+    private fun halfOf(half: String, from: Sample, to: Sample): Map<String, Double> {
+        val calls = to.calls - from.calls
+        val streams = to.streams - from.streams
+        val saves = (to.saves - from.saves).toDouble()
+        val seconds = (to.millis - from.millis) / MILLIS
+        if (calls <= 0 || seconds <= 0) return emptyMap()
+        return buildMap {
+            put("$half $COMMANDS_PER_APPEND", streams / calls)
+            put("$half $APPEND_CALLS_PER_SECOND", calls / seconds)
+            if (saves > 0) put("$half $SNAPSHOTS_PER_SAVE", streams / saves)
+        }
+    }
+
+    companion object {
+        const val FIRST = "wowFirstHalf"
+        const val SECOND = "wowSecondHalf"
+        const val COMMANDS_PER_APPEND = "commandsPerAppend"
+        const val APPEND_CALLS_PER_SECOND = "appendCallsPerSecond"
+        const val SNAPSHOTS_PER_SAVE = "snapshotsPerSave"
+        const val APPEND_CALLS_PER_SECOND_ALL = "wowAppendCallsPerSecond"
+        const val HANDED_GROUPS = "wowHandedGroupsMean"
+
+        /** The node's clock of an append call (clockOf): the whole call and its statement, milliseconds. */
+        const val CLOCK_CALL = "wowClockCallMs"
+        const val CLOCK_STATEMENT = "wowClockStatementMs"
+        const val POOL_WAITING = "wowPoolWaitingMean"
+        const val POOL_ACTIVE = "wowPoolActiveMean"
+        private const val SAMPLE_MILLIS = 100L
+        private const val MIN_SAMPLES = 5
+        private const val MILLIS = 1_000.0
+
+        private val json = JsonMapper.builder().build()
+
+        /** A `bench-pipeline` line (one JSON object of sections) as its tree; null without one or when it is not JSON. */
+        fun sectionsOf(line: String?): JsonNode? = line?.let { runCatching { json.readTree(it) }.getOrNull() }
+            ?.takeIf { it.isObject }
+
+        /** A number field of a section of a line's tree ([sectionsOf]); null when it has none. */
+        fun field(sections: JsonNode, section: String, name: String): Double? =
+            sections.get(section)?.get(name)?.takeIf { it.isNumber }?.asDouble()
+
+        /** A field summed over the line's pools: `pool`, or `pool.<bean>` each when the node has several. */
+        private fun pools(sections: JsonNode, name: String): Double? = sections.propertyNames()
+            .filter { it == "pool" || it.startsWith("pool.") }
+            .mapNotNull { field(sections, it, name) }
+            .takeIf { it.isNotEmpty() }?.sum()
+    }
+}
