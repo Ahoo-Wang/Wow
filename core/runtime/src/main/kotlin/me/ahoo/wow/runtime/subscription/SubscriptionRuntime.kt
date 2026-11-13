@@ -552,9 +552,11 @@ class SubscriptionRuntime internal constructor(
 }
 
 /**
- * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete.
+ * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete,
+ * and [inFlight] entries above it are taken and not yet below it, the window its in-flight bound
+ * ([SubscriptionOptions.maxInFlight]) limits.
  */
 @InternalWowApi
-data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
+data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long, val inFlight: Int)
 
 private val logger = KotlinLogging.logger {}
