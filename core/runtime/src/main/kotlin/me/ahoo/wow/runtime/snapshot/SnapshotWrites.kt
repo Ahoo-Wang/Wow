@@ -82,7 +82,10 @@ internal class SnapshotWrites(
     private val committers: Int = SnapshotStore.DEFAULT_WRITES_IN_FLIGHT,
     /** The most writes at once while the writes are behind: [committers] keeps the count whatever the load. */
     private val catchUp: Int = committers,
-    /** A take of fewer saves than this ends being behind. */
+    /**
+     * A take of fewer saves than this ends being behind: a quarter of [maxBatch], so with a write batch under four it is
+     * zero, and a limit once raised stays raised.
+     */
     private val retireBelow: Int = maxBatch / RETIRE_FRACTION,
 ) {
     init {

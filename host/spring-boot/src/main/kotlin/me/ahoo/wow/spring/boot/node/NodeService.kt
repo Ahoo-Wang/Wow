@@ -118,6 +118,7 @@ internal class NodeService {
         access: ObjectProvider<AccessPolicy<*>>,
         clock: Clock,
         replayGates: ObjectProvider<ReplayGate>,
+        customizer: ObjectProvider<NodeOptionsCustomizer>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val sourceTopics = topics.ifAvailable
@@ -149,7 +150,7 @@ internal class NodeService {
                 routing,
                 CommandRoutings.topicRouted(properties, models.models),
                 transport = sourceTopics?.producer != null,
-            ),
+            ).let { options -> customizer.ifAvailable?.customize(options) ?: options },
             admission = AdmissionPlugins(
                 authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }
                     ?.let(CommandAuthorizer::allOf),

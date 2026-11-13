@@ -744,7 +744,7 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 	public static final field DEFAULT_BATCH I
 	public static final field DEFAULT_PAGES I
 	public static final field DEFAULT_WRITE_BATCH I
-	public synthetic fun <init> (JIIJJIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JIIJJIJLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
 	public final fun getInterval-UwyO8pc ()J

@@ -27,7 +27,7 @@ import {
   readJsonIfThere,
   roundOrder,
   spread,
-  withPool,
+  withRecorded,
   withProps,
 } from './bench-common.mjs';
 import {
@@ -3200,9 +3200,9 @@ export function runSuite(name, options) {
     cold: definition.cold === true,
     aa: aaRun,
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
-    // An arm on a JDK of its own records which (its release; the major version without one); on PostgreSQL its pool.
+    // An arm on a JDK of its own records which (its release; the major version without one); its pool and tuning.
     arms: arms.map(arm =>
-      withPool(
+      withRecorded(
         arm.java
           ? {
               ...arm,

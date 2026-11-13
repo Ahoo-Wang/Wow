@@ -29,6 +29,9 @@
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
+#   bench.sh abba     --arm='<name>|<install>|<server args>' (twice or more) --concurrencies=<list> [--sweeps=2]
+#                      (the arms in turn, ABBA, each a fresh sweep with the bench-pipeline line; abba.sh)
+#   bench.sh lock     --owner=<name> [--wait[=<s>]] / unlock --owner=<name>   (a batch's hold on the harness; lock.sh)
 #   bench.sh compare <root>   (an ABAB's tables: sessions <root>/<round>-<arm>-<backend>/<phase>, by arm and round,
 #                              each arm's ratio to the first; .github/scripts/bench-compare.mjs)
 #
@@ -84,7 +87,7 @@ CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:25.3.14.14-alpine
 CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
-  sed -n '14,58p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,61p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -541,18 +544,29 @@ component() {
 # shellcheck source=measure.sh
 . "$HARNESS/measure.sh"
 
+# The batch lock: one batch at a time on this machine's harness.
+# shellcheck source=lock.sh
+. "$HARNESS/lock.sh"
+
+# The ABBA comparison of arms (install, server arguments) on one machine.
+# shellcheck source=abba.sh
+. "$HARNESS/abba.sh"
+
 command=${1:-}
 if [ -z "$command" ]; then usage; fi
 shift
 case "$command" in
   build) build ;;
-  run) run "$@" ;;
-  saturate) saturate "$@" ;;
+  run) lock_guard; run "$@" ;;
+  saturate) lock_guard; saturate "$@" ;;
   component) component "$@" ;;
-  measure) measure "$@" ;;
-  up) up "$@" ;;
+  measure) lock_guard; measure "$@" ;;
+  abba) abba "$@" ;;
+  up) lock_guard; up "$@" ;;
   inspect) inspect "$@" ;;
-  down) down ;;
+  down) lock_guard; down ;;
+  lock) bench_lock "$@" ;;
+  unlock) bench_unlock "$@" ;;
   # The tables of an ABAB: a directory of sessions named <round>-<arm>-<backend>, a phase directory in each.
   compare)
     if [ -z "${1:-}" ] || [ ! -d "$1" ]; then usage; fi

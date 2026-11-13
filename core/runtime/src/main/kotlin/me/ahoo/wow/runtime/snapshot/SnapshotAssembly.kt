@@ -49,11 +49,12 @@ internal class SnapshotAssembly(
         stores.entries.associate { (store, types) -> targets!!.subscriptionOf(store) to types }
 
     /**
-     * The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time and
-     * remembering what it wrote of at most [capacity] aggregates, the shared states' own capacity. It answers the
-     * `snapshot` hop of the types it is the own store of, and the `queryable` hop of those whose queries read it.
+     * The subscription of each target store, reading [views], writing at most [options]' write batch of snapshots at a
+     * time and its writes in flight at once over the store's own count when given, and remembering what it wrote of at
+     * most [capacity] aggregates, the shared states' own capacity. It answers the `snapshot` hop of the types it is the
+     * own store of, and the `queryable` hop of those whose queries read it.
      */
-    fun subscriptions(views: SharedStates, writeBatch: Int, capacity: Int): List<SnapshotSubscription> =
+    fun subscriptions(views: SharedStates, options: SnapshotOptions, capacity: Int): List<SnapshotSubscription> =
         stores.map { (store, types) ->
             SnapshotSubscription(
                 context,
@@ -68,7 +69,8 @@ internal class SnapshotAssembly(
                 answers = { type ->
                     targets.placementOf(type).let { SnapshotSubscription.hopsOf(it.store == store, it.query == store) }
                 },
-                writeBatch = writeBatch,
+                writeBatch = options.writeBatch,
+                writesInFlight = options.writesInFlight,
             )
         }
 

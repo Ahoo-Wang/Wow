@@ -37,7 +37,8 @@ class SnapshotAssemblyTest : SnapshotSubscriptionFixtures() {
             log,
             codec,
         )
-        val subscription = assembly.subscriptions(SharedStates(codec, assembly.readers), 1, capacity).single()
+        val views = SharedStates(codec, assembly.readers)
+        val subscription = assembly.subscriptions(views, SnapshotOptions(writeBatch = 1), capacity).single()
         suspend fun handle(id: String) {
             val stream = log.read(ref(id)).toList().single()
             subscription.subscription.handle(
