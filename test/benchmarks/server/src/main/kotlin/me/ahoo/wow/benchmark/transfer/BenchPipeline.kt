@@ -77,6 +77,10 @@ import java.util.concurrent.TimeUnit
  *   and a server pool's `max` ([MongoPoolGauge], which the client is built with). `pool.<bean>` for each, when there
  *   are several.
  *
+ * - `outcomes`, cumulative from the node's start: what the node names to its observers, counted by [BenchOutcomes],
+ *   the line's one observer: the commands that arrived and were refused, the forwards taken from peers and those that
+ *   failed by outcome, the executions, the appends' outcomes and the state cache's.
+ *
  * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The append
  * queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per call and
  * per group, none per append; while read, each call also carries its marks (`StoreCallMarks`, nine clock reads) in its
@@ -132,7 +136,10 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
             val listed = beans as? ListableBeanFactory
             val hikari = listed?.getBeansOfType(HikariDataSource::class.java).orEmpty()
             val gauges = listed?.getBeansOfType(MongoPoolGauge::class.java).orEmpty()
-            return BenchPipeline { sectionsOf(node) + poolsOf(hikari, gauges) }
+            val outcomes = listed?.getBeansOfType(BenchOutcomes::class.java).orEmpty().values.firstOrNull()
+            return BenchPipeline {
+                sectionsOf(node) + poolsOf(hikari, gauges) + outcomes?.let { mapOf("outcomes" to it.counts()) }.orEmpty()
+            }
         }
 
         /**
@@ -256,6 +263,10 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
 class BenchPipelineConfiguration {
     @Bean(initMethod = "start", destroyMethod = "close")
     fun benchPipeline(beans: BeanFactory): BenchPipeline = BenchPipeline.of(beans)
+
+    /** The node's outcomes, counted by an observer the host composes with any other ([BenchOutcomes]). */
+    @Bean
+    fun benchOutcomes(): BenchOutcomes = BenchOutcomes()
 
     /** The MongoDB client's command listener (`MongoBackend` adds every one): the driver's time of a clocked call. */
     @Bean
