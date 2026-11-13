@@ -18,6 +18,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -29,12 +30,29 @@ import me.ahoo.wow.postgres.PostgresStoreProvider
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.CoveredSnapshots
+import me.ahoo.wow.spi.store.StoreCallMarks
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
 
 class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = PostgresFixture.snapshotStore(context)
+
+    @Test
+    fun `a clocked save should mark each instant only the store sees, in order, its driver reporting nothing`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val type = AggregateType(context, "aggregate")
+            val marks = StoreCallMarks()
+            withContext(marks) {
+                PostgresFixture.snapshotStore(context)
+                    .saveAll(listOf("a", "b").map { snapshot(it, 1).copyWith(ref = type.ref("tenant", it)) })
+            }.assert().containsOnly(SnapshotSaveOutcome.Written)
+            marks.marked.assert().isTrue()
+            listOf(marks.taken, marks.entered, marks.onThread, marks.acquired, marks.sent, marks.read, marks.released)
+                .zipWithNext().forEach { (earlier, later) -> later.assert().isGreaterThanOrEqualTo(earlier) }
+            marks.commands.assert().isZero()
+        }
 
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {

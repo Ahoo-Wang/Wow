@@ -69,6 +69,9 @@ class AppendClockTest {
         log.found.assert().containsOnly(true)
         // The log sleeps a millisecond in its statement: at least that, a call.
         clock.statement.assert().isGreaterThanOrEqualTo(PARTITIONS * 1_000L)
+        // The driver's time the log reported, each call's command, within its statement.
+        clock.commanded.assert().isEqualTo(PARTITIONS.toLong())
+        clock.command.assert().isEqualTo(PARTITIONS * COMMAND_NANOS / 1_000)
         // Each step is rounded down to its microsecond: their sum is the call's, less at most one a step.
         val steps = with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }
         steps.forEach { it.assert().isNotNegative() }
@@ -135,6 +138,7 @@ class AppendClockTest {
                 marks?.acquired()
                 marks?.sent()
                 Thread.sleep(1)
+                marks?.commanded(COMMAND_NANOS)
                 marks?.read()
                 marks?.released()
                 streams
@@ -145,5 +149,6 @@ class AppendClockTest {
 
     private companion object {
         const val PARTITIONS = 4
+        const val COMMAND_NANOS = 500_000L
     }
 }

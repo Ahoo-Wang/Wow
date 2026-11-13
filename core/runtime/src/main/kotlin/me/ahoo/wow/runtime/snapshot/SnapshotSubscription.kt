@@ -107,6 +107,12 @@ class SnapshotSubscription(
     /** The batched writes of every partition. */
     private val writes = SnapshotWrites(store, writeBatch, committers = store.writesInFlight)
 
+    /**
+     * What the subscription's writes took, wrote and spent ([SnapshotWriteCounts]), counted from the first call of this
+     * on: a diagnostic, which the writes keep only once read.
+     */
+    fun writeCounts(): SnapshotWriteCounts = writes.counts()
+
     init {
         require(models.isNotEmpty()) { "A snapshot subscription needs the aggregate types it snapshots." }
         require(models.all { it.type.context == context }) { "Every snapshotted aggregate type is of $context." }

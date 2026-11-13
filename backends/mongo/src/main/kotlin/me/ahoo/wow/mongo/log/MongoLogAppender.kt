@@ -48,6 +48,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.notAppendedAfter
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 
@@ -104,8 +105,11 @@ internal class MongoLogAppender(
      * no write of their own. An aggregate's later streams follow the sequence its previous one in the group took, and
      * are not appended once one did not commit ([EventLog.appendAll]). The sequences no stream took get their
      * placeholders with one write per collection.
+     *
+     * [marks], when the call is clocked: sent once every stream's document is built and sequenced, before the first
+     * insert, and read after the last insert or placeholder; the streams appended again alone after it are its release.
      */
-    fun appendGroup(streams: List<Append>): List<AppendOutcome> {
+    fun appendGroup(streams: List<Append>, marks: StoreCallMarks?): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
@@ -141,7 +145,9 @@ internal class MongoLogAppender(
             previous[stream.ref] = allocation.sequence
             members += Member(index, stream, collection, document, allocation.sequence)
         }
+        marks?.sent()
         insertMembers(members, outcomes)
+        marks?.read()
         // A member whose position was taken (its block sealed), one after it of its aggregate, or one a too-large
         // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
         // its aggregate's did not commit. Once a stream of the call may have committed, a failure of the store here

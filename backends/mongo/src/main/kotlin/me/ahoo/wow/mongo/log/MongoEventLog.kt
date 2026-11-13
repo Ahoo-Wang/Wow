@@ -23,6 +23,7 @@ import com.mongodb.client.model.Projections
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -50,6 +51,8 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.requireChains
+import me.ahoo.wow.spi.store.HeldStoreCallMarks
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
@@ -272,6 +275,10 @@ class MongoEventLog(
      * aggregates that insert did not reach take at most two more (each aggregate's next stream unordered, then its
      * later ones ordered), so at most three inserts of streams, and each refusal in a later ordered insert two more;
      * the placeholders then take one write more.
+     *
+     * A group the append queue clocks ([StoreCallMarks] in its context) is marked from its entry to its work done
+     * ([MongoLogAppender.appendGroup]); the store's connection is the driver's, checked out within each command, so
+     * the call has none of its own: it is marked acquired once on its thread. A call of one stream is not marked.
      */
     override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
         if (streams.size <= 1) {
@@ -281,7 +288,17 @@ class MongoEventLog(
             "A group commit appends streams of $context."
         }
         requireChains(streams)
-        return dispatcher.mongo { appender.appendGroup(streams) }.also { outcomes ->
+        val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
+        return dispatcher.mongo {
+            marks?.onThread()
+            marks?.acquired()
+            HeldStoreCallMarks.hold(marks)
+            try {
+                appender.appendGroup(streams, marks).also { marks?.released() }
+            } finally {
+                HeldStoreCallMarks.release(marks)
+            }
+        }.also { outcomes ->
             outcomes.filterIsInstance<AppendOutcome.Committed>().map { it.position.partition }.distinct()
                 .forEach { pacer.committed(it) }
         }

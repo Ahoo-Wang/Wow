@@ -13,12 +13,17 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.event.CommandFailedEvent
+import com.mongodb.event.CommandListener
+import com.mongodb.event.CommandSucceededEvent
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.runtime.CallClock
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.snapshot.SnapshotWriteCounts
+import me.ahoo.wow.spi.store.HeldStoreCallMarks
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
@@ -44,12 +49,21 @@ import java.util.concurrent.TimeUnit
  *   `full` at their cap (`mergeMax` merged). Streams over calls between two lines is the mean call of that second.
  * - `appendClock`, cumulative from this line's first read, in microseconds summed over the calls (the queue's
  *   `CallClock`): the `calls` clocked, each one's `call` from its group taken to the log's call returned and its
- *   `complete` from there to its outcomes handed back and its committer free; and, over the `marked` calls (those whose
- *   log marks the instants only it sees, PostgreSQL's), `enter` to the log's call, `hop` to the thread of its JDBC work,
- *   `acquire` to its connection, `bind` to its statement sent (its tables found, its statement prepared, its streams'
- *   parameters bound and encoded), `statement` to its result read, `release` to its connection given back, and
- *   `hopBack` to the call returned, which sum to their `call`. Each between two lines, over that second's calls, is the
- *   mean of a call's step.
+ *   `complete` from there to its outcomes handed back and its committer free; over the `marked` calls (those whose
+ *   log marks the instants only it sees, PostgreSQL's and MongoDB's groups), `enter` to the log's call, `hop` to the
+ *   thread of its blocking work, `acquire` to its connection (MongoDB's driver checks one out within each command, so
+ *   none there), `bind` to its first statement or command sent (its tables found, its statement prepared, its streams'
+ *   parameters bound and encoded; on MongoDB its documents built and sequenced), `statement` to its last result read,
+ *   `release` to its connection given back, and `hopBack` to the call returned, which sum to their `call`; and, over
+ *   the `commanded` calls (MongoDB's, whose driver reports each command's time to this line's listener), `command`,
+ *   the driver's own time of the commands within `statement`, so `statement` less `command` is the driver's work
+ *   around them (a command's encoding, a connection's check-out). Each between two lines, over that second's calls, is
+ *   the mean of a call's step.
+ * - `snapshotClock`, cumulative from this line's first read, the same for the snapshot subscriptions' writes (each
+ *   subscription's `SnapshotWrites`, a write one `saveAll` of a leader's batch): the `saves` the leaders took and the
+ *   `snapshots` they wrote (an aggregate's highest version a write), `writing` now (the leaders in a store's call), and
+ *   the clock's fields. A write's `call` runs from its batch taken to the store's call returned (a failed batch's saves
+ *   again alone among it), `complete` to its saves ended; on PostgreSQL the transaction's commit is in `release`.
  * - `handoff`, cumulative from the node's start: the entries the tails `delivered` from memory and their `storeReads`.
  * - `window` and `windowMax`, now, per subscription: the entries its workers took above their watermarks, summed over
  *   the partitions and the largest one partition's, against its in-flight bound (`wow.subscription.max-in-flight`).
@@ -62,7 +76,11 @@ import java.util.concurrent.TimeUnit
  * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The append
  * queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per call and
  * per group, none per append; while read, each call also carries its marks (`StoreCallMarks`, nine clock reads) in its
- * coroutine context, which the log marks and the queue sums, eleven adds a call. The hand-off's channels have no depth
+ * coroutine context, which the log marks and the queue sums, thirteen adds a call. The snapshot writes count the same
+ * way, once read (`SnapshotSubscription.writeCounts`): three adds and a clock a write, none per save. With the line on,
+ * the server's MongoDB client is built with the command listener ([commandClock]), which the
+ * driver then calls for every command of the node; it adds to a call's marks only while the call holds them. The
+ * hand-off's channels have no depth
  * to read without a count on every entry, and the throttle's waiters are behind its monitor, so neither is here; the
  * throttled partitions are the `partitionThrottled` less `partitionUnthrottled` of `bench-signals`.
  *
@@ -158,6 +176,9 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                     "full" to counts.sumOf { it.full },
                 ),
                 "appendClock" to clockOf(counts.map { it.clock }),
+                "snapshotClock" to snapshotClockOf(
+                    node.contexts.values.flatMap { it.snapshotSubscriptions }.map { it.writeCounts() },
+                ),
                 "handoff" to if (handoffs.isEmpty()) {
                     emptyMap()
                 } else {
@@ -188,8 +209,34 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                     "statement" to clocks.sumOf { it.statement },
                     "release" to clocks.sumOf { it.release },
                     "hopBack" to clocks.sumOf { it.hopBack },
+                    "commanded" to clocks.sumOf { it.commanded },
+                    "command" to clocks.sumOf { it.command },
                 )
             }
+
+        /** The snapshot writes' [counts], summed over the subscriptions; none while no write was clocked. */
+        internal fun snapshotClockOf(counts: List<SnapshotWriteCounts>): Map<String, Number> =
+            clockOf(counts.map { it.clock }).takeIf { it.isNotEmpty() }?.let { clock ->
+                linkedMapOf<String, Number>(
+                    "saves" to counts.sumOf { it.saves },
+                    "snapshots" to counts.sumOf { it.snapshots },
+                    "writing" to counts.sumOf { it.writing },
+                ) + clock
+            }.orEmpty()
+
+        /**
+         * The driver listener of the MongoDB stores' clocked calls, which the server's client is built with: each
+         * command's own time, added to the marks of the call its thread holds ([HeldStoreCallMarks]), if any.
+         */
+        fun commandClock(): CommandListener = object : CommandListener {
+            override fun commandSucceeded(event: CommandSucceededEvent) {
+                HeldStoreCallMarks.held()?.commanded(event.getElapsedTime(TimeUnit.NANOSECONDS))
+            }
+
+            override fun commandFailed(event: CommandFailedEvent) {
+                HeldStoreCallMarks.held()?.commanded(event.getElapsedTime(TimeUnit.NANOSECONDS))
+            }
+        }
     }
 }
 
@@ -199,4 +246,8 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
 class BenchPipelineConfiguration {
     @Bean(initMethod = "start", destroyMethod = "close")
     fun benchPipeline(beans: BeanFactory): BenchPipeline = BenchPipeline.of(beans)
+
+    /** The MongoDB client's command listener (`MongoBackend` adds every one): the driver's time of a clocked call. */
+    @Bean
+    fun benchCommandClock(): CommandListener = BenchPipeline.commandClock()
 }
