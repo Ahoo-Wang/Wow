@@ -111,12 +111,14 @@ class MongoSnapshotStore(
     override val rebuilds: SnapshotRebuildStore get() = this
 
     /**
-     * [WRITES_IN_FLIGHT]: a write here is one unordered `bulkWrite` of at most the batch, and returns only once a
-     * majority journaled it ([MongoDatabases]), so the subscription's throughput is these calls times their batch per
-     * call, whatever the server has to spare. It is what the subscription had in flight before the calls were merged
-     * across partitions (four lanes, each one call at a time).
+     * [CATCH_UP_WRITES_IN_FLIGHT] while the subscription is behind, the default two otherwise. A write here is one
+     * unordered `bulkWrite` of at most the batch, which returns only once a majority journaled it ([MongoDatabases]),
+     * and mongod spends about the same a snapshot whatever the batch (0.08–0.14 ms, measured 2026-11-13): calls at once
+     * scale, a larger batch does not. Two keep up below the peak with their calls large; at the peak, where every batch
+     * is full, two held the subscription at their bound and four kept up. Four is what the subscription had in flight
+     * before the calls were merged across partitions (four lanes, each one call at a time).
      */
-    override val writesInFlight: Int get() = WRITES_IN_FLIGHT
+    override val catchUpWritesInFlight: Int get() = CATCH_UP_WRITES_IN_FLIGHT
 
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
@@ -446,8 +448,8 @@ class MongoSnapshotStore(
         /** The version of this layout. */
         const val FORMAT = 1
 
-        /** [writesInFlight]. */
-        const val WRITES_IN_FLIGHT = 4
+        /** [catchUpWritesInFlight]. */
+        const val CATCH_UP_WRITES_IN_FLIGHT = 4
 
         /** The partial index of the owner scope. */
         const val OWNER_INDEX = "owner_ix"

@@ -105,7 +105,13 @@ class SnapshotSubscription(
     private val written = LruMap<AggregateRef, Written>(capacity)
 
     /** The batched writes of every partition. */
-    private val writes = SnapshotWrites(store, writeBatch, committers = store.writesInFlight)
+    // A catch-up count under the writes in flight (a wrapper that raised one and delegated the other) is the latter.
+    private val writes = SnapshotWrites(
+        store,
+        writeBatch,
+        committers = store.writesInFlight,
+        catchUp = maxOf(store.writesInFlight, store.catchUpWritesInFlight),
+    )
 
     /**
      * What the subscription's writes took, wrote and spent ([SnapshotWriteCounts]), counted from the first call of this

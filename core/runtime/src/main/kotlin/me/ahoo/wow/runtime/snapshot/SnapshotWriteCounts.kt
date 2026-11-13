@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.LongAdder
  * - [saves] and [snapshots] are cumulative: the saves the leaders took into their writes, and the snapshots those
  *   wrote (one an aggregate a write, the highest version of those taken). Over the [clock]'s calls, they are a write's
  *   mean batch and its mean snapshots.
- * - [writing] is now: the leaders in a store's call, at most the store's writes in flight.
+ * - [writing] is now: the leaders in a store's call, at most the store's writes in flight; [allowed] is now: how many
+ *   may lead, the store's writes in flight, or its catch-up count while the writes are behind.
  * - [clock] is cumulative: where each write's time went, from its batch taken to its saves ended ([CallClock]).
  *
  * Each is an atomic add, per write, never per save; nothing waits on a lock.
@@ -36,10 +37,12 @@ class SnapshotWriteCounts internal constructor() {
     private val taken = LongAdder()
     private val written = LongAdder()
     private val inCall = AtomicInteger()
+    private val limit = AtomicInteger()
 
     val saves: Long get() = taken.sum()
     val snapshots: Long get() = written.sum()
     val writing: Int get() = inCall.get()
+    val allowed: Int get() = limit.get()
 
     /** Where the writes' time went. */
     val clock = CallClock()
@@ -50,6 +53,11 @@ class SnapshotWriteCounts internal constructor() {
         written.add(snapshots.toLong())
         inCall.incrementAndGet()
         return clock.start()
+    }
+
+    /** How many may lead now. */
+    internal fun limited(leaders: Int) {
+        limit.set(leaders)
     }
 
     /** A write [start]ed ended, clocked or not. */

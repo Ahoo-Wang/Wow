@@ -46,8 +46,9 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         "wow_snapshot__${context.replace('-', '_')}__$aggregate"
 
     @Test
-    fun `the store keeps four writes in flight, a journaled bulk write each`() {
-        store().writesInFlight.assert().isEqualTo(4)
+    fun `the store keeps two writes in flight, and four while its subscription is behind`() {
+        store().writesInFlight.assert().isEqualTo(SnapshotStore.DEFAULT_WRITES_IN_FLIGHT)
+        store().catchUpWritesInFlight.assert().isEqualTo(4)
     }
 
     @Test
