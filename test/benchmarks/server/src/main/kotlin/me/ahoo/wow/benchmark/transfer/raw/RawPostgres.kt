@@ -86,6 +86,10 @@ class RawPostgres(
     /** Each of Wow's tables' rows written (PostgresCounters). */
     fun tables(): Map<String, Double> = stats.tables()
 
+    /** The WAL between two counters' reads by record type and table (PostgresCounters). */
+    fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> =
+        stats.records(before, after)
+
     /** The snapshot table's HOT share, from the counters' growth. */
     fun ratios(growth: Map<String, Double>): Map<String, Double> = stats.ratios(growth)
 
@@ -113,10 +117,11 @@ class RawPostgres(
     }
 
     /**
-     * The cases: [WOW_TODAY] (today's shape: [logBatch] streams an append, their snapshots [snapshotBatch] a
-     * transaction, asynchronously), the log alone, P0 and P1 (the snapshot upsert alone at each of [rows] rows a
-     * statement, synchronous and asynchronous, at fillfactor 100 and 80), P2 (the append and its snapshots in one
-     * synchronous transaction against today's split), Wow's own peak shape ([WowShape.cases]) and a point read.
+     * The cases: [WOW_TODAY] (today's shape: [logBatch] streams an append, the snapshots behind the appends
+     * [snapshotBatch] a transaction, asynchronously, across appends), the log alone, P0 and P1 (the snapshot upsert
+     * alone at each of [rows] rows a statement, synchronous and asynchronous, at fillfactor 100 and 80), P2 (the append
+     * and its snapshots in one synchronous transaction against today's split), Wow's own peak shape ([WowShape.cases])
+     * and a point read.
      */
     fun cases(logBatch: Int, snapshotBatch: Int, rows: List<Int>): List<Case> = buildList {
         add(
@@ -169,20 +174,13 @@ class RawPostgres(
     }
 
     /**
-     * Today's flush of [logBatch] commands: their append, then their snapshots [snapshotBatch] a transaction, async.
-     * A command counts once its append and its snapshot were both written.
+     * Today's flush of [logBatch] commands: their append, then the worker's snapshots behind it [snapshotBatch] a
+     * transaction, async (savedBehind). A command counts once its snapshot was written.
      */
-    fun wowToday(connection: Connection, owned: Aggregates, logBatch: Int, snapshotBatch: Int): Flushed {
-        val commands = owned.take(logBatch)
-        val appended = append(connection, commands)
-        var saved = Flushed(0)
-        var from = 0
-        for (n in groupsOf(logBatch, snapshotBatch)) {
-            saved += snapshots(connection, commands.subList(from, from + n), synchronous = false)
-            from += n
+    fun wowToday(connection: Connection, owned: Aggregates, logBatch: Int, snapshotBatch: Int): Flushed =
+        savedBehind(owned, logBatch, snapshotBatch, { append(connection, it) }) {
+            snapshots(connection, it, synchronous = false)
         }
-        return both(appended, saved)
-    }
 
     /** A command counts once, when its append and its snapshot were both written: the fewer of the two. */
     private fun both(appended: Flushed, saved: Flushed) =
@@ -384,6 +382,13 @@ class RawPostgres(
         const val LOG = "wow_log__transfer__account"
         const val SNAPSHOT = "wow_snapshot__transfer__account"
         const val PARTITIONS = "wow_log__transfer__partition"
+
+        /** Wow's tables the clone copies. */
+        val WOW_TABLES = setOf(LOG, SNAPSHOT, PARTITIONS)
+
+        /** The clone's tables. */
+        val RAW_TABLES = setOf("raw_log", "raw_snapshot", "raw_partition")
+
         const val WOW_TODAY = "wow-today"
         const val P2_SEPARATE = "p2-separate"
         const val P2_COMBINED = "p2-combined"

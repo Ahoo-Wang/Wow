@@ -171,6 +171,7 @@ private fun seed(
     counters: () -> Map<String, Double>,
     checkpoint: () -> Unit,
     own: (Long, Long) -> Map<String, Double> = { _, _ -> emptyMap() },
+    records: (Map<String, Double>, Map<String, Double>) -> Map<String, Double> = { _, _ -> emptyMap() },
 ): Map<String, Double> {
     val context = SpringApplicationBuilder(
         TransferServer::class.java,
@@ -219,7 +220,7 @@ private fun seed(
         .mapNotNull { (key, value) -> (value as? Number)?.let { "statements: $key" to it.toDouble() } }
     val rate = (component["throughput"] as? Number)?.let { mapOf(WOW_RATE to it.toDouble()) }.orEmpty()
     val failed = (component["failed"] as Map<*, *>?).orEmpty().values.sumOf { (it as Number).toDouble() }
-    val growth = after.mapValues { (key, value) -> value - (before[key] ?: 0.0) } + own(from, to)
+    val growth = growthOf(before, after) + own(from, to) + records(before, after)
     return growth.mapValues { (_, delta) -> delta / ops } + statements + rate + (WOW_FAILED to failed / ops)
 }
 
@@ -252,7 +253,14 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
         user = options["spring.datasource.username"] ?: "postgres",
         password = options["spring.datasource.password"] ?: "postgres",
     )
-    val wow = seed("postgres", settings.templates, options, { raw.counters() + raw.tables() }, raw::checkpoint)
+    val wow = seed(
+        "postgres",
+        settings.templates,
+        options,
+        { raw.counters() + raw.tables() },
+        raw::checkpoint,
+        records = raw::records,
+    )
     raw.loadTemplates(settings.templates)
     val cpu = ContainerCpu(settings.container)
     val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
@@ -290,16 +298,28 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
             steps += step(case, split.connections, pace, opened(settings.aggregates))
         }
     }
-    return RawResult(
-        calibrationOf(
-            POSTGRES_CHECKS + shapeChecks(logBatch) + FAILED_CHECK,
-            listOf("walFpi", "commits"),
-            postgresWow(wow) + shapeCounts(wow, PG_APPENDS, PG_SAVES),
-            calibrating,
-            shaped(logBatch, snapshotBatch),
-        ),
-        raw.settings(),
-        steps
+    return RawResult(postgresCalibration(wow, calibrating, logBatch, snapshotBatch), raw.settings(), steps)
+}
+
+/**
+ * PostgreSQL's calibration: on the WAL of the cloned tables when both runs read it by table (PATH_CHECKS), else on all
+ * of it (POSTGRES_CHECKS); the batch shape's checks and no failed command either way.
+ */
+private fun postgresCalibration(
+    wow: Map<String, Double>,
+    calibrating: RawStep,
+    logBatch: Int,
+    snapshotBatch: Int,
+): RawCalibration {
+    val wowPath = PostgresCounters.onTables(wow, RawPostgres.WOW_TABLES, PATH)
+    val rawPath = PostgresCounters.onTables(calibrating.perUnit, RawPostgres.RAW_TABLES, PATH)
+    val path = wowPath.isNotEmpty() && rawPath.isNotEmpty()
+    return calibrationOf(
+        (if (path) PATH_CHECKS else POSTGRES_CHECKS) + shapeChecks(logBatch, snapshotBatch) + FAILED_CHECK,
+        (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits"),
+        postgresWow(wow) + shapeCounts(wow, PG_APPENDS, PG_SAVES) + wowPath,
+        calibrating,
+        shaped(logBatch, snapshotBatch) + rawPath,
     )
 }
 
@@ -316,7 +336,7 @@ private fun postgresStep(
     return try {
         val counters = { raw.counters() + shape?.counters().orEmpty() }
         val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
-        runStep(case.case, connections, pace, cpu, counters, ratios) { index ->
+        runStep(case.case, connections, pace, cpu, counters, ratios, raw::records) { index ->
             val owned = Aggregates(versions, index, connections)
             if (shape != null) {
                 caller(shape, owned)
@@ -397,7 +417,7 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         }
         RawResult(
             calibrationOf(
-                MONGO_CHECKS + shapeChecks(shape.first) + FAILED_CHECK,
+                MONGO_CHECKS + shapeChecks(shape.first, shape.second) + FAILED_CHECK,
                 listOf("commands", OWN_OPLOG_BYTES),
                 mongoWow(wow) + shapeCounts(wow, MONGO_APPENDS, MONGO_SAVES),
                 calibrating,
@@ -445,23 +465,22 @@ private fun shapeCounts(wow: Map<String, Double>, append: String, save: String):
     wow[save]?.let { put(SAVES, it) }
 }
 
-/** The clone's appends and saves per command in the calibration's shape: one append a flush, its groups' saves. */
+/** The clone's appends and saves per command in the calibration's shape: an append a flush, a save a snapshotBatch. */
 private fun shaped(logBatch: Int, snapshotBatch: Int): Map<String, Double> = mapOf(
     APPENDS to 1.0 / logBatch,
-    SAVES to groupsOf(logBatch, snapshotBatch).size.toDouble() / logBatch,
+    SAVES to 1.0 / snapshotBatch,
     WOW_FAILED to 0.0,
 )
 
 /**
  * Wow's batch shape in its own run, from its statements or commands per command: the commands an append took (the
- * count [append]) and the snapshots a save took of them (the count [save]); null when its run did not count them.
+ * count [append]) and the snapshots a save took (the count [save]), each its own: Wow's writer saves behind the appends
+ * and across them, so a save may take more snapshots than an append's commands; null when its run did not count them.
  */
 fun shapeOf(wow: Map<String, Double>, append: String, save: String): Pair<Int, Int>? {
     val appends = wow[append]?.takeIf { it > 0 } ?: return null
     val saves = wow[save]?.takeIf { it > 0 } ?: return null
-    val logBatch = (1 / appends).roundToInt().coerceAtLeast(1)
-    val groups = (logBatch * saves).roundToInt().coerceIn(1, logBatch)
-    return logBatch to (logBatch + groups - 1) / groups
+    return (1 / appends).roundToInt().coerceAtLeast(1) to (1 / saves).roundToInt().coerceAtLeast(1)
 }
 
 /**
@@ -512,22 +531,44 @@ private const val WOW_FAILED = "failedPerCommand"
 private const val OWN_OPLOG_BYTES = "ownOplogBytes"
 
 /**
- * The batch shape's checks: the appends and saves per command, each within what a shape of whole numbers can come to
- * Wow's (half a command an append, half a save a flush of [logBatch] commands), so a shape read from the wrong counts
- * fails while Wow's own rounding does not.
+ * The batch shape's checks: the appends and saves per command, each within what rounding Wow's to whole calls of
+ * [logBatch] commands and [snapshotBatch] snapshots can come to (half a command an append, half a snapshot a save), so
+ * a shape read from the wrong counts fails while Wow's own rounding does not.
  */
-private fun shapeChecks(logBatch: Int) = listOf(
-    APPENDS to RawCheck.Bound(absolute = 1.0 / (logBatch - HALF) - 1.0 / logBatch),
-    SAVES to RawCheck.Bound(absolute = HALF / logBatch),
+private fun shapeChecks(logBatch: Int, snapshotBatch: Int) = listOf(
+    APPENDS to RawCheck.Bound(absolute = roundingOf(logBatch)),
+    SAVES to RawCheck.Bound(absolute = roundingOf(snapshotBatch)),
 )
+
+/** How far 1 / [batch] can be from what rounded to [batch]: 1 / ([batch] - 1/2) - 1 / [batch]. */
+private fun roundingOf(batch: Int) = 1.0 / (batch - HALF) - 1.0 / batch
 
 /** No command of Wow's run failed: a failed command wrote less than a deposit. */
 private val FAILED_CHECK = listOf(WOW_FAILED to RawCheck.Bound(absolute = 0.0))
 
-/** PostgreSQL's checks: WAL records and bytes within 10%, the HOT share within 0.10. */
+/**
+ * PostgreSQL's checks when the WAL's records were not read by table: all its records and bytes within 10%, the HOT
+ * share within 0.10.
+ */
 private val POSTGRES_CHECKS = listOf(
     "walRecords" to RawCheck.Bound(share = SHARE),
     "walBytes" to RawCheck.Bound(share = SHARE),
+    "hotShare" to RawCheck.Bound(absolute = SHARE),
+)
+
+/** The tables' prefix of the WAL on the cloned tables (PostgresCounters.onTables). */
+private const val PATH = "path"
+
+/**
+ * PostgreSQL's checks with the WAL read by table (pg_walinspect): the records and bytes on the tables the clone writes
+ * (the log, its partitions' counters and the snapshots, their indexes with them) within 10% of Wow's on its own, the
+ * HOT share within 0.10. All of the WAL is reported apart: Wow's node also writes its checkpoints and leases, which
+ * the clone does not, and they go with time rather than commands (more of them a command the slower the run), so no
+ * bound on all of it holds at every rate; their records stay in the counters by table.
+ */
+private val PATH_CHECKS = listOf(
+    "${PATH}WalRecords" to RawCheck.Bound(share = SHARE),
+    "${PATH}WalBytes" to RawCheck.Bound(share = SHARE),
     "hotShare" to RawCheck.Bound(absolute = SHARE),
 )
 

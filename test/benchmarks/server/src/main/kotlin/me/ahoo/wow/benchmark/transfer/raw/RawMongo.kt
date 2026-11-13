@@ -94,23 +94,16 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
     }
 
     /**
-     * The cases: [WOW_TODAY] (today's shape, the calibration: the log's group of [logBatch] and their snapshots
-     * [snapshotBatch] a `bulkWrite` in [Update.M1], Wow's own), the log alone, each [Update] at each of [batches] updates a
-     * `bulkWrite` with the domain's state and with a 4 KB one, the log's insert and its snapshots' `bulkWrite` in one
-     * multi-document transaction against the same calls back to back, and a point read.
+     * The cases: [WOW_TODAY] (today's shape, the calibration: the log's group of [logBatch], and the snapshots behind
+     * the groups [snapshotBatch] a `bulkWrite` in [Update.M1], Wow's own, across groups (savedBehind)), the log alone,
+     * each [Update] at each of [batches] updates a `bulkWrite` with the domain's state and with a 4 KB one, the log's
+     * insert and its snapshots' `bulkWrite` in one multi-document transaction against the same calls back to back, and
+     * a point read.
      */
     fun cases(logBatch: Int, snapshotBatch: Int, batches: List<Int>): List<Case> = buildList {
         add(
             Case(RawCase(WOW_TODAY, COMMAND, logBatch, "today: the calibration"), false) { w, a ->
-                val commands = a.take(logBatch)
-                val appended = w.insert(commands)
-                var saved = Flushed(0)
-                var from = 0
-                for (n in groupsOf(logBatch, snapshotBatch)) {
-                    saved += w.write(commands.subList(from, from + n), Update.M1, bigState = false)
-                    from += n
-                }
-                both(appended, saved)
+                savedBehind(a, logBatch, snapshotBatch, w::insert) { w.write(it, Update.M1, bigState = false) }
             }
         )
         add(
