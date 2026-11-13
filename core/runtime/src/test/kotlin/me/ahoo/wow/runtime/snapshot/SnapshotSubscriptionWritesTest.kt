@@ -27,7 +27,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.LogPosition
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.CsvSource
 
 /**
  * How the snapshot subscription writes: one aggregate's waiting entries once at the latest version, the snapshots built
@@ -130,11 +130,23 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = [2, 4])
-    fun `the writes in flight reach the store's count under a queue and never exceed it`(inFlight: Int): Unit =
+    @CsvSource("2,", "4,", "2,3", "4,1")
+    fun `the writes in flight reach the store's count, or the override over it, under a queue and never exceed it`(
+        storeCount: Int,
+        override: Int?,
+    ): Unit =
         runBlocking {
-            val counted = RecordingStore(inFlight = inFlight)
-            val subscription = SnapshotSubscription("shop", listOf(counter), counted, kernel, log, codec).subscription
+            val counted = RecordingStore(inFlight = storeCount)
+            val inFlight = override ?: storeCount
+            val subscription = SnapshotSubscription(
+                "shop",
+                listOf(counter),
+                counted,
+                kernel,
+                log,
+                codec,
+                writesInFlight = override,
+            ).subscription
             val ids = (0..inFlight).map { "w$it" }
             ids.forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
             fun entry(id: String) = async {

@@ -23,7 +23,7 @@ import java.io.File
  * The applications of the Wow modules build on their public API alone (review R2.5-7): no build or file opts in to
  * `InternalWowApi`, and a platform server's declaration does only to read a host setting no public type gives
  * (design rule K1), each on [HOST_SETTING_READERS] with its reason; the benchmark server's one instrument of the
- * node's queues is on [BENCHMARK_INSTRUMENTS].
+ * node's queues and its tuning seam are on [BENCHMARK_INSTRUMENTS].
  */
 class InternalOptInTest {
     private val repositoryRoot: File =
@@ -111,6 +111,8 @@ class InternalOptInTest {
 
         private const val BENCH_PIPELINE =
             "test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchPipeline.kt"
+        private const val BENCH_TUNING =
+            "test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchTuning.kt"
 
         /**
          * The benchmark server's instrument of the node's queues, off unless a run asks for it: the rule keeps an
@@ -120,6 +122,8 @@ class InternalOptInTest {
          */
         val BENCHMARK_INSTRUMENTS: Map<String, String> = mapOf(
             "$BENCH_PIPELINE#BenchPipeline" to "a never-published benchmark instrument reading the node's queues",
+            "$BENCH_TUNING#BenchTuning" to
+                "a never-published benchmark seam: one build run with the append queue's and snapshot writes' counts",
         )
 
         val ALLOWED: Map<String, String> = HOST_SETTING_READERS + BENCHMARK_INSTRUMENTS

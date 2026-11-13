@@ -17,8 +17,8 @@ import { pathToFileURL } from 'node:url';
 
 const SESSION = /^(\d+)-(.+)-(postgres|mongo)$/;
 
-/** The host's foreign cores, a step's window's mean, at which the step counts as disturbed (the snapshot's bar). */
-export const DISTURBED_CORES = 2;
+/** The host's foreign cores, a step's window's mean, at which the step counts as disturbed. */
+export const DISTURBED_CORES = 1;
 const STEP_LINE = /^(\d+) .*\[saturate\] \S+: concurrency=(\d+) /;
 const PIPELINE = /^(\S+)\s.*bench-pipeline (\{.*\})\s*$/;
 
@@ -92,8 +92,10 @@ export function pipelineLines(log) {
 
 /**
  * The pipeline over a step's measured window ([endedAt] less its [seconds]): the append calls a second and the
- * streams a call, the clock's call and statement in milliseconds a call, the lanes' groups waiting (mean) and the
- * subscriptions' widest window (largest); empty without two lines in the window.
+ * streams a call, the append clock's call and statement in milliseconds a call, the snapshot writes' clock (snapshots a
+ * write, a write's call and statement, the leaders writing, mean), on MongoDB each clock's statement less the driver's
+ * commands (its own work around them, a commanded call's), the lanes' groups waiting (mean) and the subscriptions'
+ * widest window (largest); empty without two lines in the window.
  */
 export function pipelineOf(lines, endedAt, seconds) {
   if (!Number.isFinite(endedAt)) return {};
@@ -107,6 +109,18 @@ export function pipelineOf(lines, endedAt, seconds) {
     (last[section]?.[field] ?? NaN) - (first[section]?.[field] ?? NaN);
   const calls = delta('appendCalls', 'calls');
   const clocked = delta('appendClock', 'calls');
+  const writes = delta('snapshotClock', 'calls');
+  const meanOf = values => {
+    const numbers = values.filter(Number.isFinite);
+    return numbers.length
+      ? numbers.reduce((a, b) => a + b, 0) / numbers.length
+      : NaN;
+  };
+  // A clock's statement less its driver's commands, a commanded call's (MongoDB's), in milliseconds.
+  const driver = clock =>
+    (delta(clock, 'statement') - delta(clock, 'command')) /
+    delta(clock, 'commanded') /
+    1000;
   const waiting = within
     .map(line => line.sections.appendDepth?.handedGroups)
     .filter(Number.isFinite);
@@ -118,6 +132,14 @@ export function pipelineOf(lines, endedAt, seconds) {
     streamsPerCall: delta('appendCalls', 'streams') / calls,
     callMs: delta('appendClock', 'call') / clocked / 1000,
     statementMs: delta('appendClock', 'statement') / clocked / 1000,
+    appendDriverMs: driver('appendClock'),
+    snapshotsPerWrite: delta('snapshotClock', 'snapshots') / writes,
+    writeCallMs: delta('snapshotClock', 'call') / writes / 1000,
+    writeStatementMs: delta('snapshotClock', 'statement') / writes / 1000,
+    writeDriverMs: driver('snapshotClock'),
+    leadersWriting: meanOf(
+      within.map(line => line.sections.snapshotClock?.writing),
+    ),
     groupsWaiting: waiting.length
       ? waiting.reduce((a, b) => a + b, 0) / waiting.length
       : NaN,
@@ -140,14 +162,19 @@ export function hostSamples(tsv) {
     .map(([epoch, cores]) => ({ epoch: Number(epoch), cores: Number(cores) }));
 }
 
-/** The mean foreign cores over a step's measured window; NaN without a sample in it. */
+/** The foreign cores over a step's measured window: their mean and worst second; NaN each without a sample in it. */
 export function foreignOf(samples, endedAt, seconds) {
-  const within = samples.filter(
-    sample => sample.epoch >= endedAt - seconds && sample.epoch <= endedAt,
-  );
+  const within = samples
+    .filter(
+      sample => sample.epoch >= endedAt - seconds && sample.epoch <= endedAt,
+    )
+    .map(sample => sample.cores);
   return within.length
-    ? within.reduce((sum, sample) => sum + sample.cores, 0) / within.length
-    : NaN;
+    ? {
+        mean: within.reduce((sum, cores) => sum + cores, 0) / within.length,
+        worst: Math.max(...within),
+      }
+    : { mean: NaN, worst: NaN };
 }
 
 /**
@@ -229,6 +256,12 @@ export function rowsOf(sessions, order = [], host = []) {
           streamsPerCall: mean('streamsPerCall'),
           callMs: mean('callMs'),
           statementMs: mean('statementMs'),
+          appendDriverMs: mean('appendDriverMs'),
+          snapshotsPerWrite: mean('snapshotsPerWrite'),
+          writeCallMs: mean('writeCallMs'),
+          writeStatementMs: mean('writeStatementMs'),
+          writeDriverMs: mean('writeDriverMs'),
+          leadersWriting: mean('leadersWriting'),
           groupsWaiting: mean('groupsWaiting'),
           windowMax: Math.max(
             ...runs
@@ -237,7 +270,11 @@ export function rowsOf(sessions, order = [], host = []) {
             -Infinity,
           ),
           foreign: Math.max(
-            ...runs.map(step => step.foreign).filter(Number.isFinite),
+            ...runs.map(step => step.foreign.mean).filter(Number.isFinite),
+            -Infinity,
+          ),
+          foreignWorst: Math.max(
+            ...runs.map(step => step.foreign.worst).filter(Number.isFinite),
             -Infinity,
           ),
         });
@@ -254,8 +291,8 @@ export function tableOf(rows) {
     lines.push(
       `## ${backend}`,
       '',
-      '| Clients | Arm | Throughput a sweep (/s) | × first arm (median, range) | Own spread | Refused (most) | p50 ms | p99 ms | Calls/s | Streams/call | Call ms | Statement ms | Groups waiting | Widest window | Foreign cores (most) |',
-      '| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| Clients | Arm | Throughput a sweep (/s) | × first arm (median, range) | Own spread | Refused (most) | p50 ms | p99 ms | Calls/s | Streams/call | Call ms | Statement ms | Driver ms | Snapshots/write | Write call ms | Write statement ms | Write driver ms | Leaders writing | Groups waiting | Widest window | Foreign cores (mean, worst second) |',
+      '| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
     );
     for (const row of rows.filter(each => each.backend === backend)) {
       const ratio = Number.isFinite(row.ratio)
@@ -265,14 +302,16 @@ export function tableOf(rows) {
         `| ${num(row.concurrency)} | ${row.arm} | ${row.throughputs.map(value => num(value)).join(', ')} | ${ratio} | ` +
           `${Number.isFinite(row.spread) ? `${num(row.spread * 100, 1)}%` : '-'} | ${num(row.refused * 100, 2)}% | ` +
           `${num(row.p50, 1)} | ${num(row.p99, 1)} | ${num(row.callsPerSecond)} | ${num(row.streamsPerCall, 1)} | ` +
-          `${num(row.callMs, 2)} | ${num(row.statementMs, 2)} | ${num(row.groupsWaiting, 1)} | ` +
+          `${num(row.callMs, 2)} | ${num(row.statementMs, 2)} | ${num(row.appendDriverMs, 2)} | ` +
+          `${num(row.snapshotsPerWrite, 1)} | ${num(row.writeCallMs, 2)} | ${num(row.writeStatementMs, 2)} | ` +
+          `${num(row.writeDriverMs, 2)} | ${num(row.leadersWriting, 2)} | ${num(row.groupsWaiting, 1)} | ` +
           `${Number.isFinite(row.windowMax) && row.windowMax >= 0 ? num(row.windowMax) : '-'} | ` +
-          `${row.foreign >= 0 ? `${num(row.foreign, 2)}${row.foreign >= DISTURBED_CORES ? ' (disturbed)' : ''}` : '-'} |`,
+          `${row.foreign >= 0 ? `${num(row.foreign, 2)}, ${num(row.foreignWorst, 2)}${row.foreign >= DISTURBED_CORES ? ' (disturbed)' : ''}` : '-'} |`,
       );
     }
     lines.push(
       '',
-      `An arm's ratio counts only where its range clears both arms' own spreads; the pipeline columns are each sweep's mean over the step's measured window. A step whose window had ${DISTURBED_CORES} or more foreign cores on average (the host's processes other than the benchmark's) is disturbed: run it again.`,
+      `An arm's ratio counts only where its range clears both arms' own spreads; the pipeline columns are each sweep's mean over the step's measured window; Driver ms is a MongoDB call's statement less the driver's own command time (its work around the commands). A step whose window had ${DISTURBED_CORES} or more foreign cores on average (the host's processes other than the benchmark's) is disturbed: run it again; its worst second is printed beside the mean.`,
       '',
     );
   }

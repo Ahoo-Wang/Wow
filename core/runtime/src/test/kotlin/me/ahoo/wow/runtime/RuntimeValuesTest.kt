@@ -64,6 +64,7 @@ class RuntimeValuesTest {
     @Test
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(batch = 1))
+        valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(writesInFlight = 4))
         valueSemantics(ClusterOptions(), ClusterOptions(), ClusterOptions(leaseParallelism = 1))
         valueSemantics(JobOptions(), JobOptions(), JobOptions(enabled = false))
         valueSemantics(WaitOptions(), WaitOptions(), WaitOptions(maxHops = 1))
@@ -104,6 +105,7 @@ class RuntimeValuesTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { StateCacheOptions(recentRequests = -1) }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { StateCacheOptions(capacity = -1) }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(maxBatch = 0) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { SnapshotOptions(writesInFlight = 0) }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(laneCapacity = 0) }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(maxInFlight = 0) }
     }

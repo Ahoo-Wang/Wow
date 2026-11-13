@@ -495,6 +495,7 @@ class SnapshotMaintenance(
         answers = { emptySet() },
         active = { (store to it) !in caughtUp },
         writeBatch = options.writeBatch,
+        writesInFlight = options.writesInFlight,
         gate = gate,
     )
 

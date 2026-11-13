@@ -9,7 +9,9 @@ import {
   HIKARI_DEFAULT_POOL,
   poolOf,
   poolsText,
+  tuningOf,
   withPool,
+  withRecorded,
 } from './bench-common.mjs';
 
 test("a PostgreSQL arm's pool is its server argument, else its property, else HikariCP's default, as Spring Boot ranks them", () => {
@@ -59,4 +61,26 @@ test("a suite's arms carry their pools, and its runners row names each", () => {
     poolsText({ arms: [withPool({ id: 'head', backend: 'mongo' })] }),
     '-',
   );
+});
+
+test("an arm's tuning is its bench.tuning server arguments, else its properties, and is recorded beside its pool", () => {
+  assert.equal(tuningOf({ backend: 'postgres' }), undefined);
+  const arm = {
+    backend: 'postgres',
+    serverArgs:
+      '--wow.transport=none --bench.tuning.committers=4 --bench.tuning.call-cap=128',
+    props: { 'bench.tuning.committers': 2, 'bench.tuning.snapshot-writes': 8 },
+  };
+  assert.deepEqual(tuningOf(arm), {
+    committers: 4,
+    'call-cap': 128,
+    'snapshot-writes': 8,
+  });
+  assert.deepEqual(withRecorded(arm).tuning, {
+    committers: 4,
+    'call-cap': 128,
+    'snapshot-writes': 8,
+  });
+  assert.equal(withRecorded(arm).pool, 10);
+  assert.equal('tuning' in withRecorded({ backend: 'mongo' }), false);
 });

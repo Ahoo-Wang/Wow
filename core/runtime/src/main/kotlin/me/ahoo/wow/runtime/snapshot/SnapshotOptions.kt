@@ -26,7 +26,9 @@ import kotlin.time.Duration.Companion.seconds
  * higher revision is gone (none when it leaves gracefully). The snapshot subscriptions write at most [writeBatch]
  * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll]. A command's cache miss, and a
  * shared state's, waits at most [loadTimeout] for a snapshot before it replays the log
- * ([me.ahoo.wow.kernel.KernelOptions.snapshotLoadTimeout]).
+ * ([me.ahoo.wow.kernel.KernelOptions.snapshotLoadTimeout]). With [writesInFlight], the subscriptions run that many
+ * writes at once over the store's own [me.ahoo.wow.spi.snapshot.SnapshotStore.writesInFlight]: a seam for measuring
+ * the count, bound to no configuration; null, the store's.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -39,6 +41,7 @@ class SnapshotOptions @InternalWowApi constructor(
     val memberTtl: Duration = DEFAULT_TTL,
     val writeBatch: Int = DEFAULT_WRITE_BATCH,
     val loadTimeout: Duration = KernelOptions.DEFAULT_SNAPSHOT_LOAD_TIMEOUT,
+    val writesInFlight: Int? = null,
 ) {
     init {
         require(interval.isPositive()) { "The snapshot maintenance runs at a positive interval." }
@@ -48,6 +51,7 @@ class SnapshotOptions @InternalWowApi constructor(
         require(memberTtl > interval) { "A revision membership outlives the interval between runs." }
         require(writeBatch >= 1) { "A snapshot write holds at least one snapshot." }
         require(loadTimeout.isPositive()) { "A snapshot load's timeout is positive." }
+        require(writesInFlight == null || writesInFlight >= 1) { "The snapshot writes run at least one at a time." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -57,9 +61,10 @@ class SnapshotOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "SnapshotOptions(interval=$interval, batch=$batch, pages=$pages, leaseTtl=$leaseTtl, " +
-            "memberTtl=$memberTtl, writeBatch=$writeBatch, loadTimeout=$loadTimeout)"
+            "memberTtl=$memberTtl, writeBatch=$writeBatch, loadTimeout=$loadTimeout, writesInFlight=$writesInFlight)"
 
-    private fun valueFields(): List<Any?> = listOf(interval, batch, pages, leaseTtl, memberTtl, writeBatch, loadTimeout)
+    private fun valueFields(): List<Any?> =
+        listOf(interval, batch, pages, leaseTtl, memberTtl, writeBatch, loadTimeout, writesInFlight)
 
     companion object {
         val DEFAULT_INTERVAL: Duration = 5.seconds

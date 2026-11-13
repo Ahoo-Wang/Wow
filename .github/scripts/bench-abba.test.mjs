@@ -97,6 +97,18 @@ test("the pipeline over a step is its window's calls, streams a call, clock, gro
             calls: offset * 10,
             call: offset * 30_000,
             statement: offset * 25_000,
+            commanded: offset * 10,
+            command: offset * 20_000,
+          },
+          snapshotClock: {
+            saves: offset * 40,
+            snapshots: offset * 40,
+            writing: offset ? 2 : 1,
+            calls: offset * 4,
+            call: offset * 8_000,
+            statement: offset * 6_000,
+            commanded: offset * 4,
+            command: offset * 5_000,
           },
           windowMax: { a: offset, b: 7 },
         }),
@@ -107,6 +119,13 @@ test("the pipeline over a step is its window's calls, streams a call, clock, gro
   assert.equal(of.streamsPerCall, 15);
   assert.equal(of.callMs, 3);
   assert.equal(of.statementMs, 2.5);
+  // On MongoDB a clock's statement less the driver's commands: 2.5 ms less 2 ms an append, 1.5 less 1.25 a write.
+  assert.equal(of.appendDriverMs, 0.5);
+  assert.equal(of.snapshotsPerWrite, 10);
+  assert.equal(of.writeCallMs, 2);
+  assert.equal(of.writeStatementMs, 1.5);
+  assert.equal(of.writeDriverMs, 0.25);
+  assert.equal(of.leadersWriting, 1.5);
   assert.equal(of.groupsWaiting, 4);
   assert.equal(of.windowMax, 30);
   assert.deepEqual(pipelineOf(lines.slice(1), END, 30), {});
@@ -155,7 +174,7 @@ test('an ABBA root gives each step its arms a sweep, the ratio to the first, eac
   );
   assert.match(
     table,
-    /\| 1,024 \| main \| 10,000, 10,200 \| - \| 2\.0% \| 0\.00% \| 40\.0 \| 120\.0 \| 10 \| 15\.0 \| 3\.00 \| 2\.50 \| 4\.0 \| 3,000 \|/,
+    /\| 1,024 \| main \| 10,000, 10,200 \| - \| 2\.0% \| 0\.00% \| 40\.0 \| 120\.0 \| 10 \| 15\.0 \| 3\.00 \| 2\.50 \| - \| - \| - \| - \| - \| - \| 4\.0 \| 3,000 \| - \|/,
   );
 });
 
@@ -164,12 +183,13 @@ test("a step's foreign cores are the host's mean over its window, and a busy one
     `epoch\tforeignCores\ttop\n${END - 40}\t9\tx\n${END - 20}\t1\ty\n${END}\t3\tz\nnoise\n`,
   );
   assert.equal(samples.length, 3);
-  assert.equal(foreignOf(samples, END, 30), 2);
-  assert.ok(Number.isNaN(foreignOf(samples, END - 100, 30)));
+  assert.deepEqual(foreignOf(samples, END, 30), { mean: 2, worst: 3 });
+  assert.ok(Number.isNaN(foreignOf(samples, END - 100, 30).mean));
   const root = mkdtempSync(join(tmpdir(), 'bench-abba-'));
   sweep(root, '1-main-postgres', 10_000);
   sweep(root, '1-branch-postgres', 10_100);
   const rows = rowsOf(sessionsOf(root), ['main', 'branch'], samples);
-  assert.equal(rows[0].foreign, DISTURBED_CORES);
-  assert.match(tableOf(rows), /\| 2\.00 \(disturbed\) \|/);
+  assert.equal(rows[0].foreign, 2 * DISTURBED_CORES);
+  assert.equal(rows[0].foreignWorst, 3);
+  assert.match(tableOf(rows), /\| 2\.00, 3\.00 \(disturbed\) \|/);
 });

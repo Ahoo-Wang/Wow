@@ -179,6 +179,35 @@ export function poolOf(arm) {
 export const withPool = arm =>
   poolOf(arm) === undefined ? arm : { ...arm, pool: poolOf(arm) };
 
+/**
+ * The node's tuning an arm's servers run with (the benchmark server's `bench.tuning.*`: committers, call-cap,
+ * lane-batch, snapshot-writes), from its server arguments, else its properties, as Spring Boot ranks them; undefined
+ * when it gives none, the node's own counts.
+ */
+export function tuningOf(arm) {
+  const tuning = {};
+  for (const name of [
+    'committers',
+    'call-cap',
+    'lane-batch',
+    'snapshot-writes',
+  ]) {
+    const argument = (arm?.serverArgs ?? '').match(
+      new RegExp(`(?:^|\\s)--bench\\.tuning\\.${name}=(\\d+)(?:\\s|$)`),
+    )?.[1];
+    const value = argument ?? arm?.props?.[`bench.tuning.${name}`];
+    if (value !== undefined) tuning[name] = Number(value);
+  }
+  return Object.keys(tuning).length ? tuning : undefined;
+}
+
+/** [arm] with its pool (`pool`) and its tuning (`tuning`) recorded, each when it has one. */
+export const withRecorded = arm => {
+  const pooled = withPool(arm);
+  const tuning = tuningOf(arm);
+  return tuning ? { ...pooled, tuning } : pooled;
+};
+
 /** A suite's arms' pools for its runners row: `-` without one. */
 export const poolsText = suite =>
   (suite.arms ?? [])
