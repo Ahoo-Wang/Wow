@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.state
 
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
+import tools.jackson.core.json.JsonGeneratorBase
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.SerializationContext
@@ -27,9 +28,11 @@ import tools.jackson.databind.module.SimpleModule
  * and `{version, schemaFingerprint, state}`, the fields in that order, as the envelope of a state event carries them.
  *
  * One made from its JSON text ([StateEventPayload.ofText], [PublishedState.ofText]) is written with that text as it is
- * ([JsonGenerator.writeRawValue]): the codec's own JSON, which the node holds already, is neither parsed nor written
- * again. One made from a tree, as a received envelope's is, is written from the tree, as before. A read always makes
- * them from trees.
+ * ([JsonGenerator.writeRawValue]) when the generator writes JSON text to an output ([JsonGeneratorBase]): the codec's
+ * own JSON, which the node holds already, is neither parsed nor written again. Any other generator gets the tree: a
+ * token buffer (`valueToTree`, `convertValue`) would keep the text as an opaque raw value where its reader expects the
+ * payload's object, and a binary format has no JSON text to embed. One made from a tree, as a received envelope's is,
+ * is written from the tree, as before. A read always makes them from trees.
  */
 internal object StateEventJson {
     val module: SimpleModule = SimpleModule("wow-state-event")
@@ -45,7 +48,7 @@ internal object StateEventJson {
     private const val SCHEMA_FINGERPRINT = "schemaFingerprint"
     private const val STATE = "state"
 
-    /** Writes the value of [name]: [text] as it is when there is one, else [tree]. */
+    /** Writes the value of [name]: [text] as it is when there is one and [gen] writes JSON text, else [tree]. */
     private fun writeJson(
         gen: JsonGenerator,
         ctxt: SerializationContext,
@@ -54,7 +57,7 @@ internal object StateEventJson {
         tree: () -> JsonNode,
     ) {
         gen.writeName(name)
-        if (text != null) gen.writeRawValue(text) else ctxt.writeValue(gen, tree())
+        if (text != null && gen is JsonGeneratorBase) gen.writeRawValue(text) else ctxt.writeValue(gen, tree())
     }
 
     /**

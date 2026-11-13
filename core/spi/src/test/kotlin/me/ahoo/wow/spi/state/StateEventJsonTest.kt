@@ -143,6 +143,23 @@ class StateEventJsonTest {
     }
 
     @Test
+    fun `a record made from text should become the same tree and value as one made from trees`() {
+        val text = StateJson.mapper.writeValueAsString(Numbers())
+        val tree = WowJson.mapper.readTree(text)
+        val raw = record(StateEventPayload.ofText("shop.order.Placed", 1, text), PublishedState.ofText(1, "f", text))
+        val trees = record(StateEventPayload("shop.order.Placed", 1, tree), PublishedState(1, "f", tree))
+        // A token buffer gets the trees, never the text as an opaque raw value: the payload and the state are objects.
+        val asTree = WowJson.mapper.valueToTree<tools.jackson.databind.JsonNode>(raw)
+        asTree.assert().isEqualTo(WowJson.mapper.valueToTree<tools.jackson.databind.JsonNode>(trees))
+        asTree.get("events").get(0).get("payload").isObject.assert().isTrue()
+        asTree.get("state").get("state").isObject.assert().isTrue()
+        WowJson.mapper.convertValue(raw, Map::class.java)
+            .assert().isEqualTo(WowJson.mapper.convertValue(trees, Map::class.java))
+        WowJson.mapper.convertValue(raw.events.single(), StateEventPayload::class.java)
+            .assert().isEqualTo(trees.events.single())
+    }
+
+    @Test
     fun `read, an event and a state should be made from trees and refuse what they cannot hold`() {
         val event = WowJson.mapper.readValue(
             """{"name":"shop.order.Placed","revision":2,"payload":{"amount":2.50},"unknown":1}""",
