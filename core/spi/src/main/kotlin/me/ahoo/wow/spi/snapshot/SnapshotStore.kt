@@ -90,6 +90,16 @@ interface SnapshotStore {
      */
     val writesInFlight: Int get() = DEFAULT_WRITES_IN_FLIGHT
 
+    /**
+     * How many of this store's [saveAll] calls one snapshot subscription may have in flight while it is behind: while
+     * its writes keep taking full batches with saves still waiting, it starts more, up to this, and goes back to
+     * [writesInFlight] once its batches are small again. [writesInFlight] by default, so a store that says nothing
+     * keeps the same count whatever the load. A store whose calls cost its server about the same a snapshot whatever
+     * their batch raises it: there, calls at once scale where a larger batch does not, and the default count keeps
+     * calls large below the peak, where more of them would only cost the server their fixed part.
+     */
+    val catchUpWritesInFlight: Int get() = writesInFlight
+
     companion object {
         /** The calls in flight a store's snapshot subscription runs unless the store says otherwise ([writesInFlight]). */
         const val DEFAULT_WRITES_IN_FLIGHT: Int = 2

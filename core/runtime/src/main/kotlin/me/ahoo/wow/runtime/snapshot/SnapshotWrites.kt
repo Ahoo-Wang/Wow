@@ -31,7 +31,7 @@ import me.ahoo.wow.spi.store.StoreCallMarks
  * The snapshot writes of a snapshot subscription, of all its partitions together:
  * the subscription's lanes, one per aggregate, each [save] the snapshot they built into one queue, and the saves
  * waiting together are written with one [SnapshotStore.saveAll], at most [maxBatch] at a time, by at most
- * [committers] writes at once.
+ * [committers] writes at once, or [catchUp] while the writes are behind.
  *
  * - **No waiting for a batch to fill** (as the log's group commit): a save finding fewer than [committers] writes
  *   running leads one at once, after a [yield] that lets the lanes ready in the same instant join it; the saves
@@ -43,8 +43,18 @@ import me.ahoo.wow.spi.store.StoreCallMarks
  *   little to share its fixed cost).
  * - **A leader writes its own save**: a save leading is taken by no other leader's batch, so a leader's batch always
  *   holds its own save until it is written.
+ * - **Behind, more writes**: a take that was full ([maxBatch]) with saves still waiting raises the writes' limit from
+ *   [committers] to [catchUp], and the take starts another leader at once ([startWaiting]), one a take while they stay
+ *   full; a take of fewer than [retireBelow] lowers it again, and a leader over the limit then gives its place up when
+ *   it ends instead of handing it on. So below the peak the writes stay at [committers] with their calls large, and at
+ *   the peak, where every take is full, they grow to [catchUp] (the store's [SnapshotStore.catchUpWritesInFlight]).
+ *   At a sustained peak the limit swings between the two: a leader started for a full take first takes only what
+ *   arrived since, often under [retireBelow], which lowers the limit until the next full take raises it. That is
+ *   harmless: a lowered limit takes no write away (a leader over it finishes its write, then gives its place up), a
+ *   leader costs one hand-over to start or end, and the writes keep up as with [catchUp] always (measured
+ *   2026-11-13). A store whose two counts are equal does none of this: its takes only compare the counts.
  * - **The invariant**, at every instant the monitor is free: a save waits without leading only while the leaders are
- *   at [committers] or one gathers. Each change of the queue and of the leaders keeps it in one critical section:
+ *   at the limit or one gathers. Each change of the queue and of the leaders keeps it in one critical section:
  *   a save that leads or waits, a take (with [startWaiting] after it), a hand-over, and a cancelled leader's put-back
  *   with its hand-over. So a leader is the oldest save not leading when it gathers, its first batch holds its own
  *   save, and the only leading save it meets in the queue is its own. The guards that would cope otherwise (a leader's
@@ -70,11 +80,22 @@ internal class SnapshotWrites(
     private val store: SnapshotStore,
     private val maxBatch: Int,
     private val committers: Int = SnapshotStore.DEFAULT_WRITES_IN_FLIGHT,
+    /** The most writes at once while the writes are behind: [committers] keeps the count whatever the load. */
+    private val catchUp: Int = committers,
+    /**
+     * A take of fewer saves than this ends being behind: a quarter of [maxBatch], so with a write batch under four it is
+     * zero, and a limit once raised stays raised.
+     */
+    private val retireBelow: Int = maxBatch / RETIRE_FRACTION,
 ) {
     init {
         require(maxBatch >= 1) { "A snapshot write batch holds at least one snapshot." }
         require(committers >= 1) { "Snapshot writes take at least one committer." }
+        require(catchUp >= committers) { "Snapshot writes catch up with at least their committers." }
     }
+
+    /** How many saves may lead now: [committers], or [catchUp] while behind. Guarded by this object's monitor. */
+    private var limit = committers
 
     private val queue = ArrayDeque<Write>()
 
@@ -102,6 +123,7 @@ internal class SnapshotWrites(
      * the writes count nothing: their only cost is reading that no one asked.
      */
     fun counts(): SnapshotWriteCounts {
+        synchronized(this) { counted.limited(limit) }
         counting = true
         return counted
     }
@@ -111,7 +133,7 @@ internal class SnapshotWrites(
         val write = Write(snapshot)
         val leads = synchronized(this) {
             queue.addLast(write)
-            (leaders < committers && !gathering).also {
+            (leaders < limit && !gathering).also {
                 if (it) {
                     leaders++
                     gathering = true
@@ -157,6 +179,7 @@ internal class SnapshotWrites(
                             gathered = true
                             gathering = false
                         }
+                        paced(it.size)
                         startWaiting()
                     }
                 }
@@ -198,13 +221,27 @@ internal class SnapshotWrites(
     }
 
     /**
-     * Called under the monitor, after a take: while no leader gathers and fewer than [committers] lead, the oldest save
+     * Called under the monitor, after a take of [taken] saves: behind when it was full with saves still waiting, the
+     * limit up to [catchUp]; caught up when it took fewer than [retireBelow], the limit back to [committers].
+     */
+    private fun paced(taken: Int) {
+        if (catchUp == committers) return
+        if (taken >= maxBatch && queue.any { !it.leads }) {
+            limit = catchUp
+        } else if (taken < retireBelow) {
+            limit = committers
+        }
+        if (counting) counted.limited(limit)
+    }
+
+    /**
+     * Called under the monitor, after a take: while no leader gathers and fewer than the limit lead, the oldest save
      * still waiting leads the next write and gathers. So the saves a take left behind (more than [maxBatch] waiting,
      * or arrived while another leader gathered) get a write of their own at once, never sitting behind a single write
      * until it ends.
      */
     private fun startWaiting() {
-        if (gathering || leaders >= committers) {
+        if (gathering || leaders >= limit) {
             return
         }
         val next = queue.firstOrNull { !it.leads } ?: return
@@ -216,15 +253,15 @@ internal class SnapshotWrites(
 
     /**
      * Called under the monitor: a leader's place passes to the oldest save waiting, not leading, which then gathers;
-     * else, or while another leader gathers (which takes the waiting saves), it is given up. [wasGathering]: the leader
-     * leaving had not taken its first batch yet.
+     * else, while another leader gathers (which takes the waiting saves), or while more lead than the limit (it fell
+     * when the writes caught up), it is given up. [wasGathering]: the leader leaving had not taken its first batch yet.
      */
     private fun handOver(wasGathering: Boolean) {
         if (wasGathering) {
             gathering = false
         }
         val next = queue.firstOrNull { !it.leads }
-        if (next == null || gathering) {
+        if (next == null || gathering || leaders > limit) {
             leaders--
         } else {
             next.leads = true
@@ -311,5 +348,10 @@ internal class SnapshotWrites(
                 result.complete(outcome.written)
             }
         }
+    }
+
+    private companion object {
+        /** Caught up once a take is under a quarter of a batch: four's steady take at the peak is about half of one. */
+        const val RETIRE_FRACTION = 4
     }
 }

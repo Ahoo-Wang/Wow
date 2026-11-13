@@ -98,7 +98,10 @@ class SnapshotSubscription(
     private val active: (AggregateType) -> Boolean = { true },
     /** How many snapshots one write of a partition holds at most ([SnapshotOptions.writeBatch]). */
     private val writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH,
-    /** How many writes run at once over the store's own count ([SnapshotOptions.writesInFlight]); null, the store's. */
+    /**
+     * How many writes run at once over the store's own counts ([SnapshotOptions.writesInFlight]), steady and behind
+     * alike; null, the store's ([SnapshotStore.writesInFlight], [SnapshotStore.catchUpWritesInFlight]).
+     */
     private val writesInFlight: Int? = null,
     /** How the rebuilds of its own [views], when none are given, replay the log ([SharedStates.rebuild]). */
     gate: ReplayGate = ReplayGate.OPEN,
@@ -107,7 +110,14 @@ class SnapshotSubscription(
     private val written = LruMap<AggregateRef, Written>(capacity)
 
     /** The batched writes of every partition. */
-    private val writes = SnapshotWrites(store, writeBatch, committers = writesInFlight ?: store.writesInFlight)
+    // The override, when set, fixes the count steady and behind alike. Else the store's two, a catch-up count under its
+    // writes in flight (a wrapper that raised one and delegated the other) being the latter.
+    private val writes = SnapshotWrites(
+        store,
+        writeBatch,
+        committers = writesInFlight ?: store.writesInFlight,
+        catchUp = writesInFlight ?: maxOf(store.writesInFlight, store.catchUpWritesInFlight),
+    )
 
     /**
      * What the subscription's writes took, wrote and spent ([SnapshotWriteCounts]), counted from the first call of this

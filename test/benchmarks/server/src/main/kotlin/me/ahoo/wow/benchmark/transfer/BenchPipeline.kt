@@ -64,8 +64,9 @@ import java.util.concurrent.TimeUnit
  *   call's step.
  * - `snapshotClock`, cumulative from this line's first read, the same for the snapshot subscriptions' writes (each
  *   subscription's `SnapshotWrites`, a write one `saveAll` of a leader's batch): the `saves` the leaders took and the
- *   `snapshots` they wrote (an aggregate's highest version a write), `writing` now (the leaders in a store's call), and
- *   the clock's fields. A write's `call` runs from its batch taken to the store's call returned (a failed batch's saves
+ *   `snapshots` they wrote (an aggregate's highest version a write), `writing` now (the leaders in a store's call),
+ *   `allowed` now (how many may lead: the store's writes in flight, or its catch-up count while the writes are
+ *   behind), and the clock's fields. A write's `call` runs from its batch taken to the store's call returned (a failed batch's saves
  *   again alone among it), `complete` to its saves ended; on PostgreSQL the transaction's commit is in `release`.
  * - `handoff`, cumulative from the node's start: the entries the tails `delivered` from memory and their `storeReads`.
  * - `window` and `windowMax`, now, per subscription: the entries its workers took above their watermarks, summed over
@@ -229,6 +230,7 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                     "saves" to counts.sumOf { it.saves },
                     "snapshots" to counts.sumOf { it.snapshots },
                     "writing" to counts.sumOf { it.writing },
+                    "allowed" to counts.sumOf { it.allowed },
                 ) + clock
             }.orEmpty()
 
