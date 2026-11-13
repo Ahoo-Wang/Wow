@@ -39,6 +39,8 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.sql.Connection
 import java.sql.PreparedStatement
+import java.sql.SQLException
+import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 
 class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
@@ -125,21 +127,36 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
             runCatching { deadlocked.saveAll(batch) }.exceptionOrNull()
                 .assert().isInstanceOf(StorageUnavailableException::class.java)
             batch.forEach { store.load(it.ref).assert().isNull() }
+            // Refused for a value first, the batch is saved statement by statement, and those deadlock too.
+            val refusedThenDeadlocked = PostgresSnapshotStore(
+                deadlocking(PostgresFixture.dataSource, first = PSQLException(ServerErrorMessage(REFUSED))),
+                context,
+            )
+            runCatching { refusedThenDeadlocked.saveAll(batch) }.exceptionOrNull()
+                .assert().isInstanceOf(StorageUnavailableException::class.java)
+            batch.forEach { store.load(it.ref).assert().isNull() }
             store.saveAll(batch).assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
         }
 
-    /** [target]'s connections, whose statements that save a batch fail with a deadlock (`40P01`) when they run. */
-    private fun deadlocking(target: DataSource): DataSource = proxy(DataSource::class.java, target) { name, _ ->
-        if (name != "getConnection") return@proxy null
-        val connection = target.connection
-        proxy(Connection::class.java, connection) { method, arguments ->
-            val sql = (arguments.firstOrNull() as? String)?.trimStart()
-            if (method != "prepareStatement" || sql == null || !sql.startsWith("WITH input")) return@proxy null
-            proxy(PreparedStatement::class.java, connection.prepareStatement(sql)) { call, _ ->
-                if (call == "executeQuery") {
-                    throw PSQLException(ServerErrorMessage("SERROR\u0000C40P01\u0000Mdeadlock detected\u0000"))
+    /**
+     * [target]'s connections, whose statements that save a batch fail with a deadlock (`40P01`) when they run, the
+     * first of them with [first] instead when given.
+     */
+    private fun deadlocking(target: DataSource, first: SQLException? = null): DataSource {
+        val failures = AtomicInteger()
+        return proxy(DataSource::class.java, target) { name, _ ->
+            if (name != "getConnection") return@proxy null
+            val connection = target.connection
+            proxy(Connection::class.java, connection) { method, arguments ->
+                val sql = (arguments.firstOrNull() as? String)?.trimStart()
+                if (method != "prepareStatement" || sql == null || !sql.startsWith("WITH input")) return@proxy null
+                proxy(PreparedStatement::class.java, connection.prepareStatement(sql)) { call, _ ->
+                    if (call == "executeQuery") {
+                        throw first.takeIf { failures.getAndIncrement() == 0 }
+                            ?: PSQLException(ServerErrorMessage(DEADLOCK))
+                    }
+                    null
                 }
-                null
             }
         }
     }
@@ -327,5 +344,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         const val CHANGED_BY_EVERY_SAVE = 4
         const val LOCK_WAIT_NANOS = 10_000_000_000L
         const val POLL_MILLIS = 10L
+        const val DEADLOCK = "SERROR\u0000C40P01\u0000Mdeadlock detected\u0000"
+        const val REFUSED = "SERROR\u0000C22P02\u0000Minvalid input syntax\u0000"
     }
 }
