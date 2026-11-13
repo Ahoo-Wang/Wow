@@ -12,7 +12,7 @@
       "description" : "A tenant's wording over one dataset in one application",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.wording.DatasetWordingState",
-        "fingerprint" : "1abd5abba062140c3915e36794eeaf4ed4594a9b34198a2ed17671e202c14a52"
+        "fingerprint" : "1abd5abba062140c"
       },
       "snapshot" : {
         "enabled" : true
@@ -98,7 +98,7 @@
       "description" : "A saved view of the view engine: a record view, an analysis view or a dashboard",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.view.ViewState",
-        "fingerprint" : "2c9c6bb78603b6724c2326a5ca43a0bfb25ded34996087a5a642de66dc38ba95"
+        "fingerprint" : "2c9c6bb78603b672"
       },
       "snapshot" : {
         "enabled" : true
@@ -257,7 +257,7 @@
       "description" : "One owner's view preferences for one definition in one application",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState",
-        "fingerprint" : "0b644bb159eb53116cd5041f82bcc53d4ded98b8c52f6f05156af56410836dbf"
+        "fingerprint" : "0b644bb159eb5311"
       },
       "snapshot" : {
         "enabled" : true

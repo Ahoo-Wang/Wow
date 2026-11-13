@@ -12,7 +12,7 @@
       "description" : "The payment of an order through the payment gateway",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState",
-        "fingerprint" : "023c24b7e46d73764823f6dc4f4679484899b405e3ca3b15b2055bbdcb775c72"
+        "fingerprint" : "023c24b7e46d7376"
       },
       "snapshot" : {
         "enabled" : true

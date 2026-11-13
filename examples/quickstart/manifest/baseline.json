@@ -11,7 +11,7 @@
       "name" : "account",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.example.quickstart.AccountState",
-        "fingerprint" : "3e0a705c699f9262c685ade273ae9c6a3ca9ab2bd9739acc2e90f1fe1290e04e"
+        "fingerprint" : "3e0a705c699f9262"
       },
       "snapshot" : {
         "enabled" : true

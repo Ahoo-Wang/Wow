@@ -111,7 +111,7 @@ class ManifestToolsTest {
 
         val completed = ManifestJson.read(output)
         completed.unresolvedSchemaRefs.assert().isEmpty()
-        completed.contexts.single().aggregates.single().state.fingerprint.assert().hasSize(64)
+        completed.contexts.single().aggregates.single().state.fingerprint.assert().hasSize(16)
     }
 
     @Test

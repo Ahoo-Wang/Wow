@@ -55,8 +55,8 @@ object StateJson {
         .build()
 
     /**
-     * Identifies the shape of [stateType]'s JSON as [mapper] serializes it: the SHA-256 hash of a structural
-     * description built from what Jackson's format visitor reports, that is from the serializers the mapper would use,
+     * Identifies the shape of [stateType]'s JSON as [mapper] serializes it: the first 64 bits of the SHA-256 hash, as
+     * 16 hex characters, of a structural description built from what Jackson's format visitor reports, that is from the serializers the mapper would use,
      * after naming strategies, ignored properties and the Kotlin module apply ([shape]):
      * - a bean is `{name:shape,...}` over its serialized properties, sorted by name, each property's declared type
      *   described in turn (type arguments resolved);
@@ -72,9 +72,17 @@ object StateJson {
      * state or of any type it holds, changes it, as does adding or removing an enum constant. Nullability,
      * required-ness and subtypes behind an abstract property type are not part of it: a snapshot that does not decode
      * any more is replayed from the log as well.
+     *
+     * It is stored with every snapshot and published with every state, so it is short: 64 bits tell two shapes of one
+     * type apart, and two shapes that share them (a chance of 2⁻⁶⁴) cost a replay, never a wrong state, since a
+     * snapshot whose text does not read back exactly is replayed from the log too.
      */
     fun fingerprint(stateType: Class<*>, mapper: JsonMapper = this.mapper): String =
         hex(MessageDigest.getInstance("SHA-256").digest(shape(stateType, mapper).toByteArray(Charsets.UTF_8)))
+            .take(FINGERPRINT_CHARS)
+
+    /** The hex characters of a fingerprint: the hash's first 8 bytes. */
+    private const val FINGERPRINT_CHARS = 16
 
     /** The description [fingerprint] hashes. */
     fun shape(stateType: Class<*>, mapper: JsonMapper = this.mapper): String =
