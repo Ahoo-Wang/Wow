@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -28,6 +29,7 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -135,24 +137,39 @@ class PostgresEventLog(
     fun createTable(aggregateName: String) = catalog.createTable(aggregateName)
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        dispatcher.jdbc {
-            require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
-            val partition = Partitioner.partitionOf(stream.ref, partitions)
-            appender.append(partition, stream, transport)
-                .also { if (it is AppendOutcome.Committed) pacer.committed(partition) }
-        }
+        appendOne(stream, transport, null)
 
-    /** Group commit: [PostgresLogAppender.appendAll]. */
+    private suspend fun appendOne(
+        stream: EventStreamRecord,
+        transport: ByteArray?,
+        marks: AppendCallMarks?,
+    ): AppendOutcome = dispatcher.jdbc {
+        marks?.onThread()
+        require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
+        val partition = Partitioner.partitionOf(stream.ref, partitions)
+        appender.append(partition, stream, transport, marks)
+            .also { if (it is AppendOutcome.Committed) pacer.committed(partition) }
+            .also { marks?.released() }
+    }
+
+    /**
+     * Group commit: [PostgresLogAppender.appendAll]. A call clocked by the append queue ([AppendCallMarks] in its
+     * context) is marked from its entry to its connection given back.
+     */
     override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+        val marks = currentCoroutineContext()[AppendCallMarks]?.apply { entered() }
         if (streams.size <= 1) {
-            return streams.map { append(it.stream, it.transport) }
+            return streams.map { appendOne(it.stream, it.transport, marks) }
         }
         require(streams.all { it.stream.ref.type.context == context }) {
             "A group commit appends streams of $context."
         }
         requireChains(streams)
         val parts = streams.map { Partitioner.partitionOf(it.stream.ref, partitions) }
-        return dispatcher.jdbc { appender.appendAll(parts, streams) }.also { outcomes ->
+        return dispatcher.jdbc {
+            marks?.onThread()
+            appender.appendAll(parts, streams, marks).also { marks?.released() }
+        }.also { outcomes ->
             parts.withIndex().filter { outcomes[it.index] is AppendOutcome.Committed }.map { it.value }.distinct()
                 .forEach(pacer::committed)
         }

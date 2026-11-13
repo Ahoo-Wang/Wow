@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.transfer
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoPoolGauge
+import me.ahoo.wow.runtime.log.AppendClock
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.slf4j.LoggerFactory
@@ -41,6 +42,14 @@ import java.util.concurrent.TimeUnit
  *   committers and not yet taken into a call.
  * - `appendCalls`, cumulative from this line's first read: `calls` to the log, the `streams` they carried, and the calls
  *   `full` at their cap (`mergeMax` merged). Streams over calls between two lines is the mean call of that second.
+ * - `appendClock`, cumulative from this line's first read, in microseconds summed over the calls (the queue's
+ *   `AppendClock`): the `calls` clocked, each one's `call` from its group taken to the log's call returned and its
+ *   `complete` from there to its outcomes handed back and its committer free; and, over the `marked` calls (those whose
+ *   log marks the instants only it sees, PostgreSQL's), `enter` to the log's call, `hop` to the thread of its JDBC work,
+ *   `acquire` to its connection, `bind` to its statement sent (its tables found, its statement prepared, its streams'
+ *   parameters bound and encoded), `statement` to its result read, `release` to its connection given back, and
+ *   `hopBack` to the call returned, which sum to their `call`. Each between two lines, over that second's calls, is the
+ *   mean of a call's step.
  * - `handoff`, cumulative from the node's start: the entries the tails `delivered` from memory and their `storeReads`.
  * - `window` and `windowMax`, now, per subscription: the entries its workers took above their watermarks, summed over
  *   the partitions and the largest one partition's, against its in-flight bound (`wow.subscription.max-in-flight`).
@@ -50,11 +59,12 @@ import java.util.concurrent.TimeUnit
  *   and a server pool's `max` ([MongoPoolGauge], which the client is built with). `pool.<bean>` for each, when there
  *   are several.
  *
- * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The
- * append queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per
- * call and per group, none per append. The hand-off's channels have no depth to read without a count on every entry,
- * and the throttle's waiters are behind its monitor, so neither is here; the throttled partitions are the
- * `partitionThrottled` less `partitionUnthrottled` of `bench-signals`.
+ * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The append
+ * queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per call and
+ * per group, none per append; while read, each call also carries its marks (`AppendCallMarks`, nine clock reads) in its
+ * coroutine context, which the log marks and the queue sums, eleven adds a call. The hand-off's channels have no depth
+ * to read without a count on every entry, and the throttle's waiters are behind its monitor, so neither is here; the
+ * throttled partitions are the `partitionThrottled` less `partitionUnthrottled` of `bench-signals`.
  *
  * The node's queues are Wow's internal API, which an application does not use (the architecture's internal opt-in
  * rule): this class is the benchmark server's one exception, a reader of the node it measures that calls nothing on
@@ -147,6 +157,7 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                     "streams" to counts.sumOf { it.streams },
                     "full" to counts.sumOf { it.full },
                 ),
+                "appendClock" to clockOf(counts.map { it.clock }),
                 "handoff" to if (handoffs.isEmpty()) {
                     emptyMap()
                 } else {
@@ -159,6 +170,26 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
                 "windowMax" to positions.mapValues { (_, each) -> each.maxOf { it.inFlight } },
             )
         }
+
+        /** The [clocks]' calls, summed over the contexts; none while no call was clocked. */
+        internal fun clockOf(clocks: List<AppendClock>): Map<String, Number> =
+            if (clocks.sumOf { it.calls } == 0L) {
+                emptyMap()
+            } else {
+                linkedMapOf(
+                    "calls" to clocks.sumOf { it.calls },
+                    "call" to clocks.sumOf { it.call },
+                    "complete" to clocks.sumOf { it.complete },
+                    "marked" to clocks.sumOf { it.marked },
+                    "enter" to clocks.sumOf { it.enter },
+                    "hop" to clocks.sumOf { it.hop },
+                    "acquire" to clocks.sumOf { it.acquire },
+                    "bind" to clocks.sumOf { it.bind },
+                    "statement" to clocks.sumOf { it.statement },
+                    "release" to clocks.sumOf { it.release },
+                    "hopBack" to clocks.sumOf { it.hopBack },
+                )
+            }
     }
 }
 

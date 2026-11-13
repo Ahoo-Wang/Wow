@@ -91,19 +91,26 @@ class BenchPipelineNodeTest {
                 sections(pipeline)
                 repeat(COMMANDS) { node.gateway.execute(open(it)) }
 
-                // The tails deliver after the commits return: waited for, then whatever the line says is held.
+                // The tails deliver after the commits return, and a call is clocked once its committer is free, after
+                // its callers resumed: both waited for, then whatever the line says is held.
                 withTimeoutOrNull(10.seconds) {
-                    while ((sections(pipeline)?.path("handoff")?.path("delivered")?.asLong() ?: 0) == 0L) {
+                    while (sections(pipeline).let { it?.path("handoff")?.path("delivered")?.asLong() ?: 0 } == 0L ||
+                        sections(pipeline).let { it?.path("appendClock")?.path("calls")?.asLong() ?: 0 } == 0L
+                    ) {
                         delay(10)
                     }
                 }
                 val line = checkNotNull(sections(pipeline))
-                listOf("appendDepth", "appendCalls", "handoff", "window", "windowMax").forEach { section ->
+                val sections = listOf("appendDepth", "appendCalls", "appendClock", "handoff", "window", "windowMax")
+                sections.forEach { section ->
                     line.has(section).assert().describedAs(section).isTrue()
                 }
                 line.path("appendCalls").path("calls").asLong().assert().isGreaterThan(0L)
                 line.path("appendCalls").path("streams").asLong().assert().isGreaterThanOrEqualTo(COMMANDS.toLong())
                 line.path("handoff").path("delivered").asLong().assert().isGreaterThan(0L)
+                // The kernel's in-memory log marks none of the steps only a store's log sees.
+                line.path("appendClock").path("calls").asLong().assert().isGreaterThan(0L)
+                line.path("appendClock").path("marked").asLong().assert().isZero()
             } finally {
                 node.stop()
             }

@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.postgres.PostgresLogCatalog.Companion.UNDEFINED_TABLE
 import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -37,15 +38,21 @@ internal class PostgresLogAppender(
     private val lookups: PostgresLogLookups,
     private val catalog: PostgresLogCatalog,
 ) {
-    /** [stream], of [partition], in one autocommitted statement. */
-    fun append(partition: Int, stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+    /** [stream], of [partition], in one autocommitted statement; [marks] when the call is clocked. */
+    fun append(
+        partition: Int,
+        stream: EventStreamRecord,
+        transport: ByteArray?,
+        marks: AppendCallMarks?,
+    ): AppendOutcome {
         var sent = false
         return try {
             dataSource.autoCommitted { connection ->
+                marks?.acquired()
                 catalog.tableOf(connection, stream.ref.type)
                 sent = true
                 catalog.withTable(connection, stream.ref.type) {
-                    appendIn(connection, it, partition, stream, transport)
+                    appendIn(connection, it, partition, stream, transport, marks)
                 }
             }
         } catch (failure: SQLException) {
@@ -59,6 +66,7 @@ internal class PostgresLogAppender(
         partition: Int,
         stream: EventStreamRecord,
         transport: ByteArray?,
+        marks: AppendCallMarks?,
     ): AppendOutcome {
         try {
             val sequence = connection.prepareStatement(table.append).use { append ->
@@ -68,7 +76,9 @@ internal class PostgresLogAppender(
                 append.setInt(4, stream.version - 1)
                 append.setInt(5, partition)
                 logRows.bindStream(append, 6, stream, transport)
+                marks?.sent()
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+                    .also { marks?.read() }
             }
             return if (sequence == null) {
                 conflictOf(connection, table, stream)
@@ -122,15 +132,18 @@ internal class PostgresLogAppender(
      * within the protocol's limit. A chunk whose statement surely did not leave throws ([unsentOrOutcome]) only while
      * no chunk of the call was sent: once one was, the call returns, and that chunk's streams and the streams of the
      * chunks after it, which it does not try, are [AppendOutcome.Unknown] ([EventLog.appendAll]).
+     *
+     * [marks], when the call is clocked: its first connection acquired, its first statement sent and its last
+     * statement's result read, a definite abort's appends again among them.
      */
-    fun appendAll(parts: List<Int>, streams: List<Append>): List<AppendOutcome> {
+    fun appendAll(parts: List<Int>, streams: List<Append>, marks: AppendCallMarks?): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         var sent = false
         var stopped: SQLException? = null
         chunksOf(streams, MAX_GROUP).forEach { chunk ->
             val group = chunk.map { it.value }
             val chunkOutcomes = stopped?.let { failure -> group.map { AppendOutcome.Unknown(failure) } } ?: try {
-                appendChunk(chunk.map { parts[it.index] }, group).also { sent = true }
+                appendChunk(chunk.map { parts[it.index] }, group, marks).also { sent = true }
             } catch (failure: SQLException) {
                 if (!sent) throw failure
                 stopped = failure
@@ -145,20 +158,21 @@ internal class PostgresLogAppender(
      * One statement's [group], each stream of the partition in [parts] beside it: their outcomes, every one the same
      * when the statement's outcome is a failure.
      */
-    private fun appendChunk(parts: List<Int>, group: List<Append>): List<AppendOutcome> {
+    private fun appendChunk(parts: List<Int>, group: List<Append>, marks: AppendCallMarks?): List<AppendOutcome> {
         var sent = false
         return try {
             dataSource.autoCommitted { connection ->
+                marks?.acquired()
                 val types = group.map { it.stream.ref.type }.distinct()
                 types.forEach { catalog.tableOf(connection, it) }
                 sent = true
                 try {
-                    appendGroupsIn(connection, parts, group)
+                    appendGroupsIn(connection, parts, group, marks)
                 } catch (failure: PSQLException) {
                     // A table is gone: the statement ran nothing ([withTable]); make sure of them again, once.
                     if (failure.sqlState != UNDEFINED_TABLE) throw failure
                     types.forEach { catalog.forget(it.name, catalog.tableOf(connection, it)) }
-                    appendGroupsIn(connection, parts, group)
+                    appendGroupsIn(connection, parts, group, marks)
                 }
             }
         } catch (failure: SQLException) {
@@ -177,6 +191,7 @@ internal class PostgresLogAppender(
         connection: Connection,
         parts: List<Int>,
         group: List<Append>,
+        marks: AppendCallMarks?,
     ): List<AppendOutcome> {
         val across = parts.distinct().size > 1
         val tablesOf = group.map { catalog.tableOf(connection, it.stream.ref.type) }
@@ -189,25 +204,7 @@ internal class PostgresLogAppender(
             this.tables.appendGroup(parts[0], tables, branches)
         }
         val rows = try {
-            connection.prepareStatement(sql).use { statement ->
-                group.forEachIndexed { index, entry ->
-                    if (across) {
-                        val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
-                        statement.setInt(first, parts[index])
-                        logRows.bindStream(statement, first + 1, entry.stream, entry.transport)
-                    } else {
-                        logRows.bindStream(
-                            statement,
-                            index * AggregateLogTable.STREAM_PARAMETERS + 1,
-                            entry.stream,
-                            entry.transport
-                        )
-                    }
-                }
-                statement.executeQuery().use { rows ->
-                    rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
-                }
-            }
+            runGroup(connection, sql, across, parts, group, marks)
         } catch (failure: PSQLException) {
             val constraint = failure.serverErrorMessage?.constraint
             // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
@@ -215,13 +212,9 @@ internal class PostgresLogAppender(
                 tables.any { constraint == it.versionKey || constraint == it.requestKey }
             if (!definite) throw failure
             return if (across) {
-                appendByPartition(
-                    connection,
-                    parts,
-                    group
-                )
+                appendByPartition(connection, parts, group, marks)
             } else {
-                appendAlone(connection, parts[0], group, tablesOf)
+                appendAlone(connection, parts[0], group, tablesOf, marks)
             }
         }
         val failed = HashMap<AggregateRef, AppendOutcome>()
@@ -237,19 +230,46 @@ internal class PostgresLogAppender(
         }
     }
 
+    /** [group]'s statement [sql], its streams bound, run: each stream's version, and its sequence when appended. */
+    private fun runGroup(
+        connection: Connection,
+        sql: String,
+        across: Boolean,
+        parts: List<Int>,
+        group: List<Append>,
+        marks: AppendCallMarks?,
+    ): List<Pair<Int, Long?>> = connection.prepareStatement(sql).use { statement ->
+        group.forEachIndexed { index, entry ->
+            if (across) {
+                val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
+                statement.setInt(first, parts[index])
+                logRows.bindStream(statement, first + 1, entry.stream, entry.transport)
+            } else {
+                logRows.bindStream(
+                    statement,
+                    index * AggregateLogTable.STREAM_PARAMETERS + 1,
+                    entry.stream,
+                    entry.transport
+                )
+            }
+        }
+        marks?.sent()
+        statement.executeQuery().use { rows ->
+            rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
+        }.also { marks?.read() }
+    }
+
     /** [group] a partition at a time, each its own group, whose conflicts and duplicates are its own. */
     private fun appendByPartition(
         connection: Connection,
         parts: List<Int>,
         group: List<Append>,
+        marks: AppendCallMarks?,
     ): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(group.size)
         group.indices.groupBy { parts[it] }.values.forEach { indexes ->
-            appendGroupsIn(
-                connection,
-                indexes.map { parts[it] },
-                indexes.map { group[it] }
-            ).forEachIndexed { at, outcome ->
+            val partition = indexes.map { group[it] }
+            appendGroupsIn(connection, indexes.map { parts[it] }, partition, marks).forEachIndexed { at, outcome ->
                 outcomes[indexes[at]] = outcome
             }
         }
@@ -265,13 +285,14 @@ internal class PostgresLogAppender(
         partition: Int,
         group: List<Append>,
         tablesOf: List<AggregateLogTable>,
+        marks: AppendCallMarks?,
     ): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         return group.mapIndexed { index, entry ->
             val stream = entry.stream
             val transport = entry.transport
             failed[stream.ref] ?: try {
-                appendIn(connection, tablesOf[index], partition, stream, transport)
+                appendIn(connection, tablesOf[index], partition, stream, transport, marks)
             } catch (alone: SQLException) {
                 outcomeOf(alone)
             }.also { if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it) }
