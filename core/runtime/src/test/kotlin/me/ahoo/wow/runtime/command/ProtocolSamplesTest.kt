@@ -167,8 +167,8 @@ class ProtocolSamplesTest {
     private companion object {
         const val UPDATE = "WOW_UPDATE_PROTOCOL_SAMPLES"
 
-        /** A state schema fingerprint: the SHA-256 the kernel computes, in hex. */
-        const val FINGERPRINT = "43bfa906ccc015f9dc85b5ad142a24dcb99668d69f98ebd9d1ae73471c97be4d"
+        /** A state schema fingerprint as the kernel computes it: the first 16 hex characters of a SHA-256. */
+        const val FINGERPRINT = "43bfa906ccc015f9"
         val SAMPLES = File("src/test/resources/protocols")
 
         /** [node] with two spaces of indentation and `"name": value`, as the page shows it. */

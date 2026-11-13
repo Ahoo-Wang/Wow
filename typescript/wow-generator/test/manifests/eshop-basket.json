@@ -12,7 +12,7 @@
           "description": "A buyer's basket before checkout; its id is the buyer's user id",
           "state": {
             "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.domain.basket.BasketState",
-            "fingerprint": "4a27b0fa6932b1fe903ca9e1f93a37e84f3530cb337eb3b39933ff613c714db7"
+            "fingerprint": "4a27b0fa6932b1fe"
           },
           "snapshot": { "enabled": true },
           "commands": [

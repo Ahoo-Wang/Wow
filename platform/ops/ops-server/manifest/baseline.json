@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "3ffcb5caaca90105942e1da8641b60cf52cbc4c9bdca65fb67254a74662d7370"
+        "fingerprint" : "3ffcb5caaca90105"
       },
       "snapshot" : {
         "enabled" : true
