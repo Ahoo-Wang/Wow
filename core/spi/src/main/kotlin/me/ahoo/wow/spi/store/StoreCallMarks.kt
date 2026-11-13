@@ -67,11 +67,22 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
 
     /**
      * The driver's own time of the call's commands from [sent] to [read], in nanoseconds: from each command's message
-     * sent to its reply, as the driver reports it ([commands] of them). A command before [sent] (a lookup while the
-     * store builds the batch) is [sent]'s, not counted here. Zero where the driver reports none (no listener, or a store
-     * whose driver has none).
+     * sent to its reply, as the driver reports it ([commands] of them). A command before [sent] (a lookup or a counter
+     * write while the store builds the batch) is counted apart, in [bindCommand]. Zero where the driver reports none (no
+     * listener, or a store whose driver has none).
      */
     var command: Long = 0
+        private set
+
+    /**
+     * The driver's own time of the call's commands before [sent], in nanoseconds ([bindCommands] of them): what the
+     * store sent while building the batch (MongoDB's log: its partitions' counter writes and its lookups).
+     */
+    var bindCommand: Long = 0
+        private set
+
+    /** The commands the driver reported before [sent] ([bindCommand]). */
+    var bindCommands: Int = 0
         private set
 
     /** The commands the driver reported ([command]). */
@@ -132,9 +143,15 @@ class StoreCallMarks : AbstractCoroutineContextElement(Key) {
         done = System.nanoTime()
     }
 
-    /** One of the call's commands took [nanos] by its driver's account: counted between [sent] and [read]. */
+    /**
+     * One of the call's commands took [nanos] by its driver's account: counted in [command] between [sent] and [read],
+     * in [bindCommand] before [sent].
+     */
     fun commanded(nanos: Long) {
-        if (sent != 0L && read == 0L) {
+        if (sent == 0L) {
+            bindCommand += nanos
+            bindCommands++
+        } else if (read == 0L) {
             command += nanos
             commands++
         }

@@ -76,6 +76,8 @@ class AppendClockTest {
         clock.encode.assert().isEqualTo(PARTITIONS * ENCODE_NANOS / 1_000)
         clock.lookup.assert().isEqualTo(PARTITIONS * LOOKUP_NANOS / 1_000)
         clock.lookups.assert().isEqualTo(PARTITIONS.toLong())
+        clock.bindCommand.assert().isEqualTo(PARTITIONS * BIND_COMMAND_NANOS / 1_000)
+        clock.bindCommands.assert().isEqualTo(PARTITIONS.toLong())
         // Each step is rounded down to its microsecond: their sum is the call's, less at most one a step.
         val steps = with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }
         steps.forEach { it.assert().isNotNegative() }
@@ -142,6 +144,7 @@ class AppendClockTest {
                 marks?.acquired()
                 marks?.encoded(ENCODE_NANOS)
                 marks?.lookedUp(LOOKUP_NANOS)
+                marks?.commanded(BIND_COMMAND_NANOS)
                 marks?.sent()
                 Thread.sleep(1)
                 marks?.commanded(COMMAND_NANOS)
@@ -158,5 +161,6 @@ class AppendClockTest {
         const val COMMAND_NANOS = 500_000L
         const val ENCODE_NANOS = 200_000L
         const val LOOKUP_NANOS = 300_000L
+        const val BIND_COMMAND_NANOS = 100_000L
     }
 }

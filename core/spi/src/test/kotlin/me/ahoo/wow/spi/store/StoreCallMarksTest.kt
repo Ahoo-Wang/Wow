@@ -31,8 +31,11 @@ class StoreCallMarksTest {
     @Test
     fun `the driver's command time should count only between the first command sent and the last result read`() {
         val marks = StoreCallMarks()
-        // A lookup while the store builds its batch: before sent, not the call's command.
+        // A lookup while the store builds its batch: before sent, counted apart from the call's command.
         marks.commanded(5)
+        marks.commanded(6)
+        marks.bindCommand.assert().isEqualTo(11L)
+        marks.bindCommands.assert().isEqualTo(2)
         marks.sent()
         marks.commanded(7)
         marks.commanded(11)

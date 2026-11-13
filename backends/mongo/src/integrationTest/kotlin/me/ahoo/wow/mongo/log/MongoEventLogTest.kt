@@ -73,6 +73,10 @@ class MongoEventLogTest : EventLogSpec() {
             // Version 1 needs no previous sequence: the documents were built, nothing looked up.
             marks.encode.assert().isPositive()
             marks.lookups.assert().isZero()
+            // Certain: a new log holds no block, so its first allocation in a partition reserves one, a counter write
+            // the driver reports before the first insert.
+            marks.bindCommands.assert().isGreaterThanOrEqualTo(1)
+            marks.bindCommand.assert().isPositive()
             // Another log of the context remembers no last sequence: its group of versions 2 looks each up once.
             val fresh = MongoEventLog(ClockedMongo.client, MongoLogFixture.DATABASE, context, 2)
             val again = StoreCallMarks()
@@ -80,6 +84,8 @@ class MongoEventLogTest : EventLogSpec() {
                 fresh.appendAll(listOf("a", "b").map { Append.of(stream(it, 2, aggregate = type), null) })
             }.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
             again.lookups.assert().isEqualTo(2)
+            // The two lookups are commands before the first insert too, beside the new log's reservation.
+            again.bindCommands.assert().isGreaterThanOrEqualTo(3)
             again.lookup.assert().isPositive().isLessThanOrEqualTo(again.sent - again.acquired)
             // Unclocked, the call holds no marks: the listener adds nothing to the earlier call's.
             val counted = marks.commands
