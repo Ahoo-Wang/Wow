@@ -18,10 +18,14 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendCallMarks
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -87,7 +91,27 @@ class PostgresEventLogTest : EventLogSpec() {
         }
     }
 
+    @Test
+    fun `a clocked append should mark each instant only the log sees, in order`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val log = createLog(context, CLOCKED_PARTITIONS)
+        val type = AggregateType(context, "order")
+        // A group commit across partitions, and a single stream's call.
+        val calls = listOf(listOf("a", "b", "c", "d"), listOf("e"))
+        calls.forEach { ids ->
+            val marks = AppendCallMarks()
+            val outcomes = withContext(marks) {
+                log.appendAll(ids.map { Append.of(stream(it, 1, aggregate = type), null) })
+            }
+            outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            marks.marked.assert().describedAs("$ids").isTrue()
+            listOf(marks.taken, marks.entered, marks.onThread, marks.acquired, marks.sent, marks.read, marks.released)
+                .zipWithNext().forEach { (earlier, later) -> later.assert().isGreaterThanOrEqualTo(earlier) }
+        }
+    }
+
     private companion object {
+        const val CLOCKED_PARTITIONS = 4
         const val IDLE_POLLS = 13
         const val COMMITS = 5
         const val SETTLE_MS = 100L

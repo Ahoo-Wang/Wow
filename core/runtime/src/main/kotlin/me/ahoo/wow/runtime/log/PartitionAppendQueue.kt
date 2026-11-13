@@ -30,6 +30,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.health.launchWorker
 import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -181,8 +182,10 @@ class PartitionAppendQueue(
             streams += next.streams
         }
         group.forEach { it.counted?.taken(it.streams) }
-        commit(group.flatMap { it.batch })
+        val marks = marksOf(counting.get())
+        commit(group.flatMap { it.batch }, marks)
         group.forEach { it.done.complete(Unit) }
+        marks?.let { counting.get()?.clock?.clocked(it) }
         return true
     }
 
@@ -274,7 +277,9 @@ class PartitionAppendQueue(
                 handed.send(handing)
                 handing.done.await()
             } else {
-                commit(batch)
+                val marks = marksOf(counting.get())
+                commit(batch, marks)
+                marks?.let { counting.get()?.clock?.clocked(it) }
             }
         }
         return true
@@ -304,18 +309,25 @@ class PartitionAppendQueue(
         return batch
     }
 
-    /** Not cancellable: an append taken into a batch completes. */
-    private suspend fun commit(batch: List<Pending>) = withContext(NonCancellable) {
+    /** A call's marks, only while something reads the [counts]: its group taken now. */
+    private fun marksOf(counts: AppendQueueCounts?): AppendCallMarks? = counts?.let { AppendCallMarks() }
+
+    /** Not cancellable: an append taken into a batch completes. [marks], when clocked, go in the log call's context. */
+    private suspend fun commit(batch: List<Pending>, marks: AppendCallMarks?) = withContext(
+        if (marks == null) NonCancellable else NonCancellable + marks,
+    ) {
         val streams = batch.flatMap { it.streams }
         counting.get()?.called(streams.size, if (merging) options.mergeMax else options.maxBatch)
         val outcomes = try {
             log.appendAll(streams).also {
+                marks?.returned()
                 check(it.size == streams.size) { "The log returned ${it.size} outcomes for ${streams.size} appends." }
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever the log throws, each caller of the batch gets it.
             failure: Throwable,
         ) {
+            marks?.returned()
             logger.debug(failure) { "A batch of ${batch.size} appends failed." }
             batch.forEach { it.outcome.completeExceptionally(failure) }
             return@withContext
