@@ -147,19 +147,57 @@ export function pipelineOf(lines, endedAt, seconds) {
   };
 }
 
+/** The mean of the finite [values]; NaN without one. */
+const average = values => {
+  const numbers = values.filter(Number.isFinite);
+  return numbers.length
+    ? numbers.reduce((a, b) => a + b, 0) / numbers.length
+    : NaN;
+};
+
 const refusedShare = step => {
   const errors = Object.values(step.errors ?? {}).reduce((a, b) => a + b, 0);
   return step.ok + errors > 0 ? errors / (step.ok + errors) : 0;
 };
 
-/** The host's foreign CPU samples (abba_host's host.tsv): each second's epoch and foreign cores. */
+/**
+ * The host's samples (abba_host's host.tsv): each second's epoch, foreign cores, and each harness container's CPU so
+ * far in microseconds (its cgroup's usage_usec), by name.
+ */
 export function hostSamples(tsv) {
   return tsv
     .split('\n')
     .slice(1)
     .map(line => line.split('\t'))
     .filter(fields => fields.length >= 2 && Number.isFinite(Number(fields[0])))
-    .map(([epoch, cores]) => ({ epoch: Number(epoch), cores: Number(cores) }));
+    .map(([epoch, cores, , containers = '']) => ({
+      epoch: Number(epoch),
+      cores: Number(cores),
+      containers: Object.fromEntries(
+        containers
+          .split(',')
+          .filter(Boolean)
+          .map(entry => entry.split('='))
+          .map(([name, usage]) => [name, Number(usage)]),
+      ),
+    }));
+}
+
+/** [container]'s cores over a step's measured window, from its CPU at the window's first and last samples; else NaN. */
+export function containerCoresOf(samples, container, endedAt, seconds) {
+  const within = samples.filter(
+    sample =>
+      sample.epoch >= endedAt - seconds &&
+      sample.epoch <= endedAt &&
+      Number.isFinite(sample.containers?.[container]),
+  );
+  if (within.length < 2) return NaN;
+  const [first, last] = [within[0], within.at(-1)];
+  return (
+    (last.containers[container] - first.containers[container]) /
+    1e6 /
+    (last.epoch - first.epoch)
+  );
 }
 
 /** The foreign cores over a step's measured window: their mean and worst second; NaN each without a sample in it. */
@@ -215,6 +253,18 @@ export function rowsOf(sessions, order = [], host = []) {
                   step.seconds,
                 ),
                 foreign: foreignOf(host, step.endedAt, step.seconds),
+                storeCores: containerCoresOf(
+                  host,
+                  `wow-e2e-bench-${backend}`,
+                  step.endedAt,
+                  step.seconds,
+                ),
+                kafkaCores: containerCoresOf(
+                  host,
+                  'wow-e2e-bench-kafka',
+                  step.endedAt,
+                  step.seconds,
+                ),
               })),
           );
       const base = of(arms[0]).map(step => step.throughput);
@@ -262,6 +312,8 @@ export function rowsOf(sessions, order = [], host = []) {
           writeStatementMs: mean('writeStatementMs'),
           writeDriverMs: mean('writeDriverMs'),
           leadersWriting: mean('leadersWriting'),
+          storeCores: average(runs.map(step => step.storeCores)),
+          kafkaCores: average(runs.map(step => step.kafkaCores)),
           groupsWaiting: mean('groupsWaiting'),
           windowMax: Math.max(
             ...runs
@@ -284,15 +336,29 @@ export function rowsOf(sessions, order = [], host = []) {
   return rows;
 }
 
-/** The Markdown table of [rows]. */
-export function tableOf(rows) {
-  const lines = [];
+/**
+ * What a run's [profile] (profile.txt) put where: under `constrained`, the store and Kafka each on one CPU of the
+ * containers' VM, the node unpinned; empty without one.
+ */
+export function profileText(profile) {
+  if (profile !== 'constrained') return '';
+  return (
+    "Profile: constrained. The store and Kafka each ran on one CPU of the containers' VM (at most one core of the " +
+    "host's, scheduled onto either kind of core), as the paired suites lay them out on a runner of four; the node, a " +
+    "host JVM that macOS cannot pin, and the load generator ran on the host's cores. Store cores near 1.0 mean the " +
+    'store had no core to spare.\n'
+  );
+}
+
+/** The Markdown table of [rows], after what its [profile] put where. */
+export function tableOf(rows, profile = '') {
+  const lines = profile ? [profileText(profile)] : [];
   for (const backend of [...new Set(rows.map(row => row.backend))]) {
     lines.push(
       `## ${backend}`,
       '',
-      '| Clients | Arm | Throughput a sweep (/s) | × first arm (median, range) | Own spread | Refused (most) | p50 ms | p99 ms | Calls/s | Streams/call | Call ms | Statement ms | Driver ms | Snapshots/write | Write call ms | Write statement ms | Write driver ms | Leaders writing | Groups waiting | Widest window | Foreign cores (mean, worst second) |',
-      '| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| Clients | Arm | Throughput a sweep (/s) | × first arm (median, range) | Own spread | Refused (most) | p50 ms | p99 ms | Calls/s | Streams/call | Call ms | Statement ms | Driver ms | Snapshots/write | Write call ms | Write statement ms | Write driver ms | Leaders writing | Groups waiting | Widest window | Store cores | Kafka cores | Foreign cores (mean, worst second) |',
+      '| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
     );
     for (const row of rows.filter(each => each.backend === backend)) {
       const ratio = Number.isFinite(row.ratio)
@@ -306,6 +372,7 @@ export function tableOf(rows) {
           `${num(row.snapshotsPerWrite, 1)} | ${num(row.writeCallMs, 2)} | ${num(row.writeStatementMs, 2)} | ` +
           `${num(row.writeDriverMs, 2)} | ${num(row.leadersWriting, 2)} | ${num(row.groupsWaiting, 1)} | ` +
           `${Number.isFinite(row.windowMax) && row.windowMax >= 0 ? num(row.windowMax) : '-'} | ` +
+          `${num(row.storeCores, 2)} | ${num(row.kafkaCores, 2)} | ` +
           `${row.foreign >= 0 ? `${num(row.foreign, 2)}, ${num(row.foreignWorst, 2)}${row.foreign >= DISTURBED_CORES ? ' (disturbed)' : ''}` : '-'} |`,
       );
     }
@@ -326,5 +393,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
   const order = readIf(join(root, 'arms.txt')).split('\n').filter(Boolean);
   const host = hostSamples(readIf(join(root, 'host.tsv')));
-  console.log(tableOf(rowsOf(sessionsOf(root), order, host)));
+  const profile = readIf(join(root, 'profile.txt')).trim();
+  console.log(tableOf(rowsOf(sessionsOf(root), order, host), profile));
 }
