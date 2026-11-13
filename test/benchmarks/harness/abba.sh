@@ -49,7 +49,7 @@ abba() {
   # Under the lock, a second guard: every sweep starts by taking the harness down, and with its containers up another
   # run is measuring on them.
   local running
-  running=$(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench- | paste -sd, -)
+  running=$(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench- | paste -sd, - || true)
   if [ -n "$running" ] && [ "$(opt force false)" != true ]; then
     log "the harness is in use ($running): another run is measuring; abba starts once it is down (--force takes it down)"
     exit 2
@@ -124,7 +124,7 @@ abba_host() {
     if [ -n "$arm" ]; then paths="$paths|$arm"; fi
   done
   local socket
-  socket=$(docker context inspect --format '{{.Endpoints.docker.Host}}')
+  socket=$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)
   socket=${socket#unix://}
   printf 'epoch\tforeignCores\ttop\tcontainers\n' >"$file"
   while true; do
@@ -143,7 +143,7 @@ abba_host() {
     for container in $(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench-); do
       usage=$(curl -s --unix-socket "$socket" \
         "http://localhost/containers/$container/stats?stream=false&one-shot=true" |
-        grep -o '"total_usage":[0-9]*' | head -1 | awk -F: '{ printf "%.0f", $2 / 1000 }')
+        grep -o '"total_usage":[0-9]*' | head -1 | awk -F: '{ printf "%.0f", $2 / 1000 }' || true)
       if [ -n "$usage" ]; then containers="$containers$container=$usage,"; fi
     done
     echo "$containers" >>"$file"

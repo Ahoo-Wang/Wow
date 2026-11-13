@@ -26,8 +26,9 @@
 
 LOCK_DIR="${WOW_BENCH_LOCK:-/tmp/wow-e2e-bench.lock}"
 
-# The lock's field $1 (owner, pid, since), empty when it is not held.
-lock_field() { sed -n "s/^$1=//p" "$LOCK_DIR/holder" 2>/dev/null; }
+# The lock's field $1 (owner, pid, since), empty when it is not held. Every helper here answers rather than fails:
+# bench.sh runs under `set -euo pipefail`, where a failed assignment would end it with no word said.
+lock_field() { sed -n "s/^$1=//p" "$LOCK_DIR/holder" 2>/dev/null || true; }
 
 # Whether pid $1 is alive.
 lock_alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
@@ -37,18 +38,19 @@ lock_descends() {
   local pid=$$
   while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
     if [ "$pid" = "$1" ]; then return 0; fi
-    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
   done
   return 1
 }
 
 # Epoch second $1 as the time of day (macOS's date takes -r seconds, GNU's -d @seconds).
-lock_time() { date -r "$1" '+%H:%M:%S' 2>/dev/null || date -d "@$1" '+%H:%M:%S' 2>/dev/null; }
+lock_time() { date -r "$1" '+%H:%M:%S' 2>/dev/null || date -d "@$1" '+%H:%M:%S' 2>/dev/null || true; }
 
-# The seconds since directory $1 (the lock's, by default) was made (macOS's stat -f, GNU's -c).
+# The seconds since directory $1 (the lock's, by default) was made: GNU's stat -c first, which macOS's refuses (GNU's
+# -f is the file system's and prints `?` for %m).
 lock_age() {
   local made dir=${1:-$LOCK_DIR}
-  made=$(stat -f %m "$dir" 2>/dev/null || stat -c %Y "$dir" 2>/dev/null)
+  made=$(stat -c %Y "$dir" 2>/dev/null || stat -f %m "$dir" 2>/dev/null || true)
   echo $(($(date +%s) - ${made:-0}))
 }
 
