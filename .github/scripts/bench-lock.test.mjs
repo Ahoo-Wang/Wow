@@ -150,3 +150,27 @@ test("a bounded wait gives up after its seconds; unlock leaves another owner's l
   assert.equal(bash(lock, 'bench_unlock --owner=holder').status, 0);
   assert.equal(existsSync(lock), false);
 });
+
+test('takers racing over one dead lock: one wins it, the others lose without removing it', () => {
+  for (let round = 0; round < 10; round++) {
+    const lock = fresh();
+    const gone = spawnSync('bash', ['-c', 'echo $$'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+    bash(lock, `lock_take crashed ${gone} ""`);
+    // Four takers started together over the one dead lock, each with a live pid of its own (a sleep it ends after).
+    const race = bash(
+      lock,
+      `for owner in a b c d; do ( sleep 30 & me=$!; lock_take "$owner" $me "" && echo "won $owner"; kill $me ) & done; wait`,
+    );
+    const winners = race.stdout
+      .split('\n')
+      .filter(line => line.startsWith('won '));
+    assert.equal(
+      winners.length,
+      1,
+      `round ${round}: ${race.stdout}${race.stderr}`,
+    );
+    assert.match(holder(lock), new RegExp(`^owner=${winners[0].slice(4)}\n`));
+  }
+});

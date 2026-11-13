@@ -45,10 +45,10 @@ lock_descends() {
 # Epoch second $1 as the time of day (macOS's date takes -r seconds, GNU's -d @seconds).
 lock_time() { date -r "$1" '+%H:%M:%S' 2>/dev/null || date -d "@$1" '+%H:%M:%S' 2>/dev/null; }
 
-# The seconds since the lock's directory was made (macOS's stat -f, GNU's -c).
+# The seconds since directory $1 (the lock's, by default) was made (macOS's stat -f, GNU's -c).
 lock_age() {
-  local made
-  made=$(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null)
+  local made dir=${1:-$LOCK_DIR}
+  made=$(stat -f %m "$dir" 2>/dev/null || stat -c %Y "$dir" 2>/dev/null)
   echo $(($(date +%s) - ${made:-0}))
 }
 
@@ -74,10 +74,23 @@ lock_try() {
     return 1
   fi
   if ! lock_alive "$pid"; then
-    log "taking over the lock of ${holder:-a batch} (pid ${pid:-unknown}, gone)"
-    rm -rf "$LOCK_DIR"
-    lock_try "$1" "$2"
-    return $?
+    # The take-over under a mutex of its own (mkdir is atomic): its one holder reads the lock again, and only while it
+    # is still the dead one replaces it; the other takers lose. A live lock is never moved, and a taker without the
+    # lock can only mkdir, which fails while any lock exists, so two takers never both hold it.
+    local mutex="$LOCK_DIR.takeover"
+    if [ -d "$mutex" ] && [ "$(lock_age "$mutex")" -ge 10 ]; then rmdir "$mutex" 2>/dev/null; fi
+    if ! mkdir "$mutex" 2>/dev/null; then return 1; fi
+    local taken=1
+    if [ "$(lock_field pid)" = "$pid" ] && ! lock_alive "$pid"; then
+      log "taking over the lock of ${holder:-a batch} (pid ${pid:-unknown}, gone)"
+      rm -rf "$LOCK_DIR"
+      if mkdir "$LOCK_DIR" 2>/dev/null; then
+        printf 'owner=%s\npid=%s\nsince=%s\n' "$1" "$2" "$(date +%s)" >"$LOCK_DIR/holder"
+        taken=0
+      fi
+    fi
+    rmdir "$mutex" 2>/dev/null
+    return "$taken"
   fi
   return 1
 }
