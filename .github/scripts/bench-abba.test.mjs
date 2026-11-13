@@ -10,6 +10,8 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   DISTURBED_CORES,
+  containerCoresOf,
+  profileText,
   foreignOf,
   hostSamples,
   pipelineLines,
@@ -192,4 +194,30 @@ test("a step's foreign cores are the host's mean over its window, and a busy one
   assert.equal(rows[0].foreign, 2 * DISTURBED_CORES);
   assert.equal(rows[0].foreignWorst, 3);
   assert.match(tableOf(rows), /\| 2\.00, 3\.00 \(disturbed\) \|/);
+});
+
+test("a step's store and Kafka cores are their containers' CPU over its window, and the profile says what was pinned", () => {
+  const samples = hostSamples(
+    'epoch\tforeignCores\ttop\tcontainers\n' +
+      `${END - 30}\t0.1\t\twow-e2e-bench-postgres=1000000,wow-e2e-bench-kafka=500000,\n` +
+      `${END}\t0.2\t\twow-e2e-bench-postgres=28000000,wow-e2e-bench-kafka=3500000,\n`,
+  );
+  assert.equal(
+    containerCoresOf(samples, 'wow-e2e-bench-postgres', END, 30),
+    0.9,
+  );
+  assert.equal(containerCoresOf(samples, 'wow-e2e-bench-kafka', END, 30), 0.1);
+  assert.ok(
+    Number.isNaN(containerCoresOf(samples, 'wow-e2e-bench-mongo', END, 30)),
+  );
+  const root = mkdtempSync(join(tmpdir(), 'bench-abba-'));
+  sweep(root, '1-main-postgres', 10_000);
+  const rows = rowsOf(sessionsOf(root), ['main'], samples);
+  assert.equal(rows[0].storeCores, 0.9);
+  assert.match(tableOf(rows), /\| 0\.90 \| 0\.10 \| 0\.15, 0\.20 \|/);
+  assert.equal(profileText(''), '');
+  assert.match(
+    tableOf(rows, 'constrained'),
+    /^Profile: constrained\. The store and Kafka each ran on one CPU/,
+  );
 });
