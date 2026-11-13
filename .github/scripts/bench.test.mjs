@@ -37,7 +37,6 @@ import {
   javaHome,
   javaRelease,
   cpuLayout,
-  layoutOf,
   halves,
   noiseFile,
   noiseLabel,
@@ -87,7 +86,12 @@ import {
   saturationRatioBound,
   verdict,
 } from './bench-calibration.mjs';
-import { HANDOVER_SCRIPT, roundOrder, spread } from './bench-common.mjs';
+import {
+  HANDOVER_SCRIPT,
+  layoutOf,
+  roundOrder,
+  spread,
+} from './bench-common.mjs';
 import { ratioVerdict, saturationSamples } from './bench-curves.mjs';
 
 // This file runs under Node's test runner alone (`pnpm test:ci-scripts`), whose NODE_TEST_CONTEXT makes

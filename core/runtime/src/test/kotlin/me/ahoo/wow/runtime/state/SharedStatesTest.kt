@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.Stripes
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.ORDER
@@ -270,17 +271,57 @@ class SharedStatesTest {
     }
 
     @Test
-    fun `the views should age out`() {
+    fun `a stripe should keep views over its share of the bytes while the whole is under the bound`() {
+        // 64 stripes of the default capacity: a stripe's share of 1,000 bytes would be 15. The bound is the whole's.
+        val views = SharedStates(
+            codec,
+            mapOf(SNAPSHOT to setOf(CART)),
+            SharedStateOptions(maxBytes = 1_000),
+            time,
+        )
+        val state = "x".repeat(25)
+        (1..3).forEach { views.put(alice, SerializedState(it, state)) }
+        views.bytes.assert().isEqualTo(150L)
+        (1..3).forEach { views.get(alice, it).assert().isNotNull() }
+        // 1,050 bytes with this one: over the whole's bound, its put evicts its own stripe's oldest view until under.
+        views.put(alice, SerializedState(4, "y".repeat(450)))
+        views.bytes.assert().isEqualTo(1_000L)
+        views.get(alice, 1).assert().isNull()
+        (2..4).forEach { views.get(alice, it).assert().isNotNull() }
+        views.put(alice, SerializedState(5, state))
+        views.bytes.assert().isEqualTo(1_000L)
+        views.get(alice, 2).assert().isNull()
+        views.get(alice, 5).assert().isNotNull()
+    }
+
+    @Test
+    fun `the views should age out at the next put on their stripe, a read evicting nothing`() {
+        // A capacity this small is one stripe: every put below is on the stripe of both aggregates.
         val views = views(maxAge = 10.seconds)
         views.put(alice, view(1))
         time += 6.seconds
         views.put(bob, view(1))
         time += 6.seconds
+        // Twelve seconds old, alice's view is past its age, but a read evicts nothing: it is read as it is.
+        views.get(alice, 1).assert().isNotNull()
+        views.floor(alice, 2).assert().isNotNull()
+        views.size.assert().isEqualTo(2)
+        // The next put evicts it, and keeps bob's, six seconds old.
+        views.put(alice, view(2))
         views.get(alice, 1).assert().isNull()
         views.get(bob, 1).assert().isNotNull()
         time += 6.seconds
+        views.floor(bob, 2).assert().isNotNull()
+        views.put(alice, view(3))
         views.floor(bob, 2).assert().isNull()
-        views.size.assert().isEqualTo(0)
+        views.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `the views should be striped finer than the state cache, 64 stripes at the default capacity`() {
+        Stripes.of(SharedStateOptions.DEFAULT_CAPACITY, minShare = 64, max = 64).assert().isEqualTo(64)
+        Stripes.of(16, minShare = 64, max = 64).assert().isEqualTo(1)
+        Stripes.of(SharedStateOptions.DEFAULT_CAPACITY).assert().isEqualTo(Stripes.MAX)
     }
 
     @Test
