@@ -33,9 +33,9 @@ import java.util.concurrent.atomic.LongAdder
  * The node's overload and fallback signals, counted and logged once a second at WARN: the tails' store reads by reason
  * (D249), the refused commands by code, the timed-out waits by stage, the dropped wait signals, the failed forwards,
  * the partitions paused and resumed on a systemic failure (D243), the retries on a downstream's push-back, the
- * partitions throttled and unthrottled, and the shared states rebuilt. The soak puts this class on its nodes' class
- * path (`eshop.extra-classpath`) and starts them with `bench.signals.enabled=true`; EshopSoakTest sums every node's
- * last line into its report.
+ * partitions throttled and unthrottled, the shared states rebuilt, and the stores' fallbacks. The soak puts this
+ * class on its nodes' class path (`eshop.extra-classpath`) and starts them with `bench.signals.enabled=true`;
+ * EshopSoakTest sums every node's last line into its report.
  */
 class SoakSignals : Observer, AutoCloseable {
     private val counters = ConcurrentHashMap<String, ConcurrentHashMap<String, LongAdder>>()
@@ -77,6 +77,9 @@ class SoakSignals : Observer, AutoCloseable {
             // The reason names the failing aggregate and its exception, so the key is the subscription alone.
             is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
             is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)
+            // A store that fell back the way every store can: a snapshot load failed or given up at its timeout, its
+            // state replayed from the log instead.
+            is ObservedEvent.StoreFellBack -> count("storeFellBack", "${event.capability.value}/${event.reason.value}")
             else -> slowed(event)
         }
     }

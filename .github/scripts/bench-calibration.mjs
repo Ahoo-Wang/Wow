@@ -409,3 +409,31 @@ export function significanceSection(suites, noise, noiseLabel) {
     ...(notes.length > 0 ? [...notes.map(note => `- ${note}`), ''] : []),
   ];
 }
+
+/**
+ * The anomalies of a run's signals that make it no capacity figure, `{ kind, detail }` each: a tail that read the
+ * store after a gap or an overflow, and a store call given up at its timeout (a snapshot load past
+ * `wow.snapshot.load-timeout`, its state replayed from the log; `storeFellBack` keyed `capability/reason`).
+ */
+export function signalAnomalies(signals) {
+  const checks = [
+    [
+      'tail read the store',
+      signals?.tailRead,
+      key => key === 'gap' || key === 'overflow',
+    ],
+    [
+      'store call given up',
+      signals?.storeFellBack,
+      key => key.endsWith('/timed-out'),
+    ],
+  ];
+  return checks.flatMap(([kind, counts, flagged]) => {
+    const hit = Object.entries(counts ?? {}).filter(
+      ([key, n]) => flagged(key) && n > 0,
+    );
+    return hit.length === 0
+      ? []
+      : [{ kind, detail: hit.map(([key, n]) => `${key}=${n}`).join(', ') }];
+  });
+}

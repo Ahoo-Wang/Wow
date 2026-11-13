@@ -17,6 +17,7 @@ import {
   SATURATION,
   sharesText,
   significanceSection,
+  signalAnomalies,
 } from './bench-calibration.mjs';
 
 test('both loops share one ceiling: the search stops where the open loop caps its operations in flight', () => {
@@ -211,6 +212,32 @@ test('the significance section reads throughput from the saturations and counts 
   );
   assert.deepEqual(
     significanceSection([{ ...suite, aa: true }], {}, s => s.name),
+    [],
+  );
+});
+
+test('a store call given up at its timeout is an anomaly beside a tail read of the store; a failure or a probe is not', () => {
+  assert.deepEqual(signalAnomalies(undefined), []);
+  assert.deepEqual(
+    signalAnomalies({
+      tailRead: { gap: 3, idle: 900, overflow: 0, start: 64 },
+      storeFellBack: {
+        'snapshot-load/failed': 2,
+        'snapshot-load/timed-out': 5,
+      },
+    }),
+    [
+      { kind: 'tail read the store', detail: 'gap=3' },
+      { kind: 'store call given up', detail: 'snapshot-load/timed-out=5' },
+    ],
+  );
+  assert.deepEqual(
+    signalAnomalies({
+      storeFellBack: {
+        'snapshot-load/failed': 2,
+        'snapshot-tail-read/unsupported': 1,
+      },
+    }),
     [],
   );
 });

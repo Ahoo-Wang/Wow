@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -41,6 +44,11 @@ import java.util.concurrent.TimeUnit
  * - `handoff`, cumulative from the node's start: the entries the tails `delivered` from memory and their `storeReads`.
  * - `window` and `windowMax`, now, per subscription: the entries its workers took above their watermarks, summed over
  *   the partitions and the largest one partition's, against its in-flight bound (`wow.subscription.max-in-flight`).
+ * - `pool`, now, the store's connection pool: on PostgreSQL, HikariCP's `active` and `idle` connections, the threads
+ *   `waiting` for one and its `max` (its public pool MXBean; the server sets no size, so HikariCP's default of 10 is
+ *   every append, snapshot write, checkpoint, tail read and load of the node); on MongoDB, the check-outs `waiting`
+ *   and a server pool's `max` ([MongoPoolGauge], which the client is built with). `pool.<bean>` for each, when there
+ *   are several.
  *
  * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The
  * append queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per
@@ -89,7 +97,35 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
         /** The line of the node among [beans]. */
         fun of(beans: BeanFactory): BenchPipeline {
             val node = beans.getBean(ServiceNode::class.java)
-            return BenchPipeline { sectionsOf(node) }
+            val listed = beans as? ListableBeanFactory
+            val hikari = listed?.getBeansOfType(HikariDataSource::class.java).orEmpty()
+            val gauges = listed?.getBeansOfType(MongoPoolGauge::class.java).orEmpty()
+            return BenchPipeline { sectionsOf(node) + poolsOf(hikari, gauges) }
+        }
+
+        /**
+         * The pools of [hikari] and [gauges] now, as `pool`, or `pool.<bean>` each when there are several: a pool not
+         * started yet says nothing.
+         */
+        internal fun poolsOf(
+            hikari: Map<String, HikariDataSource>,
+            gauges: Map<String, MongoPoolGauge>,
+        ): Map<String, Map<String, Number>> {
+            val pools = hikari.mapValues { (_, source) ->
+                source.hikariPoolMXBean?.let { pool ->
+                    linkedMapOf(
+                        "active" to pool.activeConnections,
+                        "idle" to pool.idleConnections,
+                        "waiting" to pool.threadsAwaitingConnection,
+                        "max" to source.maximumPoolSize,
+                    )
+                }.orEmpty()
+            } + gauges.mapValues { (_, gauge) ->
+                gauge.waiting()?.let { waiting ->
+                    linkedMapOf("waiting" to waiting, "max" to (gauge.maxConnections ?: 0))
+                }.orEmpty()
+            }
+            return if (pools.size == 1) mapOf("pool" to pools.values.single()) else pools.mapKeys { "pool.${it.key}" }
         }
 
         /** The sections of [node] now: its contexts' append queues, their log groups' hand-off logs and positions. */

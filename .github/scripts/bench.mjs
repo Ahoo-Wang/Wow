@@ -55,6 +55,7 @@ import {
   saturationOutlier,
   saturationRatioBound,
   sharesText,
+  signalAnomalies,
   SIGNIFICANCE_METRICS,
   significanceSection,
   sustainable,
@@ -1078,12 +1079,7 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
         .join(', '),
     });
   }
-  const fallback = ['gap', 'overflow']
-    .filter(reason => s.tailRead?.[reason] > 0)
-    .map(reason => `${reason}=${s.tailRead[reason]}`);
-  if (fallback.length > 0) {
-    found.push({ kind: 'tail read the store', detail: fallback.join(', ') });
-  }
+  found.push(...signalAnomalies(s));
   if (run.status !== 'ok') {
     found.push({
       kind: 'run failed',

@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.connection.ConnectionPoolSettings
+import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.spi.observation.ObservedEvent
 import org.junit.jupiter.api.Test
 
@@ -67,6 +70,34 @@ class BenchPipelineTest {
                 "\"stateRebuildWait\":{\"millis\":320}," +
                 "\"stateRebuilt\":{\"gated-ran\":1,\"gated-refused\":1,\"ungated-ran\":1}}",
         )
+        signals.close()
+    }
+
+    @Test
+    fun `the pool section should say a MongoDB pool's waiting check-outs and size, and a pool not started nothing`() {
+        val gauge = MongoPoolGauge().also { it.applyTo(ConnectionPoolSettings.builder()) }
+        BenchPipeline.poolsOf(emptyMap(), mapOf("gauge" to gauge)).assert()
+            .isEqualTo(mapOf("pool" to linkedMapOf("waiting" to 0, "max" to 100)))
+        // A HikariCP pool starts on its first connection: until then it says nothing, and the line leaves it out.
+        HikariDataSource().use { source ->
+            BenchPipeline.poolsOf(mapOf("dataSource" to source), mapOf("gauge" to gauge)).assert().isEqualTo(
+                mapOf(
+                    "pool.dataSource" to emptyMap(),
+                    "pool.gauge" to linkedMapOf("waiting" to 0, "max" to 100),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `bench-signals should count a store's fallbacks by capability and reason`() {
+        val signals = BenchSignals()
+        val load = ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD
+        signals.observed(ObservedEvent.StoreFellBack("transfer", load, ObservedEvent.StoreFellBack.Reason.TIMED_OUT))
+        signals.observed(ObservedEvent.StoreFellBack("transfer", load, ObservedEvent.StoreFellBack.Reason.TIMED_OUT))
+        signals.observed(ObservedEvent.StoreFellBack("transfer", load, ObservedEvent.StoreFellBack.Reason.FAILED))
+        signals.snapshot().substringAfter(',').assert()
+            .isEqualTo("\"storeFellBack\":{\"snapshot-load/failed\":1,\"snapshot-load/timed-out\":2}}")
         signals.close()
     }
 }

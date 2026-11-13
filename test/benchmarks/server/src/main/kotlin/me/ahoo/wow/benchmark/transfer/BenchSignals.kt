@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.LongAdder
  * store reads by reason (`gap`, `overflow`, `idle`, `start`), the refused commands by code (a busy
  * lane or node is `wow.command.busy`), the timed-out waits by the stage they had reached, the dropped wait signals,
  * the failed forwards, the partitions paused and resumed on a systemic failure, the retries on a downstream's
- * push-back (by subscription and by code), the partitions throttled and unthrottled, and the shared states rebuilt
- * with the replay gate's wait. Only with
+ * push-back (by subscription and by code), the partitions throttled and unthrottled, the shared states rebuilt with
+ * the replay gate's wait, and the stores' fallbacks by capability and reason (a snapshot load failed or given up at
+ * its timeout). Only with
  * `bench.signals.enabled=true`, which every V10 run of the CI benchmark sets; otherwise the node has no observer. The
  * counts are cumulative from the start. The eShop soak's nodes run a copy (SoakSignals in `:eshop-e2e`'s soakTest
  * source set); BenchSignalsCopyTest keeps the two in line.
@@ -77,6 +78,9 @@ class BenchSignals : Observer, AutoCloseable {
             // The reason names the failing aggregate and its exception, so the key is the subscription alone.
             is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
             is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)
+            // A store that fell back the way every store can: a snapshot load failed or given up at its timeout, its
+            // state replayed from the log instead.
+            is ObservedEvent.StoreFellBack -> count("storeFellBack", "${event.capability.value}/${event.reason.value}")
             else -> slowed(event)
         }
     }
