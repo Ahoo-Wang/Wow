@@ -28,6 +28,7 @@ import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.postgres.jdbcRead
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
@@ -52,8 +53,8 @@ import javax.sql.DataSource
  * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and
  * the access attributes are `jsonb`, so the snapshot can be queried in place
  * as the default read model. A save is one autocommitted statement that carries its own version and state revision
- * guard (see [PostgresSnapshotTables.writeRows]); a save refused for a higher state revision then marks the row stale. The
- * claimed state revision of each table is a row of [PostgresSnapshotTables.TABLES], claimed with one
+ * guard (see [PostgresSnapshotTables.writeRows]); a save refused for a higher state revision then marks the row
+ * stale. The claimed state revision of each table is a row of [PostgresSnapshotTables.TABLES], claimed with one
  * statement.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21). A failure of the database is a
@@ -175,8 +176,14 @@ class PostgresSnapshotStore(
                         saveRounds(bound, tablesOf, snapshots, alone = false)
                     }
                 } catch (failure: SQLException) {
+                    deadlocked(failure)
                     PostgresFailures.refusedOrThrow(failure)
-                    saveRounds(connection, tablesOf, snapshots, alone = true)
+                    try {
+                        saveRounds(connection, tablesOf, snapshots, alone = true)
+                    } catch (again: SQLException) {
+                        deadlocked(again)
+                        throw again
+                    }
                 }
             }
         }
@@ -286,6 +293,22 @@ class PostgresSnapshotStore(
     }
 
     private fun keyOf(snapshot: SnapshotRecord): Pair<String, String> = snapshot.ref.tenantId to snapshot.ref.id
+
+    /**
+     * Throws [failure] as a transient failure of the batch ([StorageUnavailableException]) when PostgreSQL ended its
+     * statement to break a deadlock (`40P01`): it wrote nothing, and the batch is retried whole, none of its snapshots
+     * refused. Two batches that update common rows lock them in their plans' order, which the primary key gives in key
+     * order, so it takes two writers of the same aggregates, such as two owners during a hand-over, and a plan that
+     * did not take that order.
+     */
+    private fun deadlocked(failure: SQLException) {
+        if (failure.sqlState == PostgresSchema.DEADLOCK_DETECTED) {
+            throw StorageUnavailableException(
+                "PostgreSQL ended a snapshot batch to break a deadlock; retry it.",
+                failure,
+            )
+        }
+    }
 
     /** [snapshot] saved alone, after a statement of several was refused for a value: refused alone, it failed. */
     private fun savedAlone(

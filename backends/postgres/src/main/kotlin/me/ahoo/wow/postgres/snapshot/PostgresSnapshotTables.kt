@@ -116,8 +116,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      * conflict replace the row only when the new version is higher and its state revision is not lower. PostgreSQL
      * locks the conflicting row (and logs that lock) and evaluates the guard against its latest committed version, so
      * concurrent saves leave the highest version whatever their order; given in key order, the rows are locked in that
-     * order. Returns the key of each row inserted or replaced; a refused one returns none. [writeRows] is the save; this
-     * decides the rows a concurrent first save raced it for.
+     * order. Returns the key of each row inserted or replaced; a refused one returns none. [writeRows] is the save;
+     * this decides the rows a concurrent first save raced it for.
      */
     fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
 
@@ -180,7 +180,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         UNION ALL SELECT tenant_id, aggregate_id, true FROM inserted
         UNION ALL SELECT tenant_id, aggregate_id, false FROM present
         WHERE NOT EXISTS (
-            SELECT 1 FROM updated WHERE updated.tenant_id = present.tenant_id AND updated.aggregate_id = present.aggregate_id
+            SELECT 1 FROM updated
+            WHERE updated.tenant_id = present.tenant_id AND updated.aggregate_id = present.aggregate_id
         )
     """.trimIndent()
 
@@ -296,8 +297,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
 
         /** [ROW] with every parameter typed, as the first row of a `VALUES` list outside an insert needs. */
-        private const val TYPED_ROW = "(?::text, ?::text, ?::integer, ?::text, ?::jsonb, ?::text, ?::text, ?::boolean, " +
-            "?::bigint, ?::bigint, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::integer)"
+        private const val TYPED_ROW = "(?::text, ?::text, ?::integer, ?::text, ?::jsonb, ?::text, ?::text, " +
+            "?::boolean, ?::bigint, ?::bigint, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::integer)"
 
         /** A save's guard: a higher version, of the same or a higher state revision. */
         private const val SAVE_GUARD =

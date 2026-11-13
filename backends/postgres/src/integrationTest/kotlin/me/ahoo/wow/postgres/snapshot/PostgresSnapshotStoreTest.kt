@@ -26,12 +26,20 @@ import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.PostgresStoreProvider
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.CoveredSnapshots
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
+import org.postgresql.util.PSQLException
+import org.postgresql.util.ServerErrorMessage
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Proxy
+import java.sql.Connection
+import java.sql.PreparedStatement
+import javax.sql.DataSource
 
 class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = PostgresFixture.snapshotStore(context)
@@ -103,6 +111,49 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
             saving.await() to checkNotNull(store.load(ref)).version
         }
     }
+
+    @Test
+    fun `a batch PostgreSQL ends a deadlock with fails as transient, writes nothing, and is saved whole again`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val store = PostgresFixture.snapshotStore(context)
+            store.createTable("aggregate")
+            val type = AggregateType(context, "aggregate")
+            val batch = listOf("a", "b").map { snapshot(it, 1).copyWith(ref = type.ref("tenant", it)) }
+            // Every statement that saves a batch is ended as PostgreSQL ends one side of a deadlock.
+            val deadlocked = PostgresSnapshotStore(deadlocking(PostgresFixture.dataSource), context)
+            runCatching { deadlocked.saveAll(batch) }.exceptionOrNull()
+                .assert().isInstanceOf(StorageUnavailableException::class.java)
+            batch.forEach { store.load(it.ref).assert().isNull() }
+            store.saveAll(batch).assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+        }
+
+    /** [target]'s connections, whose statements that save a batch fail with a deadlock (`40P01`) when they run. */
+    private fun deadlocking(target: DataSource): DataSource = proxy(DataSource::class.java, target) { name, _ ->
+        if (name != "getConnection") return@proxy null
+        val connection = target.connection
+        proxy(Connection::class.java, connection) { method, arguments ->
+            val sql = (arguments.firstOrNull() as? String)?.trimStart()
+            if (method != "prepareStatement" || sql == null || !sql.startsWith("WITH input")) return@proxy null
+            proxy(PreparedStatement::class.java, connection.prepareStatement(sql)) { call, _ ->
+                if (call == "executeQuery") {
+                    throw PSQLException(ServerErrorMessage("SERROR\u0000C40P01\u0000Mdeadlock detected\u0000"))
+                }
+                null
+            }
+        }
+    }
+
+    private fun <T : Any> proxy(type: Class<T>, delegate: T, intercept: (String, Array<Any?>) -> Any?): T = type.cast(
+        Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
+            val arguments = args ?: emptyArray()
+            intercept(method.name, arguments) ?: try {
+                method.invoke(delegate, *arguments)
+            } catch (thrown: InvocationTargetException) {
+                throw thrown.targetException
+            }
+        },
+    )
 
     /** Waits until a statement on [table] waits for a lock: the save, on the first row another transaction holds. */
     private fun awaitLockWait(table: String) {
