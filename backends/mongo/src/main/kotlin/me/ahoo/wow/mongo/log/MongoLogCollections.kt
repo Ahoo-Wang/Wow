@@ -51,7 +51,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
 
-/** The log collection of one aggregate type. */
 /**
  * The log collection [log] as every reader of the log reads it, the `events` queries among them: what a majority has
  * committed (`readConcern: majority`), so nothing that reads the log sees an entry a failover rolls back. The
@@ -61,6 +60,7 @@ import java.util.concurrent.TimeUnit
 internal fun committed(log: MongoCollection<Document>): MongoCollection<Document> =
     log.withReadConcern(ReadConcern.MAJORITY)
 
+/** The log collection of one aggregate type. */
 internal class AggregateCollection(
     val aggregate: String,
     val name: String,
