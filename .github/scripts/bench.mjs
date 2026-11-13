@@ -19,12 +19,15 @@ import {
   bench,
   labelOf,
   ms,
+  layoutOf,
   num,
+  poolsText,
   propsText,
   readJson,
   readJsonIfThere,
   roundOrder,
   spread,
+  withPool,
   withProps,
 } from './bench-common.mjs';
 import {
@@ -234,19 +237,6 @@ export function cpuSplit(total, load = 1) {
     load: load === 1 ? `${first}` : `${first}-${total - 1}`,
     server: `0-${first - 1}`,
   };
-}
-
-/** A suite's CPU layout in words: `generator 3 · node 0 · store 1 · Kafka 2`, or `unpinned`. */
-export function layoutOf(cpus) {
-  const parts = [
-    ['generator', cpus?.load],
-    ['node', cpus?.server],
-    ['store', cpus?.store],
-    ['Kafka', cpus?.bus],
-  ].filter(([, list]) => list);
-  return parts.length > 0
-    ? parts.map(([who, list]) => `${who} ${list}`).join(' · ')
-    : 'unpinned';
 }
 
 /**
@@ -3266,11 +3256,16 @@ export function runSuite(name, options) {
     cold: definition.cold === true,
     aa: aaRun,
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
-    // An arm on a JDK of its own records which (its release; the major version without one).
+    // An arm on a JDK of its own records which (its release; the major version without one); on PostgreSQL its pool.
     arms: arms.map(arm =>
-      arm.java
-        ? { ...arm, jdk: javaRelease(javaHome(arm.java, env)) ?? `${arm.java}` }
-        : arm,
+      withPool(
+        arm.java
+          ? {
+              ...arm,
+              jdk: javaRelease(javaHome(arm.java, env)) ?? `${arm.java}`,
+            }
+          : arm,
+      ),
     ),
     refs,
     runner: runnerInfo(),
@@ -4125,8 +4120,8 @@ export function renderReport(suites, meta = {}) {
   lines.push(
     '## Runners',
     '',
-    '| Suite | CPU | Cores | Memory | JDK | CPU layout |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| Suite | CPU | Cores | Memory | JDK | CPU layout | JDBC pool |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
   );
   // A suite of parts (mergeParts): a runner a sweep.
   for (const suite of suites) {
@@ -4134,7 +4129,7 @@ export function renderReport(suites, meta = {}) {
       { runner: suite.runner, cpus: suite.cpus },
     ]) {
       lines.push(
-        `| ${labelOf(suite)}${label ? ` ${label}` : ''} | ${runner?.cpu ?? '?'} | ${runner?.cores ?? '?'} | ${runner?.memoryGb ?? '?'} GB | ${runner?.jdk ?? '?'} | ${layoutOf(cpus)} |`,
+        `| ${labelOf(suite)}${label ? ` ${label}` : ''} | ${runner?.cpu ?? '?'} | ${runner?.cores ?? '?'} | ${runner?.memoryGb ?? '?'} GB | ${runner?.jdk ?? '?'} | ${layoutOf(cpus)} | ${poolsText(suite)} |`,
       );
     }
   }
