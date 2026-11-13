@@ -23,13 +23,30 @@ object WireNames {
     private val WORD_END = Regex("([a-z0-9])([A-Z])")
     private val ACRONYM_END = Regex("([A-Z]+)([A-Z][a-z])")
 
-    /** The wire name of [value], a constant of a Wow enumeration: `CATCH_UP` is `catch-up`. */
-    fun of(value: Enum<*>): String = of(value.name)
+    /**
+     * Each enumeration's wire names, by its constants' ordinals, spelled once when the enumeration is first written and
+     * kept with its class: one entry per enumeration class, released with its class loader, so it is as bounded as the
+     * enumerations an application has. Every thread reads the one array [ClassValue] keeps, so a constant's name is
+     * the same instance every time.
+     */
+    private val NAMES = object : ClassValue<Array<String>>() {
+        override fun computeValue(type: Class<*>): Array<String> =
+            type.enumConstants.map { of((it as Enum<*>).name) }.toTypedArray()
+    }
+
+    /**
+     * The wire name of [value], a constant of a Wow enumeration: `CATCH_UP` is `catch-up`. Spelled once per constant
+     * ([of] of its name), then read: a reply writes several on every command.
+     */
+    fun of(value: Enum<*>): String = NAMES.get(value.declaringJavaClass)[value.ordinal]
 
     /**
      * [name] in lower-kebab: a word starts at an upper-case letter after a lower-case letter or a digit, and at the
      * last letter of an upper-case run followed by a lower-case one; underscores separate words too.
      * `NotBlank` is `not-blank`, `UNKNOWN_FIELD` is `unknown-field`, `URLPattern` is `url-pattern`.
+     *
+     * Spelled on every call, never kept: its names are its callers', a constraint's name per violation among them, and
+     * a cache keyed by them would grow with whatever they pass.
      */
     fun of(name: String): String =
         name.replace(ACRONYM_END, "$1-$2").replace(WORD_END, "$1-$2").replace('_', '-').lowercase()
