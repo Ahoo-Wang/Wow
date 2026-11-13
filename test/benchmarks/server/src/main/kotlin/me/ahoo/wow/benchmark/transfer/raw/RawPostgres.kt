@@ -65,8 +65,16 @@ class RawPostgres(
     private lateinit var snapshotTemplates: List<List<Any?>>
     private val template = AtomicInteger()
 
-    /** A case of this store, the snapshot table's [fillfactor] it runs at, and its flush on a connection. */
-    class Case(val case: RawCase, val fillfactor: Int, val flush: (Connection, Aggregates) -> Flushed)
+    /**
+     * A case of this store, the snapshot table's [fillfactor] it runs at, and its flush on a connection; or, with a
+     * [shape], Wow's own write path ([shapeOf]) its callers submit to.
+     */
+    class Case(
+        val case: RawCase,
+        val fillfactor: Int,
+        val shape: WowShape.Options? = null,
+        val flush: (Connection, Aggregates) -> Flushed,
+    )
 
     fun connect(): Connection = DriverManager.getConnection(url, user, password)
 
@@ -108,7 +116,8 @@ class RawPostgres(
      * The cases: [WOW_TODAY] (today's shape: [logBatch] streams an append, their snapshots [snapshotBatch] a
      * transaction, asynchronously), the log alone, P0 and P1 (the snapshot upsert alone at each of [rows] rows a
      * statement, synchronous and asynchronous, at fillfactor 100 and 80), P2 (the append and its snapshots in one
-     * synchronous transaction against today's split) and a point read.
+     * synchronous transaction against today's split), Wow's own peak shape at calls of up to 64, 256 and 512 streams
+     * ([WowShape]) and a point read.
      */
     fun cases(logBatch: Int, snapshotBatch: Int, rows: List<Int>): List<Case> = buildList {
         add(
@@ -146,6 +155,19 @@ class RawPostgres(
                 transaction(c) { both(append(c, commands, bound(synchronous = true)), upsert(c, commands)) }
             }
         )
+        for (merge in WowShape.MERGES) {
+            val prices = "Wow's peak shape: two appenders, calls of up to $merge streams; two writers of up to " +
+                "${WowShape.WRITER_MAX} rows"
+            add(
+                Case(
+                    RawCase("wow-shape-$merge", COMMAND, 1, prices, wowShape = true),
+                    FILLFACTOR,
+                    WowShape.Options(merge)
+                ) { _, _ ->
+                    error("A shape's callers submit to it.")
+                }
+            )
+        }
         add(
             Case(RawCase("point-read", "read", 1, "reference: a snapshot by its key"), FILLFACTOR) { c, a ->
                 c.prepareStatement(read).use { s ->
@@ -237,7 +259,7 @@ class RawPostgres(
         transaction(connection) { upsert(connection, commands, bound(synchronous)) }
 
     /** Runs [block] in a transaction on [connection]: committed, or rolled back when it fails. */
-    private fun <T> transaction(connection: Connection, block: () -> T): T {
+    internal fun <T> transaction(connection: Connection, block: () -> T): T {
         connection.autoCommit = false
         try {
             return block().also { connection.commit() }
@@ -249,8 +271,30 @@ class RawPostgres(
         }
     }
 
+    /** Wow's own write path on this store ([options]): its appenders' and writers' connections, their calls. */
+    fun shapeOf(options: WowShape.Options): WowShape<Connection> = WowShape(
+        partitions,
+        { Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant, it.id), partitions) },
+        options,
+        ::connect,
+        { connection, commands -> appendEach(connection, commands) },
+        { connection, commands ->
+            transaction(
+                connection
+            ) { upsertEach(connection, commands, bound(synchronous = false)) }
+        },
+    )
+
     /** [commands]' append, Wow's one statement (prefixed by [prefix], a transaction's bound): its streams written. */
-    private fun append(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed {
+    private fun append(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed =
+        counted(appendEach(connection, commands, prefix))
+
+    /** [commands]' append, as [append]: which of them it wrote, in their order. */
+    private fun appendEach(
+        connection: Connection,
+        commands: List<Aggregates.Command>,
+        prefix: String = ""
+    ): BooleanArray {
         val parts = commands.map { Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant, it.id), partitions) }
         // As Wow's appender: the one-partition form when the group's streams are of one partition, else across.
         val across = parts.distinct().size > 1
@@ -272,17 +316,25 @@ class RawPostgres(
                 }
             }
             s.execute()
-            val written = lastResult(s) { r ->
-                var n = 0
-                while (r.next()) if (r.getObject(SEQUENCE) != null) n++
-                n
+            lastResult(s, BooleanArray(commands.size)) { r ->
+                // Wow's final select: each stream's ord, its version, and its sequence when it was written.
+                BooleanArray(commands.size).also { written ->
+                    while (r.next()) written[r.getInt(1)] = r.getObject(SEQUENCE) != null
+                }
             }
-            Flushed(written, commands.size - written)
         }
     }
 
     /** [commands]' snapshots as Wow's one multi-row upsert, rows in key order: the keys it wrote. */
     private fun upsert(connection: Connection, commands: List<Aggregates.Command>, prefix: String = ""): Flushed =
+        counted(upsertEach(connection, commands, prefix))
+
+    /** [commands]' snapshots, as [upsert]: which of them it wrote, in their order. */
+    private fun upsertEach(
+        connection: Connection,
+        commands: List<Aggregates.Command>,
+        prefix: String = ""
+    ): BooleanArray =
         connection.prepareStatement(prefix + upsertText(commands.size)).use { s ->
             var at = 1
             val row = snapshotTemplates[Math.floorMod(template.get(), snapshotTemplates.size)]
@@ -298,20 +350,18 @@ class RawPostgres(
                 }
             }
             s.execute()
-            val written = lastResult(s) { r ->
-                var n = 0
-                while (r.next()) n++
-                n
-            }
-            Flushed(written, commands.size - written)
+            val keys = lastResult(s, emptySet()) { r -> buildSet { while (r.next()) add(r.getString(2)) } }
+            BooleanArray(commands.size) { commands[it].id in keys }
         }
 
-    /** The rows of the last result of [statement]'s results (a bound's settings answer first), read by [read]. */
-    private fun lastResult(statement: PreparedStatement, read: (ResultSet) -> Int): Int {
-        var rows = 0
+    private fun counted(written: BooleanArray): Flushed = written.count { it }.let { Flushed(it, written.size - it) }
+
+    /** The last result of [statement]'s results (a bound's settings answer first), read by [read]; [none] without. */
+    private fun <T> lastResult(statement: PreparedStatement, none: T, read: (ResultSet) -> T): T {
+        var found = none
         while (true) {
-            statement.resultSet?.use { rows = read(it) }
-            if (!statement.moreResults && statement.updateCount == -1) return rows
+            statement.resultSet?.use { found = read(it) }
+            if (!statement.moreResults && statement.updateCount == -1) return found
         }
     }
 

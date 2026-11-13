@@ -134,6 +134,17 @@ export function calibrationText(raw) {
   return `Calibrated on Wow's ground, per command: ${checks}.${tail}`;
 }
 
+/**
+ * The ceiling a figure of Wow's is compared with: the best read step of a shape Wow can give the store (two
+ * appenders merging the lanes' batches, two snapshot writers), in commands a second.
+ */
+export function ceilingText(raw) {
+  const c = raw?.ceiling;
+  if (!c)
+    return 'No ceiling: no step of a shape Wow can give the store was read.';
+  return `Ceiling: ${num(c.unitsPerSecond, 0)} commands/s, \`${c.case}\` at ${c.connections} callers (the best read step of a shape Wow can give the store; the per-connection cases are shapes it cannot).`;
+}
+
 /** The store's version and durability settings, and the run's batch shape, a ceiling is quoted with. */
 export function settingsText(raw) {
   const store = Object.entries(raw?.store ?? {})
@@ -152,8 +163,8 @@ const readText = step =>
 export function rawTable(run) {
   const mongo = run.raw?.backend === 'mongo';
   const head = mongo
-    ? '| Case | Prices | Unit | Connections | Pool | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Read |'
-    : '| Case | Prices | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Late | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Read |';
+    ? "| Case | Prices | Wow's shape | Unit | Connections | Pool | Units/s | Flush p50 / p99 | mongod CPU µs/unit | Write latency µs | Journal bytes/unit | Oplog bytes/unit | Journal syncs/unit | Read |"
+    : "| Case | Prices | Wow's shape | Unit | Connections | Rate | Units/s | Flush p50 / p99 | Late | Store CPU µs/unit | WAL bytes/unit | WAL syncs/unit | Full-page images/unit | Commits/unit | HOT share | Read |";
   return [
     head,
     `| ${head
@@ -170,6 +181,7 @@ export function rawTable(run) {
         ? [
             step.case,
             step.prices,
+            step.wowShape ? 'yes' : 'no',
             step.unit,
             step.connections,
             step.pool ?? 'default',
@@ -187,6 +199,7 @@ export function rawTable(run) {
         : [
             step.case,
             step.prices,
+            step.wowShape ? 'yes' : 'no',
             step.unit,
             step.connections,
             Number.isFinite(step.rate)
@@ -261,6 +274,8 @@ export function renderRaw(suite, definition) {
       `### ${run.name}`,
       '',
       calibrationText(run.raw),
+      '',
+      ceilingText(run.raw),
       '',
       settingsText(run.raw),
       '',

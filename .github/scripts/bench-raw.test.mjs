@@ -9,6 +9,7 @@ import { SUITES } from './bench.mjs';
 import {
   RAW,
   calibrationText,
+  ceilingText,
   rawAnomalies,
   rawArgs,
   rawTable,
@@ -172,7 +173,7 @@ test("a PostgreSQL step's row is per unit, its HOT share beside it, a paced step
   assert.match(head, /WAL bytes\/unit .* HOT share/);
   assert.equal(
     row,
-    '| snapshot-4-async-ff100 | P0: today | row | 64 | closed loop | 2600 | 3.20 / 11.50 ms | - | 51.2 | 640 | 0.010 | 0.020 | 0.250 | 75% | yes |',
+    '| snapshot-4-async-ff100 | P0: today | no | row | 64 | closed loop | 2600 | 3.20 / 11.50 ms | - | 51.2 | 640 | 0.010 | 0.020 | 0.250 | 75% | yes |',
   );
   assert.match(
     paced,
@@ -197,7 +198,7 @@ test("a MongoDB step's row is mongod's CPU, the write latency, the journal and t
   assert.match(head, /mongod CPU µs\/unit \| Write latency µs/);
   assert.equal(
     row,
-    '| m1-10-state | B: M1 | update | 64 | 64 | 2600 | 3.20 / 11.50 ms | not recorded | 41.3 | 512 | 301 | 0.004 | yes |',
+    '| m1-10-state | B: M1 | no | update | 64 | 64 | 2600 | 3.20 / 11.50 ms | not recorded | 41.3 | 512 | 301 | 0.004 | yes |',
   );
 });
 
@@ -241,4 +242,27 @@ test('a failed run, an uncalibrated one, a step not read and late paced flushes 
   assert.match(summary, /### head\n\n\*\*Uncalibrated \(/);
   assert.match(summary, /`c-transaction` is a multi-document transaction/);
   assert.match(summary, /\*\*1 run\(s\) failed\*\*/);
+});
+
+test('the ceiling is the best read step of a shape Wow can give the store, and its absence is said', () => {
+  assert.equal(
+    ceilingText({
+      ceiling: {
+        case: 'wow-shape-512',
+        connections: 1024,
+        unitsPerSecond: 31250.4,
+      },
+    }),
+    'Ceiling: 31250 commands/s, `wow-shape-512` at 1024 callers (the best read step of a shape Wow can give the store; the per-connection cases are shapes it cannot).',
+  );
+  assert.match(ceilingText({}), /^No ceiling/);
+  const [, , row] = rawTable({
+    raw: {
+      ...RUN.raw,
+      steps: [
+        { ...STEP, case: 'wow-shape-512', unit: 'command', wowShape: true },
+      ],
+    },
+  });
+  assert.match(row, /^\| wow-shape-512 \| P0: today \| yes \| command \|/);
 });

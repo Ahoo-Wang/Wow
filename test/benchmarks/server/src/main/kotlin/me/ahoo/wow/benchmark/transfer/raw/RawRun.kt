@@ -25,9 +25,16 @@ import kotlin.concurrent.write
 /**
  * One write or read a raw run measures (RawStoreBench): its [name], the [unit] its figures are per (a `row` or an
  * `update` of a snapshot, a `command` of Wow's, a `read`), how many units one flush asks for ([flushUnits]), and what
- * it prices ([prices]: today's shape, a candidate, or a reference).
+ * it prices ([prices]: today's shape, a candidate, or a reference); [wowShape] when it is a shape Wow's node can give
+ * the store (WowShape), whose best read step is the ceiling a figure of Wow's is compared with.
  */
-data class RawCase(val name: String, val unit: String, val flushUnits: Int, val prices: String)
+data class RawCase(
+    val name: String,
+    val unit: String,
+    val flushUnits: Int,
+    val prices: String,
+    val wowShape: Boolean = false,
+)
 
 /** What one flush did: the [written] units the store took, and the [refused] ones it did not (a guard, a key). */
 data class Flushed(val written: Int, val refused: Int = 0)
@@ -369,6 +376,7 @@ fun rawJson(
             "case" to step.case.name,
             "unit" to step.case.unit,
             "prices" to step.case.prices,
+            "wowShape" to step.case.wowShape,
             "connections" to step.connections,
             "pool" to step.pool,
             "rate" to step.rate,
@@ -389,9 +397,23 @@ fun rawJson(
     }
     return jsonOf(
         mapOf("schema" to "wow-e2e-bench/raw/1", "calibration" to calibration.toMap()) + settings +
-            mapOf("store" to store, "steps" to rows),
+            mapOf("store" to store, "ceiling" to ceilingOf(steps)?.let(::ceilingMap), "steps" to rows),
     )
 }
+
+/**
+ * The ceiling a figure of Wow's is compared with: the read step of a shape Wow can give the store ([RawCase.wowShape]),
+ * a command its unit, that did the most commands a second; null without one.
+ */
+fun ceilingOf(steps: List<RawStep>): RawStep? =
+    steps.filter { it.case.wowShape && it.case.unit == "command" && it.read && it.rate == null }
+        .maxByOrNull { it.unitsPerSecond }
+
+private fun ceilingMap(step: RawStep): Map<String, Any?> = mapOf(
+    "case" to step.case.name,
+    "connections" to step.connections,
+    "unitsPerSecond" to step.unitsPerSecond,
+)
 
 /** [value] as JSON text: maps, lists, numbers (a non-finite one null), booleans, null and strings. */
 fun jsonOf(value: Any?): String = when (value) {

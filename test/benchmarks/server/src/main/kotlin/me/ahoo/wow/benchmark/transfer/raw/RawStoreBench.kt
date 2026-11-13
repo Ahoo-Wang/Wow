@@ -85,6 +85,11 @@ data class RawSettings(
     val p2Share: Double,
     val cases: List<String>,
     val container: String?,
+    val shapeClients: List<Int> = listOf(
+        DEFAULT_SHAPE_CLIENTS_LOW,
+        DEFAULT_SHAPE_CLIENTS_MID,
+        DEFAULT_SHAPE_CLIENTS_HIGH
+    ),
 ) {
     val timing: Pair<Int, Int> get() = warmUpSeconds to seconds
 
@@ -100,6 +105,7 @@ data class RawSettings(
         "p2Share" to p2Share,
         "cases" to cases,
         "container" to container,
+        "shapeClients" to shapeClients,
     )
 
     /** Whether [name] is one of the cases this run keeps. */
@@ -123,11 +129,15 @@ data class RawSettings(
                 p2Share = options["p2-share"]?.toDouble() ?: DEFAULT_P2_SHARE,
                 cases = list("cases", ""),
                 container = options["container"],
+                shapeClients = list("shape-clients", "256,1024,4096").map { it.toInt() },
             )
             require(settings.connections.all { it >= 1 } && settings.logBatch >= 1 && settings.snapshotBatch >= 1)
             val widest = maxOf(settings.logBatch, settings.batches.max())
             require(settings.connections.max() * widest <= settings.aggregates) {
                 "Each connection's flush needs $widest aggregates of its own: raise --aggregates."
+            }
+            require(settings.shapeClients.all { it >= 1 } && settings.shapeClients.max() <= settings.aggregates) {
+                "Each of Wow's shape's callers needs an aggregate of its own: raise --aggregates."
             }
             return settings
         }
@@ -141,6 +151,9 @@ data class RawSettings(
         private const val DEFAULT_AGGREGATES = 100_000
         private const val DEFAULT_TEMPLATES = 2_000
         private const val DEFAULT_P2_SHARE = 0.5
+        private const val DEFAULT_SHAPE_CLIENTS_LOW = 256
+        private const val DEFAULT_SHAPE_CLIENTS_MID = 1_024
+        private const val DEFAULT_SHAPE_CLIENTS_HIGH = 4_096
     }
 }
 
@@ -244,27 +257,25 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
     val cpu = ContainerCpu(settings.container)
     val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
     fun step(case: RawPostgres.Case, connections: Int, pace: Pace, versions: IntArray): RawStep =
-        runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
-            val connection = raw.connect()
-            val owned = Aggregates(versions, index, connections)
-            object : RawWorker {
-                override fun flush(): Flushed = case.flush(connection, owned)
-                override fun close() = connection.close()
-            }
-        }.also(::print)
+        postgresStep(raw, cpu, case, connections, pace, versions)
     val (logBatch, snapshotBatch) = shapeOf(wow, PG_APPENDS, PG_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
     requireTemplates(logBatch, settings.templates)
     val today = raw.cases(logBatch, snapshotBatch, settings.batches).first { it.case.name == RawPostgres.WOW_TODAY }
     raw.prepare(today.fillfactor, settings.templates)
     val calibrating = step(
-        RawPostgres.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.fillfactor, today.flush),
+        RawPostgres.Case(
+            today.case.copy(name = CALIBRATION, prices = WOW_GROUND),
+            today.fillfactor,
+            flush = today.flush
+        ),
         CALIBRATION_CONNECTIONS,
         Pace(calibrationTiming(settings), wow[WOW_RATE]),
         opened(settings.templates),
     )
     val steps = mutableListOf(calibrating)
     for (case in cases.filter { settings.keeps(it.case.name) }) {
-        steps += stepsOf(settings.connections, settings.aggregates, {
+        val clients = if (case.shape != null) settings.shapeClients else settings.connections
+        steps += stepsOf(clients, settings.aggregates, {
             raw.prepare(case.fillfactor, settings.aggregates)
         }) { n, versions ->
             step(case, n, Pace(settings.timing), versions)
@@ -292,6 +303,34 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
     )
 }
 
+/** A PostgreSQL step: [case]'s workers on a connection each, or callers of Wow's own write path for a shape. */
+private fun postgresStep(
+    raw: RawPostgres,
+    cpu: ContainerCpu,
+    case: RawPostgres.Case,
+    connections: Int,
+    pace: Pace,
+    versions: IntArray,
+): RawStep {
+    val shape = case.shape?.let(raw::shapeOf)
+    return try {
+        runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
+            val owned = Aggregates(versions, index, connections)
+            if (shape != null) {
+                caller(shape, owned)
+            } else {
+                val connection = raw.connect()
+                object : RawWorker {
+                    override fun flush(): Flushed = case.flush(connection, owned)
+                    override fun close() = connection.close()
+                }
+            }
+        }.let { step -> case.shape?.let { step.copy(pool = it.connections) } ?: step }
+    } finally {
+        shape?.close()
+    }.also(::print)
+}
+
 /** Wow's PostgreSQL counters per command as the calibration reads them: with its snapshot table's HOT share. */
 private fun postgresWow(wow: Map<String, Double>): Map<String, Double> {
     val table = RawPostgres.SNAPSHOT
@@ -310,29 +349,43 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         val cpu = ContainerCpu(settings.container)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
         fun step(case: RawMongo.Case, connections: Int, versions: IntArray, pace: Pace = Pace(settings.timing)) =
-            raw.client(connections).use { client ->
-                runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
-                    val writer = raw.writer(client, case.case)
-                    val owned = Aggregates(versions, index, connections)
-                    object : RawWorker {
-                        override fun flush(): Flushed = case.flush(writer, owned)
-                        override fun close() = writer.close()
-                    }
-                }.copy(pool = connections)
+            raw.client(case.shape?.connections ?: connections).use { client ->
+                val shape = case.shape?.let { raw.shapeOf(it, client) }
+                try {
+                    runStep(case.case, connections, pace, cpu, raw::counters, raw::ratios) { index ->
+                        val owned = Aggregates(versions, index, connections)
+                        if (shape != null) {
+                            caller(shape, owned)
+                        } else {
+                            val writer = raw.writer(client, case.case)
+                            object : RawWorker {
+                                override fun flush(): Flushed = case.flush(writer, owned)
+                                override fun close() = writer.close()
+                            }
+                        }
+                    }.copy(pool = case.shape?.connections ?: connections)
+                } finally {
+                    shape?.close()
+                }
             }.also(::print)
         val shape = shapeOf(wow, MONGO_APPENDS, MONGO_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
         requireTemplates(shape.first, settings.templates)
         val today = raw.cases(shape.first, shape.second, settings.batches).first { it.case.name == RawMongo.WOW_TODAY }
         raw.prepare(settings.templates, today.bigState)
         val calibrating = step(
-            RawMongo.Case(today.case.copy(name = CALIBRATION, prices = WOW_GROUND), today.bigState, today.flush),
+            RawMongo.Case(
+                today.case.copy(name = CALIBRATION, prices = WOW_GROUND),
+                today.bigState,
+                flush = today.flush
+            ),
             CALIBRATION_CONNECTIONS,
             opened(settings.templates),
             Pace(calibrationTiming(settings), wow[WOW_RATE]),
         )
         val steps = mutableListOf(calibrating)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
-            steps += stepsOf(settings.connections, settings.aggregates, {
+            val clients = if (case.shape != null) settings.shapeClients else settings.connections
+            steps += stepsOf(clients, settings.aggregates, {
                 raw.prepare(settings.aggregates, case.bigState)
             }) { n, versions ->
                 step(case, n, versions)
@@ -353,15 +406,18 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
 
 /**
  * Wow's MongoDB counters per command as the calibration reads them: its updates without its node's own (checkpoints,
- * leases: their collections' `top` counts) and its oplog bytes without the node's own entries over the window, which
- * the clone does not write. Its journal bytes keep them: the journal has no account by collection; the node's own
- * oplog bytes, reported apart, say about how much they are.
+ * leases: their collections' `top` counts) and its oplog and journal bytes without the node's own oplog entries over
+ * the window, which the clone does not write. The journal has no account by collection: it also records those writes'
+ * documents, which stay in it, so its check leans to Wow's side by that much; the node's own oplog bytes, reported
+ * apart, say about how much.
  */
 private fun mongoWow(wow: Map<String, Double>): Map<String, Double> {
     val own = wow.filterKeys { it.endsWith(" update") && ".wow_" in it && "__" !in it }.values.sum()
+    val ownBytes = wow[OWN_OPLOG_BYTES] ?: 0.0
     return wow + buildMap {
         wow["updates"]?.let { put("updates", it - own) }
-        wow["oplogBytes"]?.let { put("oplogBytes", it - (wow[OWN_OPLOG_BYTES] ?: 0.0)) }
+        wow["oplogBytes"]?.let { put("oplogBytes", it - ownBytes) }
+        wow["journalBytes"]?.let { put("journalBytes", it - ownBytes) }
     }
 }
 
@@ -423,6 +479,12 @@ fun calibrationOf(
         rawCounters = raw,
         read = calibrating.read,
     )
+}
+
+/** A caller of Wow's own write path: one command a flush, counted once its stream and its snapshot were written. */
+private fun caller(shape: WowShape<*>, owned: Aggregates) = object : RawWorker {
+    override fun flush(): Flushed = if (shape.submit(owned.take(1).single())) Flushed(1) else Flushed(0, refused = 1)
+    override fun close() = Unit
 }
 
 private fun print(step: RawStep) =

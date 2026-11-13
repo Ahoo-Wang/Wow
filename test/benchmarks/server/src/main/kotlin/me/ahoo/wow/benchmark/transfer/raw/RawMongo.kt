@@ -62,7 +62,12 @@ import kotlin.concurrent.withLock
  */
 class RawMongo(private val uri: String, private val databaseName: String) : AutoCloseable {
     /** A case of this store, the state it writes ([bigState]: about 4 KB, else the domain's), and its flush. */
-    class Case(val case: RawCase, val bigState: Boolean, val flush: (Writer, Aggregates) -> Flushed)
+    class Case(
+        val case: RawCase,
+        val bigState: Boolean,
+        val shape: WowShape.Options? = null,
+        val flush: (Writer, Aggregates) -> Flushed,
+    )
 
     private val admin: MongoClient = MongoClients.create(uri)
     private val database: MongoDatabase = admin.getDatabase(databaseName).withWriteConcern(WriteConcern.MAJORITY)
@@ -141,12 +146,30 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
                 both(w.insert(commands), w.write(commands, Update.M0, bigState = false))
             }
         )
+        addAll(shapeCases())
         add(
             Case(RawCase("point-read", "read", 1, "reference: a snapshot by its key"), false) { w, a ->
                 val found = w.snapshots.find(Filters.eq("_id", keyOf(tenant(), a.next().id))).first() != null
                 if (found) Flushed(1) else Flushed(0, refused = 1)
             }
         )
+    }
+
+    /** Wow's own peak shape ([WowShape]) at calls of up to 64, 256 and 512 streams. */
+    private fun shapeCases(): List<Case> = buildList {
+        for (merge in WowShape.MERGES) {
+            val prices = "Wow's peak shape: two appenders, calls of up to $merge streams; two writers of up to " +
+                "${WowShape.WRITER_MAX} updates"
+            add(
+                Case(
+                    RawCase("wow-shape-$merge", COMMAND, 1, prices, wowShape = true),
+                    false,
+                    WowShape.Options(merge)
+                ) { _, _ ->
+                    error("A shape's callers submit to it.")
+                }
+            )
+        }
     }
 
     /** A command counts once its stream and its snapshot were both written. */
@@ -199,6 +222,21 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
             .build(),
     )
 
+    /**
+     * Wow's own write path on this store ([options]), on [client]: its appenders' and writers' writers, the log's
+     * group and the snapshots' `bulkWrite` in Wow's shape (M0).
+     */
+    fun shapeOf(options: WowShape.Options, client: MongoClient): WowShape<Writer> = WowShape(
+        partitions,
+        { Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant(), it.id), partitions) },
+        options,
+        { Writer(client, null) },
+        { writer, commands -> writer.insertEach(commands) },
+        { writer, commands -> writer.writeEach(commands, Update.M0, bigState = false) },
+    )
+
+    private fun counted(written: BooleanArray): Flushed = written.count { it }.let { Flushed(it, written.size - it) }
+
     /** A worker's writer on [client], with a session when [case] writes in a transaction. */
     fun writer(client: MongoClient, case: RawCase): Writer =
         Writer(client, if (case.name == C_TRANSACTION) client.startSession() else null)
@@ -211,23 +249,30 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         private val counters: MongoCollection<Document> = database.getCollection(RAW_COUNTERS)
 
         /** [commands]' streams as Wow's group: sequenced, then one ordered `insertMany`; the ones before a failure. */
-        fun insert(commands: List<Aggregates.Command>): Flushed {
+        fun insert(commands: List<Aggregates.Command>): Flushed = counted(insertEach(commands))
+
+        /** [commands]' streams, as [insert]: which of them it wrote, in their order. */
+        fun insertEach(commands: List<Aggregates.Command>): BooleanArray {
             val documents = commands.map { command ->
                 val partition = Partitioner.partitionOf(ACCOUNT_TYPE.ref(tenant(), command.id), partitions)
                 logOf(nextTemplate(), command, partition, sequencer.next(partition, counters))
             }
             return try {
                 if (session != null) log.insertMany(session, documents) else log.insertMany(documents)
-                Flushed(commands.size)
+                BooleanArray(commands.size) { true }
             } catch (refused: MongoBulkWriteException) {
                 if (refused.writeConcernError != null) throw refused
                 val written = refused.writeErrors.minOf { it.index }
-                Flushed(written, commands.size - written)
+                BooleanArray(commands.size) { it < written }
             }
         }
 
         /** [commands]' snapshots as one unordered `bulkWrite` of [update]'s shape; the ones without a write error. */
-        fun write(commands: List<Aggregates.Command>, update: Update, bigState: Boolean): Flushed {
+        fun write(commands: List<Aggregates.Command>, update: Update, bigState: Boolean): Flushed =
+            counted(writeEach(commands, update, bigState))
+
+        /** [commands]' snapshots, as [write]: which of them it wrote, in their order. */
+        fun writeEach(commands: List<Aggregates.Command>, update: Update, bigState: Boolean): BooleanArray {
             val first = snapshotTemplates[Math.floorMod(template.get(), snapshotTemplates.size)]
             val models = commands.map { modelOf(first, it, update, bigState) }
             return try {
@@ -236,10 +281,11 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
                 } else {
                     snapshots.bulkWrite(models, UNORDERED)
                 }
-                Flushed(commands.size)
+                BooleanArray(commands.size) { true }
             } catch (refused: MongoBulkWriteException) {
                 if (refused.writeConcernError != null) throw refused
-                Flushed(commands.size - refused.writeErrors.size, refused.writeErrors.size)
+                val failed = refused.writeErrors.map { it.index }.toSet()
+                BooleanArray(commands.size) { it !in failed }
             }
         }
 
