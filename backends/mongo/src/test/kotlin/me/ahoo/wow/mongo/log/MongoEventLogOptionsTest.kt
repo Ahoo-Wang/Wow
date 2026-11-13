@@ -34,6 +34,7 @@ class MongoEventLogOptionsTest {
         options.operationTimeout.assert().isEqualTo(MongoTimeouts.OPERATION)
         options.ddl.assert().isEqualTo(Ddl.AUTO)
         options.sharding.assert().isEqualTo(MongoSharding.AUTO)
+        options.doneGrace.assert().isEqualTo(DoneBlocks.GRACE)
     }
 
     @Test
@@ -49,6 +50,8 @@ class MongoEventLogOptionsTest {
             .hasMessage("The append timeout is positive.")
         assertThrownBy<IllegalArgumentException> { MongoEventLogOptions(operationTimeout = (-1).seconds) }
             .hasMessage("The operation timeout is positive.")
+        assertThrownBy<IllegalArgumentException> { MongoEventLogOptions(doneGrace = (-1).seconds) }
+            .hasMessage("The done blocks' grace is never negative.")
     }
 
     @Test
@@ -63,7 +66,7 @@ class MongoEventLogOptionsTest {
         options.equals("options").assert().isFalse()
         options.toString().assert().isEqualTo(
             "MongoEventLogOptions(pollInterval=50ms, maxPollInterval=1s, tailBatch=7, appendTimeout=5s, " +
-                "operationTimeout=${MongoTimeouts.OPERATION}, ddl=VALIDATE, sharding=NONE)",
+                "operationTimeout=${MongoTimeouts.OPERATION}, ddl=VALIDATE, sharding=NONE, doneGrace=30s)",
         )
     }
 }

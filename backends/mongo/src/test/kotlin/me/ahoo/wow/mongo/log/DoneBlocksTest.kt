@@ -67,6 +67,19 @@ class DoneBlocksTest {
     }
 
     @Test
+    fun `a tail behind another should not restart the other's grace`() {
+        val done = block("a", 1)
+        // The tail ahead read through the block; the tail behind, at a lower position, did not.
+        blocks.due(0, listOf(done), through = SIZE).assert().isEmpty()
+        time += GRACE / 2
+        blocks.due(0, listOf(done), through = SIZE / 2).assert().isEmpty()
+        time += GRACE / 2
+        blocks.due(0, listOf(done), through = SIZE / 2).assert().isEmpty()
+        // The first sighting stands: the tail ahead finds it due when its grace from then passed.
+        blocks.due(0, listOf(done), through = SIZE).assert().containsExactly(done)
+    }
+
+    @Test
     fun `each partition's blocks should be kept apart`() {
         val zero = block("a", 1)
         val one = block("a", 1)

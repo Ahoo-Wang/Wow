@@ -38,8 +38,8 @@ class MongoSequencerDoneBlocksTest : MongoLogFixtures() {
     }
 
     /** The sequence [log] appends one more first version of [context] at. */
-    private fun next(log: MongoEventLog, context: String): Long {
-        val outcome = runBlocking { log.append(stream("next", 1, aggregate = AggregateType(context, "order"))) }
+    private fun next(log: MongoEventLog, context: String, id: String = "next"): Long {
+        val outcome = runBlocking { log.append(stream(id, 1, aggregate = AggregateType(context, "order"))) }
         return (outcome as AppendOutcome.Committed).position.sequence
     }
 
@@ -70,6 +70,26 @@ class MongoSequencerDoneBlocksTest : MongoLogFixtures() {
         // Its sequences after the first are not written: the read did not go through the block.
         listed(context).assert().containsExactly(1L)
     }
+
+    @Test
+    fun `with no grace a tail should take a filled block out, the next reservation a no-op`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val owner = MongoLogFixture.log(1, context)
+            val ids = (1 until MongoEventLog.BLOCK).map { "n-$it" }.toTypedArray()
+            runBlocking { owner.appendAll(group(context, *ids)) }
+            // The block's last sequence is not written: a tail with no grace reads up to it, not through it.
+            val tail = MongoLogFixture.log(1, context, doneGrace = kotlin.time.Duration.ZERO)
+            tailed(tail, MongoEventLog.BLOCK.toInt() - 1)
+            listed(context).assert().containsExactly(1L)
+            // Filled: the block is done and read through, and the tail with no grace takes it out at once.
+            next(owner, context, "last").assert().isEqualTo(MongoEventLog.BLOCK)
+            tailed(tail, MongoEventLog.BLOCK.toInt())
+            listed(context).assert().isEmpty()
+            // The owner's next reservation names it again: a no-op beside the block it adds.
+            next(owner, context, "after").assert().isEqualTo(MongoEventLog.BLOCK + 1)
+            listed(context).assert().containsExactly(MongoEventLog.BLOCK + 1)
+        }
 
     @Test
     fun `a node's next reservation should take its done block out in its own update`(): Unit =

@@ -26,8 +26,9 @@ import kotlin.time.TimeSource
  * [grace]: by then a live node has reserved again (at load, within a second), and a block still listed is a stopped
  * node's, which leaves by time.
  *
- * Kept in memory, per partition, keyed by the block's node and first sequence: a block no longer listed (taken out by
- * its node, or by another tail) is forgotten.
+ * Kept in memory, per partition, keyed by the block's node and first sequence: a block is marked by the first read
+ * that went through it, and forgotten only once no longer listed (taken out by its node, or by another tail), so a
+ * tail of the partition behind another does not restart the other's grace.
  */
 internal class DoneBlocks(
     private val grace: Duration = GRACE,
@@ -42,9 +43,11 @@ internal class DoneBlocks(
      * the sequence a read went through without a gap, and seen so for [grace].
      */
     fun due(partition: Int, listed: List<MongoSequencer.OpenBlock>, through: Long): List<MongoSequencer.OpenBlock> {
-        val readThrough = listed.filter { it.to <= through }.associateBy { Key(partition, it.node, it.from) }
-        seen.keys.removeIf { it.partition == partition && it !in readThrough }
-        return readThrough.filter { (key, _) -> seen.computeIfAbsent(key) { time.markNow() }.elapsedNow() >= grace }
+        // Forgotten only once no longer listed: another tail of the partition, behind this one, keeps its sighting.
+        val keys = listed.associateBy { Key(partition, it.node, it.from) }
+        seen.keys.removeIf { it.partition == partition && it !in keys }
+        return keys.filter { (_, block) -> block.to <= through }
+            .filter { (key, _) -> seen.computeIfAbsent(key) { time.markNow() }.elapsedNow() >= grace }
             .onEach { (key, _) -> seen.remove(key) }
             .values.toList()
     }

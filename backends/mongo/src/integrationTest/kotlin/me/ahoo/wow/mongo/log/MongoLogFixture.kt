@@ -44,12 +44,13 @@ object MongoLogFixture {
         context: String = newContext(),
         aggregates: Collection<String> = emptyList(),
         tailBatch: Int = MongoEventLogOptions.DEFAULT_TAIL_BATCH,
+        doneGrace: kotlin.time.Duration = MongoEventLogOptions().doneGrace,
     ): MongoEventLog = MongoEventLog(
         client,
         DATABASE,
         context,
         partitions,
-        options = MongoEventLogOptions(tailBatch = tailBatch),
+        options = MongoEventLogOptions(tailBatch = tailBatch, doneGrace = doneGrace),
     ).also { log ->
         log.createSchema()
         aggregates.forEach { log.createCollection(it) }
