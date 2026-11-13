@@ -12,7 +12,7 @@ import {
   withPool,
 } from './bench-common.mjs';
 
-test("a PostgreSQL arm's pool is its property, else its server argument, else HikariCP's default", () => {
+test("a PostgreSQL arm's pool is its server argument, else its property, else HikariCP's default, as Spring Boot ranks them", () => {
   assert.equal(poolOf({ backend: 'postgres' }), HIKARI_DEFAULT_POOL);
   assert.equal(HIKARI_DEFAULT_POOL, 10);
   assert.equal(
@@ -36,7 +36,7 @@ test("a PostgreSQL arm's pool is its property, else its server argument, else Hi
       props: { 'spring.datasource.hikari.maximum-pool-size': '40' },
       serverArgs: '--spring.datasource.hikari.maximum-pool-size=24',
     }),
-    40,
+    24,
   );
   assert.equal(poolOf({ backend: 'mongo' }), undefined);
 });

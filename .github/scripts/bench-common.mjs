@@ -162,16 +162,17 @@ export const HIKARI_DEFAULT_POOL = 10;
 const POOL_PROPERTY = 'spring.datasource.hikari.maximum-pool-size';
 
 /**
- * The JDBC pool a PostgreSQL arm's servers run with: its property, else its server argument, else HikariCP's default;
- * undefined on another store. Every PostgreSQL figure is quoted with it: appends, snapshot writes, checkpoints, tail
- * reads, loads and the saga's reads share it.
+ * The JDBC pool a PostgreSQL arm's servers run with: its server argument, else its property, else HikariCP's default;
+ * undefined on another store. The order is Spring Boot's: a command-line argument overrides SPRING_APPLICATION_JSON,
+ * which carries the arm's properties. Every PostgreSQL figure is quoted with it: appends, snapshot writes, checkpoints,
+ * tail reads, loads and the saga's reads share it.
  */
 export function poolOf(arm) {
   if (arm?.backend !== 'postgres') return undefined;
   const argument = (arm.serverArgs ?? '').match(
     /(?:^|\s)--spring\.datasource\.hikari\.maximum-pool-size=(\d+)(?:\s|$)/,
   )?.[1];
-  return Number(arm.props?.[POOL_PROPERTY] ?? argument ?? HIKARI_DEFAULT_POOL);
+  return Number(argument ?? arm.props?.[POOL_PROPERTY] ?? HIKARI_DEFAULT_POOL);
 }
 
 /** [arm] with its pool recorded (`pool`), when it has one. */
