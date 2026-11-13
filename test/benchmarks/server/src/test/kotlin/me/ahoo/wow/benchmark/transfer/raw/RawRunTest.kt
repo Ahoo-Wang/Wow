@@ -35,6 +35,67 @@ class RawRunTest {
     }
 
     @Test
+    fun `a step's growth is each counter's, the WAL's position left out, and a position reads as PostgreSQL's`() {
+        val before = mapOf("walRecords" to 10.0, PostgresCounters.WAL_POSITION to 100.0)
+        val after = mapOf("walRecords" to 25.0, "commits" to 3.0, PostgresCounters.WAL_POSITION to 900.0)
+        growthOf(before, after).assert().isEqualTo(mapOf("walRecords" to 15.0, "commits" to 3.0))
+        PostgresCounters.lsnOf(0x1_0000_00A0L).assert().isEqualTo("1/A0")
+        PostgresCounters.lsnOf(0x2F0L).assert().isEqualTo("0/2F0")
+    }
+
+    @Test
+    fun `the WAL on the cloned tables sums their records of every type and their bytes, and nothing else`() {
+        val records = mapOf(
+            "wal Heap/INSERT raw_log records" to 1.0,
+            "wal Btree/INSERT_LEAF raw_log records" to 3.0,
+            "wal Heap/HOT_UPDATE raw_snapshot records" to 1.0,
+            "wal Heap/LOCK wow_checkpoint records" to 0.5,
+            "wal Transaction/COMMIT - records" to 0.2,
+            "wal raw_log bytes" to 400.0,
+            "wal raw_snapshot bytes" to 100.0,
+            "wal wow_checkpoint bytes" to 60.0,
+            "walRecords" to 9.0,
+        )
+        PostgresCounters.onTables(records, RawPostgres.RAW_TABLES, "path").assert().isEqualTo(
+            mapOf("pathWalRecords" to 5.0, "pathWalBytes" to 500.0)
+        )
+        PostgresCounters.onTables(mapOf("walRecords" to 9.0), RawPostgres.RAW_TABLES, "path").assert().isEmpty()
+    }
+
+    @Test
+    fun `today's snapshots are saved behind the appends, a save of its own size across them`() {
+        val owned = Aggregates(opened(40), 0, 1)
+        val appends = mutableListOf<Int>()
+        val saves = mutableListOf<List<Int>>()
+        fun flush() = savedBehind(owned, 4, 6, {
+            appends += it.size
+            Flushed(it.size)
+        }) { batch ->
+            saves += batch.map { it.number }
+            Flushed(batch.size)
+        }
+        flush().assert().isEqualTo(Flushed(0))
+        flush().assert().isEqualTo(Flushed(6))
+        flush().assert().isEqualTo(Flushed(6))
+        appends.assert().containsExactly(4, 4, 4)
+        saves.assert().containsExactly(listOf(0, 1, 2, 3, 4, 5), listOf(6, 7, 8, 9, 10, 11))
+        // A command whose append was refused is never saved.
+        savedBehind(owned, 4, 1, { Flushed(2, refused = 2) }) { Flushed(it.size) }.assert().isEqualTo(Flushed(2, 2))
+    }
+
+    @Test
+    fun `a step that outlives its limit halts the program with the hung exit, one cancelled in time does not`() {
+        Watchdog.limitOf(40).assert().isEqualTo(4 * 40 + 60L)
+        val halted = java.util.concurrent.CompletableFuture<Int>()
+        Watchdog("calibration at 64", 0, halted::complete)
+        halted.get(5, java.util.concurrent.TimeUnit.SECONDS).assert().isEqualTo(Watchdog.EXIT_HUNG)
+        val calm = java.util.concurrent.CompletableFuture<Int>()
+        Watchdog("calibration at 64", 1, calm::complete).cancel()
+        Thread.sleep(1_500)
+        calm.isDone.assert().isFalse()
+    }
+
+    @Test
     fun `a cgroup's CPU is its cpu stat's usage in microseconds`() {
         cgroupUsageMicros("usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n").assert().isEqualTo(123456)
         cgroupUsageMicros("user_usec 1\n").assert().isNull()
@@ -109,6 +170,11 @@ class RawRunTest {
         val mongo = mapOf("commands: insert log" to 0.0678, "commands: update snapshot" to 0.1325)
         shapeOf(mongo, "commands: insert log", "commands: update snapshot").assert().isEqualTo(15 to 8)
         shapeOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
+        // Wow's writer saves behind its appends and across them: fewer saves than appends, each of more snapshots.
+        val behind = mapOf("statements: append" to 0.17075, "statements: save" to 0.109375)
+        shapeOf(behind, "statements: append", "statements: save").assert().isEqualTo(6 to 9)
+        val mongoBehind = mapOf("commands: insert log" to 0.139, "commands: update snapshot" to 0.051)
+        shapeOf(mongoBehind, "commands: insert log", "commands: update snapshot").assert().isEqualTo(7 to 20)
         shapeOf(wow, "statements: append", "missing").assert().isNull()
     }
 

@@ -14,18 +14,20 @@
 package me.ahoo.wow.benchmark.transfer.raw
 
 import java.sql.Connection
+import java.sql.SQLException
 
 /** PostgreSQL's counters and settings around a raw run's windows, on connections from [connect]. */
 class PostgresCounters(private val connect: () -> Connection) {
     /**
-     * PostgreSQL's cumulative counters: WAL bytes, records, full-page images, syncs and their time, commits, and the
-     * clone's snapshot table's updates and HOT updates.
+     * PostgreSQL's cumulative counters: WAL bytes, records, full-page images, syncs and their time, commits, the
+     * clone's snapshot table's updates and HOT updates, and the WAL's insert position (WAL_POSITION, for [records]).
      */
     fun counters(): Map<String, Double> = connect().use { connection ->
         connection.createStatement().use { s ->
             s.executeQuery(
                 "SELECT w.wal_bytes, w.wal_records, w.wal_fpi, w.wal_sync, w.wal_sync_time, d.xact_commit, " +
-                    "coalesce(t.n_tup_upd, 0), coalesce(t.n_tup_hot_upd, 0) " +
+                    "coalesce(t.n_tup_upd, 0), coalesce(t.n_tup_hot_upd, 0), " +
+                    "(pg_current_wal_insert_lsn() - '0/0'::pg_lsn)::float8 " +
                     "FROM pg_stat_wal w CROSS JOIN pg_stat_database d " +
                     "LEFT JOIN pg_stat_user_tables t " +
                     "ON t.relname = 'raw_snapshot' AND t.schemaname = current_schema() " +
@@ -41,6 +43,7 @@ class PostgresCounters(private val connect: () -> Connection) {
                     "commits" to r.getDouble(6),
                     "snapshotUpdates" to r.getDouble(7),
                     "snapshotHotUpdates" to r.getDouble(8),
+                    WAL_POSITION to r.getDouble(9),
                 )
             }
         }
@@ -72,6 +75,43 @@ class PostgresCounters(private val connect: () -> Connection) {
         return if (updates > 0) mapOf("hotShare" to (growth["snapshotHotUpdates"] ?: 0.0) / updates) else emptyMap()
     }
 
+    /**
+     * The WAL written between [before]'s and [after]'s positions (WAL_POSITION), per record type and the table it
+     * touched (an index's or TOAST table's own, its table's): `wal <type> <table> records`, the type
+     * `<resource manager>/<record>` and the table `-` for a record of none (a commit), and each table's record bytes,
+     * full-page images among them (`wal <table> bytes`). Read with pg_walinspect; empty when the extension is not there,
+     * a checkpoint recycled the segments, or the read took longer than RECORDS_TIMEOUT.
+     */
+    fun records(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> {
+        val start = before[WAL_POSITION]?.toLong() ?: return emptyMap()
+        val end = after[WAL_POSITION]?.toLong()?.takeIf { it > start } ?: return emptyMap()
+        return try {
+            connect().use { connection ->
+                connection.createStatement().use {
+                    it.execute("CREATE EXTENSION IF NOT EXISTS pg_walinspect")
+                    it.execute("SET statement_timeout = '$RECORDS_TIMEOUT'")
+                }
+                connection.prepareStatement(RECORDS).use { statement ->
+                    statement.setString(1, lsnOf(start))
+                    statement.setString(2, lsnOf(end))
+                    statement.executeQuery().use { r ->
+                        val bytes = mutableMapOf<String, Double>()
+                        buildMap {
+                            while (r.next()) {
+                                put("wal ${r.getString(1)} ${r.getString(2)} records", r.getDouble(3))
+                                bytes.merge("wal ${r.getString(2)} bytes", r.getDouble(4), Double::plus)
+                            }
+                            putAll(bytes)
+                        }
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            System.err.println("raw: no WAL records by type: ${e.message}")
+            emptyMap()
+        }
+    }
+
     /** The server's version and the settings a ceiling is quoted with. */
     fun settings(): Map<String, Any?> = connect().use { connection ->
         connection.createStatement().use { s ->
@@ -84,9 +124,54 @@ class PostgresCounters(private val connect: () -> Connection) {
         }
     }
 
-    private companion object {
+    companion object {
+        /** The WAL's insert position in bytes, among the counters: a step's growth leaves it out. */
+        const val WAL_POSITION = "walPosition"
+        private const val LOW_BITS = 32
+        private const val LOW_MASK = 0xFFFF_FFFFL
+
+        /** A WAL position of [bytes] in PostgreSQL's form, `X/Y` in hexadecimal. */
+        fun lsnOf(bytes: Long): String = "%X/%X".format(bytes ushr LOW_BITS, bytes and LOW_MASK)
+
+        /**
+         * The WAL records and bytes per unit on [tables] alone, from [records]' counters (`wal … <table> records`,
+         * `wal <table> bytes`) as `<prefix>WalRecords` and `<prefix>WalBytes`; empty when none was read.
+         */
+        fun onTables(records: Map<String, Double>, tables: Set<String>, prefix: String): Map<String, Double> {
+            if (records.keys.none { it.startsWith("wal ") }) return emptyMap()
+            fun sum(suffix: String) = records.entries.sumOf { (key, value) ->
+                val parts = key.split(' ')
+                if (parts.first() == "wal" && key.endsWith(suffix) && parts[parts.size - 2] in tables) value else 0.0
+            }
+            return mapOf("${prefix}WalRecords" to sum(" records"), "${prefix}WalBytes" to sum(" bytes"))
+        }
+
+        /** Each record's type and the table its first block is of (an index's or TOAST table's owner), counted. */
+        /**
+         * Each record's type and the table its first block is of (an index's or TOAST table's owner), counted: the
+         * records grouped by type and relation file first, so the catalog is joined once a group, not once a record.
+         */
+        private val RECORDS = """
+            WITH w AS (
+                SELECT resource_manager || '/' || split_part(record_type, ' ', 1) AS type,
+                    substring(block_ref FROM 'rel \d+/\d+/(\d+)')::oid AS node,
+                    count(*) AS records, sum(record_length) AS bytes
+                FROM pg_get_wal_records_info(?::pg_lsn, ?::pg_lsn) GROUP BY 1, 2
+            )
+            SELECT w.type, coalesce(owner.relname, rel.relname, '-'), sum(w.records), sum(w.bytes)
+            FROM w
+            LEFT JOIN pg_class rel ON rel.relfilenode = w.node AND rel.relfilenode <> 0
+            LEFT JOIN pg_index i ON i.indexrelid = rel.oid
+            LEFT JOIN pg_class toast ON toast.reltoastrelid = rel.oid
+            LEFT JOIN pg_class owner ON owner.oid = coalesce(i.indrelid, toast.oid)
+            GROUP BY 1, 2
+        """.trimIndent()
+
+        /** The WAL read's bound: past it the read gives up, as without pg_walinspect. */
+        private const val RECORDS_TIMEOUT = "60s"
+
         /** The durability and storage settings a ceiling is quoted with. */
-        val settingNames = listOf(
+        private val settingNames = listOf(
             "synchronous_commit",
             "fsync",
             "full_page_writes",

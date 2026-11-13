@@ -52,8 +52,27 @@ export function rawSuites(HEAD_PG, HEAD_MONGO) {
   };
 }
 
-/** The arguments of a raw run of [arm] into [dir]: bench.sh measure's, the program's settings, the server's CPUs. */
-export function rawArgs(arm, installs, cpuset, dir) {
+/**
+ * A raw run's CPUs, its store's as its paired suites give it, so a ceiling is of the same store as Wow's figure (a
+ * store's throughput does not scale with its cores, so no per-core figure would stand in): on MongoDB mongod on one CPU
+ * of its own (the paired layout's `store`) and the program on the others but the generator's; on PostgreSQL the
+ * program and the store sharing the paired layout's server CPUs. [cpuset] is the measure layout (one generator CPU,
+ * the last); below four CPUs, as it is.
+ */
+export function rawCpus(cpuset, backend) {
+  const total = Number(cpuset.load) + 1;
+  if (!(total >= 4) || !cpuset.server) return cpuset;
+  if (backend === 'mongo') {
+    const store = total - 3;
+    const others = [...Array(total - 1).keys()].filter(cpu => cpu !== store);
+    return { ...cpuset, store: `${store}`, server: others.join(',') };
+  }
+  return { ...cpuset, server: `0-${total - 3}` };
+}
+
+/** The arguments of a raw run of [arm] into [dir]: bench.sh measure's, the program's settings, its CPUs (rawCpus). */
+export function rawArgs(arm, installs, measured, dir) {
+  const cpuset = rawCpus(measured, arm.backend);
   return [
     'measure',
     '--program=raw',
@@ -63,6 +82,7 @@ export function rawArgs(arm, installs, cpuset, dir) {
     `--warm-up=${RAW.warmUp}`,
     `--seconds=${RAW.seconds}`,
     ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+    ...(cpuset.store ? [`--store-cpus=${cpuset.store}`] : []),
     `--out=${dir}`,
   ];
 }

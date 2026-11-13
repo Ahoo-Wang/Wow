@@ -182,9 +182,11 @@ fun runStep(
     cpu: ContainerCpu,
     counters: () -> Map<String, Double>,
     ratios: (Map<String, Double>) -> Map<String, Double> = { emptyMap() },
+    records: (Map<String, Double>, Map<String, Double>) -> Map<String, Double> = { _, _ -> emptyMap() },
     worker: (Int) -> RawWorker,
 ): RawStep {
     val (warmUpSeconds, seconds) = pace.timing
+    val guard = Watchdog("${case.name} at $connections", Watchdog.limitOf(warmUpSeconds + seconds))
     val tally = Tally(connections, pace.rate?.let { (case.flushUnits * NANOS_PER_SECOND / it).toLong() })
     val workers = ArrayList<RawWorker>(connections)
     val threads = ArrayList<Thread>(connections)
@@ -209,7 +211,7 @@ fun runStep(
         if (units == 0L) {
             tally.failure.get()?.let { throw IllegalStateException("${case.name} at $connections did nothing", it) }
         }
-        val growth = after.mapValues { (key, value) -> value - (before[key] ?: 0.0) }
+        val growth = growthOf(before, after) + records(before, after)
         val latencies = tally.latencies()
         return RawStep(
             case = case,
@@ -231,8 +233,50 @@ fun runStep(
         tally.stopping.set(true)
         threads.forEach { it.join() }
         workers.forEach { it.close() }
+        guard.cancel()
     }
 }
+
+/**
+ * A step's watchdog: unless cancelled within [limitSeconds] (limitOf a step's own length), it says which step ([name])
+ * printed nothing for that long and ends the program with EXIT_HUNG ([halt]), so a step that hangs (a store read that
+ * does not return, a worker that never stops) costs minutes and names itself, rather than the job's whole timeout and
+ * a log that ends at the step before.
+ */
+class Watchdog(
+    private val name: String,
+    private val limitSeconds: Long,
+    private val halt: (Int) -> Unit = Runtime.getRuntime()::halt,
+) {
+    private val thread = Thread.ofPlatform().daemon().name("raw-watchdog").start {
+        try {
+            Thread.sleep(limitSeconds * MILLIS)
+            System.err.println("raw: $name printed nothing for $limitSeconds s, past its limit: it hung")
+            System.err.flush()
+            halt(EXIT_HUNG)
+        } catch (_: InterruptedException) {
+            // Cancelled: the step ended in time.
+        }
+    }
+
+    /** The step ended: the watchdog stands down. */
+    fun cancel() = thread.interrupt()
+
+    companion object {
+        const val GUARD_FACTOR = 4L
+        const val GUARD_MARGIN_SECONDS = 60L
+
+        /** A step's limit: GUARD_FACTOR times its own [seconds], warm-up and measured, and GUARD_MARGIN_SECONDS. */
+        fun limitOf(seconds: Int): Long = GUARD_FACTOR * seconds + GUARD_MARGIN_SECONDS
+
+        /** The program's exit when a step hung, apart from a failure's. */
+        const val EXIT_HUNG = 4
+    }
+}
+
+/** Each counter's growth between two reads, the WAL's position left out (PostgresCounters.WAL_POSITION). */
+fun growthOf(before: Map<String, Double>, after: Map<String, Double>): Map<String, Double> =
+    (after - PostgresCounters.WAL_POSITION).mapValues { (key, value) -> value - (before[key] ?: 0.0) }
 
 /** The container's CPU per unit in milliseconds, from its micros at the window's edges; null without them. */
 private fun perUnit(before: Long?, after: Long?, units: Long): Double? =
@@ -337,6 +381,31 @@ class LongList {
 }
 
 /**
+ * Today's flush on either store: [logBatch] of [owned]'s commands appended in one group ([append]), their snapshots
+ * kept with the worker's earlier ones and saved [snapshotBatch] a call ([save]), as Wow's writer saves them: behind its
+ * appends and across them, so a save may wait for several appends or follow one with several. A command counts once
+ * its snapshot was written, which is after its append.
+ */
+fun savedBehind(
+    owned: Aggregates,
+    logBatch: Int,
+    snapshotBatch: Int,
+    append: (List<Aggregates.Command>) -> Flushed,
+    save: (List<Aggregates.Command>) -> Flushed,
+): Flushed {
+    val commands = owned.take(logBatch)
+    val appended = append(commands)
+    owned.unsaved += commands.take(appended.written)
+    var saved = Flushed(0)
+    while (owned.unsaved.size >= snapshotBatch) {
+        val batch = owned.unsaved.subList(0, snapshotBatch)
+        saved += save(batch.toList())
+        batch.clear()
+    }
+    return Flushed(saved.written, appended.refused + saved.refused)
+}
+
+/**
  * The aggregates one worker of a case writes: every [of]-th of [versions]' aggregates, by [index], taken in turn so a
  * flush holds distinct aggregates. Their versions are the case's ([versions], by aggregate), carried from one step to
  * the next, so a later step goes on from the versions an earlier one wrote.
@@ -357,6 +426,9 @@ class Aggregates(private val versions: IntArray, index: Int, of: Int) {
 
     private val owned = (index until versions.size step of).toList()
     private var next = 0
+
+    /** Commands this worker appended whose snapshots wait for a save of their case's size (savedBehind). */
+    internal val unsaved = ArrayList<Command>()
 
     init {
         require(owned.isNotEmpty()) { "Worker $index of $of owns none of ${versions.size} aggregates." }
