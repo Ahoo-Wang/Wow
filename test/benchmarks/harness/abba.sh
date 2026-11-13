@@ -14,6 +14,7 @@
 # bench.sh's ABBA comparison on one machine (`abba`), sourced by bench.sh: its helpers and settings are in scope.
 #
 #   bench.sh abba --backend=postgres --scenario=E1 --concurrencies=1024,4096 [--sweeps=2] [--step=30] [--warm-up=10]
+#                 [--wait[=<seconds>]] (behind another batch's lock, lock.sh)
 #                 --arm='main|<install>|<server args>' --arm='branch|<install>|<server args>' [--out=<root>] [options]
 #
 # Each arm is its name, the server's install (empty: this tree's) and its servers' arguments, `|` between them. For
@@ -36,7 +37,13 @@ abba() {
   done
   if [ ${#arms[@]} -lt 2 ]; then log "abba needs two --arm='name|install|server args' at least"; exit 2; fi
   if [ -z "$(opt concurrencies "")" ]; then log "abba needs --concurrencies"; exit 2; fi
-  # Every sweep starts by taking the harness down: with its containers up, another run is measuring on them.
+  # The batch lock first, held for the whole batch (lock.sh); --wait queues behind another batch.
+  local owner="abba-$$"
+  lock_take "$owner" "$$" "$(lock_wait_option)" || exit 2
+  export WOW_BENCH_OWNER=$owner
+  trap 'lock_release "$WOW_BENCH_OWNER"' EXIT
+  # Under the lock, a second guard: every sweep starts by taking the harness down, and with its containers up another
+  # run is measuring on them.
   local running
   running=$(docker ps --format '{{.Names}}' --filter name=wow-e2e-bench- | paste -sd, -)
   if [ -n "$running" ] && [ "$(opt force false)" != true ]; then
@@ -45,7 +52,7 @@ abba() {
   fi
   local rest=()
   for argument in ${PASS[@]+"${PASS[@]}"}; do
-    case "$argument" in --arm=* | --sweeps=* | --scenario=* | --concurrencies=* | --step=* | --warm-up=* | --force*) ;; *) rest+=("$argument") ;; esac
+    case "$argument" in --arm=* | --sweeps=* | --scenario=* | --concurrencies=* | --step=* | --warm-up=* | --force* | --wait*) ;; *) rest+=("$argument") ;; esac
   done
   mkdir -p "$root"
   # The arms' names in the order given, the first the base of the table's ratios.
