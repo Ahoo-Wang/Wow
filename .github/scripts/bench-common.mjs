@@ -156,3 +156,44 @@ export function quantile(values, q) {
     Math.min(finite.length - 1, Math.max(0, Math.ceil(q * finite.length) - 1))
   ];
 }
+
+/** HikariCP's default pool size, which the benchmark servers' PostgreSQL profile leaves as it is. */
+export const HIKARI_DEFAULT_POOL = 10;
+const POOL_PROPERTY = 'spring.datasource.hikari.maximum-pool-size';
+
+/**
+ * The JDBC pool a PostgreSQL arm's servers run with: its property, else its server argument, else HikariCP's default;
+ * undefined on another store. Every PostgreSQL figure is quoted with it: appends, snapshot writes, checkpoints, tail
+ * reads, loads and the saga's reads share it.
+ */
+export function poolOf(arm) {
+  if (arm?.backend !== 'postgres') return undefined;
+  const argument = (arm.serverArgs ?? '').match(
+    /(?:^|\s)--spring\.datasource\.hikari\.maximum-pool-size=(\d+)(?:\s|$)/,
+  )?.[1];
+  return Number(arm.props?.[POOL_PROPERTY] ?? argument ?? HIKARI_DEFAULT_POOL);
+}
+
+/** [arm] with its pool recorded (`pool`), when it has one. */
+export const withPool = arm =>
+  poolOf(arm) === undefined ? arm : { ...arm, pool: poolOf(arm) };
+
+/** A suite's arms' pools for its runners row: `-` without one. */
+export const poolsText = suite =>
+  (suite.arms ?? [])
+    .filter(arm => arm.pool !== undefined)
+    .map(arm => `${arm.id} ${arm.pool}`)
+    .join(', ') || '-';
+
+/** A suite's CPU layout in words: `generator 3 · node 0 · store 1 · Kafka 2`, or `unpinned`. */
+export function layoutOf(cpus) {
+  const parts = [
+    ['generator', cpus?.load],
+    ['node', cpus?.server],
+    ['store', cpus?.store],
+    ['Kafka', cpus?.bus],
+  ].filter(([, list]) => list);
+  return parts.length > 0
+    ? parts.map(([who, list]) => `${who} ${list}`).join(' · ')
+    : 'unpinned';
+}
