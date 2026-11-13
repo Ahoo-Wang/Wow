@@ -2848,12 +2848,12 @@ export function renderSuite(suite) {
     '',
     ...primingLines(suite),
   ];
-  const arms = suite.arms.filter(arm => arm.props || arm.jdk);
+  const arms = suite.arms.filter(arm => arm.props || arm.jdk || arm.build);
   if (arms.length > 0) {
     lines.push(
       ...arms.map(
         arm =>
-          `- \`${arm.id}\`: ${[arm.jdk ? `the server on JDK ${arm.jdk}` : '', arm.props ? propsText(arm.props) : ''].filter(Boolean).join('; ')}`,
+          `- \`${arm.id}\`: ${[arm.build ? `build ${arm.build}` : '', arm.jdk ? `the server on JDK ${arm.jdk}` : '', arm.props ? propsText(arm.props) : ''].filter(Boolean).join('; ')}`,
       ),
       '',
     );
@@ -3200,7 +3200,7 @@ export function runSuite(name, options) {
     cold: definition.cold === true,
     aa: aaRun,
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
-    // An arm on a JDK of its own records which (its release; the major version without one); its pool and tuning.
+    // An arm on a JDK of its own records which (its release; the major version without one); its pool, tuning, build.
     arms: arms.map(arm =>
       withRecorded(
         arm.java

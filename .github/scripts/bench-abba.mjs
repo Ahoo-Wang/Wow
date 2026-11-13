@@ -58,12 +58,45 @@ export function sessionsOf(root) {
       pipeline: readdirSync(dir)
         .filter(name => /^node-\d+\.log$/.test(name))
         .flatMap(name => pipelineLines(readIf(join(dir, name)))),
+      build: installOf(readIf(join(dir, 'install.txt'))),
     });
   }
   return sessions;
 }
 
 const readIf = file => (existsSync(file) ? readFileSync(file, 'utf8') : '');
+
+/**
+ * A session's builds from its `install.txt` (bench.sh's stamp.sh): the server's and the load generator's stamps in
+ * short words, each its commit's first ten characters (`with changes` when its tree had some) or `unstamped`; `?`
+ * without a record (a sweep from before the stamps).
+ */
+export function installOf(text) {
+  const words = stamp =>
+    !stamp
+      ? '?'
+      : stamp === 'unstamped'
+        ? 'unstamped'
+        : `${stamp.match(/commit=(\S+)/)?.[1]?.slice(0, 10) ?? 'unknown'}${/dirty=no/.test(stamp) ? '' : ' with changes'}`;
+  const field = name => text.match(new RegExp(`^${name}=(.*)$`, 'm'))?.[1];
+  return { server: words(field('server')), load: words(field('load')) };
+}
+
+/** The builds each arm ran, in [order]: its sessions' server and load generator stamps, each distinct one once. */
+export function buildsText(sessions, order = []) {
+  const arms = [...new Set([...order, ...sessions.map(each => each.arm)])];
+  const named = arms
+    .map(arm => {
+      const builds = sessions.filter(each => each.arm === arm && each.build);
+      const distinct = key =>
+        [...new Set(builds.map(each => each.build[key]))].join(' and ');
+      return builds.length
+        ? `\`${arm}\` server ${distinct('server')}, load ${distinct('load')}`
+        : '';
+    })
+    .filter(Boolean);
+  return named.length ? `Builds: ${named.join('; ')}.\n` : '';
+}
 
 /** The epoch second each step's line was printed at, its measured window's end, by its concurrency. */
 export function stepEnds(log) {
@@ -394,5 +427,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const order = readIf(join(root, 'arms.txt')).split('\n').filter(Boolean);
   const host = hostSamples(readIf(join(root, 'host.tsv')));
   const profile = readIf(join(root, 'profile.txt')).trim();
-  console.log(tableOf(rowsOf(sessionsOf(root), order, host), profile));
+  const sessions = sessionsOf(root);
+  console.log(
+    buildsText(sessions, order) +
+      tableOf(rowsOf(sessions, order, host), profile),
+  );
 }

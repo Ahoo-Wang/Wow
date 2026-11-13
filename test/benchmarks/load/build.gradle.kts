@@ -24,3 +24,6 @@ application {
     mainClass.set("me.ahoo.wow.benchmark.load.LoadMainKt")
     applicationName = "benchmark-load"
 }
+
+// The commit the installed distribution was built from, for bench.sh (test/benchmarks/build-stamp.gradle.kts).
+apply(from = rootProject.file("test/benchmarks/build-stamp.gradle.kts"))

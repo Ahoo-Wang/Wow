@@ -20,6 +20,8 @@ import {
   sessionsOf,
   stepEnds,
   tableOf,
+  buildsText,
+  installOf,
 } from './bench-abba.mjs';
 
 const END = 1_800_000_000;
@@ -220,4 +222,31 @@ test("a step's store and Kafka cores are their containers' CPU over its window, 
     tableOf(rows, 'constrained'),
     /^Profile: constrained\. The store and Kafka each ran on one CPU/,
   );
+});
+
+test("a session's install.txt gives its builds in short words, and the table names each arm's distinct ones", () => {
+  assert.deepEqual(
+    installOf(
+      'server=commit=53208e5e49abcdef dirty=no\nload=commit=1009297e71abcdef dirty=yes\n',
+    ),
+    { server: '53208e5e49', load: '1009297e71 with changes' },
+  );
+  assert.deepEqual(installOf('server=unstamped\nload=unstamped\n'), {
+    server: 'unstamped',
+    load: 'unstamped',
+  });
+  assert.deepEqual(installOf(''), { server: '?', load: '?' });
+  const build = { server: '53208e5e49', load: '53208e5e49' };
+  assert.equal(
+    buildsText(
+      [
+        { arm: 'cap512', build },
+        { arm: 'cap128', build: { ...build, server: '1009297e71' } },
+        { arm: 'cap512', build },
+      ],
+      ['cap512', 'cap128'],
+    ),
+    'Builds: `cap512` server 53208e5e49, load 53208e5e49; `cap128` server 1009297e71, load 53208e5e49.\n',
+  );
+  assert.equal(buildsText([]), '');
 });
