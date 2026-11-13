@@ -152,7 +152,7 @@ test('the calibration names each check against Wow, and an uncalibrated run is r
   };
   assert.match(
     calibrationText({ calibration: outside }),
-    /^\*\*Uncalibrated \(a check is outside its bound\): walRecords 12\.000 against Wow's 9\.500 \(1\.263, within ±10%: no\); journalBytes not read on both sides \(Wow none, clone 900\)\. .* No case of this run is read\.\*\*$/,
+    /^\*\*Uncalibrated \(a check is outside its bound\): walRecords 12\.000 against Wow's 9\.500 \(1\.263, within ±10%: no\); journalBytes not read on both sides \(Wow none, clone 900\.000\)\. .* No case of this run is read\.\*\*$/,
   );
   assert.match(
     calibrationText({

@@ -140,7 +140,10 @@ const ratioText = check =>
     : Number.isFinite(check.rawPerCommand) &&
         Number.isFinite(check.wowPerCommand)
       ? `${num(check.rawPerCommand, 3)} against Wow's ${num(check.wowPerCommand, 3)} (${num(check.rawPerCommand / check.wowPerCommand, 3)}${Number.isFinite(check.share) ? `, within ±${num(check.share * 100, 0)}%: ${check.passed ? 'yes' : 'no'}` : ''})`
-      : `not read on both sides (Wow ${check.wowPerCommand ?? 'none'}, clone ${check.rawPerCommand ?? 'none'})`;
+      : `not read on both sides (Wow ${sideText(check.wowPerCommand)}, clone ${sideText(check.rawPerCommand)})`;
+
+/** A value read on one side only, to three places like the ratios; `none` without one. */
+const sideText = value => (Number.isFinite(value) ? num(value, 3) : 'none');
 
 /**
  * A raw run's calibration in words: each check of the clone's counters per command on Wow's ground against Wow's own,
